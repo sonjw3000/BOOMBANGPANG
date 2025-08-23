@@ -17,6 +17,7 @@ public class TilemapGenerator: MonoBehaviour
     public GameObject wallPrefab;
     private bool regenerateMap = true;
     private GameObject tileParent;
+    private MapJson map;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -59,7 +60,7 @@ public class TilemapGenerator: MonoBehaviour
         tileParent = new GameObject("TileParent");
         tileParent.transform.parent = transform;
 
-        MapJson map = JsonUtility.FromJson<MapJson>(jsonFile.text);
+        map = JsonUtility.FromJson<MapJson>(jsonFile.text);
         for (int z = 0; z < map.rows; ++z)
         {
             for (int x = 0; x < map.cols; ++x)
@@ -74,5 +75,10 @@ public class TilemapGenerator: MonoBehaviour
             }
         }
         regenerateMap = false;
+    }
+
+    public MapJson getMapData()
+    {
+        return map;
     }
 }
