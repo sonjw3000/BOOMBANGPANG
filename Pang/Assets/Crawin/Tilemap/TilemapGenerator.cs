@@ -1,3 +1,4 @@
+using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -18,14 +19,20 @@ public class TilemapGenerator: MonoBehaviour
     private bool regenerateMap = true;
     private GameObject tileParent;
     private MapJson map;
+    public ref MapJson mapRef => ref map;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        if(jsonFile != null && regenerateMap)
+    
+    }
+
+    private void Awake()
+    {
+        if (jsonFile != null && regenerateMap)
         {
             GenerateMap();
-        }    
+        }
     }
 
     // Update is called once per frame
@@ -39,12 +46,12 @@ public class TilemapGenerator: MonoBehaviour
 
     private void OnValidate()
     {
-        Debug.Log("Validate");
         regenerateMap = true;
     }
 
     void GenerateMap()
     {
+        Debug.Log("Generate");
         if (tileParent != null)
         {
             DestroyImmediate(tileParent);
@@ -77,8 +84,17 @@ public class TilemapGenerator: MonoBehaviour
         regenerateMap = false;
     }
 
-    public MapJson getMapData()
+    public void printMap()
     {
-        return map;
+        string field = "";
+        for (int z = 0; z < map.rows; ++z)
+        {
+            for (int x = 0; x < map.cols; ++x)
+            {
+                field += map.data[z * map.cols + x] + " ";
+            }
+            field += "\n";
+        }
+        Debug.Log(field);
     }
 }
