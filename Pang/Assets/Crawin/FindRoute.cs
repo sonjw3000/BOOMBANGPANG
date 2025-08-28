@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.IO.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEditor;
+using Unity.VisualScripting;
 
 public class FindRoute : MonoBehaviour
 {
@@ -13,11 +14,26 @@ public class FindRoute : MonoBehaviour
     List<int2> path;
     private int currentIndex = 0;
     public float speed = 2f;
+    public int priority = 0;
+    TilemapGenerator gen;
+    private int2 previous, next;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        TilemapGenerator gen = mapParent.GetComponent<TilemapGenerator>();
-        map = gen.getMapData();
+        if(mapParent == null)
+        {
+            Debug.LogError("mapParent is null!");
+        }
+        gen = mapParent.GetComponent<TilemapGenerator>();
+        if (gen == null)
+        {
+            Debug.LogError("TilemapGenerator component not found!");
+        }
+        map = gen.mapRef;
+        if (map == null)
+        {
+            Debug.LogError("mapRef is null!");
+        }
         path = Astar();
         //foreach(int2 pos in path)
         //{
@@ -28,30 +44,74 @@ public class FindRoute : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if(path != null)
+        if (path != null)
         {
-            Vector3 targetPos = new Vector3(path[currentIndex].x, transform.position.y, -path[currentIndex].y);
-            transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
-            if(Vector3.Distance(transform.position, targetPos) < 0.01f)
+            if (!moveOnTile())
             {
-                ++currentIndex;
-                if(currentIndex >= path.Count)
-                {
-                    currentIndex = 0;
-                    Debug.Log("finish");
-                    path = null;
-                }
+                Debug.Log("이동 불가로 인한 재탐색");
+                path = Astar();
             }
         }
         else
         {
-            //path = Astar();
+            path = Astar();
         }
     }
-    
+
+    bool moveOnTile()
+    {
+        Vector3 targetPos = new Vector3(path[currentIndex].x, transform.position.y, -path[currentIndex].y);
+        transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
+
+        if (Vector3.Distance(transform.position, targetPos) < 0.01f)    //목적지 도착
+        {
+            //Debug.Log("도착");
+            map.data[previous.y * map.cols + previous.x] = 0; //도착해서 이전 위치 0으로 초기화
+
+            if (currentIndex + 1 >= path.Count)// 최종 목적지 도착
+            {
+                //Debug.Log("finish");
+                int2 rand = new int2(UnityEngine.Random.Range(0, map.cols), UnityEngine.Random.Range(0, map.rows));
+                while (map.data[rand.y * map.cols + rand.x] != 0)
+                {
+                    rand.x = UnityEngine.Random.Range(0, map.cols);
+                    rand.y = UnityEngine.Random.Range(0, map.rows);
+                }
+                goalCoordinate = rand;
+                path = Astar();
+            }
+            else//다음 목적지로
+            {
+                if (map.data[path[currentIndex+1].y * map.cols + path[currentIndex+1].x] == 0 || (map.data[path[currentIndex].y * map.cols + path[currentIndex].x] >= 100 && map.data[path[currentIndex].y * map.cols + path[currentIndex].x] < priority+100))
+                {
+                    // 다음 목적지로 이동 가능한 상태면
+                    previous = path[currentIndex];
+                    ++currentIndex;
+                    map.data[path[currentIndex].y * map.cols + path[currentIndex].x] = priority + 100;
+                    next = path[currentIndex];
+                }
+                else if (map.data[path[currentIndex].y * map.cols + path[currentIndex].x] >= 100 && map.data[path[currentIndex].y * map.cols + path[currentIndex].x] >= priority+100)
+                {
+                    // 내 우선도가 낮아서 길을 양보해야 하면
+                    next = previous;
+                    previous = path[currentIndex];
+                    --currentIndex;
+                    Debug.Log("양보해야해"+transform.name);
+                    map.data[path[currentIndex].y * map.cols + path[currentIndex].x] = priority + 100;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     List<int2> Astar()
     {
-        int2 curr = new int2(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(-transform.position.z));
+        int3 curr = new int3(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(-transform.position.z), 0);
+
         int[,] distance = new int[map.rows, map.cols];
         int2[,] prev = new int2[map.rows, map.cols];
         for (int y = 0; y < map.rows; ++y)
@@ -62,15 +122,20 @@ public class FindRoute : MonoBehaviour
                 prev[y, x] = new int2(-1, -1);
             }
         }
-        PriorityQueue<int2> pq = new PriorityQueue<int2>();
+
+        PriorityQueue<int3> pq = new PriorityQueue<int3>();
         pq.Enqueue(curr, 0);
         distance[curr.y, curr.x] = 0;
+        int lowest_heuristic = Heuristic(curr.xy,0);
+        int2 nearest_goal = curr.xy;
         while (pq.Count > 0)
         {
-            int2 top = pq.Dequeue();
+            int3 top = pq.Dequeue();
 
-            if (top.Equals(goalCoordinate))
-                break;
+            if (top.x == goalCoordinate.x && top.y == goalCoordinate.y) break;
+
+            if (distance[top.y, top.x] < top.z)
+                continue;
 
             int2[] directions = new int2[] {
                 new int2(top.x-1,top.y),
@@ -84,30 +149,61 @@ public class FindRoute : MonoBehaviour
                 if(dir.x >= 0 && dir.x < map.cols && dir.y >=0 && dir.y < map.rows)
                 {
                     int dist = distance[top.y, top.x] + 1;
-                    if (map.data[dir.y * map.rows + dir.x] == 0 &&distance[dir.y,dir.x] > dist)
+                    if (map.data[dir.y * map.cols + dir.x] == 0 && distance[dir.y,dir.x] > dist)
                     {
                         distance[dir.y, dir.x] = dist;
-                        prev[dir.y, dir.x] = top;
-                        pq.Enqueue(dir, Heuristic(dir, dist));
+                        prev[dir.y, dir.x] = top.xy;
+                        int3 temp = new int3(dir.x, dir.y, dist);
+                        int p = Heuristic(dir, dist);
+                        pq.Enqueue(temp, p);
+                        if(lowest_heuristic >= p)
+                        {
+                            lowest_heuristic = p;
+                            nearest_goal = dir;
+                            //Debug.Log(nearest_goal + "변경");
+                        }
                     }
                 }
             }
         }
+        //Debug.Log("가장 가까운 노드" + nearest_goal);
+
         List<int2> path = new List<int2>();
-        int2 back = goalCoordinate;
+        //int2 back = goalCoordinate;
+        int2 back = nearest_goal;
+        if (prev[back.y, back.x].y == -1 && prev[back.y,back.x].x == -1)
+        {
+            //Debug.Log(transform.name + " No path found!");
+            return null;
+        }
+
         while(back.x != -1 && back.y != -1)
         {
             path.Add(back);
             back = prev[back.y, back.x];
         }
         path.Reverse();
-        currentIndex = 0;
+        currentIndex = 1;
+        previous = curr.xy;
+        next = path[currentIndex];
+        map.data[curr.y * map.cols + curr.x] = priority+100;
+
+        string s = "";
+        s += transform.name;
+        foreach (int2 p in path)
+        {
+            s += p + " -> ";
+        }
+        Debug.Log(s);
+
         return path;
     }
 
     int Heuristic(int2 next, int dist)
     {
-        int h = math.abs(goalCoordinate.x - next.x) + math.abs(goalCoordinate.y - next.y);
+        int x = math.abs(goalCoordinate.x - next.x);
+        int y = math.abs(goalCoordinate.y - next.y);
+        int h = x*x + y*y;
         int f = dist + h;
         return f;
     }
