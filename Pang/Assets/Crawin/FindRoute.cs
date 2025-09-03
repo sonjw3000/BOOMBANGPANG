@@ -14,9 +14,8 @@ public class FindRoute : MonoBehaviour
     List<int2> path;
     private int currentIndex = 0;
     public float speed = 2f;
-    public int priority = 0;
     TilemapGenerator gen;
-    private int2 previous, next;
+    private int2 previous;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -35,10 +34,6 @@ public class FindRoute : MonoBehaviour
             Debug.LogError("mapRef is null!");
         }
         path = Astar();
-        //foreach(int2 pos in path)
-        //{
-        //    Debug.Log($"({pos.x}, {pos.y})");
-        //}
     }
 
     // Update is called once per frame
@@ -46,11 +41,7 @@ public class FindRoute : MonoBehaviour
     {
         if (path != null)
         {
-            if (!moveOnTile())
-            {
-                Debug.Log("이동 불가로 인한 재탐색");
-                path = Astar();
-            }
+            MoveOnTile();
         }
         else
         {
@@ -58,7 +49,7 @@ public class FindRoute : MonoBehaviour
         }
     }
 
-    bool moveOnTile()
+    void MoveOnTile()
     {
         Vector3 targetPos = new Vector3(path[currentIndex].x, transform.position.y, -path[currentIndex].y);
         transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
@@ -66,9 +57,11 @@ public class FindRoute : MonoBehaviour
         if (Vector3.Distance(transform.position, targetPos) < 0.01f)    //목적지 도착
         {
             //Debug.Log("도착");
-            map.data[previous.y * map.cols + previous.x] = 0; //도착해서 이전 위치 0으로 초기화
+            if (previous.y >= 0 && previous.x >= 0)
+                map.data[previous.y * map.cols + previous.x] = 0; //도착해서 이전 위치 0으로 초기화
 
-            if (currentIndex + 1 >= path.Count)// 최종 목적지 도착
+
+            if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)
             {
                 //Debug.Log("finish");
                 int2 rand = new int2(UnityEngine.Random.Range(0, map.cols), UnityEngine.Random.Range(0, map.rows));
@@ -78,39 +71,33 @@ public class FindRoute : MonoBehaviour
                     rand.y = UnityEngine.Random.Range(0, map.rows);
                 }
                 goalCoordinate = rand;
-                path = Astar();
+                path = null;
             }
             else//다음 목적지로
             {
-                if (map.data[path[currentIndex+1].y * map.cols + path[currentIndex+1].x] == 0 || (map.data[path[currentIndex].y * map.cols + path[currentIndex].x] >= 100 && map.data[path[currentIndex].y * map.cols + path[currentIndex].x] < priority+100))
+                int2 next = path[currentIndex + 1];
+                if (map.data[next.y * map.cols + next.x] == 0)
+                    // 다음 목적지가 이동 가능한 상태면
                 {
-                    // 다음 목적지로 이동 가능한 상태면
                     previous = path[currentIndex];
                     ++currentIndex;
-                    map.data[path[currentIndex].y * map.cols + path[currentIndex].x] = priority + 100;
-                    next = path[currentIndex];
-                }
-                else if (map.data[path[currentIndex].y * map.cols + path[currentIndex].x] >= 100 && map.data[path[currentIndex].y * map.cols + path[currentIndex].x] >= priority+100)
-                {
-                    // 내 우선도가 낮아서 길을 양보해야 하면
-                    next = previous;
-                    previous = path[currentIndex];
-                    --currentIndex;
-                    Debug.Log("양보해야해"+transform.name);
-                    map.data[path[currentIndex].y * map.cols + path[currentIndex].x] = priority + 100;
+                    map.data[path[currentIndex].y * map.cols + path[currentIndex].x] = 2;
                 }
                 else
-                {
-                    return false;
+                {   // 다음 목적지로 이동이 불가능한 상태면
+                    Debug.Log(transform.name + "가 목적지로 갈 수 없습니다.");
+                    path = null;
                 }
             }
         }
-        return true;
     }
+
+    
 
     List<int2> Astar()
     {
         int3 curr = new int3(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(-transform.position.z), 0);
+        map.data[curr.y * map.cols + curr.x] = 2;
 
         int[,] distance = new int[map.rows, map.cols];
         int2[,] prev = new int2[map.rows, map.cols];
@@ -160,7 +147,6 @@ public class FindRoute : MonoBehaviour
                         {
                             lowest_heuristic = p;
                             nearest_goal = dir;
-                            //Debug.Log(nearest_goal + "변경");
                         }
                     }
                 }
@@ -169,32 +155,25 @@ public class FindRoute : MonoBehaviour
         //Debug.Log("가장 가까운 노드" + nearest_goal);
 
         List<int2> path = new List<int2>();
-        //int2 back = goalCoordinate;
-        int2 back = nearest_goal;
-        if (prev[back.y, back.x].y == -1 && prev[back.y,back.x].x == -1)
-        {
-            //Debug.Log(transform.name + " No path found!");
-            return null;
-        }
 
+        int2 back = nearest_goal;
         while(back.x != -1 && back.y != -1)
         {
             path.Add(back);
             back = prev[back.y, back.x];
         }
         path.Reverse();
-        currentIndex = 1;
-        previous = curr.xy;
-        next = path[currentIndex];
-        map.data[curr.y * map.cols + curr.x] = priority+100;
 
-        string s = "";
-        s += transform.name;
-        foreach (int2 p in path)
-        {
-            s += p + " -> ";
-        }
-        Debug.Log(s);
+        currentIndex = 0;
+        previous = new int2(-1, -1);
+
+        //string s = "";
+        //s += transform.name;
+        //foreach (int2 p in path)
+        //{
+        //    s += p + " -> ";
+        //}
+        //Debug.Log(s);
 
         return path;
     }
