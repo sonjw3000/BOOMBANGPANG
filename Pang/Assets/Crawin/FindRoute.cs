@@ -14,6 +14,7 @@ public class FindRoute : MonoBehaviour
     List<int2> path;
     private int currentIndex = 0;
     public float speed = 2f;
+    public float rotationSpeed = 5f;
     TilemapGenerator gen;
     private int2 previous;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -52,7 +53,19 @@ public class FindRoute : MonoBehaviour
     void MoveOnTile()
     {
         Vector3 targetPos = new Vector3(path[currentIndex].x, transform.position.y, -path[currentIndex].y);
-        transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
+
+        Vector3 direction = math.normalize(targetPos - transform.position);
+        float dotProduct = math.dot(transform.forward, direction);
+        if (dotProduct < 0.999f)   // 회전이 필요하면
+        {
+            Quaternion targetRotation;
+            targetRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+        }
+        else
+        {
+            transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
+        }
 
         if (Vector3.Distance(transform.position, targetPos) < 0.01f)    //목적지 도착
         {
