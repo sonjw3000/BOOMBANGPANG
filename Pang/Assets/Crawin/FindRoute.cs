@@ -52,7 +52,7 @@ public class FindRoute : MonoBehaviour
 
     void MoveOnTile()
     {
-        Vector3 targetPos = new Vector3(path[currentIndex].x, transform.position.y, -path[currentIndex].y);
+        Vector3 targetPos = new Vector3(path[currentIndex].x, transform.position.y, path[currentIndex].y);
 
         Vector3 direction = math.normalize(targetPos - transform.position);
         float dotProduct = math.dot(transform.forward, direction);
@@ -109,7 +109,7 @@ public class FindRoute : MonoBehaviour
 
     List<int2> Astar()
     {
-        int3 curr = new int3(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(-transform.position.z), 0);
+        int3 curr = new int3(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.z), 0);
         map.data[curr.y * map.cols + curr.x] = 2;
 
         int[,] distance = new int[map.rows, map.cols];

@@ -73,7 +73,7 @@ public class TilemapGenerator: MonoBehaviour
             for (int x = 0; x < map.cols; ++x)
             {
                 int value = map.data[z * map.cols + x];
-                Vector3 pos = new Vector3(x, 0, -z);
+                Vector3 pos = new Vector3(x, 0, z);
 
                 if (value == 1)
                     Instantiate(wallPrefab, pos, wallPrefab.transform.rotation, tileParent.transform);
