@@ -83,9 +83,10 @@ public class Picking : MonoBehaviour
 
                 if (Input.GetMouseButtonDown(0)) {      // 좌클릭 했을 때
                     //Debug.Log($"{placePos}를 클릭했담");
+                    Transform parentTransform = mapParent.transform.Find("TileParent");
                     if (map.data[tileZ * map.cols + tileX] == 0) // 바닥이면
                     {
-                        buildings[v2i] = Instantiate(buildingPrefab, placePos, Quaternion.identity);
+                        buildings[v2i] = Instantiate(buildingPrefab, placePos, Quaternion.identity, parentTransform);
                         Debug.Log($"벽 생성: ({tileX}, {tileZ})");
                         map.data[tileZ * map.cols + tileX] = 1;
                     }
