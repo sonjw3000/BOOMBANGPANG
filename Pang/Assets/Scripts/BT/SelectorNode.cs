@@ -1,0 +1,5 @@
+﻿
+class SelectorNode : IBaseNode
+{
+
+}

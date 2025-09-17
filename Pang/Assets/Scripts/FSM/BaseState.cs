@@ -2,14 +2,17 @@ using UnityEngine;
 
 public abstract class BaseState
 {
-	protected AIWorker _Worker;
+	protected AIWorker Worker;
 
 	protected BaseState (AIWorker worker)
 	{
-		_Worker = worker;
+		Worker = worker;
 	}
 
 	public abstract void OnEnter();
-	public abstract void OnUpdate();
+
+	// if job is completed, return true
+	public abstract bool OnUpdate();
 	public abstract void OnExit();
 }
+ 

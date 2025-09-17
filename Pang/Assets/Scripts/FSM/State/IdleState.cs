@@ -7,9 +7,11 @@ public class IdleState : BaseState
 	}
 
 	public override void OnEnter() { }
-	public override void OnUpdate()
+	public override bool OnUpdate()
 	{
-		Debug.Log(_Worker._WorkerID + " Idle");
+		Debug.Log(Worker.WorkerID + " Idle");
+
+		return true;
 	}
 	public override void OnExit() { }
 
