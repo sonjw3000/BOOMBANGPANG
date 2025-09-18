@@ -1,11 +1,11 @@
 ﻿
 public interface IBaseNode
 {
-	public enum NodeState
+	public enum ENodeState
 	{
 		Running,
 		Success,
 		Failure
 	}
-	public NodeState Evaluate();
+	public ENodeState Evaluate();
 }
