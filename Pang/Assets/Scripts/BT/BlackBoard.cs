@@ -1,10 +1,9 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 
-class BlackBoard
+public class BlackBoard
 {
-	public GameObject Self;
-
 	public WorkerTask SimpleTask;
 
 }

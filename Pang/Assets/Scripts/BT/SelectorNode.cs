@@ -2,7 +2,7 @@
 
 using static IBaseNode;
 
-class SelectorNode : IBaseNode
+public class SelectorNode : IBaseNode
 {
 	public List<IBaseNode> Children = new List<IBaseNode>();
 

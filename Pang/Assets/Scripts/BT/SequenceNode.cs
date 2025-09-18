@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-class SequenceNode : IBaseNode
+public class SequenceNode : IBaseNode
 {
 	public List<IBaseNode> Children = new List<IBaseNode>();
 

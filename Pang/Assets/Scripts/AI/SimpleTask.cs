@@ -1,4 +1,4 @@
-﻿class WorkerTask
+﻿public class WorkerTask
 {
 	public enum ETaskType
 	{
