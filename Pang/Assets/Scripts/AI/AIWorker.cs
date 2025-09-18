@@ -13,13 +13,13 @@ public abstract class AIWorker : MonoBehaviour
 	public void OnEnable()
 	{
 		// register AI's BT to AI Manager
-		AIManager.Instance.RegisterWorker(this);
+		WorkerManager.Instance.RegisterWorker(this);
 	}
 
 	public void OnDisable()
 	{
 		// unregister AI
-		AIManager.Instance.UnregisterWorker(this);
+		WorkerManager.Instance.UnregisterWorker(this);
 	}
 
 	bool RunBT()
