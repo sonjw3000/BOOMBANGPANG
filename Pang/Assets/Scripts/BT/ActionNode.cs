@@ -1,6 +1,6 @@
 ﻿using System;
 
-class ActionNode : IBaseNode
+public class ActionNode : IBaseNode
 {
 	public Func<IBaseNode.ENodeState> ActionFunc;
 
