@@ -3,7 +3,7 @@ using static IBaseNode;
 
 public class BehaviorTree
 {
-	private BlackBoard BlackBoard;
+	//private BlackBoard BlackBoard;
 
 	private IBaseNode RootNode;
 
