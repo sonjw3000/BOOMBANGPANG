@@ -4,11 +4,20 @@ using Unity.VisualScripting;
 using UnityEngine;
 
 [System.Serializable]
+public class RobotData
+{
+    public int x;
+    public int z;
+    public int type;
+}
+
+[System.Serializable]
 public class MapJson
 {
     public int rows;
     public int cols;
     public int[] data;
+    public RobotData[] robotdata;
 }
 
 [ExecuteInEditMode]
@@ -24,6 +33,9 @@ public class TilemapGenerator: MonoBehaviour
 
     private Dictionary<Vector2Int, GameObject> buildings;
     public ref Dictionary<Vector2Int,GameObject> buildingsRef => ref buildings;
+
+    [Range(1,2)]
+    public int Version;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -57,7 +69,7 @@ public class TilemapGenerator: MonoBehaviour
 
     void GenerateMap()
     {
-        Debug.Log("Generate");
+        Debug.Log("Delete tileParent");
         if (tileParent != null)
         {
             DestroyImmediate(tileParent);
@@ -72,32 +84,39 @@ public class TilemapGenerator: MonoBehaviour
         }
         tileParent = new GameObject("TileParent");
         tileParent.transform.parent = transform;
-
         map = JsonUtility.FromJson<MapJson>(jsonFile.text);
         buildings = new Dictionary<Vector2Int, GameObject>();
-        //bool even = false;
-        //GameObject tile = tilePrefab;
-        Vector2Int v2i = new Vector2Int();
-        for (int z = 0; z < map.rows; ++z)
+
+        Debug.Log("Generate V." + Version);
+        switch (Version)
         {
-            for (int x = 0; x < map.cols; ++x)
-            {
-                int value = map.data[z * map.cols + x];
-                v2i.x = z;
-                v2i.y = x;
-                //if (even)
-                //    tile.GetComponent<Renderer>().material.color = new Color(1, 1, 1, 1f);
-                //else
-                //    tile.GetComponent<Renderer>().material.color = new Color(0, 0, 0, 1f);
-                Vector3 pos = new Vector3(x, 0, z);
-                //일단 타일을 깔아
-                Instantiate(tilePrefab, pos, tilePrefab.transform.rotation, tileParent.transform);
-                if (value == 1) // 벽이면 타일 위에 벽을 설치해
+            case 1:
+                Vector2Int v2i = new Vector2Int();
+                for (int z = 0; z < map.rows; ++z)
                 {
-                    pos.y = 0.5f;
-                    buildings[v2i] = Instantiate(wallPrefab, pos, wallPrefab.transform.rotation, tileParent.transform);
+                    for (int x = 0; x < map.cols; ++x)
+                    {
+                        int value = map.data[z * map.cols + x];
+                        v2i.x = z;
+                        v2i.y = x;
+                        Vector3 pos = new Vector3(x, 0, z);
+                        //일단 타일을 깔아
+                        Instantiate(tilePrefab, pos, tilePrefab.transform.rotation, tileParent.transform);
+                        if (value == 1) // 벽이면 타일 위에 벽을 설치해
+                        {
+                            pos.y = 0.5f;
+                            buildings[v2i] = Instantiate(wallPrefab, pos, wallPrefab.transform.rotation, tileParent.transform);
+                        }
+                    }
                 }
-            }
+                break;
+            case 2:
+
+
+                break;
+            default:
+                Debug.LogError("GenerateMap Version Error!");
+                break;
         }
         regenerateMap = false;
     }
