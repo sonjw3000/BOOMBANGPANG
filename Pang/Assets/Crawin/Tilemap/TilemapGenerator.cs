@@ -1,75 +1,28 @@
-using System.Collections.Generic;
-using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
 
-[System.Serializable]
-public class RobotData
-{
-    public int x;
-    public int z;
-    public int type;
-}
-
-[System.Serializable]
-public class MapJson
-{
-    public int rows;
-    public int cols;
-    public int[] data;
-    public RobotData[] robotdata;
-}
-
-[ExecuteInEditMode]
 public class TilemapGenerator: MonoBehaviour
 {
-    public TextAsset jsonFile;
-    public GameObject tilePrefab;
-    public GameObject wallPrefab;
-    private bool regenerateMap = true;
     private GameObject tileParent;
-    private MapJson map;
-    public ref MapJson mapRef => ref map;
-
-    private Dictionary<Vector2Int, GameObject> buildings;
-    public ref Dictionary<Vector2Int,GameObject> buildingsRef => ref buildings;
-
-    [Range(1,2)]
-    public int Version;
+    private GameObject robotParent;
+    private Resources resources;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-    
-    }
-
-    private void Awake()
-    {
-        if (jsonFile != null && regenerateMap)
+        resources = GameObject.Find("Resources").GetComponent<Resources>();
+        if(resources == null)
         {
-            Debug.Log("Generator Awake");
-            GenerateMap();
+            Debug.LogError("no Resources Object");
         }
+        GenerateMap();
     }
 
     // Update is called once per frame
     void Update()
     {
-        //Debug.Log("update");
-        //printMap();
-        if (jsonFile != null && regenerateMap)
-        {
-            GenerateMap();
-        }
-    }
-
-    private void OnValidate()
-    {
-        regenerateMap = true;
     }
 
     void GenerateMap()
     {
-        Debug.Log("Delete tileParent");
         if (tileParent != null)
         {
             DestroyImmediate(tileParent);
@@ -84,45 +37,67 @@ public class TilemapGenerator: MonoBehaviour
         }
         tileParent = new GameObject("TileParent");
         tileParent.transform.parent = transform;
-        map = JsonUtility.FromJson<MapJson>(jsonFile.text);
-        buildings = new Dictionary<Vector2Int, GameObject>();
 
-        Debug.Log("Generate V." + Version);
-        switch (Version)
+        if (robotParent != null)
         {
-            case 1:
-                Vector2Int v2i = new Vector2Int();
-                for (int z = 0; z < map.rows; ++z)
-                {
-                    for (int x = 0; x < map.cols; ++x)
-                    {
-                        int value = map.data[z * map.cols + x];
-                        v2i.x = z;
-                        v2i.y = x;
-                        Vector3 pos = new Vector3(x, 0, z);
-                        //일단 타일을 깔아
-                        Instantiate(tilePrefab, pos, tilePrefab.transform.rotation, tileParent.transform);
-                        if (value == 1) // 벽이면 타일 위에 벽을 설치해
-                        {
-                            pos.y = 0.5f;
-                            buildings[v2i] = Instantiate(wallPrefab, pos, wallPrefab.transform.rotation, tileParent.transform);
-                        }
-                    }
-                }
-                break;
-            case 2:
-
-
-                break;
-            default:
-                Debug.LogError("GenerateMap Version Error!");
-                break;
+            DestroyImmediate(robotParent);
+            Debug.Log("robotParent Delete");
         }
-        regenerateMap = false;
+        else
+        {
+            GameObject old = GameObject.Find("RobotParent");
+            if (old != null)
+            {
+                DestroyImmediate(old);
+            }
+        }
+        robotParent = new GameObject("RobotParent");
+        robotParent.transform.parent = transform;
+
+        MapJson map = resources.mapRef;
+        if(map == null)
+        {
+            Debug.Log("너가 문제였구나");
+        }
+
+        Vector2Int v2i = new Vector2Int();
+        GameObject[] Prefabs = resources.Prefabs;
+        for (int z = 0; z < map.rows; ++z)
+        {
+            for (int x = 0; x < map.cols; ++x)
+            {
+                int value = map.data[z * map.cols + x];
+                v2i.x = z;
+                v2i.y = x;
+                Vector3 pos = new Vector3(x, Prefabs[value].transform.position.y, z);
+                //일단 타일을 깔아
+                //Instantiate(Prefabs[0], pos, Prefabs[0].transform.rotation, tileParent.transform);
+                //if (value == 1) // 벽이면 타일 위에 벽을 설치해
+                //{
+                //    buildings[v2i] = Instantiate(Prefabs[1], pos, Prefabs[1].transform.rotation, tileParent.transform);
+                //}
+
+                resources.buildingsRef[v2i] = Instantiate(Prefabs[value], pos, Prefabs[value].transform.rotation, tileParent.transform);
+
+            }
+        }
+        // 맵 배치가 끝났으니 이제 로봇들을 배치할 차례
+        foreach (RobotData robotData in map.robotdata)
+        {
+            //map.data[robotData.z * map.cols + robotData.x] = robotData.type;
+            Vector3 pos = new Vector3(robotData.x, Prefabs[robotData.type].transform.position.y, robotData.z);
+            GameObject robot = Instantiate(Prefabs[robotData.type], pos, Prefabs[robotData.type].transform.rotation, robotParent.transform);
+            FindRoute findRoute = robot.GetComponent<FindRoute>();
+            findRoute.enabled = true;
+            findRoute.robotIndex = robotData.id;
+            resources.robotsRef[robotData.id] = robotData;
+        }
+        map.robotdata.Clear(); // 딕셔너리로 다 옮겼으니 초기화하자
     }
 
     public void printMap()
     {
+        MapJson map = resources.mapRef;
         string field = "";
         for (int z = 0; z < map.rows; ++z)
         {

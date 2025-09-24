@@ -1,35 +1,29 @@
 using UnityEngine;
 using System.Collections.Generic;
-
-using Unity.IO.LowLevel.Unsafe;
 using Unity.Mathematics;
-using UnityEditor;
-using Unity.VisualScripting;
 
 public class FindRoute : MonoBehaviour
 {
-    public GameObject mapParent;
+    private Resources resources;
     private MapJson map;
-    public int2 goalCoordinate;
-    List<int2> path;
-    private int currentIndex = 0;
     public float speed = 2f;
     public float rotationSpeed = 5f;
-    TilemapGenerator gen;
+    public int2 goalCoordinate;
+    [Range(2, 5)]
+    public int type;
+    public int robotIndex;
+    private Dictionary<int, RobotData> robots;
+
+    private int currentIndex = 0;
     private int2 previous;
+    List<int2> path;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        if(mapParent == null)
-        {
-            Debug.LogError("mapParent is null!");
-        }
-        gen = mapParent.GetComponent<TilemapGenerator>();
-        if (gen == null)
-        {
-            Debug.LogError("TilemapGenerator component not found!");
-        }
-        map = gen.mapRef;
+        resources = GameObject.Find("Resources").GetComponent<Resources>();
+        map = resources.mapRef;
+        robots = resources.robotsRef;
         if (map == null)
         {
             Debug.LogError("mapRef is null!");
@@ -40,6 +34,7 @@ public class FindRoute : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        
         if (path != null)
         {
             MoveOnTile();
@@ -71,8 +66,11 @@ public class FindRoute : MonoBehaviour
         {
             //Debug.Log("도착");
             if (previous.y >= 0 && previous.x >= 0)
+            {
                 map.data[previous.y * map.cols + previous.x] = 0; //도착해서 이전 위치 0으로 초기화
-
+                robots[robotIndex].x = (int)targetPos.x;
+                robots[robotIndex].z = (int)targetPos.z;
+            }
 
             if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)
             {
@@ -94,7 +92,7 @@ public class FindRoute : MonoBehaviour
                 {
                     previous = path[currentIndex];
                     ++currentIndex;
-                    map.data[path[currentIndex].y * map.cols + path[currentIndex].x] = 2;
+                    map.data[path[currentIndex].y * map.cols + path[currentIndex].x] = type;
                 }
                 else
                 {   // 다음 목적지로 이동이 불가능한 상태면
@@ -110,7 +108,7 @@ public class FindRoute : MonoBehaviour
     List<int2> Astar()
     {
         int3 curr = new int3(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.z), 0);
-        map.data[curr.y * map.cols + curr.x] = 2;
+        map.data[curr.y * map.cols + curr.x] = type;
 
         int[,] distance = new int[map.rows, map.cols];
         int2[,] prev = new int2[map.rows, map.cols];

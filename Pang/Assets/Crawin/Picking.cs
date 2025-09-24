@@ -1,37 +1,32 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class Picking : MonoBehaviour
 {
-    public GameObject mapParent;
-    TilemapGenerator gen;
+    private Resources resources;
     private MapJson map;
     public GameObject[] buildingPrefab;
     private int buildingPrefabIndex;
     private GameObject previewInstance;
     private Dictionary<Vector2Int, GameObject> buildings;
+    private Dictionary<int, RobotData> robots;
     public Material wireframeMat;
+    private UIOnOff activate;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        if (mapParent == null)
+        resources = GameObject.Find("Resources").GetComponent<Resources>();
+        activate = GameObject.Find("ESC").GetComponent<UIOnOff>();
+
+        if (resources == null)
         {
-            Debug.LogError("mapParent is null!");
+            Debug.LogError("Resources not found!");
         }
         else
         {
-            gen = mapParent.GetComponent<TilemapGenerator>();
-        }
-        if (gen == null)
-        {
-            Debug.LogError("TilemapGenerator component not found!");
-        }
-        else
-        {
-            map = gen.mapRef;
-            buildings = gen.buildingsRef;
+            map = resources.mapRef;
+            buildings = resources.buildingsRef;
+            robots = resources.robotsRef;
         }
         if (map == null)
         {
@@ -53,8 +48,11 @@ public class Picking : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        KeyboardInput();
-        MousePicking();
+        if (!activate.activateRef)
+        {
+            KeyboardInput();
+            MousePicking();
+        }
     }
 
     void MousePicking()
@@ -74,14 +72,13 @@ public class Picking : MonoBehaviour
 
             //Debug.Log($"마우스로{tileX},{tileZ}를 클릭");
             // 배열 범위 체크
-            Vector3 placePos = new Vector3(tileX, -previewInstance.GetComponent<Renderer>().bounds.min.y, tileZ);
+            Vector3 placePos = new Vector3(tileX, buildingPrefab[buildingPrefabIndex].transform.position.y, tileZ);
 
-            Debug.Log(placePos.y);
-            //y값이 0.5인 이유는 wall의 pivot이 0.5위에 있어서인데 이를 어케 해결할까...
             if (tileX >= 0 && tileX < map.rows && tileZ >= 0 && tileZ < map.cols)
             {
                 if (map.data[tileZ * map.cols + tileX] == 0) // 바닥이면
                 {
+                    //Debug.Log("바닥인디요");
                     previewInstance.SetActive(true);
                     previewInstance.transform.position = placePos;
                     foreach (Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
@@ -91,6 +88,7 @@ public class Picking : MonoBehaviour
                 }
                 else
                 {
+                    //Debug.Log("바닥이 아닌디요");
                     previewInstance.SetActive(true);
                     previewInstance.transform.position = placePos;
                     foreach(Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
@@ -99,22 +97,45 @@ public class Picking : MonoBehaviour
                     }
                 }
 
-                if (Input.GetMouseButton(0))
+                if (Input.GetMouseButtonDown(0)) //Input.GetMouseButton(0)
                 {      // 좌클릭 했을 때
                     //Debug.Log($"{placePos}를 클릭했담");
-                    Transform parentTransform = mapParent.transform.Find("TileParent");
-                    if (map.data[tileZ * map.cols + tileX] == 0) // 바닥이면
+                    Transform parentTransform; 
+                    switch(map.data[tileZ * map.cols + tileX])
                     {
-                        buildings[v2i] = Instantiate(buildingPrefab[buildingPrefabIndex], placePos, Quaternion.identity, parentTransform);
-                        Debug.Log($"벽 생성: ({tileX}, {tileZ})");
-                        map.data[tileZ * map.cols + tileX] = 1;
-                    }
-                    else if (map.data[tileZ * map.cols + tileX] == 1)
-                    {
-                        Debug.Log($"벽 제거: ({tileX}, {tileZ})");
-                        Destroy(buildings[v2i]);
-                        buildings.Remove(v2i);
-                        map.data[tileZ * map.cols + tileX] = 0;
+                        case 0: // 바닥
+                            if (buildingPrefabIndex <= 1)
+                            {
+                                parentTransform = GameObject.Find("TileParent").transform;
+                                buildings[v2i] = Instantiate(buildingPrefab[buildingPrefabIndex], placePos, buildingPrefab[buildingPrefabIndex].transform.rotation, parentTransform);
+                            }
+                            else
+                            {
+                                parentTransform = GameObject.Find("RobotParent").transform;
+
+                                GameObject robot = Instantiate(buildingPrefab[buildingPrefabIndex], placePos, buildingPrefab[buildingPrefabIndex].transform.rotation, parentTransform);
+                                int id = resources.getNewRobotID();
+                                FindRoute findRoute = robot.GetComponent<FindRoute>();
+                                findRoute.enabled = true;
+                                findRoute.robotIndex = id;
+
+                                RobotData robotdata = new RobotData();
+                                robotdata.id = id;
+                                robotdata.x = tileX;
+                                robotdata.z = tileZ;
+                                robotdata.type = buildingPrefabIndex;
+                                robots[id] = robotdata;
+                            }
+                            map.data[tileZ * map.cols + tileX] = buildingPrefabIndex;
+                            //Debug.Log($"벽 생성: ({tileX}, {tileZ})");
+                            break;
+                        case 1: // 벽
+                            Destroy(buildings[v2i]);
+                            buildings.Remove(v2i);
+                            map.data[tileZ * map.cols + tileX] = 0;
+                            break;
+                        default:    // 로봇
+                            break;
                     }
                 }
             }
@@ -129,43 +150,43 @@ public class Picking : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
-            buildingPrefabIndex = 0;
+            buildingPrefabIndex = 1;
         }
         else if (Input.GetKeyDown(KeyCode.Alpha2))
         {
-            buildingPrefabIndex = 1;
+            buildingPrefabIndex = 2;
         }
         else if (Input.GetKeyDown(KeyCode.Alpha3))
         {
-            buildingPrefabIndex = 2;
+            buildingPrefabIndex = 3;
         }
         else if (Input.GetKeyDown(KeyCode.Alpha4))
         {
-            buildingPrefabIndex = 3;
+            buildingPrefabIndex = 4;
         }
         else if (Input.GetKeyDown(KeyCode.Alpha5))
         {
-            buildingPrefabIndex = 4;
+            buildingPrefabIndex = 5;
         }
         else if (Input.GetKeyDown(KeyCode.Alpha6))
         {
-            buildingPrefabIndex = 5;
+            buildingPrefabIndex = 6;
         }
         else if (Input.GetKeyDown(KeyCode.Alpha7))
         {
-            buildingPrefabIndex = 6;
+            buildingPrefabIndex = 7;
         }
         else if (Input.GetKeyDown(KeyCode.Alpha8))
         {
-            buildingPrefabIndex = 7;
+            buildingPrefabIndex = 8;
         }
         else if (Input.GetKeyDown(KeyCode.Alpha9))
         {
-            buildingPrefabIndex = 8;
+            buildingPrefabIndex = 9;
         }
         else if (Input.GetKeyDown(KeyCode.Alpha0))
         {
-            buildingPrefabIndex = 9;
+            buildingPrefabIndex = 0;
         }
         SyncPreviewAndBuilding();
     }
