@@ -1,16 +1,17 @@
-using UnityEditor.Animations;
 using UnityEngine;
 
 public class UIOnOff : MonoBehaviour
 {
-    bool activate;
+    private bool activate;
+    public ref bool activateRef => ref activate;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         activate = false;
-        foreach (Transform child in transform)
+        foreach (Transform sibling in transform.parent)
         {
-            child.gameObject.SetActive(activate);
+            if (sibling == transform) continue;
+            sibling.gameObject.SetActive(activate);
         }
     }
 
@@ -20,9 +21,10 @@ public class UIOnOff : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             activate = !activate;
-            foreach (Transform child in transform)
+            foreach (Transform sibling in transform.parent)
             {
-                child.gameObject.SetActive(activate);
+                if (sibling == transform) continue;
+                sibling.gameObject.SetActive(activate);
             }
         }
     }
