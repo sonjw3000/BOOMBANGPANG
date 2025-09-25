@@ -5,8 +5,8 @@ public class Picking : MonoBehaviour
 {
     private Resources resources;
     private MapJson map;
-    public GameObject[] buildingPrefab;
     private int buildingPrefabIndex;
+    public ref int IndexRef => ref buildingPrefabIndex;
     private GameObject previewInstance;
     private Dictionary<Vector2Int, GameObject> buildings;
     private Dictionary<int, RobotData> robots;
@@ -32,16 +32,9 @@ public class Picking : MonoBehaviour
         {
             Debug.LogError("mapRef is null!");
         }
-        if (buildingPrefab == null)
-        {
-            Debug.LogError("buildingPrefab is null!");
-        }
-        else
-        {
-            SyncPreviewAndBuilding();
-            previewInstance.name = "Preview";
-            previewInstance.SetActive(false);
-        }
+        SyncPreviewAndBuilding();
+        previewInstance.name = "Preview";
+        previewInstance.SetActive(false);
         buildingPrefabIndex = 0;
     }
 
@@ -72,7 +65,7 @@ public class Picking : MonoBehaviour
 
             //Debug.Log($"마우스로{tileX},{tileZ}를 클릭");
             // 배열 범위 체크
-            Vector3 placePos = new Vector3(tileX, buildingPrefab[buildingPrefabIndex].transform.position.y, tileZ);
+            Vector3 placePos = new Vector3(tileX, resources.Prefabs[buildingPrefabIndex].transform.position.y, tileZ);
 
             if (tileX >= 0 && tileX < map.rows && tileZ >= 0 && tileZ < map.cols)
             {
@@ -107,13 +100,13 @@ public class Picking : MonoBehaviour
                             if (buildingPrefabIndex <= 1)
                             {
                                 parentTransform = GameObject.Find("TileParent").transform;
-                                buildings[v2i] = Instantiate(buildingPrefab[buildingPrefabIndex], placePos, buildingPrefab[buildingPrefabIndex].transform.rotation, parentTransform);
+                                buildings[v2i] = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
                             }
                             else
                             {
                                 parentTransform = GameObject.Find("RobotParent").transform;
 
-                                GameObject robot = Instantiate(buildingPrefab[buildingPrefabIndex], placePos, buildingPrefab[buildingPrefabIndex].transform.rotation, parentTransform);
+                                GameObject robot = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
                                 int id = resources.getNewRobotID();
                                 FindRoute findRoute = robot.GetComponent<FindRoute>();
                                 findRoute.enabled = true;
@@ -197,7 +190,7 @@ public class Picking : MonoBehaviour
         {
             Destroy(previewInstance);
         }
-        previewInstance = Instantiate(buildingPrefab[buildingPrefabIndex]);
+        previewInstance = Instantiate(resources.Prefabs[buildingPrefabIndex]);
         foreach(Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
         {
             r.material = wireframeMat;

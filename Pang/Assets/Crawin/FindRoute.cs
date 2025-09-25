@@ -96,7 +96,7 @@ public class FindRoute : MonoBehaviour
                 }
                 else
                 {   // 다음 목적지로 이동이 불가능한 상태면
-                    Debug.Log(transform.name + "가 목적지로 갈 수 없습니다.");
+                    //Debug.Log(transform.name + "가 목적지로 갈 수 없습니다.");
                     path = null;
                 }
             }
