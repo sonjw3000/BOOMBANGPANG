@@ -8,10 +8,14 @@ public class UIOnOff : MonoBehaviour
     void Start()
     {
         activate = false;
+        foreach (Transform child in transform)
+        {
+            child.gameObject.SetActive(activate);
+        }
         foreach (Transform sibling in transform.parent)
         {
             if (sibling == transform) continue;
-            sibling.gameObject.SetActive(activate);
+            sibling.gameObject.SetActive(!activate);
         }
     }
 
@@ -21,10 +25,15 @@ public class UIOnOff : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             activate = !activate;
+            foreach (Transform child in transform)
+            {
+                child.gameObject.SetActive(activate);
+            }
+
             foreach (Transform sibling in transform.parent)
             {
                 if (sibling == transform) continue;
-                sibling.gameObject.SetActive(activate);
+                sibling.gameObject.SetActive(!activate);
             }
         }
     }
