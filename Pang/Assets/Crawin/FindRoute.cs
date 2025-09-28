@@ -5,25 +5,24 @@ using Unity.Mathematics;
 public class FindRoute : MonoBehaviour
 {
     private Resources resources;
-    private MapJson map;
+    private Cell[,,] map;
+    private int3 mapSize;
     public float speed = 2f;
     public float rotationSpeed = 5f;
-    public int2 goalCoordinate;
-    [Range(2, 5)]
-    public int type;
-    public int robotIndex;
-    private Dictionary<int, RobotData> robots;
+    public int3 goalCoordinate;
 
     private int currentIndex = 0;
-    private int2 previous;
-    List<int2> path;
+    private int3 previous;
+    List<int3> path;
+
+    public int type;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         resources = GameObject.Find("Resources").GetComponent<Resources>();
         map = resources.mapRef;
-        robots = resources.robotsRef;
+        mapSize = resources.mapSize;
         if (map == null)
         {
             Debug.LogError("mapRef is null!");
@@ -47,7 +46,7 @@ public class FindRoute : MonoBehaviour
 
     void MoveOnTile()
     {
-        Vector3 targetPos = new Vector3(path[currentIndex].x, transform.position.y, path[currentIndex].y);
+        Vector3 targetPos = new Vector3(path[currentIndex].x, path[currentIndex].y + transform.position.y, path[currentIndex].z);
 
         Vector3 direction = math.normalize(targetPos - transform.position);
         float dotProduct = math.dot(transform.forward, direction);
@@ -67,32 +66,33 @@ public class FindRoute : MonoBehaviour
             //Debug.Log("도착");
             if (previous.y >= 0 && previous.x >= 0)
             {
-                map.data[previous.y * map.cols + previous.x] = 0; //도착해서 이전 위치 0으로 초기화
-                robots[robotIndex].x = (int)targetPos.x;
-                robots[robotIndex].z = (int)targetPos.z;
+                map[previous.x, previous.y, previous.z].type = 0;
+                map[previous.x, previous.y,previous.z].obj = null; //도착해서 이전 위치에 존재하는 gameobject를 null로 변경
             }
 
             if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)
             {
                 //Debug.Log("finish");
-                int2 rand = new int2(UnityEngine.Random.Range(0, map.cols), UnityEngine.Random.Range(0, map.rows));
-                while (map.data[rand.y * map.cols + rand.x] != 0)
+                int3 rand = new int3(UnityEngine.Random.Range(0, mapSize.x), UnityEngine.Random.Range(0, mapSize.y), UnityEngine.Random.Range(0, mapSize.z));
+                while (map[rand.x,rand.y,rand.z].type != 0)
                 {
-                    rand.x = UnityEngine.Random.Range(0, map.cols);
-                    rand.y = UnityEngine.Random.Range(0, map.rows);
+                    rand.x = UnityEngine.Random.Range(0, mapSize.x);
+                    rand.y = UnityEngine.Random.Range(0, mapSize.y);
+                    rand.z = UnityEngine.Random.Range(0, mapSize.z);
                 }
                 goalCoordinate = rand;
                 path = null;
             }
             else//다음 목적지로
             {
-                int2 next = path[currentIndex + 1];
-                if (map.data[next.y * map.cols + next.x] == 0)
+                int3 next = path[currentIndex + 1];
+                if (map[next.x,next.y,next.z].type == 0)
                     // 다음 목적지가 이동 가능한 상태면
                 {
-                    previous = path[currentIndex];
-                    ++currentIndex;
-                    map.data[path[currentIndex].y * map.cols + path[currentIndex].x] = type;
+                    previous = path[currentIndex++];
+                    map[previous.x, previous.y, previous.z].type = int.MaxValue;
+                    map[next.x, next.y, next.z].type = type;
+                    map[next.x,next.y,next.z].obj = gameObject;
                 }
                 else
                 {   // 다음 목적지로 이동이 불가능한 상태면
@@ -105,56 +105,61 @@ public class FindRoute : MonoBehaviour
 
     
 
-    List<int2> Astar()
+    List<int3> Astar()
     {
-        int3 curr = new int3(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.z), 0);
-        map.data[curr.y * map.cols + curr.x] = type;
+        int4 curr = new int4(Mathf.RoundToInt(transform.position.x), 0, Mathf.RoundToInt(transform.position.z), 0); // x,y,z,distance
+        map[curr.x, curr.y, curr.z].type = type;
+        map[curr.x, curr.y, curr.z].obj = gameObject;
 
-        int[,] distance = new int[map.rows, map.cols];
-        int2[,] prev = new int2[map.rows, map.cols];
-        for (int y = 0; y < map.rows; ++y)
+
+        int[,,] distance = new int[mapSize.x, mapSize.y, mapSize.z];
+        int3[,,] prev = new int3[mapSize.x, mapSize.y, mapSize.z];
+        for (int y = 0; y < mapSize.y; ++y)
         {
-            for (int x = 0; x < map.cols; ++x)
+            for(int x = 0; x < mapSize.x; ++x)
             {
-                distance[y, x] = int.MaxValue;
-                prev[y, x] = new int2(-1, -1);
+                for(int z = 0; z < mapSize.z; ++z)
+                {
+                    distance[x, y, z] = int.MaxValue;
+                    prev[x, y, z] = new int3(-1, -1, -1);
+                }
             }
         }
 
-        PriorityQueue<int3> pq = new PriorityQueue<int3>();
+        PriorityQueue<int4> pq = new PriorityQueue<int4>();
         pq.Enqueue(curr, 0);
-        distance[curr.y, curr.x] = 0;
-        int lowest_heuristic = Heuristic(curr.xy,0);
-        int2 nearest_goal = curr.xy;
+        distance[curr.x, curr.y, curr.z] = 0;
+        int lowest_heuristic = Heuristic(curr.xyz, 0);
+        int3 nearest_goal = curr.xyz;
         while (pq.Count > 0)
         {
-            int3 top = pq.Dequeue();
+            int4 top = pq.Dequeue();
 
-            if (top.x == goalCoordinate.x && top.y == goalCoordinate.y) break;
+            if (top.y == goalCoordinate.y && top.x == goalCoordinate.x && top.z == goalCoordinate.z) break;
 
-            if (distance[top.y, top.x] < top.z)
+            if (distance[top.x, top.y, top.z] < top.w)
                 continue;
 
-            int2[] directions = new int2[] {
-                new int2(top.x-1,top.y),
-                new int2(top.x,top.y-1),
-                new int2(top.x+1,top.y),
-                new int2(top.x,top.y+1)
+            int3[] directions = new int3[] {
+                new int3(top.x-1,top.y,top.z),
+                new int3(top.x,top.y,top.z-1),
+                new int3(top.x+1,top.y,top.z),
+                new int3(top.x,top.y,top.z+1)
             };
 
-            foreach (int2 dir in directions)
+            foreach (int3 dir in directions)
             {
-                if(dir.x >= 0 && dir.x < map.cols && dir.y >=0 && dir.y < map.rows)
+                if (dir.x >= 0 && dir.x < mapSize.x && dir.y >= 0 && dir.y < mapSize.y && dir.z >= 0 && dir.z < mapSize.z)
                 {
-                    int dist = distance[top.y, top.x] + 1;
-                    if (map.data[dir.y * map.cols + dir.x] == 0 && distance[dir.y,dir.x] > dist)
+                    int dist = distance[top.x, top.y, top.z] + 1;
+                    if (map[dir.x, dir.y, dir.z].type == 0 && distance[dir.x, dir.y, dir.z] > dist)
                     {
-                        distance[dir.y, dir.x] = dist;
-                        prev[dir.y, dir.x] = top.xy;
-                        int3 temp = new int3(dir.x, dir.y, dist);
+                        distance[dir.x, dir.y, dir.z] = dist;
+                        prev[dir.x, dir.y, dir.z] = top.xyz;
+                        int4 temp = new int4(dir.x, dir.y, dir.z, dist);
                         int p = Heuristic(dir, dist);
                         pq.Enqueue(temp, p);
-                        if(lowest_heuristic >= p)
+                        if (lowest_heuristic >= p)
                         {
                             lowest_heuristic = p;
                             nearest_goal = dir;
@@ -165,35 +170,36 @@ public class FindRoute : MonoBehaviour
         }
         //Debug.Log("가장 가까운 노드" + nearest_goal);
 
-        List<int2> path = new List<int2>();
+        List<int3> path = new List<int3>();
 
-        int2 back = nearest_goal;
-        while(back.x != -1 && back.y != -1)
+        int3 back = nearest_goal;
+        while(back.x != -1 && back.y != -1 && back.z != -1)
         {
             path.Add(back);
-            back = prev[back.y, back.x];
+            back = prev[back.x, back.y, back.z];
         }
         path.Reverse();
 
         currentIndex = 0;
-        previous = new int2(-1, -1);
+        previous = new int3(-1, -1, -1);
 
-        //string s = "";
-        //s += transform.name;
-        //foreach (int2 p in path)
-        //{
-        //    s += p + " -> ";
-        //}
-        //Debug.Log(s);
+        string s = "";
+        s += transform.name;
+        foreach (int3 p in path)
+        {
+            s += p + " -> ";
+        }
+        Debug.Log(s);
 
         return path;
     }
 
-    int Heuristic(int2 next, int dist)
+    int Heuristic(int3 next, int dist)
     {
         int x = math.abs(goalCoordinate.x - next.x);
         int y = math.abs(goalCoordinate.y - next.y);
-        int h = x*x + y*y;
+        int z = math.abs(goalCoordinate.z - next.z);
+        int h = x * x + y * y + z * z;
         int f = dist + h;
         return f;
     }

@@ -1,15 +1,15 @@
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class Picking : MonoBehaviour
 {
     private Resources resources;
-    private MapJson map;
+    private Cell[,,] map;
+    private int3 mapSize;
     private int buildingPrefabIndex;
     public ref int IndexRef => ref buildingPrefabIndex;
     private GameObject previewInstance;
-    private Dictionary<Vector2Int, GameObject> buildings;
-    private Dictionary<int, RobotData> robots;
     public Material wireframeMat;
     private UIOnOff activate;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -25,8 +25,7 @@ public class Picking : MonoBehaviour
         else
         {
             map = resources.mapRef;
-            buildings = resources.buildingsRef;
-            robots = resources.robotsRef;
+            mapSize = resources.mapSize;
         }
         if (map == null)
         {
@@ -57,19 +56,18 @@ public class Picking : MonoBehaviour
         if (groundPlane.Raycast(ray, out distance))
         {
             Vector3 worldPos = ray.GetPoint(distance);
-
+            //Debug.Log(worldPos);
             // 월드 좌표 → 타일 인덱스
-            int tileX = Mathf.FloorToInt(worldPos.x + 0.5f);
-            int tileZ = Mathf.FloorToInt(worldPos.z + 0.5f);
-            Vector2Int v2i = new Vector2Int(tileZ, tileX);
+            int tileX = Mathf.FloorToInt(worldPos.x+0.5f);
+            int tileZ = Mathf.FloorToInt(worldPos.z+0.5f);
 
             //Debug.Log($"마우스로{tileX},{tileZ}를 클릭");
             // 배열 범위 체크
             Vector3 placePos = new Vector3(tileX, resources.Prefabs[buildingPrefabIndex].transform.position.y, tileZ);
 
-            if (tileX >= 0 && tileX < map.rows && tileZ >= 0 && tileZ < map.cols)
+            if (tileX >= 0 && tileX < mapSize.x && tileZ >= 0 && tileZ < mapSize.z)
             {
-                if (map.data[tileZ * map.cols + tileX] == 0) // 바닥이면
+                if (map[tileX,0,tileZ].type == 0) // 바닥이면
                 {
                     //Debug.Log("바닥인디요");
                     previewInstance.SetActive(true);
@@ -94,38 +92,30 @@ public class Picking : MonoBehaviour
                 {      // 좌클릭 했을 때
                     //Debug.Log($"{placePos}를 클릭했담");
                     Transform parentTransform; 
-                    switch(map.data[tileZ * map.cols + tileX])
+                    switch(map[tileX,0,tileZ].type)
                     {
                         case 0: // 바닥
-                            if (buildingPrefabIndex <= 1)
+                            if (buildingPrefabIndex <= 1)   // 기둥이거나 타일이면
                             {
                                 parentTransform = GameObject.Find("TileParent").transform;
-                                buildings[v2i] = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
+                                map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
                             }
                             else
                             {
                                 parentTransform = GameObject.Find("RobotParent").transform;
+                                map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
 
-                                GameObject robot = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
-                                int id = resources.getNewRobotID();
-                                FindRoute findRoute = robot.GetComponent<FindRoute>();
-                                findRoute.enabled = true;
-                                findRoute.robotIndex = id;
-
-                                RobotData robotdata = new RobotData();
-                                robotdata.id = id;
-                                robotdata.x = tileX;
-                                robotdata.z = tileZ;
-                                robotdata.type = buildingPrefabIndex;
-                                robots[id] = robotdata;
+                                FindRoute findroute = map[tileX, 0, tileZ].obj.GetComponent<FindRoute>();
+                                findroute.type = buildingPrefabIndex;
+                                findroute.enabled = true;
                             }
-                            map.data[tileZ * map.cols + tileX] = buildingPrefabIndex;
+                            map[tileX, 0, tileZ].type = buildingPrefabIndex;
                             //Debug.Log($"벽 생성: ({tileX}, {tileZ})");
                             break;
                         case 1: // 벽
-                            Destroy(buildings[v2i]);
-                            buildings.Remove(v2i);
-                            map.data[tileZ * map.cols + tileX] = 0;
+                            Destroy(map[tileX, 0, tileZ].obj);
+                            map[tileX, 0, tileZ].obj = null;
+                            map[tileX, 0, tileZ].type = 0;
                             break;
                         default:    // 로봇
                             break;

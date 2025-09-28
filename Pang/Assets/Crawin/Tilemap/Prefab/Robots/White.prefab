@@ -127,5 +127,5 @@ MonoBehaviour:
   rotationSpeed: 5
   goalCoordinate:
     x: 1
-    y: 2
-  type: 5
+    y: 0
+    z: 2

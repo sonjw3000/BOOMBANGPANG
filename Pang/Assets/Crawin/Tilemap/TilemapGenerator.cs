@@ -1,3 +1,5 @@
+using System;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class TilemapGenerator: MonoBehaviour
@@ -9,19 +11,23 @@ public class TilemapGenerator: MonoBehaviour
     void Start()
     {
         resources = GameObject.Find("Resources").GetComponent<Resources>();
-        if(resources == null)
+        if (resources == null)
         {
             Debug.LogError("no Resources Object");
         }
-        GenerateMap();
+        else
+        {
+            GenerateMap();
+        }
     }
 
     // Update is called once per frame
     void Update()
     {
+        //printMap();
     }
 
-    void GenerateMap()
+    void clearObjectParents()
     {
         if (tileParent != null)
         {
@@ -53,59 +59,78 @@ public class TilemapGenerator: MonoBehaviour
         }
         robotParent = new GameObject("RobotParent");
         robotParent.transform.parent = transform;
+    }
 
-        MapJson map = resources.mapRef;
+    void GenerateMap()
+    {
+        clearObjectParents();
+
+        Cell[,,] map = resources.mapRef;
         if(map == null)
         {
             Debug.Log("너가 문제였구나");
         }
-
-        Vector2Int v2i = new Vector2Int();
         GameObject[] Prefabs = resources.Prefabs;
-        for (int z = 0; z < map.rows; ++z)
+        int3 mapSize = resources.mapSize;
+        // X*Z 크기의 커다란 QUAD 하나 생성 및 배치
+        GameObject Tile = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        Tile.transform.parent = tileParent.transform;
+
+        Tile.transform.localScale = new Vector3Int(mapSize.x, mapSize.z, mapSize.y);
+        Tile.transform.Rotate(90, 0, 0);
+        Tile.transform.position = new Vector3(mapSize.x / 2 - 0.5f, 0, mapSize.z / 2-0.5f); // Y값 수정 요망 09.28  ( 층수가 다른 quad 배치해야함 )
+
+        //for (int y = 0; y < mapSize.y; ++y)
+        //{
+        //    for(int x = 0; x < mapSize.x; ++x)
+        //    {
+        //        for(int z = 0; z < mapSize.z; ++z)
+        //        {
+        //            map[x, y, z].type = 0;
+        //            Vector3 pos = new Vector3(x+0.5f, Prefabs[0].transform.position.y, z+0.5f);
+        //            map[x, y, z].obj = Instantiate(Prefabs[0], pos, Prefabs[0].transform.rotation, tileParent.transform);
+        //            map[x, y, z].obj.name = $"{x},{y},{z}";
+        //        }
+        //    }
+        //}
+
+        // 맵에 빌딩 배치
+        foreach (ObjectData buildingData in resources.mapJsonRef.buildingData)
         {
-            for (int x = 0; x < map.cols; ++x)
-            {
-                int value = map.data[z * map.cols + x];
-                v2i.x = z;
-                v2i.y = x;
-                Vector3 pos = new Vector3(x, Prefabs[value].transform.position.y, z);
-                //일단 타일을 깔아
-                //Instantiate(Prefabs[0], pos, Prefabs[0].transform.rotation, tileParent.transform);
-                //if (value == 1) // 벽이면 타일 위에 벽을 설치해
-                //{
-                //    buildings[v2i] = Instantiate(Prefabs[1], pos, Prefabs[1].transform.rotation, tileParent.transform);
-                //}
-
-                resources.buildingsRef[v2i] = Instantiate(Prefabs[value], pos, Prefabs[value].transform.rotation, tileParent.transform);
-
-            }
+            map[buildingData.x,buildingData.y,buildingData.z].type = buildingData.type;
+            Vector3 pos = new Vector3(buildingData.x, Prefabs[buildingData.type].transform.position.y, buildingData.z);
+            map[buildingData.x,buildingData.y,buildingData.z].obj = Instantiate(Prefabs[buildingData.type], pos, Prefabs[buildingData.type].transform.rotation, tileParent.transform);
         }
-        // 맵 배치가 끝났으니 이제 로봇들을 배치할 차례
-        foreach (RobotData robotData in map.robotdata)
+        resources.mapJsonRef.buildingData.Clear();
+
+        // 맵에 로봇 배치
+        foreach (ObjectData robotData in resources.mapJsonRef.robotdata)
         {
-            //map.data[robotData.z * map.cols + robotData.x] = robotData.type;
+            map[robotData.x, robotData.y, robotData.z].type = robotData.type;
             Vector3 pos = new Vector3(robotData.x, Prefabs[robotData.type].transform.position.y, robotData.z);
-            GameObject robot = Instantiate(Prefabs[robotData.type], pos, Prefabs[robotData.type].transform.rotation, robotParent.transform);
-            FindRoute findRoute = robot.GetComponent<FindRoute>();
-            findRoute.enabled = true;
-            findRoute.robotIndex = robotData.id;
-            resources.robotsRef[robotData.id] = robotData;
+            map[robotData.x, robotData.y, robotData.z].obj = Instantiate(Prefabs[robotData.type], pos, Prefabs[robotData.type].transform.rotation, robotParent.transform);
+
+            FindRoute findroute = map[robotData.x, robotData.y, robotData.z].obj.GetComponent<FindRoute>();
+            findroute.type = robotData.type;
+            findroute.enabled = true;
         }
-        map.robotdata.Clear(); // 딕셔너리로 다 옮겼으니 초기화하자
+        resources.mapJsonRef.robotdata.Clear(); // 딕셔너리로 다 옮겼으니 초기화하자
     }
 
-    public void printMap()
+    void printMap()
     {
-        MapJson map = resources.mapRef;
+        Cell[,,] map = resources.mapRef;
         string field = "";
-        for (int z = 0; z < map.rows; ++z)
+        for (int y = 0; y < resources.mapSize.y; ++y)
         {
-            for (int x = 0; x < map.cols; ++x)
+            for (int z = 0; z < resources.mapSize.z; ++z)
             {
-                field += map.data[z * map.cols + x] + " ";
+                for (int x = 0; x < resources.mapSize.x; ++x)
+                {
+                    field += map[x, y, z].type + " ";
+                }
+                field += "\n";
             }
-            field += "\n";
         }
         Debug.Log(field);
     }

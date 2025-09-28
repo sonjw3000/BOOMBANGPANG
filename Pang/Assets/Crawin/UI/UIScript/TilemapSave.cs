@@ -15,36 +15,49 @@ public class TilemapSave : MonoBehaviour
     {
         
     }
-    
+
     public void ExportMap()
     {
-        string json = JsonUtility.ToJson(resources.mapRef, true);
-        MapJson copyMap = JsonUtility.FromJson<MapJson>(json);
+        MapJson mapJson = new MapJson();
+        mapJson.X = resources.mapSize.x;
+        mapJson.Y = resources.mapSize.y;
+        mapJson.Z = resources.mapSize.z;
 
-        for(int i = 0; i < copyMap.data.Length; ++i)
+        Cell[,,] map = resources.mapRef;
+        if (map == null)
         {
-            if (copyMap.data[i] > 1)
-            {
-                //int x = i % copyMap.cols;
-                //int z = i / copyMap.cols;
-                //RobotData robot = new RobotData();
-                //robot.x = x;
-                //robot.z = z;
-                //robot.type = copyMap.data[i];
-                //copyMap.robotdata.Add(robot);
-                //Debug.Log(robot.type + "작성 완료");
-                copyMap.data[i] = 0;
-            }
-        }   // 타일을 다 수정했다.
-        // 이제 dic에 있는 로봇들을 넣을 차례
-        foreach (RobotData data in resources.robotsRef.Values)
-        {
-            copyMap.robotdata.Add(data);
+            Debug.Log("map이 없네");
         }
+        for (int y = 0; y < mapJson.Y; ++y)
+        {
+            for (int x = 0; x < mapJson.X; ++x)
+            {
+                for (int z = 0; z < mapJson.Z; ++z)
+                {
+                    switch (map[x, y, z].type)
+                    {
+                        case 0:
+                        case int.MaxValue:
+                            //이동중인 출발 타일 위치이거나 통로이면 저장 x
+                            continue;
+                        case 1:
+                            ObjectData od = new ObjectData(x, y, z, 1);
+                            mapJson.buildingData.Add(od);
+                            break;
 
-        json = JsonUtility.ToJson(copyMap,true);
-        string outputPath = Path.Combine(Application.dataPath, "currentmap.json");
-        File.WriteAllText(outputPath, json);
-        Debug.Log("Export Json");
+                        default:
+                            ObjectData rd = new ObjectData(x, y, z, map[x, y, z].type);
+                            mapJson.robotdata.Add(rd);
+                            Debug.Log("로봇 찾았당");
+                            break;
+                    }
+                }
+            }
+
+            string outputPath = Path.Combine(Application.dataPath, "currentmap.json");
+            string result = JsonUtility.ToJson(mapJson, true);
+            File.WriteAllText(outputPath, result);
+            Debug.Log("Export Json");
+        }
     }
 }

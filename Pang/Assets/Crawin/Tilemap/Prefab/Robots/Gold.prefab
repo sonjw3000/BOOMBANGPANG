@@ -128,8 +128,8 @@ MonoBehaviour:
   rotationSpeed: 5
   goalCoordinate:
     x: 8
-    y: 9
-  type: 3
+    y: 0
+    z: 9
 --- !u!1 &7736099592172915579
 GameObject:
   m_ObjectHideFlags: 0
