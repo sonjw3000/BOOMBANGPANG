@@ -20,15 +20,18 @@ public class InventoryCamera : MonoBehaviour
         //StartCoroutine(RenderInventoryPreviews());
 
         int slotCnt = renderTextures.Length;
+        //Debug.Log("½½·Ô°¹¼ö´Â " + slotCnt);
         //yield return null; // ÇÑ ÇÁ·¹ÀÓ ±â´Ù¸²
 
         int resourceCnt = resources.Prefabs.Length;
         previewInstances = new GameObject[resourceCnt];
 
+        //Debug.Log(resourceCnt+"°³ ÀÖ´Âµ¥?");
+        int InvLayer = LayerMask.NameToLayer("Inventory");
         for (int i = 0; i < resourceCnt; ++i)
         {
             previewInstances[i] = Instantiate(resources.Prefabs[i], resources.transform);
-            previewInstances[i].layer = LayerMask.NameToLayer("Inventory");
+            SetLayer(previewInstances[i].transform, InvLayer);
             previewInstances[i].SetActive(false);
         }
 
@@ -40,9 +43,11 @@ public class InventoryCamera : MonoBehaviour
             if (i < resourceCnt)
             {
                 previewInstances[i].SetActive(true);
-                inventoryCamera.transform.position = previewInstances[i].transform.position + new Vector3(0, 0, -3);
+                inventoryCamera.transform.position = previewInstances[i].transform.position + new Vector3(0, 2, -2);
+                //inventoryCamera.transform.LookAt(new Vector3(0,0,0));
                 inventoryCamera.transform.LookAt(previewInstances[i].transform);
             }
+            //Debug.Log(i + "¹øÂ° ÂûÄ¬");
             inventoryCamera.Render();
 
             if (i < resourceCnt)
@@ -85,6 +90,16 @@ public class InventoryCamera : MonoBehaviour
         }
 
         inventoryCamera.targetTexture = null;
+    }
+
+    void SetLayer(Transform parent, int layer)
+    {
+        parent.gameObject.layer = layer;
+        foreach (Transform child in parent)
+        {
+            SetLayer(child, layer);
+        }
+
     }
 
     // Update is called once per frame

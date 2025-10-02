@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 33c072b3f153e8244a521b4f5736339f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mapJsonFile: {fileID: 4900000, guid: 85dc36fe6d8050a409c031307e6fd992, type: 3}
+  mapJsonFile: {fileID: 4900000, guid: 2617ed12dbffe17488eab908e4d668f0, type: 3}
   Prefabs:
   - {fileID: 5250718383500915193, guid: f51a20ce04034dc48888daa0b57a04ad, type: 3}
   - {fileID: 4160587140088029067, guid: 5ce1018733c5bc544b11676e18721b49, type: 3}
@@ -156,6 +156,7 @@ MonoBehaviour:
   - {fileID: 4307669844091279147, guid: dc841591eb6b4ed44994bde9aa91baf8, type: 3}
   - {fileID: 6292317992592451571, guid: 4ce56300c06857d4d9d1322926b73ae5, type: 3}
   - {fileID: 3890919911251998508, guid: 488feabe59eb6a840808cf083713d509, type: 3}
+  - {fileID: 4046099219731300723, guid: 828fff7bc15f652488cc1c8019a1469f, type: 3}
   mapSize:
     x: 0
     y: 0
@@ -2317,7 +2318,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b20c7306fb0fcff4384e86337a5d2b0d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  type: 0
+  type: 2
   Xlength: 100
   Ylength: 1
   Zlength: 100

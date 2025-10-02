@@ -183,13 +183,13 @@ public class FindRoute : MonoBehaviour
         currentIndex = 0;
         previous = new int3(-1, -1, -1);
 
-        string s = "";
-        s += transform.name;
-        foreach (int3 p in path)
-        {
-            s += p + " -> ";
-        }
-        Debug.Log(s);
+        //string s = "";
+        //s += transform.name;
+        //foreach (int3 p in path)
+        //{
+        //    s += p + " -> ";
+        //}
+        //Debug.Log(s);
 
         return path;
     }

@@ -41,6 +41,8 @@ public class Resources : MonoBehaviour
     public GameObject[] Prefabs;
     private MapJson mapJson;
     public ref MapJson mapJsonRef => ref mapJson;
+
+    [HideInInspector]
     public int3 mapSize;
 
     private Cell[,,] map;

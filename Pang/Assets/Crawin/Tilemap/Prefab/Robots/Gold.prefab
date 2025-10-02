@@ -106,7 +106,7 @@ CapsuleCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_Radius: 0.5000001
   m_Height: 2
@@ -130,6 +130,7 @@ MonoBehaviour:
     x: 8
     y: 0
     z: 9
+  type: 0
 --- !u!1 &7736099592172915579
 GameObject:
   m_ObjectHideFlags: 0
