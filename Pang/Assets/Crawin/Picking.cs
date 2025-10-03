@@ -106,8 +106,11 @@ public class Picking : MonoBehaviour
                                 map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
 
                                 FindRoute findroute = map[tileX, 0, tileZ].obj.GetComponent<FindRoute>();
-                                findroute.type = buildingPrefabIndex;
-                                findroute.enabled = true;
+                                if (findroute != null)
+                                {
+                                    findroute.type = buildingPrefabIndex;
+                                    findroute.enabled = true;
+                                }
                             }
                             map[tileX, 0, tileZ].type = buildingPrefabIndex;
                             //Debug.Log($"º® »ý¼º: ({tileX}, {tileZ})");
