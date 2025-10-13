@@ -54,7 +54,8 @@ public class InventoryCamera : MonoBehaviour
                 previewInstances[i].SetActive(false);
         }
 
-        //inventoryCamera.targetTexture = null;
+        inventoryCamera.targetTexture = null;
+        inventoryCamera.enabled = false;
     }
 
     IEnumerator RenderInventoryPreviews()

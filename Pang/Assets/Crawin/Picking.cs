@@ -74,7 +74,12 @@ public class Picking : MonoBehaviour
                     previewInstance.transform.position = placePos;
                     foreach (Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
                     {
-                        r.material.color = new Color(0, 1, 0, 0.3f);
+                        var mats = r.materials;
+                        for(int i = 0; i <mats.Length; ++i)
+                        {
+                            mats[i].color = new Color(0, 1, 0, 0.3f);
+                        }
+                        //r.material.color = new Color(0, 1, 0, 0.3f);
                     }
                 }
                 else
@@ -84,7 +89,12 @@ public class Picking : MonoBehaviour
                     previewInstance.transform.position = placePos;
                     foreach(Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
                     {
-                        r.material.color = new Color(1, 0, 0, 0.3f);
+                        var mats = r.materials;
+                        for (int i = 0; i < mats.Length; ++i)
+                        {
+                            mats[i].color = new Color(1, 0, 0, 0.3f);
+                        }
+                        //r.material.color = new Color(1, 0, 0, 0.3f);
                     }
                 }
 
@@ -186,7 +196,12 @@ public class Picking : MonoBehaviour
         previewInstance = Instantiate(resources.Prefabs[buildingPrefabIndex]);
         foreach(Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
         {
-            r.material = wireframeMat;
+            var mats = r.materials;
+            for (int i = 0; i < mats.Length; ++i)
+            {
+                mats[i] = wireframeMat;
+            }
+            r.materials = mats;
         }
     }
 }

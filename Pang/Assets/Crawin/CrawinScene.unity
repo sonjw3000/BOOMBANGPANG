@@ -157,6 +157,9 @@ MonoBehaviour:
   - {fileID: 6292317992592451571, guid: 4ce56300c06857d4d9d1322926b73ae5, type: 3}
   - {fileID: 3890919911251998508, guid: 488feabe59eb6a840808cf083713d509, type: 3}
   - {fileID: 4046099219731300723, guid: 828fff7bc15f652488cc1c8019a1469f, type: 3}
+  - {fileID: 5868244320211209119, guid: 19754c2e8273c454bb559eaad9b04e83, type: 3}
+  - {fileID: 6155704149836782372, guid: ef27fec05dc353e47afc629dbf165b17, type: 3}
+  - {fileID: 6533927166021666627, guid: de4ad9755eec954419b90cef170ea41f, type: 3}
   mapSize:
     x: 0
     y: 0
