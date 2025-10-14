@@ -33,6 +33,28 @@ public class Cell
 {
     public int type;
     public GameObject obj;
+
+    public List<int3> GetBuildRange(int type)   // 배치된 타입에 따라 범위를 리턴해주는 함수
+    {
+        List<int3> result = new List<int3>();
+        int3 coord = new int3();
+        switch (type)
+        {
+            case 2:
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+        }
+        return result;
+    }
+    public List<int3> GetBuildRange()
+    {
+        return GetBuildRange(type);
+    }
 }
 
 public class Resources : MonoBehaviour
