@@ -55,6 +55,7 @@ public class TilemapCreater : MonoBehaviour
                             if (UnityEngine.Random.Range(0, 2) == 1)
                             {
                                 ObjectData building = new ObjectData(x, y, z, 1);
+                                building.head = UnityEngine.Random.Range(0, 3);
                                 mapJson.buildingData.Add(building);
                             }
                         }

@@ -7,12 +7,14 @@ public class ObjectData
 {
     public int type;
     public int x, y, z;
+    public int head;
     public ObjectData(int x,int y, int z, int type)
     {
         this.type = type;
         this.x = x;
         this.y = y;
         this.z = z;
+        this.head = 0;
     }
 }
 

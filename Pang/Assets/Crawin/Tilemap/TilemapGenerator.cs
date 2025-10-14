@@ -1,4 +1,6 @@
+using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -98,8 +100,23 @@ public class TilemapGenerator: MonoBehaviour
         foreach (ObjectData buildingData in resources.mapJsonRef.buildingData)
         {
             map[buildingData.x,buildingData.y,buildingData.z].type = buildingData.type;
+            List<int3> coord = map[buildingData.x, buildingData.y, buildingData.z].GetBuildRange();
+            foreach(int3 delta in coord) // 이 부분은 1x1 이상의 크기인 빌딩일 때 작동
+            {
+                int nx = buildingData.x + delta.x;
+                int ny = buildingData.y + delta.y;
+                int nz = buildingData.z + delta.z;
+
+                if(nx >= 0 && nx <mapSize.x &&
+                    ny >= 0 && ny < mapSize.y &&
+                    nz >= 0 && nz < mapSize.z)
+                {
+                    map[nx, ny, nz].type = buildingData.type;
+                }
+            }
             Vector3 pos = new Vector3(buildingData.x, Prefabs[buildingData.type].transform.position.y, buildingData.z);
-            map[buildingData.x,buildingData.y,buildingData.z].obj = Instantiate(Prefabs[buildingData.type], pos, Prefabs[buildingData.type].transform.rotation, tileParent.transform);
+            quaternion baseRot = Prefabs[buildingData.type].transform.rotation * Quaternion.Euler(0,90*buildingData.head,0);
+            map[buildingData.x,buildingData.y,buildingData.z].obj = Instantiate(Prefabs[buildingData.type], pos, baseRot, tileParent.transform);
         }
         resources.mapJsonRef.buildingData.Clear();
 
