@@ -1,35 +1,23 @@
+using NUnit.Framework;
+using System;
+using System.Collections.Generic;
 using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
 
-[System.Serializable]
-public class MapJson
-{
-    public int rows;
-    public int cols;
-    public int[] data;
-}
-
-[ExecuteInEditMode]
 public class TilemapGenerator: MonoBehaviour
 {
-    public TextAsset jsonFile;
-    public GameObject tilePrefab;
-    public GameObject wallPrefab;
-    private bool regenerateMap = true;
     private GameObject tileParent;
-    private MapJson map;
-    public ref MapJson mapRef => ref map;
-
+    private GameObject robotParent;
+    private Resources resources;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-    
-    }
-
-    private void Awake()
-    {
-        if (jsonFile != null && regenerateMap)
+        resources = GameObject.Find("Resources").GetComponent<Resources>();
+        if (resources == null)
+        {
+            Debug.LogError("no Resources Object");
+        }
+        else
         {
             GenerateMap();
         }
@@ -38,20 +26,11 @@ public class TilemapGenerator: MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (jsonFile != null && regenerateMap)
-        {
-            GenerateMap();
-        }
+        //printMap();
     }
 
-    private void OnValidate()
+    void clearObjectParents()
     {
-        regenerateMap = true;
-    }
-
-    void GenerateMap()
-    {
-        Debug.Log("Generate");
         if (tileParent != null)
         {
             DestroyImmediate(tileParent);
@@ -67,33 +46,108 @@ public class TilemapGenerator: MonoBehaviour
         tileParent = new GameObject("TileParent");
         tileParent.transform.parent = transform;
 
-        map = JsonUtility.FromJson<MapJson>(jsonFile.text);
-        for (int z = 0; z < map.rows; ++z)
+        if (robotParent != null)
         {
-            for (int x = 0; x < map.cols; ++x)
+            DestroyImmediate(robotParent);
+            Debug.Log("robotParent Delete");
+        }
+        else
+        {
+            GameObject old = GameObject.Find("RobotParent");
+            if (old != null)
             {
-                int value = map.data[z * map.cols + x];
-                Vector3 pos = new Vector3(x, 0, z);
-
-                if (value == 1)
-                    Instantiate(wallPrefab, pos, wallPrefab.transform.rotation, tileParent.transform);
-                else
-                    Instantiate(tilePrefab, pos, tilePrefab.transform.rotation, tileParent.transform);
+                DestroyImmediate(old);
             }
         }
-        regenerateMap = false;
+        robotParent = new GameObject("RobotParent");
+        robotParent.transform.parent = transform;
     }
 
-    public void printMap()
+    void GenerateMap()
     {
-        string field = "";
-        for (int z = 0; z < map.rows; ++z)
+        clearObjectParents();
+
+        Cell[,,] map = resources.mapRef;
+        if(map == null)
         {
-            for (int x = 0; x < map.cols; ++x)
+            Debug.Log("너가 문제였구나");
+        }
+        GameObject[] Prefabs = resources.Prefabs;
+        int3 mapSize = resources.mapSize;
+        // X*Z 크기의 커다란 QUAD 하나 생성 및 배치
+        GameObject Tile = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        Tile.transform.parent = tileParent.transform;
+
+        Tile.transform.localScale = new Vector3Int(mapSize.x, mapSize.z, mapSize.y);
+        Tile.transform.Rotate(90, 0, 0);
+        Tile.transform.position = new Vector3(mapSize.x / 2 - 0.5f, 0, mapSize.z / 2-0.5f); // Y값 수정 요망 09.28  ( 층수가 다른 quad 배치해야함 )
+
+        //for (int y = 0; y < mapSize.y; ++y)
+        //{
+        //    for(int x = 0; x < mapSize.x; ++x)
+        //    {
+        //        for(int z = 0; z < mapSize.z; ++z)
+        //        {
+        //            map[x, y, z].type = 0;
+        //            Vector3 pos = new Vector3(x+0.5f, Prefabs[0].transform.position.y, z+0.5f);
+        //            map[x, y, z].obj = Instantiate(Prefabs[0], pos, Prefabs[0].transform.rotation, tileParent.transform);
+        //            map[x, y, z].obj.name = $"{x},{y},{z}";
+        //        }
+        //    }
+        //}
+
+        // 맵에 빌딩 배치
+        foreach (ObjectData buildingData in resources.mapJsonRef.buildingData)
+        {
+            map[buildingData.x,buildingData.y,buildingData.z].type = buildingData.type;
+            List<int3> coord = map[buildingData.x, buildingData.y, buildingData.z].GetBuildRange();
+            foreach(int3 delta in coord) // 이 부분은 1x1 이상의 크기인 빌딩일 때 작동
             {
-                field += map.data[z * map.cols + x] + " ";
+                int nx = buildingData.x + delta.x;
+                int ny = buildingData.y + delta.y;
+                int nz = buildingData.z + delta.z;
+
+                if(nx >= 0 && nx <mapSize.x &&
+                    ny >= 0 && ny < mapSize.y &&
+                    nz >= 0 && nz < mapSize.z)
+                {
+                    map[nx, ny, nz].type = buildingData.type;
+                }
             }
-            field += "\n";
+            Vector3 pos = new Vector3(buildingData.x, Prefabs[buildingData.type].transform.position.y, buildingData.z);
+            quaternion baseRot = Prefabs[buildingData.type].transform.rotation * Quaternion.Euler(0,90*buildingData.head,0);
+            map[buildingData.x,buildingData.y,buildingData.z].obj = Instantiate(Prefabs[buildingData.type], pos, baseRot, tileParent.transform);
+        }
+        resources.mapJsonRef.buildingData.Clear();
+
+        // 맵에 로봇 배치
+        foreach (ObjectData robotData in resources.mapJsonRef.robotdata)
+        {
+            map[robotData.x, robotData.y, robotData.z].type = robotData.type;
+            Vector3 pos = new Vector3(robotData.x, Prefabs[robotData.type].transform.position.y, robotData.z);
+            map[robotData.x, robotData.y, robotData.z].obj = Instantiate(Prefabs[robotData.type], pos, Prefabs[robotData.type].transform.rotation, robotParent.transform);
+
+            FindRoute findroute = map[robotData.x, robotData.y, robotData.z].obj.GetComponent<FindRoute>();
+            findroute.type = robotData.type;
+            findroute.enabled = true;
+        }
+        resources.mapJsonRef.robotdata.Clear(); // 딕셔너리로 다 옮겼으니 초기화하자
+    }
+
+    void printMap()
+    {
+        Cell[,,] map = resources.mapRef;
+        string field = "";
+        for (int y = 0; y < resources.mapSize.y; ++y)
+        {
+            for (int z = 0; z < resources.mapSize.z; ++z)
+            {
+                for (int x = 0; x < resources.mapSize.x; ++x)
+                {
+                    field += map[x, y, z].type + " ";
+                }
+                field += "\n";
+            }
         }
         Debug.Log(field);
     }
