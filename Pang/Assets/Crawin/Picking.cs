@@ -12,6 +12,10 @@ public class Picking : MonoBehaviour
     private GameObject previewInstance;
     public Material wireframeMat;
     private UIOnOff activate;
+
+    public GameObject RightClickMenu;
+    private Animator RightClickMenuAnimator;
+    private int3 RightClickedCoord;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -35,6 +39,12 @@ public class Picking : MonoBehaviour
         previewInstance.name = "Preview";
         previewInstance.SetActive(false);
         buildingPrefabIndex = 0;
+
+        if (RightClickMenu)
+        {
+            RightClickMenuAnimator = RightClickMenu.GetComponent<Animator>();
+        }
+        RightClickedCoord = new int3();
     }
 
     // Update is called once per frame
@@ -100,6 +110,7 @@ public class Picking : MonoBehaviour
 
                 if (Input.GetMouseButtonDown(0)) //Input.GetMouseButton(0)
                 {      // 좌클릭 했을 때
+                    RightClickMenu.SetActive(false);
                     //Debug.Log($"{placePos}를 클릭했담");
                     Transform parentTransform; 
                     switch(map[tileX,0,tileZ].type)
@@ -133,6 +144,17 @@ public class Picking : MonoBehaviour
                         default:    // 로봇
                             break;
                     }
+                }
+
+                if (Input.GetMouseButtonDown(1))
+                {
+                    Vector3 mousePos = Input.mousePosition;
+                    RightClickMenu.SetActive(true);
+                    RightClickMenu.transform.position = mousePos;
+                    RightClickMenuAnimator.ResetTrigger("Clicked");
+                    RightClickMenuAnimator.SetTrigger("Clicked");
+                    RightClickedCoord.x = tileX; RightClickedCoord.y = 0; RightClickedCoord.z = tileZ;
+                    Debug.Log("우클릭"+RightClickedCoord.x + "," + RightClickedCoord.z);
                 }
             }
             else
