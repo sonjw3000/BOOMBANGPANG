@@ -7,5 +7,5 @@ public interface IBaseNode
 		Success,
 		Failure
 	}
-	public ENodeState Evaluate();
+	public ENodeState Evaluate(BTContext ctx);
 }

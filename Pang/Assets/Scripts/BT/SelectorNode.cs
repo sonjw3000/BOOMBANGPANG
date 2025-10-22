@@ -9,11 +9,11 @@ public class SelectorNode : IBaseNode
 	public void Add(IBaseNode node) { Children.Add(node); }
 
 
-	public ENodeState Evaluate() 
+	public ENodeState Evaluate(BTContext ctx) 
 	{
 		foreach (IBaseNode node in Children)
 		{
-			var res = node.Evaluate();
+			var res = node.Evaluate(ctx);
 			if (res != ENodeState.Failure) return res;
 		}
 

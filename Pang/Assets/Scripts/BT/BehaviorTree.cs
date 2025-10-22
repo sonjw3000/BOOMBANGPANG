@@ -1,9 +1,10 @@
 ﻿
+using UnityEngine;
 using static IBaseNode;
+using BlackBoardSystem;
 
 public class BehaviorTree
 {
-	//private BlackBoard BlackBoard;
 
 	private IBaseNode RootNode;
 
@@ -12,9 +13,9 @@ public class BehaviorTree
 		RootNode = node;
 	}
 
-	public ENodeState RunBT()
+	public ENodeState RunBT(BTContext ctx)
 	{
-		return RootNode.Evaluate();
+		return RootNode.Evaluate(ctx);
 	}
 
 }

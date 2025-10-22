@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BlackBoardSystem;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -52,17 +53,27 @@ namespace BlackBoardSystem
 		bool Remove<T>(BlackBoardKey<T> key);
 		void Clear();
 	}
-
+	
 	public sealed class BlackBoard : IBlackboard
 	{
-		private readonly Dictionary<Type, IStorage> _Tables = new();
+		[SerializeField] private readonly Dictionary<Type, IStorage> _Tables = new();
 		private interface IStorage { void Clear(); }
 
 		private sealed class Table<T> : IStorage
 		{
 			private readonly Dictionary<int, T> _data = new();
 			public void Set(int id, in T value) => _data[id] = value;
-			public bool TryGet(int id, out T value) => _data.TryGetValue(id, out value);
+			public bool TryGet(int id, out T value)
+			{
+				if (_data.ContainsKey(id))
+				{
+					_data.TryGetValue(id, out value);
+					return true;
+				}
+
+				value = default(T);
+				return false;
+			}
 			public bool Remove(int id) => _data.Remove(id);
 			public void Clear() => _data.Clear();
 		}
@@ -100,4 +111,10 @@ namespace BlackBoardSystem
 		public bool Remove<T>(BlackBoardKey<T> key) => Local.Remove(key);
 		public void Clear() => Local.Clear();
 	}
+}
+
+public struct BTContext
+{
+	public BlackBoard LayeredBB;
+	public float deltaTime;
 }
