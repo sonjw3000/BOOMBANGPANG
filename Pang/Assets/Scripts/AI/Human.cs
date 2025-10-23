@@ -1,6 +1,7 @@
 ﻿using BlackBoardSystem;
 using System;
 using UnityEngine;
+using static ActionNode;
 
 class Human : AIWorker
 {
@@ -10,17 +11,12 @@ class Human : AIWorker
 		// build BT
 
 		// test bt building
-
 		SelectorNode root = new SelectorNode();
-
 		SequenceNode sequence = new SequenceNode();
 
-
-		Func<BTContext, IBaseNode.ENodeState> abc = (BTContext bb) => {
+		ActionFunc abc = (in BTContext bb) => {
 			bool temp;
 			bb.LayeredBB.TryGet<bool>(new BlackBoardKey<bool>("test"), out temp);
-
-			Debug.Log("TEST");
 
 			if (temp)
 			{
@@ -35,6 +31,7 @@ class Human : AIWorker
 		root.Add(sequence);
 		BTMain = new BehaviorTree(root);
 
+		// set black board data 
 		blackBoard.Set<bool>(new BlackBoardKey<bool>("test"), false);
 	}
 
