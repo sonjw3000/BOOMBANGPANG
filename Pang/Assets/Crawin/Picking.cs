@@ -321,4 +321,9 @@ public class Picking : MonoBehaviour
         }
         RightClickMenu.gameObject.SetActive(false);
     }
+
+    public void InsertClicked()
+    {
+
+    }
 }
