@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class Picking : MonoBehaviour
 {
@@ -16,6 +18,7 @@ public class Picking : MonoBehaviour
     public GameObject RightClickMenu;
     private Animator RightClickMenuAnimator;
     private int3 RightClickedCoord;
+    private GameObject RightClickedObject;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -43,8 +46,12 @@ public class Picking : MonoBehaviour
         if (RightClickMenu)
         {
             RightClickMenuAnimator = RightClickMenu.GetComponent<Animator>();
+            RightClickMenuAnimator.enabled = false;
+            RightClickMenu.SetActive(false);
+            Debug.Log("분명 끔");
         }
         RightClickedCoord = new int3();
+        RightClickedObject = null;
     }
 
     // Update is called once per frame
@@ -110,50 +117,108 @@ public class Picking : MonoBehaviour
 
                 if (Input.GetMouseButtonDown(0)) //Input.GetMouseButton(0)
                 {      // 좌클릭 했을 때
-                    RightClickMenu.SetActive(false);
-                    //Debug.Log($"{placePos}를 클릭했담");
-                    Transform parentTransform; 
-                    switch(map[tileX,0,tileZ].type)
+                    if (!IsPointerOverUI()) // ui를 안건드렸으면
                     {
-                        case 0: // 바닥
-                            if (buildingPrefabIndex <= 1)   // 기둥이거나 타일이면
+                        if (RightClickedObject != null)
+                        {
+                            Renderer[] renderers = RightClickedObject.GetComponentsInChildren<Renderer>();
+                            var originalMats = map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats;
+                            if (originalMats != null && originalMats.Count == renderers.Length)
                             {
-                                parentTransform = GameObject.Find("TileParent").transform;
-                                map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
-                            }
-                            else
-                            {
-                                parentTransform = GameObject.Find("RobotParent").transform;
-                                map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
-
-                                FindRoute findroute = map[tileX, 0, tileZ].obj.GetComponent<FindRoute>();
-                                if (findroute != null)
+                                for (int i = 0; i < renderers.Length; ++i)
                                 {
-                                    findroute.type = buildingPrefabIndex;
-                                    findroute.enabled = true;
+                                    renderers[i].sharedMaterials = originalMats[i];
                                 }
                             }
-                            map[tileX, 0, tileZ].type = buildingPrefabIndex;
-                            //Debug.Log($"벽 생성: ({tileX}, {tileZ})");
-                            break;
-                        case 1: // 벽
-                            Destroy(map[tileX, 0, tileZ].obj);
-                            map[tileX, 0, tileZ].obj = null;
-                            map[tileX, 0, tileZ].type = 0;
-                            break;
-                        default:    // 로봇
-                            break;
+                            map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats = null;
+                            RightClickedObject = null;
+                        }
+
+                        RightClickMenu.SetActive(false);
+                        //Debug.Log($"{placePos}를 클릭했담");
+                        Transform parentTransform;
+                        switch (map[tileX, 0, tileZ].type)
+                        {
+                            case 0: // 바닥
+                                if (buildingPrefabIndex <= 1)   // 기둥이거나 타일이면
+                                {
+                                    parentTransform = GameObject.Find("TileParent").transform;
+                                    map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
+                                }
+                                else
+                                {
+                                    parentTransform = GameObject.Find("RobotParent").transform;
+                                    map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
+
+                                    FindRoute findroute = map[tileX, 0, tileZ].obj.GetComponent<FindRoute>();
+                                    if (findroute != null)
+                                    {
+                                        findroute.type = buildingPrefabIndex;
+                                        findroute.enabled = true;
+                                    }
+                                }
+                                map[tileX, 0, tileZ].type = buildingPrefabIndex;
+                                //Debug.Log($"벽 생성: ({tileX}, {tileZ})");
+                                break;
+                            case 1: // 벽
+                                Destroy(map[tileX, 0, tileZ].obj);
+                                map[tileX, 0, tileZ].obj = null;
+                                map[tileX, 0, tileZ].type = 0;
+                                break;
+                            default:    // 로봇
+                                break;
+                        }
                     }
                 }
 
                 if (Input.GetMouseButtonDown(1))
                 {
+                    if (RightClickedObject != null)
+                    {
+                        Renderer[] renderers = RightClickedObject.GetComponentsInChildren<Renderer>();
+                        var originalMats = map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats;
+                        if (originalMats != null && originalMats.Count == renderers.Length)
+                        {
+                            for (int i = 0; i < renderers.Length; ++i)
+                            {
+                                renderers[i].sharedMaterials = originalMats[i];
+                            }
+                        }
+                        map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats = null;
+                        RightClickedObject = null;
+                    }
+
                     Vector3 mousePos = Input.mousePosition;
                     RightClickMenu.SetActive(true);
+                    RightClickMenuAnimator.enabled = true;
                     RightClickMenu.transform.position = mousePos;
                     RightClickMenuAnimator.ResetTrigger("Clicked");
                     RightClickMenuAnimator.SetTrigger("Clicked");
                     RightClickedCoord.x = tileX; RightClickedCoord.y = 0; RightClickedCoord.z = tileZ;
+
+                    // 기존 메테리얼들 저장, 와이어프레임으로 변경
+                    RightClickedObject = map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].obj;
+                    if (RightClickedObject != null)
+                    {
+                        Debug.Log(RightClickedObject.name + "선택완료");
+                        Renderer[] renderers = RightClickedObject.GetComponentsInChildren<Renderer>();
+                        map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats = new List<Material[]>();
+                        foreach (Renderer renderer in renderers)
+                        { 
+                            //기존 메테리얼들 저장
+                            map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats.Add(renderer.sharedMaterials);
+                            
+                            //메테리얼 교체
+                            Material[] newMats = new Material[renderer.materials.Length];
+                            for(int i = 0; i < newMats.Length; ++i)
+                            {
+                                newMats[i] = wireframeMat;
+                            }
+                            renderer.materials = newMats;
+                        }
+                    }
+                    
+
                     Debug.Log("우클릭"+RightClickedCoord.x + "," + RightClickedCoord.z);
                 }
             }
@@ -225,5 +290,35 @@ public class Picking : MonoBehaviour
             }
             r.materials = mats;
         }
+    }
+
+    bool IsPointerOverUI()
+    {
+        PointerEventData pointerData = new PointerEventData(EventSystem.current);
+        pointerData.position = Input.mousePosition;
+
+        List<RaycastResult> results = new List<RaycastResult>();
+        GraphicRaycaster gr = RightClickMenu.GetComponentInParent<GraphicRaycaster>();
+        gr.Raycast(pointerData, results);
+        return results.Count > 0;
+    }
+
+    public void RemoveObject()
+    {
+        if (RightClickedObject != null)
+        {
+            FindRoute fr = RightClickedObject.GetComponent<FindRoute>();
+            if (fr != null)
+            {//움직이는 로봇들
+                fr.RemoveThisObjectOnMap();
+            }
+            else
+            {//가만히 배치돼있는 애들
+                map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].Reset();
+            }
+            Destroy(RightClickedObject);
+            RightClickedObject = null;
+        }
+        RightClickMenu.gameObject.SetActive(false);
     }
 }

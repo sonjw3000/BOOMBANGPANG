@@ -35,6 +35,7 @@ public class Cell
 {
     public int type;
     public GameObject obj;
+    public List<Material[]> originalMats;
 
     public List<int3> GetBuildRange(int type)   // 배치된 타입에 따라 범위를 리턴해주는 함수
     {
@@ -56,6 +57,17 @@ public class Cell
     public List<int3> GetBuildRange()
     {
         return GetBuildRange(type);
+    }
+
+    public void Reset()
+    {
+        type = 0;
+        if (obj != null)
+        {
+            UnityEngine.Object.Destroy(obj);
+            obj = null;
+        }
+        originalMats = null;
     }
 }
 
