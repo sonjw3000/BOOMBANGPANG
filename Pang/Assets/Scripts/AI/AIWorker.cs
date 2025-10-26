@@ -1,6 +1,4 @@
 ﻿using BlackBoardSystem;
-using System.Runtime.CompilerServices;
-using Unity.IO.LowLevel.Unsafe;
 using UnityEngine;
 
 public abstract class AIWorker : MonoBehaviour
@@ -8,54 +6,72 @@ public abstract class AIWorker : MonoBehaviour
 	public string Name { get; private set; }
 	public int WorkerID { get; private set; }
 	protected BehaviorTree BTMain;
-	[SerializeField] protected BlackBoard blackBoard = new();
+	[SerializeField] protected BlackBoard LocalBlackBoard = new();
 
-#if UNITY_EDITOR
-	[SerializeField] private bool ActionStart = false;
-	[SerializeField] private bool befAction = false;
-#endif
+	protected abstract void BuildBlackBoard();
+	protected abstract void BuildBehaviorTree();
 
 	// should build BT here
 	protected abstract void EnableAction();
 	protected abstract void DisableAction();
 
-	public void OnEnable()
+	public void Start()
 	{
 		// register AI's BT to AI Manager
 		WorkerManager.Instance.RegisterWorker(this);
 
 		Debug.Log("AI 등장");
+
+		BuildBlackBoard();
+		BuildBehaviorTree();
 		EnableAction();
 	}
 
-	public void OnDisable()
+	public void OnDestroy()
 	{
 		// unregister AI
 		WorkerManager.Instance.UnregisterWorker(this);
 
-		Debug.Log("AI 퇴장");
 		DisableAction();
 	}
 
 	public bool RunBT()
 	{
 		BTContext btx;
-		btx.deltaTime = 0.0f;
-		btx.LayeredBB = blackBoard;
+		btx.deltaTime = 0.016f;
+		btx.LocalBlackBoard = LocalBlackBoard;
+		btx.GlobalBlackBoard = LocalBlackBoard;
+		btx.Worker = this;
+
 		BTMain?.RunBT(btx);
 
 		return true;
 	}
 
-
-	public void Update()
+	// AI's basic actions
+	public static IBaseNode.ENodeState WaitFor(in BTContext context)
 	{
-		if (befAction != ActionStart)
+		context.LocalBlackBoard.TryGet<float>("testTime", out float time);
+		if (time < 5.0f)
+			return IBaseNode.ENodeState.Running;
+		else
 		{
-			blackBoard.Set<bool>(new BlackBoardKey<bool>("test"), true);
+			context.LocalBlackBoard.Set<float>("testTime", 0.0f);
+			Debug.Log("WaitEnd");
+			return IBaseNode.ENodeState.Success;
+		}
+	}
+
+	public static IBaseNode.ENodeState MoveTo(in BTContext context)
+	{
+		// 그뭐냐 목적지에 도달 했냐를 찾아야함
+		context.LocalBlackBoard.TryGet<Vector3>("goalPos", out Vector3 goalPos);
+		if (false)
+		{
+			return IBaseNode.ENodeState.Success;
 		}
 
-		befAction = ActionStart;
+		return IBaseNode.ENodeState.Running;
 	}
 
 }

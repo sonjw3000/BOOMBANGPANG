@@ -58,6 +58,7 @@ class WorkerManager : MonoBehaviour
 	{
 		// todo
 		// 타이밍별로 정리해두고 관리해야 함
+		// 목적지 이동중엔 비활성화
 		// 
 		foreach (var worker in Workers)
 		{

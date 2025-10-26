@@ -23,6 +23,7 @@ namespace BlackBoardSystem
 {
 	// 참고
 	// https://www.youtube.com/watch?app=desktop&v=HNGJ8KOqdYQ
+	[Serializable]
 	public readonly struct BlackBoardKey<T>// : IEquatable<BlackBoardKey>
 	{
 		public readonly int hashedKey;
@@ -93,8 +94,13 @@ namespace BlackBoardSystem
 		public bool TryGet<T>(BlackBoardKey<T> key, out T value) => GetTable<T>().TryGet(key.hashedKey, out value);
 		public bool Remove<T>(BlackBoardKey<T> key) => GetTable<T>().Remove(key.hashedKey);
 		public void Clear() { foreach(var t in _Tables.Values) t.Clear(); }
+
+		public void Set<T>(string keyStr, in T value) => GetTable<T>().Set(keyStr.TransformToFNV1aHash(), value);
+		public bool TryGet<T>(string keyStr, out T value) => GetTable<T>().TryGet(keyStr.TransformToFNV1aHash(), out value);
+		public bool Remove<T>(string keyStr) => GetTable<T>().Remove(keyStr.TransformToFNV1aHash());
 	}
 
+	/*
 	public sealed class LayeredBlackBoard : IBlackboard
 	{
 		private readonly IBlackboard Local;
@@ -110,11 +116,19 @@ namespace BlackBoardSystem
 		public bool TryGetGlobal<T>(BlackBoardKey<T> key, out T value) => Global.TryGet(key, out value);
 		public bool Remove<T>(BlackBoardKey<T> key) => Local.Remove(key);
 		public void Clear() => Local.Clear();
+
+		public void Set<T>(string keyStr, in T value) => Local.Set<T>(new BlackBoardKey<T>(keyStr), value);
+		public bool TryGet<T>(string keyStr, out T value) => Local.TryGet(new BlackBoardKey<T>(keyStr), out value) || Global.TryGet(new BlackBoardKey<T>(keyStr), out value);
+		public void TryGetGlobal<T>(string keyStr, in T value) => Global.Set<T>(new BlackBoardKey<T>(keyStr), value);
+		public bool Remove<T>(string keyStr) => Local.Remove(new BlackBoardKey<T>(keyStr));
 	}
+	*/
 }
 
 public struct BTContext
 {
-	public BlackBoard LayeredBB;
+	public BlackBoard LocalBlackBoard;
+	public BlackBoard GlobalBlackBoard;
+	public AIWorker Worker;
 	public float deltaTime;
 }
