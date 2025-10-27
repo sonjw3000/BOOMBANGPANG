@@ -60,7 +60,7 @@ public class SpawnRobots : MonoBehaviour
 
                             FindRoute findroute = map[x, y, z].obj.GetComponent<FindRoute>();
                             findroute.type = robotID;
-                            findroute.enabled = true;
+                            //findroute.enabled = true;
                             --leftCnt;
                         }
                         if (leftCnt == 0)
