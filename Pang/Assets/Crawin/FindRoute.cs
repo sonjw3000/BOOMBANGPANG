@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 
 public class FindRoute : MonoBehaviour
 {
@@ -64,7 +65,7 @@ public class FindRoute : MonoBehaviour
         if (Vector3.Distance(transform.position, targetPos) < 0.01f)    //목적지 도착
         {
             //Debug.Log("도착");
-            if (previous.y >= 0 && previous.x >= 0)
+            if (previous.y >= 0 && previous.x >= 0 && previous.z >= 0)
             {
                 map[previous.x, previous.y, previous.z].type = 0;
                 map[previous.x, previous.y,previous.z].obj = null; //도착해서 이전 위치에 존재하는 gameobject를 null로 변경
@@ -202,5 +203,12 @@ public class FindRoute : MonoBehaviour
         int h = x * x + y * y + z * z;
         int f = dist + h;
         return f;
+    }
+
+    public void RemoveThisObjectOnMap()
+    {
+        if (previous.x >= 0 && previous.y >= 0 && previous.z >= 0)
+            map[previous.x, previous.y, previous.z].type = 0;
+        map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0;
     }
 }
