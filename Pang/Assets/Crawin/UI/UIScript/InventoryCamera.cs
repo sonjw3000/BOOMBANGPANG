@@ -91,8 +91,8 @@ public class InventoryCamera : MonoBehaviour
         int resourceCnt = resources.Prefabs.Length;
         int InvLayer = LayerMask.NameToLayer("Inventory");
 
-        // 갯수만큼 생성
-        for (int i = 0; i < resourceCnt; i++)
+        // 갯수만큼 생성 i가 2부터인 이유는 0은 빈칸, 1은 기둥 고정
+        for (int i = 2; i < resourceCnt; i++)
         {
             // (1) 프리팹 임시 생성
             GameObject instance = Instantiate(resources.Prefabs[i], resources.transform);

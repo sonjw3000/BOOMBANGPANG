@@ -48,7 +48,7 @@ public class Picking : MonoBehaviour
             RightClickMenuAnimator = RightClickMenu.GetComponent<Animator>();
             RightClickMenuAnimator.enabled = false;
             RightClickMenu.SetActive(false);
-            Debug.Log("분명 끔");
+            //Debug.Log("분명 끔");
         }
         RightClickedCoord = new int3();
         RightClickedObject = null;
@@ -62,6 +62,8 @@ public class Picking : MonoBehaviour
             KeyboardInput();
             MousePicking();
         }
+        //Debug.Log($"Preview activeSelf={previewInstance.activeSelf}, buildingPrefabIndex={buildingPrefabIndex}");
+
     }
 
     void MousePicking()
@@ -69,7 +71,6 @@ public class Picking : MonoBehaviour
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         Plane groundPlane = new Plane(Vector3.up, Vector3.zero); // y=0 평면
         float distance;
-
         if (groundPlane.Raycast(ray, out distance))
         {
             Vector3 worldPos = ray.GetPoint(distance);
@@ -84,38 +85,40 @@ public class Picking : MonoBehaviour
 
             if (tileX >= 0 && tileX < mapSize.x && tileZ >= 0 && tileZ < mapSize.z)
             {
-                if (map[tileX,0,tileZ].type == 0) // 바닥이면
+                if (buildingPrefabIndex > 1)    // 배치 될 프리팹 보여주기
                 {
-                    //Debug.Log("바닥인디요");
-                    previewInstance.SetActive(true);
-                    previewInstance.transform.position = placePos;
-                    foreach (Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
+                    SyncPreviewAndBuilding();
+                    if (map[tileX, 0, tileZ].type == 0) // 바닥이면
                     {
-                        var mats = r.materials;
-                        for(int i = 0; i <mats.Length; ++i)
+                        //Debug.Log("바닥인디요");
+                        previewInstance.SetActive(true);
+                        previewInstance.transform.position = placePos;
+                        foreach (Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
                         {
-                            mats[i].color = new Color(0, 1, 0, 0.3f);
+                            var mats = r.materials;
+                            for (int i = 0; i < mats.Length; ++i)
+                            {
+                                mats[i].color = new Color(0, 1, 0, 0.3f);
+                            }
                         }
-                        //r.material.color = new Color(0, 1, 0, 0.3f);
                     }
-                }
-                else
-                {
-                    //Debug.Log("바닥이 아닌디요");
-                    previewInstance.SetActive(true);
-                    previewInstance.transform.position = placePos;
-                    foreach(Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
+                    else
                     {
-                        var mats = r.materials;
-                        for (int i = 0; i < mats.Length; ++i)
+                        //Debug.Log("바닥이 아닌디요");
+                        previewInstance.SetActive(true);
+                        previewInstance.transform.position = placePos;
+                        foreach (Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
                         {
-                            mats[i].color = new Color(1, 0, 0, 0.3f);
+                            var mats = r.materials;
+                            for (int i = 0; i < mats.Length; ++i)
+                            {
+                                mats[i].color = new Color(1, 0, 0, 0.3f);
+                            }
                         }
-                        //r.material.color = new Color(1, 0, 0, 0.3f);
                     }
                 }
 
-                if (Input.GetMouseButtonDown(0)) //Input.GetMouseButton(0)
+                if (Input.GetMouseButtonDown(0))
                 {      // 좌클릭 했을 때
                     if (!IsPointerOverUI()) // ui를 안건드렸으면
                     {
@@ -161,9 +164,9 @@ public class Picking : MonoBehaviour
                                 //Debug.Log($"벽 생성: ({tileX}, {tileZ})");
                                 break;
                             case 1: // 벽
-                                Destroy(map[tileX, 0, tileZ].obj);
-                                map[tileX, 0, tileZ].obj = null;
-                                map[tileX, 0, tileZ].type = 0;
+                                //Destroy(map[tileX, 0, tileZ].obj);
+                                //map[tileX, 0, tileZ].obj = null;
+                                //map[tileX, 0, tileZ].type = 0;
                                 break;
                             default:    // 로봇
                                 break;
@@ -173,7 +176,7 @@ public class Picking : MonoBehaviour
 
                 if (Input.GetMouseButtonDown(1))
                 {
-                    if (RightClickedObject != null)
+                    if (RightClickedObject != null) // 이전에 선택된 애가 있다면 메터리얼 원상복귀
                     {
                         Renderer[] renderers = RightClickedObject.GetComponentsInChildren<Renderer>();
                         var originalMats = map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats;
@@ -188,21 +191,13 @@ public class Picking : MonoBehaviour
                         RightClickedObject = null;
                     }
 
-                    Vector3 mousePos = Input.mousePosition;
-                    RightClickMenu.SetActive(false);
-                    RightClickMenu.SetActive(true);
-                    // 껏다키는 이유는 자식들도 껏다키기위함
-                    RightClickMenuAnimator.enabled = true;
-                    RightClickMenu.transform.position = mousePos;
-                    RightClickMenuAnimator.ResetTrigger("Clicked");
-                    RightClickMenuAnimator.SetTrigger("Clicked");
                     RightClickedCoord.x = tileX; RightClickedCoord.y = 0; RightClickedCoord.z = tileZ;
 
                     // 기존 메테리얼들 저장, 와이어프레임으로 변경
                     RightClickedObject = map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].obj;
                     if (RightClickedObject != null)
                     {
-                        Debug.Log(RightClickedObject.name + "선택완료");
+                        //Debug.Log(RightClickedObject.name + "선택완료");
                         Renderer[] renderers = RightClickedObject.GetComponentsInChildren<Renderer>();
                         map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats = new List<Material[]>();
                         foreach (Renderer renderer in renderers)
@@ -219,9 +214,13 @@ public class Picking : MonoBehaviour
                             renderer.materials = newMats;
                         }
                     }
-                    
 
-                    Debug.Log("우클릭"+RightClickedCoord.x + "," + RightClickedCoord.z);
+                    Vector3 mousePos = Input.mousePosition;
+                    RightClickMenu.SetActive(false);
+                    RightClickMenu.SetActive(true);
+                    // 껏다키는 이유는 자식들도 껏다키기위함
+                    RightClickMenuAnimator.enabled = true;
+                    RightClickMenu.transform.position = mousePos;
                 }
             }
             else
@@ -273,7 +272,7 @@ public class Picking : MonoBehaviour
         {
             buildingPrefabIndex = 0;
         }
-        SyncPreviewAndBuilding();
+        //SyncPreviewAndBuilding();
     }
 
     void SyncPreviewAndBuilding()
