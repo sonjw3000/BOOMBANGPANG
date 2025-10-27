@@ -189,7 +189,9 @@ public class Picking : MonoBehaviour
                     }
 
                     Vector3 mousePos = Input.mousePosition;
+                    RightClickMenu.SetActive(false);
                     RightClickMenu.SetActive(true);
+                    // 껏다키는 이유는 자식들도 껏다키기위함
                     RightClickMenuAnimator.enabled = true;
                     RightClickMenu.transform.position = mousePos;
                     RightClickMenuAnimator.ResetTrigger("Clicked");
