@@ -17,6 +17,7 @@ public class InsertButton : MonoBehaviour
 
     public void InsertClicked()
     {
+        //Debug.Log("Insert ´­·È´ç");
         Inventory.SetActive(true);
     }
 
