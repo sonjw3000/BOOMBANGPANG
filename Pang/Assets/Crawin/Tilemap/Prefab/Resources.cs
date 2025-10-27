@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
+using static Resources;
 
 [System.Serializable]
 public class ObjectData
@@ -73,6 +75,14 @@ public class Cell
 
 public class Resources : MonoBehaviour
 {
+    public class RendererTemplate
+	{
+		// "path" -> sharedMaterials
+		public Dictionary<string, Material[]> pathToMaterials = new Dictionary<string, Material[]>();
+	}
+
+   public Dictionary<int, RendererTemplate> IndexToMaterials = new Dictionary<int, RendererTemplate>();
+
     public TextAsset mapJsonFile;
     public GameObject[] Prefabs;
     private MapJson mapJson;
@@ -101,12 +111,40 @@ public class Resources : MonoBehaviour
                 }
             }
         }
+
+        BuildRendererTemplates();
+
+    }
+
+    private void BuildRendererTemplates()
+    {
+        IndexToMaterials.Clear();
+
+        for (int i = 0; i < Prefabs.Length; ++i)
+        {
+            //foreach (var prefab in Prefabs)
+            var rendererTpl = new RendererTemplate();
+            var root = Prefabs[i].transform;
+            var renderers = Prefabs[i].GetComponentsInChildren<Renderer>(true);
+
+            foreach (var rend in renderers)
+            {
+                var stack = new Stack<string>();
+                for (var cur = rend.transform; cur != root.transform; cur = cur.parent)
+                    stack.Push(cur.name);
+
+                string path = string.Join("/", stack);
+                rendererTpl.pathToMaterials[path] = rend.sharedMaterials;
+            }
+
+            IndexToMaterials[i] = rendererTpl;
+        }
     }
 
     // Update is called once per frame
-    void Update()
-    {
-    }
+    //void Update()
+    //{
+    //}
 
     private void OnValidate()
     {
