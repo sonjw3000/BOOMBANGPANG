@@ -1,6 +1,7 @@
 ﻿using BlackBoardSystem;
 using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public static class StringExtensions
@@ -26,6 +27,10 @@ namespace BlackBoardSystem
 	[Serializable]
 	public readonly struct BlackBoardKey<T>// : IEquatable<BlackBoardKey>
 	{
+		public static readonly BlackBoardKey<int3> GoalPos = new("goalPos");
+		//public static readonly BlackBoardKey<int3> GoalPos = new("goalPos");
+
+
 		public readonly int hashedKey;
 		public readonly string name;
 
@@ -45,7 +50,6 @@ namespace BlackBoardSystem
 		public static bool operator==(BlackBoardKey<T> left, BlackBoardKey<T> right) => left.hashedKey == right.hashedKey;
 		public static bool operator!=(BlackBoardKey<T> left, BlackBoardKey<T> right) => !(left == right);
 	}
-
 
 	public interface IBlackboard
 	{
@@ -71,7 +75,10 @@ namespace BlackBoardSystem
 					_data.TryGetValue(id, out value);
 					return true;
 				}
-
+				// error
+#if UNITY_EDITOR
+				//throw new Exception("No such key in table!");
+#endif
 				value = default(T);
 				return false;
 			}

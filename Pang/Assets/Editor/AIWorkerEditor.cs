@@ -12,7 +12,7 @@ class AIWorkerEditor : Editor
 
 		if (GUILayout.Button("Move On"))
 		{
-			worker.SetMoveOn();
+			//worker.SetMoveOn();
 		}
 	}
 }

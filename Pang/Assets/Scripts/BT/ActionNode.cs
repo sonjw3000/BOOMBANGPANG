@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class ActionNode : IBaseNode
 {
@@ -20,3 +22,32 @@ public class ActionNode : IBaseNode
 		return _ActionFunction?.Invoke(ctx) ?? IBaseNode.ENodeState.Failure;
 	}
 }
+
+public class WaitNode : IBaseNode
+{
+	private float _WaitTime;
+	private float _StartTime;
+	private bool _IsRunning = false;
+
+	public WaitNode(float timeToWait)
+	{
+		_WaitTime = timeToWait;
+	}
+
+	public IBaseNode.ENodeState Evaluate(BTContext ctx)
+	{
+		if (_IsRunning == false)
+		{
+			_StartTime = Time.time;
+			_IsRunning = true;
+		}
+
+		if (Time.time - _StartTime > _WaitTime)
+		{
+			_IsRunning = false;
+			return IBaseNode.ENodeState.Success;
+		}
+
+		return IBaseNode.ENodeState.Running;
+	}
+} 

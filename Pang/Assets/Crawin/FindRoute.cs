@@ -16,10 +16,11 @@ public class FindRoute : MonoBehaviour
 	private int3 previous;
 	List<int3> path;
 
+	public bool IsGoal { get; private set; }
+
 	public int type;
 
-	public bool IsGoal { get { return currentIndex + 1 == path.Count; } }
-
+	private AIWorker _Worker;
 
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
@@ -32,16 +33,19 @@ public class FindRoute : MonoBehaviour
 			Debug.LogError("mapRef is null!");
 		}
 		path = Astar();
-
-		this.enabled = false;
 	}
 
 	// Update is called once per frame
 	void Update()
 	{
-		if (!IsGoal && path != null)
+
+		if (path != null)
 		{
 			MoveOnTile();
+		}
+		else
+		{
+			//path = Astar();
 		}
 	}
 
@@ -71,7 +75,22 @@ public class FindRoute : MonoBehaviour
 				map[previous.x, previous.y, previous.z].obj = null; //도착해서 이전 위치에 존재하는 gameobject를 null로 변경
 			}
 
-			if (currentIndex + 1 < path.Count)  //다음 목적지로
+			if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)
+			{
+				//Debug.Log("finish");
+				//int3 rand = new int3(UnityEngine.Random.Range(0, mapSize.x), UnityEngine.Random.Range(0, mapSize.y), UnityEngine.Random.Range(0, mapSize.z));
+				//while (map[rand.x, rand.y, rand.z].type != 0)
+				//{
+				//	rand.x = UnityEngine.Random.Range(0, mapSize.x);
+				//	rand.y = UnityEngine.Random.Range(0, mapSize.y);
+				//	rand.z = UnityEngine.Random.Range(0, mapSize.z);
+				//}
+				//goalCoordinate = rand;
+				//path = null;
+				IsGoal = true;
+				_Worker.enabled = true;
+			}
+			else//다음 목적지로
 			{
 				int3 next = path[currentIndex + 1];
 				if (map[next.x, next.y, next.z].type == 0)
@@ -88,19 +107,18 @@ public class FindRoute : MonoBehaviour
 					path = null;
 				}
 			}
-			else
-			{
-				
-			}
 		}
 	}
 
+
+
 	List<int3> Astar()
 	{
+		IsGoal = false;
+
 		int4 curr = new int4(Mathf.RoundToInt(transform.position.x), 0, Mathf.RoundToInt(transform.position.z), 0); // x,y,z,distance
 		map[curr.x, curr.y, curr.z].type = type;
 		map[curr.x, curr.y, curr.z].obj = gameObject;
-
 
 		int[,,] distance = new int[mapSize.x, mapSize.y, mapSize.z];
 		int3[,,] prev = new int3[mapSize.x, mapSize.y, mapSize.z];
@@ -201,8 +219,6 @@ public class FindRoute : MonoBehaviour
 		map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0;
 	}
 
-	// for test 
-	// 지워야한다
 	public int3 GetRandomPos()
 	{
 		//Debug.Log("finish");
@@ -226,5 +242,10 @@ public class FindRoute : MonoBehaviour
 
 		//this.enabled = true;
 		return true;
+	}
+
+	public void SetAIMaster(AIWorker worker)
+	{
+		_Worker = worker;
 	}
 }

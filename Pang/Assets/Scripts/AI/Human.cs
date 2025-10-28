@@ -8,22 +8,23 @@ public class Human : AIWorker
 {
 	protected override void BuildBlackBoard()
 	{
-		LocalBlackBoard.Set<bool>("testMoveOn", false);
-		LocalBlackBoard.Set<float>("testTime", 0.0f);
+
 	}
 	protected override void BuildBehaviorTree()
 	{
 		SelectorNode root = new SelectorNode();
-		SequenceNode moveTo = new SequenceNode();
-		ActionNode checkMoveOn = new ActionNode(TestMoveConfirm);
+		SequenceNode waitAndMove = new SequenceNode();
+
+		WaitNode wait = new WaitNode(0.2f);
+		ActionNode setDestination = new ActionNode(SetDestination);
 		ActionNode realMove = new ActionNode(MoveTo);
 
-		ActionNode action = new ActionNode(WaitFor);
-		
-		moveTo.Add(checkMoveOn);
-		moveTo.Add(realMove);
-		root.Add(moveTo);
-		root.Add(action);
+		waitAndMove.Add(wait);
+		waitAndMove.Add(setDestination);
+		waitAndMove.Add(realMove);
+
+		root.Add(waitAndMove);
+
 		BTMain = new BehaviorTree(root);
 	}
 

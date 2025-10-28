@@ -62,7 +62,8 @@ class WorkerManager : MonoBehaviour
 		// 
 		foreach (var worker in Workers)
 		{
-			worker.RunBT();
+			if (worker.enabled)
+				worker.RunBT();
 		}
 	}
 }
