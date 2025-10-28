@@ -1359,7 +1359,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b12aacbad84d7c045988a5361e7d2d82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  NUMS: 50
+  NUMS: 500
   type: 1
   RobotPrefab: {fileID: 4046099219731300723, guid: 828fff7bc15f652488cc1c8019a1469f, type: 3}
 --- !u!1001 &535803003
