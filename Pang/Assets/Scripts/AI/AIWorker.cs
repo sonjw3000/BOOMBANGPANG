@@ -23,7 +23,7 @@ public abstract class AIWorker : MonoBehaviour
 		// register AI's BT to AI Manager
 		WorkerManager.Instance.RegisterWorker(this);
 
-		Debug.Log("AI 등장");
+		//Debug.Log("AI 등장");
 
 		RouteFinder = transform.GetComponent<FindRoute>();
 		RouteFinder.SetAIMaster(this);

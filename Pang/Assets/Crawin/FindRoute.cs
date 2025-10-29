@@ -54,7 +54,8 @@ public class FindRoute : MonoBehaviour
         }
         path_size = 0;
         path = new List<int3>();
-        Astar();
+        this.enabled = false;
+        //Astar();
     }
 
     // Update is called once per frame
@@ -101,7 +102,7 @@ public class FindRoute : MonoBehaviour
             {
                 //Debug.Log("finish");
                 //int3 rand = new int3(UnityEngine.Random.Range(0, mapSize.x), UnityEngine.Random.Range(0, mapSize.y), UnityEngine.Random.Range(0, mapSize.z));
-                //while (map[rand.x,rand.y,rand.z].type != 0)
+                //while (map[rand.x, rand.y, rand.z].type != 0)
                 //{
                 //    rand.x = UnityEngine.Random.Range(0, mapSize.x);
                 //    rand.y = UnityEngine.Random.Range(0, mapSize.y);
@@ -138,6 +139,8 @@ public class FindRoute : MonoBehaviour
 
     void Astar()
     {
+        IsGoal = false;
+        map = resources.mapRef;
         curr.x = Mathf.RoundToInt(transform.position.x); curr.y = 0; curr.z = Mathf.RoundToInt(transform.position.z); curr.w = 0; // x,y,z,distance
         map[curr.x, curr.y, curr.z].type = type;
         map[curr.x, curr.y, curr.z].obj = gameObject;
@@ -207,6 +210,7 @@ public class FindRoute : MonoBehaviour
 
         int3 back = nearest_goal;
         path_size = 0;
+        path.Clear();
         while(back.x != -1 && back.y != -1 && back.z != -1)
         {
             ++path_size;
@@ -239,32 +243,37 @@ public class FindRoute : MonoBehaviour
 
 	public void RemoveThisObjectOnMap()
 	{
-		if (previous.x >= 0 && previous.y >= 0 && previous.z >= 0)
+        if (previous.x >= 0 && previous.y >= 0 && previous.z >= 0)
 			map[previous.x, previous.y, previous.z].type = 0;
-		map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0;
+		map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0; // path가 없을때 삭제하면 오류 발생
 	}
 
 	public int3 GetRandomPos()
 	{
-		//Debug.Log("finish");
-		int3 rand = new int3(UnityEngine.Random.Range(0, mapSize.x), UnityEngine.Random.Range(0, mapSize.y), UnityEngine.Random.Range(0, mapSize.z));
-		while (map[rand.x, rand.y, rand.z].type != 0)
-		{
-			rand.x = UnityEngine.Random.Range(0, mapSize.x);
-			rand.y = UnityEngine.Random.Range(0, mapSize.y);
-			rand.z = UnityEngine.Random.Range(0, mapSize.z);
-		}
-		//goalCoordinate = rand;
-		//path = null;
+        //Debug.Log("finish");
+        int3 rand = new int3(UnityEngine.Random.Range(0, mapSize.x), UnityEngine.Random.Range(0, mapSize.y), UnityEngine.Random.Range(0, mapSize.z));
+        while (map[rand.x, rand.y, rand.z].type != 0)
+        {
+            rand.x = UnityEngine.Random.Range(0, mapSize.x);
+            rand.y = UnityEngine.Random.Range(0, mapSize.y);
+            rand.z = UnityEngine.Random.Range(0, mapSize.z);
+        }
+        goalCoordinate = rand;
+        //path = null;
+        path.Clear();
 
-		return rand;
+        //int3 rand = new int3();
+        //rand.x = 3;
+        //rand.y = 0;
+        //rand.z = 0;
+        return rand;
 	}
 
 	public bool SetGoalPosition(int3 goalPos)
 	{
 		goalCoordinate = goalPos;
 		Astar();
-
+        //Debug.Log(path_size);
 		//this.enabled = true;
 		return true;
 	}
