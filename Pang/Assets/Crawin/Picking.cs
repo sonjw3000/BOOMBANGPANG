@@ -10,6 +10,7 @@ public class Picking : MonoBehaviour
     private Cell[,,] map;
     private int3 mapSize;
     private int buildingPrefabIndex;
+    private int syncPrefabIndex;
     public ref int IndexRef => ref buildingPrefabIndex;
     private GameObject previewInstance;
     public Material wireframeMat;
@@ -39,9 +40,9 @@ public class Picking : MonoBehaviour
             Debug.LogError("mapRef is null!");
         }
         SyncPreviewAndBuilding();
-        previewInstance.name = "Preview";
         previewInstance.SetActive(false);
         buildingPrefabIndex = 0;
+        syncPrefabIndex = 0;
 
         if (RightClickMenu)
         {
@@ -76,8 +77,8 @@ public class Picking : MonoBehaviour
             Vector3 worldPos = ray.GetPoint(distance);
             //Debug.Log(worldPos);
             // 월드 좌표 → 타일 인덱스
-            int tileX = Mathf.FloorToInt(worldPos.x+0.5f);
-            int tileZ = Mathf.FloorToInt(worldPos.z+0.5f);
+            int tileX = Mathf.FloorToInt(worldPos.x + 0.5f);
+            int tileZ = Mathf.FloorToInt(worldPos.z + 0.5f);
 
             //Debug.Log($"마우스로{tileX},{tileZ}를 클릭");
             // 배열 범위 체크
@@ -159,6 +160,25 @@ public class Picking : MonoBehaviour
                                         findroute.type = buildingPrefabIndex;
                                         findroute.enabled = true;
                                     }
+
+                                    //Component[] components = map[tileX, 0, tileZ].obj.GetComponents<Component>();
+                                    //foreach (var comp in components)
+                                    //{
+                                    //    switch (comp) {
+                                    //        case Transform:
+                                    //            continue;
+                                    //        case FindRoute:
+                                    //            ((FindRoute)comp).type = buildingPrefabIndex;
+                                    //            ((FindRoute)comp).enabled = true;
+                                    //            break;
+                                    //        case Human:
+                                    //            ((Human)comp).enabled = true;
+                                    //            break;
+                                    //        default:
+                                    //            Debug.LogError("로봇 배치 도중에 등록되지 않은 컴포넌트 발견!" + comp);
+                                    //            break;
+                                    //    }
+                                    //}
                                 }
                                 map[tileX, 0, tileZ].type = buildingPrefabIndex;
                                 //Debug.Log($"벽 생성: ({tileX}, {tileZ})");
@@ -201,13 +221,13 @@ public class Picking : MonoBehaviour
                         Renderer[] renderers = RightClickedObject.GetComponentsInChildren<Renderer>();
                         map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats = new List<Material[]>();
                         foreach (Renderer renderer in renderers)
-                        { 
+                        {
                             //기존 메테리얼들 저장
                             map[RightClickedCoord.x, RightClickedCoord.y, RightClickedCoord.z].originalMats.Add(renderer.sharedMaterials);
-                            
+
                             //메테리얼 교체
                             Material[] newMats = new Material[renderer.materials.Length];
-                            for(int i = 0; i < newMats.Length; ++i)
+                            for (int i = 0; i < newMats.Length; ++i)
                             {
                                 newMats[i] = wireframeMat;
                             }
@@ -277,19 +297,41 @@ public class Picking : MonoBehaviour
 
     void SyncPreviewAndBuilding()
     {
-        if (previewInstance)
+        if (syncPrefabIndex != buildingPrefabIndex || previewInstance == null)
         {
             Destroy(previewInstance);
-        }
-        previewInstance = Instantiate(resources.Prefabs[buildingPrefabIndex]);
-        foreach(Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
-        {
-            var mats = r.materials;
-            for (int i = 0; i < mats.Length; ++i)
+            previewInstance = Instantiate(resources.Prefabs[buildingPrefabIndex]);
+            previewInstance.name = "Preview";
+            foreach (Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
             {
-                mats[i] = wireframeMat;
+                var mats = r.materials;
+                for (int i = 0; i < mats.Length; ++i)
+                {
+                    mats[i] = wireframeMat;
+                }
+                r.materials = mats;
             }
-            r.materials = mats;
+
+            Component[] components = previewInstance.GetComponents<Component>();
+            foreach (var comp in components)
+            {
+                switch (comp)
+                {
+                    case Transform:
+                        continue;
+                    case FindRoute:
+                        ((FindRoute)comp).type = buildingPrefabIndex;
+                        ((FindRoute)comp).enabled = false;
+                        break;
+                    case Human:
+                        ((Human)comp).enabled = false;
+                        break;
+                    default:
+                        Debug.LogError("프리뷰 컴포넌트 끄는 중에 등록되지 않은 컴포넌트 발견!" + comp);
+                        break;
+                }
+            }
+            syncPrefabIndex = buildingPrefabIndex;
         }
     }
 

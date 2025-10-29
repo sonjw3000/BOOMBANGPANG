@@ -13,9 +13,9 @@ public class FindRoute : MonoBehaviour
 	public int3 goalCoordinate;
 
     private int currentIndex = 0;
-    private int3 previous;
+    private int3 previousNode;
+    private int3 nextNode;
     List<int3> path;
-    int path_size;
 
     // astar에서 쓰이는 변수들
     int[,,] distance;
@@ -43,7 +43,7 @@ public class FindRoute : MonoBehaviour
         prev = new int3[mapSize.x, mapSize.y, mapSize.z];
         pq = new PriorityQueue<int4>();
         directions = new int3[4];
-        curr = new int4();
+        curr = new int4(Mathf.RoundToInt(transform.position.x),0, Mathf.RoundToInt(transform.position.z),0);
 
         //moveontile에서 쓰이는 변수들
         targetPos = new Vector3();
@@ -52,7 +52,6 @@ public class FindRoute : MonoBehaviour
         {
             Debug.LogError("mapRef is null!");
         }
-        path_size = 0;
         path = new List<int3>();
         this.enabled = false;
         //Astar();
@@ -62,7 +61,7 @@ public class FindRoute : MonoBehaviour
     void Update()
     {
         
-        if (path_size > 0)
+        if (path.Count > 0)
         {
             MoveOnTile();
         }
@@ -74,7 +73,18 @@ public class FindRoute : MonoBehaviour
 
     void MoveOnTile()
     {
-        targetPos.x = path[currentIndex].x; targetPos.y = path[currentIndex].y + transform.position.y; targetPos.z = path[currentIndex].z;
+        //string s = "";
+        //s += transform.name;
+        //foreach (int3 p in path)
+        //{
+        //    s += p + " -> ";
+        //}
+        //Debug.Log("분명히 나는 "+s);
+
+        targetPos.x = nextNode.x; targetPos.y = nextNode.y + transform.position.y; targetPos.z = nextNode.z;
+        //targetPos.x = path[currentIndex].x; targetPos.y = path[currentIndex].y + transform.position.y; targetPos.z = path[currentIndex].z;
+
+        //Debug.Log("일단 다음 목적지는 " + targetPos);
 
 		Vector3 direction = math.normalize(targetPos - transform.position);
 		float dotProduct = math.dot(transform.forward, direction);
@@ -92,10 +102,10 @@ public class FindRoute : MonoBehaviour
 		if (Vector3.Distance(transform.position, targetPos) < 0.01f)    //목적지 도착
 		{
 			//Debug.Log("도착");
-			if (previous.y >= 0 && previous.x >= 0 && previous.z >= 0)
+			if (previousNode.y >= 0 && previousNode.x >= 0 && previousNode.z >= 0)
 			{
-				map[previous.x, previous.y, previous.z].type = 0;
-				map[previous.x, previous.y, previous.z].obj = null; //도착해서 이전 위치에 존재하는 gameobject를 null로 변경
+				map[previousNode.x, previousNode.y, previousNode.z].type = 0;
+				map[previousNode.x, previousNode.y, previousNode.z].obj = null; //도착해서 이전 위치에 존재하는 gameobject를 null로 변경
 			}
 
             if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)
@@ -111,24 +121,22 @@ public class FindRoute : MonoBehaviour
                 //goalCoordinate = rand;
                 IsGoal = true;
                 _Worker.enabled = true;
-                path_size = 0;
                 path.Clear();
             }
             else//다음 목적지로
             {
-                int3 next = path[currentIndex + 1];
-                if (map[next.x,next.y,next.z].type == 0)
+                nextNode = path[currentIndex + 1];
+                if (map[nextNode.x, nextNode.y, nextNode.z].type == 0)
                     // 다음 목적지가 이동 가능한 상태면
                 {
-                    previous = path[currentIndex++];
-                    map[previous.x, previous.y, previous.z].type = int.MaxValue;
-                    map[next.x, next.y, next.z].type = type;
-                    map[next.x,next.y,next.z].obj = gameObject;
+                    previousNode = path[currentIndex++];
+                    map[previousNode.x, previousNode.y, previousNode.z].type = int.MaxValue;
+                    map[nextNode.x, nextNode.y, nextNode.z].type = type;
+                    map[nextNode.x, nextNode.y, nextNode.z].obj = gameObject;
                 }
                 else
                 {   // 다음 목적지로 이동이 불가능한 상태면
                     //Debug.Log(transform.name + "가 목적지로 갈 수 없습니다.");
-                    path_size = 0;
                     path.Clear();
                 }
             }
@@ -140,11 +148,14 @@ public class FindRoute : MonoBehaviour
     void Astar()
     {
         IsGoal = false;
-        map = resources.mapRef;
         curr.x = Mathf.RoundToInt(transform.position.x); curr.y = 0; curr.z = Mathf.RoundToInt(transform.position.z); curr.w = 0; // x,y,z,distance
-        map[curr.x, curr.y, curr.z].type = type;
-        map[curr.x, curr.y, curr.z].obj = gameObject;
-
+        if (map[curr.x, curr.y, curr.z].type != 0 && map[curr.x, curr.y, curr.z].type != type)
+        {
+            Debug.Log("얘 지금 이상한짓 해요" + gameObject.name +"가 " + map[curr.x, curr.y, curr.z].type +"를 바꾼다");
+            return;
+        }
+            map[curr.x, curr.y, curr.z].type = type;
+            map[curr.x, curr.y, curr.z].obj = gameObject;
         // distance 와 prev 배열 초기화
         for (int y = 0; y < mapSize.y; ++y)
         {
@@ -209,18 +220,17 @@ public class FindRoute : MonoBehaviour
 
 
         int3 back = nearest_goal;
-        path_size = 0;
         path.Clear();
         while(back.x != -1 && back.y != -1 && back.z != -1)
         {
-            ++path_size;
             path.Add(back);
             back = prev[back.x, back.y, back.z];
         }
         path.Reverse();
 
         currentIndex = 0;
-        previous.x = -1; previous.y = -1; previous.z = -1;
+        nextNode = path[currentIndex];
+        previousNode.x = -1; previousNode.y = -1; previousNode.z = -1;
 
         //string s = "";
         //s += transform.name;
@@ -228,7 +238,7 @@ public class FindRoute : MonoBehaviour
         //{
         //    s += p + " -> ";
         //}
-        //Debug.Log(s);
+        //Debug.Log("이거로 확정이야" + s);
     }
 
 	int Heuristic(int3 next, int dist)
@@ -243,10 +253,11 @@ public class FindRoute : MonoBehaviour
 
 	public void RemoveThisObjectOnMap()
 	{
-        if (previous.x >= 0 && previous.y >= 0 && previous.z >= 0)
-			map[previous.x, previous.y, previous.z].type = 0;
-		map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0; // path가 없을때 삭제하면 오류 발생
-	}
+        if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
+			map[previousNode.x, previousNode.y, previousNode.z].type = 0;
+        //map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0; // path가 없을때 삭제하면 오류 발생
+        map[nextNode.x, nextNode.y, nextNode.z].type = 0;
+    }
 
 	public int3 GetRandomPos()
 	{
@@ -259,13 +270,8 @@ public class FindRoute : MonoBehaviour
             rand.z = UnityEngine.Random.Range(0, mapSize.z);
         }
         goalCoordinate = rand;
-        //path = null;
-        path.Clear();
+        //path.Clear();
 
-        //int3 rand = new int3();
-        //rand.x = 3;
-        //rand.y = 0;
-        //rand.z = 0;
         return rand;
 	}
 
