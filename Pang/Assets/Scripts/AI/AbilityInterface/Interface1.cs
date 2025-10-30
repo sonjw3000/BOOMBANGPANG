@@ -1,5 +1,5 @@
 ﻿
 interface IPackageable
 {
-	float _Duration { get; set; }
+	float duration { get; set; }
 }

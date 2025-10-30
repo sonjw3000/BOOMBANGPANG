@@ -1,30 +1,37 @@
 ﻿using System.Collections.Generic;
 
+using static IBaseNode;
+
 public class SequenceNode : IBaseNode
 {
 	public List<IBaseNode> Children = new List<IBaseNode>();
-	private int CurrentIndex = 0;
+	private int currentIndex = 0;
+	private int lastTick = -1;
 
 	public void Add(IBaseNode node) { Children.Add(node); }
 
-	public IBaseNode.ENodeState Evaluate(BTContext ctx)
+	public NodeState Evaluate(BTContext ctx)
 	{
-		for (int i = CurrentIndex; i < Children.Count; ++i)
+		if (lastTick + 1 != ctx.Tick)
+			currentIndex = 0;
+
+		for (int i = currentIndex; i < Children.Count; ++i)
 		{
 			var res = Children[i].Evaluate(ctx);
-			if (res == IBaseNode.ENodeState.Failure)
+			if (res == NodeState.Failure)
 			{
-				CurrentIndex = 0;
+				currentIndex = 0;
 				return res;
 			}
-			else if (res == IBaseNode.ENodeState.Running)
+			else if (res == NodeState.Running)
 			{
-				CurrentIndex = i;
+				currentIndex = i;
 				return res;
 			}
 		}
 
-		CurrentIndex = 0;
-		return IBaseNode.ENodeState.Success;
+		currentIndex = 0;
+		return NodeState.Success;
 	}
+
 }

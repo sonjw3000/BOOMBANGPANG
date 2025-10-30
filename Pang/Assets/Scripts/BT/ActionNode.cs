@@ -2,52 +2,55 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+using static IBaseNode;
+
 public class ActionNode : IBaseNode
 {
-	public delegate IBaseNode.ENodeState ActionFunc(in BTContext context);
-	private ActionFunc _ActionFunction;
+	private ActionFunc actionFunction;
+	
+	public delegate NodeState ActionFunc(in BTContext context);
 
 	public ActionNode(ActionFunc actionFunc)
 	{
-		_ActionFunction = actionFunc;
+		actionFunction = actionFunc;
 	}
 
-	public IBaseNode.ENodeState Evaluate(BTContext ctx)
+	public NodeState Evaluate(BTContext ctx)
 	{
 		// todo
 		// running 상태일 시
 		// 조건에 따라 AI를 일정 기간(목표지점에 도달하기, 애니메이션 재생까지 대기하기)동안
 		// AI 비활성화 큐에 넣어두기
 
-		return _ActionFunction?.Invoke(ctx) ?? IBaseNode.ENodeState.Failure;
+		return actionFunction?.Invoke(ctx) ?? IBaseNode.NodeState.Failure;
 	}
 }
 
 public class WaitNode : IBaseNode
 {
-	private float _WaitTime;
-	private float _StartTime;
-	private bool _IsRunning = false;
+	private float waitTime;
+	private float startTime;
+	private bool isRunning = false;
 
 	public WaitNode(float timeToWait)
 	{
-		_WaitTime = timeToWait;
+		waitTime = timeToWait;
 	}
 
-	public IBaseNode.ENodeState Evaluate(BTContext ctx)
+	public NodeState Evaluate(BTContext ctx)
 	{
-		if (_IsRunning == false)
+		if (isRunning == false)
 		{
-			_StartTime = Time.time;
-			_IsRunning = true;
+			startTime = Time.time;
+			isRunning = true;
 		}
 
-		if (Time.time - _StartTime > _WaitTime)
+		if (Time.time - startTime > waitTime)
 		{
-			_IsRunning = false;
-			return IBaseNode.ENodeState.Success;
+			isRunning = false;
+			return NodeState.Success;
 		}
 
-		return IBaseNode.ENodeState.Running;
+		return NodeState.Running;
 	}
 } 

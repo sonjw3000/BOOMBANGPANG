@@ -6,16 +6,16 @@ using BlackBoardSystem;
 public class BehaviorTree
 {
 
-	private IBaseNode RootNode;
+	private IBaseNode rootNode;
 
 	public BehaviorTree(IBaseNode node)
 	{
-		RootNode = node;
+		rootNode = node;
 	}
 
-	public ENodeState RunBT(BTContext ctx)
+	public NodeState RunBT(BTContext ctx)
 	{
-		return RootNode.Evaluate(ctx);
+		return rootNode.Evaluate(ctx);
 	}
 
 }

@@ -4,10 +4,11 @@ using UnityEngine;
 
 public abstract class AIWorker : MonoBehaviour
 {
-	public string Name { get; private set; }
-	public int WorkerID { get; private set; }
-	protected BehaviorTree BTMain;
-	protected BlackBoard LocalBlackBoard = new();
+	private FindRoute routeFinder;
+	private int tick = 0;
+	
+	protected BehaviorTree behaviorTree;
+	protected BlackBoard localBlackBoard = new();
 
 	protected abstract void BuildBlackBoard();
 	protected abstract void BuildBehaviorTree();
@@ -16,7 +17,9 @@ public abstract class AIWorker : MonoBehaviour
 	protected abstract void EnableAction();
 	protected abstract void DisableAction();
 
-	FindRoute RouteFinder;
+	public string Name { get; private set; }
+	public int WorkerID { get; private set; }
+
 
 	public void Start()
 	{
@@ -25,8 +28,8 @@ public abstract class AIWorker : MonoBehaviour
 
 		//Debug.Log("AI 등장");
 
-		RouteFinder = transform.GetComponent<FindRoute>();
-		RouteFinder.SetAIMaster(this);
+		routeFinder = transform.GetComponent<FindRoute>();
+		routeFinder.SetAIMaster(this);
 		BuildBlackBoard();
 		BuildBehaviorTree();
 		EnableAction();
@@ -40,15 +43,16 @@ public abstract class AIWorker : MonoBehaviour
 		DisableAction();
 	}
 
-	public bool RunBT()
+	public bool RunBT(BlackBoard GlobalBlackboard)
 	{
 		BTContext btx;
-		btx.deltaTime = 0.016f;
-		btx.LocalBlackBoard = LocalBlackBoard;
-		btx.GlobalBlackBoard = LocalBlackBoard;
+		btx.DeltaTime = 0.016f;
+		btx.LocalBlackBoard = localBlackBoard;
+		btx.GlobalBlackBoard = GlobalBlackboard;
 		btx.Worker = this;
+		btx.Tick = tick++;
 
-		BTMain?.RunBT(btx);
+		behaviorTree?.RunBT(btx);
 
 		return true;
 	}
@@ -59,31 +63,31 @@ public abstract class AIWorker : MonoBehaviour
 	//}
 
 	// AI's basic actions
-	public static IBaseNode.ENodeState SetDestination(in BTContext context)
+	public static IBaseNode.NodeState SetDestination(in BTContext context)
 	{
 		// test code
-		int3 pos = context.Worker.RouteFinder.GetRandomPos();
+		int3 pos = context.Worker.routeFinder.GetRandomPos();
 		context.LocalBlackBoard.Set<int3>("goalPos", pos);
 		//context.LocalBlackBoard.Set<int3>(BlackBoardKey<int3>.GoalPos, pos);
 
 		// for real
 		//context.LocalBlackBoard.TryGet<int3>(BlackBoardKey<int3>.GoalPos, out int3 goalPos);
 		context.LocalBlackBoard.TryGet<int3>("goalPos", out int3 goalPos);
-		context.Worker.RouteFinder.enabled = true;
-		context.Worker.RouteFinder.SetGoalPosition(goalPos);
+		context.Worker.routeFinder.enabled = true;
+		context.Worker.routeFinder.SetGoalPosition(goalPos);
 
-		return IBaseNode.ENodeState.Success;
+		return IBaseNode.NodeState.Success;
 	}
 
-	public static IBaseNode.ENodeState MoveTo(in BTContext context)
+	public static IBaseNode.NodeState MoveTo(in BTContext context)
 	{
-		if (context.Worker.RouteFinder.IsGoal)
+		if (context.Worker.routeFinder.IsGoal)
 		{
-			context.Worker.RouteFinder.enabled = false;
-			return IBaseNode.ENodeState.Success;
+			context.Worker.routeFinder.enabled = false;
+			return IBaseNode.NodeState.Success;
 		}
 		context.Worker.enabled = false;
 
-		return IBaseNode.ENodeState.Running;
+		return IBaseNode.NodeState.Running;
 	}
 }

@@ -25,7 +25,7 @@ public class Human : AIWorker
 
 		root.Add(waitAndMove);
 
-		BTMain = new BehaviorTree(root);
+		behaviorTree = new BehaviorTree(root);
 	}
 
 	protected override void EnableAction()

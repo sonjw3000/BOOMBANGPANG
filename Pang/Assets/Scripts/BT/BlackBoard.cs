@@ -30,24 +30,23 @@ namespace BlackBoardSystem
 		public static readonly BlackBoardKey<int3> GoalPos = new("goalPos");
 		//public static readonly BlackBoardKey<int3> GoalPos = new("goalPos");
 
-
-		public readonly int hashedKey;
-		public readonly string name;
+		public readonly int HashedKey;
+		public readonly string Name;
 
 		public BlackBoardKey(string name)
 		{
-			this.name = name;
-			hashedKey = name.TransformToFNV1aHash();
+			this.Name = name;
+			HashedKey = name.TransformToFNV1aHash();
 		}
 
-		public override int GetHashCode() => hashedKey;
+		public override int GetHashCode() => HashedKey;
 
-		public bool Equals(BlackBoardKey<T> other) => hashedKey == other.hashedKey;
+		public bool Equals(BlackBoardKey<T> other) => HashedKey == other.HashedKey;
 
 		public override bool Equals(object obj) => obj is BlackBoardKey<T> other && Equals(other);
-		public override string ToString() => name;
+		public override string ToString() => Name;
 
-		public static bool operator==(BlackBoardKey<T> left, BlackBoardKey<T> right) => left.hashedKey == right.hashedKey;
+		public static bool operator==(BlackBoardKey<T> left, BlackBoardKey<T> right) => left.HashedKey == right.HashedKey;
 		public static bool operator!=(BlackBoardKey<T> left, BlackBoardKey<T> right) => !(left == right);
 	}
 
@@ -61,18 +60,18 @@ namespace BlackBoardSystem
 	
 	public sealed class BlackBoard : IBlackboard
 	{
-		[SerializeField] private readonly Dictionary<Type, IStorage> _Tables = new();
+		[SerializeField] private readonly Dictionary<Type, IStorage> tables = new();
 		private interface IStorage { void Clear(); }
 
 		private sealed class Table<T> : IStorage
 		{
-			private readonly Dictionary<int, T> _data = new();
-			public void Set(int id, in T value) => _data[id] = value;
+			private readonly Dictionary<int, T> data = new();
+			public void Set(int id, in T value) => data[id] = value;
 			public bool TryGet(int id, out T value)
 			{
-				if (_data.ContainsKey(id))
+				if (data.ContainsKey(id))
 				{
-					_data.TryGetValue(id, out value);
+					data.TryGetValue(id, out value);
 					return true;
 				}
 				// error
@@ -82,25 +81,25 @@ namespace BlackBoardSystem
 				value = default(T);
 				return false;
 			}
-			public bool Remove(int id) => _data.Remove(id);
-			public void Clear() => _data.Clear();
+			public bool Remove(int id) => data.Remove(id);
+			public void Clear() => data.Clear();
 		}
 
 		private Table<T> GetTable<T>()
 		{
 			var type = typeof(T);
-			if (_Tables.TryGetValue(type, out var table) == false)
+			if (tables.TryGetValue(type, out var table) == false)
 			{
 				table = new Table<T>();
-				_Tables.Add(type, table);
+				tables.Add(type, table);
 			}
 			return (Table<T>)table;
 		}
 
-		public void Set<T>(BlackBoardKey<T> key, in T value) => GetTable<T>().Set(key.hashedKey, value);
-		public bool TryGet<T>(BlackBoardKey<T> key, out T value) => GetTable<T>().TryGet(key.hashedKey, out value);
-		public bool Remove<T>(BlackBoardKey<T> key) => GetTable<T>().Remove(key.hashedKey);
-		public void Clear() { foreach(var t in _Tables.Values) t.Clear(); }
+		public void Set<T>(BlackBoardKey<T> key, in T value) => GetTable<T>().Set(key.HashedKey, value);
+		public bool TryGet<T>(BlackBoardKey<T> key, out T value) => GetTable<T>().TryGet(key.HashedKey, out value);
+		public bool Remove<T>(BlackBoardKey<T> key) => GetTable<T>().Remove(key.HashedKey);
+		public void Clear() { foreach(var t in tables.Values) t.Clear(); }
 
 		public void Set<T>(string keyStr, in T value) => GetTable<T>().Set(keyStr.TransformToFNV1aHash(), value);
 		public bool TryGet<T>(string keyStr, out T value) => GetTable<T>().TryGet(keyStr.TransformToFNV1aHash(), out value);
@@ -137,5 +136,6 @@ public struct BTContext
 	public BlackBoard LocalBlackBoard;
 	public BlackBoard GlobalBlackBoard;
 	public AIWorker Worker;
-	public float deltaTime;
+	public float DeltaTime;
+	public int Tick;
 }
