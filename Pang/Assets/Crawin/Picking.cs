@@ -159,6 +159,7 @@ public class Picking : MonoBehaviour
                                     {
                                         findroute.type = buildingPrefabIndex;
                                         findroute.enabled = true;
+                                        // type을 입력해준 다음 enabled 를 해야지 벽 뚫는현상 방지
                                     }
 
                                     //Component[] components = map[tileX, 0, tileZ].obj.GetComponents<Component>();

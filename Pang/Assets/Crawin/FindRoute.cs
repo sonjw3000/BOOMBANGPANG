@@ -110,7 +110,6 @@ public class FindRoute : MonoBehaviour
 
             if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)
             {
-                //Debug.Log("finish");
                 //int3 rand = new int3(UnityEngine.Random.Range(0, mapSize.x), UnityEngine.Random.Range(0, mapSize.y), UnityEngine.Random.Range(0, mapSize.z));
                 //while (map[rand.x, rand.y, rand.z].type != 0)
                 //{
@@ -119,6 +118,7 @@ public class FindRoute : MonoBehaviour
                 //    rand.z = UnityEngine.Random.Range(0, mapSize.z);
                 //}
                 //goalCoordinate = rand;
+                Debug.Log(transform.name + "가 최종목적지에 도착." + path[currentIndex] + "가 최종 위치인데, 현재 내 위치는" + transform.position +"이야. 내 경로의 길이는" + path.Count+"였어.");
                 IsGoal = true;
                 _Worker.enabled = true;
                 path.Clear();
@@ -136,7 +136,7 @@ public class FindRoute : MonoBehaviour
                 }
                 else
                 {   // 다음 목적지로 이동이 불가능한 상태면
-                    //Debug.Log(transform.name + "가 목적지로 갈 수 없습니다.");
+                    Debug.Log(transform.name + "가 목적지로 갈 수 없습니다.");
                     path.Clear();
                 }
             }
@@ -207,7 +207,7 @@ public class FindRoute : MonoBehaviour
                         // 이 new int4는 어쩔 수 없이 써야함
                         int p = Heuristic(dir, dist);
                         pq.Enqueue(temp, p);
-                        if (lowest_heuristic >= p)
+                        if (lowest_heuristic >= p)  // ㄹ자 구간일때, 출구쪽으로 가는게 아니라 목적지와 현재 위치를 선으로 이었을 때, 가장 최단 위치로 가기 때문에 제자리에 멈춰있는 일 발생
                         {
                             lowest_heuristic = p;
                             nearest_goal = dir;

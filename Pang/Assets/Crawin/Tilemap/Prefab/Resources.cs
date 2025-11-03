@@ -18,6 +18,15 @@ public class ObjectData
         this.z = z;
         this.head = 0;
     }
+
+    public ObjectData(int x, int y, int z, int type, int head)
+    {
+        this.type = type;
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.head = head;
+    }
 }
 
 [System.Serializable]

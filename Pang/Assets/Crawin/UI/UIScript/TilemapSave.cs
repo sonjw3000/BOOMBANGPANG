@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using UnityEngine;
 
@@ -41,14 +42,16 @@ public class TilemapSave : MonoBehaviour
                             //이동중인 출발 타일 위치이거나 통로이면 저장 x
                             continue;
                         case 1:
-                            ObjectData od = new ObjectData(x, y, z, 1);
+                            float head = Mathf.Round(map[x, y, z].obj.transform.eulerAngles.y / 90f);
+                            ObjectData od = new ObjectData(x, y, z, 1, (int)head);
                             mapJson.buildingData.Add(od);
                             break;
 
                         default:
-                            ObjectData rd = new ObjectData(x, y, z, map[x, y, z].type);
+                            float h = Mathf.Round(map[x, y, z].obj.transform.eulerAngles.y / 90f);
+                            ObjectData rd = new ObjectData(x, y, z, map[x, y, z].type, (int)h);
                             mapJson.robotdata.Add(rd);
-                            Debug.Log("로봇 찾았당");
+                            //Debug.Log("로봇 찾았당");
                             break;
                     }
                 }
