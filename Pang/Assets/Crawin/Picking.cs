@@ -20,6 +20,8 @@ public class Picking : MonoBehaviour
     private Animator RightClickMenuAnimator;
     private int3 RightClickedCoord;
     private GameObject RightClickedObject;
+
+    private int head;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -53,6 +55,7 @@ public class Picking : MonoBehaviour
         }
         RightClickedCoord = new int3();
         RightClickedObject = null;
+        head = 0;
     }
 
     // Update is called once per frame
@@ -144,15 +147,16 @@ public class Picking : MonoBehaviour
                         switch (map[tileX, 0, tileZ].type)
                         {
                             case 0: // 바닥
+                                quaternion baseRot = resources.Prefabs[buildingPrefabIndex].transform.rotation * Quaternion.Euler(0, 90 * head, 0);
                                 if (buildingPrefabIndex <= 1)   // 기둥이거나 타일이면
                                 {
                                     parentTransform = GameObject.Find("TileParent").transform;
-                                    map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
+                                    map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
                                 }
                                 else
                                 {
                                     parentTransform = GameObject.Find("RobotParent").transform;
-                                    map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, resources.Prefabs[buildingPrefabIndex].transform.rotation, parentTransform);
+                                    map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
 
                                     FindRoute findroute = map[tileX, 0, tileZ].obj.GetComponent<FindRoute>();
                                     if (findroute != null)
@@ -161,25 +165,6 @@ public class Picking : MonoBehaviour
                                         findroute.enabled = true;
                                         // type을 입력해준 다음 enabled 를 해야지 벽 뚫는현상 방지
                                     }
-
-                                    //Component[] components = map[tileX, 0, tileZ].obj.GetComponents<Component>();
-                                    //foreach (var comp in components)
-                                    //{
-                                    //    switch (comp) {
-                                    //        case Transform:
-                                    //            continue;
-                                    //        case FindRoute:
-                                    //            ((FindRoute)comp).type = buildingPrefabIndex;
-                                    //            ((FindRoute)comp).enabled = true;
-                                    //            break;
-                                    //        case Human:
-                                    //            ((Human)comp).enabled = true;
-                                    //            break;
-                                    //        default:
-                                    //            Debug.LogError("로봇 배치 도중에 등록되지 않은 컴포넌트 발견!" + comp);
-                                    //            break;
-                                    //    }
-                                    //}
                                 }
                                 map[tileX, 0, tileZ].type = buildingPrefabIndex;
                                 //Debug.Log($"벽 생성: ({tileX}, {tileZ})");
@@ -293,6 +278,21 @@ public class Picking : MonoBehaviour
         {
             buildingPrefabIndex = 0;
         }
+        else if (Input.GetKeyDown(KeyCode.Q))   // 반시계 90도 회전
+        {
+            if (head == 0)
+            {
+                head = 3;
+            }
+            else
+            {
+                head = (head - 1) % 4;
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.E))   // 시계 90도 회전
+        {
+            head = (head + 1) % 4;
+        }
         //SyncPreviewAndBuilding();
     }
 
@@ -333,6 +333,11 @@ public class Picking : MonoBehaviour
                 }
             }
             syncPrefabIndex = buildingPrefabIndex;
+        }
+        int prev_head = ((Mathf.RoundToInt(previewInstance.transform.eulerAngles.y / 90f) % 4) + 4) % 4;
+        if (prev_head != head)
+        {
+            previewInstance.transform.Rotate(0, (head - prev_head) * 90, 0);
         }
     }
 

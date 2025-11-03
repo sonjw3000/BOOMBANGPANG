@@ -51,7 +51,7 @@ public class Cell
     public List<int3> GetBuildRange(int type)   // 배치된 타입에 따라 범위를 리턴해주는 함수
     {
         List<int3> result = new List<int3>();
-        int3 coord = new int3();
+        //int3 coord = new int3();
         switch (type)
         {
             case 2:
