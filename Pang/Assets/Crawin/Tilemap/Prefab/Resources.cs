@@ -78,7 +78,10 @@ public class Cell
             UnityEngine.Object.Destroy(obj);
             obj = null;
         }
-        originalMats = null;
+        if(originalMats != null)
+        {
+            originalMats.Clear();
+        }
     }
 }
 

@@ -254,9 +254,9 @@ public class FindRoute : MonoBehaviour
 	public void RemoveThisObjectOnMap()
 	{
         if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
-			map[previousNode.x, previousNode.y, previousNode.z].type = 0;
-        //map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0; // path가 없을때 삭제하면 오류 발생
-        map[nextNode.x, nextNode.y, nextNode.z].type = 0;
+            map[previousNode.x, previousNode.y, previousNode.z].Reset();
+        //map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0;
+        map[nextNode.x, nextNode.y, nextNode.z].Reset();
     }
 
 	public int3 GetRandomPos()
