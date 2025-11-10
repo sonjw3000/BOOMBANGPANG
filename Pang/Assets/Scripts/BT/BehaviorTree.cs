@@ -12,8 +12,7 @@ public class BehaviorTree
 	{
 		rootNode = node;
 	}
-
-	public NodeState RunBT(BTContext ctx)
+	public NodeState RunBT(in BTContext ctx)
 	{
 		return rootNode.Evaluate(ctx);
 	}

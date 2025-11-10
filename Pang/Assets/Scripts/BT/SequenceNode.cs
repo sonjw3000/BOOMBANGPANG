@@ -10,7 +10,7 @@ public class SequenceNode : IBaseNode
 
 	public void Add(IBaseNode node) { Children.Add(node); }
 
-	public NodeState Evaluate(BTContext ctx)
+	public NodeState Evaluate(in BTContext ctx)
 	{
 		if (lastTick + 1 != ctx.Tick)
 			currentIndex = 0;

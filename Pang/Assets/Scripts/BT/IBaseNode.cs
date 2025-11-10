@@ -7,5 +7,5 @@ public interface IBaseNode
 		Success,
 		Failure
 	}
-	public NodeState Evaluate(BTContext ctx);
+	public NodeState Evaluate(in BTContext ctx);
 }

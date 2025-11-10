@@ -15,7 +15,7 @@ public class ActionNode : IBaseNode
 		actionFunction = actionFunc;
 	}
 
-	public NodeState Evaluate(BTContext ctx)
+	public NodeState Evaluate(in BTContext ctx)
 	{
 		// todo
 		// running 상태일 시
@@ -37,7 +37,7 @@ public class WaitNode : IBaseNode
 		waitTime = timeToWait;
 	}
 
-	public NodeState Evaluate(BTContext ctx)
+	public NodeState Evaluate(in BTContext ctx)
 	{
 		if (isRunning == false)
 		{

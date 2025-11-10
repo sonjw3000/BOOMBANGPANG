@@ -9,7 +9,7 @@ public class SelectorNode : IBaseNode
 	public void Add(IBaseNode node) { Children.Add(node); }
 
 
-	public NodeState Evaluate(BTContext ctx) 
+	public NodeState Evaluate(in BTContext ctx) 
 	{
 		foreach (IBaseNode node in Children)
 		{
