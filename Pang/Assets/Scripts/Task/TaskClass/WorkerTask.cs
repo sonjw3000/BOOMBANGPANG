@@ -52,5 +52,5 @@ public abstract class WorkerTask
 	}
 
 	protected abstract void BuildTaskNode();
-	public abstract void UpdateTaskNode();
+	public abstract void UpdateTaskNode(in BTContext ctx);
 }

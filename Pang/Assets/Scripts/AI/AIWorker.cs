@@ -9,6 +9,7 @@ public abstract class AIWorker : MonoBehaviour
 	
 	protected BehaviorTree behaviorTree;
 	protected BlackBoard localBlackBoard = new();
+	protected WorkerTask currentTask = null;
 
 	protected abstract void BuildBlackBoard();
 	protected abstract void BuildBehaviorTree();
@@ -55,6 +56,12 @@ public abstract class AIWorker : MonoBehaviour
 		behaviorTree?.RunBT(btx);
 
 		return true;
+	}
+
+	public void SetTask(WorkerTask task)
+	{
+		task.SetAIWorker(this);
+		currentTask = task;
 	}
 
 	//public void SetMoveOn()

@@ -71,7 +71,16 @@ public class WorkFlowManager : MonoBehaviour
 			RequestedMount = 2
 		});
 
-
 		PickingTask testPick = new PickingTask(testJob);
+
+		// 일단 넣어봐
+		taskManager.TaskQueue[TaskType.Picking].Enqueue(testPick, 0);
+			
 	}
+
+	private void Update()
+	{
+		taskManager.Dispatch();
+	}
+
 }

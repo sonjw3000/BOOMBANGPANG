@@ -4,15 +4,29 @@ using BlackBoardSystem;
 
 using static WorkerTask;
 
-[DefaultExecutionOrder(-100)]
-public class TaskManager : MonoBehaviour
+//[DefaultExecutionOrder(-100)]
+public class TaskManager// : MonoBehaviour
 {
-	private Dictionary<TaskType, PriorityQueue<WorkerTask>> taskQueue;
+	public Dictionary<TaskType, CustomQueue<WorkerTask, int>> TaskQueue { get; private set; } = new();
 
 	// dispatch task to workers
 	public void Dispatch()
 	{
+		// find tasks to do
+		foreach (var (key, queue) in TaskQueue)
+		{
+			while (queue.Count > 0)
+			{
+				var data = queue.Peek();
 
+				AIWorker worker = WorkerManager.Instance.GetAvailableWorkers(data);
+
+				// if no available workers break;
+				if (worker == null)
+					break;
+
+				worker.SetTask(queue.Dequeue());
+			}
+		}
 	}
-
 }

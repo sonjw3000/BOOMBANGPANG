@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using BlackBoardSystem;
+using System.Collections.Generic;
 using UnityEngine;
-using BlackBoardSystem;
+using static WorkerTask;
 
 [DefaultExecutionOrder(-100)]
 class WorkerManager : MonoBehaviour
@@ -55,6 +56,14 @@ class WorkerManager : MonoBehaviour
 	public void UnregisterWorker(AIWorker worker)
 	{
 		workers.Remove(worker);
+	}
+
+	public AIWorker GetAvailableWorkers(WorkerTask taskData)
+	{
+		// is available worker there?
+		// todo
+		// 태스크의 조건과 알맞은 작업자를 돌려줌
+		return null;
 	}
 
 	private void Update()
