@@ -27,7 +27,8 @@ public class FindRoute : MonoBehaviour
     //moveontile에서 쓰이는 변수들
     Vector3 targetPos;
 
-    public int type;
+    //public int type;
+    Status mStatus;
     private AIWorker _Worker;
 	public bool IsGoal { get; private set; }
 
@@ -53,6 +54,7 @@ public class FindRoute : MonoBehaviour
             Debug.LogError("mapRef is null!");
         }
         path = new List<int3>();
+        mStatus = gameObject.GetComponent<Status>();
         this.enabled = false;
         //Astar();
     }
@@ -118,7 +120,7 @@ public class FindRoute : MonoBehaviour
                 //    rand.z = UnityEngine.Random.Range(0, mapSize.z);
                 //}
                 //goalCoordinate = rand;
-                Debug.Log(transform.name + "가 최종목적지에 도착." + path[currentIndex] + "가 최종 위치인데, 현재 내 위치는" + transform.position +"이야. 내 경로의 길이는" + path.Count+"였어.");
+                //Debug.Log(transform.name + "가 최종목적지에 도착." + path[currentIndex] + "가 최종 위치인데, 현재 내 위치는" + transform.position +"이야. 내 경로의 길이는" + path.Count+"였어.");
                 IsGoal = true;
                 _Worker.enabled = true;
                 path.Clear();
@@ -131,7 +133,8 @@ public class FindRoute : MonoBehaviour
                 {
                     previousNode = path[currentIndex++];
                     map[previousNode.x, previousNode.y, previousNode.z].type = int.MaxValue;
-                    map[nextNode.x, nextNode.y, nextNode.z].type = type;
+                    //map[nextNode.x, nextNode.y, nextNode.z].type = type;
+                    map[nextNode.x, nextNode.y, nextNode.z].type = mStatus.GetID();
                     map[nextNode.x, nextNode.y, nextNode.z].obj = gameObject;
                 }
                 else
@@ -149,13 +152,14 @@ public class FindRoute : MonoBehaviour
     {
         IsGoal = false;
         curr.x = Mathf.RoundToInt(transform.position.x); curr.y = 0; curr.z = Mathf.RoundToInt(transform.position.z); curr.w = 0; // x,y,z,distance
-        if (map[curr.x, curr.y, curr.z].type != 0 && map[curr.x, curr.y, curr.z].type != type)
+        int id = mStatus.GetID();
+        if (map[curr.x, curr.y, curr.z].type != 0 && map[curr.x, curr.y, curr.z].type != id)
         {
-            Debug.Log("얘 지금 이상한짓 해요" + gameObject.name +"가 " + map[curr.x, curr.y, curr.z].type +"를 바꾼다");
+            Debug.Log("얘 지금 이상한짓 해요" + gameObject.name +"가 " + map[curr.x, curr.y, curr.z].type +"을 " + id +"로 바꾼다");
             return;
         }
-            map[curr.x, curr.y, curr.z].type = type;
-            map[curr.x, curr.y, curr.z].obj = gameObject;
+        map[curr.x, curr.y, curr.z].type = id;
+        map[curr.x, curr.y, curr.z].obj = gameObject;
         // distance 와 prev 배열 초기화
         for (int y = 0; y < mapSize.y; ++y)
         {

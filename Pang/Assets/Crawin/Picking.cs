@@ -134,6 +134,11 @@ public class Picking : MonoBehaviour
                                     SaveSelectedObjectMat();
 
                                     // 해당 오브젝트의 속성 출력 예정
+                                    Status st = m_goSelectedObject.gameObject.GetComponent<Status>();
+                                    if(st != null)
+                                    {
+                                        st.OnClick();
+                                    }
                                     Debug.Log(m_goSelectedObject.name + "이 선택 되었습니다.");
                                 }
                                 else
@@ -183,12 +188,10 @@ public class Picking : MonoBehaviour
                                         parentTransform = GameObject.Find("RobotParent").transform;
                                         map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
 
-                                        FindRoute findroute = map[tileX, 0, tileZ].obj.GetComponent<FindRoute>();
-                                        if (findroute != null)
+                                        Status st = map[tileX,0,tileZ].obj.GetComponent<Status>();
+                                        if(st != null)
                                         {
-                                            findroute.type = buildingPrefabIndex;
-                                            findroute.enabled = true;
-                                            // type을 입력해준 다음 enabled 를 해야지 벽 뚫는현상 방지
+                                            st.SetID(buildingPrefabIndex);
                                         }
                                     }
 
@@ -290,25 +293,25 @@ public class Picking : MonoBehaviour
                 r.materials = mats;
             }
 
-            Component[] components = previewInstance.GetComponents<Component>();
-            foreach (var comp in components)
-            {
-                switch (comp)
-                {
-                    case Transform:
-                        continue;
-                    case FindRoute:
-                        ((FindRoute)comp).type = buildingPrefabIndex;
-                        ((FindRoute)comp).enabled = false;
-                        break;
-                    case Human:
-                        ((Human)comp).enabled = false;
-                        break;
-                    default:
-                        Debug.LogError("프리뷰 컴포넌트 끄는 중에 등록되지 않은 컴포넌트 발견!" + comp);
-                        break;
-                }
-            }
+            //Component[] components = previewInstance.GetComponents<Component>();
+            //foreach (var comp in components)
+            //{
+            //    switch (comp)
+            //    {
+            //        case Transform:
+            //            continue;
+            //        case FindRoute:
+            //            //((FindRoute)comp).type = buildingPrefabIndex;
+            //            ((FindRoute)comp).enabled = false;
+            //            break;
+            //        case Human:
+            //            ((Human)comp).enabled = false;
+            //            break;
+            //        default:
+            //            Debug.LogError("프리뷰 컴포넌트 끄는 중에 등록되지 않은 컴포넌트 발견!" + comp);
+            //            break;
+            //    }
+            //}
             syncPrefabIndex = buildingPrefabIndex;
         }
         int prev_head = ((Mathf.RoundToInt(previewInstance.transform.eulerAngles.y / 90f) % 4) + 4) % 4;
@@ -498,14 +501,6 @@ public class Picking : MonoBehaviour
                                 {
                                     parentTransform = GameObject.Find("RobotParent").transform;
                                     map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
-
-                                    FindRoute findroute = map[tileX, 0, tileZ].obj.GetComponent<FindRoute>();
-                                    if (findroute != null)
-                                    {
-                                        findroute.type = buildingPrefabIndex;
-                                        findroute.enabled = true;
-                                        // type을 입력해준 다음 enabled 를 해야지 벽 뚫는현상 방지
-                                    }
                                 }
                                 map[tileX, 0, tileZ].type = buildingPrefabIndex;
                                 //Debug.Log($"벽 생성: ({tileX}, {tileZ})");

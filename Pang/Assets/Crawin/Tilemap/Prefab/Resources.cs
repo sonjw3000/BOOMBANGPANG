@@ -4,6 +4,54 @@ using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using static Resources;
 
+public abstract class ObjectStatus
+{
+    protected string mName;
+    protected int mId;
+
+    public abstract void GetStatus();
+    public void SetName(string name)
+    {
+        mName = name;
+    }
+    public void SetId(int id)
+    {
+        mId = id;
+    }
+    public int GetID()
+    {
+        return mId;
+    }
+}
+
+public class ShelfStatus : ObjectStatus
+{
+    protected string content;
+    protected int max_storage;
+    protected int left_weight;
+    public override void GetStatus()
+    {
+        Debug.Log("[" + mName + "] { \n\t" +
+            "content - " + content + "\n\t" +
+            "max_weight - " + max_storage + " \n\t" +
+            "left_weight - " + left_weight + "\n}");
+    }
+}
+
+public class RobotStatus : ObjectStatus
+{
+    protected string goal;
+    protected int battery;
+    protected int weight;
+    public override void GetStatus()
+    {
+        Debug.Log("[" + mName + "] { \n\t" +
+    "goal - " + goal + "\n\t" +
+    "battery - " + battery + " \n\t" +
+    "weight - " + weight + "\n}");
+    }
+}
+
 [System.Serializable]
 public class ObjectData
 {

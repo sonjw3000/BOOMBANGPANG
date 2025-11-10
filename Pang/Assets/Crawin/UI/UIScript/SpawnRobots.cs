@@ -57,9 +57,10 @@ public class SpawnRobots : MonoBehaviour
                             Vector3 pos = new Vector3(x, y + RobotPrefab.transform.position.y, z);
                             map[x, y, z].type = robotID;  // 지금 로봇 타입이 6번으로 고정되어있음;
                             map[x, y, z].obj = Instantiate(RobotPrefab, pos, RobotPrefab.transform.rotation);
+                            map[x, y, z].obj.GetComponent<Status>().SetID(robotID);
 
-                            FindRoute findroute = map[x, y, z].obj.GetComponent<FindRoute>();
-                            findroute.type = robotID;
+                            //FindRoute findroute = map[x, y, z].obj.GetComponent<FindRoute>();
+                            //findroute.type = robotID;
                             //findroute.enabled = true;
                             --leftCnt;
                         }

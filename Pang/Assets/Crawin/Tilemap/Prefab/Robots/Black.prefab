@@ -12,7 +12,8 @@ GameObject:
   - component: {fileID: 18924943323158054}
   - component: {fileID: 6635554362975030469}
   - component: {fileID: 5606990702336044332}
-  - component: {fileID: 4764741478534275587}
+  - component: {fileID: -3361706638363030353}
+  - component: {fileID: -6726730452357015449}
   m_Layer: 0
   m_Name: Black
   m_TagString: Untagged
@@ -111,7 +112,7 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
---- !u!114 &4764741478534275587
+--- !u!114 &-3361706638363030353
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -120,13 +121,19 @@ MonoBehaviour:
   m_GameObject: {fileID: 4196016558912421538}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2d58d1a9ef0f6dd40aaabea8c7e07b3c, type: 3}
+  m_Script: {fileID: 11500000, guid: f1d2c55093ca24f429ad69f8c3c2dad8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 2
-  rotationSpeed: 5
-  goalCoordinate:
-    x: 8
-    y: 0
-    z: 9
-  type: 0
+  IsRobot: 1
+--- !u!114 &-6726730452357015449
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4196016558912421538}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a704102d073603c4a91dc6ecdebf5333, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
