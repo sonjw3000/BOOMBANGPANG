@@ -248,6 +248,7 @@ MonoBehaviour:
   wireframeMat: {fileID: 2100000, guid: 019466160e4e2f7409f1e582431bf409, type: 2}
   RightClickMenu: {fileID: 1503063954}
   m_PickingType: 0
+  MMainCamera: {fileID: 348464800}
 --- !u!4 &168379778
 Transform:
   m_ObjectHideFlags: 0
