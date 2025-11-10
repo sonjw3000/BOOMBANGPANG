@@ -31,13 +31,29 @@ public class Status : MonoBehaviour
     {
         m_status.GetStatus();
     }
-    public void SetID(int i)
+
+    public void SetInit(string name, int id)
     {
         CheckAllocate();
-        m_status.SetId(i);
+        m_status.SetName(name);
+        m_status.SetId(id);
+    }
+    public void SetID(int id)
+    {
+        CheckAllocate();
+        m_status.SetId(id);
+    }
+    public void SetName(string name)
+    {
+        CheckAllocate();
+        m_status.SetName(name);
     }
     public int GetID()
     {
         return m_status.GetID();
+    }
+    public string GetName()
+    {
+        return m_status.GetName();
     }
 }

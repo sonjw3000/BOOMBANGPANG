@@ -171,7 +171,7 @@ public class TilemapGenerator : MonoBehaviour
 
             map[robotData.x, robotData.y, robotData.z].obj = Instantiate(Prefabs[robotData.type], pos, baseRot, robotParent.transform);
 			Status status = map[robotData.x, robotData.y, robotData.z].obj.GetComponent<Status>();
-			status.SetID(robotData.type);
+			status.SetInit(map[robotData.x, robotData.y, robotData.z].obj.name, robotData.type);
             map[robotData.x, robotData.y, robotData.z].type = robotData.type;
 		}
 		resources.mapJsonRef.robotdata.Clear(); // 딕셔너리로 다 옮겼으니 초기화하자

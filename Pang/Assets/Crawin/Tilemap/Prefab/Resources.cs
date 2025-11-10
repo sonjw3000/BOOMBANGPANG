@@ -22,6 +22,10 @@ public abstract class ObjectStatus
     {
         return mId;
     }
+    public string GetName()
+    {
+        return mName;
+    }
 }
 
 public class ShelfStatus : ObjectStatus

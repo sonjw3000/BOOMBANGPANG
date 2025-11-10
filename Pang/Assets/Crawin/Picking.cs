@@ -150,7 +150,7 @@ public class Picking : MonoBehaviour
                                             st.OnClick();
                                         }
                                         mOrbitCamera.LockObject(m_goSelectedObject);
-                                        Debug.Log(m_goSelectedObject.name + "이 선택 되었습니다.");
+                                        //Debug.Log(m_goSelectedObject.name + "이 선택 되었습니다.");
                                     }
                                     else
                                     {   // 다른 뭔가가 좌클릭 되면 선택 해제
@@ -200,12 +200,12 @@ public class Picking : MonoBehaviour
                                     {
                                         parentTransform = GameObject.Find("RobotParent").transform;
                                         map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
+                                    }
 
-                                        Status st = map[tileX,0,tileZ].obj.GetComponent<Status>();
-                                        if(st != null)
-                                        {
-                                            st.SetID(buildingPrefabIndex);
-                                        }
+                                    Status st = map[tileX, 0, tileZ].obj.GetComponent<Status>();
+                                    if (st != null)
+                                    {
+                                        st.SetInit(map[tileX, 0, tileZ].obj.name, buildingPrefabIndex);
                                     }
 
                                     map[tileX, 0, tileZ].type = buildingPrefabIndex;
