@@ -23,7 +23,8 @@ public class InsertPreviewPrefabsList : MonoBehaviour
             return;
         }
 
-        picking.IndexRef = ID;
+        picking.buildingPrefabIndex = ID;
+        picking.m_PickingType = Picking.PickingType.INSERT;
         
         // UI의 최종 부모 찾아서 disable하기
         Transform current = transform;

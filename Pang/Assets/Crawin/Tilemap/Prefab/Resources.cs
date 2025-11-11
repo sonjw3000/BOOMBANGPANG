@@ -18,6 +18,15 @@ public class ObjectData
         this.z = z;
         this.head = 0;
     }
+
+    public ObjectData(int x, int y, int z, int type, int head)
+    {
+        this.type = type;
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.head = head;
+    }
 }
 
 [System.Serializable]
@@ -42,7 +51,7 @@ public class Cell
     public List<int3> GetBuildRange(int type)   // 배치된 타입에 따라 범위를 리턴해주는 함수
     {
         List<int3> result = new List<int3>();
-        int3 coord = new int3();
+        //int3 coord = new int3();
         switch (type)
         {
             case 2:
@@ -69,7 +78,10 @@ public class Cell
             UnityEngine.Object.Destroy(obj);
             obj = null;
         }
-        originalMats = null;
+        if(originalMats != null)
+        {
+            originalMats.Clear();
+        }
     }
 }
 

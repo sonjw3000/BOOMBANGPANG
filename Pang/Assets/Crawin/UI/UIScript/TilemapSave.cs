@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using UnityEngine;
 
@@ -40,15 +41,17 @@ public class TilemapSave : MonoBehaviour
                         case int.MaxValue:
                             //이동중인 출발 타일 위치이거나 통로이면 저장 x
                             continue;
-                        case 1:
-                            ObjectData od = new ObjectData(x, y, z, 1);
-                            mapJson.buildingData.Add(od);
-                            break;
-
                         default:
-                            ObjectData rd = new ObjectData(x, y, z, map[x, y, z].type);
-                            mapJson.robotdata.Add(rd);
-                            Debug.Log("로봇 찾았당");
+                            int head = ((Mathf.RoundToInt(map[x, y, z].obj.transform.eulerAngles.y / 90f) % 4) + 4) % 4;
+                            ObjectData od = new ObjectData(x, y, z, map[x, y, z].type, head);
+                            if (map[x, y, z].type == 1)
+                            {
+                                mapJson.buildingData.Add(od);
+                            }
+                            else
+                            {
+                                mapJson.robotdata.Add(od);
+                            }
                             break;
                     }
                 }

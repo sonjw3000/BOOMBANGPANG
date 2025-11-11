@@ -168,11 +168,17 @@ public class TilemapGenerator : MonoBehaviour
 		{
 			map[robotData.x, robotData.y, robotData.z].type = robotData.type;
 			Vector3 pos = new Vector3(robotData.x, Prefabs[robotData.type].transform.position.y, robotData.z);
-			map[robotData.x, robotData.y, robotData.z].obj = Instantiate(Prefabs[robotData.type], pos, Prefabs[robotData.type].transform.rotation, robotParent.transform);
+            quaternion baseRot = Prefabs[robotData.type].transform.rotation * Quaternion.Euler(0, 90 * robotData.head, 0);
+
+            map[robotData.x, robotData.y, robotData.z].obj = Instantiate(Prefabs[robotData.type], pos, baseRot, robotParent.transform);
 
 			FindRoute findroute = map[robotData.x, robotData.y, robotData.z].obj.GetComponent<FindRoute>();
-			findroute.type = robotData.type;
-			findroute.enabled = true;
+			if (findroute != null)
+			{
+				findroute.type = robotData.type;
+				findroute.enabled = true;
+				// 배치한 다음 findroute 컴포넌트에서 type 값이 필요하기에 type을 할당한 후 findroute를 enable해줘서 astar 정상작동 유지
+			}
 		}
 		resources.mapJsonRef.robotdata.Clear(); // 딕셔너리로 다 옮겼으니 초기화하자
 	}
