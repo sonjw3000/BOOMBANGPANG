@@ -43,7 +43,7 @@ public sealed class PickingTask : WorkerTask
 		// 토트 용량이 넘치면 시마이치고 토트를 보내야함
 		// 해당 과정을 거친 후 본인의 작업을 하게 만들어야함
 		// 일단은 대충 싸갈기자
-		SelectorNode root = new SelectorNode();
+		SequenceNode root = new SequenceNode();
 
 		// checking tote size over capacity
 		// set destination
