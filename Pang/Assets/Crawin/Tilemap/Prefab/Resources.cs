@@ -44,7 +44,7 @@ public class ShelfStatus : ObjectStatus
 
 public class RobotStatus : ObjectStatus
 {
-    protected string goal;
+    protected int3 goal;
     protected int battery;
     protected int weight;
     public override void GetStatus()
@@ -53,6 +53,18 @@ public class RobotStatus : ObjectStatus
     "goal - " + goal + "\n\t" +
     "battery - " + battery + " \n\t" +
     "weight - " + weight + "\n}");
+    }
+    public void SetGoal(int3 position)
+    {
+        goal = position;
+    }
+    public void SetBattery(int left)
+    {
+        battery = left;
+    }
+    public void SetWeight(int w)
+    {
+        weight = w;
     }
 }
 

@@ -1,3 +1,4 @@
+using Unity.Mathematics;
 using UnityEngine;
 
 public class Status : MonoBehaviour
@@ -55,5 +56,20 @@ public class Status : MonoBehaviour
     public string GetName()
     {
         return m_status.GetName();
+    }
+
+    public void SetGoal(int3 goal)
+    {
+        ((RobotStatus)m_status).SetGoal(goal);
+    }
+
+    public void SetBattery(int battery)
+    {
+        ((RobotStatus)m_status).SetGoal(battery);
+    }
+
+    public void SetWeight(int weight)
+    {
+        ((RobotStatus)m_status).SetWeight(weight);
     }
 }

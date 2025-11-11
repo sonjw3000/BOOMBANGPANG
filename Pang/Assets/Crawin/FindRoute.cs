@@ -255,6 +255,18 @@ public class FindRoute : MonoBehaviour
 		return f;
 	}
 
+    // 회전 가중치를 줘서 휴리스틱을 계산하려 했으나, 현재 진행 방향을 지금 구조에서는 알 방법이 없기에 보류
+    int HeuristicLessRotate(int3 next, int dist)
+    {
+        int x = math.abs(goalCoordinate.x - next.x);
+        int y = math.abs(goalCoordinate.y - next.y);
+        int z = math.abs(goalCoordinate.z - next.z);
+        int h = x * x + y * y + z * z;
+        int turn_cost = 0;
+        int f = dist + h + turn_cost;
+        return f;
+    }
+
 	public void RemoveThisObjectOnMap()
 	{
         if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
@@ -282,6 +294,7 @@ public class FindRoute : MonoBehaviour
 	public bool SetGoalPosition(int3 goalPos)
 	{
 		goalCoordinate = goalPos;
+        mStatus.SetGoal(goalPos);
 		Astar();
         //Debug.Log(path_size);
 		//this.enabled = true;
