@@ -13,17 +13,12 @@ public class Human : AIWorker
 	protected override void BuildBehaviorTree()
 	{
 		SelectorNode root = new SelectorNode();
-		SequenceNode waitAndMove = new SequenceNode();
 
-		WaitNode wait = new WaitNode(0.2f);
-		ActionNode setDestination = new ActionNode(SetDestination);
-		ActionNode realMove = new ActionNode(MoveTo);
-
-		waitAndMove.Add(wait);
-		waitAndMove.Add(setDestination);
-		waitAndMove.Add(realMove);
-
-		root.Add(waitAndMove);
+		ActionNode performTask = new ActionNode(DoWork);
+		WaitNode wait = new WaitNode(1.0f);
+		
+		root.Add(performTask);
+		root.Add(wait);
 
 		behaviorTree = new BehaviorTree(root);
 	}

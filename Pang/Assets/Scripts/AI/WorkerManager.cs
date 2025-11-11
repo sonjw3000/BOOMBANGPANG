@@ -63,7 +63,8 @@ class WorkerManager : MonoBehaviour
 		// is available worker there?
 		// todo
 		// 태스크의 조건과 알맞은 작업자를 돌려줌
-		return null;
+		return workers[0];
+		//return null;
 	}
 
 	private void Update()

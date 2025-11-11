@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using static UnityEditor.PlayerSettings;
 
 public sealed class PickingTask : WorkerTask
 {
@@ -17,12 +18,23 @@ public sealed class PickingTask : WorkerTask
 	{
 		public int JobID;
 		public List<PickingLine> Lines;
+
+		public bool IsPickingEnd()
+		{
+			return JobID >= Lines.Count;
+		}
+
+		public PickingLine GetNextLine()
+		{
+			return Lines[JobID++];
+		}
 	}
 
-	private PickJob pickingData;
 	private IBaseNode baseNode;
+	
+	public PickJob PickingData { get; private set; }
 
-	public PickingTask(PickJob pickJob) : base(TaskType.Picking) => pickingData = pickJob;
+	public PickingTask(PickJob pickJob) : base(TaskType.Picking) => PickingData = pickJob;
 
 	protected override void BuildTaskNode()
 	{
@@ -31,11 +43,43 @@ public sealed class PickingTask : WorkerTask
 		// 토트 용량이 넘치면 시마이치고 토트를 보내야함
 		// 해당 과정을 거친 후 본인의 작업을 하게 만들어야함
 		// 일단은 대충 싸갈기자
+		SelectorNode root = new SelectorNode();
+
+		// checking tote size over capacity
+		// set destination
+		ActionNode setTarget = new ActionNode(SetTarget);
+		ActionNode setDestination = new ActionNode(AIWorker.SetDestination);
+		
+		// move to destination
+		ActionNode moveTo = new ActionNode(AIWorker.MoveTo);
+
+		root.Add(setTarget);
+		root.Add(setDestination);
+		root.Add(moveTo);
+
+		baseNode = root;
 	}
 
-	public override void UpdateTaskNode(in BTContext ctx)
+	public override IBaseNode.NodeState UpdateTaskNode(in BTContext ctx)
 	{
 		// 본인의 static bt를 돌려야 한다
-		baseNode.Evaluate(ctx);
+		return baseNode.Evaluate(ctx);
 	}
+
+	//
+	public static IBaseNode.NodeState SetTarget(in BTContext ctx)
+	{
+		// test code
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+
+		if (task.PickingData.IsPickingEnd())
+			return IBaseNode.NodeState.Failure;
+
+		// set goalPosition
+		var line = task.PickingData.GetNextLine();
+		ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
+
+		return IBaseNode.NodeState.Success;
+	}
+
 }

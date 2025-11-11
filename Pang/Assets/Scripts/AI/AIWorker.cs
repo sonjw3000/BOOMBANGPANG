@@ -9,7 +9,6 @@ public abstract class AIWorker : MonoBehaviour
 	
 	protected BehaviorTree behaviorTree;
 	protected BlackBoard localBlackBoard = new();
-	protected WorkerTask currentTask = null;
 
 	protected abstract void BuildBlackBoard();
 	protected abstract void BuildBehaviorTree();
@@ -20,6 +19,7 @@ public abstract class AIWorker : MonoBehaviour
 
 	public string Name { get; private set; }
 	public int WorkerID { get; private set; }
+	public WorkerTask CurrentTask { get; private set; } = null;
 
 
 	public void Start()
@@ -61,24 +61,13 @@ public abstract class AIWorker : MonoBehaviour
 	public void SetTask(WorkerTask task)
 	{
 		task.SetAIWorker(this);
-		currentTask = task;
+		CurrentTask = task;
 	}
-
-	//public void SetMoveOn()
-	//{
-	//	LocalBlackBoard.Set<bool>("testMoveOn", true);
-	//}
 
 	// AI's basic actions
 	public static IBaseNode.NodeState SetDestination(in BTContext context)
 	{
-		// test code
-		int3 pos = context.Worker.routeFinder.GetRandomPos();
-		context.LocalBlackBoard.Set<int3>("goalPos", pos);
-		//context.LocalBlackBoard.Set<int3>(BlackBoardKey<int3>.GoalPos, pos);
-
 		// for real
-		//context.LocalBlackBoard.TryGet<int3>(BlackBoardKey<int3>.GoalPos, out int3 goalPos);
 		context.LocalBlackBoard.TryGet<int3>("goalPos", out int3 goalPos);
 		context.Worker.routeFinder.enabled = true;
 		context.Worker.routeFinder.SetGoalPosition(goalPos);
@@ -96,5 +85,13 @@ public abstract class AIWorker : MonoBehaviour
 		context.Worker.enabled = false;
 
 		return IBaseNode.NodeState.Running;
+	}
+
+	public static IBaseNode.NodeState DoWork(in BTContext context)
+	{
+		if (context.Worker.CurrentTask == null)
+			return IBaseNode.NodeState.Failure;
+
+		return context.Worker.CurrentTask.UpdateTaskNode(context);
 	}
 }

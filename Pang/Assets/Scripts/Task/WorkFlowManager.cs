@@ -57,7 +57,7 @@ public class WorkFlowManager : MonoBehaviour
 
 		testJob.Lines.Add(new PickingTask.PickingLine 
 		{ 
-			GoalPosition = new int3(1, 1, 3),
+			GoalPosition = new int3(1, 0, 3),
 			ContainerID = 1,
 			ItemID = 1,
 			RequestedMount = 2
@@ -65,7 +65,7 @@ public class WorkFlowManager : MonoBehaviour
 
 		testJob.Lines.Add(new PickingTask.PickingLine
 		{
-			GoalPosition = new int3(10, 1, 3),
+			GoalPosition = new int3(10, 0, 30),
 			ContainerID = 1,
 			ItemID = 1,
 			RequestedMount = 2
@@ -74,11 +74,14 @@ public class WorkFlowManager : MonoBehaviour
 		PickingTask testPick = new PickingTask(testJob);
 
 		// 일단 넣어봐
-		taskManager.TaskQueue[TaskType.Picking].Enqueue(testPick, 0);
+		if (taskManager.TaskQueue.ContainsKey(TaskType.Picking) == false)
+			taskManager.TaskQueue[TaskType.Picking] = new();
+
+		taskManager.TaskQueue[TaskType.Picking].Enqueue(testPick, 1);
 			
 	}
 
-	private void Update()
+	void Update()
 	{
 		taskManager.Dispatch();
 	}
