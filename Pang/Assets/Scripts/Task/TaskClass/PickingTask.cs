@@ -17,16 +17,17 @@ public sealed class PickingTask : WorkerTask
 	public class PickJob
 	{
 		public int JobID;
+		public int CurrentLine = 0;
 		public List<PickingLine> Lines;
 
 		public bool IsPickingEnd()
 		{
-			return JobID >= Lines.Count;
+			return CurrentLine >= Lines.Count;
 		}
 
 		public PickingLine GetNextLine()
 		{
-			return Lines[JobID++];
+			return Lines[CurrentLine++];
 		}
 	}
 
@@ -43,9 +44,20 @@ public sealed class PickingTask : WorkerTask
 		// 토트 용량이 넘치면 시마이치고 토트를 보내야함
 		// 해당 과정을 거친 후 본인의 작업을 하게 만들어야함
 		// 일단은 대충 싸갈기자
-		SequenceNode root = new SequenceNode();
+		SelectorNode root = new SelectorNode();
 
+		// check is picking work is fulfilled
+		SequenceNode checkingFulfilled = new SequenceNode();
+		ActionNode checkFulfilled = new ActionNode(CheckFulfilled);
+		ActionNode endTask = new ActionNode(AIWorker.TaskCompleted);
+
+		checkingFulfilled.Add(checkFulfilled);
+		checkingFulfilled.Add(endTask);
+
+		// work node
+		SequenceNode work = new SequenceNode();
 		// checking tote size over capacity
+		
 		// set destination
 		ActionNode setTarget = new ActionNode(SetTarget);
 		ActionNode setDestination = new ActionNode(AIWorker.SetDestination);
@@ -53,9 +65,13 @@ public sealed class PickingTask : WorkerTask
 		// move to destination
 		ActionNode moveTo = new ActionNode(AIWorker.MoveTo);
 
-		root.Add(setTarget);
-		root.Add(setDestination);
-		root.Add(moveTo);
+		work.Add(setTarget);
+		work.Add(setDestination);
+		work.Add(moveTo);
+
+		// for root
+		root.Add(checkingFulfilled);
+		root.Add(work);
 
 		baseNode = root;
 	}
@@ -73,13 +89,29 @@ public sealed class PickingTask : WorkerTask
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 
 		if (task.PickingData.IsPickingEnd())
-			return IBaseNode.NodeState.Failure;
+		{
+			// should not hit here
+
+			//task.CurrentStatus = ;
+			//task.EndTask();
+			//return IBaseNode.NodeState.Failure;
+		}
 
 		// set goalPosition
 		var line = task.PickingData.GetNextLine();
-		ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
+		//ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
 
 		return IBaseNode.NodeState.Success;
+	}
+
+	public static IBaseNode.NodeState CheckFulfilled(in BTContext ctx)
+	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+
+		if (task.PickingData.IsPickingEnd())
+			return IBaseNode.NodeState.Success;
+
+		return IBaseNode.NodeState.Failure;
 	}
 
 }

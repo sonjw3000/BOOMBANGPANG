@@ -27,7 +27,8 @@ public abstract class WorkerTask
 	{
 		Ready,
 		Blocked,
-		Assigned
+		Assigned,
+		End
 	}
 
 	public AIWorker OccupyWorker { get; private set; }
@@ -35,6 +36,8 @@ public abstract class WorkerTask
 	public Status CurrentStatus { get; private set; } = Status.Blocked;
 	public float TaskBuiltTime { get; private set; }
 	public bool IsEmergency { get; private set; }
+
+	static public TaskManager Manager { get; private set; } = null;
 
 	protected WorkerTask(TaskType type)
 	{
@@ -51,6 +54,16 @@ public abstract class WorkerTask
 		CurrentStatus = Status.Assigned;
 	}
 
+	public void EndTask()
+	{
+		CurrentStatus = Status.End;
+		OccupyWorker.SetTask(null);
+
+		Manager.EndTaskList.Add(this);
+	}
+
 	protected abstract void BuildTaskNode();
 	public abstract IBaseNode.NodeState UpdateTaskNode(in BTContext ctx);
+
+	public static void SetTaskManager(TaskManager taskManager) { Manager = taskManager; }
 }

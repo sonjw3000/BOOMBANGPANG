@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-
+//using System.Diagnostics;
 using static IBaseNode;
 
 public class SequenceNode : IBaseNode
@@ -13,7 +13,12 @@ public class SequenceNode : IBaseNode
 	public NodeState Evaluate(in BTContext ctx)
 	{
 		if (lastTick + 1 != ctx.Tick)
+		{
 			currentIndex = 0;
+			//UnityEngine.Debug.Log($"Index Changed!, cur tick: {ctx.Tick}, LastTick: {lastTick}");
+		}
+
+		lastTick = ctx.Tick;
 
 		for (int i = currentIndex; i < Children.Count; ++i)
 		{
@@ -25,6 +30,7 @@ public class SequenceNode : IBaseNode
 			}
 			else if (res == NodeState.Running)
 			{
+				//UnityEngine.Debug.Log("Suspended by Running!");
 				currentIndex = i;
 				return res;
 			}

@@ -65,7 +65,7 @@ public class WorkFlowManager : MonoBehaviour
 
 		testJob.Lines.Add(new PickingTask.PickingLine
 		{
-			GoalPosition = new int3(10, 0, 30),
+			GoalPosition = new int3(3, 0, 6),
 			ContainerID = 1,
 			ItemID = 1,
 			RequestedMount = 2
@@ -81,8 +81,15 @@ public class WorkFlowManager : MonoBehaviour
 			
 	}
 
+	void Start()
+	{
+		WorkerTask.SetTaskManager(taskManager);
+	}
+
 	void Update()
 	{
+		// worker manager에서 작업이 끝난 워커를 찾아야할듯?
+
 		taskManager.Dispatch();
 	}
 

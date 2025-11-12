@@ -36,6 +36,16 @@ public abstract class AIWorker : MonoBehaviour
 		EnableAction();
 	}
 
+	//public void OnEnable()
+	//{
+	//	Debug.Log("AI Worker Enabled!");
+	//}
+
+	//public void OnDisable()
+	//{
+	//	Debug.Log("AI Worker Disabled!");
+	//}
+
 	public void OnDestroy()
 	{
 		// unregister AI
@@ -60,7 +70,8 @@ public abstract class AIWorker : MonoBehaviour
 
 	public void SetTask(WorkerTask task)
 	{
-		task.SetAIWorker(this);
+		if (task != null) 
+			task.SetAIWorker(this);
 		CurrentTask = task;
 	}
 
@@ -79,6 +90,7 @@ public abstract class AIWorker : MonoBehaviour
 	{
 		if (context.Worker.routeFinder.IsGoal)
 		{
+			//Debug.Log("Goal Hit!");
 			context.Worker.routeFinder.enabled = false;
 			return IBaseNode.NodeState.Success;
 		}
@@ -93,5 +105,15 @@ public abstract class AIWorker : MonoBehaviour
 			return IBaseNode.NodeState.Failure;
 
 		return context.Worker.CurrentTask.UpdateTaskNode(context);
+	}
+
+	public static IBaseNode.NodeState TaskCompleted(in BTContext ctx)
+	{
+		var task = ctx.Worker.CurrentTask;
+		task.EndTask();
+
+		Debug.Log("TaskCompleted!");
+
+		return IBaseNode.NodeState.Success;
 	}
 }

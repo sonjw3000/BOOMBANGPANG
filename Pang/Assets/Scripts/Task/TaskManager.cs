@@ -9,6 +9,8 @@ public class TaskManager// : MonoBehaviour
 {
 	public Dictionary<TaskType, CustomQueue<WorkerTask, int>> TaskQueue { get; private set; } = new();
 
+	public List<WorkerTask> EndTaskList { get; private set; } = new();
+
 	// dispatch task to workers
 	public void Dispatch()
 	{
@@ -29,4 +31,6 @@ public class TaskManager// : MonoBehaviour
 			}
 		}
 	}
+
+
 }

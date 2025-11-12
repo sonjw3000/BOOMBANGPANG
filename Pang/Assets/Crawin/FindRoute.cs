@@ -31,8 +31,8 @@ public class FindRoute : MonoBehaviour
     private AIWorker _Worker;
 	public bool IsGoal { get; private set; }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+	// Start is called once before the first execution of Update after the MonoBehaviour is created
+	void Start()
     {
         resources = GameObject.Find("Resources").GetComponent<Resources>();
         map = resources.mapRef;
@@ -121,6 +121,7 @@ public class FindRoute : MonoBehaviour
                 Debug.Log(transform.name + "가 최종목적지에 도착." + path[currentIndex] + "가 최종 위치인데, 현재 내 위치는" + transform.position +"이야. 내 경로의 길이는" + path.Count+"였어.");
                 IsGoal = true;
                 _Worker.enabled = true;
+                this.enabled = false;
                 path.Clear();
             }
             else//다음 목적지로
