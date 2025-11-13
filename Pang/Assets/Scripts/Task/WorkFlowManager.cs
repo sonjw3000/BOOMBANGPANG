@@ -11,14 +11,14 @@ public class WorkFlowManager : MonoBehaviour
 	//private StationService
 	private int nextJobID = 0;
 
-	public void TruckArrival(TruckManifest manifest)
-	{
-		// assignment dock
+	//public void TruckArrival(TruckManifest manifest)
+	//{
+	//	// assignment dock
 
 
-		// unload task assign
-		//taskManager.Enqueue();
-	}
+	//	// unload task assign
+	//	//taskManager.Enqueue();
+	//}
 
 	public void OnTaskCompleted(WorkerTask task)
 	{

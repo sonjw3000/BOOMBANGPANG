@@ -244,8 +244,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b5f4eec0d1c4ef44699a7688aa992fe7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  buildingPrefabIndex: 0
   wireframeMat: {fileID: 2100000, guid: 019466160e4e2f7409f1e582431bf409, type: 2}
   RightClickMenu: {fileID: 1503063954}
+  m_PickingType: 0
 --- !u!4 &168379778
 Transform:
   m_ObjectHideFlags: 0
@@ -1417,8 +1419,29 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2435145271861946170, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 535803005}
   m_SourcePrefab: {fileID: 100100000, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+--- !u!1 &535803004 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2435145271861946170, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+  m_PrefabInstance: {fileID: 535803003}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &535803005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 535803004}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc9318530e8a3da4ba861ca1e3ecd16a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ItemDB: {fileID: 0}
 --- !u!1 &785942395
 GameObject:
   m_ObjectHideFlags: 0
