@@ -167,12 +167,12 @@ public class TilemapGenerator : MonoBehaviour
 		foreach (ObjectData robotData in resources.mapJsonRef.robotdata)
 		{
 			Vector3 pos = new Vector3(robotData.x, Prefabs[robotData.type].transform.position.y, robotData.z);
-            quaternion baseRot = Prefabs[robotData.type].transform.rotation * Quaternion.Euler(0, 90 * robotData.head, 0);
+			quaternion baseRot = Prefabs[robotData.type].transform.rotation * Quaternion.Euler(0, 90 * robotData.head, 0);
 
-            map[robotData.x, robotData.y, robotData.z].obj = Instantiate(Prefabs[robotData.type], pos, baseRot, robotParent.transform);
+			map[robotData.x, robotData.y, robotData.z].obj = Instantiate(Prefabs[robotData.type], pos, baseRot, robotParent.transform);
 			Status status = map[robotData.x, robotData.y, robotData.z].obj.GetComponent<Status>();
 			status.SetInit(map[robotData.x, robotData.y, robotData.z].obj.name, robotData.type);
-            map[robotData.x, robotData.y, robotData.z].type = robotData.type;
+			map[robotData.x, robotData.y, robotData.z].type = robotData.type;
 		}
 		resources.mapJsonRef.robotdata.Clear(); // µÒº≈≥ ∏Æ∑Œ ¥Ÿ ø≈∞Â¿∏¥œ √ ±‚»≠«œ¿⁄
 	}
