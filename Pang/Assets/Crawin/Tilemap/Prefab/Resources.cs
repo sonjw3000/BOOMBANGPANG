@@ -74,6 +74,7 @@ public class ObjectData
 	public int type;
 	public int x, y, z;
 	public int head;
+	//head 는 *90도 로 계산 -> 0 == 0도, 1 == 90도, 2 == 180 ...
 	public ObjectData(int x, int y, int z, int type)
 	{
 		this.type = type;

@@ -24,6 +24,20 @@ public class FindRoute : MonoBehaviour
 	int3[] directions;
 	int4 curr;
 
+	struct Node
+	{
+		public int3 position;
+		public int dist, head;
+		public Node(int x, int y, int z, int d, int h)
+		{
+			position.x = x; position.y = y; position.z = z;
+			dist = d; head = h;
+		}
+	}
+	// astarLessRotate에서 쓰이는 변수
+	PriorityQueue<Node> LRpq;
+	Node LRcurr;
+
 	//moveontile에서 쓰이는 변수들
 	Vector3 targetPos;
 
@@ -55,6 +69,10 @@ public class FindRoute : MonoBehaviour
 		}
 		path = new List<int3>();
 		mStatus = gameObject.GetComponent<Status>();
+
+		LRpq = new PriorityQueue<Node>();
+		LRcurr = new Node();
+
 		this.enabled = false;
 		//Astar();
 	}
@@ -69,7 +87,8 @@ public class FindRoute : MonoBehaviour
 		}
 		else
 		{
-			Astar();
+			//Astar();
+			AstarLessRotate();
 		}
 	}
 
@@ -255,14 +274,116 @@ public class FindRoute : MonoBehaviour
 		return f;
 	}
 
+	void AstarLessRotate()
+	{
+		IsGoal = false;
+		LRcurr.position.x = Mathf.RoundToInt(transform.position.x); LRcurr.position.y = 0; LRcurr.position.z = Mathf.RoundToInt(transform.position.z); LRcurr.dist = 0;LRcurr.head = ((Mathf.RoundToInt(gameObject.transform.eulerAngles.y / 90f) % 4) + 4) % 4; // x,y,z,distance,head
+		//Debug.Log(LRcurr.head+"방향을 쳐다보고 있어");
+		int id = mStatus.GetID();
+		if (map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type != 0 && map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type != id)
+		{
+			Debug.LogError("얘 지금 이상한짓 해요" + gameObject.name + "가 " + map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type + "을 " + id + "로 바꾼다");
+			return;
+		}
+		map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type = id;
+		map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].obj = gameObject;
+		// distance 와 prev 배열 초기화
+		for (int y = 0; y < mapSize.y; ++y)
+		{
+			for (int x = 0; x < mapSize.x; ++x)
+			{
+				for (int z = 0; z < mapSize.z; ++z)
+				{
+					distance[x, y, z] = int.MaxValue;
+					prev[x, y, z].x = -1; prev[x, y, z].y = -1; prev[x, y, z].z = -1;
+				}
+			}
+		}
+
+		// pq 비우기
+		while (LRpq.Count > 0)
+		{
+			LRpq.Dequeue();
+		}
+
+		LRpq.Enqueue(LRcurr, 0);
+		distance[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z] = 0;
+		int lowest_heuristic = HeuristicLessRotate(LRcurr.position.xyz, 0, 0);
+		int3 nearest_goal = LRcurr.position.xyz;
+		while (LRpq.Count > 0)
+		{
+			Node top = LRpq.Dequeue();
+
+			if (top.position.y == goalCoordinate.y && top.position.x == goalCoordinate.x && top.position.z == goalCoordinate.z)
+			{
+				nearest_goal = top.position.xyz;
+				break;
+			}
+
+			if (distance[top.position.x, top.position.y, top.position.z] < top.dist)
+				continue;
+
+			directions[0].x = top.position.x; directions[0].y = top.position.y; directions[0].z = top.position.z + 1;
+			directions[1].x = top.position.x + 1; directions[1].y = top.position.y; directions[1].z = top.position.z;
+			directions[2].x = top.position.x; directions[2].y = top.position.y; directions[2].z = top.position.z - 1;
+			directions[3].x = top.position.x - 1; directions[3].y = top.position.y; directions[3].z = top.position.z;
+
+			int head = 0;
+			foreach (int3 dir in directions)
+			{
+				if (dir.x >= 0 && dir.x < mapSize.x && dir.y >= 0 && dir.y < mapSize.y && dir.z >= 0 && dir.z < mapSize.z)
+				{
+					int dist = distance[top.position.x, top.position.y, top.position.z] + 1;
+					if (map[dir.x, dir.y, dir.z].type == 0 && distance[dir.x, dir.y, dir.z] > dist)
+					{
+						distance[dir.x, dir.y, dir.z] = dist;
+						prev[dir.x, dir.y, dir.z] = top.position.xyz;
+						Node temp = new Node(dir.x, dir.y, dir.z, dist, head);
+						// 이 new int4는 어쩔 수 없이 써야함
+						int p = HeuristicLessRotate(dir, dist, (head == top.head) ? 0 : 100);
+						LRpq.Enqueue(temp, p);
+						if (lowest_heuristic >= p)
+						{
+							lowest_heuristic = p;
+							nearest_goal = dir;
+						}
+					}
+				}
+				++head;
+			}
+		}
+		Debug.Log("가장 가까운 노드" + nearest_goal);
+
+
+		int3 back = nearest_goal;
+		path.Clear();
+		while (back.x != -1 && back.y != -1 && back.z != -1)
+		{
+			path.Add(back);
+			back = prev[back.x, back.y, back.z];
+		}
+		path.Reverse();
+
+		currentIndex = 0;
+		nextNode = path[currentIndex];
+		previousNode.x = -1; previousNode.y = -1; previousNode.z = -1;
+
+		string s = "";
+		s += transform.name;
+		foreach (int3 p in path)
+		{
+			s += p + " -> ";
+		}
+		Debug.Log("이거로 확정이야" + s);
+	}
+
 	// 회전 가중치를 줘서 휴리스틱을 계산하려 했으나, 현재 진행 방향을 지금 구조에서는 알 방법이 없기에 보류
-	int HeuristicLessRotate(int3 next, int dist)
+	int HeuristicLessRotate(int3 next, int dist, int turn_cost)
 	{
 		int x = math.abs(goalCoordinate.x - next.x);
 		int y = math.abs(goalCoordinate.y - next.y);
 		int z = math.abs(goalCoordinate.z - next.z);
 		int h = x * x + y * y + z * z;
-		int turn_cost = 0;
 		int f = dist + h + turn_cost;
 		return f;
 	}
@@ -295,7 +416,8 @@ public class FindRoute : MonoBehaviour
 	{
 		goalCoordinate = goalPos;
 		mStatus.SetGoal(goalPos);
-		Astar();
+		//Astar();
+		AstarLessRotate();
 		//Debug.Log(path_size);
 		//this.enabled = true;
 		return true;
