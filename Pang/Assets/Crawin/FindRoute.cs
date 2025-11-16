@@ -340,7 +340,8 @@ public class FindRoute : MonoBehaviour
 						prev[dir.x, dir.y, dir.z] = top.position.xyz;
 						Node temp = new Node(dir.x, dir.y, dir.z, dist, head);
 						// 이 new int4는 어쩔 수 없이 써야함
-						int p = HeuristicLessRotate(dir, dist, (head == top.head) ? 0 : 100);
+						int p = HeuristicLessRotate(dir, dist, (head == top.head) ? 0 : 10000);
+						//회전 가중치 고치려면 고치세요
 						LRpq.Enqueue(temp, p);
 						if (lowest_heuristic >= p)
 						{
@@ -385,6 +386,7 @@ public class FindRoute : MonoBehaviour
 		int z = math.abs(goalCoordinate.z - next.z);
 		int h = x * x + y * y + z * z;
 		int f = dist + h + turn_cost;
+		// 회전 가중치 고치려면 고치세요
 		return f;
 	}
 
