@@ -11,8 +11,7 @@ GameObject:
   - component: {fileID: 2603860822302543606}
   - component: {fileID: 4139374815058873148}
   - component: {fileID: 3599617346717225425}
-  - component: {fileID: 1705418237085934779}
-  - component: {fileID: 4925563410245056528}
+  - component: {fileID: -5889988252422456072}
   - component: {fileID: -5012247527272037437}
   m_Layer: 0
   m_Name: Gold
@@ -90,30 +89,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!136 &1705418237085934779
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4307669844091279147}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 0
-  serializedVersion: 2
-  m_Radius: 0.5000001
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
---- !u!114 &4925563410245056528
+--- !u!114 &-5889988252422456072
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -122,16 +98,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 4307669844091279147}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2d58d1a9ef0f6dd40aaabea8c7e07b3c, type: 3}
+  m_Script: {fileID: 11500000, guid: f1d2c55093ca24f429ad69f8c3c2dad8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 2
-  rotationSpeed: 5
-  goalCoordinate:
-    x: 8
-    y: 0
-    z: 9
-  type: 0
+  IsRobot: 1
 --- !u!114 &-5012247527272037437
 MonoBehaviour:
   m_ObjectHideFlags: 0
