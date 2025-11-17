@@ -48,60 +48,6 @@ public class FindRoute : MonoBehaviour
 
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
-<<<<<<< HEAD
-    {
-        resources = GameObject.Find("Resources").GetComponent<Resources>();
-        map = resources.mapRef;
-        mapSize = resources.mapSize;
-
-        // astar에서 쓰이는 변수들
-        distance = new int[mapSize.x, mapSize.y, mapSize.z];
-        prev = new int3[mapSize.x, mapSize.y, mapSize.z];
-        pq = new PriorityQueue<int4>();
-        directions = new int3[4];
-        curr = new int4(Mathf.RoundToInt(transform.position.x),0, Mathf.RoundToInt(transform.position.z),0);
-
-        //moveontile에서 쓰이는 변수들
-        targetPos = new Vector3();
-
-        if (map == null)
-        {
-            Debug.LogError("mapRef is null!");
-        }
-        path = new List<int3>();
-        this.enabled = false;
-        //Astar();
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-        if (path.Count > 0)
-        {
-            MoveOnTile();
-        }
-        else
-        {
-            Astar();
-        }
-    }
-
-    void MoveOnTile()
-    {
-        //string s = "";
-        //s += transform.name;
-        //foreach (int3 p in path)
-        //{
-        //    s += p + " -> ";
-        //}
-        //Debug.Log("분명히 나는 "+s);
-
-        targetPos.x = nextNode.x; targetPos.y = nextNode.y + transform.position.y; targetPos.z = nextNode.z;
-        //targetPos.x = path[currentIndex].x; targetPos.y = path[currentIndex].y + transform.position.y; targetPos.z = path[currentIndex].z;
-
-        //Debug.Log("일단 다음 목적지는 " + targetPos);
-=======
 	{
 		resources = GameObject.Find("Resources").GetComponent<Resources>();
 		map = resources.mapRef;
@@ -168,7 +114,6 @@ public class FindRoute : MonoBehaviour
 		//targetPos.x = path[currentIndex].x; targetPos.y = path[currentIndex].y + transform.position.y; targetPos.z = path[currentIndex].z;
 
 		//Debug.Log("일단 다음 목적지는 " + targetPos);
->>>>>>> origin/main
 
 		Vector3 direction = math.normalize(targetPos - transform.position);
 		float dotProduct = math.dot(transform.forward, direction);
@@ -192,83 +137,6 @@ public class FindRoute : MonoBehaviour
 				map[previousNode.x, previousNode.y, previousNode.z].obj = null; //도착해서 이전 위치에 존재하는 gameobject를 null로 변경
 			}
 
-<<<<<<< HEAD
-            if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)
-            {
-                //int3 rand = new int3(UnityEngine.Random.Range(0, mapSize.x), UnityEngine.Random.Range(0, mapSize.y), UnityEngine.Random.Range(0, mapSize.z));
-                //while (map[rand.x, rand.y, rand.z].type != 0)
-                //{
-                //    rand.x = UnityEngine.Random.Range(0, mapSize.x);
-                //    rand.y = UnityEngine.Random.Range(0, mapSize.y);
-                //    rand.z = UnityEngine.Random.Range(0, mapSize.z);
-                //}
-                //goalCoordinate = rand;
-                Debug.Log(transform.name + "가 최종목적지에 도착." + path[currentIndex] + "가 최종 위치인데, 현재 내 위치는" + transform.position +"이야. 내 경로의 길이는" + path.Count+"였어.");
-                IsGoal = true;
-                _Worker.enabled = true;
-                this.enabled = false;
-                path.Clear();
-            }
-            else//다음 목적지로
-            {
-                nextNode = path[currentIndex + 1];
-                if (map[nextNode.x, nextNode.y, nextNode.z].type == 0)
-                    // 다음 목적지가 이동 가능한 상태면
-                {
-                    previousNode = path[currentIndex++];
-                    map[previousNode.x, previousNode.y, previousNode.z].type = int.MaxValue;
-                    map[nextNode.x, nextNode.y, nextNode.z].type = type;
-                    map[nextNode.x, nextNode.y, nextNode.z].obj = gameObject;
-                }
-                else
-                {   // 다음 목적지로 이동이 불가능한 상태면
-                    Debug.Log(transform.name + "가 목적지로 갈 수 없습니다.");
-                    path.Clear();
-                }
-            }
-        }
-    }
-
-
-
-    void Astar()
-    {
-        IsGoal = false;
-        curr.x = Mathf.RoundToInt(transform.position.x); curr.y = 0; curr.z = Mathf.RoundToInt(transform.position.z); curr.w = 0; // x,y,z,distance
-        if (map[curr.x, curr.y, curr.z].type != 0 && map[curr.x, curr.y, curr.z].type != type)
-        {
-            Debug.Log("얘 지금 이상한짓 해요" + gameObject.name +"가 " + map[curr.x, curr.y, curr.z].type +"를 바꾼다");
-            return;
-        }
-            map[curr.x, curr.y, curr.z].type = type;
-            map[curr.x, curr.y, curr.z].obj = gameObject;
-        // distance 와 prev 배열 초기화
-        for (int y = 0; y < mapSize.y; ++y)
-        {
-            for(int x = 0; x < mapSize.x; ++x)
-            {
-                for(int z = 0; z < mapSize.z; ++z)
-                {
-                    distance[x, y, z] = int.MaxValue;
-                    prev[x, y, z].x = -1; prev[x, y, z].y = -1; prev[x, y, z].z = -1;
-                }
-            }
-        }
-
-        // pq 비우기
-        while (pq.Count > 0)
-        {
-            pq.Dequeue();
-        }
-
-        pq.Enqueue(curr, 0);
-        distance[curr.x, curr.y, curr.z] = 0;
-        int lowest_heuristic = Heuristic(curr.xyz, 0);
-        int3 nearest_goal = curr.xyz;
-        while (pq.Count > 0)
-        {
-            int4 top = pq.Dequeue();
-=======
 			if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)
 			{
 				//int3 rand = new int3(UnityEngine.Random.Range(0, mapSize.x), UnityEngine.Random.Range(0, mapSize.y), UnityEngine.Random.Range(0, mapSize.z));
@@ -282,6 +150,7 @@ public class FindRoute : MonoBehaviour
 				//Debug.Log(transform.name + "가 최종목적지에 도착." + path[currentIndex] + "가 최종 위치인데, 현재 내 위치는" + transform.position +"이야. 내 경로의 길이는" + path.Count+"였어.");
 				IsGoal = true;
 				_Worker.enabled = true;
+				this.enabled = false;
 				path.Clear();
 			}
 			else//다음 목적지로
@@ -345,7 +214,6 @@ public class FindRoute : MonoBehaviour
 		while (pq.Count > 0)
 		{
 			int4 top = pq.Dequeue();
->>>>>>> origin/main
 
 			if (top.y == goalCoordinate.y && top.x == goalCoordinate.x && top.z == goalCoordinate.z) break;
 
