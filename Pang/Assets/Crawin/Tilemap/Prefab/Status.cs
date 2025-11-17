@@ -63,13 +63,46 @@ public class Status : MonoBehaviour
 		((RobotStatus)m_status).SetGoal(goal);
 	}
 
-	public void SetBattery(int battery)
+	public void SetBattery(float battery)
 	{
-		((RobotStatus)m_status).SetGoal(battery);
+		((RobotStatus)m_status).SetBattery(battery);
+	}
+
+	public void SetBatteryEfficiency(float e)
+	{
+		((RobotStatus)m_status).SetBatteryEfficiency(e);
+	}
+
+	public void DecreaseBattery()
+	{
+		((RobotStatus)m_status).DecreaseBattery();
 	}
 
 	public void SetWeight(int weight)
 	{
 		((RobotStatus)m_status).SetWeight(weight);
+	}
+
+	public void SetMaxStorage(int maxStorage)
+	{
+		((RobotStatus)m_status).SetMaxStorage(maxStorage);
+	}
+
+	public int3 GetGoal()
+	{
+		return ((RobotStatus)m_status).GetGoal();
+	}
+	public float GetBattery()
+	{
+		return ((RobotStatus)m_status).GetBattery();
+	}
+	public int GetWeight()
+	{
+		return ((RobotStatus)m_status).GetWeight();
+	}
+
+	public int GetMaxStorage()
+	{
+		return ((RobotStatus)m_status).GetMaxStorage();
 	}
 }

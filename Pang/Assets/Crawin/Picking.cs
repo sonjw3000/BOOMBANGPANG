@@ -21,7 +21,8 @@ public class Picking : MonoBehaviour
 	private GameObject RemoveButton;
 	private Animator RightClickMenuAnimator;
 	private int3 m_i3SelectedCoord;
-	private GameObject m_goSelectedObject;
+	[HideInInspector]
+	public GameObject m_goSelectedObject;
 
 	private int head;
 	public enum PickingType
@@ -39,6 +40,8 @@ public class Picking : MonoBehaviour
 
 	public GameObject MMainCamera;
 	private OrbitCamera mOrbitCamera;
+
+	public GameObject MStatusCanvas;
 
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
@@ -144,6 +147,7 @@ public class Picking : MonoBehaviour
 										m_goSelectedObject = map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].obj;
 										SaveSelectedObjectMat();
 
+										MStatusCanvas.SetActive(true);
 										// 해당 오브젝트의 속성 출력 예정
 										Status st = m_goSelectedObject.gameObject.GetComponent<Status>();
 										if (st != null)

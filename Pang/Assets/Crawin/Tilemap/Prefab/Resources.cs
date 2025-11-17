@@ -45,8 +45,10 @@ public class ShelfStatus : ObjectStatus
 public class RobotStatus : ObjectStatus
 {
 	protected int3 goal;
-	protected int battery;
+	protected float battery;
 	protected int weight;
+	protected int max_storage;
+	protected float batteryEfficiency;
 	public override void GetStatus()
 	{
 		Debug.Log("[" + mName + "] { \n\t" +
@@ -58,13 +60,46 @@ public class RobotStatus : ObjectStatus
 	{
 		goal = position;
 	}
-	public void SetBattery(int left)
+	public void SetBattery(float left)
 	{
 		battery = left;
 	}
 	public void SetWeight(int w)
 	{
 		weight = w;
+	}
+	public void SetMaxStorage(int m)
+	{
+		max_storage = m;
+	}
+	public void SetBatteryEfficiency(float e)
+	{
+		batteryEfficiency = e;
+	}
+
+	public int3 GetGoal()
+	{
+		return goal;
+	}
+
+	public float GetBattery()
+	{
+		return battery;
+	}
+
+	public int GetWeight()
+	{
+		return weight;
+	}
+
+	public int GetMaxStorage()
+	{
+		return max_storage;
+	}
+
+	public void DecreaseBattery()
+	{
+		battery -= batteryEfficiency * Time.deltaTime;
 	}
 }
 

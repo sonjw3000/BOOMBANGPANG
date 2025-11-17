@@ -69,6 +69,14 @@ public class FindRoute : MonoBehaviour
 		}
 		path = new List<int3>();
 		mStatus = gameObject.GetComponent<Status>();
+		// todo 일단 임시로 status 최초 할당을 여기서 진행 -> 아마 나중엔 정원이가 만들어둔 매니저가 하지 않을까?
+		if (mStatus)
+		{
+			mStatus.SetBattery(1);
+			mStatus.SetWeight(0);
+			mStatus.SetMaxStorage(100);
+			mStatus.SetBatteryEfficiency(0.01f);
+		}
 
 		LRpq = new PriorityQueue<Node>();
 		LRcurr = new Node();
@@ -80,10 +88,10 @@ public class FindRoute : MonoBehaviour
 	// Update is called once per frame
 	void Update()
 	{
-
 		if (path.Count > 0)
 		{
 			MoveOnTile();
+			mStatus.DecreaseBattery();
 		}
 		else
 		{
@@ -353,7 +361,7 @@ public class FindRoute : MonoBehaviour
 				++head;
 			}
 		}
-		Debug.Log("가장 가까운 노드" + nearest_goal);
+		//Debug.Log("가장 가까운 노드" + nearest_goal);
 
 
 		int3 back = nearest_goal;
@@ -369,13 +377,13 @@ public class FindRoute : MonoBehaviour
 		nextNode = path[currentIndex];
 		previousNode.x = -1; previousNode.y = -1; previousNode.z = -1;
 
-		string s = "";
-		s += transform.name;
-		foreach (int3 p in path)
-		{
-			s += p + " -> ";
-		}
-		Debug.Log("이거로 확정이야" + s);
+		//string s = "";
+		//s += transform.name;
+		//foreach (int3 p in path)
+		//{
+		//	s += p + " -> ";
+		//}
+		//Debug.Log("이거로 확정이야" + s);
 	}
 
 	// 회전 가중치를 줘서 휴리스틱을 계산하려 했으나, 현재 진행 방향을 지금 구조에서는 알 방법이 없기에 보류
@@ -428,5 +436,10 @@ public class FindRoute : MonoBehaviour
 	public void SetAIMaster(AIWorker worker)
 	{
 		_Worker = worker;
+	}
+
+	public float GetPathPercent()
+	{
+		return (float)currentIndex / path.Count;
 	}
 }
