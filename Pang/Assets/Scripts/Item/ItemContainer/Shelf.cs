@@ -13,9 +13,9 @@ public class Shelf : MonoBehaviour, IItemContainer
 	public int3 PickingPosition => pickingPosition;
 	public IReadOnlyList<ItemStack> Items => items;
 
-	void Start()
+
+	void OnEnable()
 	{
-		;
 		pickingPosition = new int3(
 			Mathf.RoundToInt(transform.position.x + transform.forward.x),
 			Mathf.RoundToInt(transform.position.y),
@@ -25,7 +25,7 @@ public class Shelf : MonoBehaviour, IItemContainer
 		GameContext.Instance.ItemInventoryData.OnContainerAdded(this);
 	}
 
-	private void OnDisable()
+	void OnDisable()
 	{
 		GameContext.Instance.ItemInventoryData.OnContainerRemoved(this);
 	}

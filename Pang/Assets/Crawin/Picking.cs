@@ -41,6 +41,10 @@ public class Picking : MonoBehaviour
 
 	private OrbitCamera mOrbitCamera;
 
+	// 선택된 오브젝트를 하이라이트
+	private GameObject floorhighLight;
+	private GameObject goalPositionHighlight;
+
 	public GameObject SelectedObject => selectedObject;
 
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -48,6 +52,8 @@ public class Picking : MonoBehaviour
 	{
 		resources = GameObject.Find("Resources").GetComponent<Resources>();
 		activate = GameObject.Find("ESC").GetComponent<UIOnOff>();
+		floorhighLight = transform.Find("Highlight").gameObject;
+		goalPositionHighlight = transform.Find("GoalPosition").gameObject;
 
 		if (resources == null)
 		{
@@ -76,7 +82,7 @@ public class Picking : MonoBehaviour
 			Debug.Log(removeButton.gameObject.name);
 		}
 		selectedCoord = new int3();
-		selectedObject = null;
+		ChangeSelectedObject(null);
 		head = 0;
 		pickingType = PickingType.SELECT;
 		groundPlane = new Plane(Vector3.up, Vector3.zero);
@@ -125,51 +131,8 @@ public class Picking : MonoBehaviour
 		switch (pickingType)
 		{
 			case PickingType.SELECT:
-				{
-					if (Input.GetMouseButtonDown(0))
-					{
-						if (!IsPointerOverUI())
-						{
-							rightClickMenu.SetActive(false);
-							Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-							float distance;
-							if (groundPlane.Raycast(ray, out distance))
-							{
-								ReturnSelectedObjectMat();
-								Vector3 worldPos = ray.GetPoint(distance);
-								int tileX = Mathf.FloorToInt(worldPos.x + 0.5f);
-								int tileZ = Mathf.FloorToInt(worldPos.z + 0.5f);
-								if (tileX >= 0 && tileX < mapSize.x && tileZ >= 0 && tileZ < mapSize.z)
-								{
-									if (map[tileX, 0, tileZ].obj != null)
-									{
-										selectedCoord.x = tileX; selectedCoord.y = 0; selectedCoord.z = tileZ;
-										selectedObject = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].obj;
-										SaveSelectedObjectMat();
-
-										statusCanvas.SetActive(true);
-										// 해당 오브젝트의 속성 출력 예정
-										Status st = selectedObject.gameObject.GetComponent<Status>();
-										if (st != null)
-										{
-											st.OnClick();
-										}
-										mOrbitCamera.LockObject(selectedObject);
-										//Debug.Log(selectedObject.name + "이 선택 되었습니다.");
-									}
-									else
-									{   // 다른 뭔가가 좌클릭 되면 선택 해제
-										selectedObject = null;
-									}
-								}
-							}
-							else
-							{   // 다른 뭔가가 좌클릭 되면 선택 해제
-								selectedObject = null;
-							}
-						}
-					}
-				}
+				if (Input.GetMouseButtonDown(0))
+					OnGameScreenLeftClicked();
 				break;
 			case PickingType.INSERT:
 				{
@@ -189,7 +152,7 @@ public class Picking : MonoBehaviour
 						{
 							if (!IsPointerOverUI()) // ui를 안건드렸으면
 							{
-								//ReturnSelectedObjectMat();
+								ReturnSelectedObjectMat();
 
 								rightClickMenu.SetActive(false);
 								Transform parentTransform;
@@ -364,7 +327,7 @@ public class Picking : MonoBehaviour
 				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].Reset();
 			}
 			Destroy(selectedObject);
-			selectedObject = null;
+			ChangeSelectedObject(null);
 		}
 		rightClickMenu.gameObject.SetActive(false);
 	}
@@ -418,176 +381,42 @@ public class Picking : MonoBehaviour
 		}
 	}
 
-	public void InsertClicked()
+	private void OnGameScreenLeftClicked()
 	{
-
-	}
-
-	void LegacyPicking()
-	{
+		// ui를 클릭했다면 패스
+		if (IsPointerOverUI())
+			return;
+		
+		rightClickMenu.SetActive(false);
 		Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-		float distance;
-		if (groundPlane.Raycast(ray, out distance))
+
+		if (groundPlane.Raycast(ray, out float distance))
 		{
+			ReturnSelectedObjectMat();
 			Vector3 worldPos = ray.GetPoint(distance);
-			//Debug.Log(worldPos);
-			// 월드 좌표 → 타일 인덱스
 			int tileX = Mathf.FloorToInt(worldPos.x + 0.5f);
 			int tileZ = Mathf.FloorToInt(worldPos.z + 0.5f);
-
-			//Debug.Log($"마우스로{tileX},{tileZ}를 클릭");
-			// 배열 범위 체크
-			placePos.Set(tileX, resources.Prefabs[buildingPrefabIndex].transform.position.y, tileZ);
-
-			if (tileX >= 0 && tileX < mapSize.x && tileZ >= 0 && tileZ < mapSize.z)
+			if (0 <= tileX && tileX < mapSize.x && 
+				0 <= tileZ && tileZ < mapSize.z)
 			{
-				if (buildingPrefabIndex > 1)    // 배치 될 프리팹 보여주기
+				if (map[tileX, 0, tileZ].obj != null)
 				{
-					SyncPreviewAndBuilding();
-					if (map[tileX, 0, tileZ].type == 0) // 바닥이면
-					{
-						//Debug.Log("바닥인디요");
-						previewInstance.SetActive(true);
-						previewInstance.transform.position = placePos;
-						foreach (Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
-						{
-							var mats = r.materials;
-							for (int i = 0; i < mats.Length; ++i)
-							{
-								Color c = mats[i].color;
-								c.r = 0;
-								c.g = 1;
-								c.b = 0;
-								c.a = 0.3f;
-								mats[i].color = c;
-							}
-						}
-					}
-					else
-					{
-						//Debug.Log("바닥이 아닌디요");
-						previewInstance.SetActive(true);
-						previewInstance.transform.position = placePos;
-						foreach (Renderer r in previewInstance.GetComponentsInChildren<Renderer>())
-						{
-							var mats = r.materials;
-							for (int i = 0; i < mats.Length; ++i)
-							{
-								Color c = mats[i].color;
-								c.r = 1;
-								c.g = 0;
-								c.b = 0;
-								c.a = 0.3f;
-								mats[i].color = c;
-							}
-						}
-					}
-				}
-
-				if (Input.GetMouseButtonDown(0))
-				{      // 좌클릭 했을 때
-					if (!IsPointerOverUI()) // ui를 안건드렸으면
-					{
-						if (selectedObject != null)
-						{
-							Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
-							var originalMats = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats;
-							if (originalMats != null && originalMats.Count == renderers.Length)
-							{
-								for (int i = 0; i < renderers.Length; ++i)
-								{
-									renderers[i].sharedMaterials = originalMats[i];
-								}
-							}
-							map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = null;
-							selectedObject = null;
-						}
-
-						rightClickMenu.SetActive(false);
-						//Debug.Log($"{placePos}를 클릭했담");
-						Transform parentTransform;
-						switch (map[tileX, 0, tileZ].type)
-						{
-							case 0: // 바닥
-								quaternion baseRot = resources.Prefabs[buildingPrefabIndex].transform.rotation * Quaternion.Euler(0, 90 * head, 0);
-								if (buildingPrefabIndex <= 1)   // 기둥이거나 타일이면
-								{
-									parentTransform = GameObject.Find("TileParent").transform;
-									map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
-								}
-								else
-								{
-									parentTransform = GameObject.Find("RobotParent").transform;
-									map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
-								}
-								map[tileX, 0, tileZ].type = buildingPrefabIndex;
-								//Debug.Log($"벽 생성: ({tileX}, {tileZ})");
-								break;
-							case 1: // 벽
-									//Destroy(map[tileX, 0, tileZ].obj);
-									//map[tileX, 0, tileZ].obj = null;
-									//map[tileX, 0, tileZ].type = 0;
-								break;
-							default:    // 로봇
-								break;
-						}
-					}
-				}
-
-				if (Input.GetMouseButtonDown(1))
-				{
-					if (selectedObject != null) // 이전에 선택된 애가 있다면 메터리얼 원상복귀
-					{
-						Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
-						var originalMats = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats;
-						if (originalMats != null && originalMats.Count == renderers.Length)
-						{
-							for (int i = 0; i < renderers.Length; ++i)
-							{
-								renderers[i].sharedMaterials = originalMats[i];
-							}
-						}
-						map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = null;
-						selectedObject = null;
-					}
-
 					selectedCoord.x = tileX; selectedCoord.y = 0; selectedCoord.z = tileZ;
-
-					// 기존 메테리얼들 저장, 와이어프레임으로 변경
-					selectedObject = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].obj;
-					if (selectedObject != null)
-					{
-						//Debug.Log(selectedObject.name + "선택완료");
-						Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
-						map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = new List<Material[]>();
-						foreach (Renderer renderer in renderers)
-						{
-							//기존 메테리얼들 저장
-							map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats.Add(renderer.sharedMaterials);
-
-							//메테리얼 교체
-							Material[] newMats = new Material[renderer.materials.Length];
-							for (int i = 0; i < newMats.Length; ++i)
-							{
-								newMats[i] = wireframeMat;
-							}
-							renderer.materials = newMats;
-						}
-					}
-
-					Vector3 mousePos = Input.mousePosition;
-					rightClickMenu.SetActive(false);
-					rightClickMenu.SetActive(true);
-					// 껏다키는 이유는 자식들도 껏다키기위함
-					rightClickMenuAnimator.enabled = true;
-					rightClickMenu.transform.position = mousePos;
+					ChangeSelectedObject(map[selectedCoord.x, selectedCoord.y, selectedCoord.z].obj);
+					
 				}
-			}
-			else
-			{// 타일의 범위를 넘어섰다면 preview disable
-				previewInstance.SetActive(false);
+				else
+				{	// 다른 뭔가가 좌클릭 되면 선택 해제
+					ChangeSelectedObject(null);
+				}
 			}
 		}
+		else
+		{	// 다른 뭔가가 좌클릭 되면 선택 해제
+			ChangeSelectedObject(null);
+		}
+		
+
 	}
 
 	void ReturnSelectedObjectMat()
@@ -604,7 +433,7 @@ public class Picking : MonoBehaviour
 				}
 			}
 			map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = null;
-			selectedObject = null;
+			ChangeSelectedObject(null);
 		}
 		mOrbitCamera.LockObject(null);
 	}
@@ -635,6 +464,42 @@ public class Picking : MonoBehaviour
 				}
 				renderer.materials = newMats;
 			}
+		}
+	}
+
+	private void ChangeSelectedObject(GameObject obj)
+	{
+		selectedObject = obj;
+
+		if (selectedObject == null)
+		{
+			floorhighLight.SetActive(false);
+			goalPositionHighlight.SetActive(false);
+			return;
+		}
+		// save material
+		SaveSelectedObjectMat();
+		statusCanvas.SetActive(true);
+
+		// 해당 오브젝트의 속성 출력 예정
+		Status st = selectedObject.gameObject.GetComponent<Status>();
+		if (st != null)
+		{
+			st.OnClick();
+		}
+		mOrbitCamera.LockObject(selectedObject);
+		//Debug.Log(selectedObject.name + "이 선택 되었습니다.");
+
+		// 하이라이트 켜놓기
+		floorhighLight.transform.position = selectedObject.transform.position;
+		floorhighLight.SetActive(true);
+
+		var shelf = selectedObject.GetComponent<Shelf>();
+		if (shelf != null)
+		{
+			int3 pos = shelf.PickingPosition;
+			goalPositionHighlight.transform.position = new Vector3(pos.x, pos.y, pos.z);
+			goalPositionHighlight.SetActive(true);
 		}
 	}
 

@@ -184,7 +184,7 @@ public class Cell
 		}
 	}
 }
-
+[DefaultExecutionOrder(-100)]
 public class Resources : MonoBehaviour
 {
 	public class RendererTemplate
