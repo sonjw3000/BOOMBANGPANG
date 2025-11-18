@@ -34,7 +34,7 @@ public class ItemInventory
 			itemLocations[itemID] = new List<ItemLocation>();
 		}
 
-		var pos = container.Position;
+		var pos = container.PickingPosition;
 		var locationList = itemLocations[itemID];
 		var existingLocation = locationList.Find(loc => loc.Container == container);
 

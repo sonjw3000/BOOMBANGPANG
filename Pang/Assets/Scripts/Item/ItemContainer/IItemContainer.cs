@@ -3,8 +3,9 @@ using Unity.Mathematics;
 
 public interface IItemContainer
 {
-	int StackSize { get; }
-	int3 Position { get; }
+	int StackCount { get; }
+	float StackCapacity { get; }
+	int3 PickingPosition { get; }
 	IReadOnlyList<ItemStack> Items { get; }
 }
 

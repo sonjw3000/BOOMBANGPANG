@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1091335710804964257}
   - component: {fileID: 9052094211570409985}
+  - component: {fileID: 7453643345458885979}
   m_Layer: 0
   m_Name: BoardShelf C
   m_TagString: Untagged
@@ -51,6 +52,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1d2c55093ca24f429ad69f8c3c2dad8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  IsRobot: 0
+--- !u!114 &7453643345458885979
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4934971901129387132}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5bfce1250c09c84a96c0e010c505936, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stackCount: 0
+  stackCapacity: 0
 --- !u!1001 &569402026656613700
 PrefabInstance:
   m_ObjectHideFlags: 0
