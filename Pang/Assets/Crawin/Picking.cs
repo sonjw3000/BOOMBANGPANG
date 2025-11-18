@@ -7,23 +7,25 @@ using UnityEngine.UI;
 
 public class Picking : MonoBehaviour
 {
+	[SerializeField] private Material wireframeMat;
+	[SerializeField] private GameObject rightClickMenu;
+	[SerializeField] private GameObject mainCamera;
+	[SerializeField] private GameObject statusCanvas;
+
 	private Resources resources;
+
 	private Cell[,,] map;
 	private int3 mapSize;
 	[HideInInspector]
-	public int buildingPrefabIndex;
+	private int buildingPrefabIndex;
 	private int syncPrefabIndex;
 	private GameObject previewInstance;
-	public Material wireframeMat;
 	private UIOnOff activate;
 
-	public GameObject RightClickMenu;
-	private GameObject RemoveButton;
-	private Animator RightClickMenuAnimator;
-	private int3 m_i3SelectedCoord;
-	[HideInInspector]
-	public GameObject m_goSelectedObject;
-
+	private GameObject removeButton;
+	private Animator rightClickMenuAnimator;
+	private int3 selectedCoord;
+	private GameObject selectedObject;
 	private int head;
 	public enum PickingType
 	{
@@ -31,17 +33,15 @@ public class Picking : MonoBehaviour
 		INSERT,
 		REMOVE
 	}
-	[HideInInspector]
-	public PickingType m_PickingType;
+	private PickingType pickingType;
 
 	// MousePicking에서 쓰는 변수
 	private Plane groundPlane;
 	private Vector3 placePos;
 
-	public GameObject MMainCamera;
 	private OrbitCamera mOrbitCamera;
 
-	public GameObject MStatusCanvas;
+	public GameObject SelectedObject => selectedObject;
 
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
@@ -67,23 +67,23 @@ public class Picking : MonoBehaviour
 		buildingPrefabIndex = 0;
 		syncPrefabIndex = 0;
 
-		if (RightClickMenu)
+		if (rightClickMenu)
 		{
-			RightClickMenuAnimator = RightClickMenu.GetComponent<Animator>();
-			RightClickMenuAnimator.enabled = false;
-			RightClickMenu.SetActive(false);
-			RemoveButton = RightClickMenu.transform.GetChild(1).gameObject;
-			Debug.Log(RemoveButton.gameObject.name);
+			rightClickMenuAnimator = rightClickMenu.GetComponent<Animator>();
+			rightClickMenuAnimator.enabled = false;
+			rightClickMenu.SetActive(false);
+			removeButton = rightClickMenu.transform.GetChild(1).gameObject;
+			Debug.Log(removeButton.gameObject.name);
 		}
-		m_i3SelectedCoord = new int3();
-		m_goSelectedObject = null;
+		selectedCoord = new int3();
+		selectedObject = null;
 		head = 0;
-		m_PickingType = PickingType.SELECT;
+		pickingType = PickingType.SELECT;
 		groundPlane = new Plane(Vector3.up, Vector3.zero);
 		placePos = new Vector3();
-		if (MMainCamera != null)
+		if (mainCamera != null)
 		{
-			mOrbitCamera = MMainCamera.GetComponent<OrbitCamera>();
+			mOrbitCamera = mainCamera.GetComponent<OrbitCamera>();
 		}
 	}
 
@@ -103,26 +103,26 @@ public class Picking : MonoBehaviour
 	{
 		if (Input.GetMouseButtonDown(1))
 		{
-			RightClickMenu.SetActive(false);
+			rightClickMenu.SetActive(false);
 		}
 		if (Input.GetMouseButtonUp(1))
 		{
 			Vector3 mousePos = Input.mousePosition;
 
-			if (m_goSelectedObject != null)
+			if (selectedObject != null)
 			{
-				RemoveButton.SetActive(true);
+				removeButton.SetActive(true);
 			}
 			else
 			{
-				RemoveButton.SetActive(false);
+				removeButton.SetActive(false);
 			}
-			RightClickMenu.SetActive(true);
-			RightClickMenu.transform.position = mousePos;
-			RightClickMenuAnimator.enabled = true;
+			rightClickMenu.SetActive(true);
+			rightClickMenu.transform.position = mousePos;
+			rightClickMenuAnimator.enabled = true;
 		}
 
-		switch (m_PickingType)
+		switch (pickingType)
 		{
 			case PickingType.SELECT:
 				{
@@ -130,7 +130,7 @@ public class Picking : MonoBehaviour
 					{
 						if (!IsPointerOverUI())
 						{
-							RightClickMenu.SetActive(false);
+							rightClickMenu.SetActive(false);
 							Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 							float distance;
 							if (groundPlane.Raycast(ray, out distance))
@@ -143,29 +143,29 @@ public class Picking : MonoBehaviour
 								{
 									if (map[tileX, 0, tileZ].obj != null)
 									{
-										m_i3SelectedCoord.x = tileX; m_i3SelectedCoord.y = 0; m_i3SelectedCoord.z = tileZ;
-										m_goSelectedObject = map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].obj;
+										selectedCoord.x = tileX; selectedCoord.y = 0; selectedCoord.z = tileZ;
+										selectedObject = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].obj;
 										SaveSelectedObjectMat();
 
-										MStatusCanvas.SetActive(true);
+										statusCanvas.SetActive(true);
 										// 해당 오브젝트의 속성 출력 예정
-										Status st = m_goSelectedObject.gameObject.GetComponent<Status>();
+										Status st = selectedObject.gameObject.GetComponent<Status>();
 										if (st != null)
 										{
 											st.OnClick();
 										}
-										mOrbitCamera.LockObject(m_goSelectedObject);
-										//Debug.Log(m_goSelectedObject.name + "이 선택 되었습니다.");
+										mOrbitCamera.LockObject(selectedObject);
+										//Debug.Log(selectedObject.name + "이 선택 되었습니다.");
 									}
 									else
 									{   // 다른 뭔가가 좌클릭 되면 선택 해제
-										m_goSelectedObject = null;
+										selectedObject = null;
 									}
 								}
 							}
 							else
 							{   // 다른 뭔가가 좌클릭 되면 선택 해제
-								m_goSelectedObject = null;
+								selectedObject = null;
 							}
 						}
 					}
@@ -191,7 +191,7 @@ public class Picking : MonoBehaviour
 							{
 								//ReturnSelectedObjectMat();
 
-								RightClickMenu.SetActive(false);
+								rightClickMenu.SetActive(false);
 								Transform parentTransform;
 								if (map[tileX, 0, tileZ].type == 0)   // 바닥에 아무것도 없으면
 								{
@@ -214,7 +214,7 @@ public class Picking : MonoBehaviour
 									}
 
 									map[tileX, 0, tileZ].type = buildingPrefabIndex;
-									m_PickingType = PickingType.SELECT;
+									pickingType = PickingType.SELECT;
 									previewInstance.SetActive(false);
 								}
 							}
@@ -345,28 +345,28 @@ public class Picking : MonoBehaviour
 		pointerData.position = Input.mousePosition;
 
 		List<RaycastResult> results = new List<RaycastResult>();
-		GraphicRaycaster gr = RightClickMenu.GetComponentInParent<GraphicRaycaster>();
+		GraphicRaycaster gr = rightClickMenu.GetComponentInParent<GraphicRaycaster>();
 		gr.Raycast(pointerData, results);
 		return results.Count > 0;
 	}
 
 	public void RemoveObject()
 	{
-		if (m_goSelectedObject != null)
+		if (selectedObject != null)
 		{
-			FindRoute fr = m_goSelectedObject.GetComponent<FindRoute>();
+			FindRoute fr = selectedObject.GetComponent<FindRoute>();
 			if (fr != null)
 			{//움직이는 로봇들
 				fr.RemoveThisObjectOnMap();
 			}
 			else
 			{//가만히 배치돼있는 애들
-				map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].Reset();
+				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].Reset();
 			}
-			Destroy(m_goSelectedObject);
-			m_goSelectedObject = null;
+			Destroy(selectedObject);
+			selectedObject = null;
 		}
-		RightClickMenu.gameObject.SetActive(false);
+		rightClickMenu.gameObject.SetActive(false);
 	}
 
 	void RenderPreview()
@@ -488,10 +488,10 @@ public class Picking : MonoBehaviour
 				{      // 좌클릭 했을 때
 					if (!IsPointerOverUI()) // ui를 안건드렸으면
 					{
-						if (m_goSelectedObject != null)
+						if (selectedObject != null)
 						{
-							Renderer[] renderers = m_goSelectedObject.GetComponentsInChildren<Renderer>();
-							var originalMats = map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats;
+							Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
+							var originalMats = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats;
 							if (originalMats != null && originalMats.Count == renderers.Length)
 							{
 								for (int i = 0; i < renderers.Length; ++i)
@@ -499,11 +499,11 @@ public class Picking : MonoBehaviour
 									renderers[i].sharedMaterials = originalMats[i];
 								}
 							}
-							map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats = null;
-							m_goSelectedObject = null;
+							map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = null;
+							selectedObject = null;
 						}
 
-						RightClickMenu.SetActive(false);
+						rightClickMenu.SetActive(false);
 						//Debug.Log($"{placePos}를 클릭했담");
 						Transform parentTransform;
 						switch (map[tileX, 0, tileZ].type)
@@ -536,10 +536,10 @@ public class Picking : MonoBehaviour
 
 				if (Input.GetMouseButtonDown(1))
 				{
-					if (m_goSelectedObject != null) // 이전에 선택된 애가 있다면 메터리얼 원상복귀
+					if (selectedObject != null) // 이전에 선택된 애가 있다면 메터리얼 원상복귀
 					{
-						Renderer[] renderers = m_goSelectedObject.GetComponentsInChildren<Renderer>();
-						var originalMats = map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats;
+						Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
+						var originalMats = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats;
 						if (originalMats != null && originalMats.Count == renderers.Length)
 						{
 							for (int i = 0; i < renderers.Length; ++i)
@@ -547,23 +547,23 @@ public class Picking : MonoBehaviour
 								renderers[i].sharedMaterials = originalMats[i];
 							}
 						}
-						map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats = null;
-						m_goSelectedObject = null;
+						map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = null;
+						selectedObject = null;
 					}
 
-					m_i3SelectedCoord.x = tileX; m_i3SelectedCoord.y = 0; m_i3SelectedCoord.z = tileZ;
+					selectedCoord.x = tileX; selectedCoord.y = 0; selectedCoord.z = tileZ;
 
 					// 기존 메테리얼들 저장, 와이어프레임으로 변경
-					m_goSelectedObject = map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].obj;
-					if (m_goSelectedObject != null)
+					selectedObject = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].obj;
+					if (selectedObject != null)
 					{
-						//Debug.Log(m_goSelectedObject.name + "선택완료");
-						Renderer[] renderers = m_goSelectedObject.GetComponentsInChildren<Renderer>();
-						map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats = new List<Material[]>();
+						//Debug.Log(selectedObject.name + "선택완료");
+						Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
+						map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = new List<Material[]>();
 						foreach (Renderer renderer in renderers)
 						{
 							//기존 메테리얼들 저장
-							map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats.Add(renderer.sharedMaterials);
+							map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats.Add(renderer.sharedMaterials);
 
 							//메테리얼 교체
 							Material[] newMats = new Material[renderer.materials.Length];
@@ -576,11 +576,11 @@ public class Picking : MonoBehaviour
 					}
 
 					Vector3 mousePos = Input.mousePosition;
-					RightClickMenu.SetActive(false);
-					RightClickMenu.SetActive(true);
+					rightClickMenu.SetActive(false);
+					rightClickMenu.SetActive(true);
 					// 껏다키는 이유는 자식들도 껏다키기위함
-					RightClickMenuAnimator.enabled = true;
-					RightClickMenu.transform.position = mousePos;
+					rightClickMenuAnimator.enabled = true;
+					rightClickMenu.transform.position = mousePos;
 				}
 			}
 			else
@@ -592,10 +592,10 @@ public class Picking : MonoBehaviour
 
 	void ReturnSelectedObjectMat()
 	{
-		if (m_goSelectedObject != null)
+		if (selectedObject != null)
 		{
-			Renderer[] renderers = m_goSelectedObject.GetComponentsInChildren<Renderer>();
-			var originalMats = map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats;
+			Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
+			var originalMats = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats;
 			if (originalMats != null && originalMats.Count == renderers.Length)
 			{
 				for (int i = 0; i < renderers.Length; ++i)
@@ -603,29 +603,29 @@ public class Picking : MonoBehaviour
 					renderers[i].sharedMaterials = originalMats[i];
 				}
 			}
-			map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats = null;
-			m_goSelectedObject = null;
+			map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = null;
+			selectedObject = null;
 		}
 		mOrbitCamera.LockObject(null);
 	}
 
 	void SaveSelectedObjectMat()
 	{
-		if (m_goSelectedObject != null)
+		if (selectedObject != null)
 		{
-			Renderer[] renderers = m_goSelectedObject.GetComponentsInChildren<Renderer>();
-			if (map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats == null)
+			Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
+			if (map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats == null)
 			{
-				map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats = new List<Material[]>();   // 최초 1회만 new 할당;
+				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = new List<Material[]>();   // 최초 1회만 new 할당;
 			}
 			else
 			{
-				map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats.Clear();
+				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats.Clear();
 			}
 			foreach (Renderer renderer in renderers)
 			{
 				//기존 메테리얼들 저장
-				map[m_i3SelectedCoord.x, m_i3SelectedCoord.y, m_i3SelectedCoord.z].originalMats.Add(renderer.sharedMaterials);
+				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats.Add(renderer.sharedMaterials);
 
 				//메테리얼 교체
 				Material[] newMats = new Material[renderer.materials.Length];
@@ -636,5 +636,11 @@ public class Picking : MonoBehaviour
 				renderer.materials = newMats;
 			}
 		}
+	}
+
+	public void SetBuildingID(int id)
+	{
+		buildingPrefabIndex = id;
+		pickingType = Picking.PickingType.INSERT;
 	}
 }

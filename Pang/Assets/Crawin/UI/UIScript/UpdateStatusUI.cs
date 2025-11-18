@@ -25,8 +25,8 @@ public class UpdateStatusUI : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (mLastPickedObject != mPicking.m_goSelectedObject) {
-            mLastPickedObject = mPicking.m_goSelectedObject;
+        if (mLastPickedObject != mPicking.SelectedObject) {
+            mLastPickedObject = mPicking.SelectedObject;
             if (mLastPickedObject)
             {
                 mStatus = mLastPickedObject.GetComponent<Status>();
