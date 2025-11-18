@@ -247,7 +247,10 @@ MonoBehaviour:
   buildingPrefabIndex: 0
   wireframeMat: {fileID: 2100000, guid: 019466160e4e2f7409f1e582431bf409, type: 2}
   RightClickMenu: {fileID: 1503063954}
+  m_goSelectedObject: {fileID: 0}
   m_PickingType: 0
+  MMainCamera: {fileID: 348464800}
+  MStatusCanvas: {fileID: 961263477}
 --- !u!4 &168379778
 Transform:
   m_ObjectHideFlags: 0
@@ -1416,32 +1419,51 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[0].name
+      value: test_item_0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[0].size
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[1].name
+      value: test_item_1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[1].size
+      value: 11
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[2].name
+      value: test_item_2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[2].size
+      value: 12
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[0].itemID
+      value: 123333
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[1].itemID
+      value: 123123
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[2].itemID
+      value: 14412
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 2435145271861946170, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 535803005}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
---- !u!1 &535803004 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2435145271861946170, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-  m_PrefabInstance: {fileID: 535803003}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &535803005
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 535803004}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fc9318530e8a3da4ba861ca1e3ecd16a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ItemDB: {fileID: 0}
 --- !u!1 &785942395
 GameObject:
   m_ObjectHideFlags: 0
