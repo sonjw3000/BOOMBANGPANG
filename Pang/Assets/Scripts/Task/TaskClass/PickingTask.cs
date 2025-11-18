@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using static UnityEditor.PlayerSettings;
+using static UnityEditor.Progress;
 
 public sealed class PickingTask : WorkerTask
 {
@@ -10,8 +11,7 @@ public sealed class PickingTask : WorkerTask
 	{
 		public int3 GoalPosition;
 		public int ItemID;
-		public int RequestedMount;
-		public int ContainerID;
+		public int Quantity;
 	}
 
 	public class PickJob
@@ -76,6 +76,13 @@ public sealed class PickingTask : WorkerTask
 		baseNode = root;
 	}
 
+#if UNITY_EDITOR
+	public override string ShowStatus()
+	{
+		return $"Picking Task: {PickingData.CurrentLine} / {PickingData.Lines.Count}, Goal: {PickingData.Lines[PickingData.CurrentLine].GoalPosition}";
+	}
+#endif
+
 	public override IBaseNode.NodeState UpdateTaskNode(in BTContext ctx)
 	{
 		// 본인의 static bt를 돌려야 한다
@@ -99,7 +106,7 @@ public sealed class PickingTask : WorkerTask
 
 		// set goalPosition
 		var line = task.PickingData.GetNextLine();
-		//ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
+		ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
 
 		return IBaseNode.NodeState.Success;
 	}

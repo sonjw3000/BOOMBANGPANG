@@ -63,6 +63,9 @@ public abstract class WorkerTask
 	}
 
 	protected abstract void BuildTaskNode();
+#if UNITY_EDITOR
+	public abstract string ShowStatus();
+#endif
 	public abstract IBaseNode.NodeState UpdateTaskNode(in BTContext ctx);
 
 	public static void SetTaskManager(TaskManager taskManager) { Manager = taskManager; }

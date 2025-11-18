@@ -4,12 +4,12 @@ using UnityEngine;
 using static WorkerTask;
 
 [DefaultExecutionOrder(-100)]
-class WorkerManager : MonoBehaviour
+public class WorkerManager : MonoBehaviour
 {
 	// todo
 	// 자료형을 바꿔야 한다
 	// 삽입 삭제가 빈번히 일어나기 때문에
-	private List<AIWorker> workers;
+	[SerializeField] private List<AIWorker> workers;
 
 	private BlackBoard globalBlackboard;
 

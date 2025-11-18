@@ -2,10 +2,11 @@
 using Unity.Mathematics;
 using UnityEngine;
 
+[System.Serializable]
 public abstract class AIWorker : MonoBehaviour
 {
 	private FindRoute routeFinder;
-	private int tick = 0;
+	[SerializeField] private int tick = 0;
 	
 	protected BehaviorTree behaviorTree;
 	protected BlackBoard localBlackBoard = new();
@@ -17,9 +18,9 @@ public abstract class AIWorker : MonoBehaviour
 	protected abstract void EnableAction();
 	protected abstract void DisableAction();
 
-	public string Name { get; private set; }
-	public int WorkerID { get; private set; }
-	public WorkerTask CurrentTask { get; private set; } = null;
+	[SerializeField] public string Name { get; private set; }
+	[SerializeField] public int WorkerID { get; private set; }
+	[SerializeField] public WorkerTask CurrentTask { get; private set; } = null;
 
 
 	public void Start()
@@ -72,6 +73,11 @@ public abstract class AIWorker : MonoBehaviour
 	{
 		if (task != null) 
 			task.SetAIWorker(this);
+		else
+		{
+			// release action
+			//CurrentTask.On
+		}
 		CurrentTask = task;
 	}
 

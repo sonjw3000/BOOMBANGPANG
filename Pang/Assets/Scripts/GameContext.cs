@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 public class GameContext : MonoBehaviour
@@ -16,7 +15,12 @@ public class GameContext : MonoBehaviour
 			return instance;
 		}
 	}
-	public ItemDatabase ItemDB = new();
+
+	[SerializeField] private ItemDatabase itemDB;
+	[SerializeField] private ItemInventory itemInventoryData;
+
+	public ItemDatabase ItemDB => itemDB;
+	public ItemInventory ItemInventoryData => itemInventoryData;
 
 	private void Awake()
 	{
@@ -30,5 +34,31 @@ public class GameContext : MonoBehaviour
 
 		instance = this;
 		DontDestroyOnLoad(gameObject);
+	}
+
+	public void TestStoreItem()
+	{
+		if (itemInventoryData.Containers.Count <= 0)
+		{
+			Debug.Log("No Item Container Found");
+			return;
+		}
+
+		ItemInventoryData.AddItemLocation(123333, itemInventoryData.Containers[0], 0);
+
+		Debug.Log("Test Store Item");
+	}
+
+	public void TestFullStockItems()
+	{
+		if (itemInventoryData.Containers.Count <= 0)
+		{
+			Debug.Log("No Item Container Found");
+			return;
+		}
+
+
+
+		Debug.Log("Full Stock Items");
 	}
 }

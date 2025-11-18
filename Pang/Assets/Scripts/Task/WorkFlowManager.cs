@@ -11,15 +11,6 @@ public class WorkFlowManager : MonoBehaviour
 	//private StationService
 	private int nextJobID = 0;
 
-	//public void TruckArrival(TruckManifest manifest)
-	//{
-	//	// assignment dock
-
-
-	//	// unload task assign
-	//	//taskManager.Enqueue();
-	//}
-
 	public void OnTaskCompleted(WorkerTask task)
 	{
 		switch (task.Type)
@@ -58,17 +49,15 @@ public class WorkFlowManager : MonoBehaviour
 		testJob.Lines.Add(new PickingTask.PickingLine 
 		{ 
 			GoalPosition = new int3(1, 0, 3),
-			ContainerID = 1,
-			ItemID = 1,
-			RequestedMount = 2
+			ItemID = 0,
+			Quantity = 2
 		});
 
 		testJob.Lines.Add(new PickingTask.PickingLine
 		{
 			GoalPosition = new int3(3, 0, 6),
-			ContainerID = 1,
 			ItemID = 1,
-			RequestedMount = 2
+			Quantity = 2
 		});
 
 		PickingTask testPick = new PickingTask(testJob);

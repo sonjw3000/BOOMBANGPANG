@@ -1,7 +1,7 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(Human))]
+[CustomEditor(typeof(AIWorker))]
 class AIWorkerEditor : Editor
 {
 	public override void OnInspectorGUI()

@@ -1,6 +1,18 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
-public class ItemDatabase : ScriptableObject
+// database of all item types in the game
+[System.Serializable]
+public class ItemDatabase
 {
-	[SerializeField] private ItemData[] items;
+	[SerializeField] private List<ItemData> items = new();
+	//public List<ItemData> Items => items;
+
+
+	public bool GetItemData(int itemID, out ItemData data)
+	{
+		data = items.Find(item => item.ItemID == itemID);
+
+		return data != null;
+	}
 }
