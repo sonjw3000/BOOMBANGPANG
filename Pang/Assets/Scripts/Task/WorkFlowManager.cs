@@ -37,6 +37,15 @@ public class WorkFlowManager : MonoBehaviour
 		}
 	}
 
+	private void BuildPickingTaskJob()
+	{
+		// PickingTask를 만들어야함
+		// 피킹태스크는 주문이 들어왔을 때 생성됨
+		// 주문정보를 받아서 피킹태스크를 생성해야하는데
+
+		// 이를 위해서 나중에 오더 매니지먼트같은게 필요하지 않을까?
+	}
+
 	public void MakeTestPickingWork()
 	{
 		// picking의 구조를 어케 해야할까?
@@ -46,19 +55,7 @@ public class WorkFlowManager : MonoBehaviour
 		testJob.JobID = nextJobID++;
 		testJob.Lines = new();
 
-		testJob.Lines.Add(new PickingTask.PickingLine 
-		{ 
-			GoalPosition = new int3(1, 0, 3),
-			ItemID = 0,
-			Quantity = 2
-		});
-
-		testJob.Lines.Add(new PickingTask.PickingLine
-		{
-			GoalPosition = new int3(3, 0, 6),
-			ItemID = 1,
-			Quantity = 2
-		});
+		// 아이템id 123333의 아이템을 줏으러 가라
 
 		PickingTask testPick = new PickingTask(testJob);
 

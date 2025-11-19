@@ -15,4 +15,9 @@ public class ItemDatabase
 
 		return data != null;
 	}
+
+	public uint GetRandomItemID()
+	{
+		return items[Random.Range(0, items.Count)].ItemID;
+	}
 }

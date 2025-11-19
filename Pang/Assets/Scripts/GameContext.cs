@@ -57,8 +57,8 @@ public class GameContext : MonoBehaviour
 			return;
 		}
 
+		ItemInventoryData.AdjustItemQuantity(123333, itemInventoryData.Containers[0], 100);
 
-
-		Debug.Log("Full Stock Items");
+		Debug.Log("123333 * 100 Stock Items");
 	}
 }
