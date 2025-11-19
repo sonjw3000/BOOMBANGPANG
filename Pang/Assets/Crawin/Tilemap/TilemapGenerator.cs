@@ -173,6 +173,16 @@ public class TilemapGenerator : MonoBehaviour
 			Status status = map[robotData.x, robotData.y, robotData.z].obj.GetComponent<Status>();
 			status.SetInit(map[robotData.x, robotData.y, robotData.z].obj.name, robotData.type);
 			map[robotData.x, robotData.y, robotData.z].type = robotData.type;
+
+			// Shelf도 지금 Robotdata로 배치되고 있어서 일단 이곳에 작성 -> 아직 모델들 정리가 안됨
+			Shelf shelf = map[robotData.x, robotData.y, robotData.z].obj.GetComponent<Shelf>();
+			if (shelf)
+			{
+				int3 pickingPosition = shelf.PickingPosition;
+				map[pickingPosition.x, pickingPosition.y, pickingPosition.z].type = -1;	// -1이란? 로봇은 이동 가능하지만 배치는 불가능한 위치
+
+			}
+
 		}
 		resources.mapJsonRef.robotdata.Clear(); // 딕셔너리로 다 옮겼으니 초기화하자
 	}

@@ -133,7 +133,7 @@ public class FindRoute : MonoBehaviour
 			//Debug.Log("도착");
 			if (previousNode.y >= 0 && previousNode.x >= 0 && previousNode.z >= 0)
 			{
-				map[previousNode.x, previousNode.y, previousNode.z].type = 0;
+				map[previousNode.x, previousNode.y, previousNode.z].type = map[previousNode.x,previousNode.y,previousNode.z].previousType;
 				map[previousNode.x, previousNode.y, previousNode.z].obj = null; //도착해서 이전 위치에 존재하는 gameobject를 null로 변경
 			}
 
@@ -156,12 +156,11 @@ public class FindRoute : MonoBehaviour
 			else//다음 목적지로
 			{
 				nextNode = path[currentIndex + 1];
-				if (map[nextNode.x, nextNode.y, nextNode.z].type == 0)
+				if (map[nextNode.x, nextNode.y, nextNode.z].type <= 0)
 				// 다음 목적지가 이동 가능한 상태면
 				{
 					previousNode = path[currentIndex++];
 					map[previousNode.x, previousNode.y, previousNode.z].type = int.MaxValue;
-					//map[nextNode.x, nextNode.y, nextNode.z].type = type;
 					map[nextNode.x, nextNode.y, nextNode.z].type = mStatus.GetID();
 					map[nextNode.x, nextNode.y, nextNode.z].obj = gameObject;
 				}
@@ -183,7 +182,7 @@ public class FindRoute : MonoBehaviour
 		int id = mStatus.GetID();
 		if (map[curr.x, curr.y, curr.z].type != 0 && map[curr.x, curr.y, curr.z].type != id)
 		{
-			Debug.Log("얘 지금 이상한짓 해요" + gameObject.name + "가 " + map[curr.x, curr.y, curr.z].type + "을 " + id + "로 바꾼다");
+			Debug.LogError("얘 지금 이상한짓 해요" + gameObject.name + "가 " + map[curr.x, curr.y, curr.z].type + "을 " + id + "로 바꾼다");
 			return;
 		}
 		map[curr.x, curr.y, curr.z].type = id;
@@ -231,7 +230,7 @@ public class FindRoute : MonoBehaviour
 				if (dir.x >= 0 && dir.x < mapSize.x && dir.y >= 0 && dir.y < mapSize.y && dir.z >= 0 && dir.z < mapSize.z)
 				{
 					int dist = distance[top.x, top.y, top.z] + 1;
-					if (map[dir.x, dir.y, dir.z].type == 0 && distance[dir.x, dir.y, dir.z] > dist)
+					if (map[dir.x, dir.y, dir.z].type <= 0 && distance[dir.x, dir.y, dir.z] > dist)
 					{
 						distance[dir.x, dir.y, dir.z] = dist;
 						prev[dir.x, dir.y, dir.z] = top.xyz;
@@ -268,7 +267,7 @@ public class FindRoute : MonoBehaviour
 		//s += transform.name;
 		//foreach (int3 p in path)
 		//{
-		//    s += p + " -> ";
+		//	s += p + " -> ";
 		//}
 		//Debug.Log("이거로 확정이야" + s);
 	}
@@ -289,7 +288,7 @@ public class FindRoute : MonoBehaviour
 		LRcurr.position.x = Mathf.RoundToInt(transform.position.x); LRcurr.position.y = 0; LRcurr.position.z = Mathf.RoundToInt(transform.position.z); LRcurr.dist = 0;LRcurr.head = ((Mathf.RoundToInt(gameObject.transform.eulerAngles.y / 90f) % 4) + 4) % 4; // x,y,z,distance,head
 		//Debug.Log(LRcurr.head+"방향을 쳐다보고 있어");
 		int id = mStatus.GetID();
-		if (map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type != 0 && map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type != id)
+		if (map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type > 0 && map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type != id)
 		{
 			Debug.LogError("얘 지금 이상한짓 해요" + gameObject.name + "가 " + map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type + "을 " + id + "로 바꾼다");
 			return;
@@ -343,7 +342,7 @@ public class FindRoute : MonoBehaviour
 				if (dir.x >= 0 && dir.x < mapSize.x && dir.y >= 0 && dir.y < mapSize.y && dir.z >= 0 && dir.z < mapSize.z)
 				{
 					int dist = distance[top.position.x, top.position.y, top.position.z] + 1;
-					if (map[dir.x, dir.y, dir.z].type == 0 && distance[dir.x, dir.y, dir.z] > dist)
+					if (map[dir.x, dir.y, dir.z].type <= 0 && distance[dir.x, dir.y, dir.z] > dist)
 					{
 						distance[dir.x, dir.y, dir.z] = dist;
 						prev[dir.x, dir.y, dir.z] = top.position.xyz;
@@ -387,7 +386,6 @@ public class FindRoute : MonoBehaviour
 		//Debug.Log("이거로 확정이야" + s);
 	}
 
-	// 회전 가중치를 줘서 휴리스틱을 계산하려 했으나, 현재 진행 방향을 지금 구조에서는 알 방법이 없기에 보류
 	int HeuristicLessRotate(int3 next, int dist, int turn_cost)
 	{
 		int x = math.abs(goalCoordinate.x - next.x);

@@ -16,6 +16,7 @@ public class Shelf : MonoBehaviour, IItemContainer
 
 	void OnEnable()
 	{
+		Debug.Log("Shelf 등장이요");
 		pickingPosition = new int3(
 			Mathf.RoundToInt(transform.position.x + transform.forward.x),
 			Mathf.RoundToInt(transform.position.y),

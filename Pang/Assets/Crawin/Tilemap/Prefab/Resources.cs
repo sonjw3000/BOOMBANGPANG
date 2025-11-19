@@ -145,6 +145,7 @@ public class MapJson
 public class Cell
 {
 	public int type;
+	public int previousType;
 	public GameObject obj;
 	public List<Material[]> originalMats;
 
@@ -173,6 +174,7 @@ public class Cell
 	public void Reset()
 	{
 		type = 0;
+		previousType = 0;
 		if (obj != null)
 		{
 			UnityEngine.Object.Destroy(obj);

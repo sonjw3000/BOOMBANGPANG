@@ -79,7 +79,7 @@ public class Picking : MonoBehaviour
 			rightClickMenuAnimator.enabled = false;
 			rightClickMenu.SetActive(false);
 			removeButton = rightClickMenu.transform.GetChild(1).gameObject;
-			Debug.Log(removeButton.gameObject.name);
+			//Debug.Log(removeButton.gameObject.name);
 		}
 		selectedCoord = new int3();
 		ChangeSelectedObject(null);
@@ -168,6 +168,13 @@ public class Picking : MonoBehaviour
 									{
 										parentTransform = GameObject.Find("RobotParent").transform;
 										map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
+										Shelf shelf = map[tileX, 0, tileZ].obj.GetComponent<Shelf>();
+										if (shelf)
+										{
+											int3 PickPosition = shelf.PickingPosition;
+											map[PickPosition.x, PickPosition.y, PickPosition.z].type = -1;
+											map[PickPosition.x, PickPosition.y, PickPosition.z].previousType = -1;
+										}
 									}
 
 									Status st = map[tileX, 0, tileZ].obj.GetComponent<Status>();

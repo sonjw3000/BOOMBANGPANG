@@ -16,7 +16,7 @@ public class UIOnOff : MonoBehaviour
 		{
 			if (sibling == transform) continue;
 			sibling.gameObject.SetActive(activate);
-			Debug.Log(sibling.name + "을 " + !activate + "했다.");
+			//Debug.Log(sibling.name + "을 " + !activate + "했다.");
 		}
 	}
 
