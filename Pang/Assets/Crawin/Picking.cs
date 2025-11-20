@@ -331,6 +331,12 @@ public class Picking : MonoBehaviour
 			}
 			else
 			{//가만히 배치돼있는 애들
+				Shelf shelf = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].obj.GetComponent<Shelf>();
+				if (shelf)
+				{
+					int3 PickPosition = shelf.PickingPosition;
+					map[PickPosition.x, PickPosition.y, PickPosition.z].Reset();
+				}
 				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].Reset();
 			}
 			Destroy(selectedObject);
