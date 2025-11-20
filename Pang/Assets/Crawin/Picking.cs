@@ -136,6 +136,12 @@ public class Picking : MonoBehaviour
 				break;
 			case PickingType.INSERT:
 				{
+					if (Input.GetMouseButtonUp(1))
+					{
+						pickingType = PickingType.SELECT;
+						previewInstance.SetActive(false);
+						break;
+					}
 					ReturnSelectedObjectMat();
 					Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 					float distance;
