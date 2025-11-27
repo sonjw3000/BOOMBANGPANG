@@ -1,5 +1,9 @@
 using UnityEngine;
 
+// 이것만은 꼭 지키자
+// GameContext는 데이터만 가진다
+// 로직을 가져선 안된다
+
 public class GameContext : MonoBehaviour
 {
 	private static GameContext instance;

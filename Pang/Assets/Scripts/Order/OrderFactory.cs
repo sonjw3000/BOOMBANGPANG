@@ -12,7 +12,7 @@ public class OrderFactory
 		order.OrderID = orderIDCounter++;
 		int numberOfLines = UnityEngine.Random.Range(1, 2);
 		order.Lines = new List<OrderLine>(numberOfLines);
-		for (int i = 0; i < numberOfLines; i++)
+		for (int i = 0; i < numberOfLines; ++i)
 		{
 			OrderLine line = new OrderLine();
 			line.ItemID = GameContext.Instance.ItemDB.GetRandomItemID(); 

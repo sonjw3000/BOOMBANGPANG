@@ -15,5 +15,10 @@ class WorkFlowManagerEditor : Editor
 			manager.MakeTestPickingWork();
 			//worker.SetMoveOn();
 		}
+
+		if (GUILayout.Button("테스트용 주문 생성"))
+		{
+			manager.MakeOrder();
+		}
 	}
 }

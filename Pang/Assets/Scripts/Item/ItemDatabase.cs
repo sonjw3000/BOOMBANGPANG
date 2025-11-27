@@ -9,7 +9,7 @@ public class ItemDatabase
 	//public List<ItemData> Items => items;
 
 
-	public bool GetItemData(int itemID, out ItemData data)
+	public bool GetItemData(uint itemID, out ItemData data)
 	{
 		data = items.Find(item => item.ItemID == itemID);
 

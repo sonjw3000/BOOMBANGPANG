@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+
 public class Shelf : MonoBehaviour, IItemContainer
 {
 	[SerializeField] private int stackCount;

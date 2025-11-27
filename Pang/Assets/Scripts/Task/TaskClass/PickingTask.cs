@@ -10,7 +10,7 @@ public sealed class PickingTask : WorkerTask
 	public struct PickingLine
 	{
 		public int3 GoalPosition;
-		public int ItemID;
+		public uint ItemID;
 		public int Quantity;
 	}
 

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using static PickingTask;
 
 // OrderManager
 // OrderManager는 주문을 생성하고 관리한다
@@ -11,14 +12,83 @@
 
 public class OrderManager
 {
+	// 실제 주문 목록
 	private List<Order> orders = new();
-	public IReadOnlyList<Order> Orders => orders;
+
+	// itemID로 주문을 빠르게 찾기 위한 맵핑
+	// PickingTask를 만들 때 사용되고 난 후에 큐에서 제거됨
+	private Dictionary<uint, Queue<OrderLine>> itemOrderLines = new();
+
+	private OrderAllocator orderAllocator = new TestingOrderAllocator();
+
+	public IReadOnlyCollection<Order> Orders => orders;
+	public IReadOnlyDictionary<uint, Queue<OrderLine>> ItemOrderLines => itemOrderLines;
+
 
 	public void CreateRandomOrder()
 	{
 		var order = OrderFactory.CreateRandomOrder();
 
 		orders.Add(order);
+
+		// convert order to OrderLines
+		foreach (var line in order.Lines)
+		{
+			if (!itemOrderLines.ContainsKey(line.ItemID))
+			{
+				itemOrderLines[line.ItemID] = new Queue<OrderLine>();
+			}
+
+			itemOrderLines[line.ItemID].Enqueue(line);
+		}
 	}
+
+	public PickingTask BuildPickingTasks()
+	{
+		//orderAllocator
+		return orderAllocator.BuildPickingTask(this);
+	}
+
+	public IEnumerable<uint> GetAllOrderedItemIDs()
+	{
+		foreach (var kvp in itemOrderLines)
+		{
+			if (kvp.Value.Count > 0)
+			{
+				yield return kvp.Key;
+			}
+		}
+	}
+
+	public IEnumerable<OrderLine> GetOrderLine(uint itemID)
+	{
+		if (!itemOrderLines.ContainsKey(itemID))
+		{
+			yield break;
+		}
+
+		while (itemOrderLines[itemID].Count > 0)
+		{
+			yield return itemOrderLines[itemID].Dequeue();
+		}
+	}
+
+	public void ClearEmptyQueues()
+	{
+		var keysToRemove = new List<uint>();
+		foreach (var kvp in itemOrderLines)
+		{
+			if (kvp.Value.Count == 0)
+			{
+				keysToRemove.Add(kvp.Key);
+			}
+		}
+
+		foreach (var key in keysToRemove)
+		{
+			itemOrderLines.Remove(key);
+		}
+	}
+
 }
 
