@@ -42,7 +42,7 @@ class GameContextEditor : Editor
 
 			ItemInventory invData = manager.ItemInventoryData;
 
-			foreach(Shelf shelf in invData.Containers)
+			foreach(ShelfBase shelf in invData.Containers)
 			{
 				if (shelf == null)
 					continue;
@@ -52,10 +52,10 @@ class GameContextEditor : Editor
 				EditorGUILayout.LabelField($"Picking Position: {shelf.PickingPosition}");
 				EditorGUILayout.LabelField("Items:");
 				EditorGUI.indentLevel++;
-				for (int i = 0; i < shelf.Items.Count; ++i)
+
+				foreach(var item in shelf.Items)
 				{
-					ItemStack itemStack = shelf.Items[i];
-					EditorGUILayout.LabelField($"Item {i}: ID={itemStack.ItemID}, Quantity={itemStack.Quantity}");
+					EditorGUILayout.LabelField($"Item ID: {item.Key}, Quantity: {item.Value.Quantity}");
 				}
 				EditorGUI.indentLevel--;
 				EditorGUI.indentLevel--;

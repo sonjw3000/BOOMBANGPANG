@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 
 // 아이템과 선반을 한번에 관리한다
@@ -8,58 +9,52 @@ using UnityEngine;
 [System.Serializable]
 public class ItemInventory
 {
-	[SerializeField] private List<IItemContainer> containers = new();
+	// shelf, bin 등 아이템 컨테이너 리스트
+	[SerializeField] private List<ShelfBase> containers = new();
+
+	// 아이템 ID별 아이템의 위치 리스트
 	private readonly Dictionary<uint, List<ItemLocation>> itemLocations = new();
 
-	public IReadOnlyList<IItemContainer> Containers => containers;
+	public IReadOnlyList<ShelfBase> Containers => containers;
 	public IReadOnlyDictionary<uint, List<ItemLocation>> ItemLocations => itemLocations;
 
 	// ---------------------------
 	// 컨테이너 관련
 	// ---------------------------
 	// 컨테이너에 저장될 아이템의 종류를 업데이트한다
-	public void OnContainerAdded(IItemContainer container)
+	public void OnContainerAdded(ShelfBase container)
 	{
 		containers.Add(container);
 	}
 
-	public void OnContainerRemoved(IItemContainer container)
+	public void OnContainerRemoved(ShelfBase container)
 	{
 		containers.Remove(container);
 	}
 
-	public void AddItemLocation(uint itemID, IItemContainer container, int stackIndex)
+	public void AddItemLocation(uint itemID, ShelfBase container, int stackIndex)
 	{
+		// add itemID to container's item stack
+		container.RegisterItem(itemID);
+
 		if (itemLocations.ContainsKey(itemID) == false)
 		{
 			itemLocations[itemID] = new List<ItemLocation>();
 		}
 
-		var pos = container.PickingPosition;
-		var locationList = itemLocations[itemID];
-		var existingLocation = locationList.Find(loc => loc.Container == container);
-
-		if (existingLocation.Container == null)
+		itemLocations[itemID].Add(new ItemLocation
 		{
-			locationList.Add(new ItemLocation
-			{
-				Container = container,
-				StackIndex = stackIndex,
-				Quantity = 0
-			});
-		}
-		else
-		{
-			existingLocation.StackIndex = stackIndex;
-			existingLocation.Quantity = 0;
-		}
+			Container = container,
+			StackIndex = stackIndex,
+			Quantity = 0
+		});
 	}
 
 	// ---------------------------
 	// 아이템 관련
 	// ---------------------------
 	// 컨테이너 내부 아이템 수량을 조절한다
-	public void AdjustItemQuantity(uint itemID, IItemContainer container, int quantityDelta)
+	public void AdjustItemQuantity(uint itemID, ShelfBase container, int quantityDelta)
 	{
 #if UNITY_EDITOR
 		// check itemID existence
@@ -73,14 +68,11 @@ public class ItemInventory
 		}
 #endif
 
-		if (itemLocations.TryGetValue(itemID, out var locationList))
-		{
-			int idx = locationList.FindIndex(loc => loc.Container == container);
-			if (idx < 0)
-				return;
+		// adjust quantity
 
-			var location = locationList[idx];
-			location.Quantity += quantityDelta;
+		if (container.Items.ContainsKey(itemID))
+		{
+			container.Items[itemID].Quantity += quantityDelta;
 		}
 		else
 		{

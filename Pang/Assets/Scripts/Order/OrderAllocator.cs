@@ -39,7 +39,7 @@ public class TestingOrderAllocator : OrderAllocator
 		foreach (uint itemId in manager.GetAllOrderedItemIDs())
 		{
 			PickingTask.PickingLine pickLine = new PickingTask.PickingLine();
-			if (GameContext.Instance.ItemInventoryData.GetClosestItemLocation(itemId, new int3(1, 1, 1), out int3 location))
+			if (GameContext.Instance.ItemInventoryData.GetClosestItemLocation(itemId, new int3(1, 1, 1), out int3 location) == false)
 			{
 				Debug.Log("Cannot find item location for item ID: " + itemId);
 				break;

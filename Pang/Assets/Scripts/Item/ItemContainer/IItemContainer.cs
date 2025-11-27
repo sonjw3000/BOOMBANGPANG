@@ -1,24 +1,34 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
+using UnityEngine;
 
 public interface IItemContainer
 {
-	int StackCount { get; }
-	float StackCapacity { get; }
-	int3 PickingPosition { get; }
-	IReadOnlyList<ItemStack> Items { get; }
+	//[SerializeField] protected int stackCount;
+	//[SerializeField] protected float stackCapacity;
+	//protected int3 pickingPosition;
+	//protected Dictionary<uint, ItemStack> items;
+
+	public int StackCount { get; }
+	public float StackCapacity { get; }
+	public int3 PickingPosition { get; }
+	public IReadOnlyDictionary<uint, ItemStack> Items { get; }
+
+	public void RegisterItem(uint itemId);
+
+	public void RemoveItem(uint itemId);
 }
 
 [System.Serializable]
-public struct ItemStack
+public class ItemStack
 {
-	public int ItemID;
+	public uint ItemID;
 	public int Quantity;
 }
 
-public struct ItemLocation
+public class ItemLocation
 {
-	public IItemContainer Container;
+	public ShelfBase Container;
 	public int StackIndex;
 	public int Quantity;
 }
