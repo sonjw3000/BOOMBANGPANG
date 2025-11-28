@@ -18,9 +18,13 @@ public abstract class AIWorker : MonoBehaviour
 	protected abstract void EnableAction();
 	protected abstract void DisableAction();
 
-	[SerializeField] public string Name { get; private set; }
-	[SerializeField] public int WorkerID { get; private set; }
-	[SerializeField] public WorkerTask CurrentTask { get; private set; } = null;
+	[SerializeField] private string workerName;
+	[SerializeField] private int workerID;
+	[SerializeField] private WorkerTask currentTask = null;
+
+	public string Name => workerName;
+	public int WorkerID => workerID;
+	public WorkerTask CurrentTask => currentTask;
 
 
 	public void Start()
@@ -78,7 +82,7 @@ public abstract class AIWorker : MonoBehaviour
 			// release action
 			//CurrentTask.On
 		}
-		CurrentTask = task;
+		currentTask = task;
 	}
 
 	// AI's basic actions

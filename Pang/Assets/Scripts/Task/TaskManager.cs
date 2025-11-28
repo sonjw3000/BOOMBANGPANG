@@ -11,6 +11,16 @@ public class TaskManager// : MonoBehaviour
 
 	public List<WorkerTask> EndTaskList { get; private set; } = new();
 
+	public TaskManager()
+	{
+		// initialize task queues
+		foreach (TaskType type in System.Enum.GetValues(typeof(TaskType)))
+		{
+			TaskQueue[type] = new CustomQueue<WorkerTask, int>();
+		}
+
+	}
+
 	// dispatch task to workers
 	public void Dispatch()
 	{

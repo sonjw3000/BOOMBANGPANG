@@ -1,18 +1,18 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
-public class Shelf : MonoBehaviour, IItemContainer
+
+public class ShelfBase : MonoBehaviour, IItemContainer
 {
-	[SerializeField] private int stackCount;
-	[SerializeField] private float stackCapacity;
-	private int3 pickingPosition;
-	private List<ItemStack> items;
+	[SerializeField] protected int stackCount;
+	[SerializeField] protected float stackCapacity;
+	protected int3 pickingPosition;
+	protected Dictionary<uint, ItemStack> items = new();
 
 	public int StackCount => stackCount;
 	public float StackCapacity => stackCapacity;
 	public int3 PickingPosition => pickingPosition;
-	public IReadOnlyList<ItemStack> Items => items;
-
+	public IReadOnlyDictionary<uint, ItemStack> Items => items;
 
 	void OnEnable()
 	{
@@ -22,12 +22,33 @@ public class Shelf : MonoBehaviour, IItemContainer
 			Mathf.RoundToInt(transform.position.y),
 			Mathf.RoundToInt(transform.position.z + transform.forward.z)
 		);
-		items = new List<ItemStack>(new ItemStack[stackCount]);
 		GameContext.Instance.ItemInventoryData.OnContainerAdded(this);
 	}
-
 	void OnDisable()
 	{
 		GameContext.Instance.ItemInventoryData.OnContainerRemoved(this);
 	}
+
+	public void RegisterItem(uint itemId)
+	{
+		items[itemId] = new ItemStack
+		{
+			ItemID = itemId,
+			Quantity = 0
+		};
+	}
+
+	public void RemoveItem(uint itemId)
+	{
+		if (items.ContainsKey(itemId))
+		{
+			items.Remove(itemId);
+		}
+	}
+}
+
+public class Shelf : ShelfBase
+{
+
+
 }
