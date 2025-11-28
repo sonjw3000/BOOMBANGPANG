@@ -7,6 +7,7 @@ using static WorkerTask;
 public class WorkFlowManager : MonoBehaviour 
 {
 	private TaskManager taskManager = new();
+	private OrderManager orderManager = new();
 	//private InventoryService;
 	//private StationService
 	private int nextJobID = 0;
@@ -37,37 +38,28 @@ public class WorkFlowManager : MonoBehaviour
 		}
 	}
 
+	private void BuildPickingTaskJob()
+	{
+		// todo
+		// OrderLineQueue가 빌 때 까지 반복해야한다
+		var task = orderManager.BuildPickingTasks();
+		if (task == null)
+		{
+			Debug.Log("No Picking Task Created");
+			return;
+		}
+
+		taskManager.TaskQueue[TaskType.Picking].Enqueue(task, 1);
+	}
+
+	public void MakeOrder()
+	{
+		orderManager.CreateRandomOrder();
+	}
+
 	public void MakeTestPickingWork()
 	{
-		// picking의 구조를 어케 해야할까?
-		// 이게 맞음?
-		// 일단 박아 난 몰라 나중에 알아서 고치겠지 일단 박는게 맞다고 본다 ㅇㅇ
-		PickingTask.PickJob testJob = new PickingTask.PickJob();
-		testJob.JobID = nextJobID++;
-		testJob.Lines = new();
-
-		testJob.Lines.Add(new PickingTask.PickingLine 
-		{ 
-			GoalPosition = new int3(1, 0, 3),
-			ItemID = 0,
-			Quantity = 2
-		});
-
-		testJob.Lines.Add(new PickingTask.PickingLine
-		{
-			GoalPosition = new int3(3, 0, 6),
-			ItemID = 1,
-			Quantity = 2
-		});
-
-		PickingTask testPick = new PickingTask(testJob);
-
-		// 일단 넣어봐
-		if (taskManager.TaskQueue.ContainsKey(TaskType.Picking) == false)
-			taskManager.TaskQueue[TaskType.Picking] = new();
-
-		taskManager.TaskQueue[TaskType.Picking].Enqueue(testPick, 1);
-			
+		BuildPickingTaskJob();
 	}
 
 	void Start()

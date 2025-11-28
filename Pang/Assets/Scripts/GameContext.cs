@@ -1,5 +1,9 @@
 using UnityEngine;
 
+// 이것만은 꼭 지키자
+// GameContext는 데이터만 가진다
+// 로직을 가져선 안된다
+
 public class GameContext : MonoBehaviour
 {
 	private static GameContext instance;
@@ -45,6 +49,8 @@ public class GameContext : MonoBehaviour
 		}
 
 		ItemInventoryData.AddItemLocation(123333, itemInventoryData.Containers[0], 0);
+		ItemInventoryData.AddItemLocation(123123, itemInventoryData.Containers[1], 0);
+		ItemInventoryData.AddItemLocation(14412, itemInventoryData.Containers[2], 0);
 
 		Debug.Log("Test Store Item");
 	}
@@ -57,8 +63,8 @@ public class GameContext : MonoBehaviour
 			return;
 		}
 
+		ItemInventoryData.AdjustItemQuantity(123333, itemInventoryData.Containers[0], 100);
 
-
-		Debug.Log("Full Stock Items");
+		Debug.Log("123333 * 100 Stock Items");
 	}
 }

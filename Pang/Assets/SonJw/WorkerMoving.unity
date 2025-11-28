@@ -1037,7 +1037,7 @@ PrefabInstance:
     - target: {fileID: 3869452919807411872, guid: 001af6b480c71a14cadcc4f7232f482a, type: 3}
       propertyPath: MousePicking
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 1535840498}
     - target: {fileID: 3967696853026489591, guid: 001af6b480c71a14cadcc4f7232f482a, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -1604,6 +1604,11 @@ MonoBehaviour:
   - {fileID: 8400000, guid: 662902216ae1b3b46bfb1d9c44c6f6d9, type: 2}
   - {fileID: 8400000, guid: 2093dcc98ffe8cf4d87d6c25a05e4e67, type: 2}
   - {fileID: 8400000, guid: babf8e9a152dd5b43b92e14a5c41a124, type: 2}
+--- !u!1 &1535840498 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 733564435991264779, guid: 3e3a923d157790247893a011d468c02d, type: 3}
+  m_PrefabInstance: {fileID: 1155421698}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

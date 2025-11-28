@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -513,7 +514,7 @@ public class Picking : MonoBehaviour
 		floorhighLight.transform.position = selectedObject.transform.position;
 		floorhighLight.SetActive(true);
 
-		var shelf = selectedObject.GetComponent<Shelf>();
+		var shelf = selectedObject.GetComponent<ShelfBase>();
 		if (shelf != null)
 		{
 			int3 pos = shelf.PickingPosition;
