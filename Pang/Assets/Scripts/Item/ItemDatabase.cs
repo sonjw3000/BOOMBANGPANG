@@ -6,7 +6,7 @@ using System.Collections.Generic;
 public class ItemDatabase
 {
 	[SerializeField] private List<ItemData> items = new();
-	//public List<ItemData> Items => items;
+	public IReadOnlyList<ItemData> Items => items;
 
 
 	public bool GetItemData(uint itemID, out ItemData data)
