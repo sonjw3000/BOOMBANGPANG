@@ -1,8 +1,8 @@
 using System.Collections.Generic;
+using TMPro;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
-using static Resources;
+using UnityEngine.UI;
 
 public abstract class ObjectStatus
 {
@@ -10,6 +10,7 @@ public abstract class ObjectStatus
 	protected int mId;
 
 	public abstract void GetStatus();
+	public abstract void GetStatus(Transform Viewport, GameObject gameobject);
 	public void SetName(string name)
 	{
 		mName = name;
@@ -40,6 +41,11 @@ public class ShelfStatus : ObjectStatus
 			"max_weight - " + max_storage + " \n\t" +
 			"left_weight - " + left_weight + "\n}");
 	}
+	public override void GetStatus(Transform Viewport, GameObject gameobject)
+	{
+		GetStatus();
+		return;
+	}
 }
 
 public class RobotStatus : ObjectStatus
@@ -56,6 +62,34 @@ public class RobotStatus : ObjectStatus
 	"battery - " + battery + " \n\t" +
 	"weight - " + weight + "\n}");
 	}
+	public override void GetStatus(Transform Viewport, GameObject gameobject)
+	{
+		GetStatus();
+		foreach (Transform element in Viewport)
+		{
+			if (element.name == "Goal")
+			{
+				TextMeshProUGUI text = element.GetChild(0).GetChild(1).GetComponent<TextMeshProUGUI>();
+				string s = "(" + goal.x + ", " + goal.z + ")";
+				text.text = s;
+				Image percent = element.GetChild(1).GetChild(0).GetComponent<Image>();
+				FindRoute fr = gameobject.GetComponent<FindRoute>();
+				percent.fillAmount = fr.GetPathPercent();
+			}
+			else if (element.name == "Battery")
+			{
+				Image percent = element.GetChild(1).GetChild(0).GetComponent<Image>();
+				percent.fillAmount = battery;
+			}
+			else if (element.name == "Weight")
+			{
+				Image percent = element.GetChild(1).GetChild(0).GetComponent<Image>();
+				percent.fillAmount = (float)weight / max_storage;
+			}
+		}
+		return;
+	}
+
 	public void SetGoal(int3 position)
 	{
 		goal = position;
