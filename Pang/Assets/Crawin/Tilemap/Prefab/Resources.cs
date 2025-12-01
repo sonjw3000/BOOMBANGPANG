@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using Unity.Mathematics;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,7 +11,7 @@ public abstract class ObjectStatus
 	protected int mId;
 
 	public abstract void GetStatus();
-	public abstract void GetStatus(Transform Viewport, GameObject gameobject);
+	public abstract void GetStatus(Transform Viewport, GameObject gameobject, bool init);
 	public void SetName(string name)
 	{
 		mName = name;
@@ -41,9 +42,50 @@ public class ShelfStatus : ObjectStatus
 			"max_weight - " + max_storage + " \n\t" +
 			"left_weight - " + left_weight + "\n}");
 	}
-	public override void GetStatus(Transform Viewport, GameObject gameobject)
+	public override void GetStatus(Transform Viewport, GameObject gameobject, bool init)
 	{
-		GetStatus();
+		//GetStatus();
+		Transform Content = Viewport.GetChild(0);
+		if (init)
+		{
+			int slotcnt = Content.childCount;
+			var items = gameobject.GetComponent<Shelf>().Items;
+			int itemcnt = items.Count;
+			itemcnt = 9;
+			if (itemcnt > slotcnt)
+			{
+				// 아이템 갯수만큼 칸 생성
+				for (int i = slotcnt; i < itemcnt; ++i)
+				{
+					GameObject child = new GameObject();
+					child.transform.SetParent(Content, false);
+					Image img = child.AddComponent<Image>();
+
+					// 임시로 칸 색 구별
+					// i를 0~1 범위로 정규화
+					float t = (float)(i - slotcnt) / (itemcnt - slotcnt - 1); // 0 ~ 1
+
+					// 검정 → 흰색으로 점점 밝게
+					img.color = Color.Lerp(Color.black, Color.white, t);
+				}
+			}
+			else
+			{
+				// 남는 칸 삭제
+				for (int i = slotcnt; i > itemcnt; --i)
+				{
+					UnityEngine.Object.Destroy(Content.GetChild(i).gameObject);
+				}
+				//Debug.Log(slotcnt - items.Count + " 만큼 삭제");
+			}
+
+			int index = 0;
+			foreach (var item in items)
+			{
+				Content.GetChild(index).name = item.ToString();
+				++index;
+			}
+		}
 		return;
 	}
 }
@@ -62,9 +104,8 @@ public class RobotStatus : ObjectStatus
 	"battery - " + battery + " \n\t" +
 	"weight - " + weight + "\n}");
 	}
-	public override void GetStatus(Transform Viewport, GameObject gameobject)
+	public override void GetStatus(Transform Viewport, GameObject gameobject, bool init)
 	{
-		GetStatus();
 		foreach (Transform element in Viewport)
 		{
 			if (element.name == "Goal")
@@ -89,7 +130,6 @@ public class RobotStatus : ObjectStatus
 		}
 		return;
 	}
-
 	public void SetGoal(int3 position)
 	{
 		goal = position;

@@ -9,12 +9,19 @@ public class UpdateStatusUI : MonoBehaviour
     private Picking mPicking;
     private GameObject mLastPickedObject;
     private Status mStatus;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+	public GameObject InventoryPrefab;
+	Transform[] Viewport;
+	bool mInit;
+	// Start is called once before the first execution of Update after the MonoBehaviour is created
+	void Start()
     {
         Robot = transform.GetChild(0).gameObject;
         Shelf = transform.GetChild(1).gameObject;
-        if (MousePicking)
+		Viewport = new Transform[2];
+		Viewport[0] = Shelf.transform.GetChild(0);
+		Viewport[1] = Robot.transform.GetChild(0);
+
+		if (MousePicking)
         {
             mPicking = MousePicking.GetComponent<Picking>();
         }
@@ -45,6 +52,7 @@ public class UpdateStatusUI : MonoBehaviour
 					Shelf.SetActive(true);
 					Robot.SetActive(false);
 				}
+				mInit = true;
 			}
 			else
 			{
@@ -58,16 +66,9 @@ public class UpdateStatusUI : MonoBehaviour
     {
 		if (mLastPickedObject)
 		{
-			Transform Viewport;
-			if (mStatus.IsRobot)
-			{
-				Viewport = Robot.transform.GetChild(0);
-			}
-			else
-			{
-				Viewport = Shelf.transform.GetChild(0);
-			}
-			mStatus.OnClick(Viewport);
+			mStatus.GetStatus(Viewport[mStatus.IsRobot ? 1 : 0], mInit);
 		}
+		if (mInit)
+			mInit = false;
 	}
 }

@@ -28,14 +28,9 @@ public class Status : MonoBehaviour
 		}
 	}
 
-	public void OnClick()
+	public void GetStatus(Transform Viewport, bool init)
 	{
-		m_status.GetStatus();
-	}
-
-	public void OnClick(Transform Viewport)
-	{
-		m_status.GetStatus(Viewport, gameObject);
+		m_status.GetStatus(Viewport, gameObject, init);
 	}
 
 	public void SetInit(string name, int id)

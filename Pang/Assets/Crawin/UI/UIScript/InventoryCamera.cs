@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using static System.Net.Mime.MediaTypeNames;
 
 public class InventoryCamera : MonoBehaviour
 {
@@ -143,9 +142,9 @@ public class InventoryCamera : MonoBehaviour
 		// 4 -> 1 -> 2
 		// 5 -> 2 -> 1
 		// 6 -> 0 -> 0
-		if (resourceCnt % 3 != 0)
+		if (generatedTextures.Count % 3 != 0)
 		{
-			for (int i = 0; i < 3 - (resourceCnt % 3); ++i)
+			for (int i = 0; i < 3 - (generatedTextures.Count % 3); ++i)
 			{
 				GameObject slot = Instantiate(slotPrefab, slotsParent);
 				slot.name = "EmptySlot";

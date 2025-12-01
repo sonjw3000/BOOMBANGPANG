@@ -517,12 +517,6 @@ public class Picking : MonoBehaviour
 		SaveSelectedObjectMat();
 		statusCanvas.SetActive(true);
 
-		// 해당 오브젝트의 속성 출력 예정
-		Status st = selectedObject.gameObject.GetComponent<Status>();
-		if (st != null)
-		{
-			st.OnClick();
-		}
 		mOrbitCamera.LockObject(selectedObject);
 		//Debug.Log(selectedObject.name + "이 선택 되었습니다.");
 
