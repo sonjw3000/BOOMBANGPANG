@@ -706,6 +706,46 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[0].name
+      value: test_item_0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[0].size
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[1].name
+      value: test_item_1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[1].size
+      value: 11
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[2].name
+      value: test_item_2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[2].size
+      value: 12
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[0].itemID
+      value: 123333
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[1].itemID
+      value: 123123
+      objectReference: {fileID: 0}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: itemDB.items.Array.data[2].itemID
+      value: 14412
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

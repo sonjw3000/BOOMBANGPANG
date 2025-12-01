@@ -163,7 +163,8 @@ public class Picking : MonoBehaviour
 
 								rightClickMenu.SetActive(false);
 								Transform parentTransform;
-								if (map[tileX, 0, tileZ].type == 0)   // 바닥에 아무것도 없으면
+
+								if (CheckInsertAvailable(tileX, 0, tileZ))
 								{
 									quaternion baseRot = resources.Prefabs[buildingPrefabIndex].transform.rotation * Quaternion.Euler(0, 90 * head, 0);
 									if (buildingPrefabIndex <= 1)   // 기둥이거나 타일이면
@@ -191,6 +192,7 @@ public class Picking : MonoBehaviour
 									}
 
 									map[tileX, 0, tileZ].type = buildingPrefabIndex;
+									map[tileX, 0, tileZ].previousType = buildingPrefabIndex;
 									pickingType = PickingType.SELECT;
 									previewInstance.SetActive(false);
 								}
@@ -209,6 +211,16 @@ public class Picking : MonoBehaviour
 				}
 				break;
 		}
+	}
+
+	bool CheckInsertAvailable(int x, int y, int z)
+	{
+		if (map[x, y, z].type == 0)
+		{
+			// todo : 여기서 배치할 때 선반이면 picking position 까지 판단해야 하는데, 지금 resources들이 완전하지 않은 상태에서 해봤자 또 수정이 필요.
+			return true;
+		}
+		return false;
 	}
 
 	void KeyboardInput()
@@ -359,6 +371,10 @@ public class Picking : MonoBehaviour
 			if (buildingPrefabIndex > 1)    // 배치 될 프리팹 보여주기
 			{
 				SyncPreviewAndBuilding();
+				if(CheckInsertAvailable((int)placePos.x, 0, (int)placePos.z))
+				{
+
+				}
 				if (map[(int)placePos.x, 0, (int)placePos.z].type == 0) // 바닥이면
 				{
 					//Debug.Log("바닥인디요");
