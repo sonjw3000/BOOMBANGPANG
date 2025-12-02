@@ -14,7 +14,7 @@ public class SpawnRobots : MonoBehaviour
 	private Resources resources;
 	public GameObject RobotPrefab;
 
-	int robotID = 6;
+	int robotID = 2;
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
