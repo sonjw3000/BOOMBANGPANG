@@ -14,21 +14,6 @@ public class ShelfBase : MonoBehaviour, IItemContainer
 	public int3 PickingPosition => pickingPosition;
 	public IReadOnlyDictionary<uint, ItemStack> Items => items;
 
-	void OnEnable()
-	{
-		Debug.Log("Shelf 등장이요");
-		pickingPosition = new int3(
-			Mathf.RoundToInt(transform.position.x + transform.forward.x),
-			Mathf.RoundToInt(transform.position.y),
-			Mathf.RoundToInt(transform.position.z + transform.forward.z)
-		);
-		GameContext.Instance.ItemInventoryData.OnContainerAdded(this);
-	}
-	void OnDisable()
-	{
-		GameContext.Instance.ItemInventoryData.OnContainerRemoved(this);
-	}
-
 	public void RegisterItem(uint itemId)
 	{
 		items[itemId] = new ItemStack
@@ -49,6 +34,18 @@ public class ShelfBase : MonoBehaviour, IItemContainer
 
 public class Shelf : ShelfBase
 {
-
-
+	void OnEnable()
+	{
+		Debug.Log("Shelf 등장이요");
+		pickingPosition = new int3(
+			Mathf.RoundToInt(transform.position.x + transform.forward.x),
+			Mathf.RoundToInt(transform.position.y),
+			Mathf.RoundToInt(transform.position.z + transform.forward.z)
+		);
+		GameContext.Instance.ItemInventoryData.OnContainerAdded(this);
+	}
+	void OnDisable()
+	{
+		GameContext.Instance.ItemInventoryData.OnContainerRemoved(this);
+	}
 }

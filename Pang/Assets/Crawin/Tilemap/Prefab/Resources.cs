@@ -273,4 +273,15 @@ public class Resources : MonoBehaviour
 		//}
 		return cnt;
 	}
+
+	// Find prefab index by name
+	public int FindPrefabIndexByName(string name)
+	{
+		for (int i = 0; i < Prefabs.Length; ++i)
+		{
+			if (Prefabs[i].name == name)
+				return i;
+		}
+		return -1;
+	}
 }

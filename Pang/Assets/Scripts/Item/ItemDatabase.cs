@@ -5,6 +5,8 @@ using System.Collections.Generic;
 [System.Serializable]
 public class ItemDatabase
 {
+	// 실제 모든 아이템과 플레이어가 저거 하는 아이템을 모두 분리해서 관리해야함
+	//[SerializeField] private List<ItemData> realItems = new();
 	[SerializeField] private List<ItemData> items = new();
 	public IReadOnlyList<ItemData> Items => items;
 

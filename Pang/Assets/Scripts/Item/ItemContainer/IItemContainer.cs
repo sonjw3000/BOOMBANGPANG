@@ -4,11 +4,6 @@ using UnityEngine;
 
 public interface IItemContainer
 {
-	//[SerializeField] protected int stackCount;
-	//[SerializeField] protected float stackCapacity;
-	//protected int3 pickingPosition;
-	//protected Dictionary<uint, ItemStack> items;
-
 	public int StackCount { get; }
 	public float StackCapacity { get; }
 	public int3 PickingPosition { get; }

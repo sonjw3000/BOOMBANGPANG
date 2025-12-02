@@ -36,8 +36,49 @@ public class ItemData
 
 public class ToteBox
 {
-	public float Capacity { get; private set; } = 10.0f;
-	public float Size { get; private set; } = 0.0f;
-	public Stack<ToteElement> Items { get; private set; } = new Stack<ToteElement>();
-	public ToteBox(float capacity = 10.0f) => Capacity = capacity;
+	private float capacity = 10.0f;
+	private float size = 0.0f;
+	private Stack<ToteElement> items = new Stack<ToteElement>();
+
+	public float Capacity => capacity;
+	public float Size  => size;
+	public Stack<ToteElement> Items  => items;
+	public ToteBox(float boxCapacity = 10.0f) => capacity = boxCapacity;
+
+	public bool CanAddItem(ItemData item, int quantity)
+	{
+		return (Size + item.Size * quantity) <= Capacity;
+	}
+
+	public bool AddItem(ItemData item, int quantity)
+	{
+		if (!CanAddItem(item, quantity))
+			return false;
+		items.Push((item, quantity));
+		size += item.Size * quantity;
+		return true;
+	}
+
+	public bool RemoveItem(out ToteElement element)
+	{
+		if (items.Count == 0)
+		{
+			element = default;
+			return false;
+		}
+		element = items.Pop();
+		size -= element.Item1.Size * element.Item2;
+		return true;
+	}
+
+	public bool PeekItem(out ToteElement element)
+	{
+		if (items.Count == 0)
+		{
+			element = default;
+			return false;
+		}
+		element = items.Peek();
+		return true;
+	}
 }

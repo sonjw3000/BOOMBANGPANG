@@ -5,9 +5,14 @@ using UnityEngine;
 [System.Serializable]
 public abstract class AIWorker : MonoBehaviour
 {
+	private WorkerTask.TaskType beforeWorkerTask = WorkerTask.TaskType.Undefined;
 	private FindRoute routeFinder;
-	[SerializeField] private int tick = 0;
 	
+	[SerializeField] private int tick = 0;
+	[SerializeField] private string workerName;
+	[SerializeField] private int workerID;
+	[SerializeField] private WorkerTask currentTask = null;
+
 	protected BehaviorTree behaviorTree;
 	protected BlackBoard localBlackBoard = new();
 
@@ -18,21 +23,15 @@ public abstract class AIWorker : MonoBehaviour
 	protected abstract void EnableAction();
 	protected abstract void DisableAction();
 
-	[SerializeField] private string workerName;
-	[SerializeField] private int workerID;
-	[SerializeField] private WorkerTask currentTask = null;
-
+	public WorkerTask.TaskType BeforeWorkerTask => beforeWorkerTask;
 	public string Name => workerName;
 	public int WorkerID => workerID;
 	public WorkerTask CurrentTask => currentTask;
-
 
 	public void Start()
 	{
 		// register AI's BT to AI Manager
 		WorkerManager.Instance.RegisterWorker(this);
-
-		//Debug.Log("AI 등장");
 
 		routeFinder = transform.GetComponent<FindRoute>();
 		routeFinder.SetAIMaster(this);
@@ -40,16 +39,6 @@ public abstract class AIWorker : MonoBehaviour
 		BuildBehaviorTree();
 		EnableAction();
 	}
-
-	//public void OnEnable()
-	//{
-	//	Debug.Log("AI Worker Enabled!");
-	//}
-
-	//public void OnDisable()
-	//{
-	//	Debug.Log("AI Worker Disabled!");
-	//}
 
 	public void OnDestroy()
 	{
@@ -75,10 +64,15 @@ public abstract class AIWorker : MonoBehaviour
 
 	public void SetTask(WorkerTask task)
 	{
-		if (task != null) 
+		if (task != null)
+		{
 			task.SetAIWorker(this);
+			beforeWorkerTask = WorkerTask.TaskType.Undefined;
+		}
 		else
 		{
+			beforeWorkerTask = currentTask.Type;
+	
 			// release action
 			//CurrentTask.On
 		}

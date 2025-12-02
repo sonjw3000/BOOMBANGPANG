@@ -1,3 +1,4 @@
+using Unity.Mathematics;
 using UnityEngine;
 
 // 이것만은 꼭 지키자
@@ -21,10 +22,14 @@ public class GameContext : MonoBehaviour
 	}
 
 	[SerializeField] private ItemDatabase itemDB;
-	[SerializeField] private ItemInventory itemInventoryData;
+	private ItemInventory itemInventoryData;
+	[SerializeField] private int3 rocketLandingZoneCenter;
+	[SerializeField] private int rocketLandingZoneRadius = 5;
 
 	public ItemDatabase ItemDB => itemDB;
 	public ItemInventory ItemInventoryData => itemInventoryData;
+	public int3 RocketLandingZoneCenter => rocketLandingZoneCenter;
+	public int RocketLandingZoneRadius => rocketLandingZoneRadius;
 
 	private void Awake()
 	{

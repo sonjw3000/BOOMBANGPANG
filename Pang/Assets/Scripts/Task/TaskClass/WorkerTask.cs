@@ -1,7 +1,4 @@
-﻿using NUnit.Framework;
-using System.Collections.Generic;
-using Unity.Mathematics;
-using UnityEngine;
+﻿using UnityEngine;
 
 public abstract class WorkerTask
 {
@@ -11,7 +8,7 @@ public abstract class WorkerTask
 		Unloading,
 		Receive,
 		Label,
-		Putaway,
+		Storing,
 
 		// OB
 		Picking,
@@ -20,7 +17,7 @@ public abstract class WorkerTask
 		Loading,
 
 		// undef
-		//Undefined
+		Undefined
 	}
 
 	public enum Status

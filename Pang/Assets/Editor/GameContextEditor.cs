@@ -19,26 +19,26 @@ class GameContextEditor : Editor
 
 	public override void OnInspectorGUI()
 	{
-		//DrawDefaultInspector();
+		DrawDefaultInspector();
 
 		GameContext manager = (GameContext)target;
 
 		serializedObject.Update();
 
-		itemFoldout = EditorGUILayout.Foldout(itemFoldout, "item");
-		if (itemFoldout)
-		{
-			EditorGUILayout.Space(4);
-			EditorGUI.indentLevel++;
-			EditorGUILayout.PropertyField(itemsDB, true);
-			EditorGUI.indentLevel--;
-		}
+		//itemFoldout = EditorGUILayout.Foldout(itemFoldout, "item");
+		//if (itemFoldout)
+		//{
+		//	EditorGUILayout.Space(4);
+		//	EditorGUI.indentLevel++;
+		//	//EditorGUILayout.PropertyField(itemsDB, true);
+		//	EditorGUI.indentLevel--;
+		//}
 
 		inventoryFoldout = EditorGUILayout.Foldout(inventoryFoldout, "Shelf & Inventory");
 		if (inventoryFoldout)
 		{
 			EditorGUI.indentLevel++;
-			EditorGUILayout.PropertyField(inventory, true);
+			//EditorGUILayout.PropertyField(inventory, true);
 
 			ItemInventory invData = manager.ItemInventoryData;
 

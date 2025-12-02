@@ -23,7 +23,7 @@ public class WorkFlowManager : MonoBehaviour
 				break;
 			case TaskType.Label:
 				break;
-			case TaskType.Putaway:
+			case TaskType.Storing:
 				break;
 
 			// OB
