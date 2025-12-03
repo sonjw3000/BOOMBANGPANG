@@ -245,11 +245,21 @@ public class Cell
 		return GetBuildRange(type);
 	}
 
-	public void Reset()
+	public void Reset(Cell[,,] map)
 	{
-		type = 0;
-		previousType = 0;
-		if (obj != null)
+		Shelf shelf = obj.GetComponent<Shelf>();	// 선반을 갖고 있다면 pickingposition 또한 없애줘야함
+		if (shelf)
+		{
+			int3 PickPosition = shelf.PickingPosition;
+			if (map[PickPosition.x, PickPosition.y, PickPosition.z].type < 0)	// pickingposition위에 아무것도 없는 경우엔 삭제, 뭔가 있다 == 로봇이 올라가 있다 -> 삭제하면 안됨
+			{
+				map[PickPosition.x, PickPosition.y, PickPosition.z].type = 0;
+			}
+			map[PickPosition.x, PickPosition.y, PickPosition.z].previousType = 0;
+		}
+
+		type = previousType;
+		if (type == 0 && obj != null)	// 빈칸인데 오브젝트가 존재하면 제거
 		{
 			UnityEngine.Object.Destroy(obj);
 			obj = null;
@@ -257,6 +267,29 @@ public class Cell
 		if (originalMats != null)
 		{
 			originalMats.Clear();
+		}
+	}
+
+	public void Set(int id, Cell[,,] map, GameObject obj)
+	{
+		this.type = id;
+		this.obj = obj;
+
+		Shelf shelf = obj.GetComponent<Shelf>();
+		if (shelf)
+		{
+			int3 PickPosition = shelf.PickingPosition;
+			if (map[PickPosition.x, PickPosition.y, PickPosition.z].type == 0)
+			{
+				map[PickPosition.x, PickPosition.y, PickPosition.z].type = -1;
+			}
+			map[PickPosition.x, PickPosition.y, PickPosition.z].previousType = -1;
+		}
+
+		Status st = obj.GetComponent<Status>();
+		if (st != null)
+		{
+			st.SetInit(obj.name, id);
 		}
 	}
 }

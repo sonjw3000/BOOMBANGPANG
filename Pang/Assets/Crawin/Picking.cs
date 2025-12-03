@@ -170,29 +170,13 @@ public class Picking : MonoBehaviour
 									if (buildingPrefabIndex <= 1)   // 기둥이거나 타일이면
 									{
 										parentTransform = GameObject.Find("TileParent").transform;
-										map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
 									}
 									else
 									{
 										parentTransform = GameObject.Find("RobotParent").transform;
-										map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
-										Shelf shelf = map[tileX, 0, tileZ].obj.GetComponent<Shelf>();
-										if (shelf)
-										{
-											int3 PickPosition = shelf.PickingPosition;
-											map[PickPosition.x, PickPosition.y, PickPosition.z].type = -1;
-											map[PickPosition.x, PickPosition.y, PickPosition.z].previousType = -1;
-										}
 									}
+									map[tileX, 0, tileZ].Set(buildingPrefabIndex, map, Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform));
 
-									Status st = map[tileX, 0, tileZ].obj.GetComponent<Status>();
-									if (st != null)
-									{
-										st.SetInit(map[tileX, 0, tileZ].obj.name, buildingPrefabIndex);
-									}
-
-									map[tileX, 0, tileZ].type = buildingPrefabIndex;
-									map[tileX, 0, tileZ].previousType = buildingPrefabIndex;
 									pickingType = PickingType.SELECT;
 									previewInstance.SetActive(false);
 								}
@@ -350,13 +334,7 @@ public class Picking : MonoBehaviour
 			}
 			else
 			{//가만히 배치돼있는 애들
-				Shelf shelf = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].obj.GetComponent<Shelf>();
-				if (shelf)
-				{
-					int3 PickPosition = shelf.PickingPosition;
-					map[PickPosition.x, PickPosition.y, PickPosition.z].Reset();
-				}
-				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].Reset();
+				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].Reset(map);
 			}
 			Destroy(selectedObject);
 			ChangeSelectedObject(null);

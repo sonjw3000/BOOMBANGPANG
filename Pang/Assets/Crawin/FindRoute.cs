@@ -402,10 +402,10 @@ public class FindRoute : MonoBehaviour
 	public void RemoveThisObjectOnMap()
 	{
 		if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
-			map[previousNode.x, previousNode.y, previousNode.z].Reset();
+			map[previousNode.x, previousNode.y, previousNode.z].Reset(map);
 		//map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0;
 		if (nextNode.x >= 0 && nextNode.y >= 0 && nextNode.z >= 0)
-			map[nextNode.x, nextNode.y, nextNode.z].Reset();
+			map[nextNode.x, nextNode.y, nextNode.z].Reset(map);
 	}
 
 	public int3 GetRandomPos()
