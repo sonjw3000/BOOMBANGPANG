@@ -143,7 +143,8 @@ public class Picking : MonoBehaviour
 						previewInstance.SetActive(false);
 						break;
 					}
-					ReturnSelectedObjectMat();
+					//ReturnSelectedObjectMat();
+					mOrbitCamera.LockObject(null);
 					Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 					float distance;
 					if (groundPlane.Raycast(ray, out distance))
@@ -159,8 +160,8 @@ public class Picking : MonoBehaviour
 						{
 							if (!IsPointerOverUI()) // ui를 안건드렸으면
 							{
-								ReturnSelectedObjectMat();
-
+								//ReturnSelectedObjectMat();
+								mOrbitCamera.LockObject(null);
 								rightClickMenu.SetActive(false);
 								Transform parentTransform;
 
@@ -406,7 +407,8 @@ public class Picking : MonoBehaviour
 
 		if (groundPlane.Raycast(ray, out float distance))
 		{
-			ReturnSelectedObjectMat();
+			mOrbitCamera.LockObject(null);
+			//ReturnSelectedObjectMat();
 			Vector3 worldPos = ray.GetPoint(distance);
 			int tileX = Mathf.FloorToInt(worldPos.x + 0.5f);
 			int tileZ = Mathf.FloorToInt(worldPos.z + 0.5f);
@@ -433,54 +435,6 @@ public class Picking : MonoBehaviour
 
 	}
 
-	void ReturnSelectedObjectMat()
-	{
-		if (selectedObject != null)
-		{
-			Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
-			var originalMats = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats;
-			if (originalMats != null && originalMats.Count == renderers.Length)
-			{
-				for (int i = 0; i < renderers.Length; ++i)
-				{
-					renderers[i].sharedMaterials = originalMats[i];
-				}
-			}
-			map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = null;
-			ChangeSelectedObject(null);
-		}
-		mOrbitCamera.LockObject(null);
-	}
-
-	void SaveSelectedObjectMat()
-	{
-		if (selectedObject != null)
-		{
-			Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
-			if (map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats == null)
-			{
-				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = new List<Material[]>();   // 최초 1회만 new 할당;
-			}
-			else
-			{
-				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats.Clear();
-			}
-			foreach (Renderer renderer in renderers)
-			{
-				//기존 메테리얼들 저장
-				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats.Add(renderer.sharedMaterials);
-
-				//메테리얼 교체
-				Material[] newMats = new Material[renderer.materials.Length];
-				for (int i = 0; i < newMats.Length; ++i)
-				{
-					newMats[i] = wireframeMat;
-				}
-				renderer.materials = newMats;
-			}
-		}
-	}
-
 	private void ChangeSelectedObject(GameObject obj)
 	{
 		selectedObject = obj;
@@ -492,7 +446,7 @@ public class Picking : MonoBehaviour
 			return;
 		}
 		// save material
-		SaveSelectedObjectMat();
+		//SaveSelectedObjectMat();
 		statusCanvas.SetActive(true);
 
 		mOrbitCamera.LockObject(selectedObject);
