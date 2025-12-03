@@ -137,7 +137,14 @@ public class Picking : MonoBehaviour
 				break;
 			case PickingType.INSERT:
 				{
-					ReturnSelectedObjectMat();
+					if (Input.GetMouseButtonUp(1))
+					{
+						pickingType = PickingType.SELECT;
+						previewInstance.SetActive(false);
+						break;
+					}
+					//ReturnSelectedObjectMat();
+					mOrbitCamera.LockObject(null);
 					Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 					float distance;
 					if (groundPlane.Raycast(ray, out distance))
@@ -153,38 +160,24 @@ public class Picking : MonoBehaviour
 						{
 							if (!IsPointerOverUI()) // ui를 안건드렸으면
 							{
-								ReturnSelectedObjectMat();
-
+								//ReturnSelectedObjectMat();
+								mOrbitCamera.LockObject(null);
 								rightClickMenu.SetActive(false);
 								Transform parentTransform;
-								if (map[tileX, 0, tileZ].type == 0)   // 바닥에 아무것도 없으면
+
+								if (CheckInsertAvailable(tileX, 0, tileZ))
 								{
 									quaternion baseRot = resources.Prefabs[buildingPrefabIndex].transform.rotation * Quaternion.Euler(0, 90 * head, 0);
 									if (buildingPrefabIndex <= 1)   // 기둥이거나 타일이면
 									{
 										parentTransform = GameObject.Find("TileParent").transform;
-										map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
 									}
 									else
 									{
 										parentTransform = GameObject.Find("RobotParent").transform;
-										map[tileX, 0, tileZ].obj = Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform);
-										Shelf shelf = map[tileX, 0, tileZ].obj.GetComponent<Shelf>();
-										if (shelf)
-										{
-											int3 PickPosition = shelf.PickingPosition;
-											map[PickPosition.x, PickPosition.y, PickPosition.z].type = -1;
-											map[PickPosition.x, PickPosition.y, PickPosition.z].previousType = -1;
-										}
 									}
+									map[tileX, 0, tileZ].Set(buildingPrefabIndex, map, Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform));
 
-									Status st = map[tileX, 0, tileZ].obj.GetComponent<Status>();
-									if (st != null)
-									{
-										st.SetInit(map[tileX, 0, tileZ].obj.name, buildingPrefabIndex);
-									}
-
-									map[tileX, 0, tileZ].type = buildingPrefabIndex;
 									pickingType = PickingType.SELECT;
 									previewInstance.SetActive(false);
 								}
@@ -203,6 +196,16 @@ public class Picking : MonoBehaviour
 				}
 				break;
 		}
+	}
+
+	bool CheckInsertAvailable(int x, int y, int z)
+	{
+		if (map[x, y, z].type == 0)
+		{
+			// todo : 여기서 배치할 때 선반이면 picking position 까지 판단해야 하는데, 지금 resources들이 완전하지 않은 상태에서 해봤자 또 수정이 필요.
+			return true;
+		}
+		return false;
 	}
 
 	void KeyboardInput()
@@ -332,7 +335,7 @@ public class Picking : MonoBehaviour
 			}
 			else
 			{//가만히 배치돼있는 애들
-				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].Reset();
+				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].Reset(map);
 			}
 			Destroy(selectedObject);
 			ChangeSelectedObject(null);
@@ -347,6 +350,10 @@ public class Picking : MonoBehaviour
 			if (buildingPrefabIndex > 1)    // 배치 될 프리팹 보여주기
 			{
 				SyncPreviewAndBuilding();
+				if(CheckInsertAvailable((int)placePos.x, 0, (int)placePos.z))
+				{
+
+				}
 				if (map[(int)placePos.x, 0, (int)placePos.z].type == 0) // 바닥이면
 				{
 					//Debug.Log("바닥인디요");
@@ -400,7 +407,8 @@ public class Picking : MonoBehaviour
 
 		if (groundPlane.Raycast(ray, out float distance))
 		{
-			ReturnSelectedObjectMat();
+			mOrbitCamera.LockObject(null);
+			//ReturnSelectedObjectMat();
 			Vector3 worldPos = ray.GetPoint(distance);
 			int tileX = Mathf.FloorToInt(worldPos.x + 0.5f);
 			int tileZ = Mathf.FloorToInt(worldPos.z + 0.5f);
@@ -427,54 +435,6 @@ public class Picking : MonoBehaviour
 
 	}
 
-	void ReturnSelectedObjectMat()
-	{
-		if (selectedObject != null)
-		{
-			Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
-			var originalMats = map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats;
-			if (originalMats != null && originalMats.Count == renderers.Length)
-			{
-				for (int i = 0; i < renderers.Length; ++i)
-				{
-					renderers[i].sharedMaterials = originalMats[i];
-				}
-			}
-			map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = null;
-			ChangeSelectedObject(null);
-		}
-		mOrbitCamera.LockObject(null);
-	}
-
-	void SaveSelectedObjectMat()
-	{
-		if (selectedObject != null)
-		{
-			Renderer[] renderers = selectedObject.GetComponentsInChildren<Renderer>();
-			if (map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats == null)
-			{
-				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats = new List<Material[]>();   // 최초 1회만 new 할당;
-			}
-			else
-			{
-				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats.Clear();
-			}
-			foreach (Renderer renderer in renderers)
-			{
-				//기존 메테리얼들 저장
-				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].originalMats.Add(renderer.sharedMaterials);
-
-				//메테리얼 교체
-				Material[] newMats = new Material[renderer.materials.Length];
-				for (int i = 0; i < newMats.Length; ++i)
-				{
-					newMats[i] = wireframeMat;
-				}
-				renderer.materials = newMats;
-			}
-		}
-	}
-
 	private void ChangeSelectedObject(GameObject obj)
 	{
 		selectedObject = obj;
@@ -486,15 +446,9 @@ public class Picking : MonoBehaviour
 			return;
 		}
 		// save material
-		SaveSelectedObjectMat();
+		//SaveSelectedObjectMat();
 		statusCanvas.SetActive(true);
 
-		// 해당 오브젝트의 속성 출력 예정
-		Status st = selectedObject.gameObject.GetComponent<Status>();
-		if (st != null)
-		{
-			st.OnClick();
-		}
 		mOrbitCamera.LockObject(selectedObject);
 		//Debug.Log(selectedObject.name + "이 선택 되었습니다.");
 

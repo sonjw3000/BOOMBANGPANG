@@ -185,6 +185,7 @@ public class TilemapGenerator : MonoBehaviour
 
 		}
 		resources.mapJsonRef.robotdata.Clear(); // 딕셔너리로 다 옮겼으니 초기화하자
+		printMap();
 	}
 
 	void printMap()

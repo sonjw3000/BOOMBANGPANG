@@ -37,6 +37,7 @@ public class TilemapSave : MonoBehaviour
 				{
 					switch (map[x, y, z].type)
 					{
+						case -1:
 						case 0:
 						case int.MaxValue:
 							//이동중인 출발 타일 위치이거나 통로이면 저장 x

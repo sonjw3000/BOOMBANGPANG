@@ -28,9 +28,9 @@ public class Status : MonoBehaviour
 		}
 	}
 
-	public void OnClick()
+	public void GetStatus(Transform Viewport, bool init)
 	{
-		m_status.GetStatus();
+		m_status.GetStatus(Viewport, gameObject, init);
 	}
 
 	public void SetInit(string name, int id)
@@ -52,10 +52,6 @@ public class Status : MonoBehaviour
 	public int GetID()
 	{
 		return m_status.GetID();
-	}
-	public string GetName()
-	{
-		return m_status.GetName();
 	}
 
 	public void SetGoal(int3 goal)
@@ -88,21 +84,4 @@ public class Status : MonoBehaviour
 		((RobotStatus)m_status).SetMaxStorage(maxStorage);
 	}
 
-	public int3 GetGoal()
-	{
-		return ((RobotStatus)m_status).GetGoal();
-	}
-	public float GetBattery()
-	{
-		return ((RobotStatus)m_status).GetBattery();
-	}
-	public int GetWeight()
-	{
-		return ((RobotStatus)m_status).GetWeight();
-	}
-
-	public int GetMaxStorage()
-	{
-		return ((RobotStatus)m_status).GetMaxStorage();
-	}
 }

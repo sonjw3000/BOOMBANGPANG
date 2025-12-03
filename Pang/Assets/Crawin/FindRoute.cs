@@ -59,6 +59,8 @@ public class FindRoute : MonoBehaviour
 		pq = new PriorityQueue<int4>();
 		directions = new int3[4];
 		curr = new int4(Mathf.RoundToInt(transform.position.x), 0, Mathf.RoundToInt(transform.position.z), 0);
+		previousNode.x = -1; previousNode.y = -1; previousNode.z = -1;
+		nextNode.x = Mathf.RoundToInt(transform.position.x); nextNode.y = 0; nextNode.z = Mathf.RoundToInt(transform.position.z);
 
 		//moveontile에서 쓰이는 변수들
 		targetPos = new Vector3();
@@ -400,9 +402,10 @@ public class FindRoute : MonoBehaviour
 	public void RemoveThisObjectOnMap()
 	{
 		if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
-			map[previousNode.x, previousNode.y, previousNode.z].Reset();
+			map[previousNode.x, previousNode.y, previousNode.z].Reset(map);
 		//map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0;
-		map[nextNode.x, nextNode.y, nextNode.z].Reset();
+		if (nextNode.x >= 0 && nextNode.y >= 0 && nextNode.z >= 0)
+			map[nextNode.x, nextNode.y, nextNode.z].Reset(map);
 	}
 
 	public int3 GetRandomPos()
