@@ -4,11 +4,12 @@ using UnityEngine;
 
 public class TilemapSave : MonoBehaviour
 {
-	private Resources resources;
+	//private Resources resources;
+	private Resources resources => GameContext.Instance.MapResources;
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
-		resources = GameObject.Find("Resources").GetComponent<Resources>();
+		//resources = GameObject.Find("Resources").GetComponent<Resources>();
 	}
 
 	// Update is called once per frame

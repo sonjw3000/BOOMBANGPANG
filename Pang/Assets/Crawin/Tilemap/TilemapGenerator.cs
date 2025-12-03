@@ -9,11 +9,14 @@ public class TilemapGenerator : MonoBehaviour
 {
 	private GameObject tileParent;
 	private GameObject robotParent;
-	private Resources resources;
+	//private Resources resources;
+	private Resources resources => GameContext.Instance.MapResources;
+
+
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
-		resources = GameObject.Find("Resources").GetComponent<Resources>();
+		//resources = GameObject.Find("Resources").GetComponent<Resources>();
 		if (resources == null)
 		{
 			Debug.LogError("no Resources Object");

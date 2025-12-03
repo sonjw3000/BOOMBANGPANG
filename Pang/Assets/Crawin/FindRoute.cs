@@ -5,9 +5,10 @@ using Unity.VisualScripting;
 
 public class FindRoute : MonoBehaviour
 {
-	private Resources resources;
-	private Cell[,,] map;
-	private int3 mapSize;
+	//private Resources resources;
+	private Resources resources => GameContext.Instance.MapResources;
+	private Cell[,,] map => resources.mapRef;
+	private int3 mapSize => resources.mapSize;
 	public float speed = 2f;
 	public float rotationSpeed = 5f;
 	public int3 goalCoordinate;
@@ -49,10 +50,6 @@ public class FindRoute : MonoBehaviour
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
-		resources = GameObject.Find("Resources").GetComponent<Resources>();
-		map = resources.mapRef;
-		mapSize = resources.mapSize;
-
 		// astar에서 쓰이는 변수들
 		distance = new int[mapSize.x, mapSize.y, mapSize.z];
 		prev = new int3[mapSize.x, mapSize.y, mapSize.z];
