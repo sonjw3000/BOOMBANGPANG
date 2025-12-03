@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 782c89c1ed825544282f429464f5e9ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  workers: []
 --- !u!114 &7841856515938607541
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -70,3 +71,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fc9318530e8a3da4ba861ca1e3ecd16a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mapResources:
+    mapJsonFile: {fileID: 4900000, guid: 93df6a0ae021d5647986629679512519, type: 3}
+    Prefabs:
+    - {fileID: 5250718383500915193, guid: f51a20ce04034dc48888daa0b57a04ad, type: 3}
+    - {fileID: 4160587140088029067, guid: 5ce1018733c5bc544b11676e18721b49, type: 3}
+    - {fileID: 4046099219731300723, guid: 828fff7bc15f652488cc1c8019a1469f, type: 3}
+    - {fileID: 6292317992592451571, guid: 4ce56300c06857d4d9d1322926b73ae5, type: 3}
+    - {fileID: 3890919911251998508, guid: 488feabe59eb6a840808cf083713d509, type: 3}
+    - {fileID: 4307669844091279147, guid: dc841591eb6b4ed44994bde9aa91baf8, type: 3}
+    - {fileID: 4934971901129387132, guid: 215fceb8eccbc54409e145f16c2b0f8c, type: 3}
+    - {fileID: 6155704149836782372, guid: ef27fec05dc353e47afc629dbf165b17, type: 3}
+    - {fileID: 5547793404648804989, guid: c0376f38f6e735e48b8e9eec6ba3517c, type: 3}
+    - {fileID: 5868244320211209119, guid: 19754c2e8273c454bb559eaad9b04e83, type: 3}
+    - {fileID: 8130251259797940551, guid: 0278404f42fec1b4a95242bbaacacfa8, type: 3}
+    mapSize:
+      x: 0
+      y: 0
+      z: 0
+  itemDB:
+    items: []
+  rocketLandingZoneCenter:
+    x: 0
+    y: 0
+    z: 0
+  rocketLandingZoneRadius: 5

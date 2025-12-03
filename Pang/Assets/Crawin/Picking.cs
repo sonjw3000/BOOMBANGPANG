@@ -13,10 +13,12 @@ public class Picking : MonoBehaviour
 	[SerializeField] private GameObject mainCamera;
 	[SerializeField] private GameObject statusCanvas;
 
-	private Resources resources;
+	//private Resources resources;
+	private Resources resources => GameContext.Instance.MapResources;
 
-	private Cell[,,] map;
-	private int3 mapSize;
+	private Cell[,,] map => resources.mapRef;
+	private int3 mapSize => resources.mapSize;
+
 	[HideInInspector]
 	private int buildingPrefabIndex;
 	private int syncPrefabIndex;
@@ -51,7 +53,7 @@ public class Picking : MonoBehaviour
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
-		resources = GameObject.Find("Resources").GetComponent<Resources>();
+		//resources = GameObject.Find("Resources").GetComponent<Resources>();
 		activate = GameObject.Find("ESC").GetComponent<UIOnOff>();
 		floorhighLight = transform.Find("Highlight").gameObject;
 		goalPositionHighlight = transform.Find("GoalPosition").gameObject;
@@ -62,8 +64,8 @@ public class Picking : MonoBehaviour
 		}
 		else
 		{
-			map = resources.mapRef;
-			mapSize = resources.mapSize;
+			//map = resources.mapRef;
+			//mapSize = resources.mapSize;
 		}
 		if (map == null)
 		{

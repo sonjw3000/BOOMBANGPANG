@@ -11,14 +11,16 @@ public class SpawnRobots : MonoBehaviour
 		Random
 	}
 	public SpawnType type;
-	private Resources resources;
+	//private Resources resources;
+	private Resources resources => GameContext.Instance.MapResources;
+
 	public GameObject RobotPrefab;
 
 	int robotID = 2;
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
-		resources = GameObject.Find("Resources").GetComponent<Resources>();
+		//resources = GameObject.Find("Resources").GetComponent<Resources>();
 	}
 
 	// Update is called once per frame

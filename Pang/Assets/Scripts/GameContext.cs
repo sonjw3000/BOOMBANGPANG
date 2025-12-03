@@ -5,6 +5,7 @@ using UnityEngine;
 // GameContext는 데이터만 가진다
 // 로직을 가져선 안된다
 
+[DefaultExecutionOrder(-100)]
 public class GameContext : MonoBehaviour
 {
 	private static GameContext instance;
@@ -21,11 +22,13 @@ public class GameContext : MonoBehaviour
 		}
 	}
 
+	[SerializeField] private Resources mapResources;
 	[SerializeField] private ItemDatabase itemDB;
 	private ItemInventory itemInventoryData;
 	[SerializeField] private int3 rocketLandingZoneCenter;
 	[SerializeField] private int rocketLandingZoneRadius = 5;
 
+	public Resources MapResources => mapResources;
 	public ItemDatabase ItemDB => itemDB;
 	public ItemInventory ItemInventoryData => itemInventoryData;
 	public int3 RocketLandingZoneCenter => rocketLandingZoneCenter;
@@ -42,6 +45,7 @@ public class GameContext : MonoBehaviour
 		}
 
 		instance = this;
+		instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
 	}
 

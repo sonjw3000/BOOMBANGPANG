@@ -294,7 +294,8 @@ public class Cell
 	}
 }
 [DefaultExecutionOrder(-100)]
-public class Resources : MonoBehaviour
+[System.Serializable]
+public class Resources// : MonoBehaviour
 {
 	public class RendererTemplate
 	{
@@ -315,8 +316,7 @@ public class Resources : MonoBehaviour
 	private Cell[,,] map;
 	public ref Cell[,,] mapRef => ref map;
 
-	// Start is called once before the first execution of Update after the MonoBehaviour is created
-	void Start()
+	public void Initialize()
 	{
 		mapJson = JsonUtility.FromJson<MapJson>(mapJsonFile.text);
 		mapSize = new int3(mapJson.X, mapJson.Y, mapJson.Z);

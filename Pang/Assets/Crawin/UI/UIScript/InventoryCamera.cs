@@ -8,7 +8,10 @@ public class InventoryCamera : MonoBehaviour
 	public GameObject slotPrefab;
 
 	private Camera inventoryCamera;
-	private Resources resources;
+	//private Resources resources;
+
+	private GameContext GCtx => GameContext.Instance;
+	private Resources resources => GameContext.Instance.MapResources;
 
 	private List<Texture2D> generatedTextures = new List<Texture2D>();
 
@@ -25,7 +28,7 @@ public class InventoryCamera : MonoBehaviour
 
 	void LoadResources()
 	{
-		resources = GameObject.Find("Resources").GetComponent<Resources>();
+		//resources = GameObject.Find("Resources").GetComponent<Resources>();
 		inventoryCamera = GetComponent<Camera>();
 	}
 
@@ -40,7 +43,7 @@ public class InventoryCamera : MonoBehaviour
 		int InvLayer = LayerMask.NameToLayer("Inventory");
 		for (int i = 0; i < resourceCnt; ++i)
 		{
-			previewInstances[i] = Instantiate(resources.Prefabs[i], resources.transform);
+			previewInstances[i] = Instantiate(resources.Prefabs[i], GCtx.transform);
 			SetLayer(previewInstances[i].transform, InvLayer);
 			previewInstances[i].SetActive(false);
 		}
@@ -94,7 +97,7 @@ public class InventoryCamera : MonoBehaviour
 		for (int i = 2; i < resourceCnt; i++)
 		{
 			// (1) 프리팹 임시 생성
-			GameObject instance = Instantiate(resources.Prefabs[i], resources.transform);
+			GameObject instance = Instantiate(resources.Prefabs[i], GCtx.transform);
 			SetLayer(instance.transform, InvLayer);
 			instance.SetActive(true);
 
