@@ -11,7 +11,7 @@ public class Picking : MonoBehaviour
 	[SerializeField] private Material wireframeMat;
 	[SerializeField] private GameObject rightClickMenu;
 	[SerializeField] private GameObject mainCamera;
-	[SerializeField] private GameObject statusCanvas;
+	[SerializeField] private GameObject SelectedStatus;
 
 	//private Resources resources;
 	private Resources resources => GameContext.Instance.MapResources;
@@ -449,7 +449,7 @@ public class Picking : MonoBehaviour
 		}
 		// save material
 		//SaveSelectedObjectMat();
-		statusCanvas.SetActive(true);
+		SelectedStatus.SetActive(true);
 
 		mOrbitCamera.LockObject(selectedObject);
 		//Debug.Log(selectedObject.name + "이 선택 되었습니다.");
