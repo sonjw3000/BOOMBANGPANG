@@ -46,14 +46,17 @@ public class ShelfStatus : ObjectStatus
 	{
 		//GetStatus();
 		Transform Content = Viewport.GetChild(0);
+
 		if (init)
 		{
+			Debug.Log("좌클릭 오브젝트가 변경되어 최초로 칸 배정");
 			int slotcnt = Content.childCount;
 			var items = gameobject.GetComponent<Shelf>().Items;
 			int itemcnt = items.Count;
-			itemcnt = 9;
+			itemcnt = 10;
 			if (itemcnt > slotcnt)
 			{
+				Debug.Log("아이템 칸의 갯수가 모자라 칸 생성");
 				// 아이템 갯수만큼 칸 생성
 				for (int i = slotcnt; i < itemcnt; ++i)
 				{
@@ -67,14 +70,21 @@ public class ShelfStatus : ObjectStatus
 
 					// 검정 → 흰색으로 점점 밝게
 					img.color = Color.Lerp(Color.black, Color.white, t);
+					//img.color = Color.black;
+
 				}
 			}
 			else
 			{
 				// 남는 칸 삭제
-				for (int i = slotcnt; i > itemcnt; --i)
+				for (int i = 0; i < slotcnt - itemcnt; ++i)
 				{
+					Debug.Log("i = " + i + ", itemcnt = " + itemcnt);
 					UnityEngine.Object.Destroy(Content.GetChild(i).gameObject);
+
+					//Content.GetChild(i).gameObject.SetActive(false);
+					// 는 하지 말고 그냥 disable 시켜두자
+					// 하기엔 클래스에서 비활성화된 자식 객체의 갯수를 파악하기 힘들다 -> for문 돌아야함
 				}
 				//Debug.Log(slotcnt - items.Count + " 만큼 삭제");
 			}
@@ -85,6 +95,10 @@ public class ShelfStatus : ObjectStatus
 				Content.GetChild(index).name = item.ToString();
 				++index;
 			}
+		}
+		else
+		{
+			//Debug.Log("초기화 작업이 아님");
 		}
 		return;
 	}

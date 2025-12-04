@@ -61,6 +61,10 @@ public class GameContext : MonoBehaviour
 		ItemInventoryData.AddItemLocation(123123, itemInventoryData.Containers[1], 0);
 		ItemInventoryData.AddItemLocation(14412, itemInventoryData.Containers[2], 0);
 
+		itemDB.InsertOrderedItems(123333);
+		itemDB.InsertOrderedItems(123123);
+		itemDB.InsertOrderedItems(14412);
+
 		Debug.Log("Test Store Item");
 	}
 

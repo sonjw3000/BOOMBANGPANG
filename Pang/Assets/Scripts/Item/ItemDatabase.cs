@@ -10,6 +10,9 @@ public class ItemDatabase
 	[SerializeField] private List<ItemData> items = new();
 	public IReadOnlyList<ItemData> Items => items;
 
+	[SerializeField] private HashSet<uint> orderedItems = new HashSet<uint>();
+	public IReadOnlyCollection<uint> OrderedItems => orderedItems;
+
 
 	public bool GetItemData(uint itemID, out ItemData data)
 	{
@@ -21,5 +24,10 @@ public class ItemDatabase
 	public uint GetRandomItemID()
 	{
 		return items[Random.Range(0, items.Count)].ItemID;
+	}
+
+	public void InsertOrderedItems(uint itemID)
+	{
+		orderedItems.Add(itemID);
 	}
 }
