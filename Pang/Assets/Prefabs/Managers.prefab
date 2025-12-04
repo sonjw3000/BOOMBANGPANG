@@ -72,7 +72,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mapResources:
-    mapJsonFile: {fileID: 4900000, guid: 93df6a0ae021d5647986629679512519, type: 3}
+    mapJsonFile: {fileID: 4900000, guid: c2ec4a2fb81504247a6931165deed4eb, type: 3}
     Prefabs:
     - {fileID: 5250718383500915193, guid: f51a20ce04034dc48888daa0b57a04ad, type: 3}
     - {fileID: 4160587140088029067, guid: 5ce1018733c5bc544b11676e18721b49, type: 3}
@@ -90,9 +90,21 @@ MonoBehaviour:
       y: 0
       z: 0
   itemDB:
-    items: []
+    items:
+    - name: test_item_0
+      itemID: 123333
+      size: 10
+      itemPrefab: {fileID: 0}
+    - name: test_item_1
+      itemID: 123123
+      size: 0
+      itemPrefab: {fileID: 0}
+    - name: test_item_2
+      itemID: 14412
+      size: 12
+      itemPrefab: {fileID: 0}
   rocketLandingZoneCenter:
-    x: 0
+    x: 10
     y: 0
-    z: 0
+    z: 10
   rocketLandingZoneRadius: 5

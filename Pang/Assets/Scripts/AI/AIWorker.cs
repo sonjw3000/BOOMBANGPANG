@@ -34,6 +34,14 @@ public abstract class AIWorker : MonoBehaviour
 		WorkerManager.Instance.RegisterWorker(this);
 
 		routeFinder = transform.GetComponent<FindRoute>();
+
+		if (routeFinder == null)
+		{
+			Debug.Log($"FindRoute가 null이다 해당 객체가 프리뷰가 아니라면 큰일이다, 이름: {this.name}");
+
+			return;
+		}
+
 		routeFinder.SetAIMaster(this);
 		BuildBlackBoard();
 		BuildBehaviorTree();

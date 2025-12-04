@@ -24,7 +24,7 @@ public class GameContext : MonoBehaviour
 
 	[SerializeField] private Resources mapResources;
 	[SerializeField] private ItemDatabase itemDB;
-	private ItemInventory itemInventoryData;
+	private ItemInventory itemInventoryData = new();
 	[SerializeField] private int3 rocketLandingZoneCenter;
 	[SerializeField] private int rocketLandingZoneRadius = 5;
 
