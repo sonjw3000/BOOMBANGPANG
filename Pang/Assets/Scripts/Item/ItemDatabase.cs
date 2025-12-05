@@ -23,7 +23,7 @@ public class ItemDatabase
 
 	public uint GetRandomItemID()
 	{
-		return items[Random.Range(0, items.Count)].ItemID;
+		return items[Random.Range(0, items.Count -1)].ItemID;
 	}
 
 	public void InsertOrderedItems(uint itemID)

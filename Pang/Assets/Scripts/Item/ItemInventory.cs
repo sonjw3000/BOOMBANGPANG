@@ -2,12 +2,13 @@
 using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
+using static UnityEditor.Progress;
 
 // 아이템과 선반을 한번에 관리한다
 // 아이템ID별로 아이템의 위치를 가진 딕셔너리가 존재함
 // 
 [System.Serializable]
-public class ItemInventory
+public class ItemInventory : MonoBehaviour
 {
 	// shelf, bin 등 아이템 컨테이너 리스트
 	[SerializeField] private List<ShelfBase> containers = new();
@@ -112,4 +113,37 @@ public class ItemInventory
 
 		return true;
 	}
+
+	public void TestStoreItem()
+	{
+		if (Containers.Count <= 0)
+		{
+			Debug.Log("No Item Container Found");
+			return;
+		}
+
+		AddItemLocation(123333, Containers[0], 0);
+		AddItemLocation(123123, Containers[1], 0);
+		AddItemLocation(14412, Containers[2], 0);
+
+		GameContext.Instance.ItemDB.InsertOrderedItems(123333);
+		GameContext.Instance.ItemDB.InsertOrderedItems(123123);
+		GameContext.Instance.ItemDB.InsertOrderedItems(14412);
+
+		Debug.Log("Test Store Item");
+	}
+
+	public void TestFullStockItems()
+	{
+		if (Containers.Count <= 0)
+		{
+			Debug.Log("No Item Container Found");
+			return;
+		}
+
+		AdjustItemQuantity(123333, Containers[0], 100);
+
+		Debug.Log("123333 * 100 Stock Items");
+	}
+
 }

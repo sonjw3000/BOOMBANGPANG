@@ -307,9 +307,10 @@ public class Cell
 		}
 	}
 }
+
 [DefaultExecutionOrder(-100)]
 [System.Serializable]
-public class Resources// : MonoBehaviour
+public class Resources
 {
 	public class RendererTemplate
 	{

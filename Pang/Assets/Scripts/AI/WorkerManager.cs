@@ -11,41 +11,13 @@ public class WorkerManager : MonoBehaviour
 	// 삽입 삭제가 빈번히 일어나기 때문에
 	[SerializeField] private List<AIWorker> workers;
 
-	private BlackBoard globalBlackboard;
-
 	// todo
-	// task들 또한 여기서 관리하자
-	// update시에 알아서 분배하자
-
-	private static WorkerManager instance;
-
-	public static WorkerManager Instance 
-	{
-		get
-		{
-			if (instance == null)
-			{
-				Debug.LogError("WorkerManager is NOT initialized!");
-				return null;
-			}
-			return instance;
-		}
-	}
+	// 전역 블랙보드의 관리는 다른곳에 넘겨야함
+	private BlackBoard globalBlackboard;
 
 	private void Awake()
 	{
-		Debug.Log("WorkerManager Online!");
-		if (instance != null && instance != this)
-		{
-			Destroy(this);
-			Debug.Log("WARNNING!! WorkerManager Duplicated");
-			return;
-		}
-
-		workers = new List<AIWorker>();
-
-		instance = this;
-		DontDestroyOnLoad(gameObject);
+		//workers = new List<AIWorker>();
 	}
 
 	public void RegisterWorker(AIWorker worker)
@@ -64,7 +36,6 @@ public class WorkerManager : MonoBehaviour
 		// todo
 		// 태스크의 조건과 알맞은 작업자를 돌려줌
 		return workers[0];
-		//return null;
 	}
 
 	private void Update()

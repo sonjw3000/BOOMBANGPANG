@@ -21,18 +21,24 @@ public class GameContext : MonoBehaviour
 			return instance;
 		}
 	}
-
+	
+	// datas
 	[SerializeField] private Resources mapResources;
 	[SerializeField] private ItemDatabase itemDB;
-	private ItemInventory itemInventoryData = new();
-	[SerializeField] private int3 rocketLandingZoneCenter;
-	[SerializeField] private int rocketLandingZoneRadius = 5;
+
+	// domain managers
+	[SerializeField] private WorkerManager workerManager;
+	[SerializeField] private ItemInventory itemInventory;
+	[SerializeField] private RocketManager rocketManager;
 
 	public Resources MapResources => mapResources;
 	public ItemDatabase ItemDB => itemDB;
-	public ItemInventory ItemInventoryData => itemInventoryData;
-	public int3 RocketLandingZoneCenter => rocketLandingZoneCenter;
-	public int RocketLandingZoneRadius => rocketLandingZoneRadius;
+
+
+	public WorkerManager WorkerMgr => workerManager;
+	public ItemInventory ItemInventoryData => itemInventory;
+	public RocketManager RocketMgr => rocketManager;
+
 
 	private void Awake()
 	{
@@ -47,37 +53,5 @@ public class GameContext : MonoBehaviour
 		instance = this;
 		instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
-	}
-
-	public void TestStoreItem()
-	{
-		if (itemInventoryData.Containers.Count <= 0)
-		{
-			Debug.Log("No Item Container Found");
-			return;
-		}
-
-		ItemInventoryData.AddItemLocation(123333, itemInventoryData.Containers[0], 0);
-		ItemInventoryData.AddItemLocation(123123, itemInventoryData.Containers[1], 0);
-		ItemInventoryData.AddItemLocation(14412, itemInventoryData.Containers[2], 0);
-
-		itemDB.InsertOrderedItems(123333);
-		itemDB.InsertOrderedItems(123123);
-		itemDB.InsertOrderedItems(14412);
-
-		Debug.Log("Test Store Item");
-	}
-
-	public void TestFullStockItems()
-	{
-		if (itemInventoryData.Containers.Count <= 0)
-		{
-			Debug.Log("No Item Container Found");
-			return;
-		}
-
-		ItemInventoryData.AdjustItemQuantity(123333, itemInventoryData.Containers[0], 100);
-
-		Debug.Log("123333 * 100 Stock Items");
 	}
 }

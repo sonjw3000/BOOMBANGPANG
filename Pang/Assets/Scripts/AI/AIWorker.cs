@@ -28,10 +28,12 @@ public abstract class AIWorker : MonoBehaviour
 	public int WorkerID => workerID;
 	public WorkerTask CurrentTask => currentTask;
 
+	protected WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
+
 	public void Start()
 	{
 		// register AI's BT to AI Manager
-		WorkerManager.Instance.RegisterWorker(this);
+		WorkerMgr.RegisterWorker(this);
 
 		routeFinder = transform.GetComponent<FindRoute>();
 
@@ -51,7 +53,7 @@ public abstract class AIWorker : MonoBehaviour
 	public void OnDestroy()
 	{
 		// unregister AI
-		WorkerManager.Instance.UnregisterWorker(this);
+		WorkerMgr.UnregisterWorker(this);
 
 		DisableAction();
 	}

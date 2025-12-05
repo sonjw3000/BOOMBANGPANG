@@ -9,7 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4930837203190484080}
-  - component: {fileID: 4521251119836311914}
   - component: {fileID: 7841856515938607541}
   - component: {fileID: 6016985861769816228}
   m_Layer: 0
@@ -31,22 +30,12 @@ Transform:
   m_LocalPosition: {x: -10.537297, y: -0.43941566, z: 30.104122}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1908780973014981603}
+  - {fileID: 429134569362291384}
+  - {fileID: 3642400084270628801}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4521251119836311914
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2435145271861946170}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 782c89c1ed825544282f429464f5e9ef, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  workers: []
 --- !u!114 &7841856515938607541
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -92,19 +81,162 @@ MonoBehaviour:
   itemDB:
     items:
     - name: test_item_0
-      itemID: 123333
+      itemID: 12333
       size: 10
       itemPrefab: {fileID: 0}
     - name: test_item_1
       itemID: 123123
-      size: 0
+      size: 11
       itemPrefab: {fileID: 0}
     - name: test_item_2
       itemID: 14412
       size: 12
       itemPrefab: {fileID: 0}
-  rocketLandingZoneCenter:
+  workerManager: {fileID: 13977639467307534}
+  itemInventory: {fileID: 2053266420889563750}
+  rocketManager: {fileID: 3860246314756219679}
+--- !u!1 &4523963391161952942
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1908780973014981603}
+  - component: {fileID: 13977639467307534}
+  m_Layer: 0
+  m_Name: WorkerManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1908780973014981603
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4523963391161952942}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4930837203190484080}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &13977639467307534
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4523963391161952942}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 782c89c1ed825544282f429464f5e9ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  workers: []
+--- !u!1 &4607139986192254135
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 429134569362291384}
+  - component: {fileID: 2053266420889563750}
+  m_Layer: 0
+  m_Name: ItemInventory
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &429134569362291384
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4607139986192254135}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4930837203190484080}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2053266420889563750
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4607139986192254135}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9625b5882fba8ec47b72c6a248b595ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containers: []
+--- !u!1 &4939391971776210250
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3642400084270628801}
+  - component: {fileID: 3860246314756219679}
+  m_Layer: 0
+  m_Name: RocketManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3642400084270628801
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4939391971776210250}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4930837203190484080}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3860246314756219679
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4939391971776210250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 395de4f2e7c001d4e9cda34178367f0e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  initialPoolSize: 5
+  landingZoneCenter:
     x: 10
     y: 0
     z: 10
-  rocketLandingZoneRadius: 5
+  landingZoneRadius: 5
+  fallingTimeRange: {x: 3, y: 7}
+  fallingSpeedRange: {x: 3, y: 7}
+  timeSinceLastSpawn: 0
+  spawnInterval: 10
+  activeRockets: []

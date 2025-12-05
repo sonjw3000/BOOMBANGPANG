@@ -31,7 +31,7 @@ public class TaskManager// : MonoBehaviour
 			{
 				var data = queue.Peek();
 
-				AIWorker worker = WorkerManager.Instance.GetAvailableWorkers(data);
+				AIWorker worker = GameContext.Instance.WorkerMgr.GetAvailableWorkers(data);
 
 				// if no available workers break;
 				if (worker == null)

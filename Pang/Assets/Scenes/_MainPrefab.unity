@@ -592,8 +592,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   stackCount: 0
   stackCapacity: 0
-  fallingTimeRange: {x: 3, y: 7}
   fallingSpeed: 12.07
+  landingPoint:
+    x: 0
+    y: 0
+    z: 0
 --- !u!1 &320629642 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 280823272700613317, guid: 4161e91d13a2f10498ffbf28cf92e66f, type: 3}
@@ -1011,14 +1014,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: itemDB.items.Array.size
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: mapResources.mapJsonFile
-      value: 
-      objectReference: {fileID: 4900000, guid: c2ec4a2fb81504247a6931165deed4eb, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

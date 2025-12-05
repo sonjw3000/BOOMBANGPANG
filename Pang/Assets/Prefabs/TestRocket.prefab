@@ -119,6 +119,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1868997468712570559}
+  - component: {fileID: 4106933212352673641}
   m_Layer: 0
   m_Name: TestRocket
   m_TagString: Untagged
@@ -142,6 +143,22 @@ Transform:
   - {fileID: 7298231662328299367}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4106933212352673641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8130251259797940551}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ca2123fb759ab14698f7a56a2ccbbf6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stackCount: 0
+  stackCapacity: 0
+  fallingTime: 5
+  fallingSpeed: 5
 --- !u!1 &8328018984347318656
 GameObject:
   m_ObjectHideFlags: 0
