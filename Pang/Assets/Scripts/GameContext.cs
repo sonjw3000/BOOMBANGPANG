@@ -31,14 +31,17 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ItemInventory itemInventory;
 	[SerializeField] private RocketManager rocketManager;
 
+	// workflow managers
+	[SerializeField] private WorkFlowManager WorkFlowManager;
+
 	public Resources MapResources => mapResources;
 	public ItemDatabase ItemDB => itemDB;
-
 
 	public WorkerManager WorkerMgr => workerManager;
 	public ItemInventory ItemInventoryData => itemInventory;
 	public RocketManager RocketMgr => rocketManager;
 
+	public WorkFlowManager WorkflowMgr => WorkFlowManager;
 
 	private void Awake()
 	{

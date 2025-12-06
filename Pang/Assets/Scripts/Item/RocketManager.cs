@@ -125,6 +125,8 @@ public class RocketManager : MonoBehaviour
 		// 로켓을 Map Resource에 등록
 		// 로켓이 떨어진 위치에 있는 객체 파괴 << Resource에서 노티만 해주기
 
+		// todo
+		// Unload 태스크를 만들어주어야하는데 어케해줘야할까
 
 	}
 
