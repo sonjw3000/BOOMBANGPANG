@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using UnityEngine;
 using static PickingTask;
 
 // OrderManager
@@ -10,7 +11,7 @@ using static PickingTask;
 // PickJob을 PickingTask로 변환한다
 // PickingTask를 TaskManager에 등록한다
 
-public class OrderManager
+public class OrderManager : MonoBehaviour
 {
 	// 실제 주문 목록
 	private List<Order> orders = new();
@@ -18,8 +19,6 @@ public class OrderManager
 	// itemID로 주문을 빠르게 찾기 위한 맵핑
 	// PickingTask를 만들 때 사용되고 난 후에 큐에서 제거됨
 	private Dictionary<uint, Queue<OrderLine>> itemOrderLines = new();
-
-	private OrderAllocator orderAllocator = new TestingOrderAllocator();
 
 	public IReadOnlyCollection<Order> Orders => orders;
 	public IReadOnlyDictionary<uint, Queue<OrderLine>> ItemOrderLines => itemOrderLines;
@@ -41,12 +40,6 @@ public class OrderManager
 
 			itemOrderLines[line.ItemID].Enqueue(line);
 		}
-	}
-
-	public PickingTask BuildPickingTasks()
-	{
-		//orderAllocator
-		return orderAllocator.BuildPickingTask(this);
 	}
 
 	public IEnumerable<uint> GetAllOrderedItemIDs()

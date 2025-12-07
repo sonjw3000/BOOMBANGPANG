@@ -2,26 +2,27 @@
 using Unity.Mathematics;
 using UnityEngine;
 
-public abstract class OrderAllocator
+public abstract class PickingTaskAllocator
 {
 	static private int jobID = 1;
 
+	protected OrderManager manager => GameContext.Instance.OrderMgr;
+	protected ItemInventory itemInv => GameContext.Instance.ItemInventoryData;
+	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
+
 	protected PickingTask.PickJob CreateNewPickJob()
 	{
-		PickingTask.PickJob pickJob = new PickingTask.PickJob();
-		pickJob.JobID = jobID++;
-		pickJob.CurrentLine = 0;
-		pickJob.Lines = new List<PickingTask.PickingLine>();
+		PickingTask.PickJob pickJob = new PickingTask.PickJob(jobID++);
 		return pickJob;
 	}
 
-	public abstract PickingTask BuildPickingTask(OrderManager manager);
+	public abstract PickingTask BuildPickingTask();
 }
 
 // 테스트용 picking 태스크 생성기
-public class TestingOrderAllocator : OrderAllocator
+public class TestingPickingTaskAllocator : PickingTaskAllocator
 {
-	public override PickingTask BuildPickingTask(OrderManager manager)
+	public override PickingTask BuildPickingTask()
 	{
 		if (manager.ItemOrderLines.Count <= 0)
 		{
@@ -38,26 +39,30 @@ public class TestingOrderAllocator : OrderAllocator
 		// 오더라인을 순회하며 피킹라인 생성
 		foreach (uint itemId in manager.GetAllOrderedItemIDs())
 		{
-			PickingTask.PickingLine pickLine = new PickingTask.PickingLine();
-			if (GameContext.Instance.ItemInventoryData.GetClosestItemLocation(itemId, new int3(1, 1, 1), out int3 location) == false)
+			//PickingTask.PickingLine pickLine = new PickingTask.PickingLine();
+			if (itemInv.GetClosestItemLocation(itemId, new int3(1, 1, 1), out ItemLocation location) == false)
 			{
 				Debug.Log("Cannot find item location for item ID: " + itemId);
 				break;
 			}
-			pickLine.GoalPosition = location;
-			pickLine.ItemID = itemId;
-
+			int quantity = 0;
 			foreach (var orderLine in manager.GetOrderLine(itemId))
 			{
 				// todo
 				// 추후 weight 계산 로직 필요
 				// weight가 capacity를 초과하면 루프 탈출 후 새로운 피킹 태스크를 생성해야 함
 
+				// todo
+				// tobeQuantity를 고려하여 모두 피킹했다면 쳐내라
+
 				// 현재는 단순히 피킹라인으로 변환한다
-				pickLine.Quantity += orderLine.Quantity;
+				//pickLine.Quantity += orderLine.Quantity;
+				curWeight += orderLine.Quantity * itemDB.GetItemWeight(itemId);
+				quantity += orderLine.Quantity;
+				location.ReservePicking(orderLine.Quantity);
 			}
 
-			pickJob.Lines.Add(pickLine);
+			pickJob.AddLine(location, quantity);
 		}
 
 		// 비어있는 큐 클리어
@@ -69,9 +74,9 @@ public class TestingOrderAllocator : OrderAllocator
 }
 
 // batch picking 태스크 생성기
-public class BatchOrderAllocator : OrderAllocator
+public class BatchPickingTaskAllocator : PickingTaskAllocator
 {
-	public override PickingTask BuildPickingTask(OrderManager manager)
+	public override PickingTask BuildPickingTask()
 	{
 
 		return null;
@@ -79,9 +84,9 @@ public class BatchOrderAllocator : OrderAllocator
 }
 
 // zone picking 태스크 생성기
-public class ZoneOrderAllocator : OrderAllocator
+public class ZonePickingTaskAllocator : PickingTaskAllocator
 {
-	public override PickingTask BuildPickingTask(OrderManager manager)
+	public override PickingTask BuildPickingTask()
 	{
 
 		return null;
@@ -89,9 +94,9 @@ public class ZoneOrderAllocator : OrderAllocator
 }
 
 // wave picking 태스크 생성기
-public class WaveOrderAllocator : OrderAllocator
+public class WavePickingTaskAllocator : PickingTaskAllocator
 {
-	public override PickingTask BuildPickingTask(OrderManager manager)
+	public override PickingTask BuildPickingTask()
 	{
 
 		return null;

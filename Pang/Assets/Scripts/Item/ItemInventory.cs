@@ -7,6 +7,14 @@ using static UnityEditor.Progress;
 // 아이템과 선반을 한번에 관리한다
 // 아이템ID별로 아이템의 위치를 가진 딕셔너리가 존재함
 // 
+
+// 실제 아이템의 저장은 ShelfBase의 ItemStack이다
+// 하지만 이를 ItemID로 편하게 검색하기 위해 ItemLocation을 만들어 참조할 수 있게 하였다
+// itemlocation이 데이터를 가지고 있는것처럼 보여도 실제론 itemlocation도 itemstack을 참조중이다.
+
+// itemlocation << 아이템의 위치 정보
+// itemstack 실제 아이템의 데이터
+
 [System.Serializable]
 public class ItemInventory : MonoBehaviour
 {
@@ -43,12 +51,8 @@ public class ItemInventory : MonoBehaviour
 			itemLocations[itemID] = new List<ItemLocation>();
 		}
 
-		itemLocations[itemID].Add(new ItemLocation
-		{
-			Container = container,
-			StackIndex = stackIndex,
-			Quantity = 0
-		});
+		itemLocations[itemID].Add(new ItemLocation(container, itemID, stackIndex));
+
 	}
 
 	// ---------------------------
@@ -70,10 +74,10 @@ public class ItemInventory : MonoBehaviour
 #endif
 
 		// adjust quantity
-
 		if (container.Items.ContainsKey(itemID))
 		{
-			container.Items[itemID].Quantity += quantityDelta;
+			container.Items[itemID].AddItem(quantityDelta);
+			//container.Items[itemID].Quantity += quantityDelta;
 		}
 		else
 		{
@@ -88,7 +92,7 @@ public class ItemInventory : MonoBehaviour
 		return itemLocations.TryGetValue(itemID, out locations);
 	}
 
-	public bool GetClosestItemLocation(uint itemID, int3 from, out int3 location)
+	public bool GetClosestItemLocation(uint itemID, int3 from, out ItemLocation location)
 	{
 		location = default;
 		if (itemLocations.ContainsKey(itemID) == false) return false;
@@ -109,7 +113,7 @@ public class ItemInventory : MonoBehaviour
 		//}
 
 		// 임시로 그냥 첫번째 위치 반환
-		location = locations[0].Container.PickingPosition;
+		location = locations[0];
 
 		return true;
 	}
@@ -142,8 +146,8 @@ public class ItemInventory : MonoBehaviour
 		}
 
 		AdjustItemQuantity(123333, Containers[0], 100);
-
-		Debug.Log("123333 * 100 Stock Items");
+		AdjustItemQuantity(123123, Containers[1], 100);
+		AdjustItemQuantity(14412, Containers[2], 100);
 	}
 
 }

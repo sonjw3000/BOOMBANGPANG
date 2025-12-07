@@ -14,13 +14,11 @@ public class ShelfBase : MonoBehaviour, IItemContainer
 	public int3 PickingPosition => pickingPosition;
 	public IReadOnlyDictionary<uint, ItemStack> Items => items;
 
+	public bool HasSpace() => stackCapacity > stackCount;
+
 	public void RegisterItem(uint itemId)
 	{
-		items[itemId] = new ItemStack
-		{
-			ItemID = itemId,
-			Quantity = 0
-		};
+		items[itemId] = new ItemStack(itemId);
 	}
 
 	public void RemoveItem(uint itemId)

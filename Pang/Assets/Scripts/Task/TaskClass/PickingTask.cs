@@ -1,36 +1,59 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
+using UnityEngine;
 
 public sealed class PickingTask : WorkerTask
 {
-	public struct PickingLine
-	{
-		public int3 GoalPosition;
-		public uint ItemID;
-		public int Quantity;
-	}
-
 	public class PickJob
 	{
-		public int JobID;
-		public int CurrentLine = 0;
-		public List<PickingLine> Lines;
+		public class PickLine
+		{
+			private ItemLocation location;
+			private int quantity;
+
+			public ItemLocation Location => location;
+			public int Quantity => quantity;
+			public int3 GoalPosition => Location.Container.PickingPosition;
+			public PickLine(ItemLocation location, int quantity)
+			{
+				this.location = location;
+				this.quantity = quantity;
+			}
+		}
+
+		private int jobID;
+		private int currentLine = 0;
+		public List<PickLine> lines = new();
+
+		public int JobID => jobID;
+		public int CurrentLineIndex => currentLine;
+		public List<PickLine> Lines => lines;
+
+		public PickJob(int jobId)
+		{
+			this.jobID = jobId;
+		}
+
+		public void AddLine(ItemLocation line, int quantity)
+		{
+			lines.Add(new PickLine(line, quantity));
+		}
 
 		public bool IsPickingEnd()
 		{
-			return CurrentLine >= Lines.Count;
+			return currentLine >= Lines.Count;
 		}
 
-		public PickingLine GetNextLine()
+		public void MoveToLextLine()
 		{
-			return Lines[CurrentLine++];
+			++currentLine;
 		}
 	}
 
 	private IBaseNode baseNode;
 	
 	public PickJob PickingData { get; private set; }
-
+	public PickJob.PickLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
 	public PickingTask(PickJob pickJob) : base(TaskType.Picking) => PickingData = pickJob;
 
 	protected override void BuildTaskNode()
@@ -61,9 +84,13 @@ public sealed class PickingTask : WorkerTask
 		// move to destination
 		ActionNode moveTo = new ActionNode(AIWorker.MoveTo);
 
+		// actual work
+		ActionNode pickItems = new ActionNode(PickItems);
+
 		work.Add(setTarget);
 		work.Add(setDestination);
 		work.Add(moveTo);
+		work.Add(pickItems);
 
 		// for root
 		root.Add(checkingFulfilled);
@@ -75,7 +102,7 @@ public sealed class PickingTask : WorkerTask
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
-		return $"Picking Task: {PickingData.CurrentLine} / {PickingData.Lines.Count}, Goal: {PickingData.Lines[PickingData.CurrentLine].GoalPosition}";
+		return $"Picking Task: {PickingData.CurrentLineIndex} / {PickingData.Lines.Count}, Goal: {CurrentLine.GoalPosition}";
 	}
 #endif
 
@@ -94,15 +121,27 @@ public sealed class PickingTask : WorkerTask
 		if (task.PickingData.IsPickingEnd())
 		{
 			// should not hit here
-
-			//task.CurrentStatus = ;
-			//task.EndTask();
-			//return IBaseNode.NodeState.Failure;
+			Debug.Log("공이 웃으면?\n풋볼");
+			Debug.Log("자가용의 반댓말은?\n커용");
+			Debug.Log("푸가 넘어지면?\n쿵푸");
+			Debug.Log("문신하면 무시할 수 없는 이유는?");
+			Debug.Log("무시");
+			Debug.Log("ㄴㄴ");
 		}
 
 		// set goalPosition
-		var line = task.PickingData.GetNextLine();
+		var line = task.CurrentLine;
 		ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
+
+		return IBaseNode.NodeState.Success;
+	}
+
+	public static IBaseNode.NodeState PickItems(in BTContext ctx)
+	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+		task.CurrentLine.Location.RemoveItem(task.CurrentLine.Quantity);
+
+		task.PickingData.MoveToLextLine();
 
 		return IBaseNode.NodeState.Success;
 	}

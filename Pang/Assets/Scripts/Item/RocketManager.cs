@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
+using System.Net.Sockets;
 using Unity.Mathematics;
 using UnityEngine;
+using static UnityEditor.Progress;
 
 public class RocketManager : MonoBehaviour
 {
@@ -23,6 +25,7 @@ public class RocketManager : MonoBehaviour
 	public IReadOnlyList<ShelfBase> Rockets => activeRockets;
 
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
+	private InboundWorkflowManager IBWorkflowMgr => GameContext.Instance.IBWorkflowMgr;
 
 	private GameObject rocketPoolParent = null;
 
@@ -59,6 +62,12 @@ public class RocketManager : MonoBehaviour
 
 		rocketPool.TryDequeue(out Rocket rocket);
 
+		if (rocket == null)
+		{
+			Debug.LogError("RocketManager: Failed to dequeue rocket from pool.");
+			return;
+		}
+
 		// set random landing point near gamecontext's rocket landing zone
 		// todo
 		// 모든 타일이 균등하게 선택될 수 있도록 수정해야 한다
@@ -83,13 +92,7 @@ public class RocketManager : MonoBehaviour
 		rocket.InitializePosition(landingPoint, fowardVector, randSpeed);
 
 		// set rocket's payload
-		// testing with random item
-		// 
-		// Todo
-		// 나중에는 유저의 주문에 따라서 (재고 물건 부족에 따라서)
-		// 아이템을 세팅해주어야 한다
-		// itemstack을 만들어서 넘겨주자!(payload라 명명)
-		rocket.SetupPayload(ItemDB.GetRandomItemID(), 10);
+		rocket.SetupPayload(BuildRandomPayload());
 
 		// render on & rocket move on
 		rocket.enabled = true;
@@ -113,6 +116,25 @@ public class RocketManager : MonoBehaviour
 		rocketPool.Enqueue(rocketComp);
 	}
 
+	private Dictionary<uint, ItemStack> BuildRandomPayload()
+	{
+		// todo
+		// testing with random item
+		// 
+		// Todo
+		// 나중에는 유저의 주문에 따라서 (재고 물건 부족에 따라서)
+		// 아이템을 세팅해주어야 한다
+		// itemstack을 만들어서 넘겨주자!(payload라 명명)
+
+		Dictionary<uint, ItemStack> payload = new();
+		
+		uint randomItemID = ItemDB.GetRandomItemID();
+		payload[randomItemID] = new ItemStack(randomItemID);// { ItemID = randomItemID, Quantity = 10 };
+		payload[randomItemID].AddItem(10);
+
+		return payload;
+	}
+
 	public void OnRocketLanding(Rocket rocket)
 	{
 		// 해당 rocket을 activeRockets에 추가
@@ -126,8 +148,8 @@ public class RocketManager : MonoBehaviour
 		// 로켓이 떨어진 위치에 있는 객체 파괴 << Resource에서 노티만 해주기
 
 		// todo
-		// Unload 태스크를 만들어주어야하는데 어케해줘야할까
-
+		// IB Manager에게 로켓의 payload를 넘겨주고 이를 처리하도록 하자
+		IBWorkflowMgr.BuildTaskByPayload(rocket);
 	}
 
 }

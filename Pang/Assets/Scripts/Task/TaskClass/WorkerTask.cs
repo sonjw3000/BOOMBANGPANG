@@ -34,7 +34,8 @@ public abstract class WorkerTask
 	public float TaskBuiltTime { get; private set; }
 	public bool IsEmergency { get; private set; }
 
-	static public TaskManager Manager { get; private set; } = null;
+	private TaskManager Manager => GameContext.Instance.TaskMgr;
+	//static public TaskManager Manager { get; private set; } = null;
 
 	protected WorkerTask(TaskType type)
 	{
@@ -65,5 +66,5 @@ public abstract class WorkerTask
 #endif
 	public abstract IBaseNode.NodeState UpdateTaskNode(in BTContext ctx);
 
-	public static void SetTaskManager(TaskManager taskManager) { Manager = taskManager; }
+	//public static void SetTaskManager(TaskManager taskManager) { Manager = taskManager; }
 }

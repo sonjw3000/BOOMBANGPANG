@@ -28,20 +28,26 @@ public class GameContext : MonoBehaviour
 
 	// domain managers
 	[SerializeField] private WorkerManager workerManager;
+	[SerializeField] private TaskManager taskManager;
 	[SerializeField] private ItemInventory itemInventory;
 	[SerializeField] private RocketManager rocketManager;
+	[SerializeField] private OrderManager orderManager;
 
 	// workflow managers
-	[SerializeField] private WorkFlowManager WorkFlowManager;
+	[SerializeField] private InboundWorkflowManager inboundWorkFlowManager;
+	[SerializeField] private OutboundWorkflowManager outboundWorkFlowManager;
 
 	public Resources MapResources => mapResources;
 	public ItemDatabase ItemDB => itemDB;
 
 	public WorkerManager WorkerMgr => workerManager;
+	public TaskManager TaskMgr => taskManager;
 	public ItemInventory ItemInventoryData => itemInventory;
 	public RocketManager RocketMgr => rocketManager;
+	public OrderManager OrderMgr => orderManager;
 
-	public WorkFlowManager WorkflowMgr => WorkFlowManager;
+	public InboundWorkflowManager IBWorkflowMgr => inboundWorkFlowManager;
+	public OutboundWorkflowManager OBWorkflowMgr => outboundWorkFlowManager;
 
 	private void Awake()
 	{

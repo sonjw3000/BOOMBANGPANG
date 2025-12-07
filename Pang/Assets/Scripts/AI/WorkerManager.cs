@@ -12,6 +12,11 @@ public class WorkerManager : MonoBehaviour
 	[SerializeField] private List<AIWorker> workers;
 
 	// todo
+	// 작업자들의 선호 작업 종류로 분류해서 관리
+	// ex) 이전 작업이 피킹 -> 피킹에 배치될 확률 높임
+	// ex) 이전 작업 Unlodaing -> Unloading에 배치될 확률 높임
+
+	// todo
 	// 전역 블랙보드의 관리는 다른곳에 넘겨야함
 	private BlackBoard globalBlackboard;
 
@@ -35,7 +40,15 @@ public class WorkerManager : MonoBehaviour
 		// is available worker there?
 		// todo
 		// 태스크의 조건과 알맞은 작업자를 돌려줌
-		return workers[0];
+		foreach (var worker in workers)
+		{
+			if (worker.CurrentTask == null)
+			{
+				return worker;
+			}
+		}
+
+		return null;
 	}
 
 	private void Update()

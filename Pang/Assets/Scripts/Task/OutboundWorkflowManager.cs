@@ -4,13 +4,21 @@ using UnityEngine;
 
 using static WorkerTask;
 
-public class WorkFlowManager : MonoBehaviour 
+// outbound 작업 흐름 관리
+// 주문을 까서 picking -> packaging -> loading 작업을 관리
+
+public class OutboundWorkflowManager : MonoBehaviour 
 {
-	private TaskManager taskManager = new();
-	private OrderManager orderManager = new();
+	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
+	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
+	//private TaskManager taskManager = new();
+	//private OrderManager orderManager = new();
 	//private InventoryService;
 	//private StationService
 	private int nextJobID = 0;
+
+	// 주문을 묶는 역할
+	private PickingTaskAllocator pickingTaskAllocator = new TestingPickingTaskAllocator();
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
@@ -42,19 +50,19 @@ public class WorkFlowManager : MonoBehaviour
 	{
 		// todo
 		// OrderLineQueue가 빌 때 까지 반복해야한다
-		var task = orderManager.BuildPickingTasks();
+		var task = pickingTaskAllocator.BuildPickingTask();
 		if (task == null)
 		{
 			Debug.Log("No Picking Task Created");
 			return;
 		}
 
-		taskManager.TaskQueue[TaskType.Picking].Enqueue(task, 1);
+		TaskMgr.TaskQueue[TaskType.Picking].Enqueue(task, 1);
 	}
 
 	public void MakeOrder()
 	{
-		orderManager.CreateRandomOrder();
+		OrderMgr.CreateRandomOrder();
 	}
 
 	public void MakeTestPickingWork()
@@ -64,14 +72,13 @@ public class WorkFlowManager : MonoBehaviour
 
 	void Start()
 	{
-		WorkerTask.SetTaskManager(taskManager);
 	}
 
 	void Update()
 	{
 		// worker manager에서 작업이 끝난 워커를 찾아야할듯?
 
-		taskManager.Dispatch();
+		TaskMgr.Dispatch();
 	}
 
 }

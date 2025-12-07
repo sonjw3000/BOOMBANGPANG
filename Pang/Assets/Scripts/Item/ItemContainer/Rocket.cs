@@ -1,4 +1,6 @@
-﻿using Unity.Mathematics;
+﻿using NUnit.Framework;
+using Unity.Mathematics;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Rocket : ShelfBase
@@ -28,12 +30,14 @@ public class Rocket : ShelfBase
 		this.fallingSpeed = fallingSpeed;
 	}
 
-	// todo
-	// List<ItemStack>의 형태로 바꾸기 (Payload라고 명명)
-	public void SetupPayload(uint itemID, int quantity)
+	public void SetupPayload(Dictionary<uint, ItemStack> payload)
 	{
-		RegisterItem(itemID);
-		items[itemID].Quantity = quantity;
+		items = payload;
+	}
+
+	public Dictionary<uint, ItemStack> GetPayload()
+	{
+		return items;
 	}
 
 }

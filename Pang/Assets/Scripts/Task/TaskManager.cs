@@ -5,7 +5,7 @@ using BlackBoardSystem;
 using static WorkerTask;
 
 //[DefaultExecutionOrder(-100)]
-public class TaskManager// : MonoBehaviour
+public class TaskManager : MonoBehaviour
 {
 	public Dictionary<TaskType, CustomQueue<WorkerTask, int>> TaskQueue { get; private set; } = new();
 

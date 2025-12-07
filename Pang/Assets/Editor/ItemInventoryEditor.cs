@@ -23,7 +23,7 @@ class ItemInventoryEditor : Editor
 
 			foreach (var item in shelf.Items)
 			{
-				EditorGUILayout.LabelField($"Item ID: {item.Key}, Quantity: {item.Value.Quantity}");
+				EditorGUILayout.LabelField($"Item ID: {item.Key}, Quantity: {item.Value.Quantity}, Reserved: {item.Value.Quantity - item.Value.TobeQuantity}");
 			}
 			EditorGUI.indentLevel--;
 			EditorGUI.indentLevel--;

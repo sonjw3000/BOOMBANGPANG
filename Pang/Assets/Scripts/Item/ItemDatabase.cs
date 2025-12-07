@@ -21,6 +21,20 @@ public class ItemDatabase
 		return data != null;
 	}
 
+	public float GetItemWeight(uint itemID)
+	{
+		ItemData data;
+		if (GetItemData(itemID, out data))
+		{
+			return data.Size;
+		}
+		else
+		{
+			Debug.LogError($"ItemID {itemID} does not exist in ItemDB.");
+			return 0;
+		}
+	}
+
 	public uint GetRandomItemID()
 	{
 		return items[Random.Range(0, items.Count -1)].ItemID;

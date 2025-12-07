@@ -1,14 +1,14 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(WorkFlowManager))]
+[CustomEditor(typeof(OutboundWorkflowManager))]
 class WorkFlowManagerEditor : Editor
 {
 	public override void OnInspectorGUI()
 	{
 		DrawDefaultInspector();
 
-		WorkFlowManager manager = (WorkFlowManager)target;
+		OutboundWorkflowManager manager = (OutboundWorkflowManager)target;
 
 		if (GUILayout.Button("테스트용 피킹 작업 생성"))
 		{
