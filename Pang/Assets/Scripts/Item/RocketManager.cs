@@ -129,7 +129,7 @@ public class RocketManager : MonoBehaviour
 		Dictionary<uint, ItemStack> payload = new();
 		
 		uint randomItemID = ItemDB.GetRandomItemID();
-		payload[randomItemID] = new ItemStack(randomItemID);// { ItemID = randomItemID, Quantity = 10 };
+		payload[randomItemID] = new ItemStack(randomItemID, 0);// { ItemID = randomItemID, Quantity = 10 };
 		payload[randomItemID].AddItem(10);
 
 		return payload;

@@ -21,7 +21,7 @@ class ItemInventoryEditor : Editor
 			EditorGUILayout.LabelField("Items:");
 			EditorGUI.indentLevel++;
 
-			foreach (var item in shelf.Items)
+			foreach (var item in shelf.Stacks)
 			{
 				EditorGUILayout.LabelField($"Item ID: {item.Key}, Quantity: {item.Value.Quantity}, Reserved: {item.Value.Quantity - item.Value.TobeQuantity}");
 			}

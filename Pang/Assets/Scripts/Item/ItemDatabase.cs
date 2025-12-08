@@ -21,7 +21,7 @@ public class ItemDatabase
 		return data != null;
 	}
 
-	public float GetItemWeight(uint itemID)
+	public float GetItemSize(uint itemID)
 	{
 		ItemData data;
 		if (GetItemData(itemID, out data))
@@ -37,7 +37,7 @@ public class ItemDatabase
 
 	public uint GetRandomItemID()
 	{
-		return items[Random.Range(0, items.Count -1)].ItemID;
+		return items[Random.Range(0, items.Count)].ItemID;
 	}
 
 	public void InsertOrderedItems(uint itemID)

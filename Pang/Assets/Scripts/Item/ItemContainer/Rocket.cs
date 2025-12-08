@@ -32,12 +32,12 @@ public class Rocket : ShelfBase
 
 	public void SetupPayload(Dictionary<uint, ItemStack> payload)
 	{
-		items = payload;
+		stacks = payload;
 	}
 
 	public Dictionary<uint, ItemStack> GetPayload()
 	{
-		return items;
+		return stacks;
 	}
 
 }

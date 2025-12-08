@@ -65,8 +65,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9dd2b931aacc46b4ea468b22f3dc85c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  stackCount: 0
-  stackCapacity: 0
+  maxStacks: 3
+  sizePerStack: 1050.2
 --- !u!1001 &569402026656613700
 PrefabInstance:
   m_ObjectHideFlags: 0

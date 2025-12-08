@@ -63,4 +63,5 @@ public class GameContext : MonoBehaviour
 		instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
 	}
+
 }

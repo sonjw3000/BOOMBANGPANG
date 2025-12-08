@@ -91,6 +91,9 @@ public sealed class PickingTask : WorkerTask
 		work.Add(setDestination);
 		work.Add(moveTo);
 		work.Add(pickItems);
+		// todo 애니메이션을 재생해야한다 곧 지우자
+		// picking중인지 확실히 보기 위해 대기한다
+		work.Add(new WaitNode(1.0f));
 
 		// for root
 		root.Add(checkingFulfilled);

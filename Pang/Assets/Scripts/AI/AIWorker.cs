@@ -74,18 +74,19 @@ public abstract class AIWorker : MonoBehaviour
 
 	public void SetTask(WorkerTask task)
 	{
+		// 두가지 경우
+		// 1. null -> st
+		//		beftask는 유지
+		// 2. st -> null
+		//		beforetask를 st로 set
+		
 		if (task != null)
-		{
 			task.SetAIWorker(this);
-			beforeWorkerTask = WorkerTask.TaskType.Undefined;
-		}
 		else
-		{
 			beforeWorkerTask = currentTask.Type;
 	
-			// release action
-			//CurrentTask.On
-		}
+		// release action
+		//CurrentTask.On
 		currentTask = task;
 	}
 

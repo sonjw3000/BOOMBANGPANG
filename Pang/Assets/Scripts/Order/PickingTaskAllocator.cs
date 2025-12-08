@@ -57,9 +57,13 @@ public class TestingPickingTaskAllocator : PickingTaskAllocator
 
 				// 현재는 단순히 피킹라인으로 변환한다
 				//pickLine.Quantity += orderLine.Quantity;
-				curWeight += orderLine.Quantity * itemDB.GetItemWeight(itemId);
+				curWeight += orderLine.Quantity * itemDB.GetItemSize(itemId);
 				quantity += orderLine.Quantity;
-				location.ReservePicking(orderLine.Quantity);
+				int actualReserved = location.ReservePicking(orderLine.Quantity);
+
+				// todo
+				// actualReserved가 orderLine.Quantity를 넘지 못했다면 다른위치에서 피킹 해야한다고 알림
+
 			}
 
 			pickJob.AddLine(location, quantity);

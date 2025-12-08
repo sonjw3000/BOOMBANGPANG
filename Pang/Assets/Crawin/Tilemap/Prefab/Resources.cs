@@ -51,7 +51,7 @@ public class ShelfStatus : ObjectStatus
 		{
 			Debug.Log("좌클릭 오브젝트가 변경되어 최초로 칸 배정");
 			int slotcnt = Content.childCount;
-			var items = gameobject.GetComponent<Shelf>().Items;
+			var items = gameobject.GetComponent<Shelf>().Stacks;
 			int itemcnt = items.Count;
 			itemcnt = 10;
 			if (itemcnt > slotcnt)

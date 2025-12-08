@@ -1,33 +1,50 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using static UnityEditor.Progress;
 
 public class ShelfBase : MonoBehaviour, IItemContainer
 {
-	[SerializeField] protected int stackCount;
-	[SerializeField] protected float stackCapacity;
+	[SerializeField] protected int maxStacks;
+	[SerializeField] protected float sizePerStack;
+	protected int currentStackCount;
 	protected int3 pickingPosition;
-	protected Dictionary<uint, ItemStack> items = new();
+	protected Dictionary<uint, ItemStack> stacks = new();
 
-	public int StackCount => stackCount;
-	public float StackCapacity => stackCapacity;
+	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
+
+	public int CurrentStackCount => currentStackCount;
+	public float MaxStack => maxStacks;
 	public int3 PickingPosition => pickingPosition;
-	public IReadOnlyDictionary<uint, ItemStack> Items => items;
+	public IReadOnlyDictionary<uint, ItemStack> Stacks => stacks;
 
-	public bool HasSpace() => stackCapacity > stackCount;
+	public bool CanRegister() => maxStacks > currentStackCount;
 
 	public void RegisterItem(uint itemId)
 	{
-		items[itemId] = new ItemStack(itemId);
+		++currentStackCount;
+		stacks[itemId] = new ItemStack(itemId, sizePerStack);
 	}
 
-	public void RemoveItem(uint itemId)
+	public void UnregistereItem(uint itemId)
 	{
-		if (items.ContainsKey(itemId))
+		if (stacks.ContainsKey(itemId))
 		{
-			items.Remove(itemId);
+			--currentStackCount;
+			stacks.Remove(itemId);
 		}
 	}
+
+	public int AddItem(uint  itemId, int quantity)
+	{
+		return stacks[itemId].AddItem(quantity);
+	}
+
+	public int RemoveItem(uint itemId, int quantity)
+	{
+		return stacks[itemId].RemoveItem(quantity);
+	}
+
 }
 
 public class Shelf : ShelfBase

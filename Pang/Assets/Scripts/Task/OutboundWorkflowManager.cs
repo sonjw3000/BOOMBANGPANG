@@ -74,11 +74,11 @@ public class OutboundWorkflowManager : MonoBehaviour
 	{
 	}
 
+	/*
 	void Update()
 	{
 		// worker manager에서 작업이 끝난 워커를 찾아야할듯?
 
-		TaskMgr.Dispatch();
 	}
-
+	*/
 }

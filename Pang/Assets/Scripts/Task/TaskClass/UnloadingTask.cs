@@ -5,11 +5,11 @@ using Unity.Mathematics;
 
 public class UnloadingTask : WorkerTask
 {
-	private int3 unloadingZone;
+	private int3 targetZone;
 
-	public UnloadingTask(int3 unloadingZone) : base(TaskType.Unloading)
+	public UnloadingTask(int3 targetZone) : base(TaskType.Unloading)
 	{
-		this.unloadingZone = unloadingZone;
+		this.targetZone = targetZone;
 	}
 
 	protected override void BuildTaskNode()
@@ -20,7 +20,7 @@ public class UnloadingTask : WorkerTask
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
-		return $"[UnloadingTask] GoalPos: {unloadingZone}";
+		return $"[UnloadingTask] GoalPos: {targetZone}";
 	}
 #endif
 

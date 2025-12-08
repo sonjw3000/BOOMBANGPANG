@@ -27,6 +27,8 @@ public class ItemInventory : MonoBehaviour
 	public IReadOnlyList<ShelfBase> Containers => containers;
 	public IReadOnlyDictionary<uint, List<ItemLocation>> ItemLocations => itemLocations;
 
+	private ItemDatabase itemDB => GameContext.Instance.ItemDB;
+
 	// ---------------------------
 	// 컨테이너 관련
 	// ---------------------------
@@ -41,7 +43,7 @@ public class ItemInventory : MonoBehaviour
 		containers.Remove(container);
 	}
 
-	public void AddItemLocation(uint itemID, ShelfBase container, int stackIndex)
+	public void AddItemLocation(uint itemID, ShelfBase container)
 	{
 		// add itemID to container's item stack
 		container.RegisterItem(itemID);
@@ -51,42 +53,13 @@ public class ItemInventory : MonoBehaviour
 			itemLocations[itemID] = new List<ItemLocation>();
 		}
 
-		itemLocations[itemID].Add(new ItemLocation(container, itemID, stackIndex));
+		itemLocations[itemID].Add(new ItemLocation(container, itemID));
 
 	}
 
 	// ---------------------------
 	// 아이템 관련
 	// ---------------------------
-	// 컨테이너 내부 아이템 수량을 조절한다
-	public void AdjustItemQuantity(uint itemID, ShelfBase container, int quantityDelta)
-	{
-#if UNITY_EDITOR
-		// check itemID existence
-		ItemData data;
-		var res = GameContext.Instance.ItemDB.GetItemData(itemID, out data);
-
-		if (res == false)
-		{
-			Debug.LogError($"ItemID {itemID} does not exist in ItemDB.");
-			return;
-		}
-#endif
-
-		// adjust quantity
-		if (container.Items.ContainsKey(itemID))
-		{
-			container.Items[itemID].AddItem(quantityDelta);
-			//container.Items[itemID].Quantity += quantityDelta;
-		}
-		else
-		{
-			// 아이템ID가 존재하지 않음
-			Debug.Log($"ItemID {itemID} not found in inventory.");
-			Debug.Log("Register First! (AddItemLocation)");
-		}
-	}
-
 	public bool GetItemLocations(uint itemID, out List<ItemLocation> locations)
 	{
 		return itemLocations.TryGetValue(itemID, out locations);
@@ -120,19 +93,19 @@ public class ItemInventory : MonoBehaviour
 
 	public void TestStoreItem()
 	{
-		if (Containers.Count <= 0)
+		if (Containers.Count < 3)
 		{
-			Debug.Log("No Item Container Found");
+			Debug.Log($"ItemContainer is not enough!!, need more than 3! current: {Containers.Count}");
 			return;
 		}
 
-		AddItemLocation(123333, Containers[0], 0);
-		AddItemLocation(123123, Containers[1], 0);
-		AddItemLocation(14412, Containers[2], 0);
+		AddItemLocation(123333, Containers[0]);
+		AddItemLocation(123123, Containers[1]);
+		AddItemLocation(14412, Containers[2]);
 
-		GameContext.Instance.ItemDB.InsertOrderedItems(123333);
-		GameContext.Instance.ItemDB.InsertOrderedItems(123123);
-		GameContext.Instance.ItemDB.InsertOrderedItems(14412);
+		itemDB.InsertOrderedItems(123333);
+		itemDB.InsertOrderedItems(123123);
+		itemDB.InsertOrderedItems(14412);
 
 		Debug.Log("Test Store Item");
 	}
@@ -145,9 +118,9 @@ public class ItemInventory : MonoBehaviour
 			return;
 		}
 
-		AdjustItemQuantity(123333, Containers[0], 100);
-		AdjustItemQuantity(123123, Containers[1], 100);
-		AdjustItemQuantity(14412, Containers[2], 100);
+		Containers[0].AddItem(123333, 100);
+		Containers[1].AddItem(123123, 100);
+		Containers[2].AddItem(14412, 100);
 	}
 
 }

@@ -22,7 +22,7 @@ public class TaskManager : MonoBehaviour
 	}
 
 	// dispatch task to workers
-	public void Dispatch()
+	private void Dispatch()
 	{
 		// find tasks to do
 		foreach (var (key, queue) in TaskQueue)
@@ -42,5 +42,8 @@ public class TaskManager : MonoBehaviour
 		}
 	}
 
-
+	public void Update()
+	{
+		Dispatch();
+	}
 }
