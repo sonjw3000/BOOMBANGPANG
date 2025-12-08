@@ -7,8 +7,9 @@ using UnityEngine;
 // 선반, 상자, 기타등등이 이를 사용
 public interface IItemContainer
 {
-	public int3 PickingPosition { get; }
 	public IReadOnlyDictionary<uint, ItemStack> Stacks { get; }
+
+	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
 
 	public bool CanRegister();
 

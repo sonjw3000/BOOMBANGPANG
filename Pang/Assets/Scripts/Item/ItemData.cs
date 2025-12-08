@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using static UnityEditor.Progress;
 using ToteElement = System.ValueTuple<ItemData, int>;
 
 // 지금은 이걸 그대로 사용하지만
@@ -27,58 +29,64 @@ public class ItemData
 //	public Pallet(List<ItemData> data) { Items = data; }
 //}
 
-//public class TruckManifest
-//{
-//	public List<Pallet> Pallets { get; private set; } = new List<Pallet>();
-
-//	public TruckManifest(List<Pallet> data) { Pallets = data; }
-//}
-
-public class ToteBox
+public class ToteBox : IItemContainer
 {
 	private float capacity = 10.0f;
 	private float size = 0.0f;
-	private Stack<ToteElement> items = new Stack<ToteElement>();
+	private Dictionary<uint, ItemStack> stacks = new();
 
+	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
+
+	// totebox의 stacks는 많지 않을것으로 예상
+	public float Size => size;
+
+	public IReadOnlyDictionary<uint, ItemStack> Stacks => stacks;
 	public float Capacity => capacity;
-	public float Size  => size;
-	public Stack<ToteElement> Items  => items;
+	
+	
 	public ToteBox(float boxCapacity = 10.0f) => capacity = boxCapacity;
 
-	public bool CanAddItem(ItemData item, int quantity)
+	public bool CanRegister() => true;
+
+	// 장소를 단순 등록
+	public void RegisterItem(uint itemId)
 	{
-		return (Size + item.Size * quantity) <= Capacity;
+		stacks[itemId] = new ItemStack(itemId, capacity);
 	}
 
-	public bool AddItem(ItemData item, int quantity)
+	public void UnregistereItem(uint itemId)
 	{
-		if (!CanAddItem(item, quantity))
-			return false;
-		items.Push((item, quantity));
-		size += item.Size * quantity;
-		return true;
+		stacks.Remove(itemId);
 	}
 
-	public bool RemoveItem(out ToteElement element)
+	public int AddItem(uint itemId, int quantity)
 	{
-		if (items.Count == 0)
-		{
-			element = default;
-			return false;
-		}
-		element = items.Pop();
-		size -= element.Item1.Size * element.Item2;
-		return true;
+		float availableSize = capacity - size;
+		float itemSize = itemDB.GetItemSize(itemId);
+
+		// quantity를 줄여야한다
+		if (availableSize < itemSize * quantity)
+			quantity = Mathf.FloorToInt(availableSize / itemSize);
+
+		int res = stacks[itemId].AddItem(quantity);
+
+		UpdateSize();
+
+		return res;
 	}
 
-	public bool PeekItem(out ToteElement element)
+	public int RemoveItem(uint itemId, int quantity)
 	{
-		if (items.Count == 0)
-		{
-			element = default;
-			return false;
-		}
-		element = items.Peek();
-		return true;
+		int res = stacks[itemId].RemoveItem(quantity);
+
+		UpdateSize();
+
+		return res;
 	}
+
+	private void UpdateSize()
+	{
+		size = stacks.Values.Sum(s => itemDB.GetItemSize(s.ItemID) * s.Quantity);
+	}
+
 }

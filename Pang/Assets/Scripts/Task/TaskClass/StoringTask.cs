@@ -24,7 +24,7 @@ public class StoringTask : WorkerTask
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
-		return $"[StoringTask] BoxStatus: {currentBox.Items.Count}";
+		return $"[StoringTask] BoxStatus: {currentBox.Stacks.Count}";
 	}
 #endif
 

@@ -51,14 +51,21 @@ public sealed class PickingTask : WorkerTask
 	}
 
 	private IBaseNode baseNode;
-	
+
+	private ToteBox currentToteBox = null;
 	public PickJob PickingData { get; private set; }
 	public PickJob.PickLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
-	public PickingTask(PickJob pickJob) : base(TaskType.Picking) => PickingData = pickJob;
+	public PickingTask(PickJob pickJob) : base(TaskType.Picking)
+	{
+		PickingData = pickJob;
+	}
+
 
 	protected override void BuildTaskNode()
 	{
 		// todo
+
+
 		// local bt에 토트의 사이즈를 확인하는 단계도 넣어야함
 		// 토트 용량이 넘치면 시마이치고 토트를 보내야함
 		// 해당 과정을 거친 후 본인의 작업을 하게 만들어야함
