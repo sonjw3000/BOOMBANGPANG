@@ -4,9 +4,22 @@ using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
-[System.Serializable]
-public abstract class AIWorker : MonoBehaviour
+[System.Flags]
+public enum WorkerAbility
 {
+	None = 0,
+	CarryBox = 1 << 0,
+	PickOrStore = 1 << 1,
+	Package = 1 << 2,
+	Labeling = 1 << 3,
+	// ...
+}
+
+[System.Serializable]
+public sealed class AIWorker : MonoBehaviour
+{
+	[SerializeField] WorkerArchetype workerArchetype;
+
 	private WorkerTask.TaskType beforeWorkerTask = WorkerTask.TaskType.Undefined;
 	private FindRoute routeFinder;
 	
@@ -15,25 +28,34 @@ public abstract class AIWorker : MonoBehaviour
 	[SerializeField] private int workerID;
 	[SerializeField] private WorkerTask currentTask = null;
 
-	protected BehaviorTree behaviorTree;
-	protected BlackBoard localBlackBoard = new();
-
-	protected abstract void BuildBlackBoard();
-	protected abstract void BuildBehaviorTree();
+	private BehaviorTree behaviorTree;
+	private BlackBoard localBlackBoard = new();
 
 	// should build BT here
-	protected abstract void EnableAction();
-	protected abstract void DisableAction();
+	private void BuildBehaviorTree()
+	{
+		SelectorNode root = new SelectorNode();
+
+		ActionNode performTask = new ActionNode(DoWork);
+		WaitNode wait = new WaitNode(1.0f);
+
+		root.Add(performTask);
+		root.Add(wait);
+
+		behaviorTree = new BehaviorTree(root);
+	}
 
 	public WorkerTask.TaskType BeforeWorkerTask => beforeWorkerTask;
 	public string Name => workerName;
 	public int WorkerID => workerID;
 	public WorkerTask CurrentTask => currentTask;
 
-	protected WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
+	private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 
 	public void Start()
 	{
+		workerArchetype.SetupWorker(this);
+
 		// register AI's BT to AI Manager
 		WorkerMgr.RegisterWorker(this);
 
@@ -46,18 +68,15 @@ public abstract class AIWorker : MonoBehaviour
 			return;
 		}
 
+
 		routeFinder.SetAIMaster(this);
-		BuildBlackBoard();
 		BuildBehaviorTree();
-		EnableAction();
 	}
 
 	public void OnDestroy()
 	{
 		// unregister AI
 		WorkerMgr.UnregisterWorker(this);
-
-		DisableAction();
 	}
 
 	public bool RunBT(BlackBoard GlobalBlackboard)
