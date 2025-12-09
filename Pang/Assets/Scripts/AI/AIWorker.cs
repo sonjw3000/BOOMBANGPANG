@@ -1,6 +1,8 @@
 ﻿using BlackBoardSystem;
 using Unity.Mathematics;
 using UnityEngine;
+using static IBaseNode;
+using static IBaseNode.NodeState;
 
 [System.Serializable]
 public abstract class AIWorker : MonoBehaviour
@@ -91,44 +93,54 @@ public abstract class AIWorker : MonoBehaviour
 	}
 
 	// AI's basic actions
-	public static IBaseNode.NodeState SetDestination(in BTContext context)
+	public static NodeState SetDestination(in BTContext context)
 	{
 		// for real
 		context.LocalBlackBoard.TryGet<int3>("goalPos", out int3 goalPos);
 		context.Worker.routeFinder.enabled = true;
 		context.Worker.routeFinder.SetGoalPosition(goalPos);
 
-		return IBaseNode.NodeState.Success;
+		return Success;
 	}
 
-	public static IBaseNode.NodeState MoveTo(in BTContext context)
+	public static NodeState MoveTo(in BTContext context)
 	{
 		if (context.Worker.routeFinder.IsGoal)
 		{
 			//Debug.Log("Goal Hit!");
 			context.Worker.routeFinder.enabled = false;
-			return IBaseNode.NodeState.Success;
+			return Success;
 		}
 		context.Worker.enabled = false;
 
-		return IBaseNode.NodeState.Running;
+		return Running;
 	}
 
-	public static IBaseNode.NodeState DoWork(in BTContext context)
+	public static NodeState DoWork(in BTContext context)
 	{
 		if (context.Worker.CurrentTask == null)
-			return IBaseNode.NodeState.Failure;
+			return Failure;
 
 		return context.Worker.CurrentTask.UpdateTaskNode(context);
 	}
 
-	public static IBaseNode.NodeState TaskCompleted(in BTContext ctx)
+	public static NodeState TaskCompleted(in BTContext ctx)
 	{
 		var task = ctx.Worker.CurrentTask;
 		task.EndTask();
 
 		Debug.Log("TaskCompleted!");
 
-		return IBaseNode.NodeState.Success;
+		return Success;
+	}
+
+	public static NodeState TaskFailed(in BTContext ctx)
+	{
+		var task = ctx.Worker.CurrentTask;
+		task.EndTask();
+
+		Debug.Log("TaskFailed...");
+
+		return Success;
 	}
 }

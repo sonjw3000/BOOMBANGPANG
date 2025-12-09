@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using static IBaseNode;
+using static IBaseNode.NodeState;
 
 public sealed class PickingTask : WorkerTask
 {
@@ -50,7 +52,6 @@ public sealed class PickingTask : WorkerTask
 		}
 	}
 
-	private IBaseNode baseNode;
 
 	private ToteBox currentToteBox = null;
 	public PickJob PickingData { get; private set; }
@@ -116,14 +117,14 @@ public sealed class PickingTask : WorkerTask
 	}
 #endif
 
-	public override IBaseNode.NodeState UpdateTaskNode(in BTContext ctx)
+	public override NodeState UpdateTaskNode(in BTContext ctx)
 	{
 		// 본인의 static bt를 돌려야 한다
 		return baseNode.Evaluate(ctx);
 	}
 
 	//
-	public static IBaseNode.NodeState SetTarget(in BTContext ctx)
+	public static NodeState SetTarget(in BTContext ctx)
 	{
 		// test code
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
@@ -143,27 +144,27 @@ public sealed class PickingTask : WorkerTask
 		var line = task.CurrentLine;
 		ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
 
-		return IBaseNode.NodeState.Success;
+		return Success;
 	}
 
-	public static IBaseNode.NodeState PickItems(in BTContext ctx)
+	public static NodeState PickItems(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 		task.CurrentLine.Location.RemoveItem(task.CurrentLine.Quantity);
 
 		task.PickingData.MoveToLextLine();
 
-		return IBaseNode.NodeState.Success;
+		return Success;
 	}
 
-	public static IBaseNode.NodeState CheckFulfilled(in BTContext ctx)
+	public static NodeState CheckFulfilled(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 
 		if (task.PickingData.IsPickingEnd())
-			return IBaseNode.NodeState.Success;
+			return Success;
 
-		return IBaseNode.NodeState.Failure;
+		return Failure;
 	}
 
 }

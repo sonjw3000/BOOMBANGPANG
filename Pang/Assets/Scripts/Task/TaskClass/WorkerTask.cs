@@ -28,6 +28,9 @@ public abstract class WorkerTask
 		End
 	}
 
+	protected IBaseNode baseNode = null;
+
+
 	public AIWorker OccupyWorker { get; private set; }
 	public TaskType Type { get; private set; }
 	public Status CurrentStatus { get; private set; } = Status.Blocked;

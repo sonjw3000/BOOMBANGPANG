@@ -11,6 +11,19 @@ public class Rocket : ShelfBase
 
 	private RocketManager RocketMgr => GameContext.Instance.RocketMgr;
 
+	public void OnEnable()
+	{
+		Vector3 projOnFloor = fowardVector;
+		projOnFloor.y = 0;
+		projOnFloor = projOnFloor.normalized;
+
+		pickingPosition = new int3(
+			Mathf.RoundToInt(landingPoint.x + projOnFloor.x),
+			Mathf.RoundToInt(landingPoint.y),
+			Mathf.RoundToInt(landingPoint.z + projOnFloor.z)
+		);
+	}
+
 	public void Update()
 	{
 		// land rocket

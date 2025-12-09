@@ -233,7 +233,7 @@ MonoBehaviour:
   fallingTimeRange: {x: 3, y: 7}
   fallingSpeedRange: {x: 3, y: 7}
   timeSinceLastSpawn: 0
-  spawnInterval: 10
+  spawnInterval: 100
   activeRockets: []
 --- !u!1 &5230778015563283086
 GameObject:
@@ -323,6 +323,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a33bf384063c14842ae80eb69fc41a47, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  inboundBufferZone:
+    x: 0
+    y: 0
+    z: 0
 --- !u!1 &8315817353861705290
 GameObject:
   m_ObjectHideFlags: 0

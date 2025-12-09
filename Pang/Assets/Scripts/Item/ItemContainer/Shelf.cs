@@ -34,6 +34,11 @@ public class ShelfBase : MonoBehaviour, IItemContainer
 			stacks.Remove(itemId);
 		}
 	}
+	// 가장 쉬운 숫자는?
+	// 190,000
+
+	// 식인종이 우사인볼트를 보면?
+	// 패스트푸드
 
 	public int AddItem(uint  itemId, int quantity)
 	{

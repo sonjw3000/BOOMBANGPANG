@@ -9,7 +9,6 @@ public interface IItemContainer
 {
 	public IReadOnlyDictionary<uint, ItemStack> Stacks { get; }
 
-	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
 
 	public bool CanRegister();
 
