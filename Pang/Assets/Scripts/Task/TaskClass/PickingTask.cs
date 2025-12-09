@@ -52,8 +52,6 @@ public sealed class PickingTask : WorkerTask
 		}
 	}
 
-
-	private ToteBox currentToteBox = null;
 	public PickJob PickingData { get; private set; }
 	public PickJob.PickLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
 	public PickingTask(PickJob pickJob) : base(TaskType.Picking)

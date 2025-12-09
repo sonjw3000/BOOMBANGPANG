@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
-using static UnityEditor.Progress;
 
 public class ShelfBase : MonoBehaviour, IItemContainer
 {
@@ -40,7 +39,7 @@ public class ShelfBase : MonoBehaviour, IItemContainer
 	// 식인종이 우사인볼트를 보면?
 	// 패스트푸드
 
-	public int AddItem(uint  itemId, int quantity)
+	public int AddItem(uint itemId, int quantity)
 	{
 		return stacks[itemId].AddItem(quantity);
 	}
@@ -50,22 +49,4 @@ public class ShelfBase : MonoBehaviour, IItemContainer
 		return stacks[itemId].RemoveItem(quantity);
 	}
 
-}
-
-public class Shelf : ShelfBase
-{
-	void OnEnable()
-	{
-		Debug.Log("Shelf 등장이요");
-		pickingPosition = new int3(
-			Mathf.RoundToInt(transform.position.x + transform.forward.x),
-			Mathf.RoundToInt(transform.position.y),
-			Mathf.RoundToInt(transform.position.z + transform.forward.z)
-		);
-		GameContext.Instance.ItemInventoryData.OnContainerAdded(this);
-	}
-	void OnDisable()
-	{
-		GameContext.Instance.ItemInventoryData.OnContainerRemoved(this);
-	}
 }
