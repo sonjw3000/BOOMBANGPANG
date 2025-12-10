@@ -39,10 +39,5 @@ class WorkerManagerEditor : Editor
 			}
 		}
 		//DrawDefaultInspector();
-
-		if (GUILayout.Button("Move On"))
-		{
-			//worker.SetMoveOn();
-		}
 	}
 }

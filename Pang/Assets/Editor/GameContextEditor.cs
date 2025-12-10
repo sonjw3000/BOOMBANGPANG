@@ -8,8 +8,8 @@ class GameContextEditor : Editor
 	SerializedProperty itemsDB;
 	SerializedProperty inventory;
 
-	bool itemFoldout = true;
-	bool inventoryFoldout = true;
+	//bool itemFoldout = true;
+	//bool inventoryFoldout = true;
 
 	private void OnEnable()
 	{

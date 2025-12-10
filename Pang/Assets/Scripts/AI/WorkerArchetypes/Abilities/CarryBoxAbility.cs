@@ -19,6 +19,8 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>
 
 	[SerializeField] private Transform boxSlot;
 
+	public BoxBase CarringBox => carringBox;
+
 	protected override void OnInit()
 	{
 		carriableSize = Config.carriableSize;
@@ -44,6 +46,8 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>
 		box.transform.SetParent(boxSlot);
 		box.transform.localPosition = Vector3.zero;
 		box.transform.localRotation = Quaternion.identity;
+
+		carringBox = box;
 
 		return true;
 	}

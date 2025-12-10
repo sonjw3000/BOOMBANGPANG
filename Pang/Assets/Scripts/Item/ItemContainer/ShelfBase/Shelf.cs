@@ -12,6 +12,7 @@ public class Shelf : ShelfBase
 			Mathf.RoundToInt(transform.position.y),
 			Mathf.RoundToInt(transform.position.z + transform.forward.z)
 		);
+
 		GameContext.Instance.ItemInventoryData.OnContainerAdded(this);
 	}
 	void OnDisable()

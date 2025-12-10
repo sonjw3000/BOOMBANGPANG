@@ -54,11 +54,6 @@ public sealed class AIWorker : MonoBehaviour
 
 	public void Start()
 	{
-		workerArchetype.SetupWorker(this);
-
-		// register AI's BT to AI Manager
-		WorkerMgr.RegisterWorker(this);
-
 		routeFinder = transform.GetComponent<FindRoute>();
 
 		if (routeFinder == null)
@@ -68,6 +63,10 @@ public sealed class AIWorker : MonoBehaviour
 			return;
 		}
 
+		workerArchetype.SetupWorker(this);
+
+		// register AI's BT to AI Manager
+		WorkerMgr.RegisterWorker(this);
 
 		routeFinder.SetAIMaster(this);
 		BuildBehaviorTree();
