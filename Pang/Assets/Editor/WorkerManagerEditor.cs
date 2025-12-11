@@ -1,11 +1,15 @@
 ﻿using UnityEditor;
 using UnityEngine;
+using static WorkerTask;
 
 [CustomEditor(typeof(WorkerManager))]
 class WorkerManagerEditor : Editor
 {
 	SerializedProperty childrenProp;
 	bool foldout = true;
+
+	public static int TestIdx;
+	public static TaskType TestType;
 
 	private void OnEnable()
 	{
@@ -15,6 +19,17 @@ class WorkerManagerEditor : Editor
 	public override void OnInspectorGUI()
 	{
 		serializedObject.Update();
+
+		TestType = (TaskType)EditorGUILayout.EnumPopup("Task Type", TestType);
+		TestIdx = (int)EditorGUILayout.IntField("Target Worker Index",TestIdx);
+		//DrawDefaultInspector();
+
+		if (GUILayout.Button("Set Worker WorkType"))
+		{
+			WorkerManager workerMgr = (WorkerManager)target;
+
+			workerMgr.ChangeWorkerTaskType(workerMgr.Workers[TestIdx], TestType);
+		}
 
 		foldout = EditorGUILayout.Foldout(foldout, "Workers");
 		if (foldout)
@@ -38,6 +53,8 @@ class WorkerManagerEditor : Editor
 				}
 			}
 		}
-		//DrawDefaultInspector();
+
+
+
 	}
 }

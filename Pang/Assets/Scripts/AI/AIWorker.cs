@@ -20,7 +20,7 @@ public sealed class AIWorker : MonoBehaviour
 {
 	[SerializeField] WorkerArchetype workerArchetype;
 
-	private WorkerTask.TaskType beforeWorkerTask = WorkerTask.TaskType.Undefined;
+	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
 	private FindRoute routeFinder;
 	
 	[SerializeField] private int tick = 0;
@@ -45,7 +45,7 @@ public sealed class AIWorker : MonoBehaviour
 		behaviorTree = new BehaviorTree(root);
 	}
 
-	public WorkerTask.TaskType BeforeWorkerTask => beforeWorkerTask;
+	public WorkerTask.TaskType TaskType => workerMainTaskType;
 	public string Name => workerName;
 	public int WorkerID => workerID;
 	public WorkerTask CurrentTask => currentTask;
@@ -92,21 +92,17 @@ public sealed class AIWorker : MonoBehaviour
 		return true;
 	}
 
+	public void ChangeWorkerType(WorkerTask.TaskType taskType)
+	{
+		workerMainTaskType = taskType;
+	}
+
 	public void SetTask(WorkerTask task)
 	{
-		// 두가지 경우
-		// 1. null -> st
-		//		beftask는 유지
-		// 2. st -> null
-		//		beforetask를 st로 set
-		
 		if (task != null)
+		{
 			task.SetAIWorker(this);
-		else
-			beforeWorkerTask = currentTask.Type;
-	
-		// release action
-		//CurrentTask.On
+		}
 		currentTask = task;
 	}
 
