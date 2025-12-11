@@ -44,6 +44,8 @@ public sealed partial class AIWorker
 
 		Debug.Log("TaskCompleted!");
 
+		WorkerMgr.AddIdleWorker(ctx.Worker);
+
 		return Success;
 	}
 

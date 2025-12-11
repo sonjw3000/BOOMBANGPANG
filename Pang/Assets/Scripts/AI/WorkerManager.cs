@@ -17,7 +17,7 @@ public class WorkerManager : MonoBehaviour
 	private Dictionary<TaskType, List<AIWorker>> workersPerTaskType = new();
 
 	// 중간지점 삭제를 할 경우도 있다
-	private Dictionary<TaskType, LinkedList<AIWorker>> idleWorkersQueue = new();
+	private readonly Dictionary<TaskType, LinkedList<AIWorker>> idleWorkersQueue = new();
 	
 	// todo
 	// storing, picking 등 작업의 경우 작업자들을 zone별 queue로도 나눠야 한다
@@ -34,7 +34,7 @@ public class WorkerManager : MonoBehaviour
 		foreach (TaskType type in System.Enum.GetValues(typeof(TaskType)))
 		{
 			workersPerTaskType[type] = new();
-			idleWorkersQueue[type] = new ();
+			idleWorkersQueue[type] = new();
 		}
 	}
 
@@ -63,6 +63,11 @@ public class WorkerManager : MonoBehaviour
 
 		worker.ChangeWorkerType(type);
 
+		if (worker.CurrentTask == null)
+		{
+			idleWorkersQueue[type].AddLast(worker);
+		}
+
 		// todo
 		// picking / storing에 경우에는 별도의 자료구조가 또 있을수도 있다
 		// 추가되면 여기에도 추가하자
@@ -85,6 +90,11 @@ public class WorkerManager : MonoBehaviour
 		}
 
 		return worker;
+	}
+
+	public void AddIdleWorker(AIWorker worker)
+	{
+		idleWorkersQueue[worker.TaskType].AddLast(worker);
 	}
 
 	private void Update()

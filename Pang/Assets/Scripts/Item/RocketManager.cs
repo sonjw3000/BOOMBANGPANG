@@ -26,8 +26,11 @@ public class RocketManager : MonoBehaviour
 
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private InboundWorkflowManager IBWorkflowMgr => GameContext.Instance.IBWorkflowMgr;
+	private Resources ResourceMgr => GameContext.Instance.MapResources;
 
 	private GameObject rocketPoolParent = null;
+
+	private int RocketPrefabIndex => GameContext.Instance.MapResources.FindPrefabIndexByName("TestRocket");
 
 	private void Awake()
 	{
@@ -108,9 +111,7 @@ public class RocketManager : MonoBehaviour
 
 	private void InstantiateNewRocket()
 	{
-		int rocketPrefabIdx = GameContext.Instance.MapResources.FindPrefabIndexByName("TestRocket");
-
-		var rocketObj = Instantiate(GameContext.Instance.MapResources.Prefabs[rocketPrefabIdx], rocketPoolParent.transform);
+		var rocketObj = Instantiate(GameContext.Instance.MapResources.Prefabs[RocketPrefabIndex], rocketPoolParent.transform);
 		var rocketComp = rocketObj.GetComponent<Rocket>();
 		rocketObj.SetActive(false);
 		rocketPool.Enqueue(rocketComp);
@@ -146,6 +147,8 @@ public class RocketManager : MonoBehaviour
 		// todo
 		// 로켓을 Map Resource에 등록
 		// 로켓이 떨어진 위치에 있는 객체 파괴 << Resource에서 노티만 해주기
+		int3 pos = rocket.LandingPos;
+		ResourceMgr.mapRef[pos.x, pos.y, pos.z].Set(RocketPrefabIndex, ResourceMgr.mapRef, rocket.gameObject, pos);
 
 		// todo
 		// IB Manager에게 로켓의 payload를 넘겨주고 이를 처리하도록 하자

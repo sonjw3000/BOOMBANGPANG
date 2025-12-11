@@ -28,7 +28,7 @@ public class InboundWorkflowManager : MonoBehaviour
 		// 일단은 하차 즉시 중간지점에 적재한다
 		// 나중에는 하차 후 분류하는 작업까지 거친 후 선반에 넣는 작업으로 나아가야함
 
-		taskManager.TaskQueue[WorkerTask.TaskType.Unloading].Enqueue(task, 1);
+		taskManager.TaskQueue[WorkerTask.TaskType.Unloading].AddLast(task);
 	}
 
 }

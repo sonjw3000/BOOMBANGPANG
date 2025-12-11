@@ -57,7 +57,7 @@ public class OutboundWorkflowManager : MonoBehaviour
 			return;
 		}
 
-		TaskMgr.TaskQueue[TaskType.Picking].Enqueue(task, 1);
+		TaskMgr.TaskQueue[TaskType.Picking].AddLast(task);
 	}
 
 	public void MakeOrder()

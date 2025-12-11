@@ -7,7 +7,8 @@ using static WorkerTask;
 //[DefaultExecutionOrder(-100)]
 public class TaskManager : MonoBehaviour
 {
-	public Dictionary<TaskType, CustomQueue<WorkerTask, int>> TaskQueue { get; private set; } = new();
+	private Dictionary<TaskType, LinkedList<WorkerTask>> taskQueue = new();
+	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue  => taskQueue;
 
 	public List<WorkerTask> EndTaskList { get; private set; } = new();
 
@@ -16,7 +17,7 @@ public class TaskManager : MonoBehaviour
 		// initialize task queues
 		foreach (TaskType type in System.Enum.GetValues(typeof(TaskType)))
 		{
-			TaskQueue[type] = new CustomQueue<WorkerTask, int>();
+			taskQueue[type] = new();
 		}
 
 	}
@@ -25,19 +26,19 @@ public class TaskManager : MonoBehaviour
 	private void Dispatch()
 	{
 		// find tasks to do
-		foreach (var (key, queue) in TaskQueue)
+		foreach (var (key, queue) in taskQueue)
 		{
 			while (queue.Count > 0)
 			{
-				var data = queue.Peek();
-
+				WorkerTask data = queue.First.Value;
 				AIWorker worker = GameContext.Instance.WorkerMgr.GetAvailableWorkers(data);
 
 				// if no available workers break;
 				if (worker == null)
 					break;
 
-				worker.SetTask(queue.Dequeue());
+				queue.RemoveFirst();
+				worker.SetTask(data);
 			}
 		}
 	}

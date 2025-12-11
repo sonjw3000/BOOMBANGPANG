@@ -56,7 +56,7 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable
 	public int3 GridPosition => position;
 
 
-	private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
+	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 
 	public void Start()
 	{

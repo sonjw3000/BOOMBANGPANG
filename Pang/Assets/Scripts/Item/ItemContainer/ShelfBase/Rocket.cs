@@ -11,6 +11,8 @@ public class Rocket : ShelfBase
 
 	private RocketManager RocketMgr => GameContext.Instance.RocketMgr;
 
+	public int3 LandingPos => landingPoint;
+
 	protected override void SetPickingPosition()
 	{
 		Vector3 projOnFloor = fowardVector;
