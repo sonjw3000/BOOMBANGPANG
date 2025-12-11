@@ -18,6 +18,9 @@ public class FindRoute : MonoBehaviour
 	private int3 nextNode;
 	List<int3> path;
 
+	public int3 PreviousNode => previousNode;
+	public int3 NextNode => nextNode;
+
 	// astar에서 쓰이는 변수들
 	int[,,] distance;
 	int3[,,] prev;
@@ -134,6 +137,7 @@ public class FindRoute : MonoBehaviour
 			{
 				map[previousNode.x, previousNode.y, previousNode.z].type = map[previousNode.x,previousNode.y,previousNode.z].previousType;
 				map[previousNode.x, previousNode.y, previousNode.z].obj = null; //도착해서 이전 위치에 존재하는 gameobject를 null로 변경
+				_Worker.SetGridPos(nextNode);
 			}
 
 			if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)
@@ -398,11 +402,7 @@ public class FindRoute : MonoBehaviour
 
 	public void RemoveThisObjectOnMap()
 	{
-		if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
-			map[previousNode.x, previousNode.y, previousNode.z].Reset(map);
-		//map[path[currentIndex].x, path[currentIndex].y, path[currentIndex].z].type = 0;
-		if (nextNode.x >= 0 && nextNode.y >= 0 && nextNode.z >= 0)
-			map[nextNode.x, nextNode.y, nextNode.z].Reset(map);
+
 	}
 
 	public int3 GetRandomPos()

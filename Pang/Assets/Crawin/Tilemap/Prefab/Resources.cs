@@ -4,6 +4,7 @@ using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
+using static UnityEditor.PlayerSettings;
 
 public abstract class ObjectStatus
 {
@@ -261,43 +262,29 @@ public class Cell
 
 	public void Reset(Cell[,,] map)
 	{
-		Shelf shelf = obj.GetComponent<Shelf>();	// 선반을 갖고 있다면 pickingposition 또한 없애줘야함
-		if (shelf)
+		IGridPlaceable gridPlaceable = obj.GetComponent<IGridPlaceable>();
+		if (gridPlaceable != null)
 		{
-			int3 PickPosition = shelf.PickingPosition;
-			if (map[PickPosition.x, PickPosition.y, PickPosition.z].type < 0)	// pickingposition위에 아무것도 없는 경우엔 삭제, 뭔가 있다 == 로봇이 올라가 있다 -> 삭제하면 안됨
-			{
-				map[PickPosition.x, PickPosition.y, PickPosition.z].type = 0;
-			}
-			map[PickPosition.x, PickPosition.y, PickPosition.z].previousType = 0;
+			// type revert
+			gridPlaceable.OnReset(map);
 		}
 
-		type = previousType;
-		if (type == 0 && obj != null)	// 빈칸인데 오브젝트가 존재하면 제거
+		if (type == 0 && obj != null)   // 빈칸인데 오브젝트가 존재하면 제거
 		{
 			UnityEngine.Object.Destroy(obj);
 			obj = null;
 		}
-		//if (originalMats != null)
-		//{
-		//	originalMats.Clear();
-		//}
 	}
 
-	public void Set(int id, Cell[,,] map, GameObject obj)
+	public void Set(int id, Cell[,,] map, GameObject obj, int3 pos)
 	{
 		this.type = id;
 		this.obj = obj;
 
-		Shelf shelf = obj.GetComponent<Shelf>();
-		if (shelf)
+		IGridPlaceable gridPlaceable = obj.GetComponent<IGridPlaceable>();
+		if (gridPlaceable != null)
 		{
-			int3 PickPosition = shelf.PickingPosition;
-			if (map[PickPosition.x, PickPosition.y, PickPosition.z].type == 0)
-			{
-				map[PickPosition.x, PickPosition.y, PickPosition.z].type = -1;
-			}
-			map[PickPosition.x, PickPosition.y, PickPosition.z].previousType = -1;
+			gridPlaceable.OnPositionSet(map, pos);
 		}
 
 		Status st = obj.GetComponent<Status>();

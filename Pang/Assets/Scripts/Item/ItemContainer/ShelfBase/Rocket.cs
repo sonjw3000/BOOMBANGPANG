@@ -11,16 +11,16 @@ public class Rocket : ShelfBase
 
 	private RocketManager RocketMgr => GameContext.Instance.RocketMgr;
 
-	public void OnEnable()
+	protected override void SetPickingPosition()
 	{
 		Vector3 projOnFloor = fowardVector;
 		projOnFloor.y = 0;
 		projOnFloor = projOnFloor.normalized;
 
 		pickingPosition = new int3(
-			Mathf.RoundToInt(landingPoint.x + projOnFloor.x),
-			Mathf.RoundToInt(landingPoint.y),
-			Mathf.RoundToInt(landingPoint.z + projOnFloor.z)
+			Mathf.RoundToInt(GridPosition.x + projOnFloor.x),
+			Mathf.RoundToInt(GridPosition.y),
+			Mathf.RoundToInt(GridPosition.z + projOnFloor.z)
 		);
 	}
 

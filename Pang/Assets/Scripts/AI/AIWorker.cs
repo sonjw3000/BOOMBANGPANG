@@ -16,7 +16,7 @@ public enum WorkerAbility
 }
 
 [System.Serializable]
-public sealed class AIWorker : MonoBehaviour
+public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable
 {
 	[SerializeField] WorkerArchetype workerArchetype;
 
@@ -30,6 +30,9 @@ public sealed class AIWorker : MonoBehaviour
 
 	private BehaviorTree behaviorTree;
 	private BlackBoard localBlackBoard = new();
+
+	private int3 position;
+
 
 	// should build BT here
 	private void BuildBehaviorTree()
@@ -49,6 +52,9 @@ public sealed class AIWorker : MonoBehaviour
 	public string Name => workerName;
 	public int WorkerID => workerID;
 	public WorkerTask CurrentTask => currentTask;
+
+	public int3 GridPosition => position;
+
 
 	private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 
@@ -106,55 +112,33 @@ public sealed class AIWorker : MonoBehaviour
 		currentTask = task;
 	}
 
-	// AI's basic actions
-	public static NodeState SetDestination(in BTContext context)
+	public void OnPositionSet(Cell[,,] map, int3 position)
 	{
-		// for real
-		context.LocalBlackBoard.TryGet<int3>("goalPos", out int3 goalPos);
-		context.Worker.routeFinder.enabled = true;
-		context.Worker.routeFinder.SetGoalPosition(goalPos);
-
-		return Success;
+		this.position = position;
 	}
 
-	public static NodeState MoveTo(in BTContext context)
+	public void OnReset(Cell[,,] map)
 	{
-		if (context.Worker.routeFinder.IsGoal)
+		int3 previousNode = routeFinder.PreviousNode;
+		int3 nextNode = routeFinder.NextNode;
+
+
+		if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
 		{
-			//Debug.Log("Goal Hit!");
-			context.Worker.routeFinder.enabled = false;
-			return Success;
+			Cell prevCell = map[previousNode.x, previousNode.y, previousNode.z];
+			prevCell.type = prevCell.previousType;
 		}
-		context.Worker.enabled = false;
-
-		return Running;
+		if (nextNode.x >= 0 && nextNode.y >= 0 && nextNode.z >= 0)
+		{
+			Cell nextCell = map[nextNode.x, nextNode.y, nextNode.z];
+			nextCell.type = nextCell.previousType;
+		}
 	}
 
-	public static NodeState DoWork(in BTContext context)
+
+	// findroute만 써라
+	public void SetGridPos(int3 pos)
 	{
-		if (context.Worker.CurrentTask == null)
-			return Failure;
-
-		return context.Worker.CurrentTask.UpdateTaskNode(context);
-	}
-
-	public static NodeState TaskCompleted(in BTContext ctx)
-	{
-		var task = ctx.Worker.CurrentTask;
-		task.EndTask();
-
-		Debug.Log("TaskCompleted!");
-
-		return Success;
-	}
-
-	public static NodeState TaskFailed(in BTContext ctx)
-	{
-		var task = ctx.Worker.CurrentTask;
-		task.EndTask();
-
-		Debug.Log("TaskFailed...");
-
-		return Success;
+		position = pos;
 	}
 }

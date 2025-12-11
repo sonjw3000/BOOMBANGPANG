@@ -178,7 +178,8 @@ public class Picking : MonoBehaviour
 									{
 										parentTransform = GameObject.Find("RobotParent").transform;
 									}
-									map[tileX, 0, tileZ].Set(buildingPrefabIndex, map, Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform));
+									int3 pos = new int3(tileX, 0, tileZ);
+									map[tileX, 0, tileZ].Set(buildingPrefabIndex, map, Instantiate(resources.Prefabs[buildingPrefabIndex], placePos, baseRot, parentTransform), pos);
 
 									pickingType = PickingType.SELECT;
 									previewInstance.SetActive(false);
@@ -330,6 +331,7 @@ public class Picking : MonoBehaviour
 	{
 		if (selectedObject != null)
 		{
+			/*
 			FindRoute fr = selectedObject.GetComponent<FindRoute>();
 			if (fr != null)
 			{//움직이는 로봇들
@@ -339,6 +341,10 @@ public class Picking : MonoBehaviour
 			{//가만히 배치돼있는 애들
 				map[selectedCoord.x, selectedCoord.y, selectedCoord.z].Reset(map);
 			}
+			*/
+
+			map[selectedCoord.x, selectedCoord.y, selectedCoord.z].Reset(map);
+
 			Destroy(selectedObject);
 			ChangeSelectedObject(null);
 		}
