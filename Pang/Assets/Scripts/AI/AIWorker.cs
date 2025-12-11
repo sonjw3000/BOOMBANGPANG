@@ -136,9 +136,19 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable
 	}
 
 
-	// findroute만 써라
+	// findroute에서만 써라
 	public void SetGridPos(int3 pos)
 	{
 		position = pos;
+	}
+
+	public void OnDestoryedBy(Cell[,,] map, GameObject obj)
+	{
+		// 당장 생각나는거만 적음
+		// 들고 있던 태스크에 대해서 실패했다고 뭔가 해줘야하고
+		// 또 뭐냐 산재처리 해줘야하는데 이건 아직 미구현이니까 투두리스트로 남겨야하고
+		// 뭐 기타등등 해줘야하는데
+		// 폭발도 하는게 좀 간지나긴 하는데 폭발은 로케트쪽에서 해주는게 나으려나
+		// 
 	}
 }

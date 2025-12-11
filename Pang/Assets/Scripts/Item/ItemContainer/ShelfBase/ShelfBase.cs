@@ -87,4 +87,11 @@ public abstract class ShelfBase : MonoBehaviour, IItemContainer, IGridPlaceable
 		pickPos.previousType = -1;
 	}
 
+	public void OnDestoryedBy(Cell[,,] map, GameObject obj)
+	{
+		// 부셔지면 뭐 본인이 가진 아이템을 뭐시기 해야함
+		// 근데 지가 로켓이면 뭐 로켓이 로케트 부순거니까
+		// 근데 로케트의 아이템은 인벤토리에서 관리를 안해
+		// 제가 꽁꽁 숨겨뒀으니 찾아보세요
+	}
 }
