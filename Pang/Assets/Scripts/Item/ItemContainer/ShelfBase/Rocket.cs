@@ -7,7 +7,7 @@ public class Rocket : ShelfBase
 {
 	[SerializeField] private float fallingSpeed = 5.0f;
 	[SerializeField] private int3 landingPoint;
-	private Vector3 fowardVector = new Vector3(0, 1, 0);
+	private Vector3 forwardVector = new Vector3(0, 1, 0);
 
 	private RocketManager RocketMgr => GameContext.Instance.RocketMgr;
 
@@ -15,7 +15,7 @@ public class Rocket : ShelfBase
 
 	protected override void SetPickingPosition()
 	{
-		Vector3 projOnFloor = fowardVector;
+		Vector3 projOnFloor = forwardVector;
 		projOnFloor.y = 0;
 		projOnFloor = projOnFloor.normalized;
 
@@ -29,7 +29,7 @@ public class Rocket : ShelfBase
 	public void Update()
 	{
 		// land rocket
-		transform.position += fowardVector * fallingSpeed * Time.deltaTime;
+		transform.position += forwardVector * fallingSpeed * Time.deltaTime;
 		
 		if (transform.position.y <= landingPoint.y)
 		{
@@ -38,10 +38,10 @@ public class Rocket : ShelfBase
 		}
 	}
 
-	public void InitializePosition(int3 landingPoint, Vector3 fowardVector, float fallingSpeed)
+	public void InitializePosition(int3 landingPoint, Vector3 forwardVector, float fallingSpeed)
 	{
 		this.landingPoint = landingPoint;
-		this.fowardVector = fowardVector.normalized;
+		this.forwardVector = forwardVector.normalized;
 		this.fallingSpeed = fallingSpeed;
 	}
 

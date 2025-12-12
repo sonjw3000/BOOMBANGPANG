@@ -58,7 +58,7 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlace
 
 	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 
-	public void Start()
+	private void Start()
 	{
 		routeFinder = transform.GetComponent<FindRoute>();
 
@@ -78,7 +78,7 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlace
 		BuildBehaviorTree();
 	}
 
-	public void OnDestroy()
+	private void OnDestroy()
 	{
 		// unregister AI
 		WorkerMgr.UnregisterWorker(this);

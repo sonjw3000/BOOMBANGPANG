@@ -85,14 +85,14 @@ public class RocketManager : MonoBehaviour
 		rocket.transform.rotation = rot;
 
 		// set position and direction
-		Vector3 fowardVector = rot * new Vector3(0, 1, 0);
+		Vector3 forwardVector = rot * new Vector3(0, 1, 0);
 
 		float randSpeed = UnityEngine.Random.Range(fallingSpeedRange.x, fallingSpeedRange.y);
 		float randTime = UnityEngine.Random.Range(fallingTimeRange.x, fallingTimeRange.y);
-		rocket.transform.position = new Vector3(landingPoint.x, landingPoint.y, landingPoint.z) - fowardVector * randTime;
+		rocket.transform.position = new Vector3(landingPoint.x, landingPoint.y, landingPoint.z) - forwardVector * randTime;
 
 		// initialize rocket position
-		rocket.InitializePosition(landingPoint, fowardVector, randSpeed);
+		rocket.InitializePosition(landingPoint, forwardVector, randSpeed);
 
 		// set rocket's payload
 		rocket.SetupPayload(BuildRandomPayload());
