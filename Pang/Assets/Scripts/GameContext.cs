@@ -32,6 +32,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ItemInventory itemInventory;
 	[SerializeField] private RocketManager rocketManager;
 	[SerializeField] private OrderManager orderManager;
+	[SerializeField] private WMSystem warehouseManagement;
 
 	// workflow managers
 	[SerializeField] private InboundWorkflowManager inboundWorkFlowManager;
@@ -45,6 +46,7 @@ public class GameContext : MonoBehaviour
 	public ItemInventory ItemInventoryData => itemInventory;
 	public RocketManager RocketMgr => rocketManager;
 	public OrderManager OrderMgr => orderManager;
+	public WMSystem WMSys => warehouseManagement;
 
 	public InboundWorkflowManager IBWorkflowMgr => inboundWorkFlowManager;
 	public OutboundWorkflowManager OBWorkflowMgr => outboundWorkFlowManager;

@@ -9,6 +9,7 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	protected Dictionary<uint, ItemStack> stacks = new();
 
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
+	protected BoxPoolService BoxService => GameContext.Instance.WMSys.BoxPoolMgr;
 
 	// totebox의 stacks는 많지 않을것으로 예상
 	public float Size => size;
@@ -16,8 +17,16 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	public IReadOnlyDictionary<uint, ItemStack> Stacks => stacks;
 	public float Capacity => capacity;
 
+	
+	private void Start()
+	{
+		BoxService.RegisterBox(this);
+	}
 
-	//public BoxBase(float boxCapacity) => capacity = boxCapacity;
+	private void OnDestroy()
+	{
+		BoxService.UnRegisterBox(this);
+	}
 
 	public bool CanRegister() => true;
 

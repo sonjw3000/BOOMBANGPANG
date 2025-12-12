@@ -84,6 +84,20 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlace
 		WorkerMgr.UnregisterWorker(this);
 	}
 
+	public bool TryAttachBox(BoxBase box)
+	{
+		gameObject.TryGetComponent<CarryBoxAbility>(out var component);
+		if (component == null)
+		{
+			Debug.LogError("No CarryBox Ability!!!!!!");
+			return false;
+		}
+
+		Debug.Log("Attached!");
+
+		return component.TryAttachBox(box);
+	}
+
 	public bool RunBT(BlackBoard GlobalBlackboard)
 	{
 		BTContext btx;

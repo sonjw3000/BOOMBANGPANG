@@ -6,5 +6,9 @@
 
 public class WMSystem : MonoBehaviour
 {
+	private BoxPoolService boxPoolRegistry = new();
+
+
+	public BoxPoolService BoxPoolMgr => boxPoolRegistry;
 
 }

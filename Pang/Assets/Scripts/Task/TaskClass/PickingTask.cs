@@ -73,33 +73,20 @@ public sealed class PickingTask : WorkerTask
 
 		// check is picking work is fulfilled
 		SequenceNode checkingFulfilled = new SequenceNode();
-		ActionNode checkFulfilled = new ActionNode(CheckFulfilled);
-		ActionNode endTask = new ActionNode(AIWorker.TaskCompleted);
-
-		checkingFulfilled.Add(checkFulfilled);
-		checkingFulfilled.Add(endTask);
+		checkingFulfilled.Add(new ActionNode(CheckFulfilled));
+		checkingFulfilled.Add(new ActionNode(AIWorker.TaskCompleted));
 
 		// work node
-		SequenceNode work = new SequenceNode();
 		// checking tote size over capacity
-		
-		// set destination
-		ActionNode setTarget = new ActionNode(SetTarget);
-		ActionNode setDestination = new ActionNode(AIWorker.SetDestination);
-		
-		// move to destination
-		ActionNode moveTo = new ActionNode(AIWorker.MoveTo);
-
 		// actual work
-		ActionNode pickItems = new ActionNode(PickItems);
-
-		work.Add(setTarget);
-		work.Add(setDestination);
-		work.Add(moveTo);
-		work.Add(pickItems);
+		SequenceNode work = new SequenceNode();
+		work.Add(AIWorker.GetToteBox());
+		work.Add(AIWorker.MoveToTarget(SetTarget));
+		work.Add(new ActionNode(PickItems));
 		// todo 애니메이션을 재생해야한다 곧 지우자
 		// picking중인지 확실히 보기 위해 대기한다
 		work.Add(new WaitNode(1.0f));
+		// 여기에 토트 반납 알고리즘을 차려야함
 
 		// for root
 		root.Add(checkingFulfilled);

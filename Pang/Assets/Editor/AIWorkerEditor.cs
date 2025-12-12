@@ -14,10 +14,10 @@ class AIWorkerEditor : Editor
 
 		if (GUILayout.Button("Give Totebox"))
 		{
-			worker.TryGetComponent<CarryBoxAbility>(out var component);
 			int idx = MapRes.FindPrefabIndexByName("Totebox");
 			GameObject box = Instantiate(MapRes.Prefabs[idx]);
-			component.TryAttachBox(box.GetComponent<ToteBox>());
+
+			worker.TryAttachBox(box.GetComponent<ToteBox>());
 		}
 	}
 }

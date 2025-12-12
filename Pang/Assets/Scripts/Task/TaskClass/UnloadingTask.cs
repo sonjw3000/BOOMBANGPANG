@@ -26,19 +26,18 @@ public class UnloadingTask : WorkerTask
 
 		SequenceNode root = new();
 		ActionNode setRocketTarget = new ActionNode(SetRocketTarget);
-		ActionNode moveTo = new ActionNode(AIWorker.MoveTo);
 		ActionNode unload = new ActionNode(UnloadFromRocket);
 		ActionNode setZone = new ActionNode(SetZoneTarget);
 		ActionNode puton = new ActionNode(PutOnBuffer);
 		ActionNode endTask = new ActionNode(AIWorker.TaskCompleted);
-		
-		root.Add(setRocketTarget);
-		root.Add(new ActionNode(AIWorker.SetDestination));
-		root.Add(moveTo);
+
+		SequenceNode moveToRocket = AIWorker.MoveToTarget(SetRocketTarget);
+		SequenceNode moveToUnloadingZone = AIWorker.MoveToTarget(SetZoneTarget);
+
+		root.Add(moveToRocket);
 		root.Add(unload);
-		root.Add(setZone);
-		root.Add(new ActionNode(AIWorker.SetDestination));
-		root.Add(moveTo);
+
+		root.Add(moveToUnloadingZone);
 		root.Add(puton);
 		root.Add(endTask);
 

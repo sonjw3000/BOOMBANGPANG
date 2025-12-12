@@ -35,6 +35,7 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>
 
 	public bool TryAttachBox(BoxBase box)
 	{
+		if (box == null) return false;
 		// todo
 		// 뭐 있는지 확인 해야함
 		if (boxSlot == null)

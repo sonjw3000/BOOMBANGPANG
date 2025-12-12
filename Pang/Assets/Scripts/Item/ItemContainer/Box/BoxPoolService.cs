@@ -1,13 +1,37 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
-using static BoxPool;
-using static WorkerTask;
 
-public class BoxPoolManager : MonoBehaviour
+public class BoxPoolService
 {
+	// 실제 박스들
+	private List<BoxBase> boxes = new();
+
+	// 박스 보관소들
 	private List<BoxPool> boxPoolZones = new();
 
+	public IReadOnlyList<BoxBase> Boxes => boxes;
+	public IReadOnlyList<BoxPool> BoxPoolZones => boxPoolZones;
+
+	public void RegisterPool(BoxPool boxPool)
+	{
+		boxPoolZones.Add(boxPool); 
+	}
+
+	public void UnRegisterPool(BoxPool boxPool)
+	{
+		boxPoolZones.Remove(boxPool);
+	}
+
+	public void RegisterBox(BoxBase box)
+	{
+		boxes.Add(box);
+	}
+
+	public void UnRegisterBox(BoxBase box)
+	{
+		boxes.Remove(box);
+	}
 
 	public BoxPool GetClosestAvailablePool(int3 pos)
 	{

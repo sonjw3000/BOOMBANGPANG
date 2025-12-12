@@ -1,12 +1,15 @@
 ﻿using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
+using static ActionNode;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
 public sealed partial class AIWorker
 {
+	static private WMSystem WMSys => GameContext.Instance.WMSys;
 	// AI's basic actions
-	public static NodeState SetDestination(in BTContext context)
+	private static NodeState SetDestination(in BTContext context)
 	{
 		// for real
 		context.LocalBlackBoard.TryGet<int3>("goalPos", out int3 goalPos);
@@ -16,7 +19,7 @@ public sealed partial class AIWorker
 		return Success;
 	}
 
-	public static NodeState MoveTo(in BTContext context)
+	private static NodeState MoveTo(in BTContext context)
 	{
 		if (context.Worker.routeFinder.IsGoal)
 		{
@@ -29,12 +32,58 @@ public sealed partial class AIWorker
 		return Running;
 	}
 
-	public static NodeState DoWork(in BTContext context)
+	private static NodeState DoWork(in BTContext context)
 	{
 		if (context.Worker.CurrentTask == null)
 			return Failure;
 
 		return context.Worker.CurrentTask.UpdateTaskNode(context);
+	}
+
+	private static NodeState CheckWorkerHasBox(in BTContext context)
+	{
+		CarryBoxAbility boxStatus = context.Worker.GetComponent<CarryBoxAbility>();
+		if (boxStatus == null)
+		{
+			Debug.LogError("This Worker Has No BOX ABILITY BUT TRIED TO PICK OR SOMETHING");
+			return Failure;
+		}
+
+		if (boxStatus.CarringBox == null)
+			return Failure;
+		return Success;
+	}
+
+	private static NodeState SetGoalClosestBoxPool(in BTContext context)
+	{
+		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailablePool(context.Worker.GridPosition);
+
+		if (pool == null)
+		{
+			// todo
+			// 사용 가능한 pool이 없는 상태라는 것을 플레이어에게 보여줘야함
+			return Failure;
+		}
+
+		context.LocalBlackBoard.Set<int3>("goalPos", pool.GridPosition);
+		context.LocalBlackBoard.Set<BoxPool>("targetBoxPool", pool);
+
+		return Success;
+	}
+
+	private static NodeState PickBox(in BTContext context)
+	{
+		context.LocalBlackBoard.TryGet<BoxPool>("targetBoxPool", out var pool);
+		pool.GetBox(out var box);
+
+		if (box == null)
+		{
+			// todo
+			// pool에 사용 가능한 박스가 없다는 점을 플레이어에게 알려줘야함
+			return Failure;
+		}
+
+		return context.Worker.TryAttachBox(box) ? Success : Failure;
 	}
 
 	public static NodeState TaskCompleted(in BTContext ctx)
@@ -58,4 +107,31 @@ public sealed partial class AIWorker
 
 		return Success;
 	}
+
+	// for tote box getting
+	// tote를 가지고 오기 위해 만든 노드
+	// picking이던 뭐던 잘 쓰면 된다
+	public static SelectorNode GetToteBox()
+	{
+		SelectorNode node = new SelectorNode();
+		SequenceNode moveToAndPick = MoveToTarget(SetGoalClosestBoxPool);
+		moveToAndPick.Add(new ActionNode(PickBox));
+		
+		node.Add(new ActionNode(CheckWorkerHasBox));
+		node.Add(moveToAndPick);
+		
+		return node;
+	}
+
+	public static SequenceNode MoveToTarget(ActionFunc goalSettingFunc)
+	{
+		SequenceNode node = new SequenceNode();
+
+		node.Add(new ActionNode(goalSettingFunc));
+		node.Add(new ActionNode(SetDestination));
+		node.Add(new ActionNode(MoveTo));
+
+		return node;
+	}
+
 }
