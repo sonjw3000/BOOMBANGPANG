@@ -19,11 +19,11 @@ public class Rocket : ShelfBase
 		projOnFloor.y = 0;
 		projOnFloor = projOnFloor.normalized;
 
-		pickingPosition = new int3(
+		interactionPoints.Add( new int3(
 			Mathf.RoundToInt(GridPosition.x + projOnFloor.x),
 			Mathf.RoundToInt(GridPosition.y),
 			Mathf.RoundToInt(GridPosition.z + projOnFloor.z)
-		);
+			));
 	}
 
 	public void Update()

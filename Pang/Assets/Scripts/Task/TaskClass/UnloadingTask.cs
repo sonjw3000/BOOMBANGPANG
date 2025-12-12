@@ -48,7 +48,7 @@ public class UnloadingTask : WorkerTask
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
-		return $"[UnloadingTask] RocketPos: {targetRocket.PickingPosition}";
+		return $"[UnloadingTask] RocketPos: {targetRocket.InteractionPoints[0]}";
 	}
 #endif
 
@@ -72,8 +72,8 @@ public class UnloadingTask : WorkerTask
 			return Failure;
 		}
 
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.targetRocket.PickingPosition);
-		Debug.Log($"Moving to: {task.targetRocket.PickingPosition}");
+		ctx.LocalBlackBoard.Set<int3>("goalPos", task.targetRocket.InteractionPoints[0]);
+		Debug.Log($"Moving to: {task.targetRocket.InteractionPoints[0]}");
 
 		return Success;
 	}

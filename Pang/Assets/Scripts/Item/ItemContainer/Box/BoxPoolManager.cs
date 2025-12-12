@@ -17,7 +17,7 @@ public class BoxPoolManager : MonoBehaviour
 		for (int i = 0; i < boxPoolZones.Count; ++i)
 		{
 			// todo 다른층에 대해서는 별도 판정을 해야함
-			int3 boxPos = boxPoolZones[i].Position;
+			int3 boxPos = boxPoolZones[i].GridPosition;
 			int3 posDelta = new int3((pos.x - boxPos.x), 0, pos.z - boxPos.z);
 			posDelta.x *= posDelta.x;
 			posDelta.y *= posDelta.y;

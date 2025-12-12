@@ -262,11 +262,11 @@ public class Cell
 
 	public void Reset(Cell[,,] map)
 	{
-		IGridPlaceable gridPlaceable = obj.GetComponent<IGridPlaceable>();
+		IGridPlacementEffect gridPlaceable = obj.GetComponent<IGridPlacementEffect>();
 		if (gridPlaceable != null)
 		{
 			// type revert
-			gridPlaceable.OnReset(map);
+			gridPlaceable.OnRemoved();
 		}
 
 		if (type == 0 && obj != null)   // 빈칸인데 오브젝트가 존재하면 제거
@@ -284,7 +284,7 @@ public class Cell
 		IGridPlaceable gridPlaceable = obj.GetComponent<IGridPlaceable>();
 		if (gridPlaceable != null)
 		{
-			gridPlaceable.OnPositionSet(map, pos);
+			gridPlaceable.OnPositionSet(pos);
 		}
 
 		Status st = obj.GetComponent<Status>();

@@ -17,7 +17,7 @@ class ItemInventoryEditor : Editor
 			EditorGUILayout.Space(4);
 			EditorGUILayout.LabelField($"Shelf: {shelf.name}", EditorStyles.boldLabel);
 			EditorGUI.indentLevel++;
-			EditorGUILayout.LabelField($"Picking Position: {shelf.PickingPosition}");
+			EditorGUILayout.LabelField($"Picking Position: {shelf.InteractionPoints[0]}");
 			EditorGUILayout.LabelField("Items:");
 			EditorGUI.indentLevel++;
 

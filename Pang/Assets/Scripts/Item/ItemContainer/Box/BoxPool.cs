@@ -4,13 +4,16 @@ using UnityEngine;
 
 // box base를 보관하는 타일 단 하나
 
-public class BoxPool : MonoBehaviour
+public class BoxPool : MonoBehaviour, IGridPlaceable
 {
 	[SerializeField] private int maxStack = 50;
 	private int3 position;
 	private Stack<BoxBase> boxes = new();
 
-	public int3 Position => position;
+	static private int PrefabIndex = GameContext.Instance.MapResources.FindPrefabIndexByName("BoxPool");
+	static private Cell[,,] GridMap => GameContext.Instance.MapResources.mapRef;
+
+	public int3 GridPosition => position;
 
 	public bool GetBox(out BoxBase box)
 	{
@@ -29,5 +32,15 @@ public class BoxPool : MonoBehaviour
 
 		boxes.Push(box);
 		return true;
+	}
+
+	public void OnPositionSet(int3 position)
+	{
+		this.position = position;
+	}
+
+	public void OnDestroyedBy(in DestroyContext ctx)
+	{
+
 	}
 }

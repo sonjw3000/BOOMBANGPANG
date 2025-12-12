@@ -21,10 +21,10 @@ public class Shelf : ShelfBase
 
 	protected override void SetPickingPosition()
 	{
-		pickingPosition = new int3(
+		interactionPoints.Add(new int3(
 			Mathf.RoundToInt(GridPosition.x + transform.forward.x),
 			Mathf.RoundToInt(GridPosition.y),
 			Mathf.RoundToInt(GridPosition.z + transform.forward.z)
-		);
+		));
 	}
 }

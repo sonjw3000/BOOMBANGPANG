@@ -137,7 +137,7 @@ public class FindRoute : MonoBehaviour
 			{
 				map[previousNode.x, previousNode.y, previousNode.z].type = map[previousNode.x,previousNode.y,previousNode.z].previousType;
 				map[previousNode.x, previousNode.y, previousNode.z].obj = null; //도착해서 이전 위치에 존재하는 gameobject를 null로 변경
-				_Worker.SetGridPos(nextNode);
+				_Worker.OnPositionSet(nextNode);
 			}
 
 			if (currentIndex + 1 == path.Count)// 이후로 path가 없으면 (최종 목적지였다면)

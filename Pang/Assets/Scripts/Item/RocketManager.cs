@@ -145,7 +145,6 @@ public class RocketManager : MonoBehaviour
 		rocket.enabled = false;
 
 		// todo
-		// 로켓을 Map Resource에 등록
 		// 로켓이 떨어진 위치에 있는 객체 파괴 << Resource에서 노티만 해주기
 		int3 pos = rocket.LandingPos;
 		ResourceMgr.mapRef[pos.x, pos.y, pos.z].Set(RocketPrefabIndex, ResourceMgr.mapRef, rocket.gameObject, pos);

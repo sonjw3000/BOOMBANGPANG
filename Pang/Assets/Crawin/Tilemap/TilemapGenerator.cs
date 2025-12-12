@@ -181,7 +181,7 @@ public class TilemapGenerator : MonoBehaviour
 			Shelf shelf = map[robotData.x, robotData.y, robotData.z].obj.GetComponent<Shelf>();
 			if (shelf)
 			{
-				int3 pickingPosition = shelf.PickingPosition;
+				int3 pickingPosition = shelf.InteractionPoints[0];
 				map[pickingPosition.x, pickingPosition.y, pickingPosition.z].type = -1;	// -1이란? 로봇은 이동 가능하지만 배치는 불가능한 위치
 
 			}

@@ -16,7 +16,7 @@ public enum WorkerAbility
 }
 
 [System.Serializable]
-public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable
+public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
 {
 	[SerializeField] WorkerArchetype workerArchetype;
 
@@ -112,16 +112,17 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable
 		currentTask = task;
 	}
 
-	public void OnPositionSet(Cell[,,] map, int3 position)
+	public void OnPositionSet(int3 position)
 	{
 		this.position = position;
 	}
 
-	public void OnReset(Cell[,,] map)
+	public void OnRemoved()
 	{
 		int3 previousNode = routeFinder.PreviousNode;
 		int3 nextNode = routeFinder.NextNode;
 
+		Cell[,,] map = GameContext.Instance.MapResources.mapRef;
 
 		if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
 		{
@@ -135,14 +136,7 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable
 		}
 	}
 
-
-	// findroute에서만 써라
-	public void SetGridPos(int3 pos)
-	{
-		position = pos;
-	}
-
-	public void OnDestoryedBy(Cell[,,] map, GameObject obj)
+	public void OnDestroyedBy(in DestroyContext ctx)
 	{
 		// 당장 생각나는거만 적음
 		// 들고 있던 태스크에 대해서 실패했다고 뭔가 해줘야하고

@@ -15,7 +15,7 @@ public sealed class PickingTask : WorkerTask
 
 			public ItemLocation Location => location;
 			public int Quantity => quantity;
-			public int3 GoalPosition => Location.Container.PickingPosition;
+			public int3 GoalPosition => Location.Container.InteractionPoints[0];
 			public PickLine(ItemLocation location, int quantity)
 			{
 				this.location = location;

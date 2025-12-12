@@ -21,7 +21,7 @@ public class InboundWorkflowManager : MonoBehaviour
 
 	public void BuildTaskByPayload(Rocket rocket)
 	{
-		int3 goalPos = rocket.PickingPosition;
+		int3 goalPos = rocket.InteractionPoints[0];
 
 		UnloadingTask task = new UnloadingTask(rocket);
 		// todo

@@ -467,7 +467,8 @@ public class Picking : MonoBehaviour
 		var shelf = selectedObject.GetComponent<ShelfBase>();
 		if (shelf != null)
 		{
-			int3 pos = shelf.PickingPosition;
+			// todo 가까운 지점을 골라내자
+			int3 pos = shelf.InteractionPoints[0];
 			goalPositionHighlight.transform.position = new Vector3(pos.x, pos.y, pos.z);
 			goalPositionHighlight.SetActive(true);
 		}
