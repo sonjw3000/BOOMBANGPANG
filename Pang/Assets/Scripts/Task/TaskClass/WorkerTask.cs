@@ -6,14 +6,14 @@ public abstract class WorkerTask
 	{
 		// IB
 		Unloading,
-		Receive,
-		Label,
+		//Receive,
+		//Label,
 		Storing,
 
 		// OB
 		Picking,
-		Sorting,
-		Packaging,
+		//Sorting,
+		//Packaging,
 		Loading,
 
 		// undef

@@ -27,20 +27,20 @@ public class OutboundWorkflowManager : MonoBehaviour
 			// IB
 			case TaskType.Unloading:
 				break;
-			case TaskType.Receive:
-				break;
-			case TaskType.Label:
-				break;
+			//case TaskType.Receive:
+			//	break;
+			//case TaskType.Label:
+			//	break;
 			case TaskType.Storing:
 				break;
 
 			// OB
 			case TaskType.Picking:
 				break;
-			case TaskType.Sorting:
-				break;
-			case TaskType.Packaging:
-				break;
+			//case TaskType.Sorting:
+			//	break;
+			//case TaskType.Packaging:
+			//	break;
 			case TaskType.Loading:
 				break;
 		}

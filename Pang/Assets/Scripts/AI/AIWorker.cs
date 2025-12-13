@@ -18,7 +18,7 @@ public enum WorkerAbility
 [System.Serializable]
 public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
 {
-	[SerializeField] WorkerArchetype workerArchetype;
+	[SerializeField] private WorkerArchetype workerArchetype;
 
 	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
 	private FindRoute routeFinder;
