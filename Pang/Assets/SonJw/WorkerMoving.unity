@@ -1017,29 +1017,53 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: itemDB.items.Array.data[0].tag
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
       propertyPath: mapResources.Prefabs.Array.size
-      value: 14
+      value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: 'mapResources.Prefabs.Array.data[10]'
+      propertyPath: 'mapResources.Prefabs.Array.data[3]'
+      value: 
+      objectReference: {fileID: 4934971901129387132, guid: 215fceb8eccbc54409e145f16c2b0f8c, type: 3}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: 'mapResources.Prefabs.Array.data[4]'
+      value: 
+      objectReference: {fileID: 6155704149836782372, guid: ef27fec05dc353e47afc629dbf165b17, type: 3}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: 'mapResources.Prefabs.Array.data[5]'
+      value: 
+      objectReference: {fileID: 5547793404648804989, guid: c0376f38f6e735e48b8e9eec6ba3517c, type: 3}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: 'mapResources.Prefabs.Array.data[6]'
+      value: 
+      objectReference: {fileID: 5868244320211209119, guid: 19754c2e8273c454bb559eaad9b04e83, type: 3}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: 'mapResources.Prefabs.Array.data[7]'
       value: 
       objectReference: {fileID: 4088784275203520354, guid: b63bb7292acd74b44aabf636dedd73f5, type: 3}
     - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: 'mapResources.Prefabs.Array.data[11]'
+      propertyPath: 'mapResources.Prefabs.Array.data[8]'
       value: 
       objectReference: {fileID: 8130251259797940551, guid: 0278404f42fec1b4a95242bbaacacfa8, type: 3}
     - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: 'mapResources.Prefabs.Array.data[12]'
+      propertyPath: 'mapResources.Prefabs.Array.data[9]'
       value: 
       objectReference: {fileID: 674914861464847897, guid: 4f47c92cb33ff7b4ea31b7d370158fda, type: 3}
     - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: 'mapResources.Prefabs.Array.data[13]'
+      propertyPath: 'mapResources.Prefabs.Array.data[10]'
       value: 
       objectReference: {fileID: 6838673464925562183, guid: 6e1f5d0516dec1541a25a3899f32558b, type: 3}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: 'mapResources.Prefabs.Array.data[11]'
+      value: 
+      objectReference: {fileID: 7781608356336454641, guid: f90bfe449eee27b45aab1fa0b205008a, type: 3}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: 'mapResources.Prefabs.Array.data[12]'
+      value: 
+      objectReference: {fileID: 4307669844091279147, guid: dc841591eb6b4ed44994bde9aa91baf8, type: 3}
+    - target: {fileID: 6016985861769816228, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+      propertyPath: 'mapResources.Prefabs.Array.data[13]'
+      value: 
+      objectReference: {fileID: 3890919911251998508, guid: 488feabe59eb6a840808cf083713d509, type: 3}
     m_RemovedComponents:
     - {fileID: 6187043757706658941, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
     m_RemovedGameObjects: []

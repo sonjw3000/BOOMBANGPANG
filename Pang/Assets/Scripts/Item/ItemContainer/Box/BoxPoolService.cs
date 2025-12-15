@@ -10,6 +10,9 @@ public class BoxPoolService
 	// 박스 보관소들
 	private List<BoxPool> boxPoolZones = new();
 
+	// todo
+	// boxtype에 따른 뭔가를 만들어줘야하는데 뭐라해야하지 이걸 어쨋든 그래
+
 	public IReadOnlyList<BoxBase> Boxes => boxes;
 	public IReadOnlyList<BoxPool> BoxPoolZones => boxPoolZones;
 

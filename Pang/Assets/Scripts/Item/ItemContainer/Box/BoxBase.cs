@@ -1,9 +1,18 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using UnityEngine.UIElements;
+
+[System.Serializable]
+public enum BoxType
+{
+	Cargo = 0,
+	Personal = 1,
+}
 
 public abstract class BoxBase : MonoBehaviour, IItemContainer
 {
+	[SerializeField] BoxType boxType;
 	[SerializeField] private float capacity = 10.0f;
 	protected float size = 0.0f;
 	protected Dictionary<uint, ItemStack> stacks = new();
@@ -41,6 +50,37 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 		stacks.Remove(itemId);
 	}
 
+	// return true when the payload fully moved
+	public bool AddItem(Dictionary<uint, ItemStack> payload)
+	{
+		List<uint> del = new();
+		bool removed = true;
+		foreach (var (id, stack) in payload)
+		{
+			int quantity = stack.Quantity;
+			int added = AddItem(id, stack.Quantity);
+
+			stack.RemoveItem(added);
+
+			// not fully moved
+			if (quantity != added)
+			{
+				removed = false;
+				break;
+			}
+			del.Add(id);
+		}
+
+		// clear empty stacks of payload
+
+		foreach (uint id in del)
+		{
+			payload.Remove(id);
+		}
+
+		return removed;
+	}
+
 	public int AddItem(uint itemId, int quantity)
 	{
 		float availableSize = capacity - size;
@@ -49,6 +89,15 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 		// quantity를 줄여야한다
 		if (availableSize < itemSize * quantity)
 			quantity = Mathf.FloorToInt(availableSize / itemSize);
+
+		// 0이면 불필요한 로직을 타지 않게
+		if (quantity == 0)
+		{
+			return 0;
+		}
+
+		if (stacks[itemId] == null)
+			stacks[itemId] = new ItemStack(itemId, this.capacity);
 
 		int res = stacks[itemId].AddItem(quantity);
 

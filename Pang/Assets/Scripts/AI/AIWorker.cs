@@ -126,9 +126,16 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlace
 		currentTask = task;
 	}
 
-	public void OnPositionSet(int3 position)
+	// for findroute only
+	public void SetPosition(in int3 position)
 	{
 		this.position = position;
+	}
+
+	public void OnPositionSet(in int3 position)
+	{
+		enabled = true;
+		SetPosition(position);
 	}
 
 	public void OnRemoved()

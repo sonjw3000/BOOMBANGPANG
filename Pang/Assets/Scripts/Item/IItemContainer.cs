@@ -104,7 +104,7 @@ public class ItemLocation
 	private ItemStack itemStack => container.Stacks[itemID];
 	public int Quantity => itemStack.Quantity;
 	public int TobeQuantity => itemStack.TobeQuantity;
-
+	public uint ItemID => itemID;
 
 	// storing task가 아이템을 저장할 때
 	public int AddItem(int amount)

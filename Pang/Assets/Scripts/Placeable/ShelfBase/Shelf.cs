@@ -19,7 +19,7 @@ public class Shelf : ShelfBase
 		GameContext.Instance.ItemInventoryData.OnContainerRemoved(this);
 	}
 
-	protected override void SetPickingPosition()
+	protected override void SetInteractionPoints()
 	{
 		interactionPoints.Add(new int3(
 			Mathf.RoundToInt(GridPosition.x + transform.forward.x),

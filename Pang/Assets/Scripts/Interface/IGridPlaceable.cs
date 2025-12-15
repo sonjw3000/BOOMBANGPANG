@@ -17,7 +17,7 @@ public class DestroyContext
 interface IGridPlaceable
 {
 	// grid actions
-	public void OnPositionSet(int3 position);
+	public void OnPositionSet(in int3 position);
 
 	public void OnDestroyedBy(in DestroyContext ctx);
 

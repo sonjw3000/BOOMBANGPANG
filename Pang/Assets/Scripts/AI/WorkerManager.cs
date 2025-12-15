@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using static WorkerTask;
+//using static WorkerTask.TaskType;
 
 [DefaultExecutionOrder(-100)]
 public class WorkerManager : MonoBehaviour
@@ -58,6 +59,37 @@ public class WorkerManager : MonoBehaviour
 
 	public void ChangeWorkerTaskType(AIWorker worker, TaskType type)
 	{
+		// have to check ability
+		switch (type)
+		{
+			case TaskType.Unloading:
+				if (worker.GetComponent<CargoHandlingAbility>() == false)
+				{
+					Debug.Log("No Unloading Ability");
+					return;
+				}
+				break;
+
+			case TaskType.Storing:
+				if (worker.GetComponent<CarryBoxAbility>() == false)
+				{
+					Debug.Log("No CarryboxAbility Ability");
+					return;
+				}
+				break;
+
+			case TaskType.Picking:
+				if (worker.GetComponent<CarryBoxAbility>() == false)
+				{
+					Debug.Log("No CarryboxAbility Ability");
+					return;
+				}
+				break;
+
+			case TaskType.Loading:
+				break;
+		}
+
 		workersPerTaskType[worker.TaskType].Remove(worker);
 		workersPerTaskType[type].Add(worker);
 

@@ -16,6 +16,8 @@ public sealed class PickingTask : WorkerTask
 			public ItemLocation Location => location;
 			public int Quantity => quantity;
 			public int3 GoalPosition => Location.Container.InteractionPoints[0];
+			public uint ItemID => Location.ItemID;
+
 			public PickLine(ItemLocation location, int quantity)
 			{
 				this.location = location;
@@ -80,7 +82,7 @@ public sealed class PickingTask : WorkerTask
 		// checking tote size over capacity
 		// actual work
 		SequenceNode work = new SequenceNode();
-		work.Add(AIWorker.GetToteBox());
+		work.Add(AIWorker.GetBox(BoxType.Personal));
 		work.Add(AIWorker.MoveToTarget(SetTarget));
 		work.Add(new ActionNode(PickItems));
 		// todo 애니메이션을 재생해야한다 곧 지우자
@@ -135,7 +137,27 @@ public sealed class PickingTask : WorkerTask
 	public static NodeState PickItems(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
-		task.CurrentLine.Location.RemoveItem(task.CurrentLine.Quantity);
+		int removed = task.CurrentLine.Location.RemoveItem(task.CurrentLine.Quantity);
+
+		BoxBase box = ctx.Worker.GetComponent<CarryBoxAbility>().CarringBox;
+
+		if (box == null)
+		{
+			Debug.Log("NO BOX??? WHY?");
+			return Failure;
+		}
+
+		int realAdded = box.AddItem(task.CurrentLine.ItemID, removed);
+
+		// todo
+		// 갯수를 체크해야한다
+		// 중요함!
+		if (task.CurrentLine.Quantity != realAdded)
+		{
+			// 갯수가 다르기 때문에 다른곳에서 동일 물품을 줏어야 한다. 새로운 위치로 이동해야하지 않을까?
+			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
+			return Failure;
+		}
 
 		task.PickingData.MoveToLextLine();
 

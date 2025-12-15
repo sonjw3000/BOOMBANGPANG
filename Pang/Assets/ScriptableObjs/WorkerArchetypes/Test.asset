@@ -28,3 +28,5 @@ MonoBehaviour:
   pickStoreConfig:
     enabled: 1
     handSpeed: 10
+  cargoHandlingConfig:
+    enabled: 1

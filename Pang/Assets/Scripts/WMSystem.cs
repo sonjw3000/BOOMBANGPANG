@@ -8,7 +8,9 @@ public class WMSystem : MonoBehaviour
 {
 	private BoxPoolService boxPoolRegistry = new();
 
+	private CargoPortService cargoPoolService = new();
 
 	public BoxPoolService BoxPoolMgr => boxPoolRegistry;
+	public CargoPortService CargoPorts => cargoPoolService;
 
 }

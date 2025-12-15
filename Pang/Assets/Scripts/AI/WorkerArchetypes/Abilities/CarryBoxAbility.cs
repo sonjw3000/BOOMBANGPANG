@@ -52,4 +52,18 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>
 
 		return true;
 	}
+
+	public bool TryGetBox(out BoxBase box)
+	{
+		box = null;
+		if (carringBox == null)
+			return false;
+
+		box = carringBox;
+
+		carringBox.transform.SetParent(null);
+		carringBox = null;
+
+		return true;
+	}
 }

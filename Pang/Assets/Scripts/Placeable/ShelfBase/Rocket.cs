@@ -1,7 +1,8 @@
 ﻿using NUnit.Framework;
-using Unity.Mathematics;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class Rocket : ShelfBase
 {
@@ -13,13 +14,13 @@ public class Rocket : ShelfBase
 
 	public int3 LandingPos => landingPoint;
 
-	protected override void SetPickingPosition()
+	protected override void SetInteractionPoints()
 	{
 		Vector3 projOnFloor = forwardVector;
 		projOnFloor.y = 0;
 		projOnFloor = projOnFloor.normalized;
 
-		interactionPoints.Add( new int3(
+		interactionPoints.Add(new int3(
 			Mathf.RoundToInt(GridPosition.x + projOnFloor.x),
 			Mathf.RoundToInt(GridPosition.y),
 			Mathf.RoundToInt(GridPosition.z + projOnFloor.z)
@@ -33,12 +34,17 @@ public class Rocket : ShelfBase
 		
 		if (transform.position.y <= landingPoint.y)
 		{
+			transform.position = new Vector3(
+				LandingPos.x,
+				LandingPos.y,
+				LandingPos.z
+				);
 			RocketMgr.OnRocketLanding(this);
 			//gameObject.SetActive(false);
 		}
 	}
 
-	public void InitializePosition(int3 landingPoint, Vector3 forwardVector, float fallingSpeed)
+	public void InitializePosition(in int3 landingPoint, in Vector3 forwardVector, float fallingSpeed)
 	{
 		this.landingPoint = landingPoint;
 		this.forwardVector = forwardVector.normalized;

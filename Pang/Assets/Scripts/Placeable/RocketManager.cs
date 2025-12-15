@@ -2,7 +2,7 @@
 using System.Net.Sockets;
 using Unity.Mathematics;
 using UnityEngine;
-using static UnityEditor.Progress;
+
 
 public class RocketManager : MonoBehaviour
 {
@@ -141,13 +141,13 @@ public class RocketManager : MonoBehaviour
 		// 해당 rocket을 activeRockets에 추가
 		activeRockets.Add(rocket);
 
-		// rocket move off
-		rocket.enabled = false;
-
 		// todo
 		// 로켓이 떨어진 위치에 있는 객체 파괴 << Resource에서 노티만 해주기
 		int3 pos = rocket.LandingPos;
 		ResourceMgr.mapRef[pos.x, pos.y, pos.z].Set(RocketPrefabIndex, ResourceMgr.mapRef, rocket.gameObject, pos);
+
+		// rocket move off
+		rocket.enabled = false;
 
 		// todo
 		// IB Manager에게 로켓의 payload를 넘겨주고 이를 처리하도록 하자

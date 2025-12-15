@@ -8,8 +8,10 @@ using static IBaseNode.NodeState;
 public class UnloadingTask : WorkerTask
 {
 	private Rocket targetRocket;
+	private CargoPort cargoPort;
 
 	static private InboundWorkflowManager IBManager => GameContext.Instance.IBWorkflowMgr;
+	static private CargoPortService PortService => GameContext.Instance.WMSys.CargoPorts;
 
 	public UnloadingTask(Rocket rocket) : base(TaskType.Unloading)
 	{
@@ -31,9 +33,11 @@ public class UnloadingTask : WorkerTask
 		ActionNode puton = new ActionNode(PutOnBuffer);
 		ActionNode endTask = new ActionNode(AIWorker.TaskCompleted);
 
+		SelectorNode getBox = AIWorker.GetBox(BoxType.Cargo);
 		SequenceNode moveToRocket = AIWorker.MoveToTarget(SetRocketTarget);
 		SequenceNode moveToUnloadingZone = AIWorker.MoveToTarget(SetZoneTarget);
 
+		root.Add(getBox);
 		root.Add(moveToRocket);
 		root.Add(unload);
 
@@ -80,14 +84,35 @@ public class UnloadingTask : WorkerTask
 	public static NodeState UnloadFromRocket(in BTContext ctx)
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
+		Rocket rocket = task.targetRocket;
 
-		if (task.targetRocket == null)
+		if (rocket == null)
 		{
 			// todo 여기서 task를 end 해야함 failled로
 			Debug.Log("No rocket here!!!!!!");
 			return Failure;
 		}
 
+		// items를 worker에게 건내줘야함
+		AIWorker worker = ctx.Worker;
+
+		BoxBase box = worker.GetComponent<CarryBoxAbility>().CarringBox;
+		if (box == null)
+		{
+			Debug.Log("No Box OMG!!");
+			return Failure;
+		}
+		
+		var items = rocket.GetPayload();
+		box.AddItem(items);
+
+		// todo
+		// 새로운 작업이 필요할것이다
+		
+		// disable rocket
+		if (items.Count == 0)
+			GameContext.Instance.RocketMgr.DisableRocket(task.targetRocket);
+		
 		Debug.Log("Unloading!!");
 
 		return Success;
@@ -95,7 +120,17 @@ public class UnloadingTask : WorkerTask
 
 	public static NodeState SetZoneTarget(in BTContext ctx)
 	{
-		ctx.LocalBlackBoard.Set<int3>("goalPos", IBManager.InboundBufferZone);
+		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
+
+		task.cargoPort = PortService.GetClosestAvailablePort(ctx.Worker.GridPosition);
+
+		if (task.cargoPort == null)
+		{
+			Debug.Log("No Cargoport Available!!");
+			return Failure;
+		}
+		
+		ctx.LocalBlackBoard.Set<int3>("goalPos", task.cargoPort.GridPosition);
 
 		Debug.Log($"Moving to: {IBManager.InboundBufferZone}");
 
@@ -104,6 +139,16 @@ public class UnloadingTask : WorkerTask
 
 	public static NodeState PutOnBuffer(in BTContext ctx)
 	{
+		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
+
+		if (task.cargoPort == null)
+		{
+			Debug.Log("No Cargoport Available!!");
+			return Failure;
+		}
+
+
+
 		Debug.Log("BufferLoading!");
 
 		return Success;

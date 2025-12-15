@@ -55,12 +55,13 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4046099219731300723}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e6a60085e24c56044ba0ecfce39d6ff4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   workerArchetype: {fileID: 11400000, guid: 61a6cfe86054f654ca02b62429444172, type: 2}
+  workerMainTaskType: 4
   tick: 0
   workerName: 
   workerID: 0

@@ -57,8 +57,9 @@ public class BoxPool :
 		return true;
 	}
 
-	public void OnPositionSet(int3 position)
+	public void OnPositionSet(in int3 position)
 	{
+		enabled = true;
 		this.position = position;
 
 		// 팔방으로 상호작용이 가능하다

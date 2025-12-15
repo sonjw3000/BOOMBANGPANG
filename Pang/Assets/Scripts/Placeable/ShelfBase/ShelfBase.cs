@@ -61,32 +61,34 @@ public abstract class ShelfBase :
 		return stacks[itemId].RemoveItem(quantity);
 	}
 
-	protected abstract void SetPickingPosition();
+	protected abstract void SetInteractionPoints();
 
 	public void OnRemoved()
 	{
-		foreach (int3 pickingPos in interactionPoints)
+		foreach (int3 interPos in interactionPoints)
 		{
 			// pickingposition위에 아무것도 없는 경우엔 삭제, 뭔가 있다 == 로봇이 올라가 있다 -> 삭제하면 안됨
-			Cell pickPos = GridMap[pickingPos.x, pickingPos.y, pickingPos.z];
-			if (pickPos.type < 0)
+			Cell cell = GridMap[interPos.x, interPos.y, interPos.z];
+			if (cell.type < 0)
 			{
-				pickPos.type = 0;
+				cell.type = 0;
 			}
-			pickPos.previousType = 0;
+			cell.previousType = 0;
 		}
 
 		Cell thisPos = GridMap[position.x, position.y, position.z];
 		thisPos.type = thisPos.previousType;
 	}
 
-	public void OnPositionSet(int3 position)
+	public void OnPositionSet(in int3 position)
 	{
+		enabled = true;
+
 		// set position
 		this.position = position;
 
 		// set pickingPosition
-		SetPickingPosition();
+		SetInteractionPoints();
 		foreach (int3 pickingPos in interactionPoints)
 		{
 			Cell pickPos = GridMap[pickingPos.x, pickingPos.y, pickingPos.z];
