@@ -23,6 +23,10 @@ public abstract class ShelfBase :
 
 	static private Cell[,,] GridMap => GameContext.Instance.MapResources.mapRef;
 
+	// 각자의 manager에 의해 관리될 수 있다
+	public event System.Action<ShelfBase, ItemStack> OnItemAdded;
+	public event System.Action<ShelfBase, ItemStack> OnItemRemoved;
+
 	public int CurrentStackCount => currentStackCount;
 	public float MaxStack => maxStacks;
 	public int3 GridPosition => position;

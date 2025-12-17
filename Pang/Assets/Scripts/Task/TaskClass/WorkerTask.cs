@@ -30,15 +30,22 @@ public abstract class WorkerTask
 
 	protected IBaseNode baseNode = null;
 
+	protected CarryBoxAbility carryBox = null;
+
 
 	public AIWorker OccupyWorker { get; private set; }
 	public TaskType Type { get; private set; }
 	public Status CurrentStatus { get; private set; } = Status.Blocked;
 	public float TaskBuiltTime { get; private set; }
 	public bool IsEmergency { get; private set; }
+	public CarryBoxAbility CarryingAbility => carryBox;
 
 	private TaskManager Manager => GameContext.Instance.TaskMgr;
 	//static public TaskManager Manager { get; private set; } = null;
+
+
+
+	
 
 	protected WorkerTask(TaskType type)
 	{
@@ -53,6 +60,7 @@ public abstract class WorkerTask
 		OccupyWorker = worker;
 		// 작업자가 배치된 상태라면 작업이 진행되고있는 상태임
 		CurrentStatus = Status.Assigned;
+		OnTaskAssigned();
 	}
 
 	public void EndTask()
@@ -60,8 +68,10 @@ public abstract class WorkerTask
 		CurrentStatus = Status.End;
 		OccupyWorker.SetTask(null);
 
-		Manager.EndTaskList.Add(this);
+		Manager.OnEndTask(this);
 	}
+
+	protected virtual void OnTaskAssigned() { }
 
 	protected abstract void BuildTaskNode();
 #if UNITY_EDITOR

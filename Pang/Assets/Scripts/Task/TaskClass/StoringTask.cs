@@ -1,5 +1,4 @@
 ﻿
-
 // storing 전략에 따라 sorting 목적지를 다르게 설정해야 할 수도 있음
 // 쿠팡 입고 했던 애들 말 들어보면 이제
 // 실제 물건 저장은 지들이 알아서 한다는데
@@ -9,22 +8,38 @@
 
 public class StoringTask : WorkerTask
 {
-	private ToteBox currentBox;
+	private WorkJob storeJob;
 
-	public StoringTask(ToteBox currentBox) : base(TaskType.Storing)
+	public WorkLine CurrentLine => storeJob.Lines[storeJob.CurrentLineIndex];
+
+	public StoringTask(WorkJob job) : base(TaskType.Storing)
 	{
-		this.currentBox = currentBox;
+		storeJob = job;
+	}
+
+	protected override void OnTaskAssigned()
+	{
+		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
 	}
 
 	protected override void BuildTaskNode()
 	{
+		SelectorNode root = new SelectorNode();
 
+		SequenceNode checkingFulfilled = new SequenceNode();
+		//checkingFulfilled.Add(new ActionNode(CheckFulfilled));
+		checkingFulfilled.Add(new ActionNode(AIWorker.TaskCompleted));
+
+		// work node
+		// pick box -> pick items with storeJob -> put items by 
+		SequenceNode work = new SequenceNode();
+		work.Add(AIWorker.GetBox(BoxType.Personal));
 	}
 
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
-		return $"[StoringTask] BoxStatus: {currentBox.Stacks.Count}";
+		return $"[StoringTask] CurrentIndex: {storeJob.CurrentLineIndex}";
 	}
 #endif
 

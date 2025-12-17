@@ -1,7 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using BlackBoardSystem;
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
-using BlackBoardSystem;
-
 using static WorkerTask;
 
 //[DefaultExecutionOrder(-100)]
@@ -10,9 +11,10 @@ public class TaskManager : MonoBehaviour
 	private Dictionary<TaskType, LinkedList<WorkerTask>> taskQueue = new();
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue  => taskQueue;
 
-	public List<WorkerTask> EndTaskList { get; private set; } = new();
+	private InboundWorkflowManager IBMgr => GameContext.Instance.IBWorkflowMgr;
+	private OutboundWorkflowManager OBMgr => GameContext.Instance.OBWorkflowMgr;
 
-	public TaskManager()
+	private void Awake()
 	{
 		// initialize task queues
 		foreach (TaskType type in System.Enum.GetValues(typeof(TaskType)))
@@ -40,6 +42,34 @@ public class TaskManager : MonoBehaviour
 				queue.RemoveFirst();
 				worker.SetTask(data);
 			}
+		}
+	}
+
+	public void OnEndTask(WorkerTask task)
+	{
+		// todo
+		//
+		switch (task.Type)
+		{
+			// IB
+			case TaskType.Unloading:
+			//case TaskType.Receive:
+			//case TaskType.Label:
+			case TaskType.Storing:
+				IBMgr.OnTaskCompleted(task);
+				break;
+
+			// OB
+			case TaskType.Picking:
+			//case TaskType.Sorting:
+			//case TaskType.Packaging:
+			case TaskType.Loading:
+				OBMgr.OnTaskCompleted(task);
+				break;
+
+			default:
+				Debug.LogError("ERROR!! TaskType Undef on tskmgr end task");
+				break;
 		}
 	}
 

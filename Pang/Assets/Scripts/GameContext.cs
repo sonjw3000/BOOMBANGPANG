@@ -56,7 +56,7 @@ public class GameContext : MonoBehaviour
 		Debug.Log("GameGlobalContext Online!");
 		if (instance != null && instance != this)
 		{
-			Destroy(this);
+			Destroy(gameObject);
 			Debug.Log("WARNNING!! GameGlobalContext Duplicated");
 			return;
 		}

@@ -6,6 +6,8 @@ public class CargoPortService
 {
 	private List<CargoPort> cargoPorts = new();
 
+	private InboundWorkflowManager IBMgr => GameContext.Instance.IBWorkflowMgr;
+
 	public CargoPort GetClosestAvailablePort(in int3 pos)
 	{
 		CargoPort port = null;
@@ -32,12 +34,18 @@ public class CargoPortService
 
 	public void RegisterPort(CargoPort port)
 	{
+		port.OnItemAdded += OnPortItemAdded;
 		cargoPorts.Add(port);
 	}
 
 	public void UnregisterPort(CargoPort port)
 	{
+		port.OnItemAdded -= OnPortItemAdded;
 		cargoPorts.Remove(port);
 	}
 
+	public void OnPortItemAdded(ShelfBase port, ItemStack item)
+	{
+		IBMgr.BuildStoreJob(port, item);
+	}
 }

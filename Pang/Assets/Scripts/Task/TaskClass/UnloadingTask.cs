@@ -130,9 +130,9 @@ public class UnloadingTask : WorkerTask
 			return Failure;
 		}
 		
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.cargoPort.GridPosition);
+		ctx.LocalBlackBoard.Set<int3>("goalPos", task.cargoPort.DockPoint);
 
-		Debug.Log($"Moving to: {IBManager.InboundBufferZone}");
+		Debug.Log($"Moving to: {task.cargoPort.DockPoint}");
 
 		return Success;
 	}
@@ -147,6 +147,9 @@ public class UnloadingTask : WorkerTask
 			return Failure;
 		}
 
+		// load on cargoport
+
+		//task.cargoPort.AddItem();
 
 
 		Debug.Log("BufferLoading!");

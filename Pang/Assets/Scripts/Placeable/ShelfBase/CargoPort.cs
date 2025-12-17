@@ -5,8 +5,8 @@ using UnityEngine;
 public class CargoPort : 
 	ShelfBase
 {
-	public int3 DockPoint => InteractionPoints[0];
-	public int3 UnpackPoint => InteractionPoints[1];
+	public int3 UnpackPoint => InteractionPoints[0];
+	public int3 DockPoint => InteractionPoints[1];
 
 	static private CargoPortService CargoPorts => GameContext.Instance.WMSys.CargoPorts;
 
@@ -26,7 +26,7 @@ public class CargoPort :
 		// have to set unpacking point / dock point
 		var forward = transform.forward;
 
-		// dockPoint
+		// unpackPoint
 		interactionPoints.Add(new int3(
 			GridPosition.x + Mathf.RoundToInt(forward.x),
 			GridPosition.y + Mathf.RoundToInt(forward.y),
@@ -35,7 +35,7 @@ public class CargoPort :
 
 		forward *= -1;
 
-		// unpackPoint
+		// dockPoint
 		interactionPoints.Add(new int3(
 			GridPosition.x + Mathf.RoundToInt(forward.x),
 			GridPosition.y + Mathf.RoundToInt(forward.y),

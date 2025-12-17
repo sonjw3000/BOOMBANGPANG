@@ -61,6 +61,10 @@ public sealed class PickingTask : WorkerTask
 		PickingData = pickJob;
 	}
 
+	protected override void OnTaskAssigned()
+	{
+		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
+	}
 
 	protected override void BuildTaskNode()
 	{

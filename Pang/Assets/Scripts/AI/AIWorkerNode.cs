@@ -7,6 +7,7 @@ using static IBaseNode.NodeState;
 
 public sealed partial class AIWorker
 {
+	static private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 	// AI's basic actions
 	private static NodeState SetDestination(in BTContext context)
@@ -42,7 +43,8 @@ public sealed partial class AIWorker
 
 	private static NodeState CheckWorkerHasBox(in BTContext context)
 	{
-		CarryBoxAbility boxStatus = context.Worker.GetComponent<CarryBoxAbility>();
+		CarryBoxAbility boxStatus = context.Worker.CurrentTask.CarryingAbility;
+
 		if (boxStatus == null)
 		{
 			Debug.LogError("This Worker Has No BOX ABILITY BUT TRIED TO PICK OR SOMETHING");
@@ -92,6 +94,10 @@ public sealed partial class AIWorker
 		task.EndTask();
 
 		Debug.Log("TaskCompleted!");
+
+		// todo
+		// 이벤트로 만들어보자
+		// task end actions
 
 		WorkerMgr.AddIdleWorker(ctx.Worker);
 
