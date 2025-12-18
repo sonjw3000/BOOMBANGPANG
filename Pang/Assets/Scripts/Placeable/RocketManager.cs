@@ -17,6 +17,8 @@ public class RocketManager : MonoBehaviour
 	[SerializeField] private float timeSinceLastSpawn = 0.0f;
 	[SerializeField] private float spawnInterval = 10.0f;
 
+	[SerializeField] private float rocketPayloadSize = 1000.0f;
+
 	[SerializeField] private List<Rocket> activeRockets = new();
 	private Queue<Rocket> rocketPool = new();
 
@@ -117,7 +119,7 @@ public class RocketManager : MonoBehaviour
 		rocketPool.Enqueue(rocketComp);
 	}
 
-	private Dictionary<uint, ItemStack> BuildRandomPayload()
+	private List<ItemStack> BuildRandomPayload()
 	{
 		// todo
 		// testing with random item
@@ -127,11 +129,13 @@ public class RocketManager : MonoBehaviour
 		// 아이템을 세팅해주어야 한다
 		// itemstack을 만들어서 넘겨주자!(payload라 명명)
 
-		Dictionary<uint, ItemStack> payload = new();
+		List<ItemStack> payload = new();
 		
 		uint randomItemID = ItemDB.GetRandomItemID();
-		payload[randomItemID] = new ItemStack(randomItemID, 0);// { ItemID = randomItemID, Quantity = 10 };
-		payload[randomItemID].AddItem(10);
+		ItemStack newStack = new ItemStack(randomItemID, rocketPayloadSize);
+		newStack.AddItem(10);
+
+		payload.Add(newStack);// { ItemID = randomItemID, Quantity = 10 };
 
 		return payload;
 	}

@@ -5,12 +5,34 @@
 // 내가 구상한 방식은 아이템을 직접 선반에 지정하는 방식이라
 // 이거에 맞게 구현해야 할 듯
 
+using UnityEngine;
+using Unity.Mathematics;
+using static IBaseNode;
+using static IBaseNode.NodeState;
+using System.Collections.Generic;
 
 public class StoringTask : WorkerTask
 {
 	private WorkJob storeJob;
 
+	private WorkLine placingLine = null;
+
+	public bool IsJobEnd = false;
+
+	// todo
+	// task 분리 전 임시 코드
+	public Phase CurrentPhase = Phase.Collect;
+
+	public enum Phase
+	{
+		Collect,
+		Place
+	}
+
+
 	public WorkLine CurrentLine => storeJob.Lines[storeJob.CurrentLineIndex];
+
+	static public IPlacingPolicy PlacingPolicy => GameContext.Instance.IBWorkflowMgr.PlacingPolicy;
 
 	public StoringTask(WorkJob job) : base(TaskType.Storing)
 	{
@@ -20,20 +42,47 @@ public class StoringTask : WorkerTask
 	protected override void OnTaskAssigned()
 	{
 		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
+
+		if (carryBox == null)
+		{
+			Debug.LogError("No carryBox ability but assigned to storing!!");
+		}
 	}
 
-	protected override void BuildTaskNode()
+	protected override IBaseNode BuildWorkNode()
 	{
-		SelectorNode root = new SelectorNode();
+		// 1) main
+		SelectorNode workNode = new SelectorNode();
 
-		SequenceNode checkingFulfilled = new SequenceNode();
-		//checkingFulfilled.Add(new ActionNode(CheckFulfilled));
-		checkingFulfilled.Add(new ActionNode(AIWorker.TaskCompleted));
+		// phase: collecting
+		SequenceNode collect = new SequenceNode();
+		collect.Add(new ActionNode(CheckPhaseCollect));
+		collect.Add(AIWorker.BuildCarryMoveInteract(
+			boxRequirement: BoxType.Personal,
+			setGoal: SetCollectingPosition,
+			interact: PickItems
+		));
+		collect.Add(new WaitNode(1.0f));
 
-		// work node
-		// pick box -> pick items with storeJob -> put items by 
-		SequenceNode work = new SequenceNode();
-		work.Add(AIWorker.GetBox(BoxType.Personal));
+		// phase: placing
+		SequenceNode place = new SequenceNode();
+		collect.Add(new ActionNode(CheckPhasePlace));
+		collect.Add(AIWorker.BuildCarryMoveInteract(
+			boxRequirement: BoxType.Personal,
+			setGoal: SetPlacingPosition,
+			interact: PlaceItems
+		));
+		collect.Add(new WaitNode(1.0f));
+
+		workNode.Add(collect);
+		workNode.Add(place);
+
+		return workNode;
+	}
+
+	public override bool CheckTaskEnd()
+	{
+		return IsJobEnd;
 	}
 
 #if UNITY_EDITOR
@@ -43,10 +92,110 @@ public class StoringTask : WorkerTask
 	}
 #endif
 
-	public override IBaseNode.NodeState UpdateTaskNode(in BTContext ctx)
+	public static NodeState CheckPhaseCollect(in BTContext ctx)
 	{
-		// picking task와 비슷한 로직으로 구현하면 될 듯
-
-		return IBaseNode.NodeState.Success;
+		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
+		return task.CurrentPhase == Phase.Collect ? Success : Failure;
 	}
+
+	public static NodeState SetCollectingPosition(in BTContext ctx)
+	{
+		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
+
+		var line = task.CurrentLine;
+		ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
+
+		return Success;
+	}
+
+	public static NodeState PickItems(in BTContext ctx)
+	{
+		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
+		int removed = task.CurrentLine.Source.RemoveItem(task.CurrentLine.ItemID, task.CurrentLine.Quantity);
+
+		BoxBase box = task.CarryingAbility.CarringBox;
+
+		if (box == null)
+		{
+			Debug.LogError("NO BOX??? WHY?");
+			return Failure;
+		}
+
+		int realAdded = box.AddItem(task.CurrentLine.ItemID, removed);
+
+		if (task.CurrentLine.Quantity != realAdded)
+		{
+			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
+			return Failure;
+		}
+
+		task.storeJob.MoveToLextLine();
+
+		// 모두 모았다면
+		if (task.storeJob.IsJobEnd)
+		{
+			task.CurrentPhase = Phase.Place;
+		}
+
+		return Success;
+	}
+
+	public static NodeState CheckPhasePlace(in BTContext ctx)
+	{
+		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
+		return task.CurrentPhase == Phase.Place ? Success : Failure;
+	}
+
+	public static NodeState SetPlacingPosition(in BTContext ctx)
+	{
+		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
+		BoxBase box = task.CarryingAbility.CarringBox;
+		PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, out var decision);
+
+		task.placingLine = new WorkLine(decision.shelf, decision.ItemID, decision.Quantity);
+
+		Debug.Log("Got Destination!");
+
+		if (decision.shelf == null)
+		{
+			// todo
+			// 가능한 placingLine을 받지 못했다는 것을 어디선가 알려야 한다
+			Debug.Log("No shelf");
+			return Failure;
+		}
+
+		ctx.LocalBlackBoard.Set<int3>("goalPos", task.placingLine.Source.InteractionPoints[0]);
+		return Success;
+	}
+
+	public static NodeState PlaceItems(in BTContext ctx)
+	{
+		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
+
+		// place items to target
+		WorkLine line = task.placingLine;
+		BoxBase box = task.carryBox.CarringBox;
+		
+		int addedItem = line.Source.AddItem(line.ItemID, line.Quantity);
+		box.RemoveItem(line.ItemID, addedItem);
+
+		Debug.Log("PlacingItem!");
+		
+		// if fully removed, delete line
+		if (addedItem == line.Quantity)
+		{
+			Debug.Log("Fully Moved item!");
+			task.placingLine = null;
+		}
+	
+		// if no items in box, end job
+		if (box.Stacks.Count == 0)
+		{
+			Debug.Log("Box End!");
+			task.IsJobEnd = true;
+		}
+
+		return Success;
+	}
+
 }

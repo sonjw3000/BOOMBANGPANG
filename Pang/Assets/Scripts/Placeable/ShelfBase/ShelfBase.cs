@@ -1,7 +1,5 @@
 ﻿using System.Collections.Generic;
-using Unity.IO.LowLevel.Unsafe;
 using Unity.Mathematics;
-using UnityEditor;
 using UnityEngine;
 
 public abstract class ShelfBase : 
@@ -11,44 +9,39 @@ public abstract class ShelfBase :
 	IGridPlacementEffect,
 	IInteractionPoint
 {
-	[SerializeField] protected int maxStacks;
+	[SerializeField] protected int maxStacks = 16;
 	[SerializeField] protected float sizePerStack;
-	protected int currentStackCount;
+
+	//private int currentStackCount;
 	private int3 position;
 	protected List<int3> interactionPoints = new();
 
-	protected Dictionary<uint, ItemStack> stacks = new();
+	protected List<ItemStack> stacks;
+	protected Dictionary<uint, int> itemTotals = new();
+	protected Dictionary<uint, int> itemTotalsTobe = new();
 
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
 
 	static private Cell[,,] GridMap => GameContext.Instance.MapResources.mapRef;
 
 	// 각자의 manager에 의해 관리될 수 있다
-	public event System.Action<ShelfBase, ItemStack> OnItemAdded;
-	public event System.Action<ShelfBase, ItemStack> OnItemRemoved;
+	public event System.Action<ShelfBase, uint> OnItemRegistered;
+	public event System.Action<ShelfBase, uint> OnItemUnregistered;
 
-	public int CurrentStackCount => currentStackCount;
+	//public int CurrentStackCount => currentStackCount;
+	public IReadOnlyList<ItemStack> Stacks => stacks;
+	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
+	public bool CanRegister() => MaxStack > Stacks.Count;
 	public float MaxStack => maxStacks;
+
 	public int3 GridPosition => position;
 	public IReadOnlyList<int3> InteractionPoints => interactionPoints;
-	public IReadOnlyDictionary<uint, ItemStack> Stacks => stacks;
 
-	public bool CanRegister() => maxStacks > currentStackCount;
-
-	public void RegisterItem(uint itemId)
+	protected virtual void Awake()
 	{
-		++currentStackCount;
-		stacks[itemId] = new ItemStack(itemId, sizePerStack);
+		stacks = new List<ItemStack>(capacity: maxStacks);
 	}
 
-	public void UnregistereItem(uint itemId)
-	{
-		if (stacks.ContainsKey(itemId))
-		{
-			--currentStackCount;
-			stacks.Remove(itemId);
-		}
-	}
 	// 가장 쉬운 숫자는?
 	// 190,000
 
@@ -57,12 +50,99 @@ public abstract class ShelfBase :
 
 	public int AddItem(uint itemId, int quantity)
 	{
-		return stacks[itemId].AddItem(quantity);
+		if (quantity <= 0)
+			return 0;
+
+		int curItemQty = itemTotals.GetValueOrDefault(itemId);
+
+		// 기존 인덱스에 넣기
+		int remain = quantity;
+		for (int i = 0; i < stacks.Count; ++i) 
+		{
+			ItemStack stack = stacks[i];
+
+			if (stack.ItemID != itemId)
+				continue;
+
+			int itemAdded = stack.AddItem(remain);
+			itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) + itemAdded;
+			remain -= itemAdded;
+
+			if (remain <= 0) break;
+		}
+
+		// 기존 인덱스가 없다면 새로 만들어 채우기
+		while (remain > 0 && stacks.Count < maxStacks)
+		{
+			ItemStack stack = new ItemStack(itemId, sizePerStack);
+			stacks.Add(stack);
+
+			int itemAdded = stack.AddItem(remain);
+			itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) + itemAdded;
+			remain -= itemAdded;
+		}
+
+		int afterQty = itemTotals.GetValueOrDefault(itemId);
+
+		itemTotalsTobe[itemId] = itemTotalsTobe.GetValueOrDefault(itemId) + remain;
+
+		// item이 배치되었다면
+		if (curItemQty == 0 && afterQty != 0)
+		{
+			OnItemRegistered?.Invoke(this, itemId);
+		}
+
+		return quantity - remain;
 	}
 
 	public int RemoveItem(uint itemId, int quantity)
 	{
-		return stacks[itemId].RemoveItem(quantity);
+		if (quantity <= 0)
+			return 0;
+
+		int remain = quantity;
+
+		for (int i = stacks.Count - 1; i >= 0; --i)
+		{
+			ItemStack stack = stacks[i];
+
+			if (stack.ItemID != itemId)
+				continue;
+			
+			int itemRemoved = stack.RemoveItem(remain);
+			itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) - itemRemoved;
+			remain -= itemRemoved;
+			if (stack.Quantity <= 0)
+				stacks.RemoveAt(i);
+		}
+
+		// 아이템이 사라졌다면
+		if (itemTotals.TryGetValue(itemId, out int value) && value == 0)
+		{
+			itemTotals.Remove(itemId);
+			itemTotalsTobe.Remove(itemId);
+			OnItemUnregistered?.Invoke(this, itemId);
+		}
+
+		return quantity - remain;
+	}
+
+	public bool CanAccept(uint itemId, int quantity)
+	{
+		int capacity = 0;
+		float itemSize = itemDB.GetItemSize(itemId);
+
+		for (int i = 0; i < stacks.Count; ++i)
+		{
+			ItemStack stack = stacks[i];
+			if (stack.ItemID == itemId)
+				capacity += stack.AvailableAmount;
+		}
+
+		int freeslots = maxStacks - stacks.Count;
+		capacity += freeslots * (int)(sizePerStack / itemSize);
+
+		return capacity >= quantity;
 	}
 
 	protected abstract void SetInteractionPoints();
@@ -112,5 +192,20 @@ public abstract class ShelfBase :
 		// 근데 지가 로켓이면 뭐 로켓이 로케트 부순거니까
 		// 근데 로케트의 아이템은 인벤토리에서 관리를 안해
 		// 제가 꽁꽁 숨겨뒀으니 찾아보세요
+	}
+
+	public int ReservePicking(uint itemId, int quantity)
+	{
+		if (itemTotalsTobe.TryGetValue(itemId, out int val) == false)
+		{
+			Debug.LogError("NO ITEMS HERE");
+			return quantity;
+		}
+
+		int canRemove = math.clamp(quantity, 0, itemTotalsTobe[itemId]);
+		itemTotalsTobe[itemId] -= canRemove;
+
+		return quantity - canRemove;
+		//itemTotalsTobe[itemId] = itemTotalsTobe.GetValueOrDefault(itemId) + remain;
 	}
 }

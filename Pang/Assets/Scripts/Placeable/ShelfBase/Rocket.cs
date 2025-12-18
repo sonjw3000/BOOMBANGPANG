@@ -51,12 +51,12 @@ public class Rocket : ShelfBase
 		this.fallingSpeed = fallingSpeed;
 	}
 
-	public void SetupPayload(Dictionary<uint, ItemStack> payload)
+	public void SetupPayload(List<ItemStack> payload)
 	{
 		stacks = payload;
 	}
 
-	public Dictionary<uint, ItemStack> GetPayload()
+	public List<ItemStack> GetPayload()
 	{
 		return stacks;
 	}

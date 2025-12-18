@@ -20,6 +20,14 @@ public sealed partial class AIWorker
 		return Success;
 	}
 
+	public static NodeState CheckFulfilled(in BTContext ctx)
+	{
+		if (ctx.Worker.CurrentTask.CheckTaskEnd())
+			return Success;
+
+		return Failure;
+	}
+
 	private static NodeState MoveTo(in BTContext context)
 	{
 		if (context.Worker.routeFinder.IsGoal)
@@ -138,6 +146,18 @@ public sealed partial class AIWorker
 		node.Add(new ActionNode(goalSettingFunc));
 		node.Add(new ActionNode(SetDestination));
 		node.Add(new ActionNode(MoveTo));
+
+		return node;
+	}
+
+	// picking, storing에서 목적지를 갱신하며 이동할 때 사용
+	public static SequenceNode BuildCarryMoveInteract(BoxType boxRequirement, ActionFunc setGoal, ActionFunc interact)
+	{
+		SequenceNode node = new SequenceNode();
+
+		if (boxRequirement != BoxType.None) node.Add(GetBox(boxRequirement));
+		node.Add(MoveToTarget(setGoal));
+		node.Add(new ActionNode(interact));
 
 		return node;
 	}

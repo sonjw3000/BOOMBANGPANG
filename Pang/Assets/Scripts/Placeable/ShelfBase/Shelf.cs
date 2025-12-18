@@ -12,11 +12,11 @@ public class Shelf : ShelfBase
 		Debug.Log("Shelf 등장이요");
 
 
-		GameContext.Instance.ItemInventoryData.OnContainerAdded(this);
+		GameContext.Instance.StorageIndex.OnContainerAdded(this);
 	}
 	void OnDisable()
 	{
-		GameContext.Instance.ItemInventoryData.OnContainerRemoved(this);
+		GameContext.Instance.StorageIndex.OnContainerRemoved(this);
 	}
 
 	protected override void SetInteractionPoints()

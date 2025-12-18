@@ -12,13 +12,24 @@ using static WorkerTask.TaskType;
 
 public class InboundWorkflowManager : MonoBehaviour
 {
+	// storing Planner
 	private StoringPlanner storingPlanner = new StoringItemFriendly();
+
+	// todo
+	// 아래 이것들을 만들어야한다, 위에 저걸 죽여버리고
+	// collecting policy
+	// placing policy
 
 	[SerializeField, Range(1, 100)] private float maxBoxPercentage = 80.0f;
 	[SerializeField] private float storingTaskBuildTime = 10.0f;
 	private float timer = 0;
 
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
+
+	// 일단은 근접 우선으로 설정
+	private IPlacingPolicy placingPolicy = new NearestPlacingPolicy();
+
+	public IPlacingPolicy PlacingPolicy => placingPolicy;
 
 	public void BuildTaskByPayload(Rocket rocket)
 	{
@@ -28,13 +39,6 @@ public class InboundWorkflowManager : MonoBehaviour
 
 		// unloading은 cargoport로 보내는 것으로 완성
 		TaskMgr.TaskQueue[Unloading].AddLast(task);
-	}
-
-	public void BuildStoreJob(ShelfBase port, ItemStack item)
-	{
-		// todo
-		// 나중에는 하차 후 분류하는 작업까지 거친 후 선반에 넣는 작업으로 나아가야함
-		storingPlanner.BuildStoreJob((CargoPort)port, item);
 	}
 
 	// inbound의 task를 연계생성
@@ -53,25 +57,36 @@ public class InboundWorkflowManager : MonoBehaviour
 		}
 	}
 
-	private void BuildStoreTask()
-	{
-		while (storingPlanner.BuildStoreTask(maxBoxPercentage, out var task))
-		{
-			TaskMgr.TaskQueue[Storing].AddLast(task);
-		}
-	}
 
-	private void Update()
+	private void CheckStoreTaskAvailable()
 	{
 		timer += Time.deltaTime;
 
+		// store task 생성 조건
+		// 마지막 태스크 생성 후타이머
+		// 1개의 박스를 일정 퍼센트까지 채울 수 있을만큼의 물량
+		// 기타 등등
 		if (timer >= storingTaskBuildTime ||
 			false
 			)
 		{
 			timer = 0;
-			BuildStoreTask();
+			storingPlanner.BuildStoreJob();
+
+			while (storingPlanner.BuildStoreTask(maxBoxPercentage, out var task))
+			{
+				Debug.Log("StoreTask Built!");
+
+				if (task != null)
+					TaskMgr.TaskQueue[Storing].AddLast(task);
+			}
 		}
+	}
+
+	private void Update()
+	{
+		CheckStoreTaskAvailable();
+
 	}
 
 }

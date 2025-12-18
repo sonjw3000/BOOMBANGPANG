@@ -15,9 +15,9 @@ public abstract class StoringPlanner
 	static protected int jobID = 1;
 
 	protected InboundWorkflowManager IBManager => GameContext.Instance.IBWorkflowMgr;
-	protected CargoPortService CargoPortService => GameContext.Instance.WMSys.CargoPorts;
+	protected CargoPortService PortService => GameContext.Instance.WMSys.CargoPorts;
 
-	public abstract void BuildStoreJob(CargoPort port, ItemStack item);
+	public abstract void BuildStoreJob();
 
 	public abstract bool BuildStoreTask(float boxPercentage, out StoringTask task);
 }
@@ -26,35 +26,52 @@ public abstract class StoringPlanner
 public sealed class StoringItemFriendly : StoringPlanner
 {
 	//private Dictionary<CargoPort, List<WorkJob>> pendingJobs;
-	private Dictionary<uint, List<WorkLine>> pendingLines;
+	private Dictionary<uint, List<WorkLine>> pendingLines = new();
 
-	private int bestItemLineCnt = -1;
-	private uint bestItemLineID = 0;
 
-	public override void BuildStoreJob(CargoPort port, ItemStack item)
+	public override void BuildStoreJob()
 	{
-		uint itemID = item.ItemID;
-		WorkLine line = new WorkLine(port, itemID, item.Quantity);
-
-		if (pendingLines.ContainsKey(itemID) == false)
-			pendingLines[itemID] = new();
-
-		pendingLines[itemID].Add(line);
-
-		if (pendingLines[itemID].Count > bestItemLineCnt)
+		foreach ((var id, var ports) in PortService.CargoPortsByItem)
 		{
-			bestItemLineCnt = pendingLines[itemID].Count;
-			bestItemLineID = itemID;
+			if (pendingLines.TryGetValue(id, out var lines) == false)
+			{
+				lines = new();
+				pendingLines.Add(id, lines);
+			}
+			
+			foreach (var port in ports)
+			{
+				WorkLine line = new WorkLine(port, id, port.ItemTotals[id]);
+				lines.Add(line);
+			}
+
+			// flush
+			PortService.CargoPortsByItem[id].Clear();
 		}
+
+		PortService.CargoPortsByItem.Clear();
 	}
 
 	public override bool BuildStoreTask(float boxPercentage, out StoringTask task)
 	{
 		task = null;
 
+		// 더이상 task를 만들 line이 없으면 return false
 		if (pendingLines.Count == 0) return false;
 
-		// 가장 item이 많은 line을 찾는다
+
+		// bestItemLine을 찾는다
+		int bestItemLineCnt = -1;
+		uint bestItemLineID = 0;
+		foreach (var kv in pendingLines)
+		{
+			int c = kv.Value.Count;
+			if (c > bestItemLineCnt)
+			{
+				bestItemLineCnt = c;
+				bestItemLineID = kv.Key;
+			}
+		}
 
 		// todo
 		// boxPercentage에 의해 job의 Line을 제한한다
@@ -72,20 +89,7 @@ public sealed class StoringItemFriendly : StoringPlanner
 			pendingLines.Remove(bestItemLineID);
 		}
 
-		// bestItemLine을 다시 찾는다
-		bestItemLineCnt = -1;
-		foreach (var kv in pendingLines)
-		{
-			int c = kv.Value.Count;
-			if (c > bestItemLineCnt)
-			{
-				bestItemLineCnt = c;
-				bestItemLineID = kv.Key;
-			}
-		}
-
-		// 더이상 task를 만들 line이 없으면 return false
-		return pendingLines.Count > 0;
+		return true;
 	}
 
 }

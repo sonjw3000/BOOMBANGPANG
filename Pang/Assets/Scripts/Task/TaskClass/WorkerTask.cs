@@ -28,7 +28,7 @@ public abstract class WorkerTask
 		End
 	}
 
-	protected IBaseNode baseNode = null;
+	private IBaseNode baseNode = null;
 
 	protected CarryBoxAbility carryBox = null;
 
@@ -52,7 +52,14 @@ public abstract class WorkerTask
 		//OccupyWorker = worker;
 		Type = type;
 		TaskBuiltTime = Time.time;
-		BuildTaskNode();
+		SelectorNode root = new SelectorNode();
+
+		// todo
+		// work가 실패했을경우도 판단해야함
+		root.Add(CheckFulfiledNode());
+		root.Add(BuildWorkNode());
+
+		baseNode = root;
 	}
 
 	public void SetAIWorker(AIWorker worker)
@@ -73,11 +80,26 @@ public abstract class WorkerTask
 
 	protected virtual void OnTaskAssigned() { }
 
-	protected abstract void BuildTaskNode();
+	protected abstract IBaseNode BuildWorkNode();
+
+	public abstract bool CheckTaskEnd();
 #if UNITY_EDITOR
 	public abstract string ShowStatus();
 #endif
-	public abstract IBaseNode.NodeState UpdateTaskNode(in BTContext ctx);
+	public IBaseNode.NodeState UpdateTaskNode(in BTContext ctx)
+	{
+		return baseNode.Evaluate(ctx);
+	}
+
+
+	private IBaseNode CheckFulfiledNode()
+	{
+		SequenceNode checkingFulfilled = new SequenceNode();
+		checkingFulfilled.Add(new ActionNode(AIWorker.CheckFulfilled));
+		checkingFulfilled.Add(new ActionNode(AIWorker.TaskCompleted));
+
+		return checkingFulfilled;
+	}
 
 	//public static void SetTaskManager(TaskManager taskManager) { Manager = taskManager; }
 }

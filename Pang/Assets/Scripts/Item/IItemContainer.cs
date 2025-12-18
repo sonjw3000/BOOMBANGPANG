@@ -7,15 +7,11 @@ using UnityEngine;
 // 선반, 상자, 기타등등이 이를 사용
 public interface IItemContainer
 {
-	public IReadOnlyDictionary<uint, ItemStack> Stacks { get; }
+	public IReadOnlyList<ItemStack> Stacks { get; }
 
+	public IReadOnlyDictionary<uint, int> ItemTotals { get; }
 
 	public bool CanRegister();
-
-	// 장소를 단순 등록
-	public void RegisterItem(uint itemId);
-
-	public void UnregistereItem(uint itemId);
 
 	public int AddItem(uint itemId, int quantity);
 
@@ -35,7 +31,9 @@ public class ItemStack
 
 	private ItemDatabase itemDB => GameContext.Instance.ItemDB;
 	private float itemSize => itemDB.GetItemSize(itemID);
-	private float availableSpace => maxStackSize - (itemSize * this.quantity);
+	public float AvailableSpace => (maxStackSize - (itemSize * quantity));
+
+	public int AvailableAmount => (int)AvailableSpace / (int)itemSize;
 
 	public uint ItemID => itemID;
 	public int Quantity => quantity;
@@ -52,7 +50,7 @@ public class ItemStack
 	// returns actual added amount
 	public int AddItem(int amount)
 	{
-		int maxAddMount = (int)availableSpace / (int)itemSize;
+		int maxAddMount = AvailableAmount;
 		amount = math.min(amount, maxAddMount);
 
 		quantity += amount;
@@ -87,41 +85,41 @@ public class ItemStack
 // 여기서 건들면 연동되게 해야함
 // task는 해당 자료구조를 참조한다
 // 사용의 편의성을 위해 item add, remove는 여기에도 두지만 하는 행동은 동일함
-public class ItemLocation
-{
-	private ShelfBase container;
-	private uint itemID;
-	//private int quantity;
-	//private int tobeQuantity;
+//public class ItemLocation
+//{
+//	private ShelfBase container;
+//	private uint itemID;
+//	//private int quantity;
+//	//private int tobeQuantity;
 
-	public ItemLocation(ShelfBase shelf, uint itemID)
-	{
-		container = shelf;
-		this.itemID = itemID;
-	}
+//	public ItemLocation(ShelfBase shelf, uint itemID)
+//	{
+//		container = shelf;
+//		this.itemID = itemID;
+//	}
 
-	public ShelfBase Container => container;
-	private ItemStack itemStack => container.Stacks[itemID];
-	public int Quantity => itemStack.Quantity;
-	public int TobeQuantity => itemStack.TobeQuantity;
-	public uint ItemID => itemID;
+//	public ShelfBase Container => container;
+//	private ItemStack itemStack => container.Stacks[itemID];
+//	public int Quantity => itemStack.Quantity;
+//	public int TobeQuantity => itemStack.TobeQuantity;
+//	public uint ItemID => itemID;
 
-	// storing task가 아이템을 저장할 때
-	public int AddItem(int amount)
-	{
-		return itemStack.AddItem(amount);
-	}
+//	// storing task가 아이템을 저장할 때
+//	public int AddItem(int amount)
+//	{
+//		return itemStack.AddItem(amount);
+//	}
 	
-	// picking task가 아이템을 실제로 훑고 지나갔을 때
-	public int RemoveItem(int amount)
-	{
-		return itemStack.RemoveItem(amount);
-	}
+//	// picking task가 아이템을 실제로 훑고 지나갔을 때
+//	public int RemoveItem(int amount)
+//	{
+//		return itemStack.RemoveItem(amount);
+//	}
 
-	// picking task가 아이템을 예약할 때
-	public int ReservePicking(int amount)
-	{
-		return itemStack.ReservePicking(amount);
-	}
+//	// picking task가 아이템을 예약할 때
+//	public int ReservePicking(int amount)
+//	{
+//		return itemStack.ReservePicking(amount);
+//	}
 
-}
+//}

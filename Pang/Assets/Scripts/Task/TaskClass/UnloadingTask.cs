@@ -1,14 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityEngine;
 using Unity.Mathematics;
+using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
+using static UnityEditor.Progress;
 
 public class UnloadingTask : WorkerTask
 {
 	private Rocket targetRocket;
 	private CargoPort cargoPort;
+
+	private bool IsUnloadEnd = false;
 
 	static private InboundWorkflowManager IBManager => GameContext.Instance.IBWorkflowMgr;
 	static private CargoPortService PortService => GameContext.Instance.WMSys.CargoPorts;
@@ -18,7 +21,17 @@ public class UnloadingTask : WorkerTask
 		targetRocket = rocket;
 	}
 
-	protected override void BuildTaskNode()
+	protected override void OnTaskAssigned()
+	{
+		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
+
+		if (carryBox == null)
+		{
+			Debug.LogError("No carryBox ability but assigned to ccc!!");
+		}
+	}
+
+	protected override IBaseNode BuildWorkNode()
 	{
 		// 1. 로켓 이동
 		// 2. 화물 하역
@@ -27,25 +40,29 @@ public class UnloadingTask : WorkerTask
 		// 5. 완료
 
 		SequenceNode root = new();
-		ActionNode setRocketTarget = new ActionNode(SetRocketTarget);
-		ActionNode unload = new ActionNode(UnloadFromRocket);
-		ActionNode setZone = new ActionNode(SetZoneTarget);
-		ActionNode puton = new ActionNode(PutOnBuffer);
-		ActionNode endTask = new ActionNode(AIWorker.TaskCompleted);
 
-		SelectorNode getBox = AIWorker.GetBox(BoxType.Cargo);
-		SequenceNode moveToRocket = AIWorker.MoveToTarget(SetRocketTarget);
-		SequenceNode moveToUnloadingZone = AIWorker.MoveToTarget(SetZoneTarget);
+		SequenceNode moveToRocket = AIWorker.BuildCarryMoveInteract(
+			boxRequirement: BoxType.Cargo,
+			setGoal: SetRocketTarget,
+			interact: UnloadFromRocket
+			);
 
-		root.Add(getBox);
+		SequenceNode moveToCargoPort = AIWorker.BuildCarryMoveInteract(
+			boxRequirement: BoxType.Cargo,
+			setGoal: SetZoneTarget,
+			interact: PutOnBuffer
+			);
+
 		root.Add(moveToRocket);
-		root.Add(unload);
+		root.Add(moveToCargoPort);
+		root.Add(new ActionNode(SetTaskEnd));
 
-		root.Add(moveToUnloadingZone);
-		root.Add(puton);
-		root.Add(endTask);
+		return root;
+	}
 
-		baseNode = root;
+	public override bool CheckTaskEnd()
+	{
+		return IsUnloadEnd;
 	}
 
 #if UNITY_EDITOR
@@ -54,11 +71,6 @@ public class UnloadingTask : WorkerTask
 		return $"[UnloadingTask] RocketPos: {targetRocket.InteractionPoints[0]}";
 	}
 #endif
-
-	public override NodeState UpdateTaskNode(in BTContext ctx)
-	{
-		return baseNode.Evaluate(ctx);
-	}
 
 	// 
 	public static NodeState SetRocketTarget(in BTContext ctx)
@@ -149,13 +161,22 @@ public class UnloadingTask : WorkerTask
 
 		// load on cargoport
 
-		//task.cargoPort.AddItem();
-
+		foreach (var stack in task.carryBox.CarringBox.Stacks)
+		{
+			stack.RemoveItem(task.cargoPort.AddItem(stack.ItemID, stack.Quantity));
+		}
 
 		Debug.Log("BufferLoading!");
 
 		return Success;
 	}
 
+	public static NodeState SetTaskEnd(in BTContext ctx)
+	{
+		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
+		task.IsUnloadEnd = true;
+
+		return Success;
+	}
 
 }

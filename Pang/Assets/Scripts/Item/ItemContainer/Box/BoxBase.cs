@@ -6,6 +6,7 @@ using UnityEngine.UIElements;
 [System.Serializable]
 public enum BoxType
 {
+	None = -1,
 	Cargo = 0,
 	Personal = 1,
 }
@@ -15,7 +16,9 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	[SerializeField] BoxType boxType;
 	[SerializeField] private float capacity = 10.0f;
 	protected float size = 0.0f;
-	protected Dictionary<uint, ItemStack> stacks = new();
+
+	protected List<ItemStack> stacks = new();
+	protected Dictionary<uint, int> itemTotals;
 
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
 	protected BoxPoolService BoxService => GameContext.Instance.WMSys.BoxPoolMgr;
@@ -23,7 +26,9 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	// totebox의 stacks는 많지 않을것으로 예상
 	public float Size => size;
 
-	public IReadOnlyDictionary<uint, ItemStack> Stacks => stacks;
+	public IReadOnlyList<ItemStack> Stacks => stacks;
+	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
+
 	public float Capacity => capacity;
 
 	
@@ -39,46 +44,21 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 	public bool CanRegister() => true;
 
-	// 장소를 단순 등록
-	public void RegisterItem(uint itemId)
-	{
-		stacks[itemId] = new ItemStack(itemId, capacity);
-	}
-
-	public void UnregistereItem(uint itemId)
-	{
-		stacks.Remove(itemId);
-	}
-
 	// return true when the payload fully moved
-	public bool AddItem(Dictionary<uint, ItemStack> payload)
+	public bool AddItem(List<ItemStack> payload)
 	{
-		List<uint> del = new();
-		bool removed = true;
-		foreach (var (id, stack) in payload)
+		for (int i = payload.Count - 1; i >= 0; --i) 
 		{
-			int quantity = stack.Quantity;
-			int added = AddItem(id, stack.Quantity);
+			ItemStack stack = payload[i];
 
-			stack.RemoveItem(added);
+			int result = AddItem(stack.ItemID, stack.Quantity);
+			stack.RemoveItem(result);
 
-			// not fully moved
-			if (quantity != added)
-			{
-				removed = false;
-				break;
-			}
-			del.Add(id);
+			if (stack.Quantity <= 0)
+				payload.RemoveAt(i);
 		}
 
-		// clear empty stacks of payload
-
-		foreach (uint id in del)
-		{
-			payload.Remove(id);
-		}
-
-		return removed;
+		return payload.Count <= 0;
 	}
 
 	public int AddItem(uint itemId, int quantity)
@@ -96,10 +76,15 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 			return 0;
 		}
 
-		if (stacks[itemId] == null)
-			stacks[itemId] = new ItemStack(itemId, this.capacity);
+		ItemStack stack = stacks.Find(id => id.ItemID == itemId);
 
-		int res = stacks[itemId].AddItem(quantity);
+		if (stack == null)
+		{
+			stack = new ItemStack(itemId, this.capacity);
+			stacks.Add(stack);
+		}
+
+		int res = stack.AddItem(quantity);
 
 		UpdateSize();
 
@@ -108,7 +93,17 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 	public int RemoveItem(uint itemId, int quantity)
 	{
-		int res = stacks[itemId].RemoveItem(quantity);
+		ItemStack stack = stacks.Find(id => id.ItemID == itemId);
+
+		if (stack == null)
+			return 0;
+
+		int res = stack.RemoveItem(quantity);
+
+		if (stack.Quantity <= 0)
+		{
+			stacks.Remove(stack);
+		}
 
 		UpdateSize();
 

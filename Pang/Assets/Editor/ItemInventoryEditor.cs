@@ -1,14 +1,14 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(ItemInventory))]
+[CustomEditor(typeof(ShelfStorageIndex))]
 class ItemInventoryEditor : Editor
 {
 	public override void OnInspectorGUI()
 	{
 		DrawDefaultInspector();
 
-		ItemInventory invData = (ItemInventory)target;
+		ShelfStorageIndex invData = (ShelfStorageIndex)target;
 
 		foreach (ShelfBase shelf in invData.Containers)
 		{
@@ -23,20 +23,20 @@ class ItemInventoryEditor : Editor
 
 			foreach (var item in shelf.Stacks)
 			{
-				EditorGUILayout.LabelField($"Item ID: {item.Key}, Quantity: {item.Value.Quantity}, Reserved: {item.Value.Quantity - item.Value.TobeQuantity}");
+				EditorGUILayout.LabelField($"Item ID: {item.ItemID}, Quantity: {item.Quantity}, Reserved: {item.Quantity - item.TobeQuantity}");
 			}
 			EditorGUI.indentLevel--;
 			EditorGUI.indentLevel--;
 		}
 
-		if (GUILayout.Button("테스트용 랙에 아이템 배치"))
-		{
-			invData.TestStoreItem();
-		}
+		//if (GUILayout.Button("테스트용 랙에 아이템 배치"))
+		//{
+		//	invData.TestStoreItem();
+		//}
 
-		if (GUILayout.Button("랙에 아이템 채우기"))
-		{
-			invData.TestFullStockItems();
-		}
+		//if (GUILayout.Button("랙에 아이템 채우기"))
+		//{
+		//	invData.TestFullStockItems();
+		//}
 	}
 }

@@ -6,59 +6,14 @@ using static IBaseNode.NodeState;
 
 public sealed class PickingTask : WorkerTask
 {
-	public class PickJob
+	private WorkJob pickJob;
+
+	public WorkJob PickingData => pickJob;
+	public WorkLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
+	
+	public PickingTask(WorkJob pickJob) : base(TaskType.Picking)
 	{
-		public class PickLine
-		{
-			private ItemLocation location;
-			private int quantity;
-
-			public ItemLocation Location => location;
-			public int Quantity => quantity;
-			public int3 GoalPosition => Location.Container.InteractionPoints[0];
-			public uint ItemID => Location.ItemID;
-
-			public PickLine(ItemLocation location, int quantity)
-			{
-				this.location = location;
-				this.quantity = quantity;
-			}
-		}
-
-		private int jobID;
-		private int currentLine = 0;
-		public List<PickLine> lines = new();
-
-		public int JobID => jobID;
-		public int CurrentLineIndex => currentLine;
-		public List<PickLine> Lines => lines;
-
-		public PickJob(int jobId)
-		{
-			this.jobID = jobId;
-		}
-
-		public void AddLine(ItemLocation line, int quantity)
-		{
-			lines.Add(new PickLine(line, quantity));
-		}
-
-		public bool IsPickingEnd()
-		{
-			return currentLine >= Lines.Count;
-		}
-
-		public void MoveToLextLine()
-		{
-			++currentLine;
-		}
-	}
-
-	public PickJob PickingData { get; private set; }
-	public PickJob.PickLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
-	public PickingTask(PickJob pickJob) : base(TaskType.Picking)
-	{
-		PickingData = pickJob;
+		this.pickJob = pickJob;
 	}
 
 	protected override void OnTaskAssigned()
@@ -66,7 +21,7 @@ public sealed class PickingTask : WorkerTask
 		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
 	}
 
-	protected override void BuildTaskNode()
+	protected override IBaseNode BuildWorkNode()
 	{
 		// todo
 
@@ -77,28 +32,29 @@ public sealed class PickingTask : WorkerTask
 		// 일단은 대충 싸갈기자
 		SelectorNode root = new SelectorNode();
 
-		// check is picking work is fulfilled
-		SequenceNode checkingFulfilled = new SequenceNode();
-		checkingFulfilled.Add(new ActionNode(CheckFulfilled));
-		checkingFulfilled.Add(new ActionNode(AIWorker.TaskCompleted));
-
 		// work node
 		// checking tote size over capacity
 		// actual work
-		SequenceNode work = new SequenceNode();
-		work.Add(AIWorker.GetBox(BoxType.Personal));
-		work.Add(AIWorker.MoveToTarget(SetTarget));
-		work.Add(new ActionNode(PickItems));
+		SequenceNode work = AIWorker.BuildCarryMoveInteract(
+			boxRequirement: BoxType.Personal,
+			setGoal: SetTarget,
+			interact: PickItems
+		);
+
 		// todo 애니메이션을 재생해야한다 곧 지우자
 		// picking중인지 확실히 보기 위해 대기한다
 		work.Add(new WaitNode(1.0f));
 		// 여기에 토트 반납 알고리즘을 차려야함
 
 		// for root
-		root.Add(checkingFulfilled);
 		root.Add(work);
 
-		baseNode = root;
+		return root;
+	}
+
+	public override bool CheckTaskEnd()
+	{
+		return PickingData.IsJobEnd;
 	}
 
 #if UNITY_EDITOR
@@ -108,19 +64,12 @@ public sealed class PickingTask : WorkerTask
 	}
 #endif
 
-	public override NodeState UpdateTaskNode(in BTContext ctx)
-	{
-		// 본인의 static bt를 돌려야 한다
-		return baseNode.Evaluate(ctx);
-	}
-
-	//
 	public static NodeState SetTarget(in BTContext ctx)
 	{
 		// test code
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 
-		if (task.PickingData.IsPickingEnd())
+		if (task.PickingData.IsJobEnd)
 		{
 			// should not hit here
 			Debug.Log("공이 웃으면?\n풋볼");
@@ -141,7 +90,8 @@ public sealed class PickingTask : WorkerTask
 	public static NodeState PickItems(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
-		int removed = task.CurrentLine.Location.RemoveItem(task.CurrentLine.Quantity);
+		var curLine = task.CurrentLine;
+		int removed = curLine.Source.RemoveItem(curLine.ItemID, curLine.Quantity);
 
 		BoxBase box = ctx.Worker.GetComponent<CarryBoxAbility>().CarringBox;
 
@@ -156,7 +106,8 @@ public sealed class PickingTask : WorkerTask
 		// todo
 		// 갯수를 체크해야한다
 		// 중요함!
-		if (task.CurrentLine.Quantity != realAdded)
+		//if (task.CurrentLine.Quantity != realAdded)
+		if (false)
 		{
 			// 갯수가 다르기 때문에 다른곳에서 동일 물품을 줏어야 한다. 새로운 위치로 이동해야하지 않을까?
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
@@ -167,15 +118,4 @@ public sealed class PickingTask : WorkerTask
 
 		return Success;
 	}
-
-	public static NodeState CheckFulfilled(in BTContext ctx)
-	{
-		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
-
-		if (task.PickingData.IsPickingEnd())
-			return Success;
-
-		return Failure;
-	}
-
 }

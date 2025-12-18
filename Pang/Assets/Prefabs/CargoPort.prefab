@@ -153,5 +153,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd2f7fc83a94180479fb54fd32747fe1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxStacks: 0
-  sizePerStack: 0
+  maxStacks: 100
+  sizePerStack: 10000

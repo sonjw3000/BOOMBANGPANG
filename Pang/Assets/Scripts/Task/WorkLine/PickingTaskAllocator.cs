@@ -1,20 +1,15 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using static UnityEngine.Rendering.DebugUI;
 
 public abstract class PickingTaskAllocator
 {
-	static private int jobID = 1;
+	static protected int jobID = 1;
 
 	protected OrderManager manager => GameContext.Instance.OrderMgr;
-	protected ItemInventory itemInv => GameContext.Instance.ItemInventoryData;
+	protected ShelfStorageIndex itemInv => GameContext.Instance.StorageIndex;
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
-
-	protected PickingTask.PickJob CreateNewPickJob()
-	{
-		PickingTask.PickJob pickJob = new PickingTask.PickJob(jobID++);
-		return pickJob;
-	}
 
 	public abstract PickingTask BuildPickingTask();
 }
@@ -32,7 +27,7 @@ public class TestingPickingTaskAllocator : PickingTaskAllocator
 		
 		// 테스트용으로 단순히 모든 오더를 하나의 피킹 태스크로 만든다
 		// 실제 구현에서는 다양한 로직이 들어갈 수 있다
-		PickingTask.PickJob pickJob = CreateNewPickJob();
+		List<WorkLine> lines = new();
 
 		float curWeight = 0f;
 
@@ -40,12 +35,14 @@ public class TestingPickingTaskAllocator : PickingTaskAllocator
 		foreach (uint itemId in manager.GetAllOrderedItemIDs())
 		{
 			//PickingTask.PickingLine pickLine = new PickingTask.PickingLine();
-			if (itemInv.GetClosestItemLocation(itemId, new int3(1, 1, 1), out ItemLocation location) == false)
+			if (itemInv.GetClosestItemLocation(itemId, new int3(1, 1, 1), out ShelfBase location) == false)
 			{
 				Debug.Log("Cannot find item location for item ID: " + itemId);
 				break;
 			}
 			int quantity = 0;
+
+
 			foreach (var orderLine in manager.GetOrderLine(itemId))
 			{
 				// todo
@@ -59,21 +56,19 @@ public class TestingPickingTaskAllocator : PickingTaskAllocator
 				//pickLine.Quantity += orderLine.Quantity;
 				curWeight += orderLine.Quantity * itemDB.GetItemSize(itemId);
 				quantity += orderLine.Quantity;
-				int actualReserved = location.ReservePicking(orderLine.Quantity);
+				int actualReserved = location.ReservePicking(itemId, orderLine.Quantity);
 
 				// todo
 				// actualReserved가 orderLine.Quantity를 넘지 못했다면 다른위치에서 피킹 해야한다고 알림
-
+				WorkLine line = new(location, itemId, orderLine.Quantity);
+				lines.Add(line);
 			}
-
-			pickJob.AddLine(location, quantity);
 		}
 
 		// 비어있는 큐 클리어
 		manager.ClearEmptyQueues();
-		PickingTask task = new PickingTask(pickJob);
 
-		return task;
+		return new PickingTask(new WorkJob(jobID++, lines));
 	}
 }
 

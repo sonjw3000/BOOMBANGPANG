@@ -67,8 +67,8 @@ public class UpdateStatusUI : MonoBehaviour
 		}
 	}
 
-    void UpdateCanvasInfo()
-    {
+	void UpdateCanvasInfo()
+	{
 		if (mLastPickedObject)
 		{
 			mStatus.GetStatus(Viewport[mStatus.IsRobot ? 1 : 0], mInit);
@@ -81,8 +81,8 @@ public class UpdateStatusUI : MonoBehaviour
 	{
 		var itemSet = GameContext.Instance.ItemDB.OrderedItems;
 		int testcnt = 9;
-        if (orderedItemsSlotCnt < itemSet.Count/*testcnt*/)
-        {
+		if (orderedItemsSlotCnt < itemSet.Count/*testcnt*/)
+		{
 			for (int i = orderedItemsSlotCnt; i < itemSet.Count/*testcnt*/; ++i)
 			{
 				GameObject child = new GameObject();
@@ -95,8 +95,8 @@ public class UpdateStatusUI : MonoBehaviour
 				//img.color = Color.Lerp(Color.black, Color.white, t);
 			}
 			orderedItemsSlotCnt = itemSet.Count/*testcnt*/;
-        }
-        foreach (uint id in itemSet)
+		}
+		foreach (uint id in itemSet)
 		{
 			Debug.Log(id);
 		}

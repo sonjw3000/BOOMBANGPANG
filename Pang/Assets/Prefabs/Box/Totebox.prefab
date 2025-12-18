@@ -45,7 +45,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a0c13a12ca7adc44b8ceaad118d5ede, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  capacity: 10
+  boxType: 1
+  capacity: 120
 --- !u!1 &5967057967906346422
 GameObject:
   m_ObjectHideFlags: 0

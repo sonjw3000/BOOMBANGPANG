@@ -29,7 +29,7 @@ public class GameContext : MonoBehaviour
 	// domain managers
 	[SerializeField] private WorkerManager workerManager;
 	[SerializeField] private TaskManager taskManager;
-	[SerializeField] private ItemInventory itemInventory;
+	[SerializeField] private ShelfStorageIndex itemInventory;
 	[SerializeField] private RocketManager rocketManager;
 	[SerializeField] private OrderManager orderManager;
 	[SerializeField] private WMSystem warehouseManagement;
@@ -43,7 +43,7 @@ public class GameContext : MonoBehaviour
 
 	public WorkerManager WorkerMgr => workerManager;
 	public TaskManager TaskMgr => taskManager;
-	public ItemInventory ItemInventoryData => itemInventory;
+	public ShelfStorageIndex StorageIndex => itemInventory;
 	public RocketManager RocketMgr => rocketManager;
 	public OrderManager OrderMgr => orderManager;
 	public WMSystem WMSys => warehouseManagement;
