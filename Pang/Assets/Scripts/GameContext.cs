@@ -20,7 +20,13 @@ public class GameContext : MonoBehaviour
 			return instance;
 		}
 	}
-	
+
+	// game system multiplier
+	// todo
+	// 나중에 다른 곳으로 빼도 될 듯?
+	[SerializeField] private float timeScale = 1.0f;
+
+
 	// datas
 	[SerializeField] private Resources mapResources;
 	[SerializeField] private ItemDatabase itemDB;
@@ -63,6 +69,11 @@ public class GameContext : MonoBehaviour
 		instance = this;
 		instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
+	}
+
+	private void Update()
+	{
+		Time.timeScale = timeScale;
 	}
 
 }

@@ -124,6 +124,7 @@ public class StoringTask : WorkerTask
 
 		if (task.CurrentLine.Quantity != realAdded)
 		{
+			Debug.Log($"Quantity: {task.CurrentLine.Quantity}, real picked: {realAdded}");
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
 			return Failure;
 		}
@@ -153,8 +154,6 @@ public class StoringTask : WorkerTask
 
 		task.placingLine = new WorkLine(decision.shelf, decision.ItemID, decision.Quantity);
 
-		Debug.Log("Got Destination!");
-
 		if (decision.shelf == null)
 		{
 			// todo
@@ -178,12 +177,9 @@ public class StoringTask : WorkerTask
 		int addedItem = line.Source.AddItem(line.ItemID, line.Quantity);
 		box.RemoveItem(line.ItemID, addedItem);
 
-		Debug.Log("PlacingItem!");
-		
 		// if fully removed, delete line
 		if (addedItem == line.Quantity)
 		{
-			Debug.Log("Fully Moved item!");
 			task.placingLine = null;
 		}
 	

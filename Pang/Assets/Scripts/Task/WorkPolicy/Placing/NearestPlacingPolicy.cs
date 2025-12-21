@@ -1,5 +1,4 @@
-﻿
-
+﻿using UnityEngine;
 using Unity.Mathematics;
 
 public class NearestPlacingPolicy : IPlacingPolicy
@@ -38,6 +37,8 @@ public class NearestPlacingPolicy : IPlacingPolicy
 		decision.shelf = best;
 		decision.ItemID = bestStack.ItemID;
 		decision.Quantity = quantity;
+
+		Debug.Log($"bsetShelfPos: {best.GridPosition}, ItemID: {bestStack.ItemID}, Quantity: {quantity}");
 
 		return best != null;
 	}

@@ -1,4 +1,7 @@
-﻿using Unity.Mathematics;
+﻿using NUnit.Framework;
+using System.Collections;
+using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
@@ -74,8 +77,6 @@ public class UnloadingTask : WorkerTask
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 
-		Debug.Log("UnloadingStart!!");
-
 		if (task.targetRocket == null)
 		{
 			// todo
@@ -85,7 +86,6 @@ public class UnloadingTask : WorkerTask
 		}
 
 		ctx.LocalBlackBoard.Set<int3>("goalPos", task.targetRocket.InteractionPoints[0]);
-		Debug.Log($"Moving to: {task.targetRocket.InteractionPoints[0]}");
 
 		return Success;
 	}
@@ -122,8 +122,6 @@ public class UnloadingTask : WorkerTask
 		if (items.Count == 0)
 			GameContext.Instance.RocketMgr.DisableRocket(task.targetRocket);
 		
-		Debug.Log("Unloading!!");
-
 		return Success;
 	}
 
@@ -141,8 +139,6 @@ public class UnloadingTask : WorkerTask
 		
 		ctx.LocalBlackBoard.Set<int3>("goalPos", task.cargoPort.DockPoint);
 
-		Debug.Log($"Moving to: {task.cargoPort.DockPoint}");
-
 		return Success;
 	}
 
@@ -158,12 +154,24 @@ public class UnloadingTask : WorkerTask
 
 		// load on cargoport
 
-		foreach (var stack in task.carryBox.CarringBox.Stacks)
+		BoxBase box = task.carryBox.CarringBox;
+
+		List<uint> ids = new(box.Stacks.Count);
+		List<int> cnts = new(box.Stacks.Count);
+
+		foreach (var stack in box.Stacks)
 		{
-			stack.RemoveItem(task.cargoPort.AddItem(stack.ItemID, stack.Quantity));
+			ids.Add(stack.ItemID);
+			cnts.Add(stack.Quantity);
 		}
 
-		Debug.Log("BufferLoading!");
+		for (int i = 0; i < box.Stacks.Count; ++i)
+		{
+			int befStack = cnts[i];
+			int moveTocargo = task.cargoPort.AddItem(ids[i], cnts[i]);
+
+			box.RemoveItem(ids[i], moveTocargo);
+		}
 
 		return Success;
 	}

@@ -53,7 +53,8 @@ public abstract class ShelfBase :
 		if (quantity <= 0)
 			return 0;
 
-		int curItemQty = itemTotals.GetValueOrDefault(itemId);
+		int befItemCounts = itemTotalsTobe.GetValueOrDefault(itemId);
+		int befItemStacks = stacks.Count;
 
 		// 기존 인덱스에 넣기
 		int remain = quantity;
@@ -82,12 +83,12 @@ public abstract class ShelfBase :
 			remain -= itemAdded;
 		}
 
-		int afterQty = itemTotals.GetValueOrDefault(itemId);
+		int curItemStacks = stacks.Count;
 
 		itemTotalsTobe[itemId] = itemTotalsTobe.GetValueOrDefault(itemId) + remain;
 
-		// item이 배치되었다면
-		if (curItemQty == 0 && afterQty != 0)
+		// 새로운 종류의 stack이 register 되었다면?
+		if (befItemCounts == 0 && befItemStacks != curItemStacks)
 		{
 			OnItemRegistered?.Invoke(this, itemId);
 		}

@@ -31,7 +31,7 @@ public class ItemStack
 	private float itemSize => itemDB.GetItemSize(itemID);
 	public float AvailableSpace => (maxStackSize - (itemSize * quantity));
 
-	public int AvailableAmount => (int)AvailableSpace / (int)itemSize;
+	public int AvailableAmount => (int)(AvailableSpace / itemSize);
 
 	public uint ItemID => itemID;
 	public int Quantity => quantity;

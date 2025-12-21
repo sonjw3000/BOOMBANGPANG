@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Timeline;
 
 // 아이템과 선반을 한번에 관리한다
 // 아이템ID별로 아이템의 위치를 가진 딕셔너리가 존재함
@@ -104,20 +105,31 @@ public class ShelfStorageIndex : MonoBehaviour
 
 	public IEnumerable<ShelfBase> QueryPlaceCandidate(uint itemID, int qty)
 	{
+		bool hasCandidate = false;
+
 		if (ShelvesByItem.TryGetValue(itemID, out var locations))
 		{
 			for (int i = 0; i < locations.Count; ++i)
 			{
 				ShelfBase shelf = locations[i];
 				if (shelf.CanAccept(itemID, qty))
+				{
+					hasCandidate = true;
 					yield return shelf;
+				}
 			}
 		}
-		else
+		
+		if (hasCandidate == false)
 		{
 			// todo
-			// 만족하는 칸이 없다면 비어있는 칸으로 유도해야함
-			yield return containers[0];
+			// 최적화 해야함
+			for (int i = 0; i < containers.Count; ++i)
+			{
+				if (containers[i].CanAccept(itemID, qty))
+					yield return containers[i];
+			}
+
 		}
 	}
 

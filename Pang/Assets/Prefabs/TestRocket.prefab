@@ -155,8 +155,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ca2123fb759ab14698f7a56a2ccbbf6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxStacks: 0
-  sizePerStack: 0
+  maxStacks: 2
+  sizePerStack: 100000
   fallingSpeed: 5
   landingPoint:
     x: 0
