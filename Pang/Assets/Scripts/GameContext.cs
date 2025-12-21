@@ -1,4 +1,3 @@
-using Unity.Mathematics;
 using UnityEngine;
 
 // 이것만은 꼭 지키자

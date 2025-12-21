@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 public class CustomQueue<T, CMP> where CMP : IComparable<CMP>
 {

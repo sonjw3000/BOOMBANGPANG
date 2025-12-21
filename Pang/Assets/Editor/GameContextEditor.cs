@@ -1,6 +1,4 @@
-﻿using Unity.VisualScripting;
-using UnityEditor;
-using UnityEngine;
+﻿using UnityEditor;
 
 [CustomEditor(typeof(GameContext))]
 class GameContextEditor : Editor

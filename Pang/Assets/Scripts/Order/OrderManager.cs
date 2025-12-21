@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using static PickingTask;
 
 // OrderManager
 // OrderManager는 주문을 생성하고 관리한다

@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using Unity.Mathematics;
+﻿using Unity.Mathematics;
 using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
-using static UnityEditor.Progress;
 
 public class UnloadingTask : WorkerTask
 {

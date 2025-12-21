@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using TMPro;
 using Unity.Mathematics;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
-using static UnityEditor.PlayerSettings;
 
 public abstract class ObjectStatus
 {

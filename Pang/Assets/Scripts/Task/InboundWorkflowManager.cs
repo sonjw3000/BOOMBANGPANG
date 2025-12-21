@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using Unity.Mathematics;
-using System.Collections.Generic;
 using static WorkerTask.TaskType;
 // inbound 작업 흐름을 관리
 // 깨차

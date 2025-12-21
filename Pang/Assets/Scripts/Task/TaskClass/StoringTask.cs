@@ -9,7 +9,6 @@ using UnityEngine;
 using Unity.Mathematics;
 using static IBaseNode;
 using static IBaseNode.NodeState;
-using System.Collections.Generic;
 
 public class StoringTask : WorkerTask
 {

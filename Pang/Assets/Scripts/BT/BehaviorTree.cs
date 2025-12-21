@@ -1,7 +1,4 @@
-﻿
-using UnityEngine;
-using static IBaseNode;
-using BlackBoardSystem;
+﻿using static IBaseNode;
 
 public class BehaviorTree
 {

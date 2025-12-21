@@ -1,7 +1,4 @@
-﻿using UnityEngine;
-using static UnityEngine.Rendering.STP;
-
-[System.Serializable]
+﻿[System.Serializable]
 public class CargoHandlingConfig : AbilityConfigBase
 {
 	public override void Setup(AIWorker worker)

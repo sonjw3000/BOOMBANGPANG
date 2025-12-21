@@ -1,7 +1,5 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
-using Unity.VisualScripting;
-using UnityEngine;
 
 // 아이템 보관함
 // 선반, 상자, 기타등등이 이를 사용

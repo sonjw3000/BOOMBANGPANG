@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
-using static UnityEngine.Rendering.DebugUI;
 
 public abstract class PickingTaskAllocator
 {
