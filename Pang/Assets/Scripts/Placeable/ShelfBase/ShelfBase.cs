@@ -85,7 +85,7 @@ public abstract class ShelfBase :
 
 		int curItemStacks = stacks.Count;
 
-		itemTotalsTobe[itemId] = itemTotalsTobe.GetValueOrDefault(itemId) + remain;
+		itemTotalsTobe[itemId] = itemTotalsTobe.GetValueOrDefault(itemId) + quantity - remain;
 
 		// 새로운 종류의 stack이 register 되었다면?
 		if (befItemCounts == 0 && befItemStacks != curItemStacks)
@@ -206,7 +206,7 @@ public abstract class ShelfBase :
 		int canRemove = math.clamp(quantity, 0, itemTotalsTobe[itemId]);
 		itemTotalsTobe[itemId] -= canRemove;
 
-		return quantity - canRemove;
+		return canRemove;
 		//itemTotalsTobe[itemId] = itemTotalsTobe.GetValueOrDefault(itemId) + remain;
 	}
 }

@@ -65,13 +65,13 @@ public class StoringTask : WorkerTask
 
 		// phase: placing
 		SequenceNode place = new SequenceNode();
-		collect.Add(new ActionNode(CheckPhasePlace));
-		collect.Add(AIWorker.BuildCarryMoveInteract(
+		place.Add(new ActionNode(CheckPhasePlace));
+		place.Add(AIWorker.BuildCarryMoveInteract(
 			boxRequirement: BoxType.Personal,
 			setGoal: SetPlacingPosition,
 			interact: PlaceItems
 		));
-		collect.Add(new WaitNode(1.0f));
+		place.Add(new WaitNode(1.0f));
 
 		workNode.Add(collect);
 		workNode.Add(place);
@@ -152,8 +152,6 @@ public class StoringTask : WorkerTask
 		BoxBase box = task.CarryingAbility.CarringBox;
 		PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, out var decision);
 
-		task.placingLine = new WorkLine(decision.shelf, decision.ItemID, decision.Quantity);
-
 		if (decision.shelf == null)
 		{
 			// todo
@@ -161,6 +159,8 @@ public class StoringTask : WorkerTask
 			Debug.Log("No shelf");
 			return Failure;
 		}
+
+		task.placingLine = new WorkLine(decision.shelf, decision.ItemID, decision.Quantity);
 
 		ctx.LocalBlackBoard.Set<int3>("goalPos", task.placingLine.Source.InteractionPoints[0]);
 		return Success;

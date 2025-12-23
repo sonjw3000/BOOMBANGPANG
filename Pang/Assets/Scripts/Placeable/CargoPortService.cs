@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
+using UnityEngine;
 
 public class CargoPortService
 {
@@ -39,12 +40,14 @@ public class CargoPortService
 	public void RegisterPort(CargoPort port)
 	{
 		port.OnItemRegistered += OnPortItemAdded;
+		port.OnItemUnregistered += OnPortItemRemoved;
 		cargoPorts.Add(port);
 	}
 
 	public void UnregisterPort(CargoPort port)
 	{
 		port.OnItemRegistered -= OnPortItemAdded;
+		port.OnItemUnregistered -= OnPortItemRemoved;
 		cargoPorts.Remove(port);
 	}
 
@@ -59,4 +62,16 @@ public class CargoPortService
 
 		ports.Add((CargoPort)port);
 	}
+
+	public void OnPortItemRemoved(ShelfBase port, uint itemId)
+	{
+		if (cargoPortsByItem.TryGetValue(itemId, out var ports) == false)
+		{
+			// should not happen
+			Debug.LogError("ERROR!! No id here but tried to remove port");
+			cargoPortsByItem[itemId] = new();
+		}
+		cargoPortsByItem[itemId].Remove((CargoPort)port);
+	}
+
 }

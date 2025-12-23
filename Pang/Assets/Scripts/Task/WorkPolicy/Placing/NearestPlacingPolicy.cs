@@ -34,6 +34,14 @@ public class NearestPlacingPolicy : IPlacingPolicy
 			}
 		}
 
+		if (best == null)
+		{
+			// todo
+			// 여분 shelf가 없다는 것을 유저에게 알려주어야 함
+			Debug.Log("No suitable shelf found for placing.");
+			return false;
+		}
+
 		decision.shelf = best;
 		decision.ItemID = bestStack.ItemID;
 		decision.Quantity = quantity;

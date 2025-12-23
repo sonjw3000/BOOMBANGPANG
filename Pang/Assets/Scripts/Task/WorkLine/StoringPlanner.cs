@@ -33,23 +33,25 @@ public sealed class StoringItemFriendly : StoringPlanner
 	{
 		foreach ((var id, var ports) in PortService.CargoPortsByItem)
 		{
+			// cargo에 있는 item별로 pendlingLine을 모은다
 			if (pendingLines.TryGetValue(id, out var lines) == false)
 			{
 				lines = new();
 				pendingLines.Add(id, lines);
 			}
 			
+			// 모든 포트에 있는 해당 ID의 아이템들을 line으로 만든다
 			foreach (var port in ports)
 			{
-				WorkLine line = new WorkLine(port, id, port.ItemTotals[id]);
+				// if port's line is not fully reserved, then build the rest line
+				int reserved = port.ReservePicking(id, port.ItemTotals[id]);
+
+				if (reserved <= 0) continue;
+
+				WorkLine line = new WorkLine(port, id, reserved);
 				lines.Add(line);
 			}
-
-			// flush
-			PortService.CargoPortsByItem[id].Clear();
 		}
-
-		PortService.CargoPortsByItem.Clear();
 	}
 
 	public override bool BuildStoreTask(float boxPercentage, out StoringTask task)
@@ -72,6 +74,8 @@ public sealed class StoringItemFriendly : StoringPlanner
 				bestItemLineID = kv.Key;
 			}
 		}
+
+		if (bestItemLineCnt == 0) return false;
 
 		// todo
 		// boxPercentage에 의해 job의 Line을 제한한다
