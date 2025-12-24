@@ -16,7 +16,7 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	protected float size = 0.0f;
 
 	protected List<ItemStack> stacks = new();
-	protected Dictionary<uint, int> itemTotals;
+	protected Dictionary<uint, int> itemTotals = new();
 
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
 	protected BoxPoolService BoxService => GameContext.Instance.WMSys.BoxPoolMgr;
@@ -54,6 +54,8 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 			if (stack.Quantity <= 0)
 				payload.RemoveAt(i);
+
+			itemTotals[stack.ItemID] = itemTotals.GetValueOrDefault(stack.ItemID, 0) + result;
 		}
 
 		return payload.Count <= 0;
@@ -84,6 +86,8 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 		int res = stack.AddItem(quantity);
 
+		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId, 0) + res;
+
 		UpdateSize();
 
 		return res;
@@ -102,6 +106,8 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 		{
 			stacks.Remove(stack);
 		}
+
+		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId, 0) - res;
 
 		UpdateSize();
 

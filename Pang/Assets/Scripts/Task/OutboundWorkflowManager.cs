@@ -22,6 +22,8 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 	// 주문을 묶는 역할
 	private PickingTaskAllocator pickingTaskAllocator = new TestingPickingTaskAllocator();
 
+	// ----------------------------------------------------------------
+	// outbound의 task를 연계생성
 	public void OnTaskCompleted(WorkerTask task)
 	{
 		switch (task.Type)
@@ -37,6 +39,8 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 		}
 	}
 
+	// ----------------------------------------------------------------
+	// 주문이 들어왔을 때 작업 생성
 	private void BuildPickingTaskJob()
 	{
 		// todo
@@ -51,18 +55,19 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 		TaskMgr.TaskQueue[TaskType.Picking].AddLast(task);
 	}
 
+	// ----------------------------------------------------------------
+	// 주문 관련
 	public void MakeOrder()
 	{
 		OrderMgr.CreateRandomOrder();
 	}
 
-	public void MakeTestPickingWork()
-	{
-		BuildPickingTaskJob();
-	}
-
+	// ----------------------------------------------------------------
+	// unity 함수
 	private void Start()
 	{
+		// cargoport 서비스 구독
+		//cargoPortService.OnItemPresentChanged;
 	}
 
 	void Update()

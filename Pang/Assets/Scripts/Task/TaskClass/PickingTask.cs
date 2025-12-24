@@ -1,4 +1,5 @@
-﻿using Unity.Mathematics;
+﻿using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
@@ -7,9 +8,15 @@ public sealed class PickingTask : WorkerTask
 {
 	private WorkJob pickJob;
 
+	private ShelfBase targetCargoPos = null;
+
+	private bool isTaskEnd = false;
+
 	public WorkJob PickingData => pickJob;
 	public WorkLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
 	
+	static private CargoPortService CargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
+
 	public PickingTask(WorkJob pickJob) : base(TaskType.Picking)
 	{
 		this.pickJob = pickJob;
@@ -34,26 +41,39 @@ public sealed class PickingTask : WorkerTask
 		// work node
 		// checking tote size over capacity
 		// actual work
-		SequenceNode work = AIWorker.BuildCarryMoveInteract(
+		SelectorNode pickAfterPut = new SelectorNode();
+
+		SequenceNode put = new SequenceNode();
+		put.Add(new ActionNode(CheckPickingEnd));
+		put.Add(AIWorker.MoveToTarget(GetAvailableOBCargoPort));
+		put.Add(new WaitNode(1.0f));
+		put.Add(new ActionNode(PickingEndAction));
+
+		SequenceNode pick = AIWorker.BuildCarryMoveInteract(
 			boxRequirement: BoxType.Personal,
 			setGoal: SetTarget,
 			interact: PickItems
 		);
-
 		// todo 애니메이션을 재생해야한다 곧 지우자
 		// picking중인지 확실히 보기 위해 대기한다
-		work.Add(new WaitNode(1.0f));
+		pick.Add(new WaitNode(1.0f));
+
+
+
 		// 여기에 토트 반납 알고리즘을 차려야함
 
+		pickAfterPut.Add(put);
+		pickAfterPut.Add(pick);
+
 		// for root
-		root.Add(work);
+		root.Add(pickAfterPut);
 
 		return root;
 	}
 
 	public override bool CheckTaskEnd()
 	{
-		return PickingData.IsJobEnd;
+		return isTaskEnd;
 	}
 
 #if UNITY_EDITOR
@@ -62,6 +82,60 @@ public sealed class PickingTask : WorkerTask
 		return $"Picking Task: {PickingData.CurrentLineIndex} / {PickingData.Lines.Count}, Goal: {CurrentLine.GoalPosition}";
 	}
 #endif
+
+	public static NodeState CheckPickingEnd(in BTContext ctx)
+	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+		if (task.PickingData.IsJobEnd)
+		{
+			Debug.Log("Picking Job Ended");
+			return Success;
+		}
+		return Failure;
+	}
+
+	public static NodeState GetAvailableOBCargoPort(in BTContext ctx)
+	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+
+		ShelfBase targetPos = null;
+
+		targetPos = CargoPorts.GetClosestAvailablePort(ctx.Worker.GridPosition);
+
+		if (targetPos == null)
+		{
+			return Failure;
+		}
+
+		task.targetCargoPos = targetPos;
+		ctx.LocalBlackBoard.Set<int3>("goalPos", targetPos.InteractionPoints[0]);
+		return Success;
+	}
+
+	public static NodeState PickingEndAction(in BTContext ctx)
+	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+		// todo
+		// 포트에 토트를 내려놓는 액션을 추가해야함
+		Debug.Log("Picking Task: Put on cargo port!");
+
+		// todo
+		// 고쳐야한다
+		Dictionary<uint, int> moved = new();
+		foreach ((var itemID, var quantity) in task.carryBox.CarringBox.ItemTotals)
+		{
+			moved[itemID] = task.targetCargoPos.AddItem(itemID, quantity);
+		}
+
+		foreach((var itemID, var quantity) in moved)
+		{
+			task.carryBox.CarringBox.RemoveItem(itemID, quantity);
+		}
+
+
+		task.isTaskEnd = true;
+		return Success;
+	}
 
 	public static NodeState SetTarget(in BTContext ctx)
 	{
@@ -105,8 +179,7 @@ public sealed class PickingTask : WorkerTask
 		// todo
 		// 갯수를 체크해야한다
 		// 중요함!
-		//if (task.CurrentLine.Quantity != realAdded)
-		if (false)
+		if (task.CurrentLine.Quantity != realAdded)
 		{
 			// 갯수가 다르기 때문에 다른곳에서 동일 물품을 줏어야 한다. 새로운 위치로 이동해야하지 않을까?
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
@@ -117,4 +190,6 @@ public sealed class PickingTask : WorkerTask
 
 		return Success;
 	}
+
+
 }
