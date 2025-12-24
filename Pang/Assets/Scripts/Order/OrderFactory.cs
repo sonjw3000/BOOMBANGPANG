@@ -26,8 +26,14 @@ public class OrderFactory
 		{
 			OrderLine line = new OrderLine();
 			line.ItemID = itemLedger.OrderableItems[UnityEngine.Random.Range(0, orderables)];
-			line.Quantity = UnityEngine.Random.Range(1, 4);
+			int maxOrderable = itemLedger.GetAvailable(line.ItemID);
+			if (maxOrderable <= 0)
+				continue;
+
+			line.Quantity = Math.Clamp(UnityEngine.Random.Range(1, 4), 1, maxOrderable);
 			order.Lines.Add(line);
+
+			itemLedger.OnItemReserved(line.ItemID, line.Quantity);
 		}
 
 		return order;

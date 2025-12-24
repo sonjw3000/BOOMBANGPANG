@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using static UnityEditor.Progress;
 
 
 // item의 출입고 내역을 기록하는 장부
@@ -47,7 +48,8 @@ public class ItemLedger : MonoBehaviour
 		{
 			orderableItems.Remove(itemId);
 		}
-		else if (befOrderable == 0)
+		else if (befOrderable <= 0)
+		//else if (orderableItems.Contains(itemId) == false)
 		{
 			// 방금의 행동으로 orderable이 되었다면
 			orderableItems.Add(itemId);
@@ -62,9 +64,14 @@ public class ItemLedger : MonoBehaviour
 
 	// 필수
 	// 사용 전에 GetAvailable로 수량을 제한하여야 함
-	public void OnItemReserved(uint itemID, int quantity)
+	public void OnItemReserved(uint itemId, int quantity)
 	{
-		itemReserveds[itemID] = itemReserveds.GetValueOrDefault(itemID) + quantity;
+		itemReserveds[itemId] = itemReserveds.GetValueOrDefault(itemId) + quantity;
+
+		if (GetAvailable(itemId) <= 0)
+		{
+			orderableItems.Remove(itemId);
+		}
 	}
 }
 

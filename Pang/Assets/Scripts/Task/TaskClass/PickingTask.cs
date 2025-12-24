@@ -181,6 +181,7 @@ public sealed class PickingTask : WorkerTask
 		// 중요함!
 		if (task.CurrentLine.Quantity != realAdded)
 		{
+			Debug.Log($"Requested: {task.CurrentLine.Quantity}, Added: {realAdded}, RemovedFromShelf: {removed}");
 			// 갯수가 다르기 때문에 다른곳에서 동일 물품을 줏어야 한다. 새로운 위치로 이동해야하지 않을까?
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
 			return Failure;
