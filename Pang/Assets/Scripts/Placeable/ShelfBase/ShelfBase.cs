@@ -18,19 +18,22 @@ public abstract class ShelfBase :
 
 	protected List<ItemStack> stacks;
 	protected Dictionary<uint, int> itemTotals = new();
-	protected Dictionary<uint, int> itemTotalsTobe = new();
+	protected Dictionary<uint, int> itemsReservedPick = new();
 
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
 
 	static private Cell[,,] GridMap => GameContext.Instance.MapResources.mapRef;
 
-	// 각자의 manager에 의해 관리될 수 있다
-	public event System.Action<ShelfBase, uint> OnItemRegistered;
-	public event System.Action<ShelfBase, uint> OnItemUnregistered;
+	// item의 종류가 등록/해제 되었을 경우
+	public event System.Action<ShelfBase, uint, bool> OnItemPresentChanged;
+
+	// item quantity의 변경이 일어났을 경우
+	public event System.Action<uint, int> OnItemQuantityChanged;
 
 	//public int CurrentStackCount => currentStackCount;
 	public IReadOnlyList<ItemStack> Stacks => stacks;
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
+	public IReadOnlyDictionary<uint, int> ItemToBePicked => itemsReservedPick;
 	public bool CanRegister() => MaxStack > Stacks.Count;
 	public float MaxStack => maxStacks;
 
@@ -53,7 +56,7 @@ public abstract class ShelfBase :
 		if (quantity <= 0)
 			return 0;
 
-		int befItemCounts = itemTotalsTobe.GetValueOrDefault(itemId);
+		int befItemCounts = itemTotals.GetValueOrDefault(itemId);
 		int befItemStacks = stacks.Count;
 
 		// 기존 인덱스에 넣기
@@ -85,15 +88,16 @@ public abstract class ShelfBase :
 
 		int curItemStacks = stacks.Count;
 
-		itemTotalsTobe[itemId] = itemTotalsTobe.GetValueOrDefault(itemId) + quantity - remain;
-
 		// 새로운 종류의 stack이 register 되었다면?
 		if (befItemCounts == 0 && befItemStacks != curItemStacks)
 		{
-			OnItemRegistered?.Invoke(this, itemId);
+			OnItemPresentChanged?.Invoke(this, itemId, true);
 		}
 
-		return quantity - remain;
+		int addedItem = quantity - remain;
+		OnItemQuantityChanged?.Invoke(itemId, addedItem);
+
+		return addedItem;
 	}
 
 	public int RemoveItem(uint itemId, int quantity)
@@ -121,11 +125,25 @@ public abstract class ShelfBase :
 		if (itemTotals.TryGetValue(itemId, out int value) && value == 0)
 		{
 			itemTotals.Remove(itemId);
-			itemTotalsTobe.Remove(itemId);
-			OnItemUnregistered?.Invoke(this, itemId);
+			OnItemPresentChanged?.Invoke(this, itemId, false);
 		}
 
-		return quantity - remain;
+		int removed = quantity - remain;
+
+		// adjust tobepicked
+		itemsReservedPick[itemId] = itemsReservedPick.GetValueOrDefault(itemId) - removed;
+		if (itemsReservedPick[itemId] <= 0)
+		{
+			// 0보다 작은 경우의 에러를 체크해보자
+			if (itemsReservedPick[itemId] < 0)
+				Debug.LogWarning("Reserved pick count went below zero. Adjusting to zero.");
+
+			itemsReservedPick.Remove(itemId);
+		}
+
+		OnItemQuantityChanged?.Invoke(itemId, -removed);
+
+		return removed;
 	}
 
 	public bool CanAccept(uint itemId, int quantity)
@@ -197,16 +215,17 @@ public abstract class ShelfBase :
 
 	public int ReservePicking(uint itemId, int quantity)
 	{
-		if (itemTotalsTobe.TryGetValue(itemId, out int val) == false)
+		if (itemTotals.TryGetValue(itemId, out int val) == false)
 		{
 			Debug.LogError("NO ITEMS HERE");
 			return quantity;
 		}
 
-		int canRemove = math.clamp(quantity, 0, itemTotalsTobe[itemId]);
-		itemTotalsTobe[itemId] -= canRemove;
+		int befReserved= itemsReservedPick.GetValueOrDefault(itemId);
 
-		return canRemove;
-		//itemTotalsTobe[itemId] = itemTotalsTobe.GetValueOrDefault(itemId) + remain;
+		int canReserve = math.clamp(quantity, 0, val - befReserved);
+		itemsReservedPick[itemId] = befReserved + canReserve;
+
+		return canReserve;
 	}
 }

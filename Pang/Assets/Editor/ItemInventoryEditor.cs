@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using System.Collections.Generic;
+using UnityEditor;
 
 [CustomEditor(typeof(ShelfStorageIndex))]
 class ItemInventoryEditor : Editor
@@ -17,13 +18,26 @@ class ItemInventoryEditor : Editor
 			EditorGUILayout.LabelField($"Shelf: {shelf.name}", EditorStyles.boldLabel);
 			EditorGUI.indentLevel++;
 			EditorGUILayout.LabelField($"Picking Position: {shelf.InteractionPoints[0]}");
-			EditorGUILayout.LabelField("Items:");
-			EditorGUI.indentLevel++;
 
+			// item totals
+			EditorGUILayout.LabelField("ItemTotals and Reserved Quantities:");
+
+			EditorGUI.indentLevel++;
+			foreach (var item in shelf.ItemTotals)
+			{
+				EditorGUILayout.LabelField($"Item ID: {item.Key}, Total Quantity: {item.Value}, Reserved: {shelf.ItemToBePicked.GetValueOrDefault(item.Key)}");
+			}
+			EditorGUI.indentLevel--;
+
+			// item stacks
+			EditorGUILayout.LabelField("Stacks:");
+			EditorGUI.indentLevel++;
 			foreach (var item in shelf.Stacks)
 			{
-				EditorGUILayout.LabelField($"Item ID: {item.ItemID}, Quantity: {item.Quantity}, Reserved: {item.Quantity - item.TobeQuantity}");
+				EditorGUILayout.LabelField($"Item ID: {item.ItemID}, Quantity: {item.Quantity}");
 			}
+			EditorGUI.indentLevel--;
+
 			EditorGUI.indentLevel--;
 			EditorGUI.indentLevel--;
 		}

@@ -1,8 +1,8 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(WMSystem))]
-class WMSystemEditor : Editor
+[CustomEditor(typeof(BoxPoolService))]
+class BoxPoolZoneEditor : Editor
 {
 	public static int Index;
 	private Resources MapRes => GameContext.Instance.MapResources;
@@ -12,11 +12,11 @@ class WMSystemEditor : Editor
 
 		Index = (int)EditorGUILayout.IntField("Target Index", Index);
 
-		WMSystem sys = (WMSystem)target;
+		BoxPoolService sys = (BoxPoolService)target;
 
 		if (GUILayout.Button("Give Totebox"))
 		{
-			if (Index >= sys.BoxPoolMgr.BoxPoolZones.Count)
+			if (Index >= sys.BoxPoolZones.Count)
 			{
 				Debug.Log("Out Of Index!");
 				return;
@@ -24,7 +24,7 @@ class WMSystemEditor : Editor
 
 			int idx = MapRes.FindPrefabIndexByName("Totebox");
 			GameObject box = Instantiate(MapRes.Prefabs[idx]);
-			sys.BoxPoolMgr.BoxPoolZones[Index].PutBox(box.GetComponent<BoxBase>());
+			sys.BoxPoolZones[Index].PutBox(box.GetComponent<BoxBase>());
 		}
 	}
 }

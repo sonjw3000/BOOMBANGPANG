@@ -2,7 +2,7 @@
 using Unity.Mathematics;
 using UnityEngine;
 
-public class CargoPortService
+public class CargoPortService : MonoBehaviour
 {
 	private List<CargoPort> cargoPorts = new();
 
@@ -39,20 +39,35 @@ public class CargoPortService
 
 	public void RegisterPort(CargoPort port)
 	{
-		port.OnItemRegistered += OnPortItemAdded;
-		port.OnItemUnregistered += OnPortItemRemoved;
+		port.OnItemPresentChanged += OnPortItemPresentChanged;
+		//port.OnItemQuantityChanged += OnPortItemQuantityChanged;
 		cargoPorts.Add(port);
 	}
 
 	public void UnregisterPort(CargoPort port)
 	{
-		port.OnItemRegistered -= OnPortItemAdded;
-		port.OnItemUnregistered -= OnPortItemRemoved;
+		port.OnItemPresentChanged -= OnPortItemPresentChanged;
+		//port.OnItemQuantityChanged -= OnPortItemQuantityChanged;
 		cargoPorts.Remove(port);
 	}
 
+	// to shelfs
+	private void OnPortItemPresentChanged(ShelfBase port, uint itemId, bool present)
+	{
+		if (present)
+			OnPortItemAdded(port, itemId);
+		else
+			OnPortItemRemoved(port, itemId);
+	}
+
+	//private void OnPortItemQuantityChanged(uint itemId, int quantityDelta)
+	//{
+
+
+	//}
+
 	// event
-	public void OnPortItemAdded(ShelfBase port, uint itemId)
+	private void OnPortItemAdded(ShelfBase port, uint itemId)
 	{
 		if (cargoPortsByItem.TryGetValue(itemId, out var ports) == false)
 		{
@@ -63,7 +78,7 @@ public class CargoPortService
 		ports.Add((CargoPort)port);
 	}
 
-	public void OnPortItemRemoved(ShelfBase port, uint itemId)
+	private void OnPortItemRemoved(ShelfBase port, uint itemId)
 	{
 		if (cargoPortsByItem.TryGetValue(itemId, out var ports) == false)
 		{

@@ -26,10 +26,18 @@ public class ShelfStorageIndex : MonoBehaviour
 	public IReadOnlyList<ShelfBase> Containers => containers;
 	public IReadOnlyDictionary<uint, List<ShelfBase>> ShelvesByItem => shelvesByItem;
 
-	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
+	private ItemLedger itemLedger => GameContext.Instance.WMSys.ItemLedger;
+
+	private void OnItemPresentChanged(ShelfBase shelf, uint itemId, bool present)
+	{
+		if (present)
+			OnItemRegistered(shelf, itemId);
+		else
+			OnItemUnregistered(shelf, itemId);
+	}
 
 	// event
-	public void OnItemAdded(ShelfBase shelf, uint itemId)
+	private void OnItemRegistered(ShelfBase shelf, uint itemId)
 	{
 		if (shelvesByItem.TryGetValue(itemId, out var list) == false)
 		{
@@ -40,7 +48,7 @@ public class ShelfStorageIndex : MonoBehaviour
 		list.Add(shelf);
 	}
 
-	public void OnItemRemoved(ShelfBase shelf, uint itemId)
+	private void OnItemUnregistered(ShelfBase shelf, uint itemId)
 	{
 		if (shelvesByItem.TryGetValue(itemId, out var list) == false)
 		{
@@ -57,15 +65,15 @@ public class ShelfStorageIndex : MonoBehaviour
 	// 컨테이너에 저장될 아이템의 종류를 업데이트한다
 	public void OnContainerAdded(ShelfBase container)
 	{
-		container.OnItemRegistered += OnItemAdded;
-		container.OnItemUnregistered += OnItemRemoved;
+		container.OnItemPresentChanged += OnItemPresentChanged;
+		container.OnItemQuantityChanged += itemLedger.OnItemQuantityChanged;
 		containers.Add(container);
 	}
 
 	public void OnContainerRemoved(ShelfBase container)
 	{
-		container.OnItemRegistered -= OnItemAdded;
-		container.OnItemUnregistered -= OnItemRemoved;
+		container.OnItemPresentChanged -= OnItemPresentChanged;
+		container.OnItemQuantityChanged -= itemLedger.OnItemQuantityChanged;
 		containers.Remove(container);
 	}
 

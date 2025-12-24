@@ -7,6 +7,9 @@ using static WorkerTask;
 
 public class OutboundWorkflowManager : MonoBehaviour 
 {
+	[SerializeField] private float timeSinceLastOrder = 0.0f;
+	[SerializeField] private float orderInterval = 10.0f;
+
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	//private TaskManager taskManager = new();
@@ -14,6 +17,7 @@ public class OutboundWorkflowManager : MonoBehaviour
 	//private InventoryService;
 	//private StationService
 	private int nextJobID = 0;
+
 
 	// 주문을 묶는 역할
 	private PickingTaskAllocator pickingTaskAllocator = new TestingPickingTaskAllocator();
@@ -57,15 +61,20 @@ public class OutboundWorkflowManager : MonoBehaviour
 		BuildPickingTaskJob();
 	}
 
-	void Start()
+	private void Start()
 	{
 	}
 
-	/*
 	void Update()
 	{
-		// worker manager에서 작업이 끝난 워커를 찾아야할듯?
+		timeSinceLastOrder += Time.deltaTime;
+
+		if (timeSinceLastOrder >= orderInterval)
+		{
+			timeSinceLastOrder = 0.0f;
+			MakeOrder();
+			BuildPickingTaskJob();
+		}
 
 	}
-	*/
 }

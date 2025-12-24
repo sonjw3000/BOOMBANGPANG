@@ -22,7 +22,6 @@ public class ItemStack
 {
 	private uint itemID;
 	private int quantity;
-	private int tobeQuantity;
 
 	// if <= 0 >>>>>> max
 	private float maxStackSize;
@@ -35,7 +34,6 @@ public class ItemStack
 
 	public uint ItemID => itemID;
 	public int Quantity => quantity;
-	public int TobeQuantity => tobeQuantity;
 
 	public ItemStack(uint itemID, float maxStackSize)
 	{
@@ -52,7 +50,6 @@ public class ItemStack
 		amount = math.min(amount, maxAddMount);
 
 		quantity += amount;
-		tobeQuantity += amount;
 
 		return amount;
 	}
@@ -68,15 +65,6 @@ public class ItemStack
 		return amount;
 	}
 
-	// picking task가 아이템을 예약할 때
-	public int ReservePicking(int amount)
-	{
-		amount = math.min(amount, tobeQuantity);
-
-		tobeQuantity -= amount;
-
-		return amount;
-	}
 }
 
 // 특정 item이 위치한 정보를 간편히 표현한 자료구조

@@ -27,6 +27,12 @@ public class OrderManager : MonoBehaviour
 	{
 		var order = OrderFactory.CreateRandomOrder();
 
+		if (order == null)
+		{
+			Debug.Log("No items available to create an order.");
+			return;
+		}
+
 		orders.Add(order);
 
 		// convert order to OrderLines

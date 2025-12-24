@@ -6,11 +6,13 @@
 
 public class WMSystem : MonoBehaviour
 {
-	private BoxPoolService boxPoolRegistry = new();
+	[SerializeField] private ItemLedger itemLedger;
+	[SerializeField] private BoxPoolService boxPoolRegistry;
+	[SerializeField] private CargoPortService cargoPortService;
 
-	private CargoPortService cargoPoolService = new();
 
 	public BoxPoolService BoxPoolMgr => boxPoolRegistry;
-	public CargoPortService CargoPorts => cargoPoolService;
+	public CargoPortService CargoPorts => cargoPortService;
+	public ItemLedger ItemLedger => itemLedger;
 
 }

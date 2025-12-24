@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
+using UnityEngine;
 
-public class BoxPoolService
+public class BoxPoolService : MonoBehaviour
 {
 	// 실제 박스들
 	private List<BoxBase> boxes = new();
