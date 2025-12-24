@@ -8,11 +8,8 @@ public class WMSystem : MonoBehaviour
 {
 	[SerializeField] private ItemLedger itemLedger;
 	[SerializeField] private BoxPoolService boxPoolRegistry;
-	[SerializeField] private CargoPortService cargoPortService;
-
 
 	public BoxPoolService BoxPoolMgr => boxPoolRegistry;
-	public CargoPortService CargoPorts => cargoPortService;
 	public ItemLedger ItemLedger => itemLedger;
 
 }

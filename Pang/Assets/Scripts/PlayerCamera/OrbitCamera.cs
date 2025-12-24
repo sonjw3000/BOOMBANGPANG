@@ -43,7 +43,7 @@ public class OrbitCamera : MonoBehaviour
 		if (Input.GetKey(KeyCode.A)) move -= transform.right;
 		if (Input.GetKey(KeyCode.D)) move += transform.right;
 
-		move = Vector3.Normalize(Vector3.Scale(move, _MoveAxis)) * _MoveSpeed * Time.deltaTime;
+		move = Vector3.Normalize(Vector3.Scale(move, _MoveAxis)) * _MoveSpeed * Time.unscaledDeltaTime;
 
 		_GoalTargetPos += move;
 
@@ -62,7 +62,7 @@ public class OrbitCamera : MonoBehaviour
 		else
 		{
 			Vector3 moveMount = _GoalTargetPos - _CurTargetPos;
-			_CurTargetPos += moveMount * _CameraFollowSpeed * Time.deltaTime;
+			_CurTargetPos += moveMount * _CameraFollowSpeed * Time.unscaledDeltaTime;
 		}
 	}
 
@@ -90,7 +90,7 @@ public class OrbitCamera : MonoBehaviour
 		else
 		{
 			float diff = _GoalDistance - _CurDistance;
-			_CurDistance += diff * _ZoomSpeed * Time.deltaTime;
+			_CurDistance += diff * _ZoomSpeed * Time.unscaledDeltaTime;
 		}
 		
 

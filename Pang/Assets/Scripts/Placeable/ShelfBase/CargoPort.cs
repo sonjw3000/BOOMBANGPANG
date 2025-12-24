@@ -4,19 +4,29 @@ using UnityEngine;
 public class CargoPort : 
 	ShelfBase
 {
+	// ib/ob 구분
+	// 런타임에 수정되면 안된다
+	[SerializeField] private bool isInbound = true;
 	public int3 UnpackPoint => InteractionPoints[0];
 	public int3 DockPoint => InteractionPoints[1];
 
-	static private CargoPortService CargoPorts => GameContext.Instance.WMSys.CargoPorts;
+	static private CargoPortService IBCargoPorts => GameContext.Instance.IBWorkflowMgr.CargoPorts;
+	static private CargoPortService OBCargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
 
 	private void OnEnable()
 	{
-		CargoPorts.RegisterPort(this);
+		if (isInbound)
+			IBCargoPorts.RegisterPort(this);
+		else
+			OBCargoPorts.RegisterPort(this);
 	}
 
 	private void OnDisable()
 	{
-		CargoPorts.UnregisterPort(this);
+		if (isInbound)
+			IBCargoPorts.UnregisterPort(this);
+		else
+			OBCargoPorts.UnregisterPort(this);
 	}
 
 

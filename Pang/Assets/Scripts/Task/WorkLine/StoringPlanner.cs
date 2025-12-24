@@ -15,7 +15,6 @@ public abstract class StoringPlanner
 	static protected int jobID = 1;
 
 	protected InboundWorkflowManager IBManager => GameContext.Instance.IBWorkflowMgr;
-	protected CargoPortService PortService => GameContext.Instance.WMSys.CargoPorts;
 
 	public abstract void BuildStoreJob();
 
@@ -31,7 +30,7 @@ public sealed class StoringItemFriendly : StoringPlanner
 
 	public override void BuildStoreJob()
 	{
-		foreach ((var id, var ports) in PortService.CargoPortsByItem)
+		foreach ((var id, var ports) in IBManager.CargoPortsByItem)
 		{
 			// cargo에 있는 item별로 pendlingLine을 모은다
 			if (pendingLines.TryGetValue(id, out var lines) == false)

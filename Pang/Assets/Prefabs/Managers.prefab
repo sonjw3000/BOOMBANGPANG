@@ -76,7 +76,6 @@ Transform:
   m_Children:
   - {fileID: 6104158213113640413}
   - {fileID: 5405154741925373675}
-  - {fileID: 849514715439252847}
   m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4181363907245693410
@@ -93,7 +92,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemLedger: {fileID: 2594515762221059893}
   boxPoolRegistry: {fileID: 5559326809732046067}
-  cargoPortService: {fileID: 4830617511745632944}
 --- !u!1 &2435145271861946170
 GameObject:
   m_ObjectHideFlags: 0
@@ -153,9 +151,6 @@ MonoBehaviour:
     - {fileID: 5250718383500915193, guid: f51a20ce04034dc48888daa0b57a04ad, type: 3}
     - {fileID: 4160587140088029067, guid: 5ce1018733c5bc544b11676e18721b49, type: 3}
     - {fileID: 4046099219731300723, guid: 828fff7bc15f652488cc1c8019a1469f, type: 3}
-    - {fileID: 6292317992592451571, guid: 4ce56300c06857d4d9d1322926b73ae5, type: 3}
-    - {fileID: 3890919911251998508, guid: 488feabe59eb6a840808cf083713d509, type: 3}
-    - {fileID: 4307669844091279147, guid: dc841591eb6b4ed44994bde9aa91baf8, type: 3}
     - {fileID: 4934971901129387132, guid: 215fceb8eccbc54409e145f16c2b0f8c, type: 3}
     - {fileID: 6155704149836782372, guid: ef27fec05dc353e47afc629dbf165b17, type: 3}
     - {fileID: 5547793404648804989, guid: c0376f38f6e735e48b8e9eec6ba3517c, type: 3}
@@ -165,6 +160,7 @@ MonoBehaviour:
     - {fileID: 674914861464847897, guid: 4f47c92cb33ff7b4ea31b7d370158fda, type: 3}
     - {fileID: 6838673464925562183, guid: 6e1f5d0516dec1541a25a3899f32558b, type: 3}
     - {fileID: 7781608356336454641, guid: f90bfe449eee27b45aab1fa0b205008a, type: 3}
+    - {fileID: 7781608356336454641, guid: 401f350046d1bb14f8de703edd332a60, type: 3}
     mapSize:
       x: 0
       y: 0
@@ -194,6 +190,50 @@ MonoBehaviour:
   warehouseManagement: {fileID: 4181363907245693410}
   inboundWorkFlowManager: {fileID: 2554155626171990247}
   outboundWorkFlowManager: {fileID: 5775960916622381912}
+--- !u!1 &2910311652415540675
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3846551216162867527}
+  - component: {fileID: 3883171392340020772}
+  m_Layer: 0
+  m_Name: OBCargoPortService
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3846551216162867527
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2910311652415540675}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3141209299861845252}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3883171392340020772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2910311652415540675}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 966ad98827d9a434db7cc0f981fd2866, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &4035456000139343244
 GameObject:
   m_ObjectHideFlags: 0
@@ -205,7 +245,7 @@ GameObject:
   - component: {fileID: 849514715439252847}
   - component: {fileID: 4830617511745632944}
   m_Layer: 0
-  m_Name: CargoPortService
+  m_Name: IBCargoPortService
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -219,12 +259,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4035456000139343244}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7589102203726941440}
+  m_Father: {fileID: 344618052840468862}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4830617511745632944
 MonoBehaviour:
@@ -413,7 +453,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 3846551216162867527}
   m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &5775960916622381912
@@ -428,6 +469,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed9234a18f96c0c4abfb3948418edd8c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  cargoPortService: {fileID: 3883171392340020772}
+  timeSinceLastOrder: 0
+  orderInterval: 10
 --- !u!1 &5289011257717044783
 GameObject:
   m_ObjectHideFlags: 0
@@ -457,7 +501,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 849514715439252847}
   m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2554155626171990247
@@ -472,6 +517,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a33bf384063c14842ae80eb69fc41a47, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  cargoPortService: {fileID: 4830617511745632944}
   maxBoxPercentage: 80
   storingTaskBuildTime: 10
 --- !u!1 &7606174192997489002

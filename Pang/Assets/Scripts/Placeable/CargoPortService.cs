@@ -6,12 +6,8 @@ public class CargoPortService : MonoBehaviour
 {
 	private List<CargoPort> cargoPorts = new();
 
-	private readonly Dictionary<uint, List<CargoPort>> cargoPortsByItem = new();
-
-	public Dictionary<uint, List<CargoPort>> CargoPortsByItem => cargoPortsByItem;
-
-	private InboundWorkflowManager IBMgr => GameContext.Instance.IBWorkflowMgr;
-
+	public event System.Action<ShelfBase, uint, bool> OnItemPresentChanged;
+	public event System.Action<uint, int> OnItemQuantityChanged;
 
 	public CargoPort GetClosestAvailablePort(in int3 pos)
 	{
@@ -39,54 +35,28 @@ public class CargoPortService : MonoBehaviour
 
 	public void RegisterPort(CargoPort port)
 	{
-		port.OnItemPresentChanged += OnPortItemPresentChanged;
-		//port.OnItemQuantityChanged += OnPortItemQuantityChanged;
+		port.OnItemPresentChanged += HandlePresentChange;
+		port.OnItemQuantityChanged += HandleItemQuantityChanged;
 		cargoPorts.Add(port);
 	}
 
 	public void UnregisterPort(CargoPort port)
 	{
-		port.OnItemPresentChanged -= OnPortItemPresentChanged;
-		//port.OnItemQuantityChanged -= OnPortItemQuantityChanged;
+		port.OnItemPresentChanged -= HandlePresentChange;
+		port.OnItemQuantityChanged -= HandleItemQuantityChanged;
 		cargoPorts.Remove(port);
 	}
 
+	private void HandlePresentChange(ShelfBase port, uint itemId, bool present)
+	{
+		OnItemPresentChanged?.Invoke(port, itemId, present);
+	}
+
+	private void HandleItemQuantityChanged(uint itemId, int quantityDelta)
+	{
+		OnItemQuantityChanged?.Invoke(itemId, quantityDelta);
+	}
+
 	// to shelfs
-	private void OnPortItemPresentChanged(ShelfBase port, uint itemId, bool present)
-	{
-		if (present)
-			OnPortItemAdded(port, itemId);
-		else
-			OnPortItemRemoved(port, itemId);
-	}
-
-	//private void OnPortItemQuantityChanged(uint itemId, int quantityDelta)
-	//{
-
-
-	//}
-
-	// event
-	private void OnPortItemAdded(ShelfBase port, uint itemId)
-	{
-		if (cargoPortsByItem.TryGetValue(itemId, out var ports) == false)
-		{
-			ports = new();
-			cargoPortsByItem.Add(itemId, ports);
-		}
-
-		ports.Add((CargoPort)port);
-	}
-
-	private void OnPortItemRemoved(ShelfBase port, uint itemId)
-	{
-		if (cargoPortsByItem.TryGetValue(itemId, out var ports) == false)
-		{
-			// should not happen
-			Debug.LogError("ERROR!! No id here but tried to remove port");
-			cargoPortsByItem[itemId] = new();
-		}
-		cargoPortsByItem[itemId].Remove((CargoPort)port);
-	}
 
 }

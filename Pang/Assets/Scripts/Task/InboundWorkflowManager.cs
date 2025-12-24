@@ -1,5 +1,6 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
 using Unity.Mathematics;
+using UnityEngine;
 using static WorkerTask.TaskType;
 // inbound 작업 흐름을 관리
 // 깨차
@@ -9,9 +10,17 @@ using static WorkerTask.TaskType;
 // labeling
 // storing
 
-public class InboundWorkflowManager : MonoBehaviour
+public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 {
-	// storing Planner
+	// inbound manager's cargo port service
+	[SerializeField] CargoPortService cargoPortService;
+	private readonly Dictionary<uint, List<CargoPort>> cargoPortsByItem = new();
+
+	// for storing policy
+	[SerializeField, Range(1, 100)] private float maxBoxPercentage = 80.0f;
+	[SerializeField] private float storingTaskBuildTime = 10.0f;
+	private float timer = 0;
+
 	private StoringPlanner storingPlanner = new StoringItemFriendly();
 
 	// todo
@@ -19,11 +28,11 @@ public class InboundWorkflowManager : MonoBehaviour
 	// collecting policy
 	// placing policy
 
-	[SerializeField, Range(1, 100)] private float maxBoxPercentage = 80.0f;
-	[SerializeField] private float storingTaskBuildTime = 10.0f;
-	private float timer = 0;
+	public CargoPortService CargoPorts => cargoPortService;
 
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
+
+	public Dictionary<uint, List<CargoPort>> CargoPortsByItem => cargoPortsByItem;
 
 	// 일단은 근접 우선으로 설정
 	private IPlacingPolicy placingPolicy = new NearestPlacingPolicy();
@@ -56,7 +65,6 @@ public class InboundWorkflowManager : MonoBehaviour
 		}
 	}
 
-
 	private void CheckStoreTaskAvailable()
 	{
 		timer += Time.deltaTime;
@@ -80,6 +88,46 @@ public class InboundWorkflowManager : MonoBehaviour
 					TaskMgr.TaskQueue[Storing].AddLast(task);
 			}
 		}
+	}
+
+	private void OnPortItemPresentChanged(ShelfBase port, uint itemId, bool present)
+	{
+		if (present)
+			OnPortItemAdded(port, itemId);
+		else
+			OnPortItemRemoved(port, itemId);
+	}
+
+	// event
+	private void OnPortItemAdded(ShelfBase port, uint itemId)
+	{
+		if (cargoPortsByItem.TryGetValue(itemId, out var ports) == false)
+		{
+			ports = new();
+			cargoPortsByItem.Add(itemId, ports);
+		}
+
+		ports.Add((CargoPort)port);
+	}
+
+	private void OnPortItemRemoved(ShelfBase port, uint itemId)
+	{
+		if (cargoPortsByItem.TryGetValue(itemId, out var ports) == false)
+		{
+			// should not happen
+			Debug.LogError("ERROR!! No id here but tried to remove port");
+			cargoPortsByItem[itemId] = new();
+		}
+		cargoPortsByItem[itemId].Remove((CargoPort)port);
+	}
+
+
+	private void Start()
+	{
+		// cargoport 서비스 구독
+		cargoPortService.OnItemPresentChanged += OnPortItemPresentChanged;
+
+
 	}
 
 	private void Update()

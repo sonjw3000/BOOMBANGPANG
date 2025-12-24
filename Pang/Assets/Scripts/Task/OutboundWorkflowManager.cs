@@ -1,22 +1,22 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 using static WorkerTask;
 
 // outbound 작업 흐름 관리
 // 주문을 까서 picking -> packaging -> loading 작업을 관리
 
-public class OutboundWorkflowManager : MonoBehaviour 
+public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 {
+	// inbound manager's cargo port service
+	[SerializeField] CargoPortService cargoPortService;
+
 	[SerializeField] private float timeSinceLastOrder = 0.0f;
 	[SerializeField] private float orderInterval = 10.0f;
 
+	public CargoPortService CargoPorts => cargoPortService;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
-	//private TaskManager taskManager = new();
-	//private OrderManager orderManager = new();
-	//private InventoryService;
-	//private StationService
-	private int nextJobID = 0;
 
 
 	// 주문을 묶는 역할

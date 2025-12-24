@@ -119,7 +119,7 @@ GameObject:
   - component: {fileID: 1140809020797150315}
   - component: {fileID: 2273540710158452994}
   m_Layer: 0
-  m_Name: CargoPort
+  m_Name: IBCargoPort
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
