@@ -28,6 +28,9 @@ public class ShelfStorageIndex : MonoBehaviour
 
 	private ItemLedger itemLedger => GameContext.Instance.WMSys.ItemLedger;
 
+	// ---------------------------
+	// 이벤트 핸들러
+	// ---------------------------
 	private void OnItemPresentChanged(ShelfBase shelf, uint itemId, bool present)
 	{
 		if (present)
@@ -59,6 +62,14 @@ public class ShelfStorageIndex : MonoBehaviour
 		shelvesByItem[itemId].Remove(shelf);
 	}
 
+	private void OnQuantityDelta(uint itemId, int qtyDelta)
+	{
+		// todo
+		// 상황에 따라 itemLedger에 알리지 않아도 될 수 있다
+		itemLedger.OnItemQuantityChanged(itemId, qtyDelta);
+
+	}
+
 	// ---------------------------
 	// 컨테이너 관련
 	// ---------------------------
@@ -66,14 +77,14 @@ public class ShelfStorageIndex : MonoBehaviour
 	public void OnContainerAdded(ShelfBase container)
 	{
 		container.OnItemPresentChanged += OnItemPresentChanged;
-		container.OnItemQuantityChanged += itemLedger.OnItemQuantityChanged;
+		container.OnItemQuantityChanged += OnQuantityDelta;
 		containers.Add(container);
 	}
 
 	public void OnContainerRemoved(ShelfBase container)
 	{
 		container.OnItemPresentChanged -= OnItemPresentChanged;
-		container.OnItemQuantityChanged -= itemLedger.OnItemQuantityChanged;
+		container.OnItemQuantityChanged -= OnQuantityDelta;
 		containers.Remove(container);
 	}
 
