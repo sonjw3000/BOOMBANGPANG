@@ -15,6 +15,8 @@ public sealed class PickingTask : WorkerTask
 	public WorkJob PickingData => pickJob;
 	public WorkLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
 	
+	public ShelfBase TargetCargo => targetCargoPos;
+
 	static private CargoPortService CargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
 
 	public PickingTask(WorkJob pickJob) : base(TaskType.Picking)

@@ -28,7 +28,21 @@ public class LaunchStation
 		}
 	}
 
-	public bool TryGetAvailablePad(in BoxBase cargo, out LaunchPadAddon addon)
+	public bool TryGetStoreablePad(out CargoStorageAddon addon)
+	{
+		foreach (var a in addons)
+		{
+			if (a.GetComponent<CargoStorageAddon>() == null)
+				continue;
+			addon = (CargoStorageAddon)a;
+			return true;
+		}
+
+		addon = null;
+		return false;
+	}
+
+	public bool TryGetLoadablePad(in BoxBase cargo, out LaunchPadAddon addon)
 	{
 		foreach (var a in addons)
 		{

@@ -7,7 +7,7 @@ public class CargoPortService : MonoBehaviour
 	private List<CargoPort> cargoPorts = new();
 
 	public event System.Action<ShelfBase, uint, bool> OnItemPresentChanged;
-	public event System.Action<uint, int> OnItemQuantityChanged;
+	public event System.Action<ShelfBase, uint, int> OnItemQuantityChanged;
 
 	public CargoPort GetClosestAvailablePort(in int3 pos)
 	{
@@ -52,9 +52,9 @@ public class CargoPortService : MonoBehaviour
 		OnItemPresentChanged?.Invoke(port, itemId, present);
 	}
 
-	private void HandleItemQuantityChanged(uint itemId, int quantityDelta)
+	private void HandleItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
 	{
-		OnItemQuantityChanged?.Invoke(itemId, quantityDelta);
+		OnItemQuantityChanged?.Invoke(port, itemId, quantityDelta);
 	}
 
 	// to shelfs

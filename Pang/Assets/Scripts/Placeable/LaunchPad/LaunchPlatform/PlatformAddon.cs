@@ -9,17 +9,25 @@ public abstract class PlatformAddon
 	//, IGridPlacementEffect
 	//, IInteractionPoint
 {
-
+	[SerializeField] protected int2 positionInStation;
 	protected LaunchStation station;
 
 
-	private int3 gridPosition;
+	//private int3 gridPosition;
 	protected List<int3> interactionPoints = new();
 
-	public int3 GridPosition => gridPosition;
+	//public int3 GridPosition => gridPosition;
 	public IReadOnlyList<int3> InteractionPoints => interactionPoints;
 
 
+	public int3 GetPosition()
+	{
+		return new int3(
+			station.GridPosition.x - positionInStation.x,
+			station.GridPosition.y,
+			station.GridPosition.z - positionInStation.y
+			);
+	}
 
 	public void SetPadBase(LaunchStation station) => this.station = station;
 

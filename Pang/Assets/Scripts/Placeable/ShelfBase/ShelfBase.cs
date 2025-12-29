@@ -28,7 +28,7 @@ public abstract class ShelfBase :
 	public event System.Action<ShelfBase, uint, bool> OnItemPresentChanged;
 
 	// item quantity의 변경이 일어났을 경우
-	public event System.Action<uint, int> OnItemQuantityChanged;
+	public event System.Action<ShelfBase, uint, int> OnItemQuantityChanged;
 
 	//public int CurrentStackCount => currentStackCount;
 	public IReadOnlyList<ItemStack> Stacks => stacks;
@@ -95,7 +95,7 @@ public abstract class ShelfBase :
 		}
 
 		int addedItem = quantity - remain;
-		OnItemQuantityChanged?.Invoke(itemId, addedItem);
+		OnItemQuantityChanged?.Invoke(this, itemId, addedItem);
 
 		return addedItem;
 	}
@@ -141,7 +141,7 @@ public abstract class ShelfBase :
 			itemsReservedPick.Remove(itemId);
 		}
 
-		OnItemQuantityChanged?.Invoke(itemId, -removed);
+		OnItemQuantityChanged?.Invoke(this, itemId, -removed);
 
 		return removed;
 	}

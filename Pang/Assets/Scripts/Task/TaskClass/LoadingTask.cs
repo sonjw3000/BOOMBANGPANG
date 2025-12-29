@@ -1,12 +1,19 @@
 ﻿using UnityEngine;
-
+using Unity.Mathematics;
+using static IBaseNode;
+using static IBaseNode.NodeState;
 
 public class LoadingTask : WorkerTask
 {
 	private bool isLoadEnd = false;
 
-	public LoadingTask() : base(TaskType.Loading)
+	private CargoPort targetPort = null;
+
+	static private LaunchStationService LaunchStations => GameContext.Instance.OBWorkflowMgr.LaunchStations;
+
+	public LoadingTask(CargoPort cargoPort) : base(TaskType.Loading)
 	{
+		this.targetPort = cargoPort;
 	}
 
 	protected override void OnTaskAssigned()
@@ -22,9 +29,22 @@ public class LoadingTask : WorkerTask
 
 	protected override IBaseNode BuildWorkNode()
 	{
+		SequenceNode root = new();
+
+		root.Add(AIWorker.BuildCarryMoveInteract(
+			boxRequirement: BoxType.Cargo,
+			setGoal: SetLoadTarget,
+			interact: PickCargo
+			));
+
+		root.Add(AIWorker.BuildCarryMoveInteract(
+			boxRequirement: BoxType.Cargo,
+			setGoal: SetLaunchStation,
+			interact: StoreCargo
+			));
 
 
-		return null;
+		return root;
 	}
 
 	public override bool CheckTaskEnd()
@@ -38,5 +58,70 @@ public class LoadingTask : WorkerTask
 		return $"[LoadingTask] : ";
 	}
 #endif
+
+	static private NodeState SetLoadTarget(in BTContext ctx)
+	{
+		var task = (LoadingTask)ctx.Worker.CurrentTask;
+
+		if (task.targetPort == null)
+		{
+			Debug.LogError("No available load port found!");
+			return Failure;
+		}
+
+		ctx.LocalBlackBoard.Set<int3>("goalPos", task.targetPort.InteractionPoints[1]);
+
+		return Success;
+	}
+
+	static private NodeState PickCargo(in BTContext ctx)
+	{
+		var task = (LoadingTask)ctx.Worker.CurrentTask;
+
+		if (task.targetPort == null)
+		{
+			Debug.LogError("No available load port found!");
+			return Failure;
+		}
+
+		BoxBase box = ctx.Worker.GetComponent<CarryBoxAbility>().CarringBox;
+		task.targetPort.PickCargo(box);
+
+		return Success;
+	}
+
+	static private NodeState SetLaunchStation(in BTContext ctx)
+	{
+		var task = (LoadingTask)ctx.Worker.CurrentTask;
+		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition);
+		if (launchStation == null)
+		{
+			Debug.LogError("No available launch station found!");
+			return Failure;
+		}
+
+		ctx.LocalBlackBoard.Set<int3>("goalPos", launchStation.InteractionPoints[0]);
+		return Success;
+	}
+
+	static private NodeState StoreCargo(in BTContext ctx)
+	{
+		var task = (LoadingTask)ctx.Worker.CurrentTask;
+		var carryAbility = ctx.Worker.GetComponent<CarryBoxAbility>();
+		BoxBase box = carryAbility.CarringBox;
+		
+		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition);
+		if (launchStation == null)
+		{
+			Debug.LogError("No available launch station found!");
+			return Failure;
+		}
+
+		launchStation.TryGetStoreablePad(out var pad);
+		pad.StoreCargo(box);
+
+		task.isLoadEnd = true;
+		return Success;
+	}
 
 }

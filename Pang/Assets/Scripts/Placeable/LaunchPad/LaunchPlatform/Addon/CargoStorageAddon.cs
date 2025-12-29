@@ -19,7 +19,7 @@ public class CargoStorageAddon : PlatformAddon
 	{
 		foreach (var cargo in cargosToLaunch)
 		{
-			if (station.TryGetAvailablePad(cargo, out var pad))
+			if (station.TryGetLoadablePad(cargo, out var pad))
 			{
 				pad.TryLoad(cargo);
 				cargosToLaunch.Remove(cargo);

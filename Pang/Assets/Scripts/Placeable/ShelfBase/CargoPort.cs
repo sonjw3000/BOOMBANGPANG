@@ -1,4 +1,5 @@
-﻿using Unity.Mathematics;
+﻿using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class CargoPort : 
@@ -12,6 +13,20 @@ public class CargoPort :
 
 	static private CargoPortService IBCargoPorts => GameContext.Instance.IBWorkflowMgr.CargoPorts;
 	static private CargoPortService OBCargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
+
+	public void PickCargo(BoxBase box)
+	{
+		Dictionary<uint, int> movedItems = new();
+		foreach (var item in box.ItemTotals)
+		{
+			movedItems[item.Key] = box.AddItem(item.Key, item.Value);
+		}
+
+		foreach (var item in movedItems)
+		{
+			box.RemoveItem(item.Key, item.Value);
+		}
+	}
 
 	private void OnEnable()
 	{

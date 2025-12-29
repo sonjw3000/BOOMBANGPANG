@@ -2,7 +2,7 @@
 using Unity.Mathematics;
 using UnityEngine;
 
-public class LaunchPadService : MonoBehaviour
+public class LaunchStationService : MonoBehaviour
 {
 	private List<LaunchStation> launchPads = new();
 

@@ -62,7 +62,7 @@ public class ShelfStorageIndex : MonoBehaviour
 		shelvesByItem[itemId].Remove(shelf);
 	}
 
-	private void OnQuantityDelta(uint itemId, int qtyDelta)
+	private void OnQuantityDelta(ShelfBase shelf, uint itemId, int qtyDelta)
 	{
 		// todo
 		// 상황에 따라 itemLedger에 알리지 않아도 될 수 있다

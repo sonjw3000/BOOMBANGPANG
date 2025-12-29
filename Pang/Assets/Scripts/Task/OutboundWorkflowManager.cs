@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 using static WorkerTask;
 
@@ -10,11 +9,13 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 {
 	// inbound manager's cargo port service
 	[SerializeField] CargoPortService cargoPortService;
+	[SerializeField] LaunchStationService launchStationService;
 
 	[SerializeField] private float timeSinceLastOrder = 0.0f;
 	[SerializeField] private float orderInterval = 10.0f;
 
 	public CargoPortService CargoPorts => cargoPortService;
+	public LaunchStationService LaunchStations => launchStationService;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 
@@ -64,6 +65,21 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	// ----------------------------------------------------------------
 	// unity 함수
+
+	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
+	{
+	}
+
+	private void Awake()
+	{
+		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
+	}
+
+	private void OnDestroy()
+	{
+		cargoPortService.OnItemQuantityChanged -= OnPortItemQuantityChanged;
+	}
+
 	private void Start()
 	{
 		// cargoport 서비스 구독
