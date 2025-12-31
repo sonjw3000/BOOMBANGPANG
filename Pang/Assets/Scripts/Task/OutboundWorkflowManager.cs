@@ -51,7 +51,7 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 		var task = pickingTaskAllocator.BuildPickingTask();
 		if (task == null)
 		{
-			Debug.Log("No Picking Task Created");
+			//Debug.Log("No Picking Task Created");
 			return;
 		}
 

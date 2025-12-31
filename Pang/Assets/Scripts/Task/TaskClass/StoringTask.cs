@@ -186,7 +186,7 @@ public class StoringTask : WorkerTask
 		// if no items in box, end job
 		if (box.Stacks.Count == 0)
 		{
-			Debug.Log("Box End!");
+			//Debug.Log("Box End!");
 			task.IsJobEnd = true;
 		}
 

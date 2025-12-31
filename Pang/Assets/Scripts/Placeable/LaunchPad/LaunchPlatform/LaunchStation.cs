@@ -17,8 +17,11 @@ public class LaunchStation
 	private List<int3> interactionPoints = new();
 
 	public int3 GridPosition => gridPosition;
+
+	public int3 CargoInteractionPoint => interactionPoints[0];
 	public IReadOnlyList<int3> InteractionPoints => interactionPoints;
 
+	private LaunchStationService LaunchStations => GameContext.Instance.OBWorkflowMgr.LaunchStations;
 
 	private void Awake()
 	{
@@ -26,6 +29,16 @@ public class LaunchStation
 		{
 			addon.SetPadBase(this);
 		}
+	}
+
+	private void Start()
+	{
+		LaunchStations.RegisterLaunchPad(this);
+	}
+
+	private void OnDestroy()
+	{
+		LaunchStations.UnregisterLaunchPad(this);
 	}
 
 	public bool TryGetStoreablePad(out CargoStorageAddon addon)
@@ -42,15 +55,15 @@ public class LaunchStation
 		return false;
 	}
 
-	public bool TryGetLoadablePad(in BoxBase cargo, out LaunchPadAddon addon)
+	public bool TryGetLaunchablePad(in BoxBase cargo, out LaunchPadAddon addon)
 	{
 		foreach (var a in addons)
 		{
-			if (a.GetComponent<CargoStorageAddon>() == null)
-				continue;
-
-			addon = (LaunchPadAddon)a;
-			return true;
+			if (a.GetComponent<LaunchPadAddon>() != null)
+			{
+				addon = (LaunchPadAddon)a;
+				return true;
+			}
 		}
 
 		addon = null;
@@ -60,8 +73,16 @@ public class LaunchStation
 
 	public void OnPositionSet(in int3 position)
 	{
+		enabled = true;
 		// 
 		gridPosition = position;
+
+		// zero
+		interactionPoints.Add(new int3(
+			Mathf.RoundToInt(GridPosition.x + transform.forward.x * 2),
+			Mathf.RoundToInt(GridPosition.y),
+			Mathf.RoundToInt(GridPosition.z + transform.forward.z * 2)
+			));
 	}
 
 	public void OnRemoved()

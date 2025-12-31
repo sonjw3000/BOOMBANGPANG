@@ -91,7 +91,7 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlace
 			return false;
 		}
 
-		Debug.Log("Attached!");
+		//Debug.Log("Attached!");
 
 		return component.TryAttachBox(box);
 	}

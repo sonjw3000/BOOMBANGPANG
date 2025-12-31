@@ -29,7 +29,7 @@ public class OrderManager : MonoBehaviour
 
 		if (order == null)
 		{
-			Debug.Log("No items available to create an order.");
+			//Debug.Log("No items available to create an order.");
 			return;
 		}
 

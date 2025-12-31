@@ -20,7 +20,7 @@ public class TestingPickingTaskAllocator : PickingTaskAllocator
 	{
 		if (manager.ItemOrderLines.Count <= 0)
 		{
-			Debug.Log("No orders to allocate.");
+			//Debug.Log("No orders to allocate.");
 			return null;
 		}
 		

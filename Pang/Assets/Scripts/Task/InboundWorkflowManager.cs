@@ -83,7 +83,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 
 			while (storingPlanner.BuildStoreTask(maxBoxPercentage, out var task))
 			{
-				Debug.Log("StoreTask Built!");
+				//Debug.Log("StoreTask Built!");
 
 				if (task != null)
 					TaskMgr.TaskQueue[Storing].AddLast(task);

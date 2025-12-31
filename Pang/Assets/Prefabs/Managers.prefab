@@ -519,6 +519,7 @@ MonoBehaviour:
   launchStationService: {fileID: 1844665561343146193}
   timeSinceLastOrder: 0
   orderInterval: 10
+  cargoPortThresholdPercent: 80
 --- !u!1 &5289011257717044783
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,6 +1,4 @@
-﻿
-
-using UnityEditor.Build.Content;
+﻿using UnityEngine;
 
 public class LaunchPadAddon : PlatformAddon
 {
@@ -15,7 +13,9 @@ public class LaunchPadAddon : PlatformAddon
 
 	public bool TryLoad(in BoxBase cargo)
 	{
-		if (rocket == null) return false;
+		// todo
+		// rocket을 추가해야함
+		//if (rocket == null) return false;
 		if (cargoToLaunch != null) return false;
 
 		cargoToLaunch = cargo;
@@ -39,7 +39,12 @@ public class LaunchPadAddon : PlatformAddon
 			// 물량 조절
 			//GameContext.Instance.WMSys.ItemLedger.Launch();
 
+			Debug.Log("LaunchPadAddon: Launching cargo!");
+
+			readyToLaunch = false;
+
 			cargoToLaunch = null;
+			rocket = null;
 		}
 	}
 

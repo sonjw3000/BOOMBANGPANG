@@ -90,7 +90,7 @@ public sealed class PickingTask : WorkerTask
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 		if (task.PickingData.IsJobEnd)
 		{
-			Debug.Log("Picking Job Ended");
+			//Debug.Log("Picking Job Ended");
 			return Success;
 		}
 		return Failure;
@@ -119,7 +119,7 @@ public sealed class PickingTask : WorkerTask
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 		// todo
 		// 포트에 토트를 내려놓는 액션을 추가해야함
-		Debug.Log("Picking Task: Put on cargo port!");
+		//Debug.Log("Picking Task: Put on cargo port!");
 
 		// todo
 		// 고쳐야한다
@@ -146,6 +146,7 @@ public sealed class PickingTask : WorkerTask
 
 		if (task.PickingData.IsJobEnd)
 		{
+			Debug.Log($"task line idx: {task.PickingData.CurrentLineIndex}, task lines: {task.PickingData.Lines.Count}");
 			// should not hit here
 			Debug.Log("공이 웃으면?\n풋볼");
 			Debug.Log("자가용의 반댓말은?\n커용");
@@ -153,6 +154,8 @@ public sealed class PickingTask : WorkerTask
 			Debug.Log("문신하면 무시할 수 없는 이유는?");
 			Debug.Log("무시");
 			Debug.Log("ㄴㄴ");
+
+			return Failure;
 		}
 
 		// set goalPosition

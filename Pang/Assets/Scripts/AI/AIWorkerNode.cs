@@ -100,7 +100,7 @@ public sealed partial class AIWorker
 		var task = ctx.Worker.CurrentTask;
 		task.EndTask();
 
-		Debug.Log("TaskCompleted!");
+		//Debug.Log("TaskCompleted!");
 
 		// todo
 		// 이벤트로 만들어보자

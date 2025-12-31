@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class CargoStorageAddon : PlatformAddon
 {
@@ -17,13 +17,17 @@ public class CargoStorageAddon : PlatformAddon
 
 	private void Update()
 	{
-		foreach (var cargo in cargosToLaunch)
+		for (var it = cargosToLaunch.First; it != null; )
 		{
-			if (station.TryGetLoadablePad(cargo, out var pad))
+			var next = it.Next;
+
+			if (station.TryGetLaunchablePad(it.Value, out var pad))
 			{
-				pad.TryLoad(cargo);
-				cargosToLaunch.Remove(cargo);
+				pad.TryLoad(it.Value);
+				cargosToLaunch.Remove(it);
 			}
+
+			it = next;
 		}
 	}
 

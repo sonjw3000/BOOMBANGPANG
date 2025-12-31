@@ -46,7 +46,7 @@ public class NearestPlacingPolicy : IPlacingPolicy
 		decision.ItemID = bestStack.ItemID;
 		decision.Quantity = quantity;
 
-		Debug.Log($"bsetShelfPos: {best.GridPosition}, ItemID: {bestStack.ItemID}, Quantity: {quantity}");
+		//Debug.Log($"bsetShelfPos: {best.GridPosition}, ItemID: {bestStack.ItemID}, Quantity: {quantity}");
 
 		return best != null;
 	}
