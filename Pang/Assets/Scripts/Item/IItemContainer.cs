@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Drawing;
 using Unity.Mathematics;
 
 // 아이템 보관함
@@ -8,6 +9,10 @@ public interface IItemContainer
 	public IReadOnlyList<ItemStack> Stacks { get; }
 
 	public IReadOnlyDictionary<uint, int> ItemTotals { get; }
+
+	public float TotalSize { get; }
+	public float MaxSize { get; }
+	public float FilledPercent => MaxSize <= 0 ? 0 : (TotalSize / MaxSize) * 100.0f;
 
 	public bool CanRegister();
 

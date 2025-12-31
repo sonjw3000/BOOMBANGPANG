@@ -11,8 +11,17 @@ public class CargoPort :
 	public int3 UnpackPoint => InteractionPoints[0];
 	public int3 DockPoint => InteractionPoints[1];
 
+	private bool inputReady = true;
+
+	public bool InputReady => inputReady;
+
 	static private CargoPortService IBCargoPorts => GameContext.Instance.IBWorkflowMgr.CargoPorts;
 	static private CargoPortService OBCargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
+
+	public void SetInputReady(bool ready)
+	{
+		inputReady = ready;
+	}
 
 	public void PickCargo(BoxBase box)
 	{

@@ -1,6 +1,9 @@
 ﻿using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
+using static UnityEditor.Experimental.GraphView.Port;
 
 public abstract class ShelfBase : 
 	MonoBehaviour, 
@@ -19,6 +22,11 @@ public abstract class ShelfBase :
 	protected List<ItemStack> stacks;
 	protected Dictionary<uint, int> itemTotals = new();
 	protected Dictionary<uint, int> itemsReservedPick = new();
+
+	private float totalSize = 0.0f;
+
+	public float TotalSize => totalSize;
+	public float MaxSize => sizePerStack * maxStacks;
 
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
 
@@ -50,6 +58,12 @@ public abstract class ShelfBase :
 
 	// 식인종이 우사인볼트를 보면?
 	// 패스트푸드
+
+	private void UpdateSize()
+	{
+		totalSize = stacks.Sum(s => itemDB.GetItemSize(s.ItemID) * s.Quantity);
+	}
+
 
 	public int AddItem(uint itemId, int quantity)
 	{
@@ -97,6 +111,8 @@ public abstract class ShelfBase :
 		int addedItem = quantity - remain;
 		OnItemQuantityChanged?.Invoke(this, itemId, addedItem);
 
+		UpdateSize();
+
 		return addedItem;
 	}
 
@@ -142,6 +158,8 @@ public abstract class ShelfBase :
 		}
 
 		OnItemQuantityChanged?.Invoke(this, itemId, -removed);
+
+		UpdateSize();
 
 		return removed;
 	}

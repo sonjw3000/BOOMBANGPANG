@@ -16,6 +16,9 @@ public class CargoPortService : MonoBehaviour
 
 		foreach (CargoPort p in cargoPorts)
 		{
+			if (p.InputReady == false)
+				continue;
+
 			int3 portPos = p.GridPosition;
 			int3 posDiff = pos - portPos;
 			int dist =

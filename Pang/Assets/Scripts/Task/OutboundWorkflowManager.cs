@@ -14,6 +14,8 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 	[SerializeField] private float timeSinceLastOrder = 0.0f;
 	[SerializeField] private float orderInterval = 10.0f;
 
+	[SerializeField] private float cargoPortThresholdPercent = 80.0f;
+
 	public CargoPortService CargoPorts => cargoPortService;
 	public LaunchStationService LaunchStations => launchStationService;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
@@ -68,6 +70,18 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
 	{
+		if (((IItemContainer)port).FilledPercent >= cargoPortThresholdPercent)
+		{
+			// build loading task here
+			CargoPort cargoPort = (CargoPort)port;
+
+			cargoPort.SetInputReady(false);
+
+			LoadingTask loadingTask = new LoadingTask(cargoPort);
+
+			TaskMgr.TaskQueue[TaskType.Loading].AddLast(loadingTask);
+		}
+
 	}
 
 	private void Awake()

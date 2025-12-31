@@ -22,7 +22,8 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	protected BoxPoolService BoxService => GameContext.Instance.WMSys.BoxPoolMgr;
 
 	// totebox의 stacks는 많지 않을것으로 예상
-	public float Size => size;
+	public float TotalSize => size;
+	public float MaxSize => capacity;
 
 	public IReadOnlyList<ItemStack> Stacks => stacks;
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
