@@ -51,11 +51,13 @@ public sealed class PickingTask : WorkerTask
 		put.Add(new WaitNode(1.0f));
 		put.Add(new ActionNode(PickingEndAction));
 
-		SequenceNode pick = AIWorker.BuildCarryMoveInteract(
+		SequenceNode pick = new SequenceNode();
+		pick.Add(new ActionNode(CheckIsPickingState));
+		pick.Add(AIWorker.BuildCarryMoveInteract(
 			boxRequirement: BoxType.Personal,
 			setGoal: SetTarget,
 			interact: PickItems
-		);
+		));
 		// todo 애니메이션을 재생해야한다 곧 지우자
 		// picking중인지 확실히 보기 위해 대기한다
 		pick.Add(new WaitNode(1.0f));
@@ -96,6 +98,16 @@ public sealed class PickingTask : WorkerTask
 		return Failure;
 	}
 
+	public static NodeState CheckIsPickingState(in BTContext ctx)
+	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+		if (task.PickingData.IsJobEnd == false)
+		{
+			return Success;
+		}
+		return Failure;
+	}
+
 	public static NodeState GetAvailableOBCargoPort(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
@@ -106,6 +118,7 @@ public sealed class PickingTask : WorkerTask
 
 		if (targetPos == null)
 		{
+			Debug.Log("No Available OB cargo port!");
 			return Failure;
 		}
 
@@ -146,7 +159,8 @@ public sealed class PickingTask : WorkerTask
 
 		if (task.PickingData.IsJobEnd)
 		{
-			Debug.Log($"task line idx: {task.PickingData.CurrentLineIndex}, task lines: {task.PickingData.Lines.Count}");
+			int cnt = task.PickingData.Lines.Count;
+			Debug.Log($"task line idx: {task.PickingData.CurrentLineIndex}, task lines: {cnt}");
 			// should not hit here
 			Debug.Log("공이 웃으면?\n풋볼");
 			Debug.Log("자가용의 반댓말은?\n커용");

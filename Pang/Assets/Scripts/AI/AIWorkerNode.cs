@@ -124,7 +124,8 @@ public sealed partial class AIWorker
 	// for tote box getting
 	// tote를 가지고 오기 위해 만든 노드
 	// picking이던 뭐던 잘 쓰면 된다
-	public static SelectorNode GetBox(BoxType type)
+	public static SelectorNode 
+		GetBox(BoxType type)
 	{
 		// todo
 		// boxtype에 대한 판단을 하게 해주어야함
