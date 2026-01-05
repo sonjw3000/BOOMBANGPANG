@@ -15,6 +15,7 @@ public class PlaceableDefinition : ScriptableObject
 
 	[Header("Prefab")]
 	public GameObject prefab;
+	public GridFootprint gridFootprint;
 
 	[Header("Placeable Definition Type")]
 	public PlaceableDefinitionType definitionType = PlaceableDefinitionType.Other;
