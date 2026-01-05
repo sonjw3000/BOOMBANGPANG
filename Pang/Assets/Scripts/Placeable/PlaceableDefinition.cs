@@ -1,10 +1,5 @@
 ﻿using UnityEngine;
 
-
-
-
-
-
 [CreateAssetMenu(menuName = "Placeable/Placeable Definition")]
 public class PlaceableDefinition : ScriptableObject
 {
