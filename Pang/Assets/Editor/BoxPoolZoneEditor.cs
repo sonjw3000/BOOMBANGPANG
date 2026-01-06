@@ -5,7 +5,7 @@ using UnityEngine;
 class BoxPoolZoneEditor : Editor
 {
 	public static int Index;
-	private Resources MapRes => GameContext.Instance.MapResources;
+	//private Resources MapRes => GameContext.Instance.MapResources;
 	public override void OnInspectorGUI()
 	{
 		DrawDefaultInspector();
@@ -22,9 +22,9 @@ class BoxPoolZoneEditor : Editor
 				return;
 			}
 
-			int idx = MapRes.FindPrefabIndexByName("Totebox");
-			GameObject box = Instantiate(MapRes.Prefabs[idx]);
-			sys.BoxPoolZones[Index].PutBox(box.GetComponent<BoxBase>());
+			//int idx = MapRes.FindPrefabIndexByName("Totebox");
+			//GameObject box = Instantiate(MapRes.Prefabs[idx]);
+			//sys.BoxPoolZones[Index].PutBox(box.GetComponent<BoxBase>());
 		}
 	}
 }

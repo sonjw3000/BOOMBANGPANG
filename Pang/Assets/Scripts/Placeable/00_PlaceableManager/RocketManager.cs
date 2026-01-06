@@ -28,11 +28,11 @@ public class RocketManager : MonoBehaviour
 
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private InboundWorkflowManager IBWorkflowMgr => GameContext.Instance.IBWorkflowMgr;
-	private Resources ResourceMgr => GameContext.Instance.MapResources;
+	//private Resources ResourceMgr => GameContext.Instance.MapResources;
 
 	private GameObject rocketPoolParent = null;
 
-	private int RocketPrefabIndex => GameContext.Instance.MapResources.FindPrefabIndexByName("TestRocket");
+	private PlaceableDefinition RocketPD => GameContext.Instance.PlaceableCatalog.FindById("TestRocket");
 
 	private void Awake()
 	{
@@ -113,7 +113,7 @@ public class RocketManager : MonoBehaviour
 
 	private void InstantiateNewRocket()
 	{
-		var rocketObj = Instantiate(GameContext.Instance.MapResources.Prefabs[RocketPrefabIndex], rocketPoolParent.transform);
+		var rocketObj = Instantiate(RocketPD.prefab, rocketPoolParent.transform);
 		var rocketComp = rocketObj.GetComponent<Rocket>();
 		rocketObj.SetActive(false);
 		rocketPool.Enqueue(rocketComp);
@@ -148,7 +148,7 @@ public class RocketManager : MonoBehaviour
 		// todo
 		// 로켓이 떨어진 위치에 있는 객체 파괴 << Resource에서 노티만 해주기
 		int3 pos = rocket.LandingPos;
-		ResourceMgr.mapRef[pos.x, pos.y, pos.z].Set(RocketPrefabIndex, ResourceMgr.mapRef, rocket.gameObject, pos);
+		//ResourceMgr.mapRef[pos.x, pos.y, pos.z].Set(RocketPrefabIndex, ResourceMgr.mapRef, rocket.gameObject, pos);
 
 		// rocket move off
 		rocket.enabled = false;

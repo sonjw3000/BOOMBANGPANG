@@ -1,4 +1,4 @@
-﻿using BlackBoardSystem;
+﻿using Assets.Scripts.AI.BT;
 using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
@@ -20,7 +20,7 @@ public static class StringExtensions
 	}
 }
 
-namespace BlackBoardSystem
+namespace Assets.Scripts.AI.BT
 {
 	// 참고
 	// https://www.youtube.com/watch?app=desktop&v=HNGJ8KOqdYQ

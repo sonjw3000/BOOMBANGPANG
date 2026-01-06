@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 public class InventoryCamera : MonoBehaviour
 {
+	/*
 	public Transform slotsParent;
 	public GameObject slotPrefab;
 
@@ -11,7 +12,7 @@ public class InventoryCamera : MonoBehaviour
 	//private Resources resources;
 
 	private GameContext GCtx => GameContext.Instance;
-	private Resources resources => GameContext.Instance.MapResources;
+	//private Resources resources => GameContext.Instance.MapResources;
 
 	private List<Texture2D> generatedTextures = new List<Texture2D>();
 
@@ -163,4 +164,6 @@ public class InventoryCamera : MonoBehaviour
 
 		Debug.Log($" {generatedTextures.Count}개의 프리뷰 이미지 생성 완료!");
 	}
+
+	*/
 }

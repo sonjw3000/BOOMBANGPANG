@@ -3,11 +3,11 @@ using UnityEngine;
 public class InsertPreviewPrefabsList : MonoBehaviour
 {
 	public int ID;
-	Picking picking;
+	UIController picking;
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
-		picking = GameObject.Find("MousePicking").GetComponent<Picking>();
+		picking = GameObject.Find("MousePicking").GetComponent<UIController>();
 	}
 	// Update is called once per frame
 	void Update()
@@ -23,7 +23,7 @@ public class InsertPreviewPrefabsList : MonoBehaviour
 			return;
 		}
 
-		picking.SetBuildingID(ID);
+		//picking.SetBuildingID(ID);
 
 		// UI의 최종 부모 찾아서 disable하기
 		Transform current = transform;

@@ -1,23 +1,39 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.SocialPlatforms.GameCenter;
 
 public struct PlacementContext
 {
 	public readonly int3 center;
 	public readonly FacingDirection facingDirection;
 	public readonly PlaceableDefinition placeableDefinition;
+
+	public PlacementContext(int3 center, FacingDirection dir, PlaceableDefinition def)
+	{
+		this.center = center;
+		this.facingDirection = dir;
+		this.placeableDefinition = def;
+	}
 }
 
 public class GridCell
 {
-	private GridFlags flags;
-	private InteractionKind kind;
+	private int tile = 0;
+	private GridFlags flags = GridFlags.None;
+	private InteractionKind kind = InteractionKind.None;
 
-	private GameObject objectRef;
+	private GameObject objectRef = null;
 
 	public GridFlags Flags => flags;
 	public InteractionKind InteractionType => kind;
+
+	public bool IsPassable => (Flags & GridFlags.BlockMovement) != 0;
+
+	public GridCell(int tileType)
+	{
+		tile = tileType;
+	}
 
 	public void Set(in FootprintCell cellFootprint, GameObject obj)
 	{
@@ -25,38 +41,69 @@ public class GridCell
 		kind = cellFootprint.interactionKind;
 		objectRef = obj;
 	}
+
 }
 
 public class GridMap : MonoBehaviour
 {
-	private GridCell[,,] map;
-	private int3 mapSize;
+	//[SerializeField] private GameObject placeableParent;
+	//[SerializeField] private GameObject gridParent;
+	//[SerializeField] private GameObject nonPlaceableParent;
+	
 
+	// 임시로 serialize field
+	[SerializeField] private int3 mapSize;
+	private GridCell[,,] map;
 	private List<IGridPlaceable> placeableObjects;
 
-	[Header("Placeable Objects")]
-	[SerializeField] private PlaceableCatalog catalog;
-
-	// 아직은 쓰지 마라!
-	//[Header("Tiles")]
-	//[SerializeField] private PlaceableCatalog baseTiles;
-
-
-	[SerializeField] private string mapJsonFile;
+	public GridCell[,,] Map => map;
+	public int3 MapSize => mapSize;
 
 	//// UI상 가능/불가능 타일을 보여주기 위한 타일
 	//private List<Cell> possibleTiles = new();
 	//private List<Cell> blockedTiles = new();
-	
 
-	private void Awake()
+	public void LoadByData(JsonData.GridMapData data)
 	{
-		// mapJsonFile을 통해 json을 불러와 map을 초기화한다
+		mapSize = new int3(data.X, data.Y, data.Z);
+		map = new GridCell[mapSize.x, mapSize.y, mapSize.z];
+
+		// set grid tiles
+		for (int x = 0; x < mapSize.x; ++x) 
+		{
+			for (int y = 0; y < mapSize.y; ++y)
+			{
+				for (int z = 0; z < mapSize.z; ++z)
+				{
+					int idx = 
+						x * mapSize.x + 
+						y * mapSize.y + 
+						z * mapSize.z;
+
+					map[x, y, z] = new GridCell(data.Tiles[idx]);
+				}
+			}
+		}
+
 
 	}
 
+	public void LoadByData(JsonData.PlaceableData data)
+	{
+		foreach (var obj in data.placeables)
+		{
+			int3 pos = new int3(obj.x, obj.y, obj.z);
 
-	// return true when installable
+			PlacementContext context = new PlacementContext(pos, obj.facingDirection, GameContext.Instance.PlaceableCatalog.FindById(obj.placeableID));
+			if (OnInstall(context) == false)
+			{
+				Debug.LogError("Cant be");
+				return;
+			}
+		}
+	}
+
+	// return true when can install
 	public bool OnCheckInstallable(in PlacementContext ctx, List<int3> possibleCell, List<int3> blocked)
 	{
 		if (ctx.placeableDefinition == null || ctx.placeableDefinition.gridFootprint == null)
@@ -146,6 +193,5 @@ public class GridMap : MonoBehaviour
 			_ => offset
 		};
 	}
-
 
 }

@@ -22,7 +22,7 @@ public class BoxPool :
 
 	public IReadOnlyList<int3> InteractionPoints => interactionPoints;
 
-	static private Cell[,,] GridMap => GameContext.Instance.MapResources.mapRef;
+	static private GridCell[,,] GridMap => GameContext.Instance.GridMap.Map;
 
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 
@@ -63,15 +63,15 @@ public class BoxPool :
 		this.position = position;
 
 		// 팔방으로 상호작용이 가능하다
-		for (int x = -1; x <= 1; ++x)
-		{
-			for (int z = -1; z <= 1; ++z)
-			{
-				if (x == 0 && z == 0) continue;
+		//for (int x = -1; x <= 1; ++x)
+		//{
+		//	for (int z = -1; z <= 1; ++z)
+		//	{
+		//		if (x == 0 && z == 0) continue;
 
-				GridMap[position.x + x, position.y, position.z + z].type = -1;
-			}
-		}
+		//		GridMap[position.x + x, position.y, position.z + z].type = -1;
+		//	}
+		//}
 
 		Debug.Log("BoxPool Added!!");
 
@@ -82,7 +82,7 @@ public class BoxPool :
 	{
 		foreach (int3 interPos in interactionPoints)
 		{
-			GridMap[interPos.x, interPos.y, interPos.z].type = 0;
+			//GridMap[interPos.x, interPos.y, interPos.z].type = 0;
 		}
 
 		WMSys.BoxPoolMgr.UnRegisterPool(this);

@@ -1,4 +1,4 @@
-﻿using BlackBoardSystem;
+﻿using Assets.Scripts.AI.BT;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -138,21 +138,21 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlace
 
 	public void OnRemoved()
 	{
-		int3 previousNode = routeFinder.PreviousNode;
-		int3 nextNode = routeFinder.NextNode;
+		//int3 previousNode = routeFinder.PreviousNode;
+		//int3 nextNode = routeFinder.NextNode;
 
-		Cell[,,] map = GameContext.Instance.MapResources.mapRef;
+		//Cell[,,] map = GameContext.Instance.MapResources.mapRef;
 
-		if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
-		{
-			Cell prevCell = map[previousNode.x, previousNode.y, previousNode.z];
-			prevCell.type = prevCell.previousType;
-		}
-		if (nextNode.x >= 0 && nextNode.y >= 0 && nextNode.z >= 0)
-		{
-			Cell nextCell = map[nextNode.x, nextNode.y, nextNode.z];
-			nextCell.type = nextCell.previousType;
-		}
+		//if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
+		//{
+		//	Cell prevCell = map[previousNode.x, previousNode.y, previousNode.z];
+		//	prevCell.type = prevCell.previousType;
+		//}
+		//if (nextNode.x >= 0 && nextNode.y >= 0 && nextNode.z >= 0)
+		//{
+		//	Cell nextCell = map[nextNode.x, nextNode.y, nextNode.z];
+		//	nextCell.type = nextCell.previousType;
+		//}
 	}
 
 	public void OnDestroyedBy(in DestroyContext ctx)

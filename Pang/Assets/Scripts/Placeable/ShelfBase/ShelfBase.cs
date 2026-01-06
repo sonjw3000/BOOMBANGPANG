@@ -1,9 +1,7 @@
 ﻿using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
-using static UnityEditor.Experimental.GraphView.Port;
 
 public abstract class ShelfBase : 
 	MonoBehaviour, 
@@ -29,8 +27,6 @@ public abstract class ShelfBase :
 	public float MaxSize => sizePerStack * maxStacks;
 
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
-
-	static private Cell[,,] GridMap => GameContext.Instance.MapResources.mapRef;
 
 	// item의 종류가 등록/해제 되었을 경우
 	public event System.Action<ShelfBase, uint, bool> OnItemPresentChanged;
@@ -189,16 +185,16 @@ public abstract class ShelfBase :
 		foreach (int3 interPos in interactionPoints)
 		{
 			// pickingposition위에 아무것도 없는 경우엔 삭제, 뭔가 있다 == 로봇이 올라가 있다 -> 삭제하면 안됨
-			Cell cell = GridMap[interPos.x, interPos.y, interPos.z];
-			if (cell.type < 0)
-			{
-				cell.type = 0;
-			}
-			cell.previousType = 0;
+			//Cell cell = GridMap[interPos.x, interPos.y, interPos.z];
+			//if (cell.type < 0)
+			//{
+			//	cell.type = 0;
+			//}
+			//cell.previousType = 0;
 		}
 
-		Cell thisPos = GridMap[position.x, position.y, position.z];
-		thisPos.type = thisPos.previousType;
+		//Cell thisPos = GridMap[position.x, position.y, position.z];
+		//thisPos.type = thisPos.previousType;
 	}
 
 	public void OnPositionSet(in int3 position)
@@ -212,23 +208,20 @@ public abstract class ShelfBase :
 		SetInteractionPoints();
 		foreach (int3 pickingPos in interactionPoints)
 		{
-			Cell pickPos = GridMap[pickingPos.x, pickingPos.y, pickingPos.z];
+			//Cell pickPos = GridMap[pickingPos.x, pickingPos.y, pickingPos.z];
 
-			// set picking position's tile -1
-			if (pickPos.type == 0)
-			{
-				pickPos.type = -1;
-			}
-			pickPos.previousType = -1;
+			//// set picking position's tile -1
+			//if (pickPos.type == 0)
+			//{
+			//	pickPos.type = -1;
+			//}
+			//pickPos.previousType = -1;
 		}
 	}
 
 	public void OnDestroyedBy(in DestroyContext ctx)
 	{
-		// 부셔지면 뭐 본인이 가진 아이템을 뭐시기 해야함
-		// 근데 지가 로켓이면 뭐 로켓이 로케트 부순거니까
-		// 근데 로케트의 아이템은 인벤토리에서 관리를 안해
-		// 제가 꽁꽁 숨겨뒀으니 찾아보세요
+
 	}
 
 	public int ReservePicking(uint itemId, int quantity)

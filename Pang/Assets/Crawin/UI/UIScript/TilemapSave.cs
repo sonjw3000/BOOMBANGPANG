@@ -4,7 +4,7 @@ using UnityEngine;
 public class TilemapSave : MonoBehaviour
 {
 	//private Resources resources;
-	private Resources resources => GameContext.Instance.MapResources;
+	private GridMap resources => GameContext.Instance.GridMap;
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
@@ -20,11 +20,11 @@ public class TilemapSave : MonoBehaviour
 	public void ExportMap()
 	{
 		MapJson mapJson = new MapJson();
-		mapJson.X = resources.mapSize.x;
-		mapJson.Y = resources.mapSize.y;
-		mapJson.Z = resources.mapSize.z;
+		mapJson.X = resources.MapSize.x;
+		mapJson.Y = resources.MapSize.y;
+		mapJson.Z = resources.MapSize.z;
 
-		Cell[,,] map = resources.mapRef;
+		GridCell[,,] map = resources.Map;
 		if (map == null)
 		{
 			Debug.Log("map이 없네");
@@ -35,26 +35,26 @@ public class TilemapSave : MonoBehaviour
 			{
 				for (int z = 0; z < mapJson.Z; ++z)
 				{
-					switch (map[x, y, z].type)
-					{
-						case -1:
-						case 0:
-						case int.MaxValue:
-							//이동중인 출발 타일 위치이거나 통로이면 저장 x
-							continue;
-						default:
-							int head = ((Mathf.RoundToInt(map[x, y, z].obj.transform.eulerAngles.y / 90f) % 4) + 4) % 4;
-							ObjectData od = new ObjectData(x, y, z, map[x, y, z].type, head);
-							if (map[x, y, z].type == 1)
-							{
-								mapJson.buildingData.Add(od);
-							}
-							else
-							{
-								mapJson.robotdata.Add(od);
-							}
-							break;
-					}
+					//switch (map[x, y, z].type)
+					//{
+					//	case -1:
+					//	case 0:
+					//	case int.MaxValue:
+					//		//이동중인 출발 타일 위치이거나 통로이면 저장 x
+					//		continue;
+					//	default:
+					//		int head = ((Mathf.RoundToInt(map[x, y, z].obj.transform.eulerAngles.y / 90f) % 4) + 4) % 4;
+					//		ObjectData od = new ObjectData(x, y, z, map[x, y, z].type, head);
+					//		if (map[x, y, z].type == 1)
+					//		{
+					//			mapJson.buildingData.Add(od);
+					//		}
+					//		else
+					//		{
+					//			mapJson.robotdata.Add(od);
+					//		}
+					//		break;
+					//}
 				}
 			}
 

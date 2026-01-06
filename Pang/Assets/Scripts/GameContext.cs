@@ -26,11 +26,16 @@ public class GameContext : MonoBehaviour
 	// 나중에 다른 곳으로 빼도 될 듯?
 	[SerializeField] private float timeScale = 1.0f;
 
-
 	// datas
-	[SerializeField] private Resources mapResources;
+	//[SerializeField] private Resources mapResources;
+	[Header("아이템 데이터베이스")]
 	[SerializeField] private ItemDatabase itemDB;
 
+	[Header("맵")]
+	[SerializeField] private GridMap gridMap;
+	[SerializeField] private string mapJsonFile;
+
+	[Header("도메인 매니저")]
 	// domain managers
 	[SerializeField] private WorkerManager workerManager;
 	[SerializeField] private TaskManager taskManager;
@@ -39,12 +44,19 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private OrderManager orderManager;
 	[SerializeField] private WMSystem warehouseManagement;
 
+	[Header("워크플로우 매니저")]
 	// workflow managers
 	[SerializeField] private InboundWorkflowManager inboundWorkFlowManager;
 	[SerializeField] private OutboundWorkflowManager outboundWorkFlowManager;
 
-	public Resources MapResources => mapResources;
+	// go to resource
+	[Header("InGame Objects")]
+	[SerializeField] private PlaceableCatalog catalog;
+	[SerializeField] private TileCatalog baseTiles;
+
+	//public Resources MapResources => mapResources;
 	public ItemDatabase ItemDB => itemDB;
+	public GridMap GridMap => gridMap;
 
 	public WorkerManager WorkerMgr => workerManager;
 	public TaskManager TaskMgr => taskManager;
@@ -55,6 +67,9 @@ public class GameContext : MonoBehaviour
 
 	public InboundWorkflowManager IBWorkflowMgr => inboundWorkFlowManager;
 	public OutboundWorkflowManager OBWorkflowMgr => outboundWorkFlowManager;
+
+	public PlaceableCatalog PlaceableCatalog => catalog;
+	public TileCatalog BaseTiles => baseTiles;
 
 	private void Awake()
 	{
@@ -67,9 +82,24 @@ public class GameContext : MonoBehaviour
 		}
 
 		instance = this;
-		instance.mapResources.Initialize();
+		//instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
 	}
+
+	private void Start()
+	{
+		GameSaveLoader loadGame = new GameSaveLoader();
+		
+		if (loadGame.LoadMap(mapJsonFile) == false)
+		{
+			Debug.LogError("No Such Map File!!");
+			return;
+		}
+
+		gridMap.LoadByData(loadGame.GetGrid());
+		gridMap.LoadByData(loadGame.GetPlaceable());
+	}
+
 
 	private void Update()
 	{
