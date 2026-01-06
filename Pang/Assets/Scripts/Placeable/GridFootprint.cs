@@ -9,6 +9,7 @@ public struct FootprintCell
 	public InteractionKind interactionKind;
 }
 
+
 [CreateAssetMenu(menuName = "Placeable/Grid Footprint")]
 public sealed class GridFootprint : ScriptableObject
 {
@@ -17,10 +18,9 @@ public sealed class GridFootprint : ScriptableObject
 	[Min(1)] public int height = 1;
 
 	[SerializeField] private Vector2Int pivot = new Vector2Int(0, 0);
-
 	[SerializeField] private FootprintCell[] footprintCells;
 
-
+	public Vector2Int Pivot => pivot;
 	public FootprintCell Get(int x, int y) => footprintCells[y * width + x];
 
 }

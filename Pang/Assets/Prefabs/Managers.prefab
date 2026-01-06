@@ -206,6 +206,7 @@ MonoBehaviour:
     - {fileID: 7781608356336454641, guid: f90bfe449eee27b45aab1fa0b205008a, type: 3}
     - {fileID: 7781608356336454641, guid: 401f350046d1bb14f8de703edd332a60, type: 3}
     - {fileID: 8088145870540302912, guid: b408b924df4a1824dbdbe9200255ab6c, type: 3}
+    catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
     mapSize:
       x: 0
       y: 0

@@ -307,6 +307,8 @@ public class Resources
 
 	public TextAsset mapJsonFile;
 	public GameObject[] Prefabs;
+	[SerializeField] private PlaceableCatalog catalog;
+
 	private MapJson mapJson;
 	public ref MapJson mapJsonRef => ref mapJson;
 
