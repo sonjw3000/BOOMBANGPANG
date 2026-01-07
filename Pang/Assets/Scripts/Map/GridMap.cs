@@ -47,9 +47,9 @@ public class GridCell
 public class GridMap : MonoBehaviour
 {
 	//[SerializeField] private GameObject placeableParent;
-	//[SerializeField] private GameObject gridParent;
+	[SerializeField] private GameObject gridParent;
 	//[SerializeField] private GameObject nonPlaceableParent;
-	
+
 
 	// 임시로 serialize field
 	[SerializeField] private int3 mapSize;
@@ -62,8 +62,43 @@ public class GridMap : MonoBehaviour
 	//// UI상 가능/불가능 타일을 보여주기 위한 타일
 	//private List<Cell> possibleTiles = new();
 	//private List<Cell> blockedTiles = new();
+	
+	public void OnGameStart()
+	{
+		GameObject tileFloor = GameObject.CreatePrimitive(PrimitiveType.Quad);
 
-	public void LoadByData(JsonData.GridMapData data)
+		tileFloor.transform.localScale = new Vector3Int(mapSize.x, mapSize.z, mapSize.y);
+		tileFloor.transform.Rotate(90, 0, 0);
+		tileFloor.transform.position = new Vector3(mapSize.x / 2 - 0.5f, 0, mapSize.z / 2 - 0.5f);
+
+		tileFloor.transform.parent = gridParent.transform;
+	}
+
+
+	// 맵이 없을시에 호출됨
+	public void BuildDefaultMap()
+	{
+		mapSize = new int3(100, 1, 100);
+		map = new GridCell[mapSize.x, mapSize.y, mapSize.z];
+		for (int x = 0; x < mapSize.x; ++x)
+		{
+			for (int y = 0; y < mapSize.y; ++y)
+			{
+				for (int z = 0; z < mapSize.z; ++z)
+				{
+					map[x, y, z] = new GridCell(0);
+				}
+			}
+		}
+	}
+
+	public void LoadByData(GameSaveLoader loadedData)
+	{
+		LoadByData(loadedData.GetGrid());
+		LoadByData(loadedData.GetPlaceable());
+	}
+
+	private void LoadByData(JsonData.GridMapData data)
 	{
 		mapSize = new int3(data.X, data.Y, data.Z);
 		map = new GridCell[mapSize.x, mapSize.y, mapSize.z];
@@ -88,7 +123,7 @@ public class GridMap : MonoBehaviour
 
 	}
 
-	public void LoadByData(JsonData.PlaceableData data)
+	private void LoadByData(JsonData.PlaceableData data)
 	{
 		foreach (var obj in data.placeables)
 		{

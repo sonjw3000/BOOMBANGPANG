@@ -92,14 +92,18 @@ public class GameContext : MonoBehaviour
 		
 		if (loadGame.LoadMap(mapJsonFile) == false)
 		{
-			Debug.LogError("No Such Map File!!");
-			return;
+			Debug.LogWarning("No Such Map File!!");
+			gridMap.BuildDefaultMap();
+		}
+		else
+		{
+			gridMap.LoadByData(loadGame);
 		}
 
-		gridMap.LoadByData(loadGame.GetGrid());
-		gridMap.LoadByData(loadGame.GetPlaceable());
-	}
+		// on game start
+		gridMap.OnStart();
 
+	}
 
 	private void Update()
 	{

@@ -90,7 +90,8 @@ public class UIController : MonoBehaviour
 	// Update is called once per frame
 	private void Update()
 	{
-		if (!activate.activateRef)
+		//if (!activate.activateRef)
+		if (false)
 		{
 			KeyboardAction();
 			MouseAction();

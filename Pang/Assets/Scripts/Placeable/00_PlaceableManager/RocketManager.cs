@@ -32,7 +32,7 @@ public class RocketManager : MonoBehaviour
 
 	private GameObject rocketPoolParent = null;
 
-	private PlaceableDefinition RocketPD => GameContext.Instance.PlaceableCatalog.FindById("TestRocket");
+	private PlaceableDefinition rocketPD;
 
 	private void Awake()
 	{
@@ -45,6 +45,16 @@ public class RocketManager : MonoBehaviour
 		for (int i = 0; i < initialPoolSize; ++i)
 		{
 			InstantiateNewRocket();
+		}
+	}
+
+	private void Start()
+	{
+		rocketPD =  GameContext.Instance.PlaceableCatalog.FindById("TestRocket");
+
+		if (rocketPD == null)
+		{
+			Debug.LogError("No rocketPD");
 		}
 	}
 
@@ -113,7 +123,7 @@ public class RocketManager : MonoBehaviour
 
 	private void InstantiateNewRocket()
 	{
-		var rocketObj = Instantiate(RocketPD.prefab, rocketPoolParent.transform);
+		var rocketObj = Instantiate(rocketPD.prefab, rocketPoolParent.transform);
 		var rocketComp = rocketObj.GetComponent<Rocket>();
 		rocketObj.SetActive(false);
 		rocketPool.Enqueue(rocketComp);
