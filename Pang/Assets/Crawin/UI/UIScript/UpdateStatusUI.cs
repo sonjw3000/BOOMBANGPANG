@@ -6,7 +6,7 @@ public class UpdateStatusUI : MonoBehaviour
     GameObject Robot;
     GameObject Shelf;
     public GameObject MousePicking;
-    private UIController mPicking;
+    private MousePicking mPicking;
     private GameObject mLastPickedObject;
     private Status mStatus;
 	public GameObject InventoryPrefab;
@@ -26,7 +26,7 @@ public class UpdateStatusUI : MonoBehaviour
 		Viewport[2] = orderedItems.transform.GetChild(0);
 		if (MousePicking)
         {
-            mPicking = MousePicking.GetComponent<UIController>();
+            mPicking = MousePicking.GetComponent<MousePicking>();
         }
 		orderedItemsSlotCnt = 0;
 	}

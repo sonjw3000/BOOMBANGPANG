@@ -22,8 +22,6 @@ public class BoxPool :
 
 	public IReadOnlyList<int3> InteractionPoints => interactionPoints;
 
-	static private GridCell[,,] GridMap => GameContext.Instance.GridMap.Map;
-
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 
 	public int3 GridPosition => position;

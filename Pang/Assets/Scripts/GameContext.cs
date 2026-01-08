@@ -32,7 +32,8 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ItemDatabase itemDB;
 
 	[Header("맵")]
-	[SerializeField] private GridMap gridMap;
+	//[SerializeField] private GridMap gridMap;
+	[SerializeField] private GridService gridService;
 	[SerializeField] private string mapJsonFile;
 
 	[Header("도메인 매니저")]
@@ -56,8 +57,8 @@ public class GameContext : MonoBehaviour
 
 	//public Resources MapResources => mapResources;
 	public ItemDatabase ItemDB => itemDB;
-	public GridMap GridMap => gridMap;
-
+	//public GridMap GridMap => gridMap;
+	public GridService GridService => gridService;
 	public WorkerManager WorkerMgr => workerManager;
 	public TaskManager TaskMgr => taskManager;
 	public ShelfStorageIndex StorageIndex => itemInventory;
@@ -93,15 +94,15 @@ public class GameContext : MonoBehaviour
 		if (loadGame.LoadMap(mapJsonFile) == false)
 		{
 			Debug.LogWarning("No Such Map File!!");
-			gridMap.BuildDefaultMap();
+			gridService.BuildDefaultMap();
 		}
 		else
 		{
-			gridMap.LoadByData(loadGame);
+			gridService.LoadByData(loadGame);
 		}
 
 		// on game start
-		gridMap.OnStart();
+		gridService.OnGameStart();
 
 	}
 

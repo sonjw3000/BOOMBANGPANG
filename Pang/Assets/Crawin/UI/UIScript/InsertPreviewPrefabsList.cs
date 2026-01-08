@@ -3,11 +3,11 @@ using UnityEngine;
 public class InsertPreviewPrefabsList : MonoBehaviour
 {
 	public int ID;
-	UIController picking;
+	MousePicking picking;
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
-		picking = GameObject.Find("MousePicking").GetComponent<UIController>();
+		picking = GameObject.Find("MousePicking").GetComponent<MousePicking>();
 	}
 	// Update is called once per frame
 	void Update()

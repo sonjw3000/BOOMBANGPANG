@@ -4,7 +4,7 @@ using UnityEngine;
 public class TilemapSave : MonoBehaviour
 {
 	//private Resources resources;
-	private GridMap resources => GameContext.Instance.GridMap;
+	private GridService resources => GameContext.Instance.GridService;
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{

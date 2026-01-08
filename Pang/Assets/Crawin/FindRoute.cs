@@ -5,8 +5,8 @@ using Unity.Mathematics;
 public class FindRoute : MonoBehaviour
 {
 	//private Resources resources;
-	private GridCell[,,] map => GameContext.Instance.GridMap.Map;
-	private int3 mapSize => GameContext.Instance.GridMap.MapSize;
+	private GridCell[,,] map => GameContext.Instance.GridService.Map;
+	private int3 mapSize => GameContext.Instance.GridService.MapSize;
 
 	public float speed = 2f;
 	public float rotationSpeed = 5f;
