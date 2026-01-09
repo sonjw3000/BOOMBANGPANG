@@ -128,13 +128,22 @@ public class GridService : MonoBehaviour
 				int3 rotatedOffset = RotateOffset(offset, ctx.facingDirection);
 				int3 target = ctx.center + rotatedOffset;
 
+				//Debug.Log($"target: {target} / offset: {offset}");
+
 				if (gridMap.IsInBound(target) == false)
 					return false;
 
 				// set to cell
-				Map[target.x, target.y, target.z].Set(footprint.Get(offset.x, offset.z), obj.GetComponent<IGridPlaceable>());
+				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), obj.GetComponent<IGridPlaceable>());
 			}
 		}
+
+		obj.transform.position += new Vector3(
+			ctx.center.x,
+			ctx.center.y,
+			ctx.center.z
+		);
+
 
 		return true;
 	}
