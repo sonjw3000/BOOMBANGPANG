@@ -45,16 +45,12 @@ public class GridCell
 
 }
 
-public class GridMap : MonoBehaviour
+public class GridMap
 {
 	// 임시로 serialize field
 	[SerializeField] private int3 mapSize;
 	private GridCell[,,] map;
 	private List<IGridPlaceable> placeableObjects;
-
-	private GridService service;
-
-	public GridService GridService => service;
 
 	public GridCell[,,] Map => map;
 	public int3 MapSize => mapSize;

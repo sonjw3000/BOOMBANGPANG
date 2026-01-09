@@ -4,8 +4,8 @@
 public class PlaceableDefinition : ScriptableObject
 {
 	[Header("Identity")]
-	public string placeableID;
-	public string displayName;
+	public string placeableID = "";
+	public string displayName = "";
 	public Sprite icon;
 
 	[Header("Prefab")]

@@ -21,7 +21,7 @@ public class OrbitCamera : MonoBehaviour
 	[SerializeField] private float _MoveSpeed = 25.0f;
 	[SerializeField] private float _CameraFollowSpeed = 5.0f;
 
-	private GameObject _LockObject;
+	private IGridPlaceable _LockObject;
 
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
@@ -49,7 +49,13 @@ public class OrbitCamera : MonoBehaviour
 
 		if(_LockObject != null)
 		{
-			_GoalTargetPos = _LockObject.transform.position;
+			Vector3 pos = new Vector3(
+				_LockObject.GridPosition.x,
+				_LockObject.GridPosition.y,
+				_LockObject.GridPosition.z
+				);
+
+			_GoalTargetPos = pos;
 		}
 
 		// move cur target to goal target
@@ -102,7 +108,7 @@ public class OrbitCamera : MonoBehaviour
 		transform.LookAt(_CurTargetPos);
 	}
 
-	public void LockObject(GameObject lockingObject)
+	public void LockObject(IGridPlaceable lockingObject)
 	{
 		_LockObject = lockingObject;
 	}

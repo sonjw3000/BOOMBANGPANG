@@ -4,13 +4,15 @@ using UnityEngine;
 
 public class GridService : MonoBehaviour
 {
-	[SerializeField] private GridMap gridMap;
 	[SerializeField] private GameObject placeableParent;
 	[SerializeField] private GameObject gridParent;
 
+	private GridMap gridMap = new();
 
 	public GridCell[,,] Map => gridMap.Map;
 	public int3 MapSize => gridMap.MapSize;
+
+
 
 	public void OnGameStart()
 	{
@@ -135,6 +137,11 @@ public class GridService : MonoBehaviour
 		}
 
 		return true;
+	}
+
+	public IGridPlaceable GetObjectOnGrid(in int3 pos)
+	{
+		return gridMap.GetObjectOnGrid(pos);
 	}
 
 	private static int3 RotateOffset(int3 offset, FacingDirection direction)

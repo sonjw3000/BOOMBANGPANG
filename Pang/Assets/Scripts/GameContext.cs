@@ -55,6 +55,8 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private PlaceableCatalog catalog;
 	[SerializeField] private TileCatalog baseTiles;
 
+	private InteractionContext interactionCtx;
+
 	//public Resources MapResources => mapResources;
 	public ItemDatabase ItemDB => itemDB;
 	//public GridMap GridMap => gridMap;
@@ -72,6 +74,7 @@ public class GameContext : MonoBehaviour
 	public PlaceableCatalog PlaceableCatalog => catalog;
 	public TileCatalog BaseTiles => baseTiles;
 
+	public InteractionContext InteractionCtx => interactionCtx;
 	private void Awake()
 	{
 		Debug.Log("GameGlobalContext Online!");
@@ -83,6 +86,7 @@ public class GameContext : MonoBehaviour
 		}
 
 		instance = this;
+		interactionCtx = new InteractionContext();
 		//instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
 	}
@@ -91,7 +95,8 @@ public class GameContext : MonoBehaviour
 	{
 		GameSaveLoader loadGame = new GameSaveLoader();
 		
-		if (loadGame.LoadMap(mapJsonFile) == false)
+		//if (loadGame.LoadMap(mapJsonFile) == false)
+		if (true)
 		{
 			Debug.LogWarning("No Such Map File!!");
 			gridService.BuildDefaultMap();

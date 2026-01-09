@@ -540,10 +540,10 @@ RectTransform:
   - {fileID: 7096667684465936953}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 150, y: 100}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &9167741635283326340
 MonoBehaviour:
@@ -587,6 +587,7 @@ MonoBehaviour:
   iconImage: {fileID: 9068357778088188435}
   contentRoot: {fileID: 7096667684465936953}
   closeButton: {fileID: 6347622493028963654}
+  root: {fileID: 0}
 --- !u!1 &7435573043467278957
 GameObject:
   m_ObjectHideFlags: 0
