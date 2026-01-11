@@ -1,9 +1,13 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlacementPreview : MonoBehaviour
 {
+	[Header("Preview Material")]
+	[SerializeField] private Material[] previewMat;
+
 	[Header("Possible")]
 	[SerializeField] private int possiblePrePool;
 	[SerializeField] private GameObject possiblePrefab;
@@ -32,7 +36,6 @@ public class PlacementPreview : MonoBehaviour
 	private GameObjectPool blockedTiles= null;
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
-	private PlaceableDefinition ToBePlaced => Interaction.ToBePlaced;
 	private GridService GridService => GameContext.Instance.GridService;
 
 	private void Start()
@@ -48,7 +51,6 @@ public class PlacementPreview : MonoBehaviour
 		possibleRoot.transform.parent = transform;
 		blockedRoot.transform.parent = transform;
 
-
 		possibleTiles = new(possiblePrePool, () => { return Instantiate(possiblePrefab, possibleRoot.transform); });
 		blockedTiles = new(blockedPrePool, () => { return Instantiate(blockedPrefab, blockedRoot.transform); });
 	}
@@ -63,7 +65,8 @@ public class PlacementPreview : MonoBehaviour
 	public void OnPrefabChanged(PlaceableDefinition pd)
 	{
 		curToBePlaced = pd;
-		
+
+		ChangeCurrentPreview();
 		UpdatePlacings();
 	}
 
@@ -72,16 +75,19 @@ public class PlacementPreview : MonoBehaviour
 		possibleCells.Clear();
 		blockedCells.Clear();
 
+		possibleTiles.ReleaseAll();
+		blockedTiles.ReleaseAll();
+
+		if (curToBePlaced == null)
+			return;
+
 		PlacementContext ctx = new(
 			center: previewCenter,
 			dir: Interaction.Direction,
-			def: ToBePlaced
+			def: curToBePlaced
 		);
 
 		GridService.OnCheckInstallable(ctx, possibleCells, blockedCells);
-
-		possibleTiles.ReleaseAll();
-		blockedTiles.ReleaseAll();
 
 		// update possible cells
 		for (int i = 0; i < possibleCells.Count; ++i)
@@ -101,6 +107,29 @@ public class PlacementPreview : MonoBehaviour
 		{
 			currentPreview.transform.position = new Vector3(previewCenter.x, previewCenter.y, previewCenter.z);
 		}
+	}
+
+	private void ChangeCurrentPreview()
+	{
+		currentPreview?.SetActive(false);
+
+		if (curToBePlaced == null)
+		{
+			currentPreview = null;
+			return;
+		}
+
+		if (pollingPreview.ContainsKey(curToBePlaced.placeableID) == false)
+		{
+			pollingPreview[curToBePlaced.placeableID] = Instantiate(curToBePlaced.prefab, previewPoolRoot.transform);
+			var renderers = pollingPreview[curToBePlaced.placeableID].GetComponentsInChildren<Renderer>();
+
+			for (int i = 0; i < renderers.Length; ++i)
+				renderers[i].materials = previewMat;
+		}
+
+		currentPreview = pollingPreview[curToBePlaced.placeableID];
+		currentPreview.SetActive(true);
 	}
 }
 

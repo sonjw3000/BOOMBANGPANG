@@ -54,6 +54,8 @@ public class InteractionContext
 	{
 		interactionMode = InteractionMode.Select;
 		toBePlaced = null;
+
+		OnPlacementChanged?.Invoke(null);
 	}
 
 

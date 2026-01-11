@@ -44,6 +44,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 735631fe88dc72b45af32212798e144c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  previewMat:
+  - {fileID: 2100000, guid: 019466160e4e2f7409f1e582431bf409, type: 2}
   possiblePrePool: 2
   possiblePrefab: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
   blockedPrePool: 2
