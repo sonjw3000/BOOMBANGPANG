@@ -29,9 +29,13 @@ public class MousePicking : MonoBehaviour
 
 	private InteractionContext InteractionCtx => GameContext.Instance.InteractionCtx;
 
+	public event System.Action<int3> OnMouseMoved;
+
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
 	{
+		OnMouseMoved += InteractionCtx.OnMouseMove;
+
 		groundPlane = new Plane(Vector3.up, currentFloor);
 	}
 
@@ -65,10 +69,9 @@ public class MousePicking : MonoBehaviour
 		currentTargetPoint.z = Mathf.FloorToInt(point.z);
 
 		// 마우스 위치가 이동했다
-		if (InteractionCtx.Mode == InteractionContext.InteractionMode.Placement && 
-			math.all(befPos == currentTargetPoint) == false)
+		if (math.all(befPos == currentTargetPoint) == false)
 		{
-			InteractionCtx.OnMouseMove(currentTargetPoint);
+			OnMouseMoved?.Invoke(currentTargetPoint);
 		}
 	}
 

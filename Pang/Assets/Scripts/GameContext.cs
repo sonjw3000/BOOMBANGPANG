@@ -55,6 +55,8 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private PlaceableCatalog catalog;
 	[SerializeField] private TileCatalog baseTiles;
 
+	//[Header("³ªÁß¿¡ »©ÀÚ")]
+	private PlacementPreview placementPreview;
 	private InteractionContext interactionCtx;
 
 	//public Resources MapResources => mapResources;
@@ -74,6 +76,7 @@ public class GameContext : MonoBehaviour
 	public PlaceableCatalog PlaceableCatalog => catalog;
 	public TileCatalog BaseTiles => baseTiles;
 
+	public PlacementPreview PlacementPreview => placementPreview;
 	public InteractionContext InteractionCtx => interactionCtx;
 	private void Awake()
 	{
@@ -87,6 +90,7 @@ public class GameContext : MonoBehaviour
 
 		instance = this;
 		interactionCtx = new InteractionContext();
+		//placementPreview = new PlacementPreview();
 		//instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
 	}
