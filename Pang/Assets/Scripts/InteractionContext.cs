@@ -26,6 +26,9 @@ public class InteractionContext
 	public event System.Action<int3> OnMouseChangedOnPlacement;
 	public event System.Action<PlaceableDefinition> OnPlacementChanged;
 
+	// select event
+	public event System.Action<IGridPlaceable> OnItemSelected;
+
 	public PlaceableDefinition ToBePlaced => toBePlaced;
 	public InteractionMode Mode => interactionMode;
 	public FacingDirection Direction => direction;
@@ -39,14 +42,14 @@ public class InteractionContext
 
 		Camera.main.GetComponent<OrbitCamera>().LockObject(selectedObject);
 
-		// selectedObj가 null이 아니라면
-		// 새로운 ui 생성
+		OnItemSelected?.Invoke(gridObj);
 	}
 
 	public void EnterPlacementMode(PlaceableDefinition pd)
 	{
 		interactionMode = InteractionMode.Placement;
 		toBePlaced = pd;
+		selectedObject = null;
 
 		OnPlacementChanged?.Invoke(toBePlaced);
 	}
