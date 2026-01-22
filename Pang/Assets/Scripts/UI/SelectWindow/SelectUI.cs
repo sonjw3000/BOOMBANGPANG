@@ -14,23 +14,35 @@ public class SelectUI : MonoBehaviour
 	{
 		this.selectionModel = selectionModel;
 
-		// todo
-		// build ui here
 		if (selectionModel == null)
 		{
 			// disalbe
 			DisalbeWindow();
 			return;
 		}
-
 		itemImage.sprite = selectionModel.icon;
 		itemTitle.text = selectionModel.title;
+
+		BuildContent();
+		EnableWindow();
 	}
 
 	private void DisalbeWindow()
 	{
 
 		gameObject.SetActive(false);
+	}
+
+	private void EnableWindow()
+	{
+		gameObject.SetActive(true);
+	}
+
+
+	private void BuildContent()
+	{
+		// todo
+		// build ui here by SelectionModel
 	}
 
 }
