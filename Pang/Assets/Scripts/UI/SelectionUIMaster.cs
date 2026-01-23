@@ -1,4 +1,3 @@
-using Assets.Scripts.UI.SelectWindow;
 using UnityEngine;
 
 public class SelectionUIMaster : MonoBehaviour
@@ -7,9 +6,7 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private GameObject currentObj = null;
 
-	private SelectionService selectionService = new();
 	private SelectionModel selectionModel = null;
-	//private Wind
 
 	[SerializeField] private SelectCardUI cardUI = null;
 	[SerializeField] private SelectDetailUI detailUI = null;
@@ -25,14 +22,8 @@ public class SelectionUIMaster : MonoBehaviour
 	private void OnSelected(GameObject gridObj)
 	{
 		currentObj = gridObj;
-		if (currentObj == null)
-		{
-			// off selectionCard
-			SelectionChange(null);
-			return;
-		}
 
-		if (selectionService.TryBuildModel(currentObj, out SelectionModel model) == false)
+		if (TryBuildModel(currentObj, out SelectionModel model) == false)
 		{
 			SelectionChange(null);
 			return;
@@ -40,6 +31,21 @@ public class SelectionUIMaster : MonoBehaviour
 
 		// todo
 		// get selection model from gridObj
+	}
+
+	private bool TryBuildModel(GameObject obj, out SelectionModel model)
+	{
+		model = null;
+
+		if (obj == null)
+			return false;
+		
+		if (obj.TryGetComponent<UIProviderBase>(out var placeable) == false)
+		{
+			return false;
+		}
+
+		return placeable.TryBuild(out model);
 	}
 
 	public void SelectionChange(SelectionModel selectionModel)
