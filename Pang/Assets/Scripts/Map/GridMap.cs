@@ -22,21 +22,22 @@ public class GridCell
 	private GridFlags flags = GridFlags.None;
 	private InteractionKind kind = InteractionKind.None;
 
-	private IGridPlaceable objectRef = null;
+	//private IGridPlaceable objectRef = null;
+	private GameObject objectRef = null;
 
 	public GridFlags Flags => flags;
 	public InteractionKind InteractionType => kind;
 
 	public bool IsPassable => (Flags & GridFlags.BlockMovement) == 0;
 
-	public IGridPlaceable ObjectOnGrid => objectRef;
+	public GameObject ObjectOnGrid => objectRef;
 
 	public GridCell(int tileType)
 	{
 		tile = tileType;
 	}
 
-	public void Set(in FootprintCell cellFootprint, IGridPlaceable obj)
+	public void Set(in FootprintCell cellFootprint, GameObject obj)
 	{
 		flags = cellFootprint.flags;
 		kind = cellFootprint.interactionKind;
@@ -91,7 +92,7 @@ public class GridMap
 			0 <= pos.z && pos.z < mapSize.z;
 	}
 
-	public IGridPlaceable GetObjectOnGrid(int3 position)
+	public GameObject GetObjectOnGrid(int3 position)
 	{
 		if (IsInBound(position) == false)
 			return null;

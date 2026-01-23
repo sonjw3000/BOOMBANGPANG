@@ -117,6 +117,12 @@ public class GridService : MonoBehaviour
 
 		GameObject obj = Instantiate(ctx.placeableDefinition.prefab, placeableParent.transform);
 
+		if (obj == null)
+		{
+			Debug.LogError("Failed to instantiate placeable prefab.");
+			return false;
+		}
+
 		GridFootprint footprint = ctx.placeableDefinition.gridFootprint;
 		Vector2Int pivot = footprint.Pivot;
 
@@ -134,7 +140,7 @@ public class GridService : MonoBehaviour
 					return false;
 
 				// set to cell
-				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), obj.GetComponent<IGridPlaceable>());
+				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), obj);
 			}
 		}
 
@@ -148,7 +154,7 @@ public class GridService : MonoBehaviour
 		return true;
 	}
 
-	public IGridPlaceable GetObjectOnGrid(in int3 pos)
+	public GameObject GetObjectOnGrid(in int3 pos)
 	{
 		return gridMap.GetObjectOnGrid(pos);
 	}

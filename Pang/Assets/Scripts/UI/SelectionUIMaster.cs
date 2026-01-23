@@ -1,30 +1,74 @@
+using Assets.Scripts.UI.SelectWindow;
 using UnityEngine;
 
 public class SelectionUIMaster : MonoBehaviour
 {
 	//[SerializeField] private GameContext gameContext;
 
-	private IGridPlaceable currentObj = null;
+	private GameObject currentObj = null;
 
+	private SelectionService selectionService = new();
+	private SelectionModel selectionModel = null;
+	//private Wind
+
+	[SerializeField] private SelectCardUI cardUI = null;
+	[SerializeField] private SelectDetailUI detailUI = null;
 
 	private void Start()
 	{
-		// interaction에서 선택된 아이템이 변경되었을 때
 		GameContext.Instance.InteractionCtx.OnItemSelected += OnSelected;
+
+		cardUI.FocusButton.onClick.AddListener(OnFocusBtnClicked);
+		cardUI.DetailsButton.onClick.AddListener(OnDetailClicked);
 	}
 
-	private void OnSelected(IGridPlaceable gridObj)
+	private void OnSelected(GameObject gridObj)
 	{
 		currentObj = gridObj;
 		if (currentObj == null)
 		{
 			// off selectionCard
-
+			SelectionChange(null);
 			return;
 		}
 
+		if (selectionService.TryBuildModel(currentObj, out SelectionModel model) == false)
+		{
+			SelectionChange(null);
+			return;
+		}
 
+		// todo
+		// get selection model from gridObj
+	}
+
+	public void SelectionChange(SelectionModel selectionModel)
+	{
+		this.selectionModel = selectionModel;
+
+		if (selectionModel == null)
+		{
+			// disalbe
+			cardUI.gameObject.SetActive(false);
+			detailUI.gameObject.SetActive(false);
+			return;
+		}
+
+		// enable card UI
+		cardUI.SetUpCard(selectionModel);
+		cardUI.gameObject.SetActive(true);
+	}
+
+	public void OnDetailClicked()
+	{
+		//detailUI.SetUpDetail(selectionModel);
+		//detailUI.gameObject.SetActive(true);
+	}
+
+	public void OnFocusBtnClicked()
+	{
 
 	}
+
 
 }

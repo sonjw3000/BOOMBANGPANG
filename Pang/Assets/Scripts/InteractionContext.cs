@@ -1,7 +1,6 @@
 ﻿using Unity.Mathematics;
 using UnityEngine;
-using System.Collections.Generic;
-using Unity.VisualScripting;
+
 
 public class InteractionContext
 {
@@ -16,7 +15,7 @@ public class InteractionContext
 	private int3 mousePos;
 
 	// select
-	private IGridPlaceable selectedObject;
+	private GameObject selectedObject;
 
 	// placement
 	private FacingDirection direction = FacingDirection.North;
@@ -27,14 +26,14 @@ public class InteractionContext
 	public event System.Action<PlaceableDefinition> OnPlacementChanged;
 
 	// select event
-	public event System.Action<IGridPlaceable> OnItemSelected;
+	public event System.Action<GameObject> OnItemSelected;
 
 	public PlaceableDefinition ToBePlaced => toBePlaced;
 	public InteractionMode Mode => interactionMode;
 	public FacingDirection Direction => direction;
 	private GridService GridService => GameContext.Instance.GridService;
 
-	private void OnSelectionChange(IGridPlaceable gridObj)
+	private void OnSelectionChange(GameObject gridObj)
 	{
 		// 기존 ui hide
 

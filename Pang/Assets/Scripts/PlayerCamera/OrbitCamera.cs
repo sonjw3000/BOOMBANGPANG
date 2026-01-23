@@ -108,8 +108,8 @@ public class OrbitCamera : MonoBehaviour
 		transform.LookAt(_CurTargetPos);
 	}
 
-	public void LockObject(IGridPlaceable lockingObject)
+	public void LockObject(GameObject lockingObject)
 	{
-		_LockObject = lockingObject;
+		_LockObject = lockingObject.GetComponent<IGridPlaceable>();
 	}
 }
