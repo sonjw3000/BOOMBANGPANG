@@ -4,8 +4,6 @@ using UnityEngine;
 
 public class InteractionContext
 {
-	private OrbitCamera mainCamera;
-
 	public enum InteractionMode
 	{
 		Select,
@@ -35,12 +33,7 @@ public class InteractionContext
 
 	private void OnSelectionChange(GameObject gridObj)
 	{
-		// 기존 ui hide
-
 		selectedObject = gridObj;
-
-		Camera.main.GetComponent<OrbitCamera>().LockObject(selectedObject);
-
 		OnItemSelected?.Invoke(gridObj);
 	}
 

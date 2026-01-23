@@ -23,14 +23,8 @@ public class SelectionUIMaster : MonoBehaviour
 	{
 		currentObj = gridObj;
 
-		if (TryBuildModel(currentObj, out SelectionModel model) == false)
-		{
-			SelectionChange(null);
-			return;
-		}
-
-		// todo
-		// get selection model from gridObj
+		TryBuildModel(currentObj, out SelectionModel model);
+		SelectionChange(model);
 	}
 
 	private bool TryBuildModel(GameObject obj, out SelectionModel model)
@@ -55,7 +49,7 @@ public class SelectionUIMaster : MonoBehaviour
 		if (selectionModel == null)
 		{
 			// disalbe
-			cardUI.gameObject.SetActive(false);
+			DisableCard();
 			detailUI.gameObject.SetActive(false);
 			return;
 		}
@@ -63,6 +57,12 @@ public class SelectionUIMaster : MonoBehaviour
 		// enable card UI
 		cardUI.SetUpCard(selectionModel);
 		cardUI.gameObject.SetActive(true);
+	}
+
+	private void DisableCard()
+	{
+		cardUI.ClearCard();
+		cardUI.gameObject.SetActive(false);
 	}
 
 	public void OnDetailClicked()

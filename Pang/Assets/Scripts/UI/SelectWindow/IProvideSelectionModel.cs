@@ -2,16 +2,10 @@
 using UnityEngine;
 
 
-public interface IProvideSelectionModel
-{
-
-
-
-}
-
 public sealed class SelectionModel
 {
 	public string title;
+	public string subtitle;
 	public Sprite icon;
 
 	public readonly List<InfoBlock> blocks = new();
