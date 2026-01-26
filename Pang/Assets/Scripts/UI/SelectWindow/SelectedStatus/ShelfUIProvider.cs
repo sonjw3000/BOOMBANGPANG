@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 //using UnityEngine.UI;
 
 public sealed class ShelfUIProvider : UIProvider<ShelfBase>
@@ -13,10 +14,15 @@ public sealed class ShelfUIProvider : UIProvider<ShelfBase>
 			return false;
 		}
 
+		List<InfoBlock> dataBlock = new List<InfoBlock>();
+		dataBlock.Add(new KeyValueBlock("Capacity", targetComponent.MaxSize.ToString()));
+
 		model = new SelectionModel
 		{
 			title = targetComponent.name,
 			icon = this.icon,
+			provider = this,
+			blocks = dataBlock
 		};
 
 		return true;

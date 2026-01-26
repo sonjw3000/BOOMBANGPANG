@@ -4,14 +4,9 @@ using UnityEngine;
 public abstract class InfoBlock
 {
 	public Sprite LineIcon = null;
+
+	public abstract string GetContent();
 };
-
-public abstract class SelectionAction
-{
-
-}
-
-
 
 public class KeyValueBlock : InfoBlock
 {
@@ -22,6 +17,11 @@ public class KeyValueBlock : InfoBlock
 	{
 		Key = key;
 		Value = value;
+	}
+
+	public override string GetContent()
+	{
+		return $"{Key}: {Value}";
 	}
 }
 
@@ -37,43 +37,9 @@ public class ProgressBlock : InfoBlock
 		Normalized = normalized01;
 		Text = text;
 	}
-}
 
-public class ListBlock : InfoBlock
-{
-	public readonly string Title;
-	public IReadOnlyList<string> Lines;
-
-	public ListBlock(string title, IReadOnlyList<string> lines)
+	public override string GetContent()
 	{
-		Title = title;
-		Lines = lines;
-	}
-}
-
-public class ItemCellView
-{
-	public readonly string ItemID;
-	public readonly float Percentage;
-	public readonly int ItemMount;
-
-	public ItemCellView(string itemID, float percentage, int itemMount)
-	{
-		ItemID = itemID;
-		Percentage = percentage;
-		ItemMount = itemMount;
-	}
-}
-
-
-public class ItemGridBlock : InfoBlock
-{
-	public readonly string Title;
-	public IReadOnlyList<ItemCellView> Cells;
-
-	public ItemGridBlock(string title, IReadOnlyList<ItemCellView> cells)
-	{
-		Title = title;
-		Cells = cells;
+		return $"{Label}: [{new string('#', (int)(Normalized * 10)).PadRight(10, '-')}]{Text}";
 	}
 }

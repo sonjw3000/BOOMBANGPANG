@@ -50,7 +50,7 @@ public class SelectCardUI : MonoBehaviour
 		{
 			var textObj = selectedTextPool.Get();
 			var textMesh = textObj.GetComponent<TextMeshProUGUI>();
-			//textMesh.text = block.content;
+			textMesh.text = block.GetContent();
 			// Additional setup for textMesh can be done here if needed
 		}
 	}
