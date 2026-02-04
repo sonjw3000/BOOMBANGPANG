@@ -6,6 +6,9 @@ public sealed class ShelfUIProvider : UIProvider<ShelfBase>
 {
 	[SerializeField] private Sprite icon;
 
+	public float Capacity => targetComponent != null ? targetComponent.MaxSize : 0f;
+	public float CurrentSize => targetComponent != null ? targetComponent.TotalSize : 0f;
+
 	public override bool TryBuild(out SelectionModel model)
 	{
 		if (targetComponent == null)

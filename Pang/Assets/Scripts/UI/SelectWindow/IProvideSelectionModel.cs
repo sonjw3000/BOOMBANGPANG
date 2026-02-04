@@ -2,6 +2,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum UIProviderType
+{
+	Shelf,
+	Worker,
+}
+
 
 public sealed class SelectionModel
 {
@@ -10,6 +16,7 @@ public sealed class SelectionModel
 	public string subtitle;
 	public Sprite icon;
 
+	public UIProviderType providerType;
 	public UIProviderBase provider;
 
 	// info blocks
