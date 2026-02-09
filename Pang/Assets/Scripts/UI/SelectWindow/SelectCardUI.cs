@@ -33,20 +33,20 @@ public class SelectCardUI : MonoBehaviour
 		selectedTextPool.ReleaseAll();
 	}
 
-	public void SetUpCard(SelectionModel selectionModel)
+	public void SetUpCard(UIProviderBase provider)
 	{
 		ClearCard();
 
-		iconImage.sprite = selectionModel.icon;
-		titleText.text = selectionModel.title;
-		subTitleText.text = selectionModel.subtitle;
+		iconImage.sprite = provider.Icon;
+		titleText.text = provider.Name;
+		subTitleText.text = provider.Name;
 
-		SetBody(selectionModel);
+		SetBody(provider);
 	}
 
-	public void SetBody(SelectionModel selectionModel)
+	private void SetBody(UIProviderBase provider)
 	{
-		foreach (var block in selectionModel.blocks)
+		foreach (var block in provider.InfoBlocks)
 		{
 			var textObj = selectedTextPool.Get();
 			var textMesh = textObj.GetComponent<TextMeshProUGUI>();

@@ -9,17 +9,17 @@ public enum UIProviderType
 }
 
 
-public sealed class SelectionModel
-{
-	// base info
-	public string title;
-	public string subtitle;
-	public Sprite icon;
+//public sealed class SelectionModel
+//{
+//	// base info
+//	public string title;
+//	public string subtitle;
+//	public Sprite icon;
 
-	public UIProviderType providerType;
-	public UIProviderBase provider;
+//	public UIProviderType providerType;
+//	public UIProviderBase provider;
 
-	// info blocks
-	public List<InfoBlock> blocks = new List<InfoBlock>();
-}
+//	// info blocks
+//	public List<InfoBlock> blocks = new List<InfoBlock>();
+//}
 

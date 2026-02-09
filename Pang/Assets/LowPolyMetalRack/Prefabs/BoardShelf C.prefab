@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1091335710804964257}
   - component: {fileID: 7453643345458885979}
-  - component: {fileID: 2066965888947152892}
   m_Layer: 0
   m_Name: BoardShelf C
   m_TagString: Untagged
@@ -54,20 +53,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxStacks: 3
   sizePerStack: 1050.2
---- !u!114 &2066965888947152892
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4934971901129387132}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9e2e2a7bdc450564b839148ee0a130c7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetComponent: {fileID: 7453643345458885979}
-  icon: {fileID: 6674386295937086461, guid: 7abd59d488ec3484089d5f418816dbdb, type: 3}
 --- !u!1001 &569402026656613700
 PrefabInstance:
   m_ObjectHideFlags: 0

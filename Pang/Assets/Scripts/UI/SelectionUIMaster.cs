@@ -1,15 +1,40 @@
+using Assets.Scripts.AI.BT;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+
 
 public class SelectionUIMaster : MonoBehaviour
 {
-	//[SerializeField] private GameContext gameContext;
-
-	private GameObject currentObj = null;
-
-	private SelectionModel selectionModel = null;
-
+	[Header("Select UIs")]
 	[SerializeField] private SelectCardUI cardUI = null;
 	[SerializeField] private SelectDetailUI detailUI = null;
+
+	[Header("Detail Contents")]
+	[SerializeField] private DetailContentBase[] detailContents;
+
+	private readonly List<UIProviderBase> providers = new();
+
+	private UIProviderBase currentProvider = null;
+	private DetailContentBase currentDetailContent = null;
+	private GameObject currentObj = null;
+
+
+	private void Awake()
+	{
+		var asm = typeof(UIProviderBase).Assembly;
+		var providerTypes =
+			from type in asm.GetTypes()
+			where type.IsAbstract == false
+			where typeof(UIProviderBase).IsAssignableFrom(type)
+			select type;
+
+		foreach (var type in providerTypes)
+		{
+			var provider = (UIProviderBase)System.Activator.CreateInstance(type);
+			providers.Add(provider);
+		}
+	}
 
 	private void Start()
 	{
@@ -19,34 +44,41 @@ public class SelectionUIMaster : MonoBehaviour
 		cardUI.DetailsButton.onClick.AddListener(OnDetailClicked);
 	}
 
+	private void OnDisable()
+	{
+		//cardUI.DetailsButton.onClick.RemoveListener(OnDetailClicked);
+		//cardUI.FocusButton.onClick.RemoveListener(OnFocusBtnClicked);
+
+		//GameContext.Instance.InteractionCtx.OnItemSelected -= OnSelected;
+	}
+
 	private void OnSelected(GameObject gridObj)
 	{
 		currentObj = gridObj;
 
-		TryBuildModel(currentObj, out SelectionModel model);
-		SelectionChange(model);
+		GetProvider();
+		SelectionChange();
 	}
 
-	private bool TryBuildModel(GameObject obj, out SelectionModel model)
+	private bool GetProvider()
 	{
-		model = null;
+		currentProvider = null;
 
-		if (obj == null)
-			return false;
-		
-		if (obj.TryGetComponent<UIProviderBase>(out var placeable) == false)
+		foreach (var provider in providers)
 		{
-			return false;
+			if (provider.IsTargetType(currentObj))
+			{
+				currentProvider = provider;
+				return true;
+			}
 		}
 
-		return placeable.TryBuild(out model);
+		return false;
 	}
 
-	public void SelectionChange(SelectionModel selectionModel)
+	public void SelectionChange()
 	{
-		this.selectionModel = selectionModel;
-
-		if (selectionModel == null)
+		if (currentProvider == null)
 		{
 			// disalbe
 			DisableCard();
@@ -54,8 +86,11 @@ public class SelectionUIMaster : MonoBehaviour
 			return;
 		}
 
+		currentProvider.LinkObject(currentObj);
+		currentProvider.BuildInfoBlocks();
+
 		// enable card UI
-		cardUI.SetUpCard(selectionModel);
+		cardUI.SetUpCard(currentProvider);
 		cardUI.gameObject.SetActive(true);
 	}
 
@@ -67,8 +102,21 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnDetailClicked()
 	{
-		//detailUI.SetUpDetail(selectionModel);
-		//detailUI.gameObject.SetActive(true);
+		// 여기서 각 UIProvider에 맞는 DetailUI를 활성화 시켜줘야함
+		currentDetailContent?.gameObject.SetActive(false);
+
+		foreach (var content in detailContents)
+		{
+			if (content.IsTargetType(currentObj))
+			{
+				currentDetailContent = content;
+				currentDetailContent.SetProvider(currentProvider);
+				break;
+			}
+		}
+
+		detailUI.SetDetailContent(currentDetailContent);
+		detailUI.gameObject.SetActive(true);
 	}
 
 	public void OnFocusBtnClicked()

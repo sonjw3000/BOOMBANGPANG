@@ -2,32 +2,23 @@
 using UnityEngine;
 //using UnityEngine.UI;
 
-public sealed class ShelfUIProvider : UIProvider<ShelfBase>
+public sealed class ShelfUIProvider : UIProvider<Shelf>
 {
-	[SerializeField] private Sprite icon;
+	public override string Name => currentTarget != null ? currentTarget.name : "Unknown Shelf";
+	//public override Sprite Icon => currentTarget != null ? currentTarget.Icon : null;
+	public override Sprite Icon => null; // Placeholder for shelf icon
 
-	public float Capacity => targetComponent != null ? targetComponent.MaxSize : 0f;
-	public float CurrentSize => targetComponent != null ? targetComponent.TotalSize : 0f;
 
-	public override bool TryBuild(out SelectionModel model)
+
+	public float Capacity => currentTarget != null ? currentTarget.MaxSize : 0f;
+	public float CurrentSize => currentTarget != null ? currentTarget.TotalSize : 0f;
+
+	public override void BuildInfoBlocks()
 	{
-		if (targetComponent == null)
-		{
-			model = null;
-			return false;
-		}
-
-		List<InfoBlock> dataBlock = new List<InfoBlock>();
-		dataBlock.Add(new KeyValueBlock("Capacity", targetComponent.MaxSize.ToString()));
-
-		model = new SelectionModel
-		{
-			title = targetComponent.name,
-			icon = this.icon,
-			provider = this,
-			blocks = dataBlock
-		};
-
-		return true;
+		infoBlocks.Clear();
+		infoBlocks.Add(new KeyValueBlock("Capacity", $"{Capacity} units"));
+		infoBlocks.Add(new KeyValueBlock("Current Size", $"{CurrentSize} units"));
 	}
+
+
 }

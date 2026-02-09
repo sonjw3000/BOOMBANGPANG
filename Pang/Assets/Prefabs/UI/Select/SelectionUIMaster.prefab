@@ -1186,6 +1186,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 558860ff2816a7b4b8a1ef8340ab8958, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  deleteButton: {fileID: 3422630392750943564}
   capacityText: {fileID: 7878072312728057919}
   currentSizeText: {fileID: 3918705183971744325}
 --- !u!1 &4257985533178261774

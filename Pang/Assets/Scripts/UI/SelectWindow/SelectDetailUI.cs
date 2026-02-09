@@ -3,19 +3,21 @@ using UnityEngine;
 
 public class SelectDetailUI : MonoBehaviour
 {
-	// 라인 컨텐츠 별 obj pool이 필요하다
-	// 
-	[Header("Content Parent")]
-	[SerializeField] private Transform contentParent;
-
+	private DetailContentBase currentContent = null;
 
 	private void Start()
 	{
 		gameObject.SetActive(false);
 	}
 
-	public void SetUpDetail(SelectionModel selectionModel)
+	public void SetDetailContent(DetailContentBase detailContent)
 	{
+		currentContent = detailContent;
+		if (currentContent == null)
+		{
+			Debug.LogError("Current provider is null. Cannot set detail content.", this);
+			return;
+		}
 
 	}
 }

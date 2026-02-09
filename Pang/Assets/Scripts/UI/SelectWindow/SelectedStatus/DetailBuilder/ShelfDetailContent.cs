@@ -1,22 +1,23 @@
-﻿using UnityEngine;
-using TMPro;
+﻿using TMPro;
+using UnityEngine;
 
-public class ShelfDetailContent : DetailContent<ShelfUIProvider>
+public class ShelfDetailContent : DetailContent<Shelf>
 {
 	[SerializeField] private TextMeshProUGUI capacityText;
 	[SerializeField] private TextMeshProUGUI currentSizeText;
 
 	protected override void LinkData()
 	{
-		capacityText.text = provider.Capacity.ToString();
-		currentSizeText.text = provider.CurrentSize.ToString();
+		var prov = (ShelfUIProvider)provider;
+
+		capacityText.text = prov.Capacity.ToString();
+		currentSizeText.text = prov.CurrentSize.ToString();
 	}
 
-	private void Update()
+	protected override void UpdateData()
 	{
-		if (provider != null)
-		{
-			currentSizeText.text = provider.CurrentSize.ToString();
-		}
+		var prov = (ShelfUIProvider)provider;
+
+		currentSizeText.text = prov.CurrentSize.ToString();
 	}
 }
