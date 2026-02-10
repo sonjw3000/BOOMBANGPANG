@@ -22,14 +22,17 @@ public class SelectionUIMaster : MonoBehaviour
 	{
 		providers[typeof(Shelf)] = new ShelfUIProvider();
 
-	}
-
-	private void Start()
-	{
 		GameContext.Instance.InteractionCtx.OnItemSelected += OnSelected;
 
 		cardUI.FocusButton.onClick.AddListener(OnFocusBtnClicked);
 		cardUI.DetailsButton.onClick.AddListener(OnDetailClicked);
+		
+		Debug.Log("bind listeners");
+	}
+
+	private void Start()
+	{
+
 	}
 
 	private void OnDisable()
@@ -58,16 +61,16 @@ public class SelectionUIMaster : MonoBehaviour
 			return false;
 		}
 
-		if (providers.TryGetValue(typeof(Shelf), out var shelfProv))
+		foreach (var prov in providers.Values)
 		{
-			if (shelfProv.IsTargetType(currentObj))
+			if (prov.IsTargetType(currentObj))
 			{
-				currentProvider = shelfProv;
+				currentProvider = prov;
 				return true;
 			}
 		}
 
-		Debug.LogWarning("No suitable UI Provider found for the selected object.");
+		Debug.LogWarning($"No suitable UI Provider found for the selected object, Target: {currentObj.name}");
 
 		return false;
 	}
@@ -98,6 +101,8 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnDetailClicked()
 	{
+		Debug.Log("Clicked");
+
 		// 여기서 각 UIProvider에 맞는 DetailUI를 활성화 시켜줘야함
 		currentDetailContent?.gameObject.SetActive(false);
 

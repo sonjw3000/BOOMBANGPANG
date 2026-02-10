@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 
 public class MousePicking : MonoBehaviour
@@ -30,6 +31,8 @@ public class MousePicking : MonoBehaviour
 	private InteractionContext InteractionCtx => GameContext.Instance.InteractionCtx;
 
 	public event System.Action<int3> OnMouseMoved;
+	public bool IsPointerOverUI => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+
 
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
@@ -42,6 +45,9 @@ public class MousePicking : MonoBehaviour
 	// Update is called once per frame
 	private void Update()
 	{
+		if (IsPointerOverUI)
+			return;
+
 		CalculateMousePos();
 
 		if (Input.GetMouseButtonDown(0))
