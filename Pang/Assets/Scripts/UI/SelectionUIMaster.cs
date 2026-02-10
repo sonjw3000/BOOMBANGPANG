@@ -1,6 +1,4 @@
-using Assets.Scripts.AI.BT;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 
@@ -13,7 +11,7 @@ public class SelectionUIMaster : MonoBehaviour
 	[Header("Detail Contents")]
 	[SerializeField] private DetailContentBase[] detailContents;
 
-	private readonly List<UIProviderBase> providers = new();
+	private readonly Dictionary<System.Type, UIProviderBase> providers = new();
 
 	private UIProviderBase currentProvider = null;
 	private DetailContentBase currentDetailContent = null;
@@ -22,18 +20,8 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void Awake()
 	{
-		var asm = typeof(UIProviderBase).Assembly;
-		var providerTypes =
-			from type in asm.GetTypes()
-			where type.IsAbstract == false
-			where typeof(UIProviderBase).IsAssignableFrom(type)
-			select type;
+		providers[typeof(Shelf)] = new ShelfUIProvider();
 
-		foreach (var type in providerTypes)
-		{
-			var provider = (UIProviderBase)System.Activator.CreateInstance(type);
-			providers.Add(provider);
-		}
 	}
 
 	private void Start()
@@ -64,14 +52,22 @@ public class SelectionUIMaster : MonoBehaviour
 	{
 		currentProvider = null;
 
-		foreach (var provider in providers)
+		if (currentObj == null)
 		{
-			if (provider.IsTargetType(currentObj))
+			//Debug.LogError("Current Object is null");
+			return false;
+		}
+
+		if (providers.TryGetValue(typeof(Shelf), out var shelfProv))
+		{
+			if (shelfProv.IsTargetType(currentObj))
 			{
-				currentProvider = provider;
+				currentProvider = shelfProv;
 				return true;
 			}
 		}
+
+		Debug.LogWarning("No suitable UI Provider found for the selected object.");
 
 		return false;
 	}
