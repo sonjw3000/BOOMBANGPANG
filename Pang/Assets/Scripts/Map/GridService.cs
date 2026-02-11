@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Mono.Cecil.Cil;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -12,7 +13,7 @@ public class GridService : MonoBehaviour
 	public GridCell[,,] Map => gridMap.Map;
 	public int3 MapSize => gridMap.MapSize;
 
-
+	private Dictionary<GameObject, PlacementContext> placedObjects = new();
 
 	public void OnGameStart()
 	{
@@ -148,12 +149,37 @@ public class GridService : MonoBehaviour
 			ctx.center.z
 		);
 
+		placedObjects[obj] = ctx;
 
 		return true;
 	}
 
-	public bool OnRemove(int3 gridPosition)
+	public bool OnRemove(GameObject targetObj)
 	{
+		if (placedObjects.TryGetValue(targetObj, out var context) == false)
+		{
+			Debug.Log("cant get");
+			return false;
+		}
+
+
+		GridFootprint footprint = context.placeableDefinition.gridFootprint;
+		Vector2Int pivot = footprint.Pivot;
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				int3 offset = new int3(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
+				int3 target = context.center + rotatedOffset;
+				if (gridMap.IsInBound(target) == false)
+					return false;
+				// clear to cell
+				Map[target.x, target.y, target.z].Clear();
+			}
+		}
+
+		Destroy(targetObj);
 
 		return true;
 	}

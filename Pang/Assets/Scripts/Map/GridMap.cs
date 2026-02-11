@@ -2,7 +2,7 @@
 using Unity.Mathematics;
 using UnityEngine;
 
-public struct PlacementContext
+public class PlacementContext
 {
 	public readonly int3 center;
 	public readonly FacingDirection facingDirection;
@@ -42,6 +42,13 @@ public class GridCell
 		flags = cellFootprint.flags;
 		kind = cellFootprint.interactionKind;
 		objectRef = obj;
+	}
+
+	public void Clear()
+	{
+		flags = GridFlags.None;
+		kind = InteractionKind.None;
+		objectRef = null;
 	}
 
 }
