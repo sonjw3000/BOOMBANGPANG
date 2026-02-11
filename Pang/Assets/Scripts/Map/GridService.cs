@@ -50,7 +50,6 @@ public class GridService : MonoBehaviour
 		LoadByData(loadedData.GetPlaceable());
 	}
 
-
 	private void LoadByData(JsonData.PlaceableData data)
 	{
 		foreach (var obj in data.placeables)
@@ -65,7 +64,6 @@ public class GridService : MonoBehaviour
 			}
 		}
 	}
-
 
 	public bool OnCheckInstallable(in PlacementContext ctx, List<int3> possibleCell, List<int3> blocked)
 	{
@@ -150,6 +148,12 @@ public class GridService : MonoBehaviour
 			ctx.center.z
 		);
 
+
+		return true;
+	}
+
+	public bool OnRemove(int3 gridPosition)
+	{
 
 		return true;
 	}

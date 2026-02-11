@@ -26,8 +26,6 @@ public class SelectionUIMaster : MonoBehaviour
 
 		cardUI.FocusButton.onClick.AddListener(OnFocusBtnClicked);
 		cardUI.DetailsButton.onClick.AddListener(OnDetailClicked);
-		
-		Debug.Log("bind listeners");
 	}
 
 	private void Start()
@@ -101,8 +99,6 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnDetailClicked()
 	{
-		Debug.Log("Clicked");
-
 		// 여기서 각 UIProvider에 맞는 DetailUI를 활성화 시켜줘야함
 		currentDetailContent?.gameObject.SetActive(false);
 

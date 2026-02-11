@@ -17,9 +17,30 @@ public abstract class UIProviderBase
 	// info blocks
 	protected List<InfoBlock> infoBlocks = new();
 
+	private GameObject linkedObject = null;
+
+	protected void SetGameObject(GameObject go) => linkedObject = go;
 	public abstract bool IsTargetType(GameObject obj);
 	public abstract void LinkObject(GameObject obj);
 	public abstract void BuildInfoBlocks();
+
+	public void DeleteObject()
+	{
+		if (linkedObject == null) return;
+
+		var grid = linkedObject.GetComponent<IGridPlaceable>();
+
+		if (grid == null)
+		{
+			Debug.LogError("Linked Object is not IGridPlaceable");
+			return;
+		}
+
+		// destroy linked obj
+		Debug.Log("DeleteButton Clicked!!");
+
+		GameContext.Instance.GridService.OnRemove(grid.GridPosition);
+	}
 
 }
 
@@ -29,5 +50,9 @@ public abstract class UIProvider<T> : UIProviderBase
 	protected T currentTarget = null;
 
 	public override bool IsTargetType(GameObject obj) => obj.TryGetComponent<T>(out _);
-	public override void LinkObject(GameObject obj) => currentTarget = obj.GetComponent<T>();
+	public override void LinkObject(GameObject obj)
+	{
+		SetGameObject(obj);
+		currentTarget = obj.GetComponent<T>();
+	}
 }

@@ -18,6 +18,11 @@ public abstract class DetailContentBase : MonoBehaviour
 		}
 	}
 
+	private void Awake()
+	{
+		DeleteButtonEvent.AddListener(() => provider?.DeleteObject());
+	}
+
 	public abstract bool IsTargetType(GameObject obj);
 	public void SetProvider(UIProviderBase provider)
 	{
@@ -40,4 +45,6 @@ public abstract class DetailContent<T> : DetailContentBase
 	{
 		UpdateData();
 	}
+
+
 }
