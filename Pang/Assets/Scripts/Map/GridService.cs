@@ -179,6 +179,7 @@ public class GridService : MonoBehaviour
 			}
 		}
 
+		placedObjects.Remove(targetObj);
 		Destroy(targetObj);
 
 		return true;
