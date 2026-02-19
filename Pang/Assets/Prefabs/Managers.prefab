@@ -44,6 +44,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c087a74061bb69848a878f4b3df47a31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  palletPrefab: {fileID: 6912054728724276864, guid: 6e1f5d0516dec1541a25a3899f32558b, type: 3}
+  boxPrefab: {fileID: 8319817083396600759, guid: 4f47c92cb33ff7b4ea31b7d370158fda, type: 3}
 --- !u!1 &592993457453182983
 GameObject:
   m_ObjectHideFlags: 0

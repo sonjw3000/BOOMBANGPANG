@@ -21,6 +21,7 @@ public class SelectionUIMaster : MonoBehaviour
 	private void Awake()
 	{
 		providers[typeof(Shelf)] = new ShelfUIProvider();
+		providers[typeof(BoxPool)] = new BoxPoolUIProvider();
 
 		GameContext.Instance.InteractionCtx.OnItemSelected += OnSelected;
 

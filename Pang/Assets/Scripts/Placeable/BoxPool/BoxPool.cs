@@ -24,6 +24,8 @@ public class BoxPool :
 
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 
+	public int CurrentBoxCount => boxes.Count;
+
 	public int3 GridPosition => position;
 
 	public bool GetBox(out BoxBase box)

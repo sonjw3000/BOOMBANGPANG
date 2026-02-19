@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class BoxPoolService : MonoBehaviour
 {
+	[SerializeField] private BoxBase palletPrefab;
+	[SerializeField] private BoxBase boxPrefab;
+
 	// 실제 박스들
 	private List<BoxBase> boxes = new();
 
@@ -34,6 +37,13 @@ public class BoxPoolService : MonoBehaviour
 	public void UnRegisterBox(BoxBase box)
 	{
 		boxes.Remove(box);
+	}
+
+	public void GiveNewBox(BoxPool boxPool, BoxType type)
+	{
+		var box = Instantiate(type == BoxType.Cargo ? palletPrefab : boxPrefab, boxPool.transform).GetComponent<BoxBase>();
+
+		boxPool.PutBox(box);
 	}
 
 	public BoxPool GetClosestAvailablePool(int3 pos)

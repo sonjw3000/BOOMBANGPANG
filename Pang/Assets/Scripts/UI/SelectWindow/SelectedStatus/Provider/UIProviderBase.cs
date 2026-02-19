@@ -36,9 +36,6 @@ public abstract class UIProviderBase
 			return;
 		}
 
-		// destroy linked obj
-		Debug.Log("DeleteButton Clicked!!");
-
 		GameContext.Instance.GridService.OnRemove(linkedObject);
 	}
 
