@@ -59,6 +59,8 @@ public class GameContext : MonoBehaviour
 	private PlacementPreview placementPreview;
 	private InteractionContext interactionCtx;
 
+	private EconomyManager economyManager = new EconomyManager();
+
 	//public Resources MapResources => mapResources;
 	public ItemDatabase ItemDB => itemDB;
 	//public GridMap GridMap => gridMap;

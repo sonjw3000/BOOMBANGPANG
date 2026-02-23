@@ -1,0 +1,16 @@
+﻿
+public class RobotWorker : AIWorker
+{
+	private float batteryLevel;
+	private float batteryEfficiency;
+
+	public override void TickVitals(float deltaTime)
+	{
+		batteryEfficiency -= deltaTime * 0.01f;
+
+		// todo
+		// efficiency가 낮아질수록 배터리 소모량이 늘어나도록 해야
+
+		batteryLevel -= deltaTime * 0.01f;
+	}
+}

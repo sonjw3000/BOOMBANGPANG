@@ -14,13 +14,13 @@ public enum WorkerAbility
 }
 
 [System.Serializable]
-public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
+public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
 {
 	[SerializeField] private WorkerArchetype workerArchetype;
 
 	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
 	private FindRoute routeFinder;
-	
+
 	[SerializeField] private int tick = 0;
 	[SerializeField] private string workerName;
 	[SerializeField] private int workerID;
@@ -164,4 +164,9 @@ public sealed partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlace
 		// 폭발도 하는게 좀 간지나긴 하는데 폭발은 로케트쪽에서 해주는게 나으려나
 		// 
 	}
+
+	public virtual float GetWorkSpeedMultiplier() { return 1.0f; }
+	public virtual float GetMoveSpeedMultiplier() { return 1.0f; }
+	public virtual void TickVitals(float deltaTime) { }
+
 }

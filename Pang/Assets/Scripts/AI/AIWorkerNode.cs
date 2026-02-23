@@ -4,9 +4,8 @@ using static ActionNode;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
-public sealed partial class AIWorker
+public partial class AIWorker
 {
-	static private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 	// AI's basic actions
 	private static NodeState SetDestination(in BTContext context)
