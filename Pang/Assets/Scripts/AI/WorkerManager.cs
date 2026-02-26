@@ -20,12 +20,14 @@ public class WorkerManager : MonoBehaviour
 	// 중간지점 삭제를 할 경우도 있다
 	private readonly Dictionary<TaskType, LinkedList<AIWorker>> idleWorkersQueue = new();
 	
+	private int montylyCost = 0;
+
 	// todo
 	// storing, picking 등 작업의 경우 작업자들을 zone별 queue로도 나눠야 한다
 	// 왜 queue로 나누냐? 쉴놈들 다 쉬었으면 일 해야지
 
 	public IReadOnlyList<AIWorker> Workers => workers;
-
+	public int MontylyCost => montylyCost;
 	// todo
 	// 전역 블랙보드의 관리는 다른곳에 넘겨야함
 	private BlackBoard globalBlackboard;
@@ -46,6 +48,8 @@ public class WorkerManager : MonoBehaviour
 
 		if (worker.CurrentTask == null)
 			idleWorkersQueue[worker.TaskType].AddLast(worker);
+
+		montylyCost += worker.MonthlyCost;
 	}
 
 	public void UnregisterWorker(AIWorker worker)
@@ -55,6 +59,8 @@ public class WorkerManager : MonoBehaviour
 
 		if (worker.CurrentTask == null)
 			idleWorkersQueue[worker.TaskType].Remove(worker);
+
+		montylyCost -= worker.MonthlyCost;
 	}
 
 	public void ChangeWorkerTaskType(AIWorker worker, TaskType type)

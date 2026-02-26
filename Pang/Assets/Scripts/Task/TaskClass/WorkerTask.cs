@@ -73,6 +73,7 @@ public abstract class WorkerTask
 	public void EndTask()
 	{
 		CurrentStatus = Status.End;
+		OccupyWorker.OnTaskCompleted();
 		OccupyWorker.SetTask(null);
 
 		Manager.OnEndTask(this);

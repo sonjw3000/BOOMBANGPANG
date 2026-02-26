@@ -24,7 +24,6 @@ public class GameContext : MonoBehaviour
 	// game system multiplier
 	// todo
 	// 나중에 다른 곳으로 빼도 될 듯?
-	[SerializeField] private float timeScale = 1.0f;
 
 	// datas
 	//[SerializeField] private Resources mapResources;
@@ -125,9 +124,5 @@ public class GameContext : MonoBehaviour
 
 	}
 
-	private void Update()
-	{
-		Time.timeScale = timeScale;
-	}
 
 }

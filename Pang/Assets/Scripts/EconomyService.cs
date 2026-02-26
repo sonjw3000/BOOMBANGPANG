@@ -7,6 +7,7 @@ public class EconomyTransaction
 	{
 		Place,
 		Remove,
+		Payday,
 	}
 
 	public int moneyDelta;
@@ -21,15 +22,25 @@ public class EconomyService : MonoBehaviour
 	private int money;
 	private float reputation;
 
-	List<EconomyTransaction> history;
+	private List<EconomyTransaction> history;
+	private GameTime gameTime;
 
 	public int Money => money;
 	public float Reputation => reputation;
 
 	private void Start()
 	{
-		GameContext.Instance.GridService.OnPlaceableInstalled += OnPlacement;
+		if (gameTime == null)
+			gameTime = FindFirstObjectByType<GameTime>();
 
+		gameTime.OnMonthPassed += ProcessMonthlyPayment;
+		GameContext.Instance.GridService.OnPlaceableInstalled += OnPlacement;
+	}
+
+	private void OnDestroy()
+	{
+		gameTime.OnMonthPassed -= ProcessMonthlyPayment;
+		GameContext.Instance.GridService.OnPlaceableInstalled -= OnPlacement;
 	}
 
 	public void ApplyTransaction(EconomyTransaction transaction)
@@ -48,6 +59,20 @@ public class EconomyService : MonoBehaviour
 			reputationDelta = 0,
 			reason = EconomyTransaction.Reason.Place,
 		};
+
 		ApplyTransaction(transaction);
 	}
+
+	public void ProcessMonthlyPayment()
+	{
+		var workerTransaction = new EconomyTransaction
+		{
+			moneyDelta = -GameContext.Instance.WorkerMgr.MontylyCost,
+			reputationDelta = 0,
+			reason = EconomyTransaction.Reason.Payday
+		};
+
+		ApplyTransaction(workerTransaction);
+	}
+
 }

@@ -20,7 +20,7 @@ public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEff
 
 	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
 	private FindRoute routeFinder;
-
+	
 	[SerializeField] private int tick = 0;
 	[SerializeField] private string workerName;
 	[SerializeField] private int workerID;
@@ -31,6 +31,9 @@ public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEff
 
 	private int3 position;
 
+	protected WorkerArchetype Archetype => workerArchetype;
+
+	public int MonthlyCost => workerArchetype.monthlyCost;
 
 	// should build BT here
 	private void BuildBehaviorTree()
@@ -167,6 +170,7 @@ public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEff
 
 	public virtual float GetWorkSpeedMultiplier() { return 1.0f; }
 	public virtual float GetMoveSpeedMultiplier() { return 1.0f; }
+	public virtual void OnTaskCompleted() { }
 	public virtual void TickVitals(float deltaTime) { }
 
 }
