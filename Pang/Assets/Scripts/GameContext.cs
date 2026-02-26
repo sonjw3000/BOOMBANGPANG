@@ -55,6 +55,10 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private PlaceableCatalog catalog;
 	[SerializeField] private TileCatalog baseTiles;
 
+	[Header("UI관련해서 추가함")]
+	[SerializeField] private ProcessStatsCollector processStats;
+
+
 	//[Header("나중에 빼자")]
 	private PlacementPreview placementPreview;
 	private InteractionContext interactionCtx;
@@ -77,6 +81,8 @@ public class GameContext : MonoBehaviour
 
 	public PlaceableCatalog PlaceableCatalog => catalog;
 	public TileCatalog BaseTiles => baseTiles;
+
+	public ProcessStatsCollector ProcessStats => processStats;
 
 	public PlacementPreview PlacementPreview => placementPreview;
 	public InteractionContext InteractionCtx => interactionCtx;

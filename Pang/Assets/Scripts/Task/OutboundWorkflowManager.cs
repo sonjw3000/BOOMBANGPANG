@@ -55,7 +55,7 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 			return;
 		}
 
-		TaskMgr.TaskQueue[TaskType.Picking].AddLast(task);
+		TaskMgr.EnqueueTask(task);
 	}
 
 	// ----------------------------------------------------------------
@@ -79,7 +79,7 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 			LoadingTask loadingTask = new LoadingTask(cargoPort);
 
-			TaskMgr.TaskQueue[TaskType.Loading].AddLast(loadingTask);
+			TaskMgr.EnqueueTask(loadingTask);
 		}
 
 	}

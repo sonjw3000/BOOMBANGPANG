@@ -320,6 +320,7 @@ Transform:
   - {fileID: 7908985302895797192}
   - {fileID: 2196652181193760353}
   - {fileID: 8699264562190637247}
+  - {fileID: 6463747608451329436}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6016985861769816228
@@ -364,6 +365,7 @@ MonoBehaviour:
   outboundWorkFlowManager: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
   baseTiles: {fileID: 0}
+  processStats: {fileID: 2003437797910367155}
 --- !u!1 &2910311652415540675
 GameObject:
   m_ObjectHideFlags: 0
@@ -629,6 +631,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 8699264562190637247}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &5078186481392220667
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6463747608451329436}
+  - component: {fileID: 2003437797910367155}
+  m_Layer: 0
+  m_Name: TaskTracking
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6463747608451329436
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5078186481392220667}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.000002861023, y: -0.000004351139, z: -0.0000019073486}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4930837203190484080}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2003437797910367155
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5078186481392220667}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8399fbd46a5b4fc408be303cded4cd8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProcessStatsCollector
 --- !u!1 &5230778015563283086
 GameObject:
   m_ObjectHideFlags: 0

@@ -7,7 +7,9 @@ using static WorkerTask;
 public class TaskManager : MonoBehaviour
 {
 	private Dictionary<TaskType, LinkedList<WorkerTask>> taskQueue = new();
-	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue  => taskQueue;
+	//public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue => taskQueue;
+
+	private ProcessStatsCollector Stats => GameContext.Instance.ProcessStats;
 
 	private InboundWorkflowManager IBMgr => GameContext.Instance.IBWorkflowMgr;
 	private OutboundWorkflowManager OBMgr => GameContext.Instance.OBWorkflowMgr;
@@ -20,6 +22,12 @@ public class TaskManager : MonoBehaviour
 			taskQueue[type] = new();
 		}
 
+	}
+	
+	public void EnqueueTask(WorkerTask task)
+	{
+		taskQueue[task.Type].AddLast(task);
+		Stats.AddQueue(task.Type);
 	}
 
 	// dispatch task to workers
@@ -45,6 +53,8 @@ public class TaskManager : MonoBehaviour
 
 	public void OnEndTask(WorkerTask task)
 	{
+		Stats.CompleteProcess(task.Type);
+
 		// todo
 		//
 		switch (task.Type)

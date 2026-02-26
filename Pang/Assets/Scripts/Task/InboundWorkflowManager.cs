@@ -61,7 +61,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 		UnloadingTask task = new UnloadingTask(rocket);
 
 		// unloading은 cargoport로 보내는 것으로 완성
-		TaskMgr.TaskQueue[Unloading].AddLast(task);
+		TaskMgr.EnqueueTask(task);
 	}
 	
 	// ----------------------------------------------------------------
@@ -86,7 +86,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 				//Debug.Log("StoreTask Built!");
 
 				if (task != null)
-					TaskMgr.TaskQueue[Storing].AddLast(task);
+					TaskMgr.EnqueueTask(task);
 			}
 		}
 	}
