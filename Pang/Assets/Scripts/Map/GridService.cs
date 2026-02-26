@@ -15,6 +15,8 @@ public class GridService : MonoBehaviour
 
 	private Dictionary<GameObject, PlacementContext> placedObjects = new();
 
+	public event System.Action<PlacementContext> OnPlaceableInstalled;
+
 	public void OnGameStart()
 	{
 		GameObject tileFloor = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -150,6 +152,8 @@ public class GridService : MonoBehaviour
 		);
 
 		placedObjects[obj] = ctx;
+
+		OnPlaceableInstalled.Invoke(ctx);
 
 		return true;
 	}

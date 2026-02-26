@@ -14,5 +14,7 @@ public class PlaceableDefinition : ScriptableObject
 
 	[Header("Placeable Definition Type")]
 	public PlaceableDefinitionType definitionType = PlaceableDefinitionType.Other;
+
+	public int Cost = 10;
 }
 

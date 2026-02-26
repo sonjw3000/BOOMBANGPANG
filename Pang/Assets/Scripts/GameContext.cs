@@ -59,7 +59,7 @@ public class GameContext : MonoBehaviour
 	private PlacementPreview placementPreview;
 	private InteractionContext interactionCtx;
 
-	private EconomyManager economyManager = new EconomyManager();
+	private EconomyService economyService = new EconomyService();
 
 	//public Resources MapResources => mapResources;
 	public ItemDatabase ItemDB => itemDB;
@@ -80,6 +80,8 @@ public class GameContext : MonoBehaviour
 
 	public PlacementPreview PlacementPreview => placementPreview;
 	public InteractionContext InteractionCtx => interactionCtx;
+	public EconomyService EconomyService => economyService;
+
 	private void Awake()
 	{
 		Debug.Log("GameGlobalContext Online!");
