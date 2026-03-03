@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using static UnityEditor.Progress;
 
 
 // item의 출입고 내역을 기록하는 장부

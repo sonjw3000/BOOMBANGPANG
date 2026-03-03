@@ -22,7 +22,7 @@ public class EconomyService : MonoBehaviour
 	private int money;
 	private float reputation;
 
-	private List<EconomyTransaction> history;
+	private readonly List<EconomyTransaction> history = new();
 	private GameTime gameTime;
 
 	public int Money => money;
