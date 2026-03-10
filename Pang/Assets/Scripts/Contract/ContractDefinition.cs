@@ -1,36 +1,34 @@
 ﻿using UnityEngine;
 
-public enum ContractType
+namespace Assets.Scripts.Contract
 {
-	Standard,
-	Express,
+
+	[CreateAssetMenu(menuName = "Contract/Contract Definition")]
+	public class ContractDefinition : ScriptableObject
+	{
+		[Header("Contract Info")]
+		public string ContractName;
+		public uint ContractId;
+		public ItemDefinition ItemToHandle;
+
+		[Range(-100f, 100f)] public float MinimumRequiredReputation = 0f;
+		[Range(-100f, 100f)] public float MaximumRequiredReputation = 100f;
+
+		public int DurationInMonths = 12;
+		public int IncomePerItem = 10;
+
+		[Header("Monthly Reward Money")]
+		public int RewardOnTime = 100;
+		public int RewardLate = 50;
+		public int RewardFailed = 200;
+
+		[Header("Monthly Reward Reputation")]
+		public float RepOnTime = 0.5f;
+		public float RepLate= 0.25f;
+		public float RepFailed = 0.5f;
+
+		[Header("Releated Items")]
+		[Tooltip("아직 미구현, 자리만 만들어둔 것")]
+		public ItemDefinition[] RelatedItems;
+	}
 }
-
-[System.Serializable]
-public struct ItemStackRequest
-{
-	public string ItemId;
-	public int Quantity;
-}
-
-[CreateAssetMenu(menuName = "Contract/ContractDefinition")]
-public class ContractDefinition : ScriptableObject
-{
-	public ContractType Type;
-	[Range(-100f, 100f)] public float MinimumRequiredReputation = 0f;
-	[Range(-100f, 100f)] public float MaximumRequiredReputation = 100f;
-
-	[Header("Money")]
-	public int RewardOnTime = 100;
-	public int PenaltyLate = 80;
-	public int PenaltyFailed = 200;
-
-	[Header("Reputation")]
-	public float RepOnTime = 0.5f;
-	public float RepLate = -0.1f;
-	public float RepFailed = -0.5f;
-
-	[Header("Items")]
-	public ItemStackRequest[] IncludedItems;
-}
-

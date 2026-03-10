@@ -1,3 +1,5 @@
+using System;
+using UnityEditor.ShaderKeywordFilter;
 using UnityEngine;
 
 // 이것만은 꼭 지키자
@@ -27,6 +29,9 @@ public class GameContext : MonoBehaviour
 
 	// datas
 	//[SerializeField] private Resources mapResources;
+	[Header("시간")]
+	[SerializeField] private GameTime gameTime;
+
 	[Header("아이템 데이터베이스")]
 	[SerializeField] private ItemDatabase itemDB;
 
@@ -43,6 +48,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private RocketManager rocketManager;
 	[SerializeField] private OrderManager orderManager;
 	[SerializeField] private WMSystem warehouseManagement;
+	[SerializeField] private ContractService contractService;
 
 	[Header("워크플로우 매니저")]
 	// workflow managers
@@ -65,6 +71,7 @@ public class GameContext : MonoBehaviour
 	private EconomyService economyService = new EconomyService();
 
 	//public Resources MapResources => mapResources;
+	public GameTime GameTime => gameTime;
 	public ItemDatabase ItemDB => itemDB;
 	//public GridMap GridMap => gridMap;
 	public GridService GridService => gridService;
@@ -74,6 +81,7 @@ public class GameContext : MonoBehaviour
 	public RocketManager RocketMgr => rocketManager;
 	public OrderManager OrderMgr => orderManager;
 	public WMSystem WMSys => warehouseManagement;
+	public ContractService ContractMgr => contractService;
 
 	public InboundWorkflowManager IBWorkflowMgr => inboundWorkFlowManager;
 	public OutboundWorkflowManager OBWorkflowMgr => outboundWorkFlowManager;
@@ -102,6 +110,13 @@ public class GameContext : MonoBehaviour
 		//placementPreview = new PlacementPreview();
 		//instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
+
+		AddEvent();
+	}
+
+	private void OnDestroy()
+	{
+		RemoveEvent();
 	}
 
 	private void Start()
@@ -124,5 +139,25 @@ public class GameContext : MonoBehaviour
 
 	}
 
+	// 순서가 중요한 이벤트들은 여기서 등록
+	private void AddEvent()
+	{
+		// times to process
+		gameTime.OnMonthPassed += contractService.ProcessMonthlyContracts;
 
+		// times for payments
+		gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
+
+		// 순서가 중요한가?
+		// 일단은 여기에서 등록하자
+		gridService.OnPlaceableInstalled += economyService.OnPlacement;
+	}
+
+	private void RemoveEvent()
+	{
+		gameTime.OnMonthPassed -= contractService.ProcessMonthlyContracts;
+		gameTime.OnMonthPassed -= economyService.ProcessMonthlyPayment;
+
+		gridService.OnPlaceableInstalled -= economyService.OnPlacement;
+	}
 }

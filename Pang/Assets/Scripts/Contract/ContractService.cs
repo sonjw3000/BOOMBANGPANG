@@ -1,53 +1,45 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using System;
 
-public enum ContractStatus
-{
-	Active,
-	Completed,
-	Failed,
-}
+using Assets.Scripts.Contract;
 
-public class Someting
-{
-	public ContractDefinition ContractDefinition;
-	
-
-}
-//public class 
 
 public class ContractService : MonoBehaviour
 {
-	[SerializeField] private ContractDefinition[] AvailableContracts;
+	[SerializeField] private ContractCatalog[] contractCatalogs;
+	
+	private List<ContractDefinition> definitions = new();
+	private List<ContractRuntime> currentActiveContracts = new();
 
-	private List<ContractDefinition> activeContracts = new();
+	private ContractHistory contractHistory = new();
 
-	private GameTime gameTime;
-
-
-
-	public IReadOnlyList<ContractDefinition> ContractDefinitions => AvailableContracts;
-
-	private EconomyService Economy => GameContext.Instance.EconomyService;
+	public IReadOnlyList<ContractDefinition> ContractDefinitions => definitions;
 
 
-	private void Start()
+	public void ProcessMonthlyContracts()
 	{
-		if (gameTime == null)
-			gameTime = FindFirstObjectByType<GameTime>();
+		List<ContractRuntime> expiredContracts = new();
 
-		gameTime.OnMonthPassed += ProcessMonthlyContracts;
+		foreach (var contract in currentActiveContracts)
+		{
+			contract.RemainingDuration--;
+			if (contract.RemainingDuration >= 0)
+				continue;
+
+			contractHistory.AddContractResult(contract, GameContext.Instance.GameTime.Month);
+			expiredContracts.Add(contract);
+		}
+
+
+		currentActiveContracts.RemoveAll(c => expiredContracts.Contains(c));
 	}
 
-	private void ProcessMonthlyContracts()
+	public Tuple<int, float> GetMonthlyReward()
 	{
-		int moneyChange = 0;
-		float reputationChange = 0f;
+		// todo
+		// 계약 유지 보너스와 같은 개념으로 접근해야함
 
-		foreach (var contract in activeContracts)
-		{
-
-		}
+		return default;
 	}
 }
-

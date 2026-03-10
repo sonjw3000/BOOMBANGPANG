@@ -1,53 +1,48 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 
-// database of all item types in the game
-[System.Serializable]
 public class ItemDatabase : MonoBehaviour
 {
-	// 실제 모든 아이템과 플레이어가 저거 하는 아이템을 모두 분리해서 관리해야함
-	//[SerializeField] private List<ItemDefinition> realItems = new();
 	[SerializeField] private List<ItemCatalog> itemCatalogs = new();
-	[SerializeField] private List<ItemDefinition> items = new();
-	public IReadOnlyList<ItemDefinition> Items => items;
+	
+	private Dictionary<uint, ItemDefinition> itemIDMap;
 
-	[SerializeField] private HashSet<uint> orderedItems = new HashSet<uint>();
-	public IReadOnlyCollection<uint> OrderedItems => orderedItems;
-
-	private void OnValidate()
+	private void BuildDict(Dictionary<uint, ItemDefinition> dict)
 	{
-		Dictionary<uint, ItemDefinition> itemIDMap = new();
-
 		foreach (var catalog in itemCatalogs)
 		{
 			foreach (var item in catalog.itemDefinitions)
 			{
-				if (itemIDMap.ContainsKey(item.ItemID))
+				if (dict.ContainsKey(item.ItemID))
 				{
 					Debug.LogError($"Duplicate ItemID {item.ItemID} found in {catalog.name}. Each ItemID must be unique.");
 				}
 				else
 				{
-					itemIDMap[item.ItemID] = item;
+					dict[item.ItemID] = item;
 				}
 			}
 		}
+	}
 
+	private void OnValidate()
+	{
+		// 중복 검증
+		Dictionary<uint, ItemDefinition> dict = new();
+		BuildDict(dict);
 	}
 
 	private void Awake()
 	{
-		foreach (var catalog in itemCatalogs)
-		{
-			items.AddRange(catalog.itemDefinitions);
-		}
+		BuildDict(itemIDMap = new());
+
+		itemCatalogs.Clear();
 	}
 
 	public bool GetItemData(uint itemID, out ItemDefinition data)
 	{
-		data = items.Find(item => item.ItemID == itemID);
-
-		return data != null;
+		return itemIDMap.TryGetValue(itemID, out data);
 	}
 
 	public float GetItemSize(uint itemID)
@@ -66,11 +61,20 @@ public class ItemDatabase : MonoBehaviour
 
 	public uint GetRandomItemID()
 	{
-		return items[Random.Range(0, items.Count)].ItemID;
+		uint itemID = itemIDMap.FirstOrDefault().Key;
+
+		int randIdx = Random.Range(0, itemIDMap.Count);
+
+		foreach (var kvp in itemIDMap)
+		{
+			if (randIdx-- == 0)
+			{
+				itemID = kvp.Key;
+				break;
+			}
+		}
+
+		return itemID;
 	}
 
-	public void InsertOrderedItems(uint itemID)
-	{
-		orderedItems.Add(itemID);
-	}
 }

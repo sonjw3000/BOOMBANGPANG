@@ -10,14 +10,13 @@ public class GameTime : MonoBehaviour
 	[Header("게임 시간 배율")]
 	[SerializeField] private float timeScale = 1.0f;
 
-
-	private int month = 1;
-	private int year = 0;
-
 	private float timeElapsed = 0f;
+	private int elapsedMonth = 0;
 
-	public int Month => month;
-	public int Year => year;
+	public int Month => elapsedMonth % 12;
+	public int Year => elapsedMonth / 12;
+	public int MonthsPassed => elapsedMonth;
+
 	public event Action OnMonthPassed;
 	public event Action OnYearPassed;
 
@@ -39,19 +38,12 @@ public class GameTime : MonoBehaviour
 
 	private void PassMonth()
 	{
-		++month;
+		++elapsedMonth;
 		OnMonthPassed?.Invoke();
 
-		if (month > 12)
+		if (elapsedMonth % 12 == 0)
 		{
-			month = 1;
-			PassYear();
+			OnYearPassed?.Invoke();
 		}
-	}
-
-	private void PassYear()
-	{
-		year++;
-		OnYearPassed?.Invoke();
 	}
 }

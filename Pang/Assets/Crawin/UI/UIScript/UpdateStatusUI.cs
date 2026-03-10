@@ -79,27 +79,27 @@ public class UpdateStatusUI : MonoBehaviour
 
 	public void SelectItemOnShelf()
 	{
-		var itemSet = GameContext.Instance.ItemDB.OrderedItems;
-		int testcnt = 9;
-		if (orderedItemsSlotCnt < itemSet.Count/*testcnt*/)
-		{
-			for (int i = orderedItemsSlotCnt; i < itemSet.Count/*testcnt*/; ++i)
-			{
-				GameObject child = new GameObject();
-				child.transform.SetParent(Viewport[2].GetChild(0), false);
-				Image img = child.AddComponent<Image>();
-				//img.color = Color.black;
-				float t = (float)(i - orderedItemsSlotCnt) / (itemSet.Count/*testcnt*/ - orderedItemsSlotCnt - 1); // 0 ~ 1
+		//var itemSet = GameContext.Instance.ItemDB.OrderedItems;
+		//int testcnt = 9;
+		//if (orderedItemsSlotCnt < itemSet.Count/*testcnt*/)
+		//{
+		//	for (int i = orderedItemsSlotCnt; i < itemSet.Count/*testcnt*/; ++i)
+		//	{
+		//		GameObject child = new GameObject();
+		//		child.transform.SetParent(Viewport[2].GetChild(0), false);
+		//		Image img = child.AddComponent<Image>();
+		//		//img.color = Color.black;
+		//		float t = (float)(i - orderedItemsSlotCnt) / (itemSet.Count/*testcnt*/ - orderedItemsSlotCnt - 1); // 0 ~ 1
 
-				// °ËÁ¤ ¡æ Èò»öÀ¸·Î Á¡Á¡ ¹à°Ô
-				//img.color = Color.Lerp(Color.black, Color.white, t);
-			}
-			orderedItemsSlotCnt = itemSet.Count/*testcnt*/;
-		}
-		foreach (uint id in itemSet)
-		{
-			Debug.Log(id);
-		}
+		//		// °ËÁ¤ ¡æ Èò»öÀ¸·Î Á¡Á¡ ¹à°Ô
+		//		//img.color = Color.Lerp(Color.black, Color.white, t);
+		//	}
+		//	orderedItemsSlotCnt = itemSet.Count/*testcnt*/;
+		//}
+		//foreach (uint id in itemSet)
+		//{
+		//	Debug.Log(id);
+		//}
 		orderedItems.SetActive(true);
 	}
 }

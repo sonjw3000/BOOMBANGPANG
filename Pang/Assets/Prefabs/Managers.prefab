@@ -92,7 +92,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemDatabase
   itemCatalogs:
   - {fileID: 11400000, guid: 9f60363fff072da469124f5c1d9502e8, type: 2}
-  items: []
 --- !u!1 &592993457453182983
 GameObject:
   m_ObjectHideFlags: 0
@@ -369,6 +368,7 @@ Transform:
   - {fileID: 8699264562190637247}
   - {fileID: 6463747608451329436}
   - {fileID: 6514783859517015416}
+  - {fileID: 8739494435866360622}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6016985861769816228
@@ -383,6 +383,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fc9318530e8a3da4ba861ca1e3ecd16a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameTime: {fileID: 1503851379551520681}
   itemDB: {fileID: 6529752059154479860}
   gridService: {fileID: 5304894839265657876}
   mapJsonFile: 
@@ -392,6 +393,7 @@ MonoBehaviour:
   rocketManager: {fileID: 3860246314756219679}
   orderManager: {fileID: 3271614016673267715}
   warehouseManagement: {fileID: 4181363907245693410}
+  contractService: {fileID: 0}
   inboundWorkFlowManager: {fileID: 2554155626171990247}
   outboundWorkFlowManager: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
@@ -937,3 +939,76 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7006b3e98fb58644d900835581ddc573, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1001 &2720900230528861382
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 4930837203190484080}
+    m_Modifications:
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.000002861023
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.000004351139
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.0000019073486
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300466929635163498, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+      propertyPath: m_Name
+      value: GameTime
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+--- !u!114 &1503851379551520681 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3538796364606849903, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+  m_PrefabInstance: {fileID: 2720900230528861382}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5108059d84bbce42b77092842a0be88, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameTime
+--- !u!4 &8739494435866360622 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 6668282614910205928, guid: a9960a5d2ad8c39479e4a7756a5deb13, type: 3}
+  m_PrefabInstance: {fileID: 2720900230528861382}
+  m_PrefabAsset: {fileID: 0}

@@ -8,6 +8,7 @@ public class EconomyTransaction
 		Place,
 		Remove,
 		Payday,
+		MontlyContract,
 	}
 
 	public int moneyDelta;
@@ -23,25 +24,10 @@ public class EconomyService : MonoBehaviour
 	private float reputation;
 
 	private readonly List<EconomyTransaction> history = new();
-	private GameTime gameTime;
 
 	public int Money => money;
 	public float Reputation => reputation;
 
-	private void Start()
-	{
-		if (gameTime == null)
-			gameTime = FindFirstObjectByType<GameTime>();
-
-		gameTime.OnMonthPassed += ProcessMonthlyPayment;
-		GameContext.Instance.GridService.OnPlaceableInstalled += OnPlacement;
-	}
-
-	private void OnDestroy()
-	{
-		gameTime.OnMonthPassed -= ProcessMonthlyPayment;
-		GameContext.Instance.GridService.OnPlaceableInstalled -= OnPlacement;
-	}
 
 	public void ApplyTransaction(EconomyTransaction transaction)
 	{
@@ -51,7 +37,7 @@ public class EconomyService : MonoBehaviour
 		history.Add(transaction);
 	}
 
-	private void OnPlacement(PlacementContext context)
+	public void OnPlacement(PlacementContext context)
 	{
 		var transaction = new EconomyTransaction
 		{
@@ -63,8 +49,11 @@ public class EconomyService : MonoBehaviour
 		ApplyTransaction(transaction);
 	}
 
+	// todo
+	// 나중에 분리하자
 	public void ProcessMonthlyPayment()
 	{
+		// worker transaction
 		var workerTransaction = new EconomyTransaction
 		{
 			moneyDelta = -GameContext.Instance.WorkerMgr.MontylyCost,
@@ -73,6 +62,16 @@ public class EconomyService : MonoBehaviour
 		};
 
 		ApplyTransaction(workerTransaction);
+
+		// contract transaction
+		var montlyReward = GameContext.Instance.ContractMgr.GetMonthlyReward();
+		var contractTransaction = new EconomyTransaction
+		{
+			moneyDelta = montlyReward.Item1,
+			reputationDelta = montlyReward.Item2,
+			reason = EconomyTransaction.Reason.MontlyContract
+		};
+
 	}
 
 }
