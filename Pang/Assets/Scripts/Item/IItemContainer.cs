@@ -31,11 +31,11 @@ public class ItemStack
 	// if <= 0 >>>>>> max
 	private float maxStackSize;
 
-	private ItemDatabase itemDB => GameContext.Instance.ItemDB;
-	private float itemSize => itemDB.GetItemSize(itemID);
-	public float AvailableSpace => (maxStackSize - (itemSize * quantity));
+	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
+	private float ItemSize => ItemDB.GetItemSize(itemID);
+	public float AvailableSpace => (maxStackSize - (ItemSize * quantity));
 
-	public int AvailableAmount => (int)(AvailableSpace / itemSize);
+	public int AvailableAmount => (int)(AvailableSpace / ItemSize);
 
 	public uint ItemID => itemID;
 	public int Quantity => quantity;
@@ -46,7 +46,7 @@ public class ItemStack
 		this.maxStackSize = maxStackSize;
 	}
 
-	public bool CanAddItem(int quantity) => maxStackSize <= 0 || maxStackSize - (itemSize * (this.quantity + quantity)) >= 0;
+	public bool CanAddItem(int quantity) => maxStackSize <= 0 || maxStackSize - (ItemSize * (this.quantity + quantity)) >= 0;
 
 	// returns actual added amount
 	public int AddItem(int amount)

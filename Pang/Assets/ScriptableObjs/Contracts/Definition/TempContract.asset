@@ -12,13 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab68d1243c41b0d40a7f4021d254158e, type: 3}
   m_Name: TempContract
   m_EditorClassIdentifier: Assembly-CSharp::ContractDefinition
-  Type: 0
+  ContractName: Test 1
+  ContractId: 123
+  ItemToHandle: {fileID: 11400000, guid: 9901440dab8a1e944971c64cd0aefef7, type: 2}
+  AmountPerDelivery: 100
+  DeliveryInterval: 1
   MinimumRequiredReputation: 0
   MaximumRequiredReputation: 100
+  DurationInMonths: 12
+  IncomePerItem: 10
   RewardOnTime: 100
-  PenaltyLate: 80
-  PenaltyFailed: 200
+  RewardLate: 50
+  RewardFailed: 200
   RepOnTime: 0.5
   RepLate: -0.1
   RepFailed: -0.5
-  IncludedItems: []
+  RelatedItems: []

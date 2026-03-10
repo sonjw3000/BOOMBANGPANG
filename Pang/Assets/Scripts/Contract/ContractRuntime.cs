@@ -12,7 +12,13 @@ namespace Assets.Scripts.Contract
 	public class ContractRuntime
 	{
 		public ContractDefinition Definition { get; private set; }
+
+		private int remainDuration;
+		private int deliveryInterval;
+
 		public int RemainingDuration { get; set; }
+		public int DeliveryInterval { get; private set; }
+
 		public bool AutoRenewal { get; set; } = true;
 
 		private readonly Dictionary<Status, int> resultHistory = new();

@@ -11,9 +11,16 @@ namespace Assets.Scripts.Contract
 		public uint ContractId;
 		public ItemDefinition ItemToHandle;
 
+		[Header("Delivery Info")]
+		[Tooltip("Interval between deliveries, in months")]
+		public int DeliveryInterval = 1;
+		public int AmountPerDelivery = 100;
+
+		[Header("Reputation Requirement")]
 		[Range(-100f, 100f)] public float MinimumRequiredReputation = 0f;
 		[Range(-100f, 100f)] public float MaximumRequiredReputation = 100f;
 
+		[Header("Contract Duration and Income")]
 		public int DurationInMonths = 12;
 		public int IncomePerItem = 10;
 

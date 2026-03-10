@@ -16,6 +16,11 @@ public class ContractService : MonoBehaviour
 
 	public IReadOnlyList<ContractDefinition> ContractDefinitions => definitions;
 
+	// rocket item queue
+	private readonly Queue<ItemStack> itemsToBeDelivered = new();
+
+	// contract missions
+	private readonly Dictionary<ItemDefinition, int> itemDeliveryMissions = new();
 
 	public void ProcessMonthlyContracts()
 	{
@@ -31,8 +36,10 @@ public class ContractService : MonoBehaviour
 			expiredContracts.Add(contract);
 		}
 
-
 		currentActiveContracts.RemoveAll(c => expiredContracts.Contains(c));
+
+		foreach (var contract in currentActiveContracts)
+			itemsToBeDelivered.Enqueue(new (contract.Definition.ItemToHandle.ItemID, 10));
 	}
 
 	public Tuple<int, float> GetMonthlyReward()
