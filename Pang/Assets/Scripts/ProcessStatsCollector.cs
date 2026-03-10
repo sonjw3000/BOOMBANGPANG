@@ -12,7 +12,7 @@ public class ProcessStats
 
 public class ProcessStatsCollector : MonoBehaviour
 {
-	private Dictionary<WorkerTask.TaskType, ProcessStats> stats = new();
+	private readonly Dictionary<WorkerTask.TaskType, ProcessStats> stats = new();
 
 	private void Awake()
 	{

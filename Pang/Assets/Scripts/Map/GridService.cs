@@ -130,7 +130,7 @@ public class GridService : MonoBehaviour
 		{
 			for (int x = 0; x < footprint.width; ++x)
 			{
-				int3 offset = new int3(x - pivot.x, 0, z - pivot.y);
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, ctx.facingDirection);
 				int3 target = ctx.center + rotatedOffset;
 
@@ -172,7 +172,7 @@ public class GridService : MonoBehaviour
 		{
 			for (int x = 0; x < footprint.width; ++x)
 			{
-				int3 offset = new int3(x - pivot.x, 0, z - pivot.y);
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = context.center + rotatedOffset;
 				if (gridMap.IsInBound(target) == false)

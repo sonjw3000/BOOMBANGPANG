@@ -41,7 +41,7 @@ public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEff
 		SelectorNode root = new();
 
 		ActionNode performTask = new(DoWork);
-		WaitNode wait = new WaitNode(1.0f);
+		WaitNode wait = new(1.0f);
 
 		root.Add(performTask);
 		root.Add(wait);

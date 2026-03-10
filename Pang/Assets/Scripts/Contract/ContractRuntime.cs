@@ -15,7 +15,7 @@ namespace Assets.Scripts.Contract
 		public int RemainingDuration { get; set; }
 		public bool AutoRenewal { get; set; } = true;
 
-		private Dictionary<Status, int> resultHistory = new();
+		private readonly Dictionary<Status, int> resultHistory = new();
 
 		public ContractRuntime(ContractDefinition definition, int duration)
 		{
