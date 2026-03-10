@@ -26,7 +26,7 @@ public class ShelfStorageIndex : MonoBehaviour
 	public IReadOnlyList<ShelfBase> Containers => containers;
 	public IReadOnlyDictionary<uint, List<ShelfBase>> ShelvesByItem => shelvesByItem;
 
-	private ItemLedger itemLedger => GameContext.Instance.WMSys.ItemLedger;
+	private ItemLedger ItemLedger => GameContext.Instance.WMSys.ItemLedger;
 
 	// ---------------------------
 	// 이벤트 핸들러
@@ -53,7 +53,7 @@ public class ShelfStorageIndex : MonoBehaviour
 
 	private void OnItemUnregistered(ShelfBase shelf, uint itemId)
 	{
-		if (shelvesByItem.TryGetValue(itemId, out var list) == false)
+		if (shelvesByItem.ContainsKey(itemId) == false)
 		{
 			Debug.LogError("ERROR!! No id here but tried to remove shelf");
 			shelvesByItem[itemId] = new();
@@ -66,7 +66,7 @@ public class ShelfStorageIndex : MonoBehaviour
 	{
 		// todo
 		// 상황에 따라 itemLedger에 알리지 않아도 될 수 있다
-		itemLedger.OnItemQuantityChanged(itemId, qtyDelta);
+		ItemLedger.OnItemQuantityChanged(itemId, qtyDelta);
 
 	}
 

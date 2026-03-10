@@ -23,15 +23,15 @@ public class PlacementPreview : MonoBehaviour
 
 	// previewCellPos
 	private int3 previewCenter = new(0);
-	private List<int3> possibleCells = new();
-	private List<int3> blockedCells = new();
+	private readonly List<int3> possibleCells = new();
+	private readonly List<int3> blockedCells = new();
 
 	// 
 	private GameObject currentPreview = null;
 	private PlaceableDefinition curToBePlaced = null;
 	
 	// item pools
-	private Dictionary<string, GameObject> pollingPreview = new();
+	private readonly Dictionary<string, GameObject> pollingPreview = new();
 	private GameObjectPool possibleTiles = null;
 	private GameObjectPool blockedTiles= null;
 
@@ -111,7 +111,7 @@ public class PlacementPreview : MonoBehaviour
 
 	private void ChangeCurrentPreview()
 	{
-		currentPreview?.SetActive(false);
+		currentPreview.SetActive(false);
 
 		if (curToBePlaced == null)
 		{

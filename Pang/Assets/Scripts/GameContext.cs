@@ -32,6 +32,9 @@ public class GameContext : MonoBehaviour
 	[Header("시간")]
 	[SerializeField] private GameTime gameTime;
 
+	[Header("경제")]
+	[SerializeField] private EconomyService economyService;
+
 	[Header("아이템 데이터베이스")]
 	[SerializeField] private ItemDatabase itemDB;
 
@@ -65,13 +68,11 @@ public class GameContext : MonoBehaviour
 
 
 	//[Header("나중에 빼자")]
-	private PlacementPreview placementPreview;
 	private InteractionContext interactionCtx;
-
-	private EconomyService economyService = new EconomyService();
 
 	//public Resources MapResources => mapResources;
 	public GameTime GameTime => gameTime;
+	public EconomyService EconomyService => economyService;
 	public ItemDatabase ItemDB => itemDB;
 	//public GridMap GridMap => gridMap;
 	public GridService GridService => gridService;
@@ -90,10 +91,7 @@ public class GameContext : MonoBehaviour
 	public TileCatalog BaseTiles => baseTiles;
 
 	public ProcessStatsCollector ProcessStats => processStats;
-
-	public PlacementPreview PlacementPreview => placementPreview;
 	public InteractionContext InteractionCtx => interactionCtx;
-	public EconomyService EconomyService => economyService;
 
 	private void Awake()
 	{
@@ -121,8 +119,11 @@ public class GameContext : MonoBehaviour
 
 	private void Start()
 	{
-		GameSaveLoader loadGame = new GameSaveLoader();
+		GameSaveLoader loadGame = new();
 		
+		// todo
+		// 맵 로드 실패시 기본맵 생성
+		// 일단은 맵 로드 실패를 가정함
 		//if (loadGame.LoadMap(mapJsonFile) == false)
 		if (true)
 		{

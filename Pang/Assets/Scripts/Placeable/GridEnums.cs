@@ -25,7 +25,16 @@ public enum FacingDirection
 	North = 0,
 	East,
 	South,
-	West
+	West,
+
+}
+
+public static class FacingDirectionExtantion
+{
+	public static FacingDirection Rotate90CW(this FacingDirection dir)
+	{
+		return (FacingDirection)(((int)dir + 1) % 4);
+	}
 }
 
 [System.Flags]

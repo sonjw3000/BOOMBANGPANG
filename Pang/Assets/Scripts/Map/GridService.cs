@@ -7,12 +7,12 @@ public class GridService : MonoBehaviour
 	[SerializeField] private GameObject placeableParent;
 	[SerializeField] private GameObject gridParent;
 
-	private GridMap gridMap = new();
+	private readonly GridMap gridMap = new();
 
 	public GridCell[,,] Map => gridMap.Map;
 	public int3 MapSize => gridMap.MapSize;
 
-	private Dictionary<GameObject, PlacementContext> placedObjects = new();
+	private readonly Dictionary<GameObject, PlacementContext> placedObjects = new();
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
 
@@ -56,9 +56,9 @@ public class GridService : MonoBehaviour
 	{
 		foreach (var obj in data.placeables)
 		{
-			int3 pos = new int3(obj.x, obj.y, obj.z);
+			int3 pos = new(obj.x, obj.y, obj.z);
 
-			PlacementContext context = new PlacementContext(pos, obj.facingDirection, GameContext.Instance.PlaceableCatalog.FindById(obj.placeableID));
+			PlacementContext context = new(pos, obj.facingDirection, GameContext.Instance.PlaceableCatalog.FindById(obj.placeableID));
 			if (OnInstall(context) == false)
 			{
 				Debug.LogError("Cant be");
@@ -84,7 +84,7 @@ public class GridService : MonoBehaviour
 		{
 			for (int x = 0; x < footprint.width; ++x)
 			{
-				int3 offset = new int3(x - pivot.x, 0, z - pivot.y);
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, ctx.facingDirection);
 				int3 target = ctx.center + rotatedOffset;
 

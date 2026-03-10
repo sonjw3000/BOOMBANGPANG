@@ -9,10 +9,10 @@ public class ContractService : MonoBehaviour
 {
 	[SerializeField] private ContractCatalog[] contractCatalogs;
 	
-	private List<ContractDefinition> definitions = new();
-	private List<ContractRuntime> currentActiveContracts = new();
+	private readonly List<ContractDefinition> definitions = new();
+	private readonly List<ContractRuntime> currentActiveContracts = new();
 
-	private ContractHistory contractHistory = new();
+	private readonly ContractHistory contractHistory = new();
 
 	public IReadOnlyList<ContractDefinition> ContractDefinitions => definitions;
 

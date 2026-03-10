@@ -27,7 +27,7 @@ public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEff
 	[SerializeField] private WorkerTask currentTask = null;
 
 	private BehaviorTree behaviorTree;
-	private BlackBoard localBlackBoard = new();
+	private readonly BlackBoard localBlackBoard = new();
 
 	private int3 position;
 
@@ -38,9 +38,9 @@ public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEff
 	// should build BT here
 	private void BuildBehaviorTree()
 	{
-		SelectorNode root = new SelectorNode();
+		SelectorNode root = new();
 
-		ActionNode performTask = new ActionNode(DoWork);
+		ActionNode performTask = new(DoWork);
 		WaitNode wait = new WaitNode(1.0f);
 
 		root.Add(performTask);
@@ -120,10 +120,7 @@ public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEff
 
 	public void SetTask(WorkerTask task)
 	{
-		if (task != null)
-		{
-			task.SetAIWorker(this);
-		}
+		task?.SetAIWorker(this);
 		currentTask = task;
 	}
 

@@ -58,7 +58,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	{
 		int3 goalPos = rocket.InteractionPoints[0];
 
-		UnloadingTask task = new UnloadingTask(rocket);
+		UnloadingTask task = new(rocket);
 
 		// unloading은 cargoport로 보내는 것으로 완성
 		TaskMgr.EnqueueTask(task);

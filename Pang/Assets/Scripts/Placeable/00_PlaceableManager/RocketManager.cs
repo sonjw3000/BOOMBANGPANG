@@ -8,11 +8,11 @@ public class RocketManager : MonoBehaviour
 {
 	[SerializeField] private int initialPoolSize = 5;
 
-	[SerializeField] private int3 landingZoneCenter = new int3(10, 0, 10);
+	[SerializeField] private int3 landingZoneCenter = new(10, 0, 10);
 	[SerializeField] private int landingZoneRadius = 5;
 
-	[SerializeField] private Vector2 fallingTimeRange = new Vector2(3.0f, 7.0f);
-	[SerializeField] private Vector2 fallingSpeedRange = new Vector2(3.0f, 7.0f);
+	[SerializeField] private Vector2 fallingTimeRange = new(3.0f, 7.0f);
+	[SerializeField] private Vector2 fallingSpeedRange = new(3.0f, 7.0f);
 
 	[SerializeField] private float timeSinceLastSpawn = 0.0f;
 	[SerializeField] private float spawnInterval = 10.0f;
@@ -20,7 +20,7 @@ public class RocketManager : MonoBehaviour
 	[SerializeField] private float rocketPayloadSize = 1000.0f;
 
 	[SerializeField] private List<Rocket> activeRockets = new();
-	private Queue<Rocket> rocketPool = new();
+	private readonly Queue<Rocket> rocketPool = new();
 
 	public int3 ZoneCenter => landingZoneCenter;
 	public int ZoneRadius => landingZoneRadius;
@@ -142,7 +142,7 @@ public class RocketManager : MonoBehaviour
 		List<ItemStack> payload = new();
 		
 		uint randomItemID = ItemDB.GetRandomItemID();
-		ItemStack newStack = new ItemStack(randomItemID, rocketPayloadSize);
+		ItemStack newStack = new(randomItemID, rocketPayloadSize);
 		newStack.AddItem(10);
 
 		payload.Add(newStack);// { ItemID = randomItemID, Quantity = 10 };

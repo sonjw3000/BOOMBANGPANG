@@ -7,10 +7,10 @@ using UnityEngine;
 
 public class ItemLedger : MonoBehaviour
 {
-	private Dictionary<uint, int> itemTotals = new();
-	private Dictionary<uint, int> itemReserveds = new();
+	private readonly Dictionary<uint, int> itemTotals = new();
+	private readonly Dictionary<uint, int> itemReserveds = new();
 
-	private List<uint> orderableItems = new();
+	private readonly List<uint> orderableItems = new();
 	
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
 	public IReadOnlyDictionary<uint, int> ItemReserveds => itemReserveds;

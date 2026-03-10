@@ -128,7 +128,7 @@ public partial class AIWorker
 	{
 		// todo
 		// boxtype에 대한 판단을 하게 해주어야함
-		SelectorNode node = new SelectorNode();
+		SelectorNode node = new();
 		SequenceNode moveToAndPick = MoveToTarget(SetGoalClosestBoxPool);
 		moveToAndPick.Add(new ActionNode(PickBox));
 		
@@ -140,7 +140,7 @@ public partial class AIWorker
 
 	public static SequenceNode MoveToTarget(ActionFunc goalSettingFunc)
 	{
-		SequenceNode node = new SequenceNode();
+		SequenceNode node = new();
 
 		node.Add(new ActionNode(goalSettingFunc));
 		node.Add(new ActionNode(SetDestination));
@@ -152,7 +152,7 @@ public partial class AIWorker
 	// picking, storing에서 목적지를 갱신하며 이동할 때 사용
 	public static SequenceNode BuildCarryMoveInteract(BoxType boxRequirement, ActionFunc setGoal, ActionFunc interact)
 	{
-		SequenceNode node = new SequenceNode();
+		SequenceNode node = new();
 
 		if (boxRequirement != BoxType.None) node.Add(GetBox(boxRequirement));
 		node.Add(MoveToTarget(setGoal));

@@ -102,6 +102,14 @@ public class InteractionContext
 				break;
 		}
 	}
+	
+	public void RotatePlacement()
+	{
+		if (Mode != InteractionMode.Placement)
+			return;
+		direction = direction.Rotate90CW();
+		OnMouseChangedOnPlacement?.Invoke(mousePos);
+	}
 
 }
 
