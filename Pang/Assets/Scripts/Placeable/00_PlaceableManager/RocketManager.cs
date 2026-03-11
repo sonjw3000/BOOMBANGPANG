@@ -29,13 +29,23 @@ public class RocketManager : MonoBehaviour
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private InboundWorkflowManager IBWorkflowMgr => GameContext.Instance.IBWorkflowMgr;
 	//private Resources ResourceMgr => GameContext.Instance.MapResources;
+	private GridService GridService => GameContext.Instance.GridService;
+
+	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 
 	private GameObject rocketPoolParent = null;
 
 	private PlaceableDefinition rocketPD;
 
-	private void Awake()
+	private void Start()
 	{
+		rocketPD =  GameContext.Instance.PlaceableCatalog.FindById("TestRocket");
+
+		if (rocketPD == null)
+		{
+			Debug.LogError("No rocketPD");
+		}
+
 		if (rocketPoolParent == null)
 		{
 			rocketPoolParent = new GameObject("RocketPool");
@@ -48,16 +58,6 @@ public class RocketManager : MonoBehaviour
 		}
 	}
 
-	private void Start()
-	{
-		rocketPD =  GameContext.Instance.PlaceableCatalog.FindById("TestRocket");
-
-		if (rocketPD == null)
-		{
-			Debug.LogError("No rocketPD");
-		}
-	}
-
 	private void Update()
 	{
 		timeSinceLastSpawn += Time.deltaTime;
@@ -65,6 +65,10 @@ public class RocketManager : MonoBehaviour
 		// spawn rocket every 10 seconds
 		if (timeSinceLastSpawn >= spawnInterval)
 		{
+			// 스폰 간격이 지났고 delivery 요구가 있으면 스폰
+			if (DeliveryService.TryPeek(out var _) == false)
+				return;
+		
 			timeSinceLastSpawn = 0.0f;
 			SpawnRocketOnRandom();
 		}
@@ -107,7 +111,7 @@ public class RocketManager : MonoBehaviour
 		rocket.InitializePosition(landingPoint, forwardVector, randSpeed);
 
 		// set rocket's payload
-		rocket.SetupPayload(BuildRandomPayload());
+		rocket.SetupPayloadByDelivery();
 
 		// render on & rocket move on
 		rocket.enabled = true;
@@ -155,16 +159,18 @@ public class RocketManager : MonoBehaviour
 		// 해당 rocket을 activeRockets에 추가
 		activeRockets.Add(rocket);
 
-		// todo
-		// 로켓이 떨어진 위치에 있는 객체 파괴 << Resource에서 노티만 해주기
-		int3 pos = rocket.LandingPos;
-		//ResourceMgr.mapRef[pos.x, pos.y, pos.z].Set(RocketPrefabIndex, ResourceMgr.mapRef, rocket.gameObject, pos);
+		PlacementContext ctx = new(
+			rocket.LandingPos,
+			FacingDirection.North,
+			rocketPD,
+			PlacementEvent.RocketCrashLanding,
+			rocket.gameObject
+			);
 
-		// rocket move off
+		GridService.OnInstall(ctx);
+		
 		rocket.enabled = false;
 
-		// todo
-		// IB Manager에게 로켓의 payload를 넘겨주고 이를 처리하도록 하자
 		IBWorkflowMgr.BuildTaskByPayload(rocket);
 	}
 

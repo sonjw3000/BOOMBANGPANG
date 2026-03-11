@@ -66,6 +66,7 @@ public class GameContext : MonoBehaviour
 	[Header("UI관련해서 추가함")]
 	[SerializeField] private ProcessStatsCollector processStats;
 
+	private DeliveryService deliveryService = new();
 
 	//[Header("나중에 빼자")]
 	private InteractionContext interactionCtx;
@@ -91,6 +92,7 @@ public class GameContext : MonoBehaviour
 	public TileCatalog BaseTiles => baseTiles;
 
 	public ProcessStatsCollector ProcessStats => processStats;
+	public DeliveryService DeliveryService => deliveryService;
 	public InteractionContext InteractionCtx => interactionCtx;
 
 	private void Awake()
@@ -109,7 +111,6 @@ public class GameContext : MonoBehaviour
 		//instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
 
-		AddEvent();
 	}
 
 	private void OnDestroy()
@@ -119,6 +120,8 @@ public class GameContext : MonoBehaviour
 
 	private void Start()
 	{
+		AddEvent();
+
 		GameSaveLoader loadGame = new();
 		
 		// todo
@@ -144,7 +147,7 @@ public class GameContext : MonoBehaviour
 	private void AddEvent()
 	{
 		// times to process
-		gameTime.OnMonthPassed += contractService.ProcessMonthlyContracts;
+		gameTime.OnWeekPassed += contractService.AdvanceWeek;
 
 		// times for payments
 		gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
@@ -156,7 +159,7 @@ public class GameContext : MonoBehaviour
 
 	private void RemoveEvent()
 	{
-		gameTime.OnMonthPassed -= contractService.ProcessMonthlyContracts;
+		gameTime.OnWeekPassed -= contractService.AdvanceWeek;
 		gameTime.OnMonthPassed -= economyService.ProcessMonthlyPayment;
 
 		gridService.OnPlaceableInstalled -= economyService.OnPlacement;

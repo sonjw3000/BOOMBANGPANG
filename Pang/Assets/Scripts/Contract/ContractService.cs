@@ -11,7 +11,6 @@ public class ContractService : MonoBehaviour
 	
 	private readonly List<ContractDefinition> definitions = new();
 	private readonly List<ContractRuntime> currentActiveContracts = new();
-
 	private readonly ContractHistory contractHistory = new();
 
 	public IReadOnlyList<ContractDefinition> ContractDefinitions => definitions;
@@ -20,26 +19,32 @@ public class ContractService : MonoBehaviour
 	private readonly Queue<ItemStack> itemsToBeDelivered = new();
 
 	// contract missions
-	private readonly Dictionary<ItemDefinition, int> itemDeliveryMissions = new();
+	//private readonly Dictionary<ItemDefinition, int> itemDeliveryMissions = new();
 
-	public void ProcessMonthlyContracts()
+	private void Start()
+	{
+		foreach (var catalog in contractCatalogs)
+		{
+			definitions.AddRange(catalog.Contracts);
+		}
+	}
+
+	public void AdvanceWeek()
 	{
 		List<ContractRuntime> expiredContracts = new();
 
 		foreach (var contract in currentActiveContracts)
 		{
-			contract.RemainingDuration--;
-			if (contract.RemainingDuration >= 0)
+			if (contract.AdvanceWeek())
 				continue;
 
-			contractHistory.AddContractResult(contract, GameContext.Instance.GameTime.Month);
+			contractHistory.AddContractResult(contract, GameContext.Instance.GameTime.WeeksPassed);
 			expiredContracts.Add(contract);
 		}
 
+		// todo
+		// 지우기 전에 계약 보상을 저거해야함
 		currentActiveContracts.RemoveAll(c => expiredContracts.Contains(c));
-
-		foreach (var contract in currentActiveContracts)
-			itemsToBeDelivered.Enqueue(new (contract.Definition.ItemToHandle.ItemID, 10));
 	}
 
 	public Tuple<int, float> GetMonthlyReward()
@@ -49,4 +54,10 @@ public class ContractService : MonoBehaviour
 
 		return default;
 	}
+
+	public void AddContract(int index, int duration)
+	{
+		currentActiveContracts.Add(new ContractRuntime(definitions[index], duration));
+	}
+
 }

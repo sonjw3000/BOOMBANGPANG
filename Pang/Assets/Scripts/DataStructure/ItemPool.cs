@@ -54,3 +54,34 @@ public class GameObjectPool
 		}
 	}
 }
+
+
+public class ItemPool<T> where T : class
+{
+	private readonly Stack<T> stack;
+	private readonly Func<T> factory;
+
+	public ItemPool(int preload, Func<T> factory)
+	{
+		stack = new Stack<T>(preload);
+		this.factory = factory;
+	}
+
+	public T Get()
+	{
+		T item = null;
+
+		if (stack.Count > 0)
+			item = stack.Pop();
+		else
+			item = factory();
+
+		return item;
+	}
+
+	public void Release(T item)
+	{
+		stack.Push(item);
+	}
+
+}

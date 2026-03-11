@@ -39,6 +39,9 @@ public class EconomyService : MonoBehaviour
 
 	public void OnPlacement(PlacementContext context)
 	{
+		if (context.placementEvent != PlacementEvent.Normal)
+			return;
+
 		var transaction = new EconomyTransaction
 		{
 			moneyDelta = -context.placeableDefinition.Cost,
@@ -64,13 +67,13 @@ public class EconomyService : MonoBehaviour
 		ApplyTransaction(workerTransaction);
 
 		// contract transaction
-		var montlyReward = GameContext.Instance.ContractMgr.GetMonthlyReward();
-		var contractTransaction = new EconomyTransaction
-		{
-			moneyDelta = montlyReward.Item1,
-			reputationDelta = montlyReward.Item2,
-			reason = EconomyTransaction.Reason.MontlyContract
-		};
+		//var montlyReward = GameContext.Instance.ContractMgr.GetMonthlyReward();
+		//var contractTransaction = new EconomyTransaction
+		//{
+		//	moneyDelta = montlyReward.Item1,
+		//	reputationDelta = montlyReward.Item2,
+		//	reason = EconomyTransaction.Reason.MontlyContract
+		//};
 
 	}
 

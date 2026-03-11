@@ -10,13 +10,20 @@ public class GameTime : MonoBehaviour
 	[Header("게임 시간 배율")]
 	[SerializeField] private float timeScale = 1.0f;
 
+	private float SecondsPerWeek => secondsPerMonth / 4.0f;
 	private float timeElapsed = 0f;
+
+	private int elapsedWeek = 0;
 	private int elapsedMonth = 0;
 
-	public int Month => elapsedMonth % 12;
+	public int Week => elapsedWeek % 4 + 1;
+	public int Month => elapsedMonth % 12 + 1;
 	public int Year => elapsedMonth / 12;
+
+	public int WeeksPassed => elapsedWeek;
 	public int MonthsPassed => elapsedMonth;
 
+	public event Action OnWeekPassed;
 	public event Action OnMonthPassed;
 	public event Action OnYearPassed;
 
@@ -29,9 +36,20 @@ public class GameTime : MonoBehaviour
 
 		timeElapsed += Time.deltaTime;
 
-		if (timeElapsed >= secondsPerMonth)
+		if (timeElapsed >= SecondsPerWeek)
 		{
-			timeElapsed -= secondsPerMonth;
+			timeElapsed -= SecondsPerWeek;
+			PassWeek();
+		}
+	}
+
+	private void PassWeek()
+	{
+		++elapsedWeek;
+		OnWeekPassed?.Invoke();
+
+		if (elapsedWeek % 4 == 0)
+		{
 			PassMonth();
 		}
 	}

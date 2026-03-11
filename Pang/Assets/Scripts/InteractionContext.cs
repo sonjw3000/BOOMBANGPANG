@@ -31,7 +31,7 @@ public class InteractionContext
 	public FacingDirection Direction => direction;
 	private GridService GridService => GameContext.Instance.GridService;
 
-		private void OnSelectionChange(GameObject gridObj)
+	private void OnSelectionChange(GameObject gridObj)
 	{
 		selectedObject = gridObj;
 		OnItemSelected?.Invoke(gridObj);

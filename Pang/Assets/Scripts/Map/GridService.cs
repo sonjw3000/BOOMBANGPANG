@@ -115,7 +115,10 @@ public class GridService : MonoBehaviour
 			return false;
 		}
 
-		GameObject obj = Instantiate(ctx.placeableDefinition.prefab, placeableParent.transform);
+		GameObject obj = ctx.placedObj;
+
+		if (obj == null)
+			obj = Instantiate(ctx.placeableDefinition.prefab, placeableParent.transform);
 
 		if (obj == null)
 		{
@@ -152,8 +155,11 @@ public class GridService : MonoBehaviour
 
 		placedObjects[obj] = ctx;
 
+		obj.GetComponent<IGridPlaceable>()?.OnPositionSet(ctx.center);
+
 		OnPlaceableInstalled.Invoke(ctx);
 
+		Debug.Log("PlacementSuccess");
 		return true;
 	}
 
@@ -186,6 +192,31 @@ public class GridService : MonoBehaviour
 		Destroy(targetObj);
 
 		return true;
+	}
+
+	// force moving
+	private void OnForceMove(GameObject targetObj, PlacementContext ctx, in int3 newCenter)
+	{
+		// todo
+		// 여기서 떨어진 애들은 파괴되어야함
+		var footprint = ctx.placeableDefinition.gridFootprint;
+
+		Vector2Int pivot = footprint.Pivot;
+
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 target = newCenter + offset;
+
+				// set to cell
+				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), targetObj);
+			}
+		}
+
+		targetObj.GetComponent<IGridPlaceable>()?.OnPositionSet(ctx.center);
+		placedObjects[targetObj] = ctx;
 	}
 
 	public GameObject GetObjectOnGrid(in int3 pos)

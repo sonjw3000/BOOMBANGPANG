@@ -26,6 +26,9 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	// collecting policy
 	// placing policy
 
+	//
+	//private
+
 	// 일단은 근접 우선으로 설정
 	private IPlacingPolicy placingPolicy = new NearestPlacingPolicy();
 	private StoringPlanner storingPlanner = new StoringItemFriendly();

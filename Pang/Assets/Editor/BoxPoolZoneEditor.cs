@@ -22,9 +22,7 @@ class BoxPoolZoneEditor : Editor
 				return;
 			}
 
-			//int idx = MapRes.FindPrefabIndexByName("Totebox");
-			//GameObject box = Instantiate(MapRes.Prefabs[idx]);
-			//sys.BoxPoolZones[Index].PutBox(box.GetComponent<BoxBase>());
+			sys.GiveNewBox(sys.BoxPoolZones[Index], BoxType.Personal);
 		}
 	}
 }

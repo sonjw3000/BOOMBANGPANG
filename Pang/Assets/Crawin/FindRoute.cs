@@ -45,7 +45,6 @@ public class FindRoute : MonoBehaviour
 	Vector3 targetPos;
 
 	//public int type;
-	Status mStatus;
 	private AIWorker _Worker;
 	public bool IsGoal { get; private set; }
 
@@ -69,16 +68,6 @@ public class FindRoute : MonoBehaviour
 			Debug.LogError("mapRef is null!");
 		}
 		path = new List<int3>();
-		mStatus = gameObject.GetComponent<Status>();
-		// todo 일단 임시로 status 최초 할당을 여기서 진행 -> 아마 나중엔 정원이가 만들어둔 매니저가 하지 않을까?
-		if (mStatus)
-		{
-			mStatus.SetBattery(1);
-			mStatus.SetWeight(0);
-			mStatus.SetMaxStorage(100);
-			mStatus.SetBatteryEfficiency(0.01f);
-		}
-
 		LRpq = new PriorityQueue<Node>();
 		LRcurr = new Node();
 
@@ -92,7 +81,6 @@ public class FindRoute : MonoBehaviour
 		if (path.Count > 0)
 		{
 			MoveOnTile();
-			mStatus.DecreaseBattery();
 		}
 		else
 		{
@@ -168,7 +156,6 @@ public class FindRoute : MonoBehaviour
 		LRcurr.head = ((Mathf.RoundToInt(gameObject.transform.eulerAngles.y / 90f) % 4) + 4) % 4; // x,y,z,distance,head
 		//Debug.Log(LRcurr.head+"방향을 쳐다보고 있어");
 
-		int id = mStatus.GetID();
 		if (map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].IsPassable == false)
 		{
 			//Debug.LogError("얘 지금 이상한짓 해요" + gameObject.name + "가 " + map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type + "을 " + id + "로 바꾼다");
@@ -301,7 +288,6 @@ public class FindRoute : MonoBehaviour
 	public bool SetGoalPosition(int3 goalPos)
 	{
 		goalCoordinate = goalPos;
-		mStatus.SetGoal(goalPos);
 		//Astar();
 		AstarLessRotate();
 		//Debug.Log(path_size);

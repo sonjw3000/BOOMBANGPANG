@@ -9,8 +9,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3775616689855107308}
-  - component: {fileID: -8009076219318069608}
   - component: {fileID: 7580444897000622755}
+  - component: {fileID: 2819270778692167876}
   m_Layer: 0
   m_Name: Palletrobot
   m_TagString: Untagged
@@ -35,19 +35,6 @@ Transform:
   - {fileID: 201426755695649395}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &-8009076219318069608
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4046099219731300723}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f1d2c55093ca24f429ad69f8c3c2dad8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  IsRobot: 1
 --- !u!114 &7580444897000622755
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -65,6 +52,24 @@ MonoBehaviour:
   tick: 0
   workerName: 
   workerID: 0
+--- !u!114 &2819270778692167876
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4046099219731300723}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d58d1a9ef0f6dd40aaabea8c7e07b3c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FindRoute
+  speed: 2
+  rotationSpeed: 5
+  goalCoordinate:
+    x: 0
+    y: 0
+    z: 0
 --- !u!1 &4306318324985286381
 GameObject:
   m_ObjectHideFlags: 0

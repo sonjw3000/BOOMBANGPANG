@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class Rocket : ShelfBase
@@ -10,6 +11,7 @@ public class Rocket : ShelfBase
 
 	private RocketManager RocketMgr => GameContext.Instance.RocketMgr;
 
+	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 	public int3 LandingPos => landingPoint;
 
 	protected override void SetInteractionPoints()
@@ -47,6 +49,28 @@ public class Rocket : ShelfBase
 		this.landingPoint = landingPoint;
 		this.forwardVector = forwardVector.normalized;
 		this.fallingSpeed = fallingSpeed;
+	}
+
+
+	public void SetupPayloadByDelivery()
+	{
+		while (true)
+		{
+			if (DeliveryService.TryPeek(out var request) == false)
+				break;
+
+			int added = AddItem(request.TargetItem.ItemID, request.Quantity);
+
+			if (added != request.Quantity)
+			{
+				// can't handle the whole request
+				request.ReduceAmount(added);
+				break;
+			}
+
+			DeliveryService.AcceptDelivery();
+		}
+		
 	}
 
 	public void SetupPayload(List<ItemStack> payload)

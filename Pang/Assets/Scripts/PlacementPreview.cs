@@ -111,7 +111,8 @@ public class PlacementPreview : MonoBehaviour
 
 	private void ChangeCurrentPreview()
 	{
-		currentPreview.SetActive(false);
+		if (currentPreview != null)
+			currentPreview.SetActive(false);
 
 		if (curToBePlaced == null)
 		{

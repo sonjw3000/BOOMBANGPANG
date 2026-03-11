@@ -2,17 +2,29 @@
 using Unity.Mathematics;
 using UnityEngine;
 
+
+public enum PlacementEvent
+{
+	Normal,
+	RocketLanding,
+	RocketCrashLanding,
+}
+
 public class PlacementContext
 {
 	public readonly int3 center;
 	public readonly FacingDirection facingDirection;
 	public readonly PlaceableDefinition placeableDefinition;
+	public readonly PlacementEvent placementEvent;
+	public readonly GameObject placedObj = null;
 
-	public PlacementContext(int3 center, FacingDirection dir, PlaceableDefinition def)
+	public PlacementContext(int3 center, FacingDirection dir, PlaceableDefinition def, PlacementEvent placementEvent = PlacementEvent.Normal, GameObject placedObj = null)
 	{
 		this.center = center;
 		this.facingDirection = dir;
 		this.placeableDefinition = def;
+		this.placementEvent = placementEvent;
+		this.placedObj = placedObj;
 	}
 }
 
@@ -22,7 +34,6 @@ public class GridCell
 	private GridFlags flags = GridFlags.None;
 	private InteractionKind kind = InteractionKind.None;
 
-	//private IGridPlaceable objectRef = null;
 	private GameObject objectRef = null;
 
 	public GridFlags Flags => flags;
@@ -41,7 +52,9 @@ public class GridCell
 	{
 		flags = cellFootprint.flags;
 		kind = cellFootprint.interactionKind;
-		objectRef = obj;
+
+		if (flags != GridFlags.Interaction)
+			objectRef = obj;
 	}
 
 	public void Clear()

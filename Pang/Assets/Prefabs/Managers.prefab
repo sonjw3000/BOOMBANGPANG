@@ -486,7 +486,7 @@ MonoBehaviour:
   rocketManager: {fileID: 3860246314756219679}
   orderManager: {fileID: 3271614016673267715}
   warehouseManagement: {fileID: 4181363907245693410}
-  contractService: {fileID: 0}
+  contractService: {fileID: 1422058608903141302}
   inboundWorkFlowManager: {fileID: 2554155626171990247}
   outboundWorkFlowManager: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}

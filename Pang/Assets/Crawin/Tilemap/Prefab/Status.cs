@@ -10,7 +10,11 @@ public class Status : MonoBehaviour
 	{
 		CheckAllocate();
 		if (IsRobot && m_status.GetID() != 0)
+		{
+
+			Debug.LogWarning("Should Not Hit HERE!!");
 			gameObject.AddComponent<FindRoute>();
+		}
 	}
 
 	void CheckAllocate()
