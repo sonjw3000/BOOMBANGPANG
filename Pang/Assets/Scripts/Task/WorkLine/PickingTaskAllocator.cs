@@ -59,7 +59,7 @@ public class TestingPickingTaskAllocator : PickingTaskAllocator
 
 				// todo
 				// actualReserved가 orderLine.Quantity를 넘지 못했다면 다른위치에서 피킹 해야한다고 알림
-				WorkLine line = new(location, itemId, orderLine.Quantity);
+				WorkLine line = new(location, itemId, orderLine.Quantity, orderLine);
 				lines.Add(line);
 			}
 		}
@@ -67,7 +67,7 @@ public class TestingPickingTaskAllocator : PickingTaskAllocator
 		// 비어있는 큐 클리어
 		manager.ClearEmptyQueues();
 
-		return new PickingTask(new WorkJob(jobID++, lines));
+		return new PickingTask(new WorkJob(jobID++, lines, WorkOp.Picking));
 	}
 }
 

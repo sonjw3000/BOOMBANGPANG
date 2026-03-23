@@ -93,6 +93,7 @@ public sealed class PickingTask : WorkerTask
 		if (task.PickingData.IsJobEnd)
 		{
 			//Debug.Log("Picking Job Ended");
+
 			return Success;
 		}
 		return Failure;
@@ -147,6 +148,12 @@ public sealed class PickingTask : WorkerTask
 			task.carryBox.CarringBox.RemoveItem(itemID, quantity);
 		}
 
+		// todo
+		// port로 모두 옮겼는지 확인하는 작업이 필요함
+		foreach (var workLine in task.PickingData.Lines)
+		{
+			workLine.RelatedOrderLine.ChangeOrderStatus(OrderStatus.Shipping);
+		}
 
 		task.isTaskEnd = true;
 		return Success;

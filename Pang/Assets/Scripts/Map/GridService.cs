@@ -16,6 +16,8 @@ public class GridService : MonoBehaviour
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
 
+	private EconomyService Economy => GameContext.Instance.EconomyService;
+
 	public void OnGameStart()
 	{
 		GameObject tileFloor = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -58,7 +60,7 @@ public class GridService : MonoBehaviour
 		{
 			int3 pos = new(obj.x, obj.y, obj.z);
 
-			PlacementContext context = new(pos, obj.facingDirection, GameContext.Instance.PlaceableCatalog.FindById(obj.placeableID));
+			PlacementContext context = new(pos, obj.facingDirection, GameContext.Instance.PlaceableCatalog.FindById(obj.placeableID), PlacementEvent.Load);
 			if (OnInstall(context) == false)
 			{
 				Debug.LogError("Cant be");
@@ -115,7 +117,14 @@ public class GridService : MonoBehaviour
 			return false;
 		}
 
-		GameObject obj = ctx.placedObj;
+		if (ctx.placementEvent == PlacementEvent.Normal && Economy.CanAfford(ctx.placeableDefinition.Cost) == false)
+		{
+			Debug.Log("Can't afford that money!");
+			return false;
+		}
+
+
+			GameObject obj = ctx.placedObj;
 
 		if (obj == null)
 			obj = Instantiate(ctx.placeableDefinition.prefab, placeableParent.transform);
@@ -159,7 +168,7 @@ public class GridService : MonoBehaviour
 
 		OnPlaceableInstalled.Invoke(ctx);
 
-		Debug.Log("PlacementSuccess");
+		//Debug.Log("PlacementSuccess");
 		return true;
 	}
 

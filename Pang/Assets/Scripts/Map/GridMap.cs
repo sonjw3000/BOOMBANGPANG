@@ -6,6 +6,7 @@ using UnityEngine;
 public enum PlacementEvent
 {
 	Normal,
+	Load,
 	RocketLanding,
 	RocketCrashLanding,
 }

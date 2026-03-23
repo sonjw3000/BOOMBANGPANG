@@ -28,7 +28,12 @@ public class EconomyService : MonoBehaviour
 	public int Money => money;
 	public float Reputation => reputation;
 
+	public bool CanAfford(int cost)
+	{
+		if (GameContext.CHEATMODE) return true;
 
+		return money >= cost;
+	}
 	public void ApplyTransaction(EconomyTransaction transaction)
 	{
 		money += transaction.moneyDelta;

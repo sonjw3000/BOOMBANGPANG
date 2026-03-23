@@ -83,7 +83,7 @@ public sealed class StoringItemFriendly : StoringPlanner
 		List<WorkLine> line = new(pendingLines[bestItemLineID]);
 		pendingLines[bestItemLineID].RemoveRange(0, removed);
 
-		WorkJob job = new WorkJob(jobID++, line);
+		WorkJob job = new WorkJob(jobID++, line, WorkOp.Storing);
 
 		task = new StoringTask(job);
 

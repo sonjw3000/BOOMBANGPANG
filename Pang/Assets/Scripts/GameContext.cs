@@ -1,5 +1,3 @@
-using System;
-using UnityEditor.ShaderKeywordFilter;
 using UnityEngine;
 
 // 이것만은 꼭 지키자
@@ -9,6 +7,8 @@ using UnityEngine;
 [DefaultExecutionOrder(-100)]
 public class GameContext : MonoBehaviour
 {
+	public const bool CHEATMODE = true;
+
 	private static GameContext instance;
 	public static GameContext Instance
 	{
@@ -29,6 +29,8 @@ public class GameContext : MonoBehaviour
 
 	// datas
 	//[SerializeField] private Resources mapResources;
+	[SerializeField] private bool gameCheat = false;
+	
 	[Header("시간")]
 	[SerializeField] private GameTime gameTime;
 
@@ -72,6 +74,7 @@ public class GameContext : MonoBehaviour
 	private InteractionContext interactionCtx;
 
 	//public Resources MapResources => mapResources;
+	public bool GameCheat => gameCheat;
 	public GameTime GameTime => gameTime;
 	public EconomyService EconomyService => economyService;
 	public ItemDatabase ItemDB => itemDB;
@@ -107,10 +110,14 @@ public class GameContext : MonoBehaviour
 
 		instance = this;
 		interactionCtx = new InteractionContext();
-		//placementPreview = new PlacementPreview();
-		//instance.mapResources.Initialize();
 		DontDestroyOnLoad(gameObject);
 
+	}
+
+	private void Start()
+	{
+		AddEvent();
+		LoadMap();
 	}
 
 	private void OnDestroy()
@@ -118,12 +125,10 @@ public class GameContext : MonoBehaviour
 		RemoveEvent();
 	}
 
-	private void Start()
+	private void LoadMap()
 	{
-		AddEvent();
-
 		GameSaveLoader loadGame = new();
-		
+
 		// todo
 		// 맵 로드 실패시 기본맵 생성
 		// 일단은 맵 로드 실패를 가정함
@@ -140,7 +145,6 @@ public class GameContext : MonoBehaviour
 
 		// on game start
 		gridService.OnGameStart();
-
 	}
 
 	// 순서가 중요한 이벤트들은 여기서 등록

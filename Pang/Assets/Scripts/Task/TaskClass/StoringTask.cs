@@ -160,6 +160,8 @@ public class StoringTask : WorkerTask
 			return Failure;
 		}
 
+		// 너는 즉석으로 workline을 만들어서 이동하나보다
+		// 내가 그렇게 짰나보다
 		task.placingLine = new WorkLine(decision.shelf, decision.ItemID, decision.Quantity);
 
 		ctx.LocalBlackBoard.Set<int3>("goalPos", task.placingLine.Source.InteractionPoints[0]);

@@ -4,9 +4,8 @@ using System.Collections.Generic;
 public class OrderFactory
 {
 	static ItemLedger ItemLedger => GameContext.Instance.WMSys.ItemLedger;
-
-
 	static int orderIDCounter = 0;
+
 	public static Order CreateRandomOrder()
 	{
 		Order order = new();
@@ -24,13 +23,14 @@ public class OrderFactory
 
 		for (int i = 0; i < numberOfLines; ++i)
 		{
-			OrderLine line = new();
-			line.ItemID = ItemLedger.OrderableItems[UnityEngine.Random.Range(0, orderables)];
-			int maxOrderable = ItemLedger.GetAvailable(line.ItemID);
+			uint targetItem = ItemLedger.OrderableItems[UnityEngine.Random.Range(0, orderables)];
+			int maxOrderable = ItemLedger.GetAvailable(targetItem);
 			if (maxOrderable <= 0)
 				continue;
+			
+			int quantity = Math.Clamp(UnityEngine.Random.Range(1, 4), 1, maxOrderable);
 
-			line.Quantity = Math.Clamp(UnityEngine.Random.Range(1, 4), 1, maxOrderable);
+			OrderLine line = new(order, targetItem, quantity);
 			order.Lines.Add(line);
 
 			ItemLedger.OnItemReserved(line.ItemID, line.Quantity);

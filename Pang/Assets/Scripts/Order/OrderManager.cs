@@ -88,5 +88,9 @@ public class OrderManager : MonoBehaviour
 		}
 	}
 
-}
+	public void ChangeOrderStatus(OrderLine targetOrder, OrderStatus status)
+	{
+		targetOrder.ChangeOrderStatus(status);
+	}
 
+}
