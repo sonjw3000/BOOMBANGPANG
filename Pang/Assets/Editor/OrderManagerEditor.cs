@@ -16,7 +16,7 @@ class OrderManagerEditor : Editor
 		EditorGUI.indentLevel++;
 		foreach (var order in mgr.Orders)
 		{
-			EditorGUILayout.LabelField($"Order ID: {order.OrderID}");
+			EditorGUILayout.LabelField($"Order ID: {order.OrderID} / {order.Status.ToString()}");
 			EditorGUI.indentLevel++;
 			foreach (var line in order.Lines)
 			{

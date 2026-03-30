@@ -13,7 +13,8 @@ public abstract class WorkerTask
 		// OB
 		Picking,
 		//Sorting,
-		//Packaging,
+		Packing,
+
 		Loading,
 
 		// undef

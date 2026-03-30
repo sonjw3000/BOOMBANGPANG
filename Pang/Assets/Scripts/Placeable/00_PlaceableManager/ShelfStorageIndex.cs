@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Timeline;
 
 // 아이템과 선반을 한번에 관리한다
 // 아이템ID별로 아이템의 위치를 가진 딕셔너리가 존재함

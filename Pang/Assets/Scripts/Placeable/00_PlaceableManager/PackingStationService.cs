@@ -1,0 +1,51 @@
+﻿using System.Collections.Generic;
+using Unity.Mathematics;
+using UnityEngine;
+
+public class PackingStationService : MonoBehaviour
+{
+	// all data
+	private List<PackingStation> packingStations = new();
+
+	// queue for waiting totebox
+	private Queue<PackingStation> watingQueue = new();
+
+	public PackingStation GetAvailableStation(in int3 workerPos)
+	{
+		// get nearest station
+		PackingStation nearestStation = null;
+		float dist = float.PositiveInfinity;
+
+		foreach (var station in packingStations)
+		{
+			if (station.IsNoWorkerAssigned)
+			{
+				float d = math.distance(workerPos, station.GridPosition);
+				if (d < dist)
+				{
+					nearestStation = station;
+					dist = d;
+				}
+			}
+		}
+
+		return nearestStation;
+	}
+
+	// if worker arrived and there's no box to pick, it will be called
+	public void Enqueue(PackingStation packingStation)
+	{
+		watingQueue.Enqueue(packingStation);
+	}
+
+	public void Register(PackingStation packingStation)
+	{
+		packingStations.Add(packingStation);
+	}
+
+	public void UnRegister(PackingStation packingStation)
+	{
+		packingStations.Remove(packingStation);
+	}
+
+}

@@ -8,6 +8,7 @@ using static WorkerTask;
 public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 {
 	// inbound manager's cargo port service
+	[SerializeField] PackingStationService packingStationService;
 	[SerializeField] CargoPortService cargoPortService;
 	[SerializeField] LaunchStationService launchStationService;
 
@@ -16,6 +17,7 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	[SerializeField] private float cargoPortThresholdPercent = 80.0f;
 
+	public PackingStationService PackingStations => packingStationService;
 	public CargoPortService CargoPorts => cargoPortService;
 	public LaunchStationService LaunchStations => launchStationService;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
