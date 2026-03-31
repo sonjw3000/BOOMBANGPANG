@@ -45,8 +45,7 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>
 		}
 
 		box.transform.SetParent(boxSlot);
-		box.transform.localPosition = Vector3.zero;
-		box.transform.localRotation = Quaternion.identity;
+		box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
 		carringBox = box;
 

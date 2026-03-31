@@ -8,9 +8,9 @@ public class PackingStationService : MonoBehaviour
 	private List<PackingStation> packingStations = new();
 
 	// queue for waiting totebox
-	private Queue<PackingStation> watingQueue = new();
+	private Queue<PackingStation> waitingQueue = new();
 
-	public PackingStation GetAvailableStation(in int3 workerPos)
+	public PackingStation GetAvailableStationToWork(in int3 workerPos)
 	{
 		// get nearest station
 		PackingStation nearestStation = null;
@@ -32,10 +32,21 @@ public class PackingStationService : MonoBehaviour
 		return nearestStation;
 	}
 
+	public bool TryGetWaitingStation(out PackingStation station)
+	{
+		if (waitingQueue.Count > 0)
+		{
+			station = waitingQueue.Dequeue();
+			return true;
+		}
+		station = null;
+		return false;
+	}
+
 	// if worker arrived and there's no box to pick, it will be called
 	public void Enqueue(PackingStation packingStation)
 	{
-		watingQueue.Enqueue(packingStation);
+		waitingQueue.Enqueue(packingStation);
 	}
 
 	public void Register(PackingStation packingStation)

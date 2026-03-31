@@ -92,6 +92,10 @@ public class WorkerManager : MonoBehaviour
 				}
 				break;
 
+			case TaskType.Packing:
+
+				break;
+
 			case TaskType.Loading:
 				break;
 		}
@@ -101,10 +105,21 @@ public class WorkerManager : MonoBehaviour
 
 		worker.ChangeWorkerType(type);
 
+
+		// 임시코드
+		// 나중에 모두 위와 같은 방식으로 task 부여해야함
+		if (type == TaskType.Packing)
+		{
+			PackingTask task = new PackingTask();
+			worker.SetTask(task);
+			return;
+		}
+
 		if (worker.CurrentTask == null)
 		{
 			idleWorkersQueue[type].AddLast(worker);
 		}
+
 
 		// todo
 		// picking / storing에 경우에는 별도의 자료구조가 또 있을수도 있다

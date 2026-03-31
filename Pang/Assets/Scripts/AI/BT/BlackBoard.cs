@@ -27,8 +27,8 @@ namespace Assets.Scripts.AI.BT
 	[Serializable]
 	public readonly struct BlackBoardKey<T>// : IEquatable<BlackBoardKey>
 	{
-		public static readonly BlackBoardKey<int3> GoalPos = new("_goalPos");
-		public static readonly BlackBoardKey<IGridPlaceable> TargetPlaceable = new("_TargetBuilding");
+		public static readonly BlackBoardKey<int3> GoalPos = new("goalPos");
+		public static readonly BlackBoardKey<IGridPlaceable> TargetPlaceable = new("TargetBuilding");
 
 		public readonly int HashedKey;
 		public readonly string Name;

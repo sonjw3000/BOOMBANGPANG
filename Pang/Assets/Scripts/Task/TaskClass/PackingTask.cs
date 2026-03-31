@@ -1,4 +1,6 @@
 ﻿using Assets.Scripts.AI.BT;
+using Unity.Mathematics;
+using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 public class PackingTask : WorkerTask
@@ -38,12 +40,29 @@ public class PackingTask : WorkerTask
 
 		root.Add(findPackingStation);
 		root.Add(work);
+		root.Add(new WaitNode(1.0f));
 
 		// find packing station
 		findPackingStation.Add(new ActionNode(CheckPackingStation));
 		findPackingStation.Add(new ActionNode(FindPackingStation));
+		findPackingStation.Add(AIWorker.MoveToTarget((in BTContext ctx) =>
+		{
+			if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
+			&& placeable is PackingStation station)
+			{
+				ctx.LocalBlackBoard.Set<int3>("goalPos", station.PackingPoint);
+				return Success;
+			}
+
+			Debug.LogError("No Such Target!!!!");
+			return Failure;
+		}));
 
 		// do work
+		work.Add(new ActionNode(CheckBoxToPack));
+		// simulate packing time
+		work.Add(new WaitNode(2.0f));
+		work.Add(new ActionNode(PackEnd));
 
 		return root;
 	}
@@ -63,7 +82,7 @@ public class PackingTask : WorkerTask
 
 	public static NodeState CheckPackingStation(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet(BlackBoardKey<IGridPlaceable>.TargetPlaceable, out var _))
+		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var _))
 			return Failure;
 
 		// have to find
@@ -73,39 +92,53 @@ public class PackingTask : WorkerTask
 	public static NodeState FindPackingStation(in BTContext ctx)
 	{
 		var worker = ctx.Worker;
-		var packingStation = PackingService.GetAvailableStation(worker.GridPosition);
+		var packingStation = PackingService.GetAvailableStationToWork(worker.GridPosition);
 
 		if (packingStation == null)
+		{
+			Debug.Log("No Available PackingStation");
 			return Failure;
+		}
 
 		packingStation.CurrentPackingWorker = worker;
 
-		ctx.LocalBlackBoard.Set(BlackBoardKey<IGridPlaceable>.TargetPlaceable, packingStation);
+		ctx.LocalBlackBoard.Set<IGridPlaceable>("TargetBuilding", packingStation);
 		return Success;
 	}
 
 	public static NodeState CheckBoxToPack(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet(BlackBoardKey<IGridPlaceable>.TargetPlaceable, out var placeable)
+		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
 			&& placeable is PackingStation station)
 		{
-			if (station.CurrentPackingBox)
+			if (station.PrepareBox())
 				return Success;
+
+			Debug.Log("No box to pack, wait");
+			ctx.Worker.enabled = false;
+
 		}
-
 		// no box to pack, wait till box comes
-		// todo
-		// set this worker disabled and add event listener to packing station, when box comes, enable worker again
-
-		ctx.Worker.enabled = false;
 
 		return Failure;
 	}
 
 	public static NodeState PackEnd(in BTContext ctx)
 	{
+		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
+			&& placeable is PackingStation station)
+		{
+			if (station.EndWorkingBox() == false)
+			{
+				// packed tote is not removed!!!!
+				// wait till tote removed
+				ctx.Worker.enabled = false;
+				return Running;
+			}
 
-		// todo
+			return Success;
+		}
+
 		return Failure;
 	}
 

@@ -475,6 +475,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fc9318530e8a3da4ba861ca1e3ecd16a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameCheat: 0
   gameTime: {fileID: 1503851379551520681}
   economyService: {fileID: 4151993515605748367}
   itemDB: {fileID: 6529752059154479860}
@@ -833,6 +834,7 @@ Transform:
   m_Children:
   - {fileID: 3846551216162867527}
   - {fileID: 8206098720774184820}
+  - {fileID: 7894025821799710457}
   m_Father: {fileID: 2196652181193760353}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &5775960916622381912
@@ -847,6 +849,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed9234a18f96c0c4abfb3948418edd8c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  packingStationService: {fileID: 5715151367513189862}
   cargoPortService: {fileID: 3883171392340020772}
   launchStationService: {fileID: 1844665561343146193}
   timeSinceLastOrder: 0
@@ -900,6 +903,50 @@ MonoBehaviour:
   cargoPortService: {fileID: 4830617511745632944}
   maxBoxPercentage: 80
   storingTaskBuildTime: 10
+--- !u!1 &7027379629001389123
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7894025821799710457}
+  - component: {fileID: 5715151367513189862}
+  m_Layer: 0
+  m_Name: PackingStationService
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7894025821799710457
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7027379629001389123}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3141209299861845252}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5715151367513189862
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7027379629001389123}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c971108859a6b8a4884034014279e957, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PackingStationService
 --- !u!1 &7606174192997489002
 GameObject:
   m_ObjectHideFlags: 0

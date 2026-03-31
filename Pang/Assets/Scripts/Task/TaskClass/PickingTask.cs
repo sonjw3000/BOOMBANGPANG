@@ -8,17 +8,17 @@ public sealed class PickingTask : WorkerTask
 {
 	private WorkJob pickJob;
 
-	private ShelfBase targetCargoPos = null;
+	//private ShelfBase targetCargoPos = null;
 
 	private bool isTaskEnd = false;
 
 	public WorkJob PickingData => pickJob;
 	public WorkLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
 	
-	public ShelfBase TargetCargo => targetCargoPos;
+	//public ShelfBase TargetCargo => targetCargoPos;
 
 	static private CargoPortService CargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
-
+	static private PackingStationService PackingService => GameContext.Instance.OBWorkflowMgr.PackingStations;
 	public PickingTask(WorkJob pickJob) : base(TaskType.Picking)
 	{
 		this.pickJob = pickJob;
@@ -47,7 +47,7 @@ public sealed class PickingTask : WorkerTask
 
 		SequenceNode put = new SequenceNode();
 		put.Add(new ActionNode(CheckPickingEnd));
-		put.Add(AIWorker.MoveToTarget(GetAvailableOBCargoPort));
+		put.Add(AIWorker.MoveToTarget(GetAvailablePackingStation));
 		put.Add(new WaitNode(1.0f));
 		put.Add(new ActionNode(PickingEndAction));
 
@@ -123,40 +123,63 @@ public sealed class PickingTask : WorkerTask
 			return Failure;
 		}
 
-		task.targetCargoPos = targetPos;
 		ctx.LocalBlackBoard.Set<int3>("goalPos", targetPos.InteractionPoints[0]);
+		return Success;
+	}
+
+	public static NodeState GetAvailablePackingStation(in BTContext ctx)
+	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+		PackingService.TryGetWaitingStation(out var targetStation);
+		if (targetStation == null)
+		{
+			Debug.Log("No Available packing station!");
+			return Failure;
+		}
+		ctx.LocalBlackBoard.Set<int3>("goalPos", targetStation.ToteDropPoint);
+		ctx.LocalBlackBoard.Set<IGridPlaceable>("TargetBuilding", targetStation);
 		return Success;
 	}
 
 	public static NodeState PickingEndAction(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
-		// todo
-		// 포트에 토트를 내려놓는 액션을 추가해야함
-		//Debug.Log("Picking Task: Put on cargo port!");
 
-		// todo
-		// 고쳐야한다
-		Dictionary<uint, int> moved = new();
-		foreach ((var itemID, var quantity) in task.carryBox.CarringBox.ItemTotals)
+		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
+			&& placeable is PackingStation station)
 		{
-			moved[itemID] = task.targetCargoPos.AddItem(itemID, quantity);
+			station.WaitStackBox = task.carryBox.CarringBox;
+			task.carryBox = null;
+
+			task.isTaskEnd = true;
+
+			return Success;
 		}
 
-		foreach((var itemID, var quantity) in moved)
-		{
-			task.carryBox.CarringBox.RemoveItem(itemID, quantity);
-		}
 
-		// todo
-		// port로 모두 옮겼는지 확인하는 작업이 필요함
-		foreach (var workLine in task.PickingData.Lines)
-		{
-			workLine.RelatedOrderLine.ChangeOrderStatus(OrderStatus.Shipping);
-		}
+		return Failure;
 
-		task.isTaskEnd = true;
-		return Success;
+		//// todo
+		//// 고쳐야한다
+		//Dictionary<uint, int> moved = new();
+		//foreach ((var itemID, var quantity) in task.carryBox.CarringBox.ItemTotals)
+		//{
+		//	moved[itemID] = task.targetCargoPos.AddItem(itemID, quantity);
+		//}
+
+		//foreach((var itemID, var quantity) in moved)
+		//{
+		//	task.carryBox.CarringBox.RemoveItem(itemID, quantity);
+		//}
+
+		//// todo
+		//// port로 모두 옮겼는지 확인하는 작업이 필요함
+		//foreach (var workLine in task.PickingData.Lines)
+		//{
+		//	workLine.RelatedOrderLine.ChangeOrderStatus(OrderStatus.Shipping);
+		//}
+		//task.isTaskEnd = true;
+		//return Success;
 	}
 
 	public static NodeState SetTarget(in BTContext ctx)
