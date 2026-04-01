@@ -135,13 +135,8 @@ public class GridService : MonoBehaviour
 			return false;
 		}
 
-		IGridPlaceable placeableComponent = obj.GetComponent<IGridPlaceable>();
-		if (placeableComponent == null)
-		{
-			Debug.LogError("The instantiated object does not have an IGridPlaceable component.");
-			Destroy(obj);
-			return false;
-		}
+		IInteractionPoint interactable = obj.GetComponent<IInteractionPoint>();
+
 
 		GridFootprint footprint = ctx.placeableDefinition.gridFootprint;
 		Vector2Int pivot = footprint.Pivot;
@@ -165,7 +160,15 @@ public class GridService : MonoBehaviour
 
 				if (footprintCell.flags.HasFlag(GridFlags.Interaction))
 				{
+					// if interaction cell, add grid interaction to IGridPlaceable
+					if (interactable == null)
+					{
+						Debug.LogError("The instantiated object does not have an IGridPlaceable component.");
+						Destroy(obj);
+						return false;
+					}
 
+					interactable.AddInteractionPoint(footprintCell.interactionKind, in target);
 				}
 			}
 		}

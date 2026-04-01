@@ -50,7 +50,7 @@ public class PackingTask : WorkerTask
 			if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
 			&& placeable is PackingStation station)
 			{
-				ctx.LocalBlackBoard.Set<int3>("goalPos", station.PackingPoint);
+				ctx.LocalBlackBoard.Set<int3>("goalPos", station.GetClosestInteractionPoint(InteractionKind.Work, ctx.Worker.GridPosition));
 				return Success;
 			}
 

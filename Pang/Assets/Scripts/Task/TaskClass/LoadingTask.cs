@@ -69,7 +69,7 @@ public class LoadingTask : WorkerTask
 			return Failure;
 		}
 
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.targetPort.InteractionPoints[1]);
+		ctx.LocalBlackBoard.Set<int3>("goalPos", task.targetPort.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
 
 		return Success;
 	}
@@ -101,7 +101,7 @@ public class LoadingTask : WorkerTask
 			return Failure;
 		}
 
-		ctx.LocalBlackBoard.Set<int3>("goalPos", launchStation.InteractionPoints[0]);
+		ctx.LocalBlackBoard.Set<int3>("goalPos", launchStation.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
 		return Success;
 	}
 

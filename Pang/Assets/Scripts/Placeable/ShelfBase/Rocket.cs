@@ -14,18 +14,6 @@ public class Rocket : ShelfBase
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 	public int3 LandingPos => landingPoint;
 
-	protected override void SetInteractionPoints()
-	{
-		Vector3 projOnFloor = forwardVector;
-		projOnFloor.y = 0;
-		projOnFloor = projOnFloor.normalized;
-
-		interactionPoints.Add(new int3(
-			Mathf.RoundToInt(GridPosition.x + projOnFloor.x),
-			Mathf.RoundToInt(GridPosition.y),
-			Mathf.RoundToInt(GridPosition.z + projOnFloor.z)
-			));
-	}
 
 	public void Update()
 	{

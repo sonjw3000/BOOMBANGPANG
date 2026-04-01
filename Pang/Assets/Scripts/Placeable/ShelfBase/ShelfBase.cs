@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
@@ -15,7 +16,8 @@ public abstract class ShelfBase :
 
 	//private int currentStackCount;
 	private int3 position;
-	protected List<int3> interactionPoints = new();
+	protected List<InteractionPoint> interactionPoints = new();
+	protected Dictionary<InteractionKind, List<int3>> interactionPointMap = new();
 
 	protected List<ItemStack> stacks;
 	protected Dictionary<uint, int> itemTotals = new();
@@ -42,7 +44,8 @@ public abstract class ShelfBase :
 	public float MaxStack => maxStacks;
 
 	public int3 GridPosition => position;
-	public IReadOnlyList<int3> InteractionPoints => interactionPoints;
+	public IReadOnlyList<InteractionPoint> InteractionPoints => interactionPoints;
+	public IReadOnlyDictionary<InteractionKind, List<int3>> InteractionPointMap => interactionPointMap;
 
 	protected virtual void Awake()
 	{
@@ -178,20 +181,20 @@ public abstract class ShelfBase :
 		return capacity >= quantity;
 	}
 
-	protected abstract void SetInteractionPoints();
+	//protected abstract void SetInteractionPoints();
 
 	public void OnRemoved()
 	{
-		foreach (int3 interPos in interactionPoints)
-		{
-			// pickingposition위에 아무것도 없는 경우엔 삭제, 뭔가 있다 == 로봇이 올라가 있다 -> 삭제하면 안됨
-			//Cell cell = GridMap[interPos.x, interPos.y, interPos.z];
-			//if (cell.type < 0)
-			//{
-			//	cell.type = 0;
-			//}
-			//cell.previousType = 0;
-		}
+		//foreach (int3 interPos in interactionPoints)
+		//{
+		//	// pickingposition위에 아무것도 없는 경우엔 삭제, 뭔가 있다 == 로봇이 올라가 있다 -> 삭제하면 안됨
+		//	//Cell cell = GridMap[interPos.x, interPos.y, interPos.z];
+		//	//if (cell.type < 0)
+		//	//{
+		//	//	cell.type = 0;
+		//	//}
+		//	//cell.previousType = 0;
+		//}
 
 		//Cell thisPos = GridMap[position.x, position.y, position.z];
 		//thisPos.type = thisPos.previousType;
@@ -205,19 +208,62 @@ public abstract class ShelfBase :
 		this.position = position;
 
 		// set pickingPosition
-		SetInteractionPoints();
-		foreach (int3 pickingPos in interactionPoints)
-		{
-			//Cell pickPos = GridMap[pickingPos.x, pickingPos.y, pickingPos.z];
+		//SetInteractionPoints();
+		//foreach (int3 pickingPos in interactionPoints)
+		//{
+		//	//Cell pickPos = GridMap[pickingPos.x, pickingPos.y, pickingPos.z];
 
-			//// set picking position's tile -1
-			//if (pickPos.type == 0)
-			//{
-			//	pickPos.type = -1;
-			//}
-			//pickPos.previousType = -1;
+		//	//// set picking position's tile -1
+		//	//if (pickPos.type == 0)
+		//	//{
+		//	//	pickPos.type = -1;
+		//	//}
+		//	//pickPos.previousType = -1;
+		//}
+	}
+
+	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point)
+	{
+		interactionPoints.Add(new(interactionKind, point));
+
+		foreach (InteractionKind value in Enum.GetValues(typeof(InteractionKind)))
+		{
+			if (value == InteractionKind.None) continue;
+
+			if (interactionKind.HasFlag(value))
+			{
+				if (!interactionPointMap.ContainsKey(value))
+					interactionPointMap[value] = new List<int3>();
+
+				interactionPointMap[value].Add(point);
+			}
 		}
 	}
+
+	public int3 GetClosestInteractionPoint(InteractionKind interactionKind, in int3 from)
+	{
+		float distance = float.PositiveInfinity;
+		int3 closestPoint = default;
+
+		foreach (int3 point in interactionPointMap[interactionKind])
+		{
+			float d = math.distance(point, from);
+			if (distance > d)
+			{
+				distance = d;
+				closestPoint = point;
+			}
+		}
+
+		if (distance == float.PositiveInfinity)
+		{
+			Debug.LogError($"No interaction point for {interactionKind} in ShelfBase");
+		}
+
+		return closestPoint;
+	}
+
+
 
 	public void OnDestroyedBy(in DestroyContext ctx)
 	{

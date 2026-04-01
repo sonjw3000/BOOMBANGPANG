@@ -17,7 +17,6 @@ public sealed class WorkLine
 	public readonly int Quantity;
 	public readonly OrderLine RelatedOrderLine = null;
 
-	public int3 GoalPosition => Source.InteractionPoints[0];
 
 	public WorkLine(ShelfBase source, uint itemID, int quantity, OrderLine relatedOrderLine = null)
 	{

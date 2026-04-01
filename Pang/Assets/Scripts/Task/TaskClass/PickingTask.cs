@@ -83,7 +83,7 @@ public sealed class PickingTask : WorkerTask
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
-		return $"Picking Task: {PickingData.CurrentLineIndex} / {PickingData.Lines.Count}, Goal: {CurrentLine.GoalPosition}";
+		return $"Picking Task: {PickingData.CurrentLineIndex} / {PickingData.Lines.Count}, Goal: {CurrentLine.Source.GridPosition}";
 	}
 #endif
 
@@ -123,7 +123,7 @@ public sealed class PickingTask : WorkerTask
 			return Failure;
 		}
 
-		ctx.LocalBlackBoard.Set<int3>("goalPos", targetPos.InteractionPoints[0]);
+		ctx.LocalBlackBoard.Set<int3>("goalPos", targetPos.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
 		return Success;
 	}
 
@@ -136,7 +136,7 @@ public sealed class PickingTask : WorkerTask
 			Debug.Log("No Available packing station!");
 			return Failure;
 		}
-		ctx.LocalBlackBoard.Set<int3>("goalPos", targetStation.ToteDropPoint);
+		ctx.LocalBlackBoard.Set<int3>("goalPos", targetStation.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
 		ctx.LocalBlackBoard.Set<IGridPlaceable>("TargetBuilding", targetStation);
 		return Success;
 	}
@@ -204,7 +204,7 @@ public sealed class PickingTask : WorkerTask
 
 		// set goalPosition
 		var line = task.CurrentLine;
-		ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
+		ctx.LocalBlackBoard.Set<int3>("goalPos", line.Source.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
 
 		return Success;
 	}

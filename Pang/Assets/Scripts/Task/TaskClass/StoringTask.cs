@@ -102,7 +102,7 @@ public class StoringTask : WorkerTask
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
 
 		var line = task.CurrentLine;
-		ctx.LocalBlackBoard.Set<int3>("goalPos", line.GoalPosition);
+		ctx.LocalBlackBoard.Set<int3>("goalPos", line.Source.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
 
 		return Success;
 	}
@@ -164,7 +164,7 @@ public class StoringTask : WorkerTask
 		// 내가 그렇게 짰나보다
 		task.placingLine = new WorkLine(decision.shelf, decision.ItemID, decision.Quantity);
 
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.placingLine.Source.InteractionPoints[0]);
+		ctx.LocalBlackBoard.Set<int3>("goalPos", task.placingLine.Source.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
 		return Success;
 	}
 

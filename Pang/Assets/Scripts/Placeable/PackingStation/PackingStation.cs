@@ -1,7 +1,9 @@
 ﻿
+using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class PackingStation :
 	MonoBehaviour,
@@ -20,14 +22,16 @@ public class PackingStation :
 	private BoxBase endPackingBox = null;
 
 	private int3 gridPosition;
-	private List<int3> interactionPoints = new List<int3>();
-	
+	private List<InteractionPoint> interactionPoints = new();
+	private Dictionary<InteractionKind, List<int3>> interactionPointMap = new();
+
 	private PackingStationService PackingStations => GameContext.Instance.OBWorkflowMgr.PackingStations;
 	
 	public int3 GridPosition => gridPosition;
-	public IReadOnlyList<int3> InteractionPoints => interactionPoints;
-	public int3 PackingPoint => InteractionPoints[0];
-	public int3 ToteDropPoint => InteractionPoints[1];
+	public IReadOnlyList<InteractionPoint> InteractionPoints => interactionPoints;
+	public IReadOnlyDictionary<InteractionKind, List<int3>> InteractionPointMap => interactionPointMap;
+	//public int3 PackingPoint => InteractionPointMap[InteractionKind.Work][0];
+	//public int3 ToteDropPoint => InteractionPointMap[InteractionKind.Put][0];
 
 	public AIWorker CurrentPackingWorker { 
 		get { return currentPackingWorker; }
@@ -124,13 +128,56 @@ public class PackingStation :
 	public void OnPositionSet(in int3 pos)
 	{
 		gridPosition = pos;
-		int3 workerPos = (int3)math.floor(workerSlot.position);
-		int3 dropPos = gridPosition;
-		dropPos.z += 1;
-		dropPos.x += 1;
-		interactionPoints.Add(workerPos);
-		interactionPoints.Add(dropPos);
+		//int3 workerPos = (int3)math.floor(workerSlot.position);
+		//int3 dropPos = gridPosition;
+		//dropPos.z += 1;
+		//dropPos.x += 1;
+		//interactionPoints.Add(workerPos);
+		//interactionPoints.Add(dropPos);
 	}
+
+	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point)
+	{
+		interactionPoints.Add(new(interactionKind, point));
+
+		foreach (InteractionKind value in Enum.GetValues(typeof(InteractionKind)))
+		{
+			if (value == InteractionKind.None) continue;
+
+			if (interactionKind.HasFlag(value))
+			{
+				if (!interactionPointMap.ContainsKey(value))
+					interactionPointMap[value] = new List<int3>();
+
+				interactionPointMap[value].Add(point);
+			}
+		}
+	}
+
+	public int3 GetClosestInteractionPoint(InteractionKind interactionKind, in int3 from)
+	{
+		float distance = float.PositiveInfinity;
+		int3 closestPoint = default;
+
+		foreach (int3 point in interactionPointMap[interactionKind])
+		{
+			float d = math.distance(point, from);
+			if (distance > d)
+			{
+				distance = d;
+				closestPoint = point;
+			}
+		}
+
+		if (distance == float.PositiveInfinity)
+		{
+			Debug.LogError($"No interaction point for {interactionKind} in PackingStation");
+		}
+
+		return closestPoint;
+	}
+
+
 
 	public void OnDestroyedBy(in DestroyContext context)
 	{

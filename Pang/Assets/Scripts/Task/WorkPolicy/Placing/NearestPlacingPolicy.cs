@@ -21,10 +21,11 @@ public class NearestPlacingPolicy : IPlacingPolicy
 
 		foreach (var shelf in StorageIndex.QueryPlaceCandidate(bestStack.ItemID, bestStack.Quantity))
 		{
+			int3 shelfInteraction = shelf.GetClosestInteractionPoint(InteractionKind.Put, workerPos);
 			int dist =
-				math.abs(workerPos.x - shelf.InteractionPoints[0].x) +
-				math.abs(workerPos.y - shelf.InteractionPoints[0].y) +
-				math.abs(workerPos.z - shelf.InteractionPoints[0].z);
+				math.abs(workerPos.x - shelfInteraction.x) +
+				math.abs(workerPos.y - shelfInteraction.y) +
+				math.abs(workerPos.z - shelfInteraction.z);
 
 			if (dist < bestDist)
 			{

@@ -8,8 +8,8 @@ public class CargoPort :
 	// ib/ob 구분
 	// 런타임에 수정되면 안된다
 	[SerializeField] private bool isInbound = true;
-	public int3 UnpackPoint => InteractionPoints[0];
-	public int3 DockPoint => InteractionPoints[1];
+	//public int3 UnpackPoint => InteractionPointMap[isInbound ? InteractionKind.Put : InteractionKind.Pick][0];
+	//public int3 DockPoint => InteractionPointMap[isInbound ? InteractionKind.Pick : InteractionKind.Put][0];
 
 	private bool inputReady = true;
 
@@ -53,26 +53,4 @@ public class CargoPort :
 			OBCargoPorts.UnregisterPort(this);
 	}
 
-
-	protected override void SetInteractionPoints()
-	{
-		// have to set unpacking point / dock point
-		var forward = transform.forward;
-
-		// unpackPoint
-		interactionPoints.Add(new int3(
-			GridPosition.x + Mathf.RoundToInt(forward.x),
-			GridPosition.y + Mathf.RoundToInt(forward.y),
-			GridPosition.z + Mathf.RoundToInt(forward.z)
-			));
-
-		forward *= -1;
-
-		// dockPoint
-		interactionPoints.Add(new int3(
-			GridPosition.x + Mathf.RoundToInt(forward.x),
-			GridPosition.y + Mathf.RoundToInt(forward.y),
-			GridPosition.z + Mathf.RoundToInt(forward.z)
-			));
-	}
 }
