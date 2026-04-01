@@ -65,7 +65,7 @@ public class PlacementPreview : MonoBehaviour
 	public void OnPrefabChanged(PlaceableDefinition pd)
 	{
 		curToBePlaced = pd;
-
+		//Debug.Log($"SelectionChanged: {pd.name}");
 		ChangeCurrentPreview();
 		UpdatePlacings();
 	}
@@ -124,6 +124,8 @@ public class PlacementPreview : MonoBehaviour
 		{
 			pollingPreview[curToBePlaced.placeableID] = Instantiate(curToBePlaced.prefab, previewPoolRoot.transform);
 			var renderers = pollingPreview[curToBePlaced.placeableID].GetComponentsInChildren<Renderer>();
+
+			Debug.Log($"[PlacementPreview] Preview Prefab Instantiated: {curToBePlaced.prefab.name}");
 
 			for (int i = 0; i < renderers.Length; ++i)
 				renderers[i].materials = previewMat;
