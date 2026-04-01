@@ -17,6 +17,7 @@ public abstract class WorkerTask
 
 		Loading,
 
+		Water,
 		// undef
 		Undefined
 	}

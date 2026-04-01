@@ -124,7 +124,7 @@ public class GridService : MonoBehaviour
 		}
 
 
-			GameObject obj = ctx.placedObj;
+		GameObject obj = ctx.placedObj;
 
 		if (obj == null)
 			obj = Instantiate(ctx.placeableDefinition.prefab, placeableParent.transform);
@@ -132,6 +132,14 @@ public class GridService : MonoBehaviour
 		if (obj == null)
 		{
 			Debug.LogError("Failed to instantiate placeable prefab.");
+			return false;
+		}
+
+		IGridPlaceable placeableComponent = obj.GetComponent<IGridPlaceable>();
+		if (placeableComponent == null)
+		{
+			Debug.LogError("The instantiated object does not have an IGridPlaceable component.");
+			Destroy(obj);
 			return false;
 		}
 
@@ -152,7 +160,13 @@ public class GridService : MonoBehaviour
 					return false;
 
 				// set to cell
-				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), obj);
+				var footprintCell = footprint.Get(x, z);
+				Map[target.x, target.y, target.z].Set(footprintCell, obj);
+
+				if (footprintCell.flags.HasFlag(GridFlags.Interaction))
+				{
+
+				}
 			}
 		}
 

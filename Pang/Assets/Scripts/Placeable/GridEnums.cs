@@ -49,13 +49,14 @@ public enum GridFlags
 	DynamicObstacle = 1 << 3,
 }
 
+[System.Flags]
 public enum InteractionKind : byte
 {
 	None = 0,
-	Pick,
-	Store,
-	PickAndStore,
-	Charge,
+	Pick = 1 << 0,
+	Put = 1 << 1,
+	Work = 1 << 2,
+	Charge = 1 << 3,
 }
 
 public enum CargoPortType : byte
