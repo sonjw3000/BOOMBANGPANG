@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class PackingStationService : MonoBehaviour
 {
+	static private CargoPortService CargoService => GameContext.Instance.OBWorkflowMgr.CargoPorts;
+	static private TaskManager TaskManager => GameContext.Instance.TaskMgr;
+
 	// all data
 	private List<PackingStation> packingStations = new();
 
@@ -59,4 +62,13 @@ public class PackingStationService : MonoBehaviour
 		packingStations.Remove(packingStation);
 	}
 
+	public void OnPackingComplete(PackingStation packingStation)
+	{
+		var port = CargoService.GetClosestAvailablePort(packingStation.GridPosition);
+
+		TransferContext from = new TransferContext(packingStation, TransferObjectType.Box);
+		TransferContext to = new TransferContext(port, TransferObjectType.Box);
+
+		TaskManager.EnqueueTask(new WaterTask(from, to));
+	}
 }

@@ -62,6 +62,21 @@ public partial class AIWorker
 		return Success;
 	}
 
+	private static NodeState CheckWorkerHasNoBox(in BTContext context)
+	{
+		CarryBoxAbility boxStatus = context.Worker.CurrentTask.CarryingAbility;
+
+		if (boxStatus == null)
+		{
+			Debug.LogError("This Worker Has No BOX ABILITY BUT TRIED TO PICK OR SOMETHING");
+			return Failure;
+		}
+
+		if (boxStatus.CarringBox != null)
+			return Failure;
+		return Success;
+	}
+
 	private static NodeState SetGoalClosestBoxPool(in BTContext context)
 	{
 		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailablePool(context.Worker.GridPosition);
@@ -94,6 +109,27 @@ public partial class AIWorker
 		return context.Worker.TryAttachBox(box) ? Success : Failure;
 	}
 
+	private static NodeState PutBox(in BTContext context)
+	{
+		context.LocalBlackBoard.TryGet<BoxPool>("targetBoxPool", out var pool);
+
+		if (context.Worker.TryDetachBox(out var box) == false)
+		{
+			// error
+			Debug.LogError("Worker tried to put box but has no box attached...");
+			return Failure;
+		}
+
+		if (pool.PutBox(box) == false)
+		{
+			// todo
+			// pool이 가득 찼다는 것을 플레이어에게 알려야함
+			return Failure;
+		}
+
+		return Success;
+	}
+
 	public static NodeState TaskCompleted(in BTContext ctx)
 	{
 		var task = ctx.Worker.CurrentTask;
@@ -123,8 +159,7 @@ public partial class AIWorker
 	// for tote box getting
 	// tote를 가지고 오기 위해 만든 노드
 	// picking이던 뭐던 잘 쓰면 된다
-	public static SelectorNode 
-		GetBox(BoxType type)
+	public static SelectorNode GetBox(BoxType type)
 	{
 		// todo
 		// boxtype에 대한 판단을 하게 해주어야함
@@ -135,6 +170,18 @@ public partial class AIWorker
 		node.Add(new ActionNode(CheckWorkerHasBox));
 		node.Add(moveToAndPick);
 		
+		return node;
+	}
+
+	static public SelectorNode ReturnBox()
+	{
+		SelectorNode node = new();
+		SequenceNode moveToAndReturn = MoveToTarget(SetGoalClosestBoxPool);
+		moveToAndReturn.Add(new ActionNode(PutBox));
+
+		node.Add(new ActionNode(CheckWorkerHasNoBox));
+		node.Add(moveToAndReturn);
+
 		return node;
 	}
 

@@ -23,19 +23,7 @@ public class CargoPort :
 		inputReady = ready;
 	}
 
-	public void PickCargo(BoxBase box)
-	{
-		Dictionary<uint, int> movedItems = new();
-		foreach (var item in box.ItemTotals)
-		{
-			movedItems[item.Key] = box.AddItem(item.Key, item.Value);
-		}
 
-		foreach (var item in movedItems)
-		{
-			box.RemoveItem(item.Key, item.Value);
-		}
-	}
 
 	private void OnEnable()
 	{

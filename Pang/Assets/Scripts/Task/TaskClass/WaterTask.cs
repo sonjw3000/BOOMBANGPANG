@@ -1,12 +1,32 @@
-﻿using UnityEngine;
+﻿using Unity.Mathematics;
+using UnityEngine;
+using static IBaseNode;
+using static IBaseNode.NodeState;
+
+public enum TransferObjectType
+{
+	Box,
+	Item
+}
+
+public class TransferContext
+{
+	public readonly IInteractionPoint target;
+	public readonly TransferObjectType transferType;
+
+	public TransferContext(IInteractionPoint target, TransferObjectType transferType)
+	{
+		this.target = target;
+		this.transferType = transferType;
+	}
+}
 
 public class WaterTask : WorkerTask
 {
-	private IGridPlaceable from;
-	private IGridPlaceable to;
+	private TransferContext from;
+	private TransferContext to;
 
-
-	public WaterTask(IGridPlaceable from, IGridPlaceable to) : base(TaskType.Water)
+	public WaterTask(TransferContext from, TransferContext to) : base(TaskType.Water)
 	{
 		this.from = from;
 		this.to = to;
@@ -26,7 +46,32 @@ public class WaterTask : WorkerTask
 
 	protected override IBaseNode BuildWorkNode()
 	{
-		return null;
+		SelectorNode root = new();
+
+		SelectorNode checkBoxState = new();
+
+		SequenceNode checkRequirement = new();
+		checkRequirement.Add(new ActionNode(CheckBoxState));
+		checkRequirement.Add(AIWorker.GetBox(BoxType.Personal));
+
+		SequenceNode checkBoxReq = new();
+		checkBoxReq.Add(new ActionNode(CheckBoxNotNeedState));
+		checkBoxReq.Add(AIWorker.ReturnBox());
+
+		checkBoxState.Add(checkBoxReq);
+		checkBoxState.Add(checkRequirement);
+
+		SequenceNode work = new();
+		work.Add(AIWorker.MoveToTarget(PickSet));
+		work.Add(new ActionNode(Pick));
+		work.Add(AIWorker.MoveToTarget(PutSet));
+		work.Add(new ActionNode(Put));
+		work.Add(new ActionNode(AIWorker.TaskCompleted));
+
+		root.Add(checkBoxState);
+		root.Add(work);
+
+		return root;
 	}
 
 	public override bool CheckTaskEnd()
@@ -41,5 +86,97 @@ public class WaterTask : WorkerTask
 		return $"[WaterTask] Working: {0}";
 	}
 #endif
+
+	static public NodeState CheckBoxState(in BTContext ctx)
+	{
+		// if the box is required in picking, then have to pick box
+		// 
+		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+
+		if (task.from.transferType == TransferObjectType.Item &&
+			task.carryBox.CarringBox == null)
+			return Success;
+
+		return Failure;
+	}
+
+	static public NodeState CheckBoxNotNeedState(in BTContext ctx)
+	{
+		// if box is not required in picking, then don't need to pick box
+		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+
+		if (task.from.transferType == TransferObjectType.Box &&
+			task.carryBox.CarringBox != null)
+			return Success;
+
+		return Failure;
+	}
+
+	static public NodeState PickSet(in BTContext ctx)
+	{
+		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+
+		ctx.LocalBlackBoard.Set<int3>("goalPos", task.from.target.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
+		return Success;
+	}
+
+	static public NodeState Pick(in BTContext ctx)
+	{
+		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+
+		if (task.from.transferType == TransferObjectType.Item)
+		{
+			if (task.from.target is ItemInteraction target == false)
+			{
+				Debug.LogError("Target is not item interaction but transfer type is item??");
+				return Failure;
+			}
+
+			if (target.MoveToBox(task.carryBox.CarringBox))
+			{
+				// 추가 뭐시기를 요청하던가 해야함
+			}
+		}
+		else
+		{
+			BoxInteraction boxInteraction = task.from.target as BoxInteraction;
+			if (boxInteraction.GetBox(out var box) == false) return Failure;
+			if (task.carryBox.PutBox(box) == false) return Failure;
+		}
+
+		return Success;
+	}
+
+	static public NodeState PutSet(in BTContext ctx)
+	{
+		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+		ctx.LocalBlackBoard.Set<int3>("goalPos", task.to.target.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
+		return Success;
+	}
+
+	static public NodeState Put(in BTContext ctx)
+	{
+		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+
+		if (task.to.transferType == TransferObjectType.Item)
+		{
+			if (task.to.target is ItemInteraction target == false)
+			{
+				Debug.LogError("Target is not item interaction but transfer type is item??");
+				return Failure;
+			}
+
+			target.BringFromBox(task.carryBox.CarringBox);
+		}
+		else
+		{
+			BoxInteraction boxInteraction = task.from.target as BoxInteraction;
+
+			if (task.carryBox.GetBox(out var box) == false) return Failure;
+			if (boxInteraction.PutBox(box) == false) return Failure;
+		}
+
+		return Success;
+	}
 
 }

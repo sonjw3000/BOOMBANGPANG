@@ -2,22 +2,16 @@
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Mathematics;
+using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 
-public abstract class ShelfBase : 
-	MonoBehaviour, 
-	IItemContainer, 
-	IGridPlaceable, 
-	IGridPlacementEffect,
-	IInteractionPoint
+
+
+public abstract class ShelfBase :
+	ItemInteraction
 {
 	[SerializeField] protected int maxStacks = 16;
 	[SerializeField] protected float sizePerStack;
-
-	//private int currentStackCount;
-	private int3 position;
-	protected List<InteractionPoint> interactionPoints = new();
-	protected Dictionary<InteractionKind, List<int3>> interactionPointMap = new();
 
 	protected List<ItemStack> stacks;
 	protected Dictionary<uint, int> itemTotals = new();
@@ -31,21 +25,16 @@ public abstract class ShelfBase :
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
 
 	// item의 종류가 등록/해제 되었을 경우
-	public event System.Action<ShelfBase, uint, bool> OnItemPresentChanged;
+	public event Action<ShelfBase, uint, bool> OnItemPresentChanged;
 
 	// item quantity의 변경이 일어났을 경우
-	public event System.Action<ShelfBase, uint, int> OnItemQuantityChanged;
+	public event Action<ShelfBase, uint, int> OnItemQuantityChanged;
 
-	//public int CurrentStackCount => currentStackCount;
 	public IReadOnlyList<ItemStack> Stacks => stacks;
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
 	public IReadOnlyDictionary<uint, int> ItemToBePicked => itemsReservedPick;
 	public bool CanRegister() => MaxStack > Stacks.Count;
 	public float MaxStack => maxStacks;
-
-	public int3 GridPosition => position;
-	public IReadOnlyList<InteractionPoint> InteractionPoints => interactionPoints;
-	public IReadOnlyDictionary<InteractionKind, List<int3>> InteractionPointMap => interactionPointMap;
 
 	protected virtual void Awake()
 	{
@@ -57,6 +46,43 @@ public abstract class ShelfBase :
 
 	// 식인종이 우사인볼트를 보면?
 	// 패스트푸드
+
+	public override bool BringFromBox(BoxBase box)
+	{
+		Dictionary<uint, int> movedItems = new();
+		foreach (var item in box.ItemTotals)
+		{
+			movedItems[item.Key] = box.AddItem(item.Key, item.Value);
+		}
+
+		foreach (var item in movedItems)
+		{
+			box.RemoveItem(item.Key, item.Value);
+		}
+
+		return true;
+	}
+
+	// box가 꽉 차면 return false를 해주어야함
+	public override bool MoveToBox(BoxBase box)
+	{
+		for (int i = Stacks.Count - 1; i >= 0; --i)
+		{
+			var stack = Stacks[i];
+			int befItemCounts = stack.Quantity;
+
+			int added = box.AddItem(stack.ItemID, stack.Quantity);
+			RemoveItem(stack.ItemID, added);
+
+			if (added != befItemCounts)
+			{
+				// box가 가득 차서 옮겨지지 않았다
+				return false;
+			}
+		}
+
+		return true;
+	}
 
 	private void UpdateSize()
 	{
@@ -181,9 +207,7 @@ public abstract class ShelfBase :
 		return capacity >= quantity;
 	}
 
-	//protected abstract void SetInteractionPoints();
-
-	public void OnRemoved()
+	public override void OnRemoved()
 	{
 		//foreach (int3 interPos in interactionPoints)
 		//{
@@ -200,7 +224,7 @@ public abstract class ShelfBase :
 		//thisPos.type = thisPos.previousType;
 	}
 
-	public void OnPositionSet(in int3 position)
+	public override void OnPositionSet(in int3 position)
 	{
 		enabled = true;
 
@@ -222,50 +246,7 @@ public abstract class ShelfBase :
 		//}
 	}
 
-	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point)
-	{
-		interactionPoints.Add(new(interactionKind, point));
-
-		foreach (InteractionKind value in Enum.GetValues(typeof(InteractionKind)))
-		{
-			if (value == InteractionKind.None) continue;
-
-			if (interactionKind.HasFlag(value))
-			{
-				if (!interactionPointMap.ContainsKey(value))
-					interactionPointMap[value] = new List<int3>();
-
-				interactionPointMap[value].Add(point);
-			}
-		}
-	}
-
-	public int3 GetClosestInteractionPoint(InteractionKind interactionKind, in int3 from)
-	{
-		float distance = float.PositiveInfinity;
-		int3 closestPoint = default;
-
-		foreach (int3 point in interactionPointMap[interactionKind])
-		{
-			float d = math.distance(point, from);
-			if (distance > d)
-			{
-				distance = d;
-				closestPoint = point;
-			}
-		}
-
-		if (distance == float.PositiveInfinity)
-		{
-			Debug.LogError($"No interaction point for {interactionKind} in ShelfBase");
-		}
-
-		return closestPoint;
-	}
-
-
-
-	public void OnDestroyedBy(in DestroyContext ctx)
+	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
 
 	}

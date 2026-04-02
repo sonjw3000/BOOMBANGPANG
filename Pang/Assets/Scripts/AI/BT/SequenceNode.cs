@@ -9,6 +9,9 @@ public class SequenceNode : IBaseNode
 
 	public void Add(IBaseNode node) { Children.Add(node); }
 
+	// 런타임에 배열을 만들어내서 쓰기 좀 그래
+	//public void Add(params IBaseNode[] nodes) { Children.AddRange(nodes); }
+
 	public NodeState Evaluate(in BTContext ctx)
 	{
 		if (lastTick + 1 != ctx.Tick)

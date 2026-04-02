@@ -148,7 +148,7 @@ public sealed class PickingTask : WorkerTask
 		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
 			&& placeable is PackingStation station)
 		{
-			station.WaitStackBox = task.carryBox.CarringBox;
+			station.PutBox(task.carryBox.CarringBox);
 			task.carryBox = null;
 
 			task.isTaskEnd = true;

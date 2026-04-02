@@ -7,6 +7,7 @@ public enum BoxType
 	None = -1,
 	Cargo = 0,
 	Personal = 1,
+	Any = 2,
 }
 
 public abstract class BoxBase : MonoBehaviour, IItemContainer

@@ -96,7 +96,20 @@ public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEff
 
 		//Debug.Log("Attached!");
 
-		return component.TryAttachBox(box);
+		return component.PutBox(box);
+	}
+
+	public bool TryDetachBox(out BoxBase box)
+	{
+		gameObject.TryGetComponent<CarryBoxAbility>(out var component);
+		if (component == null)
+		{
+			Debug.LogError("No CarryBox Ability!!!!!!");
+			box = null;
+			return false;
+		}
+
+		return component.GetBox(out box);
 	}
 
 	public bool RunBT(BlackBoard GlobalBlackboard)

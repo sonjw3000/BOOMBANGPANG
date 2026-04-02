@@ -12,7 +12,7 @@ public class CarryBoxConfig : AbilityConfigBase
 	}
 }
 
-public class CarryBoxAbility : Ability<CarryBoxConfig>
+public class CarryBoxAbility : Ability<CarryBoxConfig>, IBoxHandleable
 {
 	private float carriableSize;
 	private BoxBase carringBox = null;
@@ -33,7 +33,7 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>
 		}
 	}
 
-	public bool TryAttachBox(BoxBase box)
+	public bool PutBox(BoxBase box)
 	{
 		if (box == null) return false;
 		// todo
@@ -52,7 +52,7 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>
 		return true;
 	}
 
-	public bool TryGetBox(out BoxBase box)
+	public bool GetBox(out BoxBase box)
 	{
 		box = null;
 		if (carringBox == null)

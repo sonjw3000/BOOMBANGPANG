@@ -85,7 +85,7 @@ public class LoadingTask : WorkerTask
 		}
 
 		BoxBase box = ctx.Worker.GetComponent<CarryBoxAbility>().CarringBox;
-		task.targetPort.PickCargo(box);
+		task.targetPort.BringFromBox(box);
 		task.targetPort.SetInputReady(true);
 
 		return Success;
