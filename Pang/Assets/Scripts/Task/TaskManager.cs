@@ -75,6 +75,9 @@ public class TaskManager : MonoBehaviour
 				OBMgr.OnTaskCompleted(task);
 				break;
 
+			case TaskType.Water:
+				break;
+
 			default:
 				Debug.LogError("ERROR!! TaskType Undef on tskmgr end task");
 				break;

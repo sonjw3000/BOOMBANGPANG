@@ -15,7 +15,7 @@ public class ItemLedgerEditor : Editor
 		EditorGUI.indentLevel++;
 		foreach (var kvp in itemLedger.ItemTotals)
 		{
-			EditorGUILayout.LabelField($"ItemID: {kvp.Key}, Total: {kvp.Value}, Reserved: {itemLedger.ItemReserveds.GetValueOrDefault(kvp.Key)}");
+			EditorGUILayout.LabelField($"ItemID: {kvp.Key}, Total: {kvp.Value}, Reserved: {itemLedger.ReservedItems.GetValueOrDefault(kvp.Key)}");
 		}
 		EditorGUI.indentLevel--;
 

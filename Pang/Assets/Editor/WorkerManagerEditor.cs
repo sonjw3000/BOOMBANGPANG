@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using System;
+using UnityEditor;
 using UnityEngine;
 using static WorkerTask;
 
@@ -29,6 +30,18 @@ class WorkerManagerEditor : Editor
 			WorkerManager workerMgr = (WorkerManager)target;
 
 			workerMgr.ChangeWorkerTaskType(workerMgr.Workers[TestIdx], TestType);
+		}
+
+		if (GUILayout.Button("!!!!Set Test Workers!!!!"))
+		{
+			WorkerManager workerMgr = (WorkerManager)target;
+
+			workerMgr.ChangeWorkerTaskType(workerMgr.Workers[0], TaskType.Unloading);
+			workerMgr.ChangeWorkerTaskType(workerMgr.Workers[1], TaskType.Storing);
+			workerMgr.ChangeWorkerTaskType(workerMgr.Workers[2], TaskType.Picking);
+			workerMgr.ChangeWorkerTaskType(workerMgr.Workers[3], TaskType.Packing);
+			workerMgr.ChangeWorkerTaskType(workerMgr.Workers[4], TaskType.Water);
+			workerMgr.ChangeWorkerTaskType(workerMgr.Workers[5], TaskType.Loading);
 		}
 
 		foldout = EditorGUILayout.Foldout(foldout, "Workers");

@@ -54,7 +54,7 @@ public class PackingStation :
 		{
 			if (value != null)
 			{ 
-				Debug.Log("Packing box set at station");
+				//Debug.Log("Packing box set at station");
 
 				value.transform.SetParent(waitStackSlot);
 				value.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
@@ -78,7 +78,7 @@ public class PackingStation :
 		{
 			if (value == null)
 			{
-				Debug.Log("End tote is removed! lets work");
+				//Debug.Log("End tote is removed! lets work");
 				CurrentPackingWorker.enabled = true;
 			}
 			else

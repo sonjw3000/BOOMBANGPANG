@@ -72,7 +72,7 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
 	{
-		if (((IItemContainer)port).FilledPercent >= cargoPortThresholdPercent)
+		if (port.FilledPercent >= cargoPortThresholdPercent)
 		{
 			// build loading task here
 			CargoPort cargoPort = (CargoPort)port;

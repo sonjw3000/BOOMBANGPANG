@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 using Unity.Mathematics;
 using UnityEngine;
 using static IBaseNode;
@@ -148,8 +149,8 @@ public sealed class PickingTask : WorkerTask
 		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
 			&& placeable is PackingStation station)
 		{
-			station.PutBox(task.carryBox.CarringBox);
-			task.carryBox = null;
+			task.carryBox.GetBox(out var box);
+			station.PutBox(box);
 
 			task.isTaskEnd = true;
 
@@ -225,12 +226,18 @@ public sealed class PickingTask : WorkerTask
 
 		int realAdded = box.AddItem(task.CurrentLine.ItemID, removed);
 
+		Debug.Log($"[PickingTask] PickItems: Line Cnt: {task.PickingData.CurrentLineIndex}");
+		Debug.Log($"[PickingTask] Trying to pick ItemID: {task.CurrentLine.ItemID}, Quantity: {task.CurrentLine.Quantity}");
+		Debug.Log($"[PickingTask] Box Capacity: {box.Capacity}, BoxCurrentSize: {box.TotalSize}");
 		// todo
 		// 갯수를 체크해야한다
 		// 중요함!
 		if (task.CurrentLine.Quantity != realAdded)
 		{
-			Debug.Log($"Requested: {task.CurrentLine.Quantity}, Added: {realAdded}, RemovedFromShelf: {removed}");
+			Debug.Log($"[PickingTask] Requested: {task.CurrentLine.Quantity}, Added: {realAdded}, RemovedFromShelf: {removed}");
+			
+			//Debug.Log($"[PickingTask] Box Instance")
+
 			// 갯수가 다르기 때문에 다른곳에서 동일 물품을 줏어야 한다. 새로운 위치로 이동해야하지 않을까?
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
 			return Failure;

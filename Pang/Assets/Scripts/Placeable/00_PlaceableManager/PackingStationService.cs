@@ -67,7 +67,7 @@ public class PackingStationService : MonoBehaviour
 		var port = CargoService.GetClosestAvailablePort(packingStation.GridPosition);
 
 		TransferContext from = new TransferContext(packingStation, TransferObjectType.Box);
-		TransferContext to = new TransferContext(port, TransferObjectType.Box);
+		TransferContext to = new TransferContext(port, TransferObjectType.Item);
 
 		TaskManager.EnqueueTask(new WaterTask(from, to));
 	}

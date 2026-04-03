@@ -32,6 +32,8 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	public float Capacity => capacity;
 
 	
+	public void UpdateToteCapacity(float capacity) => this.capacity = capacity;
+
 	private void Start()
 	{
 		BoxService.RegisterBox(this);

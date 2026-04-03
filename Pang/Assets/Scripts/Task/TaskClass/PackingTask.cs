@@ -114,7 +114,7 @@ public class PackingTask : WorkerTask
 			if (station.PrepareBox())
 				return Success;
 
-			Debug.Log("No box to pack, wait");
+			//Debug.Log("No box to pack, wait");
 			ctx.Worker.enabled = false;
 
 		}

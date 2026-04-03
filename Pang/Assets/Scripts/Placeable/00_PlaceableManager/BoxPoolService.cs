@@ -7,6 +7,8 @@ public class BoxPoolService : MonoBehaviour
 	[SerializeField] private BoxBase palletPrefab;
 	[SerializeField] private BoxBase boxPrefab;
 
+	[SerializeField] private float toteCapacity = 150.0f;
+
 	// 실제 박스들
 	private List<BoxBase> boxes = new();
 
@@ -18,6 +20,8 @@ public class BoxPoolService : MonoBehaviour
 
 	public IReadOnlyList<BoxBase> Boxes => boxes;
 	public IReadOnlyList<BoxPool> BoxPoolZones => boxPoolZones;
+
+	public float ToteCapacity => toteCapacity;
 
 	public void RegisterPool(BoxPool boxPool)
 	{
@@ -42,6 +46,9 @@ public class BoxPoolService : MonoBehaviour
 	public void GiveNewBox(BoxPool boxPool, BoxType type)
 	{
 		var box = Instantiate(type == BoxType.Cargo ? palletPrefab : boxPrefab, boxPool.transform).GetComponent<BoxBase>();
+
+		if (box is ToteBox tote)
+			tote.UpdateToteCapacity(toteCapacity);
 
 		boxPool.PutBox(box);
 	}

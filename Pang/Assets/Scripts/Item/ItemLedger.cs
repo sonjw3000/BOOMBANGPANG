@@ -8,20 +8,20 @@ using UnityEngine;
 public class ItemLedger : MonoBehaviour
 {
 	private readonly Dictionary<uint, int> itemTotals = new();
-	private readonly Dictionary<uint, int> itemReserveds = new();
+	private readonly Dictionary<uint, int> reservedItems = new();
 
 	private readonly List<uint> orderableItems = new();
 	
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
-	public IReadOnlyDictionary<uint, int> ItemReserveds => itemReserveds;
+	public IReadOnlyDictionary<uint, int> ReservedItems => reservedItems;
 	public IReadOnlyList<uint> OrderableItems => orderableItems;
 
 	public int GetTotal(uint itemId) => itemTotals.GetValueOrDefault(itemId);
-	public int GetReserved(uint itemId) => itemReserveds.GetValueOrDefault(itemId);
+	public int GetReserved(uint itemId) => reservedItems.GetValueOrDefault(itemId);
 	public int GetAvailable(uint itemId) => GetTotal(itemId) - GetReserved(itemId);
 
 	// 주문 취소/실패 등으로 예약 롤백
-	public void ReleaseReserve(uint itemId, int quantity) => itemReserveds[itemId] = itemReserveds.GetValueOrDefault(itemId) - quantity;
+	public void ReleaseReserve(uint itemId, int quantity) => reservedItems[itemId] = reservedItems.GetValueOrDefault(itemId) - quantity;
 
 	private void ItemAdded(uint itemId, int quantity)
 	{
@@ -43,13 +43,13 @@ public class ItemLedger : MonoBehaviour
 		}
 
 		// reserved 조절
-		itemReserveds[itemId] = itemReserveds.GetValueOrDefault(itemId) + quantity;
+		reservedItems[itemId] = reservedItems.GetValueOrDefault(itemId) + quantity;
 
 		// reserved 음수처리
-		if (itemReserveds[itemId] < 0)
+		if (reservedItems[itemId] < 0)
 		{
-			Debug.LogError($"ItemLedger: Item ID {itemId} has negative reserved quantity {itemReserveds[itemId]}");
-			itemReserveds[itemId] = 0;
+			Debug.LogError($"ItemLedger: Item ID {itemId} has negative reserved quantity {reservedItems[itemId]}");
+			reservedItems[itemId] = 0;
 		}
 
 		// item이 사라졌다면
@@ -66,6 +66,10 @@ public class ItemLedger : MonoBehaviour
 
 		if (quantityDelta < 0)
 			ItemRemoved(itemId, quantityDelta);
+		else if (quantityDelta == 0)
+		{
+			Debug.LogError("Why this is Zero?? lets track");
+		}
 		else
 			ItemAdded(itemId, quantityDelta);
 	}
@@ -74,7 +78,7 @@ public class ItemLedger : MonoBehaviour
 	// 사용 전에 GetAvailable로 수량을 제한하여야 함
 	public void OnItemReserved(uint itemId, int quantity)
 	{
-		itemReserveds[itemId] = itemReserveds.GetValueOrDefault(itemId) + quantity;
+		reservedItems[itemId] = reservedItems.GetValueOrDefault(itemId) + quantity;
 
 		// orderable이 아니라면 제거
 		if (GetAvailable(itemId) <= 0)

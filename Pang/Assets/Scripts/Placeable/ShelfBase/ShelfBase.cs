@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Mathematics;
-using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 
 
@@ -21,6 +20,9 @@ public abstract class ShelfBase :
 
 	public float TotalSize => totalSize;
 	public float MaxSize => sizePerStack * maxStacks;
+
+	public float FilledPercent => MaxSize <= 0 ? 0 : (TotalSize / MaxSize) * 100.0f;
+
 
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
 
@@ -49,16 +51,32 @@ public abstract class ShelfBase :
 
 	public override bool BringFromBox(BoxBase box)
 	{
-		Dictionary<uint, int> movedItems = new();
+		Dictionary<uint, int> deletedItems = new();
+
 		foreach (var item in box.ItemTotals)
 		{
-			movedItems[item.Key] = box.AddItem(item.Key, item.Value);
+			int bef = item.Value;
+			int added = AddItem(item.Key, item.Value);
+
+			deletedItems[item.Key] = added;
+			if (added != bef)
+			{
+				// shelf가 가득 차서 옮겨지지 않았다
+				Debug.LogWarning($"Could not move all items from box. ItemID: {item.Key}, Requested: {item.Value}, Added: {added}");
+				break;
+			}
 		}
 
-		foreach (var item in movedItems)
+		foreach (var item in deletedItems)
 		{
 			box.RemoveItem(item.Key, item.Value);
 		}
+
+		if (box.ItemTotals.Count > 0)
+		{
+			return false;
+		}
+
 
 		return true;
 	}
@@ -160,6 +178,9 @@ public abstract class ShelfBase :
 			remain -= itemRemoved;
 			if (stack.Quantity <= 0)
 				stacks.RemoveAt(i);
+
+			if (remain == 0)
+				break;
 		}
 
 		// 아이템이 사라졌다면
@@ -256,10 +277,10 @@ public abstract class ShelfBase :
 		if (itemTotals.TryGetValue(itemId, out int val) == false)
 		{
 			Debug.LogError("NO ITEMS HERE");
-			return quantity;
+			return 0;
 		}
 
-		int befReserved= itemsReservedPick.GetValueOrDefault(itemId);
+		int befReserved = itemsReservedPick.GetValueOrDefault(itemId);
 
 		int canReserve = math.clamp(quantity, 0, val - befReserved);
 		itemsReservedPick[itemId] = befReserved + canReserve;

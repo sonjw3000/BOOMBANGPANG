@@ -26,6 +26,8 @@ public class WaterTask : WorkerTask
 	private TransferContext from;
 	private TransferContext to;
 
+	private bool workPhase = false;
+
 	public WaterTask(TransferContext from, TransferContext to) : base(TaskType.Water)
 	{
 		this.from = from;
@@ -93,7 +95,8 @@ public class WaterTask : WorkerTask
 		// 
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
 
-		if (task.from.transferType == TransferObjectType.Item &&
+		if (task.workPhase == false &&
+			task.from.transferType == TransferObjectType.Item &&
 			task.carryBox.CarringBox == null)
 			return Success;
 
@@ -104,8 +107,9 @@ public class WaterTask : WorkerTask
 	{
 		// if box is not required in picking, then don't need to pick box
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
-
-		if (task.from.transferType == TransferObjectType.Box &&
+		
+		if (task.workPhase == false &&
+			task.from.transferType == TransferObjectType.Box &&
 			task.carryBox.CarringBox != null)
 			return Success;
 
@@ -115,6 +119,8 @@ public class WaterTask : WorkerTask
 	static public NodeState PickSet(in BTContext ctx)
 	{
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+
+		task.workPhase = true;
 
 		ctx.LocalBlackBoard.Set<int3>("goalPos", task.from.target.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
 		return Success;
@@ -172,8 +178,16 @@ public class WaterTask : WorkerTask
 		{
 			BoxInteraction boxInteraction = task.from.target as BoxInteraction;
 
-			if (task.carryBox.GetBox(out var box) == false) return Failure;
-			if (boxInteraction.PutBox(box) == false) return Failure;
+			if (task.carryBox.GetBox(out var box) == false)
+			{
+				Debug.LogError("No box to put??");
+				return Failure;
+			}
+			if (boxInteraction.PutBox(box) == false)
+			{
+				Debug.LogError("Failed to put box??");
+				return Failure;
+			}
 		}
 
 		return Success;
