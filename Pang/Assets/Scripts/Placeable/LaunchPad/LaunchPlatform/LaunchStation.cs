@@ -74,15 +74,7 @@ public class LaunchStation
 	public void OnPositionSet(in int3 position)
 	{
 		enabled = true;
-		// 
 		gridPosition = position;
-
-		// zero
-		//interactionPoints.Add(new int3(
-		//	Mathf.RoundToInt(GridPosition.x + transform.forward.x * 2),
-		//	Mathf.RoundToInt(GridPosition.y),
-		//	Mathf.RoundToInt(GridPosition.z + transform.forward.z * 2)
-		//	));
 	}
 
 	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point)

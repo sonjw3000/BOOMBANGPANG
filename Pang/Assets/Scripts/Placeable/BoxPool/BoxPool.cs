@@ -55,29 +55,11 @@ public class BoxPool :
 		enabled = true;
 		this.position = position;
 
-		// 팔방으로 상호작용이 가능하다
-		//for (int x = -1; x <= 1; ++x)
-		//{
-		//	for (int z = -1; z <= 1; ++z)
-		//	{
-		//		if (x == 0 && z == 0) continue;
-
-		//		GridMap[position.x + x, position.y, position.z + z].type = -1;
-		//	}
-		//}
-
-		Debug.Log("BoxPool Added!!");
-
 		WMSys.BoxPoolMgr.RegisterPool(this);
 	}
 
 	public override void OnRemoved()
 	{
-		//foreach (int3 interPos in interactionPoints)
-		//{
-		//	//GridMap[interPos.x, interPos.y, interPos.z].type = 0;
-		//}
-
 		WMSys.BoxPoolMgr.UnRegisterPool(this);
 	}
 

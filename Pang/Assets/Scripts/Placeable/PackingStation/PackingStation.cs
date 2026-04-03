@@ -113,13 +113,8 @@ public class PackingStation :
 
 	public override void OnPositionSet(in int3 pos)
 	{
+		enabled = true;
 		position = pos;
-		//int3 workerPos = (int3)math.floor(workerSlot.position);
-		//int3 dropPos = gridPosition;
-		//dropPos.z += 1;
-		//dropPos.x += 1;
-		//interactionPoints.Add(workerPos);
-		//interactionPoints.Add(dropPos);
 	}
 
 	public override void OnDestroyedBy(in DestroyContext context)
@@ -156,6 +151,7 @@ public class PackingStation :
 		CurrentPackingBox = null;
 
 		// notify to station
+		PackingStations.OnPackingComplete(this);
 
 		return true;
 	}
