@@ -118,7 +118,14 @@ public class UnloadingTask : WorkerTask
 		// disable rocket
 		if (items.Count == 0)
 			GameContext.Instance.RocketMgr.DisableRocket(task.targetRocket);
-		
+		else
+		{
+			// todo
+			// add new task to unload remaining items
+			UnloadingTask newTask = new(task.targetRocket);
+			GameContext.Instance.TaskMgr.EnqueueTask(newTask);
+		}
+
 		return Success;
 	}
 

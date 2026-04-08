@@ -32,9 +32,13 @@ public abstract class ShelfBase :
 	// item quantity의 변경이 일어났을 경우
 	public event Action<ShelfBase, uint, int> OnItemQuantityChanged;
 
+	// item의 picking이 예약되었을 때 (quantity는 예약된 수량)
+	public event Action<ShelfBase, uint, int> OnItemReservedPickChanged;
+
 	public IReadOnlyList<ItemStack> Stacks => stacks;
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
 	public IReadOnlyDictionary<uint, int> ItemToBePicked => itemsReservedPick;
+	public int GetPickableQuantity(uint itemID) => ItemTotals.GetValueOrDefault(itemID) - ItemToBePicked.GetValueOrDefault(itemID);
 	public bool CanRegister() => MaxStack > Stacks.Count;
 	public float MaxStack => maxStacks;
 
@@ -284,6 +288,8 @@ public abstract class ShelfBase :
 
 		int canReserve = math.clamp(quantity, 0, val - befReserved);
 		itemsReservedPick[itemId] = befReserved + canReserve;
+
+		OnItemReservedPickChanged?.Invoke(this, itemId, canReserve);
 
 		return canReserve;
 	}

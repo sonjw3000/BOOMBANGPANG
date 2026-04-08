@@ -17,7 +17,6 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	private readonly Dictionary<uint, List<CargoPort>> cargoPortsByItem = new();
 
 	// for storing policy
-	[SerializeField, Range(1, 100)] private float maxBoxPercentage = 80.0f;
 	[SerializeField] private float storingTaskBuildTime = 10.0f;
 	private float timer = 0;
 
@@ -71,18 +70,15 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	{
 		timer += Time.deltaTime;
 
-		// store task 생성 조건
-		// 마지막 태스크 생성 후타이머
-		// 1개의 박스를 일정 퍼센트까지 채울 수 있을만큼의 물량
-		// 기타 등등
+		// store task build 조건 시간으로만 체크
+		// cargo port의 상태를 체크해서 상자를 채울 수 있으면 store task를 만들 수 있게 하자
 		if (timer >= storingTaskBuildTime ||
-			false
+			storingPlanner.CanBuildFullTask()
 			)
 		{
 			timer = 0;
-			storingPlanner.BuildStoreJob();
 
-			while (storingPlanner.BuildStoreTask(maxBoxPercentage, out var task))
+			while (storingPlanner.BuildStoreTask(out var task))
 			{
 				//Debug.Log("StoreTask Built!");
 
@@ -97,9 +93,15 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	private void OnPortItemPresentChanged(ShelfBase port, uint itemId, bool present)
 	{
 		if (present)
+		{
 			OnPortItemAdded(port, itemId);
+			storingPlanner.OnPortItemAdded(port, itemId);
+		}
 		else
+		{
 			OnPortItemRemoved(port, itemId);
+			storingPlanner.OnPortItemRemoved(port, itemId);
+		}
 	}
 	
 	private void OnPortItemAdded(ShelfBase port, uint itemId)
@@ -124,11 +126,30 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 		cargoPortsByItem[itemId].Remove((CargoPort)port);
 	}
 	
+	private void OnPortItemReserved(ShelfBase port, uint itemId, int quantity)
+	{
+		storingPlanner.OnPortItemReserved(port, itemId, quantity);
+	}
+
+	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
+	{
+		storingPlanner.OnPortItemQuantityChanged(port, itemId, quantityDelta);
+	}
+
 	// ----------------------------------------------------------------
 	// unity 함수
 	private void Start()
 	{
 		cargoPortService.OnItemPresentChanged += OnPortItemPresentChanged;
+		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
+		cargoPortService.OnReserveQuantityChanged += OnPortItemReserved;
+	}
+
+	private void OnDestroy()
+	{
+		cargoPortService.OnItemPresentChanged -= OnPortItemPresentChanged;
+		cargoPortService.OnItemQuantityChanged -= OnPortItemQuantityChanged;
+		cargoPortService.OnReserveQuantityChanged -= OnPortItemReserved;
 	}
 
 	private void Update()

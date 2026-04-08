@@ -9,91 +9,180 @@
 //		특정 아이템을 기준으로 가까운 shelf에 위치한 아이템들을 최대한 모아서 이동
 
 using System.Collections.Generic;
+using UnityEngine;
+
 
 public abstract class StoringPlanner
 {
 	static protected int jobID = 1;
 
 	protected InboundWorkflowManager IBManager => GameContext.Instance.IBWorkflowMgr;
+	static protected float MaxCarryWeight => GameContext.Instance.WMSys.BoxPoolMgr.ToteCapacity;
+	static protected float MaximumBoxPercentage => 80.0f;//GameContext.Instance.IBWorkflowMgr.maxBoxPercentage;
+	static protected float MaximumBoxWeight => MaxCarryWeight * MaximumBoxPercentage / 100.0f;
+	static protected ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 
-	public abstract void BuildStoreJob();
+	// event handlers
+	public virtual void OnPortItemAdded(ShelfBase port, uint itemID) { }
+	public virtual void OnPortItemRemoved(ShelfBase port, uint itemID) { }
+	public virtual void OnPortItemQuantityChanged(ShelfBase port, uint itemID, int quantity) { }
+	public virtual void OnPortItemReserved(ShelfBase port, uint itemID, int reservedQuantity) { }
 
-	public abstract bool BuildStoreTask(float boxPercentage, out StoringTask task);
-}
+	public abstract bool BuildStoreTask(out StoringTask task);
+	public abstract bool CanBuildFullTask();
 
-// store by itemid
-public sealed class StoringItemFriendly : StoringPlanner
-{
-	//private Dictionary<CargoPort, List<WorkJob>> pendingJobs;
-	private Dictionary<uint, List<WorkLine>> pendingLines = new();
-
-
-	public override void BuildStoreJob()
+	protected int AdjustQuantityToFit(float curWeight, float itemWeight, int befQuantity)
 	{
-		foreach ((var id, var ports) in IBManager.CargoPortsByItem)
+		if (curWeight + itemWeight * befQuantity <= MaximumBoxWeight)
 		{
-			// cargo에 있는 item별로 pendlingLine을 모은다
-			if (pendingLines.TryGetValue(id, out var lines) == false)
-			{
-				lines = new();
-				pendingLines.Add(id, lines);
-			}
-			
-			// 모든 포트에 있는 해당 ID의 아이템들을 line으로 만든다
-			foreach (var port in ports)
-			{
-				// if port's line is not fully reserved, then build the rest line
-				int reserved = port.ReservePicking(id, port.ItemTotals[id]);
-
-				if (reserved <= 0) continue;
-
-				WorkLine line = new WorkLine(port, id, reserved);
-				lines.Add(line);
-			}
+			return befQuantity;
+		}
+		else
+		{
+			int newQuantity = Mathf.FloorToInt((MaximumBoxWeight - curWeight) / itemWeight);
+			return newQuantity;
 		}
 	}
+}
 
-	public override bool BuildStoreTask(float boxPercentage, out StoringTask task)
+// store by item Id
+// 가장 많은 같은 종류의 아이템을 담아서 저장하는 전략
+public sealed class StoringItemFriendly : StoringPlanner
+{
+	private Dictionary<uint, int> itemQuantityCanPick = new();
+
+	private bool GetBestFit(out uint bestFitID)
 	{
-		task = null;
+		bestFitID = 0;
+		int bestFit = 0;
 
-		// 더이상 task를 만들 line이 없으면 return false
-		if (pendingLines.Count == 0) return false;
+		if (itemQuantityCanPick.Count <= 0)
+			return false;
 
-
-		// bestItemLine을 찾는다
-		int bestItemLineCnt = -1;
-		uint bestItemLineID = 0;
-		foreach (var kv in pendingLines)
+		foreach (var kv in itemQuantityCanPick)
 		{
-			int c = kv.Value.Count;
-			if (c > bestItemLineCnt)
+			int c = kv.Value;
+			if (c > bestFit)
 			{
-				bestItemLineCnt = c;
-				bestItemLineID = kv.Key;
+				bestFit = c;
+				bestFitID = kv.Key;
 			}
-		}
-
-		if (bestItemLineCnt == 0) return false;
-
-		// todo
-		// boxPercentage에 의해 job의 Line을 제한한다
-		int removed = pendingLines[bestItemLineID].Count;
-
-		List<WorkLine> line = new(pendingLines[bestItemLineID]);
-		pendingLines[bestItemLineID].RemoveRange(0, removed);
-
-		WorkJob job = new WorkJob(jobID++, line, WorkOp.Storing);
-
-		task = new StoringTask(job);
-
-		if (pendingLines[bestItemLineID].Count == 0)
-		{
-			pendingLines.Remove(bestItemLineID);
 		}
 
 		return true;
 	}
 
+	public override void OnPortItemQuantityChanged(ShelfBase port, uint itemID, int quantity)
+	{
+		if (quantity > 0)
+		{
+			itemQuantityCanPick[itemID] = itemQuantityCanPick.GetValueOrDefault(itemID, 0) + quantity;
+		}
+	}
+
+	public override void OnPortItemReserved(ShelfBase port, uint itemID, int reservedQuantity)
+	{
+		itemQuantityCanPick[itemID] = itemQuantityCanPick.GetValueOrDefault(itemID, 0) - reservedQuantity;
+
+		if (itemQuantityCanPick[itemID] < 0)
+		{
+			// why minus??
+			UnityEngine.Debug.LogError($"Reserved quantity for item {itemID} is greater than available quantity. Check the reservation logic.");
+			itemQuantityCanPick[itemID] = 0;
+		}
+
+		if (itemQuantityCanPick[itemID] == 0)
+		{
+			itemQuantityCanPick.Remove(itemID);
+		}
+	}
+
+	public override bool BuildStoreTask(out StoringTask task)
+	{
+		task = null;
+
+		// 더이상 task를 만들 line이 없으면 return false
+		if (CanBuildFullTask() == false)
+			return false;
+
+		// boxPercentage에 의해 job의 Line을 제한한다
+		float curWeight = 0;
+
+		List<WorkLine> line = new();
+
+		bool boxFull = false;
+
+		while (boxFull == false && GetBestFit(out var itemID))
+		{
+			var cargoPorts = IBManager.CargoPortsByItem.GetValueOrDefault(itemID, new List<CargoPort>());
+
+			if (cargoPorts.Count <= 0)
+				break;
+			
+			// find the most quantity port
+			CargoPort mostFitCargo = cargoPorts[0];
+			int max = mostFitCargo.GetPickableQuantity(itemID);
+
+			foreach (var port in cargoPorts)
+			{
+				int cnt = port.GetPickableQuantity(itemID);
+				if (cnt > max)
+				{
+					max = cnt;
+					mostFitCargo = port;
+				}
+			}
+
+			// pq로 하고싶은데 어케 방법이 없을까 그냥 이대로 할게
+			float itemWeight = ItemDB.GetItemSize(itemID);
+			while (mostFitCargo != null)
+			{
+				int pickable = mostFitCargo.GetPickableQuantity(itemID);
+				int quantityCanPick = AdjustQuantityToFit(curWeight, itemWeight, pickable);
+
+				curWeight += quantityCanPick * itemWeight;
+				mostFitCargo.ReservePicking(itemID, quantityCanPick);
+
+				line.Add(new(mostFitCargo, itemID, quantityCanPick));
+
+				if (pickable != quantityCanPick)
+				{
+					// box is full
+					boxFull = true;
+					break;
+				}
+
+				mostFitCargo = GridStatic.GetClosestPlaceable(mostFitCargo.GridPosition, IBManager.CargoPortsByItem[itemID], (IGridPlaceable placeable) =>
+				{
+					var port = placeable as CargoPort;
+					return port.GetPickableQuantity(itemID) > 0;
+				}) as CargoPort;
+			}
+		}
+
+		if (line.Count <= 0)
+			return false;
+
+		WorkJob job = new WorkJob(jobID++, line, WorkOp.Storing);
+		task = new StoringTask(job);
+
+		return true;
+	}
+
+	public override bool CanBuildFullTask()
+	{
+		foreach (var kv in itemQuantityCanPick)
+		{
+			float itemWeight = ItemDB.GetItemSize(kv.Key);
+			float totalWeight = itemWeight * kv.Value;
+
+			if (totalWeight >= MaximumBoxWeight)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 }
 
