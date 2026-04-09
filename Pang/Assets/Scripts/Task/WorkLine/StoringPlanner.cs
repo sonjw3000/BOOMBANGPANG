@@ -141,11 +141,17 @@ public sealed class StoringItemFriendly : StoringPlanner
 				int quantityCanPick = AdjustQuantityToFit(curWeight, itemWeight, pickable);
 
 				curWeight += quantityCanPick * itemWeight;
-				mostFitCargo.ReservePicking(itemID, quantityCanPick);
+				int actualReserved = mostFitCargo.ReservePicking(itemID, quantityCanPick);
 
-				line.Add(new(mostFitCargo, itemID, quantityCanPick));
+				if (actualReserved <= 0)
+				{
+					Debug.Log("Cantbe, lets check");
+					break;
+				}
 
-				if (pickable != quantityCanPick)
+				line.Add(new(mostFitCargo, itemID, actualReserved));
+
+				if (pickable != actualReserved)
 				{
 					// box is full
 					boxFull = true;
