@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 // OrderManager
@@ -14,6 +15,7 @@ public class OrderManager : MonoBehaviour
 {
 	// 실제 주문 목록
 	private List<Order> orders = new();
+	private Dictionary<OrderTotalStatus, LinkedList<Order>> orderStatus = new();
 
 	// itemID로 주문을 빠르게 찾기 위한 맵핑
 	// PickingTask를 만들 때 사용되고 난 후에 큐에서 제거됨
@@ -21,7 +23,14 @@ public class OrderManager : MonoBehaviour
 
 	public IReadOnlyCollection<Order> Orders => orders;
 	public IReadOnlyDictionary<uint, Queue<OrderLine>> ItemOrderLines => itemOrderLines;
-
+	public IReadOnlyDictionary<OrderTotalStatus, LinkedList<Order>> OrderStatus => orderStatus;
+	private void Start()
+	{
+		foreach (OrderTotalStatus status in Enum.GetValues(typeof(OrderTotalStatus)))
+		{
+			orderStatus[status] = new();
+		}
+	}
 
 	public void CreateRandomOrder()
 	{
@@ -34,7 +43,7 @@ public class OrderManager : MonoBehaviour
 		}
 
 		orders.Add(order);
-
+		orderStatus[OrderTotalStatus.Pending].AddLast(order);
 		// convert order to OrderLines
 		foreach (var line in order.Lines)
 		{
@@ -90,7 +99,15 @@ public class OrderManager : MonoBehaviour
 
 	public void ChangeOrderStatus(OrderLine targetOrder, OrderStatus status)
 	{
-		targetOrder.ChangeOrderStatus(status);
+		var befStatus = targetOrder.ParentOrder.Status;
+		var afterStatus = targetOrder.ChangeOrderStatus(status);
+
+		if (befStatus != afterStatus)
+		{
+			var parent = targetOrder.ParentOrder;
+			orderStatus[befStatus].Remove(parent);
+			orderStatus[afterStatus].AddLast(parent);
+		}
 	}
 
 }

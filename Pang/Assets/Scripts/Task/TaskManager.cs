@@ -7,12 +7,15 @@ using static WorkerTask;
 public class TaskManager : MonoBehaviour
 {
 	private Dictionary<TaskType, LinkedList<WorkerTask>> taskQueue = new();
-	//public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue => taskQueue;
+	private Dictionary<TaskType, LinkedList<WorkerTask>> taskOnProgress = new();
 
 	private ProcessStatsCollector Stats => GameContext.Instance.ProcessStats;
 
 	private InboundWorkflowManager IBMgr => GameContext.Instance.IBWorkflowMgr;
 	private OutboundWorkflowManager OBMgr => GameContext.Instance.OBWorkflowMgr;
+
+	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue => taskQueue;
+	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskOnProgress => taskOnProgress;
 
 	private void Awake()
 	{
@@ -20,6 +23,7 @@ public class TaskManager : MonoBehaviour
 		foreach (TaskType type in System.Enum.GetValues(typeof(TaskType)))
 		{
 			taskQueue[type] = new();
+			taskOnProgress[type] = new();
 		}
 
 	}
@@ -47,12 +51,14 @@ public class TaskManager : MonoBehaviour
 
 				queue.RemoveFirst();
 				worker.SetTask(data);
+				taskOnProgress[key].AddLast(data);
 			}
 		}
 	}
 
 	public void OnEndTask(WorkerTask task)
 	{
+		taskOnProgress[task.Type].Remove(task);
 		Stats.CompleteProcess(task.Type);
 
 		// todo

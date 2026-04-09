@@ -67,6 +67,7 @@ public class GameContext : MonoBehaviour
 
 	[Header("UI관련해서 추가함")]
 	[SerializeField] private ProcessStatsCollector processStats;
+	[SerializeField] private MetricsService metrics;
 
 	private DeliveryService deliveryService = new();
 
@@ -95,6 +96,7 @@ public class GameContext : MonoBehaviour
 	public TileCatalog BaseTiles => baseTiles;
 
 	public ProcessStatsCollector ProcessStats => processStats;
+	public MetricsService Metrics => metrics;
 	public DeliveryService DeliveryService => deliveryService;
 	public InteractionContext InteractionCtx => interactionCtx;
 

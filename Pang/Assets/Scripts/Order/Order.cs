@@ -40,7 +40,7 @@ public class Order
 
 	public OrderTotalStatus Status => status;
 
-	public void ChangeOrderStatus(OrderStatus status)
+	public OrderTotalStatus ChangeOrderStatus(OrderStatus status)
 	{
 		// check all lines are completed
 		if (status == OrderStatus.Completed)
@@ -60,7 +60,7 @@ public class Order
 				this.status = OrderTotalStatus.Completed;
 			}
 
-			return;
+			return this.status;
 		}
 
 		// todo
@@ -68,6 +68,7 @@ public class Order
 		// 여기에
 
 		this.status = OrderTotalStatus.InProgress;
+		return this.status;
 	}
 }
 
@@ -92,10 +93,10 @@ public class OrderLine
 		Quantity = quantity;
 	}
 
-	public void ChangeOrderStatus(OrderStatus status)
+	public OrderTotalStatus ChangeOrderStatus(OrderStatus status)
 	{
 		this.status = status;
 
-		ParentOrder.ChangeOrderStatus(status);
+		return ParentOrder.ChangeOrderStatus(status);
 	}
 }

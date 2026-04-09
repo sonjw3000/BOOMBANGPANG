@@ -92,6 +92,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   palletPrefab: {fileID: 6912054728724276864, guid: 6e1f5d0516dec1541a25a3899f32558b, type: 3}
   boxPrefab: {fileID: 8319817083396600759, guid: 4f47c92cb33ff7b4ea31b7d370158fda, type: 3}
+  toteCapacity: 150
 --- !u!1 &581681973905174896
 GameObject:
   m_ObjectHideFlags: 0
@@ -460,6 +461,7 @@ Transform:
   - {fileID: 6463747608451329436}
   - {fileID: 6514783859517015416}
   - {fileID: 8792456289541213448}
+  - {fileID: 5376571530870301791}
   - {fileID: 8739494435866360622}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -493,6 +495,7 @@ MonoBehaviour:
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
   baseTiles: {fileID: 0}
   processStats: {fileID: 2003437797910367155}
+  metrics: {fileID: 2607858685587643834}
 --- !u!1 &2910311652415540675
 GameObject:
   m_ObjectHideFlags: 0
@@ -537,6 +540,50 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 966ad98827d9a434db7cc0f981fd2866, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &3000597967999158332
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5376571530870301791}
+  - component: {fileID: 2607858685587643834}
+  m_Layer: 0
+  m_Name: MetricsService
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5376571530870301791
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3000597967999158332}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4930837203190484080}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2607858685587643834
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3000597967999158332}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fe40ac078635ce44be1c09fea54b669, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MetricsService
 --- !u!1 &4035456000139343244
 GameObject:
   m_ObjectHideFlags: 0
@@ -901,7 +948,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cargoPortService: {fileID: 4830617511745632944}
-  maxBoxPercentage: 80
   storingTaskBuildTime: 10
 --- !u!1 &7027379629001389123
 GameObject:
