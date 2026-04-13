@@ -333,6 +333,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemLedger: {fileID: 2594515762221059893}
   boxPoolRegistry: {fileID: 5559326809732046067}
+  workPolicyService: {fileID: 1302889510995561397}
 --- !u!1 &2117233079258938109
 GameObject:
   m_ObjectHideFlags: 0
@@ -1026,7 +1027,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: efdc8abc698edee42bb623f5c4329493, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorkPolicyService
-  workProfile: {fileID: 11400000, guid: a1f774251b2c7ae46b285fb3a67dd9ce, type: 2}
+  workPolicy: {fileID: 11400000, guid: a1f774251b2c7ae46b285fb3a67dd9ce, type: 2}
   moveBoost:
     _serializedList:
     - Key: 0
@@ -1099,6 +1100,8 @@ MonoBehaviour:
           Value: 1
         - Key: 5
           Value: 1
+  workerRestFatigue: 70
+  robotChargeBattery: 30
 --- !u!1 &7027379629001389123
 GameObject:
   m_ObjectHideFlags: 0

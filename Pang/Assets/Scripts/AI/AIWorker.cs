@@ -36,6 +36,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public float BaseWorkSpeedMultiplier => workerArchetype.baseWorkSpeedMultiplier;
 	public float MinimumWorkSpeedMultiplier => workerArchetype.minimumWorkSpeedMultiplier;
 
+	public WorkerType WorkerType => workerArchetype.workerType;
 
 	protected WorkerArchetype Archetype => workerArchetype;
 

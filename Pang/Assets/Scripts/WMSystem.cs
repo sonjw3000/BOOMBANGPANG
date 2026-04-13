@@ -9,7 +9,11 @@ public class WMSystem : MonoBehaviour
 	[SerializeField] private ItemLedger itemLedger;
 	[SerializeField] private BoxPoolService boxPoolRegistry;
 
+	[Header("Policy")]
+	[SerializeField] private WorkPolicyService workPolicyService;
+
 	public BoxPoolService BoxPoolMgr => boxPoolRegistry;
 	public ItemLedger ItemLedger => itemLedger;
 
+	public WorkPolicyService WorkPolicyService => workPolicyService;
 }

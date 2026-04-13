@@ -7,19 +7,30 @@ using AYellowpaper.SerializedCollections;
 
 public class WorkPolicyService : MonoBehaviour
 {
+	// base policy
 	[SerializeField] private WorkPolicy workPolicy;
 
+	// worker boost
 	[SerializedDictionary("WorkerType", "Boost")]
 	[SerializeField] private SerializedDictionary<WorkerType, float> moveBoost;
 	[SerializedDictionary("WorkerType", "Task/Boost")]
 	[SerializeField] private SerializedDictionary<WorkerType, SerializedDictionary<WorkerTask.TaskType, float>> workTimeBoost;
 
-	
-	public float GetMoveSpeed(WorkerType workerType)
-	{
-		//WorkProfile move = workPolicy.moveSpeed[workerType];
-		return 0;
+	// worker rest/charge
+	[SerializeField] private float workerRestFatigue = 70.0f;
+	[SerializeField] private float robotChargeBattery = 30.0f;
 
-	}
+	public float GetMoveSpeed(AIWorker targetWorker) 
+		=> workPolicy.moveSpeed[targetWorker.WorkerType]
+		* moveBoost[targetWorker.WorkerType]
+		* targetWorker.GetMoveSpeedMultiplier();
 
+	public float GetWorkTime(AIWorker targetWorker)
+		=> workPolicy.workerWorkTime[targetWorker.WorkerType][targetWorker.TaskType].WorkDuration
+		/ workTimeBoost[targetWorker.WorkerType][targetWorker.TaskType]
+		/ Mathf.Max(targetWorker.GetWorkSpeedMultiplier(), 0.01f);
+
+	public float GetWorkFatigue(AIWorker targetWorker)
+		=> workPolicy.workerWorkTime[targetWorker.WorkerType][targetWorker.TaskType].FatiguePerTask
+		* workTimeBoost[targetWorker.WorkerType][targetWorker.TaskType];
 }

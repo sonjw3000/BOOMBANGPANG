@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using Unity.Mathematics;
+using UnityEditor.Build.Content;
 
 public class FindRoute : MonoBehaviour
 {
@@ -8,8 +9,8 @@ public class FindRoute : MonoBehaviour
 	private GridCell[,,] map => GameContext.Instance.GridService.Map;
 	private int3 mapSize => GameContext.Instance.GridService.MapSize;
 
-	public float speed = 2f;
-	public float rotationSpeed = 5f;
+	//public float speed = 2f;
+	//public float rotationSpeed = 5f;
 	public int3 goalCoordinate;
 
 	private int currentIndex = 0;
@@ -97,8 +98,12 @@ public class FindRoute : MonoBehaviour
 
 		Vector3 direction = math.normalize(targetPos - transform.position);
 		float dotProduct = math.dot(transform.forward, direction);
+
+		float speed = GameContext.Instance.WMSys.WorkPolicyService.GetMoveSpeed(_Worker);
+
 		if (dotProduct < 0.999f)
 		{
+			float rotationSpeed = speed * 2.5f;
 			Quaternion targetRotation;
 			targetRotation = Quaternion.LookRotation(direction);
 			transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
