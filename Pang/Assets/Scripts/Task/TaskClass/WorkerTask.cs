@@ -46,6 +46,7 @@ public abstract class WorkerTask
 	//static public TaskManager Manager { get; private set; } = null;
 
 
+	static protected WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
 
 	
 

@@ -8,18 +8,14 @@ using static IBaseNode.NodeState;
 public sealed class PickingTask : WorkerTask
 {
 	private WorkJob pickJob;
-
-	//private ShelfBase targetCargoPos = null;
-
 	private bool isTaskEnd = false;
 
 	public WorkJob PickingData => pickJob;
 	public WorkLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
-	
-	//public ShelfBase TargetCargo => targetCargoPos;
 
 	static private CargoPortService CargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
 	static private PackingStationService PackingService => GameContext.Instance.OBWorkflowMgr.PackingStations;
+
 	public PickingTask(WorkJob pickJob) : base(TaskType.Picking)
 	{
 		this.pickJob = pickJob;
@@ -32,45 +28,32 @@ public sealed class PickingTask : WorkerTask
 
 	protected override IBaseNode BuildWorkNode()
 	{
-		// todo
-
-
-		// local bt에 토트의 사이즈를 확인하는 단계도 넣어야함
-		// 토트 용량이 넘치면 시마이치고 토트를 보내야함
-		// 해당 과정을 거친 후 본인의 작업을 하게 만들어야함
-		// 일단은 대충 싸갈기자
 		SelectorNode root = new SelectorNode();
 
-		// work node
-		// checking tote size over capacity
-		// actual work
 		SelectorNode pickAfterPut = new SelectorNode();
 
 		SequenceNode put = new SequenceNode();
 		put.Add(new ActionNode(CheckPickingEnd));
 		put.Add(AIWorker.MoveToTarget(GetAvailablePackingStation));
-		put.Add(new WaitNode(1.0f));
-		put.Add(new ActionNode(PickingEndAction));
+		put.Add(AIWorker.BuildWorkTimeInteract(
+			"PutTime", SetPutTime, PickingEndAction
+			));
 
 		SequenceNode pick = new SequenceNode();
 		pick.Add(new ActionNode(CheckIsPickingState));
 		pick.Add(AIWorker.BuildCarryMoveInteract(
 			boxRequirement: BoxType.Personal,
 			setGoal: SetTarget,
-			interact: PickItems
+			interact: null
 		));
-		// todo 애니메이션을 재생해야한다 곧 지우자
-		// picking중인지 확실히 보기 위해 대기한다
-		pick.Add(new WaitNode(1.0f));
 
-
-
-		// 여기에 토트 반납 알고리즘을 차려야함
+		pick.Add(AIWorker.BuildWorkTimeInteract(
+			"PickTime", SetPickTime, PickItems
+			));
 
 		pickAfterPut.Add(put);
 		pickAfterPut.Add(pick);
 
-		// for root
 		root.Add(pickAfterPut);
 
 		return root;
@@ -157,30 +140,7 @@ public sealed class PickingTask : WorkerTask
 			return Success;
 		}
 
-
 		return Failure;
-
-		//// todo
-		//// 고쳐야한다
-		//Dictionary<uint, int> moved = new();
-		//foreach ((var itemID, var quantity) in task.carryBox.CarringBox.ItemTotals)
-		//{
-		//	moved[itemID] = task.targetCargoPos.AddItem(itemID, quantity);
-		//}
-
-		//foreach((var itemID, var quantity) in moved)
-		//{
-		//	task.carryBox.CarringBox.RemoveItem(itemID, quantity);
-		//}
-
-		//// todo
-		//// port로 모두 옮겼는지 확인하는 작업이 필요함
-		//foreach (var workLine in task.PickingData.Lines)
-		//{
-		//	workLine.RelatedOrderLine.ChangeOrderStatus(OrderStatus.Shipping);
-		//}
-		//task.isTaskEnd = true;
-		//return Success;
 	}
 
 	public static NodeState SetTarget(in BTContext ctx)
@@ -210,6 +170,18 @@ public sealed class PickingTask : WorkerTask
 		return Success;
 	}
 
+	public static NodeState SetPickTime(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.Set("PickTime", WorkPolicyService.GetWorkTime(ctx.Worker));
+		return Success;
+	}
+
+	public static NodeState SetPutTime(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.Set("PutTime", WorkPolicyService.GetWorkTime(ctx.Worker));
+		return Success;
+	}
+
 	public static NodeState PickItems(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
@@ -226,18 +198,10 @@ public sealed class PickingTask : WorkerTask
 
 		int realAdded = box.AddItem(task.CurrentLine.ItemID, removed);
 
-		Debug.Log($"[PickingTask] PickItems: Line Cnt: {task.PickingData.CurrentLineIndex}");
-		Debug.Log($"[PickingTask] Trying to pick ItemID: {task.CurrentLine.ItemID}, Quantity: {task.CurrentLine.Quantity}");
-		Debug.Log($"[PickingTask] Box Capacity: {box.Capacity}, BoxCurrentSize: {box.TotalSize}");
-		// todo
 		// 갯수를 체크해야한다
 		// 중요함!
 		if (task.CurrentLine.Quantity != realAdded)
 		{
-			Debug.Log($"[PickingTask] Requested: {task.CurrentLine.Quantity}, Added: {realAdded}, RemovedFromShelf: {removed}");
-			
-			//Debug.Log($"[PickingTask] Box Instance")
-
 			// 갯수가 다르기 때문에 다른곳에서 동일 물품을 줏어야 한다. 새로운 위치로 이동해야하지 않을까?
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
 			return Failure;
@@ -247,6 +211,4 @@ public sealed class PickingTask : WorkerTask
 
 		return Success;
 	}
-
-
 }

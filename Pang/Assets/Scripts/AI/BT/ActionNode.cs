@@ -52,3 +52,40 @@ public class WaitNode : IBaseNode
 		return NodeState.Running;
 	}
 } 
+
+public class DoWorkNode : IBaseNode
+{
+	private float startTime;
+	private float waitTime;
+	private string targetBBKey = string.Empty;
+	private bool isRunning = false;
+
+	public DoWorkNode(string targetBBKey/*, WorkerState workerState*/)
+	{
+		this.targetBBKey = targetBBKey;
+	}
+	public NodeState Evaluate(in BTContext ctx)
+	{
+		if (isRunning == false)
+		{
+			if (ctx.LocalBlackBoard.TryGet(targetBBKey, out waitTime) == false)
+			{
+				Debug.LogError($"targetBBKey is Not Set!!! Key: {targetBBKey}");
+				return NodeState.Failure;
+			}
+			startTime = Time.time;
+			isRunning = true;
+		}
+
+		if (Time.time - startTime > waitTime)
+		{
+			isRunning = false;
+			return NodeState.Success;
+		}
+
+		// todo
+		// play something animation here
+
+		return NodeState.Running;
+	}
+}

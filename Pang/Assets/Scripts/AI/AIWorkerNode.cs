@@ -203,6 +203,17 @@ public abstract partial class AIWorker
 
 		if (boxRequirement != BoxType.None) node.Add(GetBox(boxRequirement));
 		node.Add(MoveToTarget(setGoal));
+		if (interact != null) node.Add(new ActionNode(interact));
+
+		return node;
+	}
+
+	public static SequenceNode BuildWorkTimeInteract(string targetBBkey, ActionFunc setBBKey, ActionFunc interact)
+	{
+		SequenceNode node = new();
+
+		node.Add(new ActionNode(setBBKey));
+		node.Add(new DoWorkNode(targetBBkey));
 		node.Add(new ActionNode(interact));
 
 		return node;
