@@ -31,6 +31,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	private int3 position;
 
+	public float BaseMoveSpeedMultiplier => workerArchetype.baseMoveSpeedMultiplier;
+	public float MinimumMoveSpeedMultiplier => workerArchetype.minimumMoveSpeedMultiplier;
+	public float BaseWorkSpeedMultiplier => workerArchetype.baseWorkSpeedMultiplier;
+	public float MinimumWorkSpeedMultiplier => workerArchetype.minimumWorkSpeedMultiplier;
+
 	protected WorkerArchetype Archetype => workerArchetype;
 
 	public int MonthlyCost => workerArchetype.monthlyCost;
@@ -177,6 +182,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		// 폭발도 하는게 좀 간지나긴 하는데 폭발은 로케트쪽에서 해주는게 나으려나
 		// 
 	}
+
 
 	public virtual float GetWorkSpeedMultiplier() { return 1.0f; }
 	public virtual float GetMoveSpeedMultiplier() { return 1.0f; }

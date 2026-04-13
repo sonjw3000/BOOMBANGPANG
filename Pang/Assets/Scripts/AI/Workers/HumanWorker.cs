@@ -2,9 +2,6 @@
 
 public class HumanWorker : AIWorker
 {
-	private const float baseWorkSpeed = 1.0f;
-	private const float minimumWorkSpeed = 0.5f;
-
 	private float experience;
 
 	[SerializeField] private float fatigue;
@@ -14,12 +11,12 @@ public class HumanWorker : AIWorker
 
 	public override float GetWorkSpeedMultiplier()
 	{
-		return Mathf.Lerp(baseWorkSpeed, minimumWorkSpeed, fatigue / 100.0f);
+		return Mathf.Lerp(BaseWorkSpeedMultiplier, MinimumWorkSpeedMultiplier, fatigue / 100.0f);
 	}
 
 	public override float GetMoveSpeedMultiplier()
 	{
-		return Mathf.Lerp(baseWorkSpeed, minimumWorkSpeed, fatigue / 100.0f);
+		return Mathf.Lerp(BaseMoveSpeedMultiplier, MinimumMoveSpeedMultiplier, fatigue / 100.0f);
 	}
 
 	public override void OnTaskCompleted()

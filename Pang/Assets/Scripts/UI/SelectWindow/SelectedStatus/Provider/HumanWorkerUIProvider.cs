@@ -12,6 +12,7 @@ public class HumanWorkerUIProvider : UIProvider<HumanWorker>
 	public override void BuildInfoBlocks()
 	{
 		infoBlocks.Clear();
-		infoBlocks.Add(new KeyValueBlock("Fatigue", $"{Fatigue}"));
+		infoBlocks.Add(new KeyValueBlock("Fatigue", $"{Fatigue}%"));
+		infoBlocks.Add(new KeyValueBlock("MoveSpeed", $"x{currentTarget.GetMoveSpeedMultiplier()}"));
 	}
 }
