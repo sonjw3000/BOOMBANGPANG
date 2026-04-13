@@ -22,10 +22,10 @@ public abstract class DetailContentBase : MonoBehaviour
 	{
 		DeleteButtonEvent.AddListener(() => provider?.DeleteObject());
 
-		AddListner();
+		AddListener();
 	}
 
-	protected virtual void AddListner() { }
+	protected virtual void AddListener() { }
 
 	public abstract bool IsTargetType(GameObject obj);
 	public void SetProvider(UIProviderBase provider)

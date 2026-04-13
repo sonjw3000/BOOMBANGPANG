@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 // UI Provider
@@ -9,7 +8,6 @@ using UnityEngine;
 public abstract class UIProviderBase
 {
 	//public abstract bool TryBuild(out SelectionModel model);
-	public event System.Action OnDataChanged;
 	public abstract string Name { get; }
 	public abstract Sprite Icon { get; }
 	public IEnumerable<InfoBlock> InfoBlocks => infoBlocks;
@@ -20,9 +18,11 @@ public abstract class UIProviderBase
 	private GameObject linkedObject = null;
 
 	protected void SetGameObject(GameObject go) => linkedObject = go;
+
 	public abstract bool IsTargetType(GameObject obj);
 	public abstract void LinkObject(GameObject obj);
 	public abstract void BuildInfoBlocks();
+	protected virtual void OnDataChanged() { }
 
 	public void DeleteObject()
 	{

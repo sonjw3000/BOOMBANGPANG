@@ -14,7 +14,7 @@ public enum WorkerAbility
 }
 
 [System.Serializable]
-public partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
+public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
 {
 	[SerializeField] private WorkerArchetype workerArchetype;
 

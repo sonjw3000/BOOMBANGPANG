@@ -4,7 +4,7 @@ using static ActionNode;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
-public partial class AIWorker
+public abstract partial class AIWorker
 {
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 	// AI's basic actions

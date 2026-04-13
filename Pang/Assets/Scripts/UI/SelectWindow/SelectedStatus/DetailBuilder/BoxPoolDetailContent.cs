@@ -11,7 +11,7 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 
 	private static BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolMgr;
 
-	protected override void AddListner()
+	protected override void AddListener()
 	{
 		addBoxButton.onClick.AddListener(() =>
 		{

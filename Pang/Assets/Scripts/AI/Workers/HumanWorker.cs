@@ -2,13 +2,15 @@
 
 public class HumanWorker : AIWorker
 {
+	private const float baseWorkSpeed = 1.0f;
+	private const float minimumWorkSpeed = 0.5f;
+
 	private float experience;
 
 	[SerializeField] private float fatigue;
 	[SerializeField] private float fatigueIncreasePerTask = 2.0f;
 
-	private const float baseWorkSpeed = 1.0f;
-	private const float minimumWorkSpeed = 0.5f;
+	public float Fatigue => fatigue;
 
 	public override float GetWorkSpeedMultiplier()
 	{
@@ -29,7 +31,7 @@ public class HumanWorker : AIWorker
 
 	public override void TickVitals(float deltaTime)
 	{
-		fatigue += deltaTime * 0.1f;
+		//fatigue += deltaTime * 0.1f;
 	}
 }
 
