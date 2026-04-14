@@ -59,9 +59,11 @@ public class StoringTask : WorkerTask
 		collect.Add(AIWorker.BuildCarryMoveInteract(
 			boxRequirement: BoxType.Personal,
 			setGoal: SetCollectingPosition,
-			interact: PickItems
+			interact: null
 		));
-		collect.Add(new WaitNode(1.0f));
+		collect.Add(AIWorker.BuildWorkTimeInteract(
+			"PickTime", SetPickTime, PickItems
+		));
 
 		// phase: placing
 		SequenceNode place = new SequenceNode();
@@ -71,7 +73,9 @@ public class StoringTask : WorkerTask
 			setGoal: SetPlacingPosition,
 			interact: PlaceItems
 		));
-		place.Add(new WaitNode(1.0f));
+		place.Add(AIWorker.BuildWorkTimeInteract(
+			"PutTime", SetPutTime, PlaceItems
+		));
 
 		workNode.Add(collect);
 		workNode.Add(place);
@@ -192,6 +196,18 @@ public class StoringTask : WorkerTask
 			task.IsJobEnd = true;
 		}
 
+		return Success;
+	}
+
+	public static NodeState SetPickTime(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.Set("PickTime", WorkPolicyService.GetWorkTime(ctx.Worker));
+		return Success;
+	}
+
+	public static NodeState SetPutTime(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.Set("PutTime", WorkPolicyService.GetWorkTime(ctx.Worker));
 		return Success;
 	}
 

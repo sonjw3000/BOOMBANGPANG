@@ -39,7 +39,6 @@ public class PackingTask : WorkerTask
 
 		root.Add(findPackingStation);
 		root.Add(work);
-		root.Add(new WaitNode(1.0f));
 
 		// find packing station
 		findPackingStation.Add(new ActionNode(CheckPackingStation));

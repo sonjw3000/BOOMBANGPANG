@@ -52,12 +52,16 @@ public class UnloadingTask : WorkerTask
 		root.Add(AIWorker.BuildWorkTimeInteract(
 				"PickCargo",
 				SetPickTime,
-				UnloadFromRocket));
+				null));
+		root.Add(AIWorker.BuildWorkTimeInteract("PickTime", SetPickTime, UnloadFromRocket));
+
 		root.Add(moveToCargoPort);
 		root.Add(AIWorker.BuildWorkTimeInteract(
 				"PutCargo",
 				SetPutTime,
-				PutOnBuffer));
+				null));
+		root.Add(AIWorker.BuildWorkTimeInteract("PutTime", SetPutTime, PutOnBuffer));
+
 		root.Add(new ActionNode(SetTaskEnd));
 
 		return root;
