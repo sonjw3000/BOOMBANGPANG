@@ -41,17 +41,23 @@ public class UnloadingTask : WorkerTask
 		SequenceNode moveToRocket = AIWorker.BuildCarryMoveInteract(
 			boxRequirement: BoxType.Cargo,
 			setGoal: SetRocketTarget,
-			interact: UnloadFromRocket
-			);
+			interact: null);
 
 		SequenceNode moveToCargoPort = AIWorker.BuildCarryMoveInteract(
 			boxRequirement: BoxType.Cargo,
 			setGoal: SetZoneTarget,
-			interact: PutOnBuffer
-			);
+			interact: null);
 
 		root.Add(moveToRocket);
+		root.Add(AIWorker.BuildWorkTimeInteract(
+				"PickCargo",
+				SetPickTime,
+				UnloadFromRocket));
 		root.Add(moveToCargoPort);
+		root.Add(AIWorker.BuildWorkTimeInteract(
+				"PutCargo",
+				SetPutTime,
+				PutOnBuffer));
 		root.Add(new ActionNode(SetTaskEnd));
 
 		return root;
@@ -185,6 +191,18 @@ public class UnloadingTask : WorkerTask
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 		task.IsUnloadEnd = true;
 
+		return Success;
+	}
+
+	public static NodeState SetPickTime(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.Set("PickCargo", WorkPolicyService.GetWorkTime(ctx.Worker));
+		return Success;
+	}
+
+	public static NodeState SetPutTime(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.Set("PutCargo", WorkPolicyService.GetWorkTime(ctx.Worker));
 		return Success;
 	}
 

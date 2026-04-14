@@ -126,6 +126,7 @@ public class PackingStation :
 	{
 	}
 
+	public bool IsBoxPackable() => WaitStackBox != null && CurrentPackingBox == null;
 	public bool PrepareBox()
 	{
 		if (WaitStackBox == null)

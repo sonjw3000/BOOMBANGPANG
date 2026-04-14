@@ -1,5 +1,4 @@
-﻿using Assets.Scripts.AI.BT;
-using Unity.Mathematics;
+﻿using Unity.Mathematics;
 using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
@@ -58,11 +57,27 @@ public class PackingTask : WorkerTask
 			return Failure;
 		}));
 
-		// do work
-		work.Add(new ActionNode(CheckBoxToPack));
-		// simulate packing time
-		work.Add(new WaitNode(2.0f));
-		work.Add(new ActionNode(PackEnd));
+		ActionNode checkBox = new ActionNode(CheckBoxToPack);
+		SequenceNode moveBox2Desk = AIWorker.BuildWorkTimeInteract(
+			"BoxMoveTime",
+			SetBoxMoveTime,
+			PrepareToPack
+			);
+		SequenceNode packBox = AIWorker.BuildWorkTimeInteract(
+			"PackTime",
+			SetPackTime,
+			null
+			);
+		SequenceNode removeFromDesk = AIWorker.BuildWorkTimeInteract(
+			"BoxMoveTime",
+			SetBoxMoveTime,
+			PackEnd
+			);
+
+		work.Add(checkBox);
+		work.Add(moveBox2Desk);
+		work.Add(packBox);
+		work.Add(removeFromDesk);
 
 		return root;
 	}
@@ -111,15 +126,25 @@ public class PackingTask : WorkerTask
 		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
 			&& placeable is PackingStation station)
 		{
+			if (station.IsBoxPackable())
+				return Success;
+
+			ctx.Worker.enabled = false;
+			//Debug.Log("No box to pack, wait");
+		}
+
+		return Failure;
+	}
+
+	public static NodeState PrepareToPack(in BTContext ctx)
+	{
+		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
+			&& placeable is PackingStation station)
+		{
 			if (station.PrepareBox())
 				return Success;
 
-			//Debug.Log("No box to pack, wait");
-			ctx.Worker.enabled = false;
-
 		}
-		// no box to pack, wait till box comes
-
 		return Failure;
 	}
 
@@ -140,6 +165,18 @@ public class PackingTask : WorkerTask
 		}
 
 		return Failure;
+	}
+
+	public static NodeState SetBoxMoveTime(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.Set("BoxMoveTime", WorkPolicyService.GetWorkTime(ctx.Worker));
+		return Success;
+	}
+
+	public static NodeState SetPackTime(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.Set("PackTime", WorkPolicyService.GetWorkTime(ctx.Worker));
+		return Success;
 	}
 
 }

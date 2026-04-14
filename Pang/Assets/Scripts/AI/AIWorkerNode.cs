@@ -214,7 +214,7 @@ public abstract partial class AIWorker
 
 		node.Add(new ActionNode(setBBKey));
 		node.Add(new DoWorkNode(targetBBkey));
-		node.Add(new ActionNode(interact));
+		if (interact != null) node.Add(new ActionNode(interact));
 
 		return node;
 	}
