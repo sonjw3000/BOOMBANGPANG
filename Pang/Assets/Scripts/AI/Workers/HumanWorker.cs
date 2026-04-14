@@ -35,4 +35,8 @@ public class HumanWorker : AIWorker
 	{
 		this.fatigue += fatigue;
 	}
+	public override float GetFatigue()
+	{
+		return fatigue;
+	}
 }

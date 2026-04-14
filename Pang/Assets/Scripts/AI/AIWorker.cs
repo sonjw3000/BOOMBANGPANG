@@ -202,5 +202,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public virtual void TickVitals(float deltaTime) { }
 
 	public abstract void AddFatigue(float fatigue);
+	public abstract float GetFatigue();
 
+	// decreased chance by researches or some pieces of equipment
+	public virtual float GetIncidentMitigationMultiplier() { return 1.0f; }
 }

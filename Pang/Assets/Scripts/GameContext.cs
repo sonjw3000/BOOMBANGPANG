@@ -65,6 +65,9 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private PlaceableCatalog catalog;
 	[SerializeField] private TileCatalog baseTiles;
 
+	[Header("Risk Service")]
+	[SerializeField] private HumanIncidentService humanIncidentService;
+
 	[Header("UI관련해서 추가함")]
 	[SerializeField] private ProcessStatsCollector processStats;
 	[SerializeField] private MetricsService metrics;
@@ -94,6 +97,8 @@ public class GameContext : MonoBehaviour
 
 	public PlaceableCatalog PlaceableCatalog => catalog;
 	public TileCatalog BaseTiles => baseTiles;
+
+	public HumanIncidentService HumanIncident => humanIncidentService;
 
 	public ProcessStatsCollector ProcessStats => processStats;
 	public MetricsService Metrics => metrics;

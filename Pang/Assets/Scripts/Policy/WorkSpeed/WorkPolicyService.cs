@@ -33,4 +33,7 @@ public class WorkPolicyService : MonoBehaviour
 	public float GetWorkFatigue(AIWorker targetWorker, WorkActionType actionType)
 		=> workPolicy.workerWorkTime[targetWorker.WorkerType][actionType].FatiguePerTask
 		* workTimeBoost[targetWorker.WorkerType][actionType];
+
+	public float GetBoost(AIWorker targetWorker, WorkActionType actionType)
+		=> workTimeBoost[targetWorker.WorkerType][actionType];
 }

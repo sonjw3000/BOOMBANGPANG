@@ -22,4 +22,6 @@ public class RobotWorker : AIWorker
 		// todo
 		// st battery
 	}
+
+	public override float GetFatigue() => 0;
 }
