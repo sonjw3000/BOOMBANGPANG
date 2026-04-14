@@ -236,12 +236,12 @@ public abstract partial class AIWorker
 			if (ctx.Worker is HumanWorker == false)
 				return Success;
 
-			float getChance = HumanIncident.GetIncidenceChance(ctx.Worker, actionType);
+			float chance = HumanIncident.GetIncidenceChance(ctx.Worker, actionType);
+			float random = UnityEngine.Random.Range(0, 100);
 
-			if (getChance * 100.0f <= UnityEngine.Random.Range(0, 100))
+			if (chance * 100.0f <= random)
 			{
-				//
-				Debug.Log("얘 사고났다");
+				Debug.Log($"얘 사고났다, chance: {chance * 100.0f}, rand: {random}");
 				return Abort;
 			}
 

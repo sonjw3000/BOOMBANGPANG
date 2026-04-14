@@ -14,7 +14,7 @@ public class SelectorNode : IBaseNode
 		foreach (IBaseNode node in Children)
 		{
 			var res = node.Evaluate(ctx);
-			if (res != NodeState.Failure) return res;
+			if (res != NodeState.Failure && res != NodeState.Abort) return res;
 		}
 
 		return NodeState.Failure;

@@ -25,7 +25,7 @@ public class SequenceNode : IBaseNode
 		for (int i = currentIndex; i < Children.Count; ++i)
 		{
 			var res = Children[i].Evaluate(ctx);
-			if (res == NodeState.Failure)
+			if (res == NodeState.Failure || res == NodeState.Abort)
 			{
 				currentIndex = 0;
 				return res;
