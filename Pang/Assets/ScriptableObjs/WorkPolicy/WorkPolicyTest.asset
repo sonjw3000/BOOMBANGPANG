@@ -29,106 +29,106 @@ MonoBehaviour:
         _serializedList:
         - Key: 0
           Value:
-            duration: 8
-            actualFatiguePerTask: 10
+            duration: 2
+            actualFatiguePerTask: 2
         - Key: 1
           Value:
             duration: 2
             actualFatiguePerTask: 2
         - Key: 2
           Value:
-            duration: 2
-            actualFatiguePerTask: 2
+            duration: 5
+            actualFatiguePerTask: 5
         - Key: 3
           Value:
-            duration: 3
-            actualFatiguePerTask: 1.2
+            duration: 4
+            actualFatiguePerTask: 5
         - Key: 4
           Value:
-            duration: 8
-            actualFatiguePerTask: 10
+            duration: 1
+            actualFatiguePerTask: 1
         - Key: 5
           Value:
-            duration: 7
-            actualFatiguePerTask: 8
+            duration: 2
+            actualFatiguePerTask: 2
     - Key: 1
       Value:
         _serializedList:
         - Key: 0
           Value:
-            duration: 8
-            actualFatiguePerTask: 10
+            duration: 2
+            actualFatiguePerTask: 2
         - Key: 1
           Value:
             duration: 2
             actualFatiguePerTask: 2
         - Key: 2
           Value:
-            duration: 2
-            actualFatiguePerTask: 2
+            duration: 5
+            actualFatiguePerTask: 5
         - Key: 3
           Value:
-            duration: 3
-            actualFatiguePerTask: 1.2
+            duration: 4
+            actualFatiguePerTask: 5
         - Key: 4
           Value:
-            duration: 8
-            actualFatiguePerTask: 10
+            duration: 1
+            actualFatiguePerTask: 1
         - Key: 5
           Value:
-            duration: 7
-            actualFatiguePerTask: 8
+            duration: 2
+            actualFatiguePerTask: 2
     - Key: 2
       Value:
         _serializedList:
         - Key: 0
           Value:
-            duration: 8
-            actualFatiguePerTask: 10
+            duration: 2
+            actualFatiguePerTask: 2
         - Key: 1
           Value:
             duration: 2
             actualFatiguePerTask: 2
         - Key: 2
           Value:
-            duration: 2
-            actualFatiguePerTask: 2
+            duration: 5
+            actualFatiguePerTask: 5
         - Key: 3
           Value:
-            duration: 3
-            actualFatiguePerTask: 1.2
+            duration: 4
+            actualFatiguePerTask: 5
         - Key: 4
           Value:
-            duration: 8
-            actualFatiguePerTask: 10
+            duration: 1
+            actualFatiguePerTask: 1
         - Key: 5
           Value:
-            duration: 7
-            actualFatiguePerTask: 8
+            duration: 2
+            actualFatiguePerTask: 2
     - Key: 3
       Value:
         _serializedList:
         - Key: 0
           Value:
-            duration: 8
-            actualFatiguePerTask: 10
+            duration: 2
+            actualFatiguePerTask: 2
         - Key: 1
           Value:
             duration: 2
             actualFatiguePerTask: 2
         - Key: 2
           Value:
-            duration: 2
-            actualFatiguePerTask: 2
+            duration: 5
+            actualFatiguePerTask: 5
         - Key: 3
           Value:
-            duration: 3
-            actualFatiguePerTask: 1.2
+            duration: 4
+            actualFatiguePerTask: 5
         - Key: 4
           Value:
-            duration: 8
-            actualFatiguePerTask: 10
+            duration: 1
+            actualFatiguePerTask: 1
         - Key: 5
           Value:
-            duration: 7
-            actualFatiguePerTask: 8
+            duration: 2
+            actualFatiguePerTask: 2

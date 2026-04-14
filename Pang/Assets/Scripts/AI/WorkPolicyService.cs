@@ -13,8 +13,8 @@ public class WorkPolicyService : MonoBehaviour
 	// worker boost
 	[SerializedDictionary("WorkerType", "Boost")]
 	[SerializeField] private SerializedDictionary<WorkerType, float> moveBoost;
-	[SerializedDictionary("WorkerType", "Task/Boost")]
-	[SerializeField] private SerializedDictionary<WorkerType, SerializedDictionary<WorkerTask.TaskType, float>> workTimeBoost;
+	[SerializedDictionary("WorkerType", "WorkActionType/Boost")]
+	[SerializeField] private SerializedDictionary<WorkerType, SerializedDictionary<WorkActionType, float>> workTimeBoost;
 
 	// worker rest/charge
 	[SerializeField] private float workerRestFatigue = 70.0f;
@@ -25,12 +25,12 @@ public class WorkPolicyService : MonoBehaviour
 		* moveBoost[targetWorker.WorkerType]
 		* targetWorker.GetMoveSpeedMultiplier();
 
-	public float GetWorkTime(AIWorker targetWorker)
-		=> workPolicy.workerWorkTime[targetWorker.WorkerType][targetWorker.TaskType].WorkDuration
-		/ workTimeBoost[targetWorker.WorkerType][targetWorker.TaskType]
+	public float GetWorkTime(AIWorker targetWorker, WorkActionType actionType)
+		=> workPolicy.workerWorkTime[targetWorker.WorkerType][actionType].WorkDuration
+		/ workTimeBoost[targetWorker.WorkerType][actionType]
 		/ Mathf.Max(targetWorker.GetWorkSpeedMultiplier(), 0.01f);
 
-	public float GetWorkFatigue(AIWorker targetWorker)
-		=> workPolicy.workerWorkTime[targetWorker.WorkerType][targetWorker.TaskType].FatiguePerTask
-		* workTimeBoost[targetWorker.WorkerType][targetWorker.TaskType];
+	public float GetWorkFatigue(AIWorker targetWorker, WorkActionType actionType)
+		=> workPolicy.workerWorkTime[targetWorker.WorkerType][actionType].FatiguePerTask
+		* workTimeBoost[targetWorker.WorkerType][actionType];
 }

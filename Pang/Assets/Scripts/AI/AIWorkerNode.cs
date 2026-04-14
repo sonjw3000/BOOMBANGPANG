@@ -7,6 +7,8 @@ using static IBaseNode.NodeState;
 public abstract partial class AIWorker
 {
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
+	static private WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
+
 	// AI's basic actions
 	private static NodeState SetDestination(in BTContext context)
 	{
@@ -208,15 +210,41 @@ public abstract partial class AIWorker
 		return node;
 	}
 
-	public static SequenceNode BuildWorkTimeInteract(string targetBBkey, ActionFunc setBBKey, ActionFunc interact)
+	public static SequenceNode BuildWorkTimeInteract(WorkActionType actionType, ActionFunc interact)
 	{
 		SequenceNode node = new();
 
-		node.Add(new ActionNode(setBBKey));
-		node.Add(new DoWorkNode(targetBBkey));
+		node.Add(new ActionNode((in BTContext ctx) =>
+			{
+				ctx.LocalBlackBoard.Set(actionType.ToString(), WorkPolicyService.GetWorkTime(ctx.Worker, actionType));
+				return Success;
+			}));
+		node.Add(new DoWorkNode(actionType));
 		if (interact != null) node.Add(new ActionNode(interact));
+		node.Add(new ActionNode((in BTContext ctx) =>
+		{
+			float fatigue = WorkPolicyService.GetWorkFatigue(ctx.Worker, actionType);
+			ctx.Worker.AddFatigue(fatigue);
+			return Success;
+		}));
+
+		// todo
+		// check human incident event here
 
 		return node;
 	}
+
+	//private static NodeState HandleHumanEvent(in BTContext ctx)
+	//{
+
+	//	return Success;
+	//}
+
+	//private static ActionNode CheckHumanIncidentEvent(string targetBBKey)
+	//{
+	//	ActionNode action = null;
+
+	//	return action;
+	//}
 
 }

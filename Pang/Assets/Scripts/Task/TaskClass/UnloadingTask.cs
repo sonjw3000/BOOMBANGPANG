@@ -49,18 +49,10 @@ public class UnloadingTask : WorkerTask
 			interact: null);
 
 		root.Add(moveToRocket);
-		root.Add(AIWorker.BuildWorkTimeInteract(
-				"PickCargo",
-				SetPickTime,
-				null));
-		root.Add(AIWorker.BuildWorkTimeInteract("PickTime", SetPickTime, UnloadFromRocket));
+		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, UnloadFromRocket));
 
 		root.Add(moveToCargoPort);
-		root.Add(AIWorker.BuildWorkTimeInteract(
-				"PutCargo",
-				SetPutTime,
-				null));
-		root.Add(AIWorker.BuildWorkTimeInteract("PutTime", SetPutTime, PutOnBuffer));
+		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, PutOnBuffer));
 
 		root.Add(new ActionNode(SetTaskEnd));
 
@@ -195,18 +187,6 @@ public class UnloadingTask : WorkerTask
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 		task.IsUnloadEnd = true;
 
-		return Success;
-	}
-
-	public static NodeState SetPickTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("PickCargo", WorkPolicyService.GetWorkTime(ctx.Worker));
-		return Success;
-	}
-
-	public static NodeState SetPutTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("PutCargo", WorkPolicyService.GetWorkTime(ctx.Worker));
 		return Success;
 	}
 

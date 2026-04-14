@@ -57,21 +57,9 @@ public class PackingTask : WorkerTask
 		}));
 
 		ActionNode checkBox = new ActionNode(CheckBoxToPack);
-		SequenceNode moveBox2Desk = AIWorker.BuildWorkTimeInteract(
-			"BoxMoveTime",
-			SetBoxMoveTime,
-			PrepareToPack
-			);
-		SequenceNode packBox = AIWorker.BuildWorkTimeInteract(
-			"PackTime",
-			SetPackTime,
-			null
-			);
-		SequenceNode removeFromDesk = AIWorker.BuildWorkTimeInteract(
-			"BoxMoveTime",
-			SetBoxMoveTime,
-			PackEnd
-			);
+		SequenceNode moveBox2Desk = AIWorker.BuildWorkTimeInteract(WorkActionType.MoveBox, PrepareToPack);
+		SequenceNode packBox = AIWorker.BuildWorkTimeInteract(WorkActionType.PackItem, null);
+		SequenceNode removeFromDesk = AIWorker.BuildWorkTimeInteract(WorkActionType.MoveBox, PackEnd);
 
 		work.Add(checkBox);
 		work.Add(moveBox2Desk);
@@ -164,18 +152,6 @@ public class PackingTask : WorkerTask
 		}
 
 		return Failure;
-	}
-
-	public static NodeState SetBoxMoveTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("BoxMoveTime", WorkPolicyService.GetWorkTime(ctx.Worker));
-		return Success;
-	}
-
-	public static NodeState SetPackTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("PackTime", WorkPolicyService.GetWorkTime(ctx.Worker));
-		return Success;
 	}
 
 }

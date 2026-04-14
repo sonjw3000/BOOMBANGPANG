@@ -57,20 +57,20 @@ public class DoWorkNode : IBaseNode
 {
 	private float startTime;
 	private float waitTime;
-	private string targetBBKey = string.Empty;
+	private readonly WorkActionType workActionType;
 	private bool isRunning = false;
 
-	public DoWorkNode(string targetBBKey/*, WorkerState workerState*/)
+	public DoWorkNode(WorkActionType workAction)
 	{
-		this.targetBBKey = targetBBKey;
+		workActionType = workAction;
 	}
 	public NodeState Evaluate(in BTContext ctx)
 	{
 		if (isRunning == false)
 		{
-			if (ctx.LocalBlackBoard.TryGet(targetBBKey, out waitTime) == false)
+			if (ctx.LocalBlackBoard.TryGet(workActionType.ToString(), out waitTime) == false)
 			{
-				Debug.LogError($"targetBBKey is Not Set!!! Key: {targetBBKey}");
+				Debug.LogError($"targetBBKey is Not Set!!! Key: {workActionType.ToString()}");
 				return NodeState.Failure;
 			}
 			startTime = Time.time;

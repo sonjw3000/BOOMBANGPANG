@@ -65,9 +65,9 @@ public class WaterTask : WorkerTask
 
 		SequenceNode work = new();
 		work.Add(AIWorker.MoveToTarget(PickSet));
-		work.Add(AIWorker.BuildWorkTimeInteract("PickTime", SetPickTime, Pick));
+		work.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, Pick));
 		work.Add(AIWorker.MoveToTarget(PutSet));
-		work.Add(AIWorker.BuildWorkTimeInteract("PutTime", SetPutTime, Put));
+		work.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, Put));
 		work.Add(new ActionNode(AIWorker.TaskCompleted));
 
 		root.Add(checkBoxState);
@@ -190,18 +190,6 @@ public class WaterTask : WorkerTask
 			}
 		}
 
-		return Success;
-	}
-
-	public static NodeState SetPickTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("PickTime", WorkPolicyService.GetWorkTime(ctx.Worker));
-		return Success;
-	}
-
-	public static NodeState SetPutTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("PutTime", WorkPolicyService.GetWorkTime(ctx.Worker));
 		return Success;
 	}
 }

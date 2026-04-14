@@ -30,5 +30,9 @@ public class HumanWorker : AIWorker
 	{
 		//fatigue += deltaTime * 0.1f;
 	}
-}
 
+	public override void AddFatigue(float fatigue)
+	{
+		this.fatigue += fatigue;
+	}
+}

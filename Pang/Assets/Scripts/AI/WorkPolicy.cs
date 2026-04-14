@@ -16,6 +16,6 @@ public class WorkPolicy : ScriptableObject
 {
 	[SerializedDictionary("WorkerType", "Speed")]
 	public SerializedDictionary<WorkerType, float> moveSpeed;
-	[SerializedDictionary("WorkerType", "Task/WorkerProfile")]
-	public SerializedDictionary<WorkerType, SerializedDictionary<WorkerTask.TaskType, WorkProfile>> workerWorkTime;
+	[SerializedDictionary("WorkerType", "WorkActionType/WorkerProfile")]
+	public SerializedDictionary<WorkerType, SerializedDictionary<WorkActionType, WorkProfile>> workerWorkTime;
 }

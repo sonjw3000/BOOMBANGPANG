@@ -45,11 +45,6 @@ public abstract class WorkerTask
 	private TaskManager Manager => GameContext.Instance.TaskMgr;
 	//static public TaskManager Manager { get; private set; } = null;
 
-
-	static protected WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
-
-	
-
 	protected WorkerTask(TaskType type)
 	{
 		//OccupyWorker = worker;

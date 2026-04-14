@@ -37,9 +37,7 @@ public class LoadingTask : WorkerTask
 			interact: null
 			));
 
-		root.Add(AIWorker.BuildWorkTimeInteract(
-			"PickTime", SetPickTime, PickCargo
-		));
+		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCargo));
 
 		root.Add(AIWorker.BuildCarryMoveInteract(
 			boxRequirement: BoxType.Cargo,
@@ -47,9 +45,7 @@ public class LoadingTask : WorkerTask
 			interact: StoreCargo
 			));
 
-		root.Add(AIWorker.BuildWorkTimeInteract(
-			"PutTime", SetPutTime, StoreCargo
-		));
+		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCargo));
 
 		return root;
 	}
@@ -131,17 +127,4 @@ public class LoadingTask : WorkerTask
 		task.isLoadEnd = true;
 		return Success;
 	}
-
-	public static NodeState SetPickTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("PickTime", WorkPolicyService.GetWorkTime(ctx.Worker));
-		return Success;
-	}
-
-	public static NodeState SetPutTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("PutTime", WorkPolicyService.GetWorkTime(ctx.Worker));
-		return Success;
-	}
-
 }

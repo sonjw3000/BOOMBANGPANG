@@ -35,9 +35,7 @@ public sealed class PickingTask : WorkerTask
 		SequenceNode put = new SequenceNode();
 		put.Add(new ActionNode(CheckPickingEnd));
 		put.Add(AIWorker.MoveToTarget(GetAvailablePackingStation));
-		put.Add(AIWorker.BuildWorkTimeInteract(
-			"PutTime", SetPutTime, PickingEndAction
-			));
+		put.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, PickingEndAction));
 
 		SequenceNode pick = new SequenceNode();
 		pick.Add(new ActionNode(CheckIsPickingState));
@@ -47,9 +45,7 @@ public sealed class PickingTask : WorkerTask
 			interact: null
 		));
 
-		pick.Add(AIWorker.BuildWorkTimeInteract(
-			"PickTime", SetPickTime, PickItems
-			));
+		pick.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickItem, PickItems));
 
 		pickAfterPut.Add(put);
 		pickAfterPut.Add(pick);
@@ -167,18 +163,6 @@ public sealed class PickingTask : WorkerTask
 		var line = task.CurrentLine;
 		ctx.LocalBlackBoard.Set<int3>("goalPos", line.Source.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
 
-		return Success;
-	}
-
-	public static NodeState SetPickTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("PickTime", WorkPolicyService.GetWorkTime(ctx.Worker));
-		return Success;
-	}
-
-	public static NodeState SetPutTime(in BTContext ctx)
-	{
-		ctx.LocalBlackBoard.Set("PutTime", WorkPolicyService.GetWorkTime(ctx.Worker));
 		return Success;
 	}
 

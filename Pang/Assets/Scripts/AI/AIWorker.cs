@@ -13,6 +13,16 @@ public enum WorkerAbility
 	// ...
 }
 
+public enum WorkActionType
+{
+	PickItem,
+	PutItem,
+	PickBox,
+	PutBox,
+	PackItem,
+	MoveBox
+}
+
 [System.Serializable]
 public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
 {
@@ -190,5 +200,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public virtual float GetMoveSpeedMultiplier() { return 1.0f; }
 	public virtual void OnTaskCompleted() { }
 	public virtual void TickVitals(float deltaTime) { }
+
+	public abstract void AddFatigue(float fatigue);
 
 }

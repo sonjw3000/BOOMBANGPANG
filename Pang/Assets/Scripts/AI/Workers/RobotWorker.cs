@@ -16,4 +16,10 @@ public class RobotWorker : AIWorker
 
 		batteryLevel -= deltaTime * 0.01f;
 	}
+
+	public override void AddFatigue(float fatigue)
+	{
+		// todo
+		// st battery
+	}
 }
