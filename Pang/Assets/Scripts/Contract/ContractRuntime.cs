@@ -53,7 +53,7 @@ namespace Assets.Scripts.Contract
 
 		public bool AdvanceWeek()
 		{
-			Debug.Log($"WeekAdvanced, remain: {remainDuration}, delivery: {deliveryDelta}");
+			//Debug.Log($"WeekAdvanced, remain: {remainDuration}, delivery: {deliveryDelta}");
 			
 			--remainDuration;
 			if (remainDuration < 0)

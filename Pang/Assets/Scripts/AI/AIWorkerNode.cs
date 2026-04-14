@@ -239,9 +239,9 @@ public abstract partial class AIWorker
 			float chance = HumanIncident.GetIncidenceChance(ctx.Worker, actionType);
 			float random = UnityEngine.Random.Range(0, 100);
 
-			if (chance * 100.0f <= random)
+			if (chance * 100.0f > random)
 			{
-				Debug.Log($"얘 사고났다, chance: {chance * 100.0f}, rand: {random}");
+				Debug.Log($"얘 사고났다, chance: {chance * 100.0f}, rand: {random}, taskType: {ctx.Worker.TaskType.ToString()}");
 				return Abort;
 			}
 
