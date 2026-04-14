@@ -8,6 +8,7 @@ public abstract partial class AIWorker
 {
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 	static private WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
+	static private HumanIncidentService HumanIncident => GameContext.Instance.HumanIncident;
 
 	// AI's basic actions
 	private static NodeState SetDestination(in BTContext context)
@@ -214,37 +215,39 @@ public abstract partial class AIWorker
 	{
 		SequenceNode node = new();
 
-		node.Add(new ActionNode((in BTContext ctx) =>
-			{
-				ctx.LocalBlackBoard.Set(actionType.ToString(), WorkPolicyService.GetWorkTime(ctx.Worker, actionType));
-				return Success;
-			}));
-		node.Add(new DoWorkNode(actionType));
-		if (interact != null) node.Add(new ActionNode(interact));
-		node.Add(new ActionNode((in BTContext ctx) =>
-		{
+		var setWorkTime = new ActionNode((in BTContext ctx) => {
+			ctx.LocalBlackBoard.Set(actionType.ToString(), WorkPolicyService.GetWorkTime(ctx.Worker, actionType));
+			return Success;
+		});
+		var work = new DoWorkNode(actionType);
+
+		var calculateFatigue = new ActionNode((in BTContext ctx) => {
 			float fatigue = WorkPolicyService.GetWorkFatigue(ctx.Worker, actionType);
 			ctx.Worker.AddFatigue(fatigue);
 			return Success;
-		}));
+		});
 
-		// todo
-		// check human incident event here
+		node.Add(setWorkTime);
+		node.Add(work);
+		if (interact != null) node.Add(new ActionNode(interact));
+		node.Add(calculateFatigue);
+		node.Add(new ActionNode((in BTContext ctx) =>
+		{
+			if (ctx.Worker is HumanWorker == false)
+				return Success;
+
+			float getChance = HumanIncident.GetIncidenceChance(ctx.Worker, actionType);
+
+			if (getChance * 100.0f <= UnityEngine.Random.Range(0, 100))
+			{
+				//
+				Debug.Log("얘 사고났다");
+				return Abort;
+			}
+
+			return Success;
+		}));
 
 		return node;
 	}
-
-	//private static NodeState HandleHumanEvent(in BTContext ctx)
-	//{
-
-	//	return Success;
-	//}
-
-	//private static ActionNode CheckHumanIncidentEvent(string targetBBKey)
-	//{
-	//	ActionNode action = null;
-
-	//	return action;
-	//}
-
 }

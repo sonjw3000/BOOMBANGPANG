@@ -5,7 +5,8 @@ public interface IBaseNode
 	{
 		Running,
 		Success,
-		Failure
+		Failure,
+		Abort,
 	}
 	public NodeState Evaluate(in BTContext ctx);
 }
