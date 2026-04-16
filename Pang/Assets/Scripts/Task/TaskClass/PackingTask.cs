@@ -42,21 +42,7 @@ public class PackingTask : WorkerTask
 
 		// find packing station
 		findPackingStation.Add(new ActionNode(CheckPackingStation));
-		findPackingStation.Add(new ActionNode(FindPackingStation));
-		findPackingStation.Add(AIWorker.MoveToTarget((in BTContext ctx) =>
-		{
-			if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
-			&& placeable is PackingStation station)
-			{
-				ctx.Worker.SetWorkerAction(WorkerStatusAction.MovingTo);
-
-				ctx.LocalBlackBoard.Set<int3>("goalPos", station.GetClosestInteractionPoint(InteractionKind.Work, ctx.Worker.GridPosition));
-				return Success;
-			}
-
-			Debug.LogError("No Such Target!!!!");
-			return Failure;
-		}));
+		findPackingStation.Add(AIWorker.MoveToTarget(WorkerStatusTarget.PackingStation, InteractionKind.Work, FindPackingStation));
 
 		ActionNode checkBox = new ActionNode(CheckBoxToPack);
 		SequenceNode moveBox2Desk = AIWorker.BuildWorkTimeInteract(WorkActionType.MoveBox, PrepareToPack);
@@ -86,7 +72,7 @@ public class PackingTask : WorkerTask
 
 	public static NodeState CheckPackingStation(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var _))
+		if (ctx.LocalBlackBoard.TryGet<PackingStation>("WorkingPoint", out var _))
 			return Failure;
 
 		// have to find
@@ -98,35 +84,22 @@ public class PackingTask : WorkerTask
 		var worker = ctx.Worker;
 		var packingStation = PackingService.GetAvailableStationToWork(worker.GridPosition);
 
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.PackingStation);
+		if (packingStation != null)
+			packingStation.CurrentPackingWorker = worker;
 
-		if (packingStation == null)
-		{
-			Debug.Log("No Available PackingStation");
-
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-
-			return Failure;
-		}
-
-		packingStation.CurrentPackingWorker = worker;
-
-		ctx.LocalBlackBoard.Set<IGridPlaceable>("TargetBuilding", packingStation);
+		ctx.LocalBlackBoard.Set("WorkingPoint", packingStation);
+		ctx.LocalBlackBoard.SetTargetBuilding(packingStation);
 		return Success;
 	}
 
 	public static NodeState CheckBoxToPack(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
-			&& placeable is PackingStation station)
+		if (ctx.LocalBlackBoard.TryGet<PackingStation>("WorkingPoint", out var station))
 		{
 			if (station.IsBoxPackable())
 				return Success;
 
 			ctx.Worker.enabled = false;
-
-
-			//Debug.Log("No box to pack, wait");
 		}
 
 		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
@@ -137,8 +110,7 @@ public class PackingTask : WorkerTask
 
 	public static NodeState PrepareToPack(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
-			&& placeable is PackingStation station)
+		if (ctx.LocalBlackBoard.TryGet<PackingStation>("WorkingPoint", out var station))
 		{
 			if (station.PrepareBox())
 				return Success;
@@ -149,8 +121,7 @@ public class PackingTask : WorkerTask
 
 	public static NodeState PackEnd(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
-			&& placeable is PackingStation station)
+		if (ctx.LocalBlackBoard.TryGet<PackingStation>("WorkingPoint", out var station))
 		{
 			if (station.EndWorkingBox() == false)
 			{

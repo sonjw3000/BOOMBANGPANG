@@ -39,29 +39,20 @@ public class UnloadingTask : WorkerTask
 
 		SequenceNode root = new();
 
-		SequenceNode moveToRocket = AIWorker.BuildCarryMoveInteract(
-			boxRequirement: BoxType.Cargo,
-			setGoal: SetRocketTarget,
-			interact: null);
-
-		SequenceNode moveToCargoPort = AIWorker.BuildCarryMoveInteract(
-			boxRequirement: BoxType.Cargo,
-			setGoal: SetZoneTarget,
-			interact: null);
-
-		root.Add(moveToRocket);
+		root.Add(AIWorker.CheckBoxAndGet(BoxType.Cargo));
+		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.Rocket, InteractionKind.Pick, SetRocketTarget));
 		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, UnloadFromRocket));
-
-		root.Add(moveToCargoPort);
+		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Put, SetZoneTarget));
 		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, PutOnBuffer));
-
-		root.Add(new ActionNode(SetTaskEnd));
 
 		return root;
 	}
 
 	public override bool CheckTaskEnd()
 	{
+		if (IsUnloadEnd)
+		{
+		}
 		return IsUnloadEnd;
 	}
 
@@ -76,19 +67,7 @@ public class UnloadingTask : WorkerTask
 	public static NodeState SetRocketTarget(in BTContext ctx)
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
-
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Rocket);
-
-		if (task.targetRocket == null)
-		{
-			// todo
-			// rocket이 파괴되었을수도 있다 이 때 task를 파괴한다
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-
-			return Failure;
-		}
-
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.targetRocket.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
+		ctx.LocalBlackBoard.SetTargetBuilding(task.targetRocket);
 
 		return Success;
 	}
@@ -138,20 +117,9 @@ public class UnloadingTask : WorkerTask
 	public static NodeState SetZoneTarget(in BTContext ctx)
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
-
 		task.cargoPort = PortService.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
 
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
-
-		if (task.cargoPort == null)
-		{
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			Debug.Log("No Cargoport Available!!");
-			return Failure;
-		}
-		
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.cargoPort.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
-
+		ctx.LocalBlackBoard.SetTargetBuilding(task.cargoPort);
 		return Success;
 	}
 
@@ -186,14 +154,7 @@ public class UnloadingTask : WorkerTask
 			box.RemoveItem(ids[i], moveTocargo);
 		}
 
-		return Success;
-	}
-
-	public static NodeState SetTaskEnd(in BTContext ctx)
-	{
-		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 		task.IsUnloadEnd = true;
-
 		return Success;
 	}
 

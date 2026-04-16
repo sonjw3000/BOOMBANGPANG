@@ -64,9 +64,9 @@ public class WaterTask : WorkerTask
 		checkBoxState.Add(checkRequirement);
 
 		SequenceNode work = new();
-		work.Add(AIWorker.MoveToTarget(PickSet));
+		work.Add(AIWorker.MoveToTarget(WorkerStatusTarget.None, InteractionKind.Pick, PickSet));
 		work.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, Pick));
-		work.Add(AIWorker.MoveToTarget(PutSet));
+		work.Add(AIWorker.MoveToTarget(WorkerStatusTarget.None, InteractionKind.Put, PutSet));
 		work.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, Put));
 		work.Add(new ActionNode(AIWorker.TaskCompleted));
 
@@ -122,7 +122,7 @@ public class WaterTask : WorkerTask
 
 		task.workPhase = true;
 
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.from.target.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
+		ctx.LocalBlackBoard.SetTargetBuilding(task.from.target as IGridPlaceable);
 		return Success;
 	}
 
@@ -156,7 +156,8 @@ public class WaterTask : WorkerTask
 	static public NodeState PutSet(in BTContext ctx)
 	{
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.to.target.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
+		ctx.LocalBlackBoard.SetTargetBuilding(task.to.target as IGridPlaceable);
+
 		return Success;
 	}
 

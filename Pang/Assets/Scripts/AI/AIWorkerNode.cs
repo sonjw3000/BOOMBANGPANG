@@ -1,5 +1,6 @@
 ﻿using Unity.IO.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using static ActionNode;
 using static IBaseNode;
@@ -14,17 +15,6 @@ public abstract partial class AIWorker
 	protected virtual IBaseNode BuildWorkerBaseNode() { return null; }
 
 	// AI's basic actions
-	private static NodeState SetDestination(in BTContext context)
-	{
-		// for real
-		context.LocalBlackBoard.TryGet<IInteractionPoint>("TargetBuilding", out var targetBuilding);
-		context.LocalBlackBoard.TryGet<int3>("goalPos", out int3 goalPos);
-		context.Worker.routeFinder.enabled = true;
-		context.Worker.routeFinder.SetGoalPosition(goalPos);
-
-		return Success;
-	}
-
 	public static NodeState CheckFulfilled(in BTContext ctx)
 	{
 		if (ctx.Worker.CurrentTask.CheckTaskEnd())
@@ -81,32 +71,23 @@ public abstract partial class AIWorker
 
 		if (boxStatus.CarringBox != null)
 			return Failure;
+		
 		return Success;
 	}
 
 	private static NodeState SetGoalClosestBoxPool(in BTContext context)
 	{
 		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Pick);
-		context.Worker.SetWorkerTarget(WorkerStatusTarget.BoxPool);
-
-		if (pool == null)
-		{
-			// todo
-			// 사용 가능한 pool이 없는 상태라는 것을 플레이어에게 보여줘야함
-			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-
-			return Failure;
-		}
-
-		context.LocalBlackBoard.Set("goalPos", pool.GridPosition);
-		context.LocalBlackBoard.Set("targetBoxPool", pool);
+		context.LocalBlackBoard.SetTargetBuilding(pool);
 
 		return Success;
 	}
 
 	private static NodeState PickBox(in BTContext context)
 	{
-		context.LocalBlackBoard.TryGet<BoxPool>("targetBoxPool", out var pool);
+		context.LocalBlackBoard.TryGetTargetBuilding(out var building);
+		BoxPool pool = building as BoxPool;
+
 		pool.GetBox(out var box);
 
 		if (box == null)
@@ -121,7 +102,8 @@ public abstract partial class AIWorker
 
 	private static NodeState PutBox(in BTContext context)
 	{
-		context.LocalBlackBoard.TryGet<BoxPool>("targetBoxPool", out var pool);
+		context.LocalBlackBoard.TryGetTargetBuilding(out var building);
+		BoxPool pool = building as BoxPool;
 
 		if (context.Worker.TryDetachBox(out var box) == false)
 		{
@@ -175,7 +157,7 @@ public abstract partial class AIWorker
 		// todo
 		// boxtype에 대한 판단을 하게 해주어야함
 		SelectorNode node = new();
-		SequenceNode moveToAndPick = MoveToTarget(SetGoalClosestBoxPool);
+		SequenceNode moveToAndPick = MoveToTarget(WorkerStatusTarget.BoxPool, InteractionKind.Pick, SetGoalClosestBoxPool);
 		moveToAndPick.Add(new ActionNode(PickBox));
 		
 		node.Add(new ActionNode(CheckWorkerHasBox));
@@ -187,7 +169,7 @@ public abstract partial class AIWorker
 	static public SelectorNode ReturnBox()
 	{
 		SelectorNode node = new();
-		SequenceNode moveToAndReturn = MoveToTarget(SetGoalClosestBoxPool);
+		SequenceNode moveToAndReturn = MoveToTarget(WorkerStatusTarget.BoxPool, InteractionKind.Put, SetGoalClosestBoxPool);
 		moveToAndReturn.Add(new ActionNode(PutBox));
 
 		node.Add(new ActionNode(CheckWorkerHasNoBox));
@@ -196,43 +178,70 @@ public abstract partial class AIWorker
 		return node;
 	}
 
-	public static SequenceNode MoveToTarget(ActionFunc goalSettingFunc)
+	//public static SequenceNode MoveToTarget(ActionFunc goalSettingFunc)
+	//{
+	//	SequenceNode node = new();
+
+	//	node.Add(new ActionNode(goalSettingFunc));
+	//	node.Add(new ActionNode(SetDestination));
+	//	node.Add(new ActionNode(MoveTo));
+
+	//	return node;
+	//}
+
+	public static SequenceNode MoveToTarget(WorkerStatusTarget target, InteractionKind kind, ActionFunc settingTargetBuilding = null)
 	{
 		SequenceNode node = new();
 
-		node.Add(new ActionNode(goalSettingFunc));
-		node.Add(new ActionNode(SetDestination));
-		node.Add(new ActionNode(MoveTo));
+		if (settingTargetBuilding != null)
+			node.Add(new ActionNode(settingTargetBuilding));
 
-		return node;
-	}
-
-	public static SequenceNode MoveToTarget(IGridPlaceable placeable, InteractionKind interactionKind)
-	{
-		SequenceNode node = new();
-		ActionNode getAvailableInteractionPoint = new ActionNode((in BTContext ctx) =>
+		node.Add(new ActionNode((in BTContext ctx) =>
 		{
-			ctx.Worker.SetWorkerTarget(placeable.BuildingTarget);
+			ctx.Worker.SetWorkerTarget(target);
+
+			if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var building) == false ||
+				building == null)
+			{
+				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+				ctx.LocalBlackBoard.RemoveTargetBuilding();
+				return Failure;
+			}
+
+			var interaction = building as IInteractionPoint;
+			int3 goalPos = interaction.GetClosestInteractionPoint(kind, in ctx.Worker.position);
+
+			ctx.Worker.routeFinder.enabled = true;
+			ctx.Worker.routeFinder.SetGoalPosition(goalPos);
 
 			return Success;
-		});
 
-		node.Add(getAvailableInteractionPoint);
-		node.Add(new ActionNode(SetDestination));
+		}));
 		node.Add(new ActionNode(MoveTo));
 
 		return node;
 	}
 
 	// picking, storing에서 목적지를 갱신하며 이동할 때 사용
-	public static SequenceNode BuildCarryMoveInteract(BoxType boxRequirement, ActionFunc setGoal, ActionFunc interact)
+	//public static SequenceNode BuildCarryMoveInteract(BoxType boxRequirement, ActionFunc setGoal, ActionFunc interact)
+	//{
+	//	SequenceNode node = new();
+
+	//	if (boxRequirement != BoxType.None) node.Add(GetBox(boxRequirement));
+	//	node.Add(MoveToTarget(setGoal));
+	//	if (interact != null) node.Add(new ActionNode(interact));
+
+	//	return node;
+	//}
+
+	public static SelectorNode CheckBoxAndGet(BoxType boxRequirement)
 	{
-		SequenceNode node = new();
-
-		if (boxRequirement != BoxType.None) node.Add(GetBox(boxRequirement));
-		node.Add(MoveToTarget(setGoal));
-		if (interact != null) node.Add(new ActionNode(interact));
-
+		SelectorNode node = new();
+		if (boxRequirement != BoxType.None)
+		{
+			node.Add(new ActionNode(CheckWorkerHasBox));
+			node.Add(GetBox(boxRequirement));
+		}
 		return node;
 	}
 
@@ -266,7 +275,8 @@ public abstract partial class AIWorker
 			if (res == null)
 				return Success;
 
-			return Failure;
+			ctx.LocalBlackBoard.Set("IncidentState", res);
+			return Success;
 		}));
 
 		return node;

@@ -63,6 +63,7 @@ namespace Assets.Scripts.AI.BT
 		[SerializeField] private readonly Dictionary<Type, IStorage> tables = new();
 		private interface IStorage { void Clear(); }
 
+
 		private sealed class Table<T> : IStorage
 		{
 			private readonly Dictionary<int, T> data = new();
@@ -104,6 +105,11 @@ namespace Assets.Scripts.AI.BT
 		public void Set<T>(string keyStr, in T value) => GetTable<T>().Set(keyStr.TransformToFNV1aHash(), value);
 		public bool TryGet<T>(string keyStr, out T value) => GetTable<T>().TryGet(keyStr.TransformToFNV1aHash(), out value);
 		public bool Remove<T>(string keyStr) => GetTable<T>().Remove(keyStr.TransformToFNV1aHash());
+
+		public void SetTargetBuilding(in IGridPlaceable target) => GetTable<IGridPlaceable>().Set("_TargetBuilding".TransformToFNV1aHash(), target);
+		public bool TryGetTargetBuilding(out IGridPlaceable target) => GetTable<IGridPlaceable>().TryGet("_TargetBuilding".TransformToFNV1aHash(), out target);
+		public bool RemoveTargetBuilding() => GetTable<IGridPlaceable>().Remove("_TargetBuilding".TransformToFNV1aHash());
+
 	}
 
 	/*

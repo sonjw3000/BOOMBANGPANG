@@ -11,7 +11,14 @@ public sealed class PickingTask : WorkerTask
 	private bool isTaskEnd = false;
 
 	public WorkJob PickingData => pickJob;
-	public WorkLine CurrentLine => PickingData.Lines[PickingData.CurrentLineIndex];
+	public WorkLine CurrentLine { get
+		{
+			if (PickingData.CurrentLineIndex >= pickJob.Lines.Count)
+				return null;
+
+			return PickingData.Lines[PickingData.CurrentLineIndex];
+		}
+	}
 
 	static private CargoPortService CargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
 	static private PackingStationService PackingService => GameContext.Instance.OBWorkflowMgr.PackingStations;
@@ -34,17 +41,14 @@ public sealed class PickingTask : WorkerTask
 
 		SequenceNode put = new SequenceNode();
 		put.Add(new ActionNode(CheckPickingEnd));
-		put.Add(AIWorker.MoveToTarget(GetAvailablePackingStation));
+		put.Add(AIWorker.MoveToTarget(WorkerStatusTarget.PackingStation, InteractionKind.Put ,GetAvailablePackingStation));
 		put.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, PickingEndAction));
 
 		SequenceNode pick = new SequenceNode();
 		pick.Add(new ActionNode(CheckIsPickingState));
-		pick.Add(AIWorker.BuildCarryMoveInteract(
-			boxRequirement: BoxType.Personal,
-			setGoal: SetTarget,
-			interact: null
-		));
 
+		pick.Add(AIWorker.CheckBoxAndGet(BoxType.Personal));
+		pick.Add(AIWorker.MoveToTarget(WorkerStatusTarget.Shelf, InteractionKind.Pick, SetTarget));
 		pick.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickItem, PickItems));
 
 		pickAfterPut.Add(put);
@@ -63,7 +67,7 @@ public sealed class PickingTask : WorkerTask
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
-		return $"Picking Task: {PickingData.CurrentLineIndex} / {PickingData.Lines.Count}, Goal: {CurrentLine.Source.GridPosition}";
+		return $"Picking Task: {PickingData.CurrentLineIndex} / {PickingData.Lines.Count}," + CurrentLine != null ? "" : "Goal: {CurrentLine.Source.GridPosition}";
 	}
 #endif
 
@@ -72,8 +76,6 @@ public sealed class PickingTask : WorkerTask
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 		if (task.PickingData.IsJobEnd)
 		{
-			//Debug.Log("Picking Job Ended");
-
 			return Success;
 		}
 		return Failure;
@@ -103,27 +105,16 @@ public sealed class PickingTask : WorkerTask
 			return Failure;
 		}
 
-		ctx.LocalBlackBoard.Set<int3>("goalPos", targetPos.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
+		ctx.LocalBlackBoard.SetTargetBuilding(targetPos);
+
 		return Success;
 	}
 
 	public static NodeState GetAvailablePackingStation(in BTContext ctx)
 	{
-		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 		PackingService.TryGetWaitingStation(out var targetStation);
 
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.PackingStation);
-
-		if (targetStation == null)
-		{
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-
-			Debug.Log("No Available packing station!");
-			return Failure;
-		}
-
-		ctx.LocalBlackBoard.Set<int3>("goalPos", targetStation.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
-		ctx.LocalBlackBoard.Set<IGridPlaceable>("TargetBuilding", targetStation);
+		ctx.LocalBlackBoard.SetTargetBuilding(targetStation);
 		return Success;
 	}
 
@@ -131,7 +122,7 @@ public sealed class PickingTask : WorkerTask
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 
-		if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
+		if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var placeable)
 			&& placeable is PackingStation station)
 		{
 			task.carryBox.GetBox(out var box);
@@ -150,8 +141,6 @@ public sealed class PickingTask : WorkerTask
 		// test code
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
-
 		if (task.PickingData.IsJobEnd)
 		{
 			int cnt = task.PickingData.Lines.Count;
@@ -169,7 +158,8 @@ public sealed class PickingTask : WorkerTask
 
 		// set goalPosition
 		var line = task.CurrentLine;
-		ctx.LocalBlackBoard.Set<int3>("goalPos", line.Source.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
+		//ctx.LocalBlackBoard.Set<int3>("goalPos", line.Source.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
+		ctx.LocalBlackBoard.SetTargetBuilding(line.Source);
 
 		return Success;
 	}

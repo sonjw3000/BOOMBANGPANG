@@ -56,22 +56,15 @@ public class StoringTask : WorkerTask
 		// phase: collecting
 		SequenceNode collect = new SequenceNode();
 		collect.Add(new ActionNode(CheckPhaseCollect));
-		collect.Add(AIWorker.BuildCarryMoveInteract(
-			boxRequirement: BoxType.Personal,
-			setGoal: SetCollectingPosition,
-			interact: null
-		));
+		collect.Add(AIWorker.CheckBoxAndGet(BoxType.Personal));
+		collect.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetCollectingPosition));
 		collect.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickItem, PickItems));
 
 		// phase: placing
 		SequenceNode place = new SequenceNode();
 		place.Add(new ActionNode(CheckPhasePlace));
-		place.Add(AIWorker.BuildCarryMoveInteract(
-			boxRequirement: BoxType.Personal,
-			setGoal: SetPlacingPosition,
-			interact: PlaceItems
-		));
-		place.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutItem, PickItems));
+		place.Add(AIWorker.MoveToTarget(WorkerStatusTarget.Shelf, InteractionKind.Put, SetPlacingPosition));
+		place.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutItem, PlaceItems));
 
 		workNode.Add(collect);
 		workNode.Add(place);
@@ -100,11 +93,7 @@ public class StoringTask : WorkerTask
 	public static NodeState SetCollectingPosition(in BTContext ctx)
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
-
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
-
-		var line = task.CurrentLine;
-		ctx.LocalBlackBoard.Set<int3>("goalPos", line.Source.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
+		ctx.LocalBlackBoard.SetTargetBuilding(task.CurrentLine.Source);
 
 		return Success;
 	}
@@ -168,8 +157,8 @@ public class StoringTask : WorkerTask
 		// 너는 즉석으로 workline을 만들어서 이동하나보다
 		// 내가 그렇게 짰나보다
 		task.placingLine = new WorkLine(decision.shelf, decision.ItemID, decision.Quantity);
+		ctx.LocalBlackBoard.SetTargetBuilding(decision.shelf);
 
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.placingLine.Source.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
 		return Success;
 	}
 

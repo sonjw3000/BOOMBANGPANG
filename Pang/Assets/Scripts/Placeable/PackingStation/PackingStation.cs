@@ -152,7 +152,7 @@ public class PackingStation :
 		if (EndStackBox != null)
 			return false;
 
-		EndStackBox= CurrentPackingBox;
+		EndStackBox = CurrentPackingBox;
 		CurrentPackingBox = null;
 
 		// notify to station

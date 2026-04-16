@@ -31,20 +31,11 @@ public class LoadingTask : WorkerTask
 	{
 		SequenceNode root = new();
 
-		root.Add(AIWorker.BuildCarryMoveInteract(
-			boxRequirement: BoxType.Cargo,
-			setGoal: SetLoadTarget,
-			interact: null
-			));
 
+		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetLoadTarget));
 		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCargo));
 
-		root.Add(AIWorker.BuildCarryMoveInteract(
-			boxRequirement: BoxType.Cargo,
-			setGoal: SetLaunchStation,
-			interact: StoreCargo
-			));
-
+		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.LaunchStation, InteractionKind.Put, SetLaunchStation));
 		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCargo));
 
 		return root;
@@ -64,18 +55,8 @@ public class LoadingTask : WorkerTask
 
 	static private NodeState SetLoadTarget(in BTContext ctx)
 	{
-		var task = (LoadingTask)ctx.Worker.CurrentTask;
-		
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
-
-		if (task.targetPort == null)
-		{
-			Debug.LogError("No available load port found!");
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return Failure;
-		}
-
-		ctx.LocalBlackBoard.Set<int3>("goalPos", task.targetPort.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
+		var task = ctx.Worker.CurrentTask as LoadingTask;
+		ctx.LocalBlackBoard.SetTargetBuilding(task.targetPort);
 
 		return Success;
 	}
@@ -105,16 +86,7 @@ public class LoadingTask : WorkerTask
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
 		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
 
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
-
-		if (launchStation == null)
-		{
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			Debug.LogError("No available launch station found!");
-			return Failure;
-		}
-
-		ctx.LocalBlackBoard.Set<int3>("goalPos", launchStation.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
+		ctx.LocalBlackBoard.SetTargetBuilding(launchStation);
 		return Success;
 	}
 

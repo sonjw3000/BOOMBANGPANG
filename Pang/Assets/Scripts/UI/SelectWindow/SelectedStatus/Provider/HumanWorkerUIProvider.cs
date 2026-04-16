@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Unity.Properties;
+using UnityEngine;
 
 public class HumanWorkerUIProvider : UIProvider<HumanWorker>
 {
@@ -14,5 +15,7 @@ public class HumanWorkerUIProvider : UIProvider<HumanWorker>
 		infoBlocks.Clear();
 		infoBlocks.Add(new KeyValueBlock("Fatigue", $"{Fatigue}%"));
 		infoBlocks.Add(new KeyValueBlock("MoveSpeed", $"x{currentTarget.GetMoveSpeedMultiplier()}"));
+		infoBlocks.Add(new KeyValueBlock("Action", $"{currentTarget.WorkerState.Action}"));
+		infoBlocks.Add(new KeyValueBlock("Target", $"{currentTarget.WorkerState.Target}"));
 	}
 }

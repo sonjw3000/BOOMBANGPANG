@@ -32,12 +32,12 @@ public class HumanIncidentService : MonoBehaviour
 	public HumanIncidentPayload TryCreateIncident(AIWorker worker, WorkActionType action)
 	{
 		float chance = GetIncidenceChance(worker, action);
-		float random = Random.Range(0, 100);
+		float random = Random.Range(20, 100);
 
 		if (chance * 100.0f <= random)
 			return null;
 		
-		Debug.Log($"사고 발생, chance: {chance * 100.0f}, rand: {random}, taskType: {worker.TaskType.ToString()}, action: {action.ToString()}");
+		Debug.Log($"사고 발생, chance: {chance * 100.0f}, rand: {random}, taskType: {worker.TaskType}, action: {action}");
 
 		HumanIncidentType incidentType;
 		HumanIncidentResponseType responseType;
