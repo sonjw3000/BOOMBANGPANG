@@ -17,7 +17,8 @@ public class PackingStation :
 	private BoxBase endPackingBox = null;
 
 	private PackingStationService PackingStations => GameContext.Instance.OBWorkflowMgr.PackingStations;
-	
+
+	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.PackingStation;
 
 	public AIWorker CurrentPackingWorker { 
 		get { return currentPackingWorker; }

@@ -111,11 +111,17 @@ public sealed class PickingTask : WorkerTask
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 		PackingService.TryGetWaitingStation(out var targetStation);
+
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.PackingStation);
+
 		if (targetStation == null)
 		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+
 			Debug.Log("No Available packing station!");
 			return Failure;
 		}
+
 		ctx.LocalBlackBoard.Set<int3>("goalPos", targetStation.GetClosestInteractionPoint(InteractionKind.Put, ctx.Worker.GridPosition));
 		ctx.LocalBlackBoard.Set<IGridPlaceable>("TargetBuilding", targetStation);
 		return Success;
@@ -143,6 +149,8 @@ public sealed class PickingTask : WorkerTask
 	{
 		// test code
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
 
 		if (task.PickingData.IsJobEnd)
 		{

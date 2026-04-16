@@ -20,7 +20,8 @@ public class LaunchStation
 	private Dictionary<InteractionKind, List<int3>> interactionPointMap = new();
 
 	public int3 GridPosition => gridPosition;
-
+	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.LaunchStation;
+	
 	private LaunchStationService LaunchStations => GameContext.Instance.OBWorkflowMgr.LaunchStations;
 
 	private void Awake()

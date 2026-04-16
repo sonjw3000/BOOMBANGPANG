@@ -24,6 +24,53 @@ public enum WorkActionType
 	HandleMistake
 }
 
+public enum WorkerStatusAction
+{
+	None = 0,
+
+	// 상시
+	WaitingForItems,
+	WaitingForTargetBuilding,
+	HandlingMistake,
+	Collapse,
+
+	// 선택
+	Idle,
+	MovingTo,
+	Resting,
+	Charging,
+	Working,
+}
+
+public enum WorkerStatusTarget
+{
+	None = 0,
+
+	Box,
+	Rocket,
+	Shelf,
+	CargoPort,
+	BoxPool,
+	PackingStation,
+	LaunchStation,
+	Charger,
+	WorkTarget
+}
+
+public struct WorkerStatusInfo
+{
+	public WorkerStatusAction Action;
+	public WorkerStatusTarget Target;
+
+	public WorkerStatusInfo(WorkerStatusAction action, WorkerStatusTarget target)
+	{
+		Action = action;
+		Target = target;
+	}
+
+	public static WorkerStatusInfo None => new(WorkerStatusAction.None, WorkerStatusTarget.None);
+}
+
 [System.Serializable]
 public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
 {
@@ -39,6 +86,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	private BehaviorTree behaviorTree;
 	private readonly BlackBoard localBlackBoard = new();
+	private WorkerStatusInfo workerState = WorkerStatusInfo.None;
 
 	private int3 position;
 
@@ -52,6 +100,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	protected WorkerArchetype Archetype => workerArchetype;
 
 	public int MonthlyCost => workerArchetype.monthlyCost;
+
+	public WorkerStatusInfo WorkerState => workerState;
+
+	public void SetWorkerAction(WorkerStatusAction action) => workerState.Action = action;
+	public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = target;
 
 	// should build BT here
 	private void BuildBehaviorTree()

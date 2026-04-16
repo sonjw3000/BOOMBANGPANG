@@ -3,6 +3,7 @@
 
 public class Shelf : ShelfBase
 {
+	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.Shelf;
 	void OnEnable()
 	{
 		// todo

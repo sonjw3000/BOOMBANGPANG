@@ -9,6 +9,8 @@ public class Rocket : ShelfBase
 	[SerializeField] private int3 landingPoint;
 	private Vector3 forwardVector = new Vector3(0, 1, 0);
 
+	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.Rocket;
+
 	private RocketManager RocketMgr => GameContext.Instance.RocketMgr;
 
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;

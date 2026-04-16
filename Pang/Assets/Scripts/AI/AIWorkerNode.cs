@@ -41,7 +41,7 @@ public abstract partial class AIWorker
 			return Success;
 		}
 		context.Worker.enabled = false;
-
+		context.Worker.SetWorkerAction(WorkerStatusAction.MovingTo);
 		return Running;
 	}
 
@@ -86,16 +86,19 @@ public abstract partial class AIWorker
 	private static NodeState SetGoalClosestBoxPool(in BTContext context)
 	{
 		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailablePool(context.Worker.GridPosition);
+		context.Worker.SetWorkerTarget(WorkerStatusTarget.BoxPool);
 
 		if (pool == null)
 		{
 			// todo
 			// 사용 가능한 pool이 없는 상태라는 것을 플레이어에게 보여줘야함
+			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+
 			return Failure;
 		}
 
-		context.LocalBlackBoard.Set<int3>("goalPos", pool.GridPosition);
-		context.LocalBlackBoard.Set<BoxPool>("targetBoxPool", pool);
+		context.LocalBlackBoard.Set("goalPos", pool.GridPosition);
+		context.LocalBlackBoard.Set("targetBoxPool", pool);
 
 		return Success;
 	}
@@ -130,6 +133,7 @@ public abstract partial class AIWorker
 		{
 			// todo
 			// pool이 가득 찼다는 것을 플레이어에게 알려야함
+			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			return Failure;
 		}
 
@@ -244,7 +248,6 @@ public abstract partial class AIWorker
 			if (res == null)
 				return Success;
 
-			// 사고 발생 사실을 알려야한다
 			return Failure;
 		}));
 
@@ -267,7 +270,10 @@ public abstract partial class AIWorker
 	{
 		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
 			responseType != HumanIncidentResponseType.WorkMistake)
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.HandlingMistake);
 			return Success;
+		}
 
 		return Failure;
 	}
@@ -276,7 +282,11 @@ public abstract partial class AIWorker
 	{
 		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
 			responseType != HumanIncidentResponseType.AbortTask)
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.Collapse);
+
 			return Success;
+		}
 
 		return Failure;
 	}

@@ -29,6 +29,8 @@ public abstract class BoxInteraction :
 	public abstract bool GetBox(out BoxBase box);
 	public abstract bool PutBox(BoxBase box);
 
+	public abstract WorkerStatusTarget BuildingTarget { get; }
+
 	// interaction point
 	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point)
 	{

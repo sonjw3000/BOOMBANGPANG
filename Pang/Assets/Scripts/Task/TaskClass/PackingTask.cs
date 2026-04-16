@@ -48,6 +48,8 @@ public class PackingTask : WorkerTask
 			if (ctx.LocalBlackBoard.TryGet<IGridPlaceable>("TargetBuilding", out var placeable)
 			&& placeable is PackingStation station)
 			{
+				ctx.Worker.SetWorkerAction(WorkerStatusAction.MovingTo);
+
 				ctx.LocalBlackBoard.Set<int3>("goalPos", station.GetClosestInteractionPoint(InteractionKind.Work, ctx.Worker.GridPosition));
 				return Success;
 			}
@@ -96,9 +98,14 @@ public class PackingTask : WorkerTask
 		var worker = ctx.Worker;
 		var packingStation = PackingService.GetAvailableStationToWork(worker.GridPosition);
 
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.PackingStation);
+
 		if (packingStation == null)
 		{
 			Debug.Log("No Available PackingStation");
+
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+
 			return Failure;
 		}
 
@@ -117,8 +124,13 @@ public class PackingTask : WorkerTask
 				return Success;
 
 			ctx.Worker.enabled = false;
+
+
 			//Debug.Log("No box to pack, wait");
 		}
+
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
 
 		return Failure;
 	}

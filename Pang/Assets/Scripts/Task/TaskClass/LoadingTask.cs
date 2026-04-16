@@ -65,10 +65,13 @@ public class LoadingTask : WorkerTask
 	static private NodeState SetLoadTarget(in BTContext ctx)
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
+		
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 
 		if (task.targetPort == null)
 		{
 			Debug.LogError("No available load port found!");
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			return Failure;
 		}
 
@@ -81,9 +84,12 @@ public class LoadingTask : WorkerTask
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
 
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
+
 		if (task.targetPort == null)
 		{
 			Debug.LogError("No available load port found!");
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			return Failure;
 		}
 
@@ -98,8 +104,12 @@ public class LoadingTask : WorkerTask
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
 		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition);
+
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
+
 		if (launchStation == null)
 		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.LogError("No available launch station found!");
 			return Failure;
 		}
@@ -117,6 +127,8 @@ public class LoadingTask : WorkerTask
 		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition);
 		if (launchStation == null)
 		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 			Debug.LogError("No available launch station found!");
 			return Failure;
 		}

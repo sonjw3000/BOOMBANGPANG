@@ -39,6 +39,8 @@ public class WaitNode : IBaseNode
 	{
 		if (isRunning == false)
 		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.Idle);
+
 			startTime = Time.time;
 			isRunning = true;
 		}
@@ -46,6 +48,9 @@ public class WaitNode : IBaseNode
 		if (Time.time - startTime > waitTime)
 		{
 			isRunning = false;
+
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.None);
+
 			return NodeState.Success;
 		}
 
@@ -68,6 +73,8 @@ public class DoWorkNode : IBaseNode
 	{
 		if (isRunning == false)
 		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.Working);
+
 			if (ctx.LocalBlackBoard.TryGet(workActionType.ToString(), out waitTime) == false)
 			{
 				Debug.LogError($"targetBBKey is Not Set!!! Key: {workActionType.ToString()}");
@@ -80,6 +87,8 @@ public class DoWorkNode : IBaseNode
 		if (Time.time - startTime > waitTime)
 		{
 			isRunning = false;
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.None);
+
 			return NodeState.Success;
 		}
 

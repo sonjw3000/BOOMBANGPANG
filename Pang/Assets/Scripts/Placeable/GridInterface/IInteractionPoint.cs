@@ -18,4 +18,5 @@ public interface IInteractionPoint
 
 	public int3 GetClosestInteractionPoint(InteractionKind interactionKind, in int3 from);
 
+	public WorkerStatusTarget BuildingTarget { get; }
 }

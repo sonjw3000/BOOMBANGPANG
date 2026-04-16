@@ -101,6 +101,8 @@ public class StoringTask : WorkerTask
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
 
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
+
 		var line = task.CurrentLine;
 		ctx.LocalBlackBoard.Set<int3>("goalPos", line.Source.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
 
@@ -152,10 +154,13 @@ public class StoringTask : WorkerTask
 		BoxBase box = task.CarryingAbility.CarringBox;
 		PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, out var decision);
 
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
+
 		if (decision.shelf == null)
 		{
 			// todo
 			// 가능한 placingLine을 받지 못했다는 것을 어디선가 알려야 한다
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No shelf");
 			return Failure;
 		}

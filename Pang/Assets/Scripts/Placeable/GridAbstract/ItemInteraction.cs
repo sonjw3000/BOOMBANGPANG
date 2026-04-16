@@ -18,6 +18,8 @@ public abstract class ItemInteraction :
 	public IReadOnlyList<InteractionPoint> InteractionPoints => interactionPoints;
 	public IReadOnlyDictionary<InteractionKind, List<int3>> InteractionPointMap => interactionPointMap;
 
+	public abstract WorkerStatusTarget BuildingTarget { get; }
+
 	public int3 GridPosition => position;
 
 	// grid placement effect

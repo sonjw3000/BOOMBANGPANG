@@ -19,6 +19,7 @@ public class BoxPool :
 
 	public int CurrentBoxCount => boxes.Count;
 
+	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.BoxPool;
 	//public int3 GridPosition => position;
 
 	public override bool GetBox(out BoxBase box)

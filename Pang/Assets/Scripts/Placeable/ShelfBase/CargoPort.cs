@@ -14,7 +14,7 @@ public class CargoPort :
 	private bool inputReady = true;
 
 	public bool InputReady => inputReady;
-
+	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.CargoPort;
 	static private CargoPortService IBCargoPorts => GameContext.Instance.IBWorkflowMgr.CargoPorts;
 	static private CargoPortService OBCargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
 

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using NUnit.Framework.Internal.Commands;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using static IBaseNode;
@@ -76,10 +77,13 @@ public class UnloadingTask : WorkerTask
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Rocket);
+
 		if (task.targetRocket == null)
 		{
 			// todo
 			// rocket이 파괴되었을수도 있다 이 때 task를 파괴한다
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 
 			return Failure;
 		}
@@ -137,8 +141,11 @@ public class UnloadingTask : WorkerTask
 
 		task.cargoPort = PortService.GetClosestAvailablePort(ctx.Worker.GridPosition);
 
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
+
 		if (task.cargoPort == null)
 		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No Cargoport Available!!");
 			return Failure;
 		}
