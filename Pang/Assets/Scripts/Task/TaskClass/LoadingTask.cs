@@ -103,7 +103,7 @@ public class LoadingTask : WorkerTask
 	static private NodeState SetLaunchStation(in BTContext ctx)
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
-		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition);
+		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
 
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 
@@ -124,7 +124,7 @@ public class LoadingTask : WorkerTask
 		var carryAbility = ctx.Worker.GetComponent<CarryBoxAbility>();
 		BoxBase box = carryAbility.CarringBox;
 		
-		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition);
+		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Pick);
 		if (launchStation == null)
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);

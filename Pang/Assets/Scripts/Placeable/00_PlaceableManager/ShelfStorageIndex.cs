@@ -97,7 +97,7 @@ public class ShelfStorageIndex : MonoBehaviour
 
 	public bool GetClosestItemLocation(uint itemID, int3 from, out ShelfBase shelf)
 	{
-		shelf = default;
+		shelf = null;
 		if (shelvesByItem.ContainsKey(itemID) == false) return false;
 
 		var locations = shelvesByItem[itemID];

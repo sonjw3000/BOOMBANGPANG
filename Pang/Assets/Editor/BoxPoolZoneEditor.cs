@@ -16,13 +16,13 @@ class BoxPoolZoneEditor : Editor
 
 		if (GUILayout.Button("Give Totebox"))
 		{
-			if (Index >= sys.BoxPoolZones.Count)
+			if (Index >= sys.PlaceableTargets.Count)
 			{
 				Debug.Log("Out Of Index!");
 				return;
 			}
 
-			sys.GiveNewBox(sys.BoxPoolZones[Index], BoxType.Personal);
+			sys.GiveNewBox(sys.PlaceableTargets[Index], BoxType.Personal);
 		}
 	}
 }

@@ -28,17 +28,17 @@ public class CargoPort :
 	private void OnEnable()
 	{
 		if (isInbound)
-			IBCargoPorts.RegisterPort(this);
+			IBCargoPorts.Register(this);
 		else
-			OBCargoPorts.RegisterPort(this);
+			OBCargoPorts.Register(this);
 	}
 
 	private void OnDisable()
 	{
 		if (isInbound)
-			IBCargoPorts.UnregisterPort(this);
+			IBCargoPorts.Unregister(this);
 		else
-			OBCargoPorts.UnregisterPort(this);
+			OBCargoPorts.Unregister(this);
 	}
 
 }

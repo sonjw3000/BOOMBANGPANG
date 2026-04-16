@@ -103,6 +103,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public WorkerStatusInfo WorkerState => workerState;
 
+	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.None;
+
 	public void SetWorkerAction(WorkerStatusAction action) => workerState.Action = action;
 	public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = target;
 

@@ -22,6 +22,9 @@ public class BoxPool :
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.BoxPool;
 	//public int3 GridPosition => position;
 
+	public override bool CanGetBox() => boxes.Count != 0;
+	public override bool CanPutBox() => boxes.Count < maxStack;
+
 	public override bool GetBox(out BoxBase box)
 	{
 		box = null;
@@ -56,12 +59,12 @@ public class BoxPool :
 		enabled = true;
 		this.position = position;
 
-		WMSys.BoxPoolMgr.RegisterPool(this);
+		WMSys.BoxPoolMgr.Register(this);
 	}
 
 	public override void OnRemoved()
 	{
-		WMSys.BoxPoolMgr.UnRegisterPool(this);
+		WMSys.BoxPoolMgr.Unregister(this);
 	}
 
 	public override void OnDestroyedBy(in DestroyContext ctx)

@@ -1,10 +1,9 @@
 ﻿using System.Collections.Generic;
-using System.Net.Sockets;
 using Unity.Mathematics;
 using UnityEngine;
 
 
-public class RocketManager : MonoBehaviour
+public class RocketManager : GridPlaceableManager<Rocket>
 {
 	[SerializeField] private int initialPoolSize = 5;
 

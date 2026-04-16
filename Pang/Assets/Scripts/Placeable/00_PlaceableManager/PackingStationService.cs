@@ -64,7 +64,7 @@ public class PackingStationService : MonoBehaviour
 
 	public void OnPackingComplete(PackingStation packingStation)
 	{
-		var port = CargoService.GetClosestAvailablePort(packingStation.GridPosition);
+		var port = CargoService.GetClosestAvailableTarget(packingStation.GridPosition, InteractionKind.Put);
 
 		TransferContext from = new TransferContext(packingStation, TransferObjectType.Box);
 		TransferContext to = new TransferContext(port, TransferObjectType.Item);

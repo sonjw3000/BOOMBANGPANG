@@ -22,5 +22,7 @@ public interface IGridPlaceable
 	public void OnDestroyedBy(in DestroyContext ctx);
 
 	public int3 GridPosition { get; }
+
+	public WorkerStatusTarget BuildingTarget { get; }
 }
 

@@ -95,7 +95,7 @@ public sealed class PickingTask : WorkerTask
 
 		ShelfBase targetPos = null;
 
-		targetPos = CargoPorts.GetClosestAvailablePort(ctx.Worker.GridPosition);
+		targetPos = CargoPorts.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
 
 		if (targetPos == null)
 		{

@@ -102,6 +102,9 @@ public class PackingStation :
 	public bool IsNoWorkerAssigned =>
 		CurrentPackingWorker == null;
 
+	public override bool CanGetBox() => EndStackBox != null;
+	public override bool CanPutBox() => WaitStackBox != null;
+
 	private void Start()
 	{
 		PackingStations.Register(this);

@@ -21,6 +21,9 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>, IBoxHandleable
 
 	public BoxBase CarringBox => carringBox;
 
+	public bool CanGetBox() => carringBox != null;
+	public bool CanPutBox() => carringBox == null;
+
 	protected override void OnInit()
 	{
 		carriableSize = Config.carriableSize;

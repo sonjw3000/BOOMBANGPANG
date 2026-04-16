@@ -139,7 +139,7 @@ public class UnloadingTask : WorkerTask
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 
-		task.cargoPort = PortService.GetClosestAvailablePort(ctx.Worker.GridPosition);
+		task.cargoPort = PortService.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
 
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 

@@ -72,4 +72,9 @@ public abstract class ItemInteraction :
 
 		return closestPoint;
 	}
+
+	public bool IsInteractionAvailable(InteractionKind interactionKind)
+	{
+		return true;
+	}
 }

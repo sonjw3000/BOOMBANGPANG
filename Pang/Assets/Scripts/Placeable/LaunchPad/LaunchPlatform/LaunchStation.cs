@@ -34,12 +34,12 @@ public class LaunchStation
 
 	private void Start()
 	{
-		LaunchStations.RegisterLaunchPad(this);
+		LaunchStations.Register(this);
 	}
 
 	private void OnDestroy()
 	{
-		LaunchStations.UnregisterLaunchPad(this);
+		LaunchStations.Unregister(this);
 	}
 
 	public bool TryGetStoreablePad(out CargoStorageAddon addon)
@@ -128,6 +128,8 @@ public class LaunchStation
 	{
 	}
 
-
-
+	public bool IsInteractionAvailable(InteractionKind interactionKind)
+	{
+		return true;
+	}
 }

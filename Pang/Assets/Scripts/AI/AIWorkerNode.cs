@@ -17,6 +17,7 @@ public abstract partial class AIWorker
 	private static NodeState SetDestination(in BTContext context)
 	{
 		// for real
+		context.LocalBlackBoard.TryGet<IInteractionPoint>("TargetBuilding", out var targetBuilding);
 		context.LocalBlackBoard.TryGet<int3>("goalPos", out int3 goalPos);
 		context.Worker.routeFinder.enabled = true;
 		context.Worker.routeFinder.SetGoalPosition(goalPos);
@@ -85,7 +86,7 @@ public abstract partial class AIWorker
 
 	private static NodeState SetGoalClosestBoxPool(in BTContext context)
 	{
-		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailablePool(context.Worker.GridPosition);
+		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Pick);
 		context.Worker.SetWorkerTarget(WorkerStatusTarget.BoxPool);
 
 		if (pool == null)
@@ -200,6 +201,23 @@ public abstract partial class AIWorker
 		SequenceNode node = new();
 
 		node.Add(new ActionNode(goalSettingFunc));
+		node.Add(new ActionNode(SetDestination));
+		node.Add(new ActionNode(MoveTo));
+
+		return node;
+	}
+
+	public static SequenceNode MoveToTarget(IGridPlaceable placeable, InteractionKind interactionKind)
+	{
+		SequenceNode node = new();
+		ActionNode getAvailableInteractionPoint = new ActionNode((in BTContext ctx) =>
+		{
+			ctx.Worker.SetWorkerTarget(placeable.BuildingTarget);
+
+			return Success;
+		});
+
+		node.Add(getAvailableInteractionPoint);
 		node.Add(new ActionNode(SetDestination));
 		node.Add(new ActionNode(MoveTo));
 

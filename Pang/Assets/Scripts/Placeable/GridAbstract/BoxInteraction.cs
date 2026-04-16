@@ -28,7 +28,8 @@ public abstract class BoxInteraction :
 	// box handling
 	public abstract bool GetBox(out BoxBase box);
 	public abstract bool PutBox(BoxBase box);
-
+	public abstract bool CanGetBox();
+	public abstract bool CanPutBox();
 	public abstract WorkerStatusTarget BuildingTarget { get; }
 
 	// interaction point
@@ -71,4 +72,15 @@ public abstract class BoxInteraction :
 
 		return closestPoint;
 	}
+
+	public bool IsInteractionAvailable(InteractionKind interactionKind)
+	{
+		if (interactionKind == InteractionKind.Pick)
+			return CanGetBox();
+		else if(interactionKind == InteractionKind.Put)
+			return CanPutBox();
+
+		return false;
+	}
+
 }
