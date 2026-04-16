@@ -20,7 +20,8 @@ public enum WorkActionType
 	PickBox,
 	PutBox,
 	PackItem,
-	MoveBox
+	MoveBox,
+	HandleMistake
 }
 
 [System.Serializable]
@@ -57,9 +58,12 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	{
 		SelectorNode root = new();
 
+		IBaseNode workerBaseNode = BuildWorkerBaseNode();
 		ActionNode performTask = new(DoWork);
 		WaitNode wait = new(1.0f);
 
+		if (workerBaseNode != null)
+			root.Add(workerBaseNode);
 		root.Add(performTask);
 		root.Add(wait);
 

@@ -9,6 +9,16 @@ public class HumanWorker : AIWorker
 
 	public float Fatigue => fatigue;
 
+	protected override IBaseNode BuildWorkerBaseNode()
+	{
+		SelectorNode root = new SelectorNode();
+
+		var incident = BuildHumanIncidentNode();
+		root.Add(incident);
+
+		return root;
+	}
+
 	public override float GetWorkSpeedMultiplier()
 	{
 		return Mathf.Lerp(BaseWorkSpeedMultiplier, MinimumWorkSpeedMultiplier, fatigue / 100.0f);

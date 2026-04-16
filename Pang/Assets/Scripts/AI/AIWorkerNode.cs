@@ -1,4 +1,5 @@
-﻿using Unity.Mathematics;
+﻿using Unity.IO.LowLevel.Unsafe;
+using Unity.Mathematics;
 using UnityEngine;
 using static ActionNode;
 using static IBaseNode;
@@ -9,6 +10,8 @@ public abstract partial class AIWorker
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 	static private WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
 	static private HumanIncidentService HumanIncident => GameContext.Instance.HumanIncident;
+
+	protected virtual IBaseNode BuildWorkerBaseNode() { return null; }
 
 	// AI's basic actions
 	private static NodeState SetDestination(in BTContext context)
@@ -236,18 +239,85 @@ public abstract partial class AIWorker
 			if (ctx.Worker is HumanWorker == false)
 				return Success;
 
-			float chance = HumanIncident.GetIncidenceChance(ctx.Worker, actionType);
-			float random = UnityEngine.Random.Range(0, 100);
+			var res = HumanIncident.TryCreateIncident(ctx.Worker, actionType);
 
-			if (chance * 100.0f > random)
-			{
-				Debug.Log($"얘 사고났다, chance: {chance * 100.0f}, rand: {random}, taskType: {ctx.Worker.TaskType.ToString()}");
-				return Abort;
-			}
+			if (res == null)
+				return Success;
 
-			return Success;
+			// 사고 발생 사실을 알려야한다
+			return Failure;
 		}));
 
 		return node;
 	}
+
+	// for incident
+	protected static NodeState CheckWorkerIncident(in BTContext ctx)
+	{
+		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
+			responseType != HumanIncidentResponseType.None)
+		{
+			return Success;
+		}
+
+		return Failure;
+	}
+
+	protected static NodeState IsIncidentWorkMistake(in BTContext ctx)
+	{
+		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
+			responseType != HumanIncidentResponseType.WorkMistake)
+			return Success;
+
+		return Failure;
+	}
+
+	protected static NodeState IsIncidentCollapse(in BTContext ctx)
+	{
+		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
+			responseType != HumanIncidentResponseType.AbortTask)
+			return Success;
+
+		return Failure;
+	}
+
+	protected static NodeState AbortTask(in BTContext ctx)
+	{
+		//WorkerTask task = ctx.Worker.currentTask;
+		//ctx.Worker.SetTask(null);
+		
+		// task manager에게 대체 worker가 task를 수행해야 한다고 알림
+
+		return Success;
+	}
+
+	protected static NodeState EndWorkerIncident(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.Set("IncidentState", HumanIncidentResponseType.None);
+
+		return Success;
+	}
+
+	protected static SequenceNode BuildHumanIncidentNode()
+	{
+		SequenceNode root = new SequenceNode();
+		
+		SequenceNode collapse = new SequenceNode();
+		collapse.Add(new ActionNode(IsIncidentCollapse));
+		collapse.Add(new ActionNode(AbortTask));
+
+		SequenceNode mistake= new SequenceNode();
+		mistake.Add(new ActionNode(IsIncidentWorkMistake));
+		mistake.Add(new DoWorkNode(WorkActionType.HandleMistake));
+
+		SelectorNode handleIncident = new SelectorNode();
+		handleIncident.Add(collapse);
+		handleIncident.Add(mistake);
+
+		root.Add(new ActionNode(CheckWorkerIncident));
+		root.Add(handleIncident);
+
+		return root;
+	}
+
 }
