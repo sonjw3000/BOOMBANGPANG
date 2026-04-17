@@ -1,6 +1,4 @@
-﻿using NUnit.Framework.Internal.Commands;
-using System.Collections.Generic;
-using Unity.Mathematics;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
@@ -50,9 +48,6 @@ public class UnloadingTask : WorkerTask
 
 	public override bool CheckTaskEnd()
 	{
-		if (IsUnloadEnd)
-		{
-		}
 		return IsUnloadEnd;
 	}
 

@@ -70,9 +70,9 @@ public class MousePicking : MonoBehaviour
 
 		int3 befPos = currentTargetPoint;
 
-		currentTargetPoint.x = Mathf.FloorToInt(point.x);
+		currentTargetPoint.x = Mathf.FloorToInt(point.x + 0.5f);
 		currentTargetPoint.y = currentFloor;
-		currentTargetPoint.z = Mathf.FloorToInt(point.z);
+		currentTargetPoint.z = Mathf.FloorToInt(point.z + 0.5f);
 
 		// 마우스 위치가 이동했다
 		if (math.all(befPos == currentTargetPoint) == false)

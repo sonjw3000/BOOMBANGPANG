@@ -23,8 +23,8 @@ public class TransferContext
 
 public class WaterTask : WorkerTask
 {
-	private TransferContext from;
-	private TransferContext to;
+	private readonly TransferContext from;
+	private readonly TransferContext to;
 
 	private bool workPhase = false;
 

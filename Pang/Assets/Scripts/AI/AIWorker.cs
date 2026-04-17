@@ -191,7 +191,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public bool RunBT(BlackBoard GlobalBlackboard)
 	{
 		BTContext btx;
-		btx.DeltaTime = 0.016f;
+		btx.DeltaTime = Time.deltaTime;
 		btx.LocalBlackBoard = localBlackBoard;
 		btx.GlobalBlackBoard = GlobalBlackboard;
 		btx.Worker = this;

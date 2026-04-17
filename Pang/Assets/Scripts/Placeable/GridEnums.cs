@@ -47,6 +47,8 @@ public enum GridFlags
 
 	// 동적 장애물 (작업자, 이동 선반 등)
 	DynamicObstacle = 1 << 3,
+
+	Error = BlockPlacement | BlockMovement,
 }
 
 [System.Flags]

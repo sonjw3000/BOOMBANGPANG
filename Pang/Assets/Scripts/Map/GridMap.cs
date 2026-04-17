@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 
 public enum PlacementEvent
@@ -13,7 +14,7 @@ public enum PlacementEvent
 
 public class PlacementContext
 {
-	public readonly int3 center;
+	public int3 center;
 	public readonly FacingDirection facingDirection;
 	public readonly PlaceableDefinition placeableDefinition;
 	public readonly PlacementEvent placementEvent;
@@ -33,14 +34,12 @@ public class GridCell
 {
 	private int tile = 0;
 	private GridFlags flags = GridFlags.None;
-	private InteractionKind kind = InteractionKind.None;
 
 	private GameObject objectRef = null;
 
 	public GridFlags Flags => flags;
-	public InteractionKind InteractionType => kind;
 
-	public bool IsPassable => (Flags & GridFlags.BlockMovement) == 0;
+	public bool IsPassable => (Flags & (GridFlags.BlockMovement | GridFlags.DynamicObstacle)) == 0;
 
 	public GameObject ObjectOnGrid => objectRef;
 
@@ -51,18 +50,23 @@ public class GridCell
 
 	public void Set(in FootprintCell cellFootprint, GameObject obj)
 	{
-		flags = cellFootprint.flags;
-		kind = cellFootprint.interactionKind;
+		flags |= cellFootprint.flags;
 
-		if (flags != GridFlags.Interaction)
+		if (cellFootprint.flags != GridFlags.Interaction)
 			objectRef = obj;
 	}
 
 	public void Clear()
 	{
 		flags = GridFlags.None;
-		kind = InteractionKind.None;
 		objectRef = null;
+	}
+
+	public void Remove(in FootprintCell cellFootprint, GameObject obj)
+	{
+		if (objectRef == obj)
+			objectRef = null;
+		flags &= ~cellFootprint.flags;
 	}
 
 }
@@ -105,7 +109,7 @@ public class GridMap
 		}
 	}
 
-	public bool IsInBound(int3 pos)
+	public bool IsInBound(in int3 pos)
 	{
 		return
 			0 <= pos.x && pos.x < mapSize.x &&
@@ -113,7 +117,7 @@ public class GridMap
 			0 <= pos.z && pos.z < mapSize.z;
 	}
 
-	public GameObject GetObjectOnGrid(int3 position)
+	public GameObject GetObjectOnGrid(in int3 position)
 	{
 		if (IsInBound(position) == false)
 			return null;
@@ -122,5 +126,16 @@ public class GridMap
 		if (cell == null) return null;
 
 		return cell.ObjectOnGrid;
+	}
+
+	public GridFlags GetGridFlags(in int3 pos)
+	{
+		if (IsInBound(pos) == false)
+			return GridFlags.Error;
+
+		GridCell cell = map[pos.x, pos.y, pos.z];
+		if (cell == null) return GridFlags.Error;
+
+		return cell.Flags;
 	}
 }

@@ -197,7 +197,6 @@ public class GridService : MonoBehaviour
 			return false;
 		}
 
-
 		GridFootprint footprint = context.placeableDefinition.gridFootprint;
 		Vector2Int pivot = footprint.Pivot;
 		for (int z = 0; z < footprint.height; ++z)
@@ -210,13 +209,57 @@ public class GridService : MonoBehaviour
 				if (gridMap.IsInBound(target) == false)
 					return false;
 				// clear to cell
-				Map[target.x, target.y, target.z].Clear();
+				Map[target.x, target.y, target.z].Remove(footprint.Get(x, z), targetObj);
 			}
 		}
 
 		placedObjects.Remove(targetObj);
 		Destroy(targetObj);
 
+		return true;
+	}
+
+	public bool TryMove(AIWorker worker, in int3 from, in int3 to)
+	{
+		var obj = gridMap.GetObjectOnGrid(from);
+	
+		if (obj == worker.gameObject)
+			return false;
+
+		if ((gridMap.GetGridFlags(to) & GridFlags.BlockMovement) == GridFlags.BlockMovement)
+			return false;
+
+		PlacementContext context = placedObjects[worker.gameObject];
+		GridFootprint footprint = context.placeableDefinition.gridFootprint;
+		Vector2Int pivot = footprint.Pivot;
+		
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
+				int3 target = context.center + rotatedOffset;
+				if (gridMap.IsInBound(target) == false)
+					return false;
+				// clear to cell
+				Map[target.x, target.y, target.z].Remove(footprint.Get(x, z), worker.gameObject);
+			}
+		}
+
+		context.center = to;
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
+				int3 target = context.center + rotatedOffset;
+				if (gridMap.IsInBound(target) == false)
+					return false;
+				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), worker.gameObject);
+			}
+		}
 		return true;
 	}
 

@@ -5,8 +5,7 @@ using UnityEditor.Build.Content;
 
 public class FindRoute : MonoBehaviour
 {
-	//private Resources resources;
-	private GridCell[,,] map => GameContext.Instance.GridService.Map;
+	private GridService GridService => GameContext.Instance.GridService;
 	private int3 mapSize => GameContext.Instance.GridService.MapSize;
 
 	//public float speed = 2f;
@@ -64,7 +63,7 @@ public class FindRoute : MonoBehaviour
 		//moveontile에서 쓰이는 변수들
 		targetPos = new Vector3();
 
-		if (map == null)
+		if (GridService.Map == null)
 		{
 			Debug.LogError("mapRef is null!");
 		}
@@ -117,6 +116,7 @@ public class FindRoute : MonoBehaviour
 		{
 			if (previousNode.y >= 0 && previousNode.x >= 0 && previousNode.z >= 0)
 			{
+				GridService.TryMove(_Worker, previousNode, nextNode);
 				_Worker.SetPosition(nextNode);
 			}
 
@@ -130,7 +130,7 @@ public class FindRoute : MonoBehaviour
 			else//다음 목적지로
 			{
 				nextNode = path[currentIndex + 1];
-				if (map[nextNode.x, nextNode.y, nextNode.z].IsPassable)
+				if (GridService.Map[nextNode.x, nextNode.y, nextNode.z].IsPassable)
 				{
 					previousNode = path[currentIndex++];
 				}
@@ -161,7 +161,7 @@ public class FindRoute : MonoBehaviour
 		LRcurr.head = ((Mathf.RoundToInt(gameObject.transform.eulerAngles.y / 90f) % 4) + 4) % 4; // x,y,z,distance,head
 		//Debug.Log(LRcurr.head+"방향을 쳐다보고 있어");
 
-		if (map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].IsPassable == false)
+		if (GridService.Map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].IsPassable == false)
 		{
 			//Debug.LogError("얘 지금 이상한짓 해요" + gameObject.name + "가 " + map[LRcurr.position.x, LRcurr.position.y, LRcurr.position.z].type + "을 " + id + "로 바꾼다");
 			return;
@@ -214,7 +214,7 @@ public class FindRoute : MonoBehaviour
 				if (dir.x >= 0 && dir.x < mapSize.x && dir.y >= 0 && dir.y < mapSize.y && dir.z >= 0 && dir.z < mapSize.z)
 				{
 					int dist = distance[top.position.x, top.position.y, top.position.z] + 1;
-					if (map[dir.x, dir.y, dir.z].IsPassable && distance[dir.x, dir.y, dir.z] > dist)
+					if (GridService.Map[dir.x, dir.y, dir.z].IsPassable && distance[dir.x, dir.y, dir.z] > dist)
 					{
 						distance[dir.x, dir.y, dir.z] = dist;
 						prev[dir.x, dir.y, dir.z] = top.position.xyz;
@@ -278,7 +278,7 @@ public class FindRoute : MonoBehaviour
 	{
 		//Debug.Log("finish");
 		int3 rand = new int3(UnityEngine.Random.Range(0, mapSize.x), UnityEngine.Random.Range(0, mapSize.y), UnityEngine.Random.Range(0, mapSize.z));
-		while (map[rand.x, rand.y, rand.z].IsPassable)
+		while (GridService.Map[rand.x, rand.y, rand.z].IsPassable)
 		{
 			rand.x = UnityEngine.Random.Range(0, mapSize.x);
 			rand.y = UnityEngine.Random.Range(0, mapSize.y);
