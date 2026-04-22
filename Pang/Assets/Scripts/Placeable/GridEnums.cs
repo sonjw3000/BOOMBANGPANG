@@ -43,6 +43,11 @@ public static class FacingDirectionExtantion
 		return (FacingDirection)(((int)dir + 1) % 4);
 	}
 
+	public static FacingDirection TurnAround(this FacingDirection dir)
+	{
+		return (FacingDirection)(((int)dir + 2) % 4);
+	}
+
 	public static FacingDirection TurnLeft(this FacingDirection dir)
 	{
 		return (FacingDirection)(((int)dir + 3) % 4);
@@ -68,6 +73,11 @@ public static class FacingDirectionExtantion
 	public static int3 RightDirection(this FacingDirection dir)
 	{
 		return (dir.TurnRight()).ForwardDirection();
+	}
+	
+	public static int3 BackwardDirection(this FacingDirection dir)
+	{
+		return (dir.TurnAround()).ForwardDirection();
 	}
 }
 

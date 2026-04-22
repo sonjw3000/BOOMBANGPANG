@@ -274,15 +274,16 @@ public sealed class PathSearchJob
 
 			int befG = currentNode.GCost;
 
-			CheckNode(befG, currentPosition + currentDirection.ForwardDirection(), currentDirection, false);
-			CheckNode(befG, currentPosition + currentDirection.LeftDirection(), currentDirection.TurnLeft(), true);
-			CheckNode(befG, currentPosition + currentDirection.RightDirection(), currentDirection.TurnRight(), true);
+			CheckNode(befG, currentPosition + currentDirection.ForwardDirection(), currentDirection, 0);
+			CheckNode(befG, currentPosition + currentDirection.LeftDirection(), currentDirection.TurnLeft(), 1);
+			CheckNode(befG, currentPosition + currentDirection.RightDirection(), currentDirection.TurnRight(), 1);
+			CheckNode(befG, currentPosition + currentDirection.BackwardDirection(), currentDirection.TurnAround(), 2);
 		}
 
 		return false;
 	}
 
-	private void CheckNode(int befG, int3 pos, FacingDirection dir, bool rotation)
+	private void CheckNode(int befG, int3 pos, FacingDirection dir, int rotationAmount)
 	{
 		if (GridService.IsBlocked(pos))
 			return;
@@ -293,7 +294,7 @@ public sealed class PathSearchJob
 		if (nodeRecord.VisitState == NodeVisitedState.Closed)
 			return;
 
-		int G = GetG(pos, request.endPosition, rotation) + befG;
+		int G = GetG(pos, request.endPosition, rotationAmount) + befG;
 		int H = GetH(pos, request.endPosition);
 
 		if (nodeRecord.VisitState == NodeVisitedState.None)
@@ -317,12 +318,11 @@ public sealed class PathSearchJob
 
 	}
 
-	private int GetG(in int3 node, in int3 goal, bool rotation)
+	private int GetG(in int3 node, in int3 goal, int rotationAmount)
 	{
 		// 모든 노드의 이동 비용은 동일하나 rotation시간의 뭐시기가 더 들어감
 		int distanceCost = request.MovementCost;
-		int rotationCost = rotation ? request.RotationCost : 0;
-
+		int rotationCost = rotationAmount * request.RotationCost;
 		return distanceCost + rotationCost;
 	}
 
