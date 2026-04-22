@@ -94,6 +94,8 @@ public class FindRoute : MonoBehaviour
 		PathRequest request = new PathRequest(this, worker.GridPosition, goalPos, worker.Direction);
 		PathFinding.RequestRoute(request);
 
+		worker.enabled = false;
+
 		return true;
 	}
 
@@ -116,7 +118,7 @@ public class FindRoute : MonoBehaviour
 			enabled = true;
 
 # if UNITY_EDITOR
-			Debug.Log(transform.name + "가 목적지로 이동을 시작합니다. 경로 길이: " + pathResultBuffer.Path.Count);
+			//Debug.Log(transform.name + "가 목적지로 이동을 시작합니다. 경로 길이: " + pathResultBuffer.Path.Count);
 			//for(int i = 0; i < pathResultBuffer.Path.Count; i++)
 			//{
 			//	var node = pathResultBuffer.Path.ElementAt(i);
