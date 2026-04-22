@@ -1,6 +1,8 @@
 ﻿
 
 // 카테고리화 하기 위함
+using Unity.Mathematics;
+
 public enum PlaceableDefinitionType
 {
 	// 벽 등 기타
@@ -20,7 +22,7 @@ public enum PlaceableDefinitionType
 	Other
 }
 
-public enum FacingDirection
+public enum FacingDirection : byte
 {
 	North = 0,
 	East,
@@ -34,6 +36,38 @@ public static class FacingDirectionExtantion
 	public static FacingDirection Rotate90CW(this FacingDirection dir)
 	{
 		return (FacingDirection)(((int)dir + 1) % 4);
+	}
+
+	public static FacingDirection TurnRight(this FacingDirection dir)
+	{
+		return (FacingDirection)(((int)dir + 1) % 4);
+	}
+
+	public static FacingDirection TurnLeft(this FacingDirection dir)
+	{
+		return (FacingDirection)(((int)dir + 3) % 4);
+	}
+
+	public static int3 ForwardDirection(this FacingDirection dir)
+	{
+		return dir switch
+		{
+			FacingDirection.North => new int3(0, 0, 1),
+			FacingDirection.East => new int3(1, 0, 0),
+			FacingDirection.South => new int3(0, 0, -1),
+			FacingDirection.West => new int3(-1, 0, 0),
+			_ => new int3(0, 0, 0)
+		};
+	}
+
+	public static int3 LeftDirection(this FacingDirection dir)
+	{
+		return (dir.TurnLeft()).ForwardDirection();
+	}
+
+	public static int3 RightDirection(this FacingDirection dir)
+	{
+		return (dir.TurnRight()).ForwardDirection();
 	}
 }
 

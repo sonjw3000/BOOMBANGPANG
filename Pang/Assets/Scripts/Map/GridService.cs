@@ -12,6 +12,21 @@ public class GridService : MonoBehaviour
 	public GridCell[,,] Map => gridMap.Map;
 	public int3 MapSize => gridMap.MapSize;
 
+	public bool IsPassable(in int3 pos)
+	{
+		if (gridMap.IsInBound(pos) == false)
+			return false;
+		return gridMap.Map[pos.x, pos.y, pos.z].IsPassable;
+	}
+
+	public bool IsBlocked(in int3 pos)
+	{
+		if (gridMap.IsInBound(pos) == false)
+			return true;
+		return gridMap.Map[pos.x, pos.y, pos.z].IsBlocked;
+	}
+
+
 	private readonly Dictionary<GameObject, PlacementContext> placedObjects = new();
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;

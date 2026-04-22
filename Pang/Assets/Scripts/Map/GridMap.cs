@@ -40,7 +40,7 @@ public class GridCell
 	public GridFlags Flags => flags;
 
 	public bool IsPassable => (Flags & (GridFlags.BlockMovement | GridFlags.DynamicObstacle)) == 0;
-
+	public bool IsBlocked => (Flags & GridFlags.BlockMovement) != 0;
 	public GameObject ObjectOnGrid => objectRef;
 
 	public GridCell(int tileType)
