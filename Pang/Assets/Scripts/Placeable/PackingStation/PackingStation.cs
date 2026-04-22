@@ -115,10 +115,11 @@ public class PackingStation :
 		PackingStations.UnRegister(this);
 	}
 
-	public override void OnPositionSet(in int3 pos)
+	public override void OnPositionSet(in int3 pos, FacingDirection direction)
 	{
 		enabled = true;
 		position = pos;
+		facingDirection = direction;
 	}
 
 	public override void OnDestroyedBy(in DestroyContext context)

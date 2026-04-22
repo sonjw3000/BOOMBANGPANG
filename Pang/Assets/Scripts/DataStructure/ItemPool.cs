@@ -56,7 +56,7 @@ public class GameObjectPool
 }
 
 
-public class ItemPool<T> where T : class
+public class ItemPool<T>
 {
 	private readonly Stack<T> stack;
 	private readonly Func<T> factory;
@@ -69,14 +69,10 @@ public class ItemPool<T> where T : class
 
 	public T Get()
 	{
-		T item = null;
-
 		if (stack.Count > 0)
-			item = stack.Pop();
+			return stack.Pop();
 		else
-			item = factory();
-
-		return item;
+			return factory();
 	}
 
 	public void Release(T item)

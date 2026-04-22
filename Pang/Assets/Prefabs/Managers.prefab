@@ -25,12 +25,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 82313128406166632}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4930837203190484080}
+  m_Father: {fileID: 7908985302895797192}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1422058608903141302
 MonoBehaviour:
@@ -90,6 +90,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c087a74061bb69848a878f4b3df47a31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  items: []
   palletPrefab: {fileID: 6912054728724276864, guid: 6e1f5d0516dec1541a25a3899f32558b, type: 3}
   boxPrefab: {fileID: 8319817083396600759, guid: 4f47c92cb33ff7b4ea31b7d370158fda, type: 3}
   toteCapacity: 150
@@ -206,6 +207,9 @@ Transform:
   - {fileID: 429134569362291384}
   - {fileID: 3642400084270628801}
   - {fileID: 9154639640869813022}
+  - {fileID: 8792456289541213448}
+  - {fileID: 5376571530870301791}
+  - {fileID: 1567717604001397923}
   m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &883947193075033641
@@ -283,6 +287,52 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd8c5964a2367524dbeefe4d51c7977f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EconomyService
+--- !u!1 &2087926139697921670
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1567717604001397923}
+  - component: {fileID: 2045873797293161509}
+  m_Layer: 0
+  m_Name: PathFindingService
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1567717604001397923
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2087926139697921670}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7908985302895797192}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2045873797293161509
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2087926139697921670}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91da27b40ce9c694abeaa4aaf7e2989f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PathFindingService
+  activeJobLimit: 5
+  stepBudgetPerFrame: 500
 --- !u!1 &2108312062391713874
 GameObject:
   m_ObjectHideFlags: 0
@@ -378,6 +428,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 350bc93e0b86b46499ae187824f0d4c3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  items: []
 --- !u!1 &2416058055351549389
 GameObject:
   m_ObjectHideFlags: 0
@@ -462,8 +513,6 @@ Transform:
   - {fileID: 8699264562190637247}
   - {fileID: 6463747608451329436}
   - {fileID: 6514783859517015416}
-  - {fileID: 8792456289541213448}
-  - {fileID: 5376571530870301791}
   - {fileID: 67814135564016526}
   - {fileID: 8739494435866360622}
   m_Father: {fileID: 0}
@@ -493,6 +542,7 @@ MonoBehaviour:
   orderManager: {fileID: 3271614016673267715}
   warehouseManagement: {fileID: 4181363907245693410}
   contractService: {fileID: 1422058608903141302}
+  pathFindingService: {fileID: 2045873797293161509}
   inboundWorkFlowManager: {fileID: 2554155626171990247}
   outboundWorkFlowManager: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
@@ -576,6 +626,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 966ad98827d9a434db7cc0f981fd2866, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  items: []
 --- !u!1 &3000597967999158332
 GameObject:
   m_ObjectHideFlags: 0
@@ -601,12 +652,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3000597967999158332}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4930837203190484080}
+  m_Father: {fileID: 7908985302895797192}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2607858685587643834
 MonoBehaviour:
@@ -664,6 +715,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 966ad98827d9a434db7cc0f981fd2866, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  items: []
 --- !u!1 &4523963391161952942
 GameObject:
   m_ObjectHideFlags: 0
@@ -843,6 +895,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 395de4f2e7c001d4e9cda34178367f0e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  items: []
   initialPoolSize: 5
   landingZoneCenter:
     x: 10

@@ -5,6 +5,6 @@
 
 public interface IGridPlacementEffect
 {
-	public void OnPositionSet(in int3 position);
+	public void OnPositionSet(in int3 position, FacingDirection direction);
 	public void OnRemoved();
 }

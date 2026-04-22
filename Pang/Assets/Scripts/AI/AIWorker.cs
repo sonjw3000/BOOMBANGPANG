@@ -89,6 +89,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private WorkerStatusInfo workerState = WorkerStatusInfo.None;
 
 	private int3 position;
+	private FacingDirection facingDirection;
 
 	public float BaseMoveSpeedMultiplier => workerArchetype.baseMoveSpeedMultiplier;
 	public float MinimumMoveSpeedMultiplier => workerArchetype.minimumMoveSpeedMultiplier;
@@ -131,7 +132,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public WorkerTask CurrentTask => currentTask;
 
 	public int3 GridPosition => position;
-
+	public FacingDirection Direction => facingDirection;
 
 	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 
@@ -219,8 +220,14 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		this.position = position;
 	}
 
-	public void OnPositionSet(in int3 position)
+	public void SetDirection(FacingDirection direction)
 	{
+		facingDirection = direction;
+	}
+
+	public void OnPositionSet(in int3 position, FacingDirection direction)
+	{
+		facingDirection = direction;
 		enabled = true;
 		SetPosition(position);
 	}

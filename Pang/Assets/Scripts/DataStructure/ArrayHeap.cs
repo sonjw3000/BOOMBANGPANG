@@ -51,6 +51,17 @@ public class ArrayHeap<T>
 		}
 	}
 
+	public bool Peek(out T item)
+	{
+		if (heap.Count == 0)
+		{
+			item = default;
+			return false;
+		}
+		item = heap[0];
+		return true;
+	}
+
 	public bool Pop(out T item)
 	{
 		if (heap.Count == 0)

@@ -249,13 +249,13 @@ public abstract class ShelfBase :
 		//thisPos.type = thisPos.previousType;
 	}
 
-	public override void OnPositionSet(in int3 position)
+	public override void OnPositionSet(in int3 position, FacingDirection direction)
 	{
 		enabled = true;
 
 		// set position
 		this.position = position;
-
+		facingDirection = direction;
 		// set pickingPosition
 		//SetInteractionPoints();
 		//foreach (int3 pickingPos in interactionPoints)

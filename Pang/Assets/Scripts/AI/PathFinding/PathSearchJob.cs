@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Mathematics;
+using UnityEditorInternal.Profiling.Memory.Experimental;
+using System.Linq;
 
 
 public struct LocalGrid
@@ -15,6 +17,12 @@ public enum NodeVisitedState : byte
 	None,
 	Open,
 	Closed,
+}
+
+public class PathNode
+{
+	public int3 Position;
+	public FacingDirection Direction;
 }
 
 public struct PathNodeRecord
@@ -63,8 +71,8 @@ public class PathRequest
 	public int3 endPosition;
 	public FacingDirection startFacingDirection;
 
-	public readonly int RotationCost;
 	public readonly int MovementCost;
+	public readonly int RotationCost;
 
 	public PathRequest(FindRoute target, int3 startPosition, int3 endPosition, FacingDirection startFacingDirection)
 	{
@@ -73,8 +81,12 @@ public class PathRequest
 		this.endPosition = endPosition;
 		this.startFacingDirection = startFacingDirection;
 
-		MovementCost = (int)((1.0f / target.GetMovementSpeed()) * 100.0f);
-		RotationCost = (int)((90.0f / target.GetRotationSpeed()) * 100.0f);
+
+		MovementCost = 1;
+		RotationCost = 2;
+
+		//MovementCost = (int)((1.0f / target.GetMovementSpeed()) * 100.0f);
+		//RotationCost = (int)((90.0f / target.GetRotationSpeed()) * 100.0f);
 	}
 
 	public static LocalGrid BuildLocalGrid(in int3 start, in int3 end, int margin)
@@ -225,7 +237,7 @@ public sealed class PathSearchJob
 			currentDirection = request.startFacingDirection;
 
 			int stateIndex = buffer.GetStateIndex(currentPosition, currentDirection);
-			var startRecord = buffer.GetStateRecordByStateIndex(stateIndex);
+			ref PathNodeRecord startRecord = ref buffer.GetStateRecordByStateIndex(stateIndex);
 			startRecord.VisitState = NodeVisitedState.Open;
 			startRecord.HCost = 0;
 			startRecord.GCost = 0;
@@ -234,11 +246,8 @@ public sealed class PathSearchJob
 		}
 	}
 
-	public bool Execute(int budget, out PathResultBuffer result)
+	public bool Execute(int budget)
 	{
-		result = null;
-		bool finished = false;
-
 		if (request == null || buffer == null)
 		{
 			throw new InvalidOperationException("PathSearchJob is not properly initialized.");
@@ -252,34 +261,25 @@ public sealed class PathSearchJob
 			// do a*
 			buffer.OpenSet.Pop(out int currentStateIndex);
 
-			var res = buffer.GetPosition(currentStateIndex) == request.endPosition;
+			currentPosition = buffer.GetPosition(currentStateIndex);
+			currentDirection = buffer.GetFacingDirection(currentStateIndex);
 
-			if (math.all(res))
+			if (math.all(currentPosition == request.endPosition))
 			{
-				finished = true;
-				break;
+				return true;
 			}
 
-			var currentNode = buffer.GetStateRecordByStateIndex(currentStateIndex);
+			ref PathNodeRecord currentNode = ref buffer.GetStateRecordByStateIndex(currentStateIndex);
 			currentNode.VisitState = NodeVisitedState.Closed;
-
-			int3 getCurPos = buffer.GetPosition(currentStateIndex);
-			FacingDirection getCurDir = buffer.GetFacingDirection(currentStateIndex);
 
 			int befG = currentNode.GCost;
 
-			CheckNode(befG, getCurPos + getCurDir.ForwardDirection(), getCurDir, false);
-			CheckNode(befG, getCurPos + getCurDir.LeftDirection(), getCurDir.TurnLeft(), true);
-			CheckNode(befG, getCurPos + getCurDir.RightDirection(), getCurDir.TurnRight(), true);
+			CheckNode(befG, currentPosition + currentDirection.ForwardDirection(), currentDirection, false);
+			CheckNode(befG, currentPosition + currentDirection.LeftDirection(), currentDirection.TurnLeft(), true);
+			CheckNode(befG, currentPosition + currentDirection.RightDirection(), currentDirection.TurnRight(), true);
 		}
 
-
-		if (finished)
-		{
-			result = BuildResult();
-		}
-
-		return finished;
+		return false;
 	}
 
 	private void CheckNode(int befG, int3 pos, FacingDirection dir, bool rotation)
@@ -288,7 +288,7 @@ public sealed class PathSearchJob
 			return;
 
 		int stateIndex = buffer.GetStateIndex(pos, dir);
-		var nodeRecord = buffer.GetStateRecordByStateIndex(stateIndex);
+		ref PathNodeRecord nodeRecord = ref buffer.GetStateRecordByStateIndex(stateIndex);
 
 		if (nodeRecord.VisitState == NodeVisitedState.Closed)
 			return;
@@ -317,43 +317,6 @@ public sealed class PathSearchJob
 
 	}
 
-	private PathResultBuffer BuildResult()
-	{
-		int goalPos = buffer.GetStateIndex(request.endPosition, FacingDirection.North);
-
-		int index = -1;
-		for (int i = 0; i < Enum.GetValues(typeof(FacingDirection)).Length; ++i)
-		{
-			if (buffer.GetStateRecordByStateIndex(goalPos + i).VisitState != NodeVisitedState.None)
-			{
-				index = goalPos + i;
-				break;
-			}
-		}
-
-		if (index == -1)
-		{
-			Debug.LogError("Failed to build path result: No valid goal state found in buffer.");
-			return null;
-		}
-
-		var result = new PathResultBuffer();
-		LinkedList<int3> path = new();
-
-		var nodeRecord = buffer.GetStateRecordByStateIndex(index);
-		while (true)
-		{
-			path.AddFirst(buffer.GetPosition(index));
-			if (nodeRecord.ParentIndex == -1)
-				break;
-
-			index = nodeRecord.ParentIndex;
-			nodeRecord = buffer.GetStateRecordByStateIndex(index);
-		}
-
-		return result;
-	}
-
 	private int GetG(in int3 node, in int3 goal, bool rotation)
 	{
 		// 모든 노드의 이동 비용은 동일하나 rotation시간의 뭐시기가 더 들어감
@@ -378,11 +341,85 @@ public sealed class PathSearchJob
 		return distance;
 	}
 
-}
+	private PathResultBuffer BuildResult()
+	{
+		int goalPos = buffer.GetStateIndex(request.endPosition, FacingDirection.North);
 
+		int index = -1;
+		for (int i = 0; i < Enum.GetValues(typeof(FacingDirection)).Length; ++i)
+		{
+			if (buffer.GetStateRecordByStateIndex(goalPos + i).VisitState != NodeVisitedState.None)
+			{
+				index = goalPos + i;
+				break;
+			}
+		}
+
+		if (index == -1)
+		{
+			Debug.LogError("Failed to build path result: No valid goal state found in buffer.");
+			return null;
+		}
+
+		var result = new PathResultBuffer();
+
+		var nodeRecord = buffer.GetStateRecordByStateIndex(index);
+		while (true)
+		{
+			result.AddNode(buffer.GetPosition(index), buffer.GetFacingDirection(index));
+			if (nodeRecord.ParentIndex == -1)
+				break;
+
+			index = nodeRecord.ParentIndex;
+			nodeRecord = buffer.GetStateRecordByStateIndex(index);
+		}
+
+		return result;
+	}
+
+	public void SetPath()
+	{
+		var result = BuildResult();
+		request.target.OnPathFound(result);
+	}
+}
 
 public class PathResultBuffer
 {
+	static public ItemPool<PathNode> resultPool;
+	public static void InitializePool(int capacity) => resultPool = new ItemPool<PathNode>(capacity, () => { return new(); });
+	private static PathNode GetItem() => resultPool.Get();
+
+
+	public LinkedList<PathNode> Path = new();
+	public int CurrentIndex = 0;
+
+	public bool IsGoalReached => CurrentIndex >= Path.Count;
+	public PathNode CurrentNode => IsGoalReached ? null : Path.ElementAt(CurrentIndex);
+
+	public void MoveToNextNode()
+	{
+		if (!IsGoalReached)
+			CurrentIndex++;
+	}
+
+	public void AddNode(in int3 position, FacingDirection direction)
+	{
+		var node = GetItem();
+		node.Position = position;
+		node.Direction = direction;
+		Path.AddFirst(node);
+	}
+
+	public void Clear()
+	{
+		foreach (var node in Path)
+		{
+			resultPool.Release(node);
+		}
+		Path.Clear();
+		CurrentIndex = 0;
+	}
 
 }
 

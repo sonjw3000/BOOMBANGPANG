@@ -11,6 +11,7 @@ public abstract class ItemInteraction :
 	IItemHandleable
 {
 	protected int3 position;
+	protected FacingDirection facingDirection;
 
 	protected List<InteractionPoint> interactionPoints = new();
 	protected Dictionary<InteractionKind, List<int3>> interactionPointMap = new();
@@ -21,9 +22,10 @@ public abstract class ItemInteraction :
 	public abstract WorkerStatusTarget BuildingTarget { get; }
 
 	public int3 GridPosition => position;
+	public FacingDirection Direction => facingDirection;
 
 	// grid placement effect
-	public abstract void OnPositionSet(in int3 pos);
+	public abstract void OnPositionSet(in int3 pos, FacingDirection direction);
 	public abstract void OnDestroyedBy(in DestroyContext ctx);
 	public abstract void OnRemoved();
 

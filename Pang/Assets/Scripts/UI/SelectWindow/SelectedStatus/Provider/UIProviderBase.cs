@@ -23,6 +23,7 @@ public abstract class UIProviderBase
 	public abstract void LinkObject(GameObject obj);
 	public abstract void BuildInfoBlocks();
 	protected virtual void OnDataChanged() { }
+	public virtual void OnUpdate() { }
 
 	public void DeleteObject()
 	{

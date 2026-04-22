@@ -43,6 +43,14 @@ public class SelectionUIMaster : MonoBehaviour
 		//GameContext.Instance.InteractionCtx.OnItemSelected -= OnSelected;
 	}
 
+	private void Update()
+	{
+		if (currentProvider != null)
+		{
+			currentProvider.OnUpdate();
+		}
+	}
+
 	private void OnSelected(GameObject gridObj)
 	{
 		currentObj = gridObj;

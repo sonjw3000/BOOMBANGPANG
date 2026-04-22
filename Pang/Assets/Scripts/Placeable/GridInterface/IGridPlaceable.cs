@@ -17,11 +17,12 @@ public class DestroyContext
 public interface IGridPlaceable
 {
 	// grid actions
-	public void OnPositionSet(in int3 position);
+	public void OnPositionSet(in int3 position, FacingDirection direction);
 
 	public void OnDestroyedBy(in DestroyContext ctx);
 
 	public int3 GridPosition { get; }
+	public FacingDirection Direction { get; }
 
 	public WorkerStatusTarget BuildingTarget { get; }
 }

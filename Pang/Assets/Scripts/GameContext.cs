@@ -54,6 +54,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private OrderManager orderManager;
 	[SerializeField] private WMSystem warehouseManagement;
 	[SerializeField] private ContractService contractService;
+	[SerializeField] private PathFindingService pathFindingService;
 
 	[Header("况农敲肺快 概聪历")]
 	// workflow managers
@@ -91,6 +92,7 @@ public class GameContext : MonoBehaviour
 	public OrderManager OrderMgr => orderManager;
 	public WMSystem WMSys => warehouseManagement;
 	public ContractService ContractMgr => contractService;
+	public PathFindingService PathFinding => pathFindingService;
 
 	public InboundWorkflowManager IBWorkflowMgr => inboundWorkFlowManager;
 	public OutboundWorkflowManager OBWorkflowMgr => outboundWorkFlowManager;

@@ -16,10 +16,13 @@ public class LaunchStation
 	[SerializeField] private List<PlatformAddon> addons = new();
 
 	private int3 gridPosition;
+	private FacingDirection facingDirection;
+
 	private List<InteractionPoint> interactionPoints = new();
 	private Dictionary<InteractionKind, List<int3>> interactionPointMap = new();
 
 	public int3 GridPosition => gridPosition;
+	public FacingDirection Direction => facingDirection;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.LaunchStation;
 	
 	private LaunchStationService LaunchStations => GameContext.Instance.OBWorkflowMgr.LaunchStations;
@@ -72,10 +75,11 @@ public class LaunchStation
 	}
 
 
-	public void OnPositionSet(in int3 position)
+	public void OnPositionSet(in int3 position, FacingDirection direction)
 	{
 		enabled = true;
 		gridPosition = position;
+		facingDirection = direction;
 	}
 
 	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point)

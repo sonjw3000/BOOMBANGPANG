@@ -196,7 +196,11 @@ public class GridService : MonoBehaviour
 
 		placedObjects[obj] = ctx;
 
-		obj.GetComponent<IGridPlaceable>()?.OnPositionSet(ctx.center);
+		var gridPlaceable = obj.GetComponent<IGridPlaceable>();
+		if( gridPlaceable != null)
+		{
+			gridPlaceable.OnPositionSet(ctx.center, ctx.facingDirection);
+		}
 
 		OnPlaceableInstalled.Invoke(ctx);
 
@@ -298,8 +302,10 @@ public class GridService : MonoBehaviour
 				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), targetObj);
 			}
 		}
-
-		targetObj.GetComponent<IGridPlaceable>()?.OnPositionSet(ctx.center);
+		if (targetObj.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
+		{
+			gridPlaceable.OnPositionSet(newCenter, ctx.facingDirection);
+		}
 		placedObjects[targetObj] = ctx;
 	}
 

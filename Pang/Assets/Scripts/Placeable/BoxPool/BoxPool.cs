@@ -54,7 +54,7 @@ public class BoxPool :
 		return true;
 	}
 
-	public override void OnPositionSet(in int3 position)
+	public override void OnPositionSet(in int3 position, FacingDirection direction)
 	{
 		enabled = true;
 		this.position = position;
