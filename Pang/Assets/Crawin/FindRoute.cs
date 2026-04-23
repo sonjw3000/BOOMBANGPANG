@@ -42,6 +42,20 @@ public class FindRoute : MonoBehaviour
 
 	private void MoveOnTile()
 	{
+		// if fin
+		if (pathResultBuffer.IsGoalReached)
+		{
+			pathResultBuffer.Clear();
+			pathResultBuffer = null;
+
+			movementState = MovementState.Arrived;
+			worker.enabled = true;
+			this.enabled = false;
+			
+			return;
+		}
+
+		// if rotate is needed, rotate first. if not, move forward.
 		if (pathResultBuffer.CurrentNode.Direction != worker.Direction)
 		{
 			Vector3 direction = math.normalize(targetPos - transform.position);
@@ -60,27 +74,27 @@ public class FindRoute : MonoBehaviour
 		else
 		{
 			transform.position = Vector3.MoveTowards(transform.position, targetPos, GetMovementSpeed() * Time.deltaTime);
-
+			
 			float distance = Vector3.Distance(transform.position, targetPos);
-
 			if (Mathf.Approximately(distance, 0.0f) == false)
 				return;
 
 			transform.position = targetPos;
-			worker.SetPosition(pathResultBuffer.CurrentNode.Position);
-
-			if (pathResultBuffer.CurrentIndex + 1 == pathResultBuffer.Path.Count)
+			if (GridService.TryMove(worker, worker.GridPosition, pathResultBuffer.CurrentNode.Position) == false)
 			{
-				pathResultBuffer.Clear();
-				pathResultBuffer = null;
-
-				movementState = MovementState.Arrived;
+				movementState = MovementState.Blocked;
 				worker.enabled = true;
 				this.enabled = false;
+				 Debug.Log(
+					 transform.name + "의 이동이 막혔습니다. 현재 위치: " 
+					 + worker.GridPosition + ", 목표 위치: " 
+					 + pathResultBuffer.CurrentNode.Position);
+				return;
 			}
-			else
+
+			pathResultBuffer.MoveToNextNode();
+			if (pathResultBuffer.IsGoalReached == false)
 			{
-				pathResultBuffer.MoveToNextNode();
 				var curNode = pathResultBuffer.CurrentNode;
 				targetPos.x = curNode.Position.x;
 				targetPos.y = curNode.Position.y;
@@ -109,6 +123,9 @@ public class FindRoute : MonoBehaviour
 		this.pathResultBuffer = pathResultBuffer;
 		if (pathResultBuffer.Path.Count > 0)
 		{
+			// start node는 현재 위치이므로 다음 노드로 이동
+			pathResultBuffer.MoveToNextNode();
+
 			movementState = MovementState.Moving;
 			var curNode = pathResultBuffer.CurrentNode;
 			targetPos.x = curNode.Position.x;

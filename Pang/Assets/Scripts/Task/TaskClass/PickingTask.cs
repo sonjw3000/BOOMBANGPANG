@@ -106,7 +106,7 @@ public sealed class PickingTask : WorkerTask
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(targetPos);
-
+		
 		return Success;
 	}
 
@@ -122,12 +122,14 @@ public sealed class PickingTask : WorkerTask
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 
+		Debug.Log("Picking End Action!");
+
 		if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var placeable)
 			&& placeable is PackingStation station)
 		{
 			task.carryBox.GetBox(out var box);
 			station.PutBox(box);
-
+			Debug.Log("Box Put in Station!");
 			task.isTaskEnd = true;
 
 			return Success;

@@ -31,7 +31,7 @@ public enum FacingDirection : byte
 
 }
 
-public static class FacingDirectionExtantion
+public static class FacingDirectionExt
 {
 	public static FacingDirection Rotate90CW(this FacingDirection dir)
 	{

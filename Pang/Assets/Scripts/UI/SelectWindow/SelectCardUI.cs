@@ -1,4 +1,5 @@
-﻿using TMPro;
+﻿using System.Collections.Generic;
+using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,6 +11,7 @@ public class SelectCardUI : MonoBehaviour
 	[SerializeField] private TextMeshProUGUI titleText = null;
 	[SerializeField] private TextMeshProUGUI subTitleText = null;
 	[SerializeField] private Transform bodyTextTransform = null;
+
 	[SerializeField] private GameObject bodyTextExample = null;
 
 	[Header("Buttons")]
@@ -19,18 +21,21 @@ public class SelectCardUI : MonoBehaviour
 	[Header("Text ItemPool")]
 	private readonly int textPoolSize = 3;
 
-	private GameObjectPool selectedTextPool;
+	private Dictionary<InfoBlockType, GameObjectPool> infoPools = new();
 
 	private void Start()
 	{
-		selectedTextPool = new(textPoolSize, () => { return Instantiate(bodyTextExample, bodyTextTransform); });
+		infoPools[InfoBlockType.KeyValue] = new(textPoolSize, () => { return Instantiate(bodyTextExample, bodyTextTransform); });
 
 		gameObject.SetActive(false);
 	}
 
 	public void ClearCard()
 	{
-		selectedTextPool.ReleaseAll();
+		foreach (var pool in infoPools.Values)
+		{
+			pool.ReleaseAll();
+		}
 	}
 
 	public void SetUpCard(UIProviderBase provider)
@@ -48,10 +53,8 @@ public class SelectCardUI : MonoBehaviour
 	{
 		foreach (var block in provider.InfoBlocks)
 		{
-			var textObj = selectedTextPool.Get();
-			var textMesh = textObj.GetComponent<TextMeshProUGUI>();
-			textMesh.text = block.GetContent();
-			// Additional setup for textMesh can be done here if needed
+			var textObj = infoPools[block.InfoType].Get();
+			block.SetGameObject(textObj);
 		}
 	}
 

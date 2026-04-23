@@ -16,16 +16,17 @@ public class HumanWorkerUIProvider : UIProvider<HumanWorker>
 		infoBlocks.Clear();
 		infoBlocks.Add(new KeyValueBlock("Fatigue", $"{Fatigue}%"));
 		infoBlocks.Add(new KeyValueBlock("MoveSpeed", $"x{currentTarget.GetMoveSpeedMultiplier()}"));
+		infoBlocks.Add(new KeyValueBlock("Position", $"{currentTarget.GridPosition}"));
 		infoBlocks.Add(new KeyValueBlock("Action", $"{currentTarget.WorkerState.Action}"));
 		infoBlocks.Add(new KeyValueBlock("Target", $"{currentTarget.WorkerState.Target}"));
 	}
 
 	public override void OnUpdate()
 	{
-		infoBlocks[0] = new KeyValueBlock("Fatigue", $"{Fatigue}%");
-		infoBlocks[1] = new KeyValueBlock("MoveSpeed", $"x{currentTarget.GetMoveSpeedMultiplier()}");
-		infoBlocks[2] = new KeyValueBlock("Action", $"{currentTarget.WorkerState.Action}");
-		infoBlocks[3] = new KeyValueBlock("Target", $"{currentTarget.WorkerState.Target}" 
-			+ (currentTarget.WorkerState.Target != WorkerStatusTarget.None ? $" Position: ({currentTarget.GridPosition})" : ""));
+		(infoBlocks[0] as KeyValueBlock).UpdateValue($"{Fatigue}%");
+		(infoBlocks[1] as KeyValueBlock).UpdateValue($"x{currentTarget.GetMoveSpeedMultiplier()}");
+		(infoBlocks[2] as KeyValueBlock).UpdateValue($"{currentTarget.GridPosition}");
+		(infoBlocks[3] as KeyValueBlock).UpdateValue($"{currentTarget.WorkerState.Action}");
+		(infoBlocks[4] as KeyValueBlock).UpdateValue($"{currentTarget.WorkerState.Target}");
 	}
 }

@@ -171,6 +171,7 @@ public class GridService : MonoBehaviour
 
 				// set to cell
 				var footprintCell = footprint.Get(x, z);
+
 				Map[target.x, target.y, target.z].Set(footprintCell, obj);
 
 				if (footprintCell.flags.HasFlag(GridFlags.Interaction))
@@ -242,10 +243,10 @@ public class GridService : MonoBehaviour
 	{
 		var obj = gridMap.GetObjectOnGrid(from);
 	
-		if (obj == worker.gameObject)
+		if (obj != worker.gameObject)
 			return false;
 
-		if ((gridMap.GetGridFlags(to) & GridFlags.BlockMovement) == GridFlags.BlockMovement)
+		if (IsBlocked(to))
 			return false;
 
 		PlacementContext context = placedObjects[worker.gameObject];
@@ -279,6 +280,8 @@ public class GridService : MonoBehaviour
 				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), worker.gameObject);
 			}
 		}
+
+		worker.SetPosition(to);
 		return true;
 	}
 
