@@ -43,7 +43,7 @@ public class PlaceableWindow : MonoBehaviour
 			var btn = Instantiate(buttonPrefab, workerContent);
 			btn.gameObject.SetActive(true);
 			btn.Bind(def, HandleClickEvent);
-			Debug.Log($"name: {def.name}");
+			//Debug.Log($"name: {def.name}");
 		}
 	}
 

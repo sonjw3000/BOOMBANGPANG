@@ -36,11 +36,18 @@ public class GridCell
 
 	private GameObject objectRef = null;
 
+	private FindRoute reservedBy = null;
+
 	public GridFlags Flags => flags;
 
 	public bool IsPassable => Flags.HasFlag(GridFlags.BlockMovement | GridFlags.DynamicObstacle);
 	public bool IsBlocked => Flags.HasFlag(GridFlags.BlockMovement);
+	public bool CanPlaceObject => IsBlocked == false && reservedBy == null;
 	public GameObject ObjectOnGrid => objectRef;
+
+	public FindRoute ReservedRoute => reservedBy;
+
+	public event System.Action<GridCell> OnGridUnReserved;
 
 	public GridCell(int tileType)
 	{
@@ -66,6 +73,26 @@ public class GridCell
 		if (objectRef == obj)
 			objectRef = null;
 		flags &= ~cellFootprint.flags;
+	}
+
+	public bool TryReserve(FindRoute routeWorker)
+	{
+		if (reservedBy != null)
+			return false;
+
+		reservedBy = routeWorker;
+		return true;
+	}
+
+	public bool TryUnreserve(FindRoute routeWorker)
+	{
+		if (reservedBy != routeWorker)
+			return false;
+
+		reservedBy = null;
+
+		OnGridUnReserved?.Invoke(this);
+		return true;
 	}
 
 }

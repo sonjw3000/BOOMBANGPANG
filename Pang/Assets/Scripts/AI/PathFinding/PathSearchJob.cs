@@ -396,12 +396,13 @@ public class PathResultBuffer
 
 	public bool IsGoalReached => CurrentIndex >= Path.Count;
 	public PathNode CurrentNode => IsGoalReached ? null : Path.ElementAt(CurrentIndex);
+	public PathNode NextNode => CurrentIndex + 1 >= Path.Count ? null : Path.ElementAt(CurrentIndex + 1);
 
 	public void MoveToNextNode()
 	{
 		if (!IsGoalReached)
 			CurrentIndex++;
-	}
+	}	
 
 	public void AddNode(in int3 position, FacingDirection direction)
 	{

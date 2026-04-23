@@ -2,6 +2,28 @@
 using Unity.Mathematics;
 using UnityEngine;
 
+public enum PlacementResult
+{
+	Success,
+
+	// failed
+	BlockedByDynamicObstacle,
+	BlockedByStaticObstacle,
+	GameObjectMismatch,
+	TriedToMoveOutOfBound,
+}
+
+public class PlacementResultPayload
+{
+	public readonly PlacementResult result;
+	public readonly GameObject disturbedBy;
+	public PlacementResultPayload(PlacementResult result, GameObject disturbedBy = null)
+	{
+		this.result = result;
+		this.disturbedBy = disturbedBy;
+	}
+}
+
 public class GridService : MonoBehaviour
 {
 	[SerializeField] private GameObject placeableParent;
@@ -11,6 +33,13 @@ public class GridService : MonoBehaviour
 
 	public GridCell[,,] Map => gridMap.Map;
 	public int3 MapSize => gridMap.MapSize;
+
+	public GridCell GetCell(in int3 pos)
+	{
+		if (gridMap.IsInBound(pos) == false)
+			return null;
+		return gridMap.Map[pos.x, pos.y, pos.z];
+	}
 
 	public bool IsPassable(in int3 pos)
 	{
@@ -111,14 +140,12 @@ public class GridService : MonoBehaviour
 					continue;
 				}
 
-				if ((Map[target.x, target.y, target.z].Flags & GridFlags.BlockPlacement) == 0)
+				if (Map[target.x, target.y, target.z].CanPlaceObject)
 					possibleCell.Add(target);
 				else
 					blocked.Add(target);
 			}
-
 		}
-
 
 		return installable || (blocked.Count > 0);
 	}
@@ -239,15 +266,28 @@ public class GridService : MonoBehaviour
 		return true;
 	}
 
-	public bool TryMove(AIWorker worker, in int3 from, in int3 to)
+	public bool TryReserve(FindRoute findRoute, in int3 pos)
+	{
+		if (IsBlocked(pos))
+			return false;
+
+		return GetCell(pos).TryReserve(findRoute);
+	}
+
+	public bool TryUnreserve(FindRoute findRoute, in int3 pos)
+	{
+		return gridMap.Map[pos.x, pos.y, pos.z].TryUnreserve(findRoute);
+	}
+
+	public PlacementResult TryMove(AIWorker worker, in int3 from, in int3 to)
 	{
 		var obj = gridMap.GetObjectOnGrid(from);
 	
-		if (obj != worker.gameObject)
-			return false;
-
 		if (IsBlocked(to))
-			return false;
+			return PlacementResult.BlockedByStaticObstacle;
+
+		if (obj != worker.gameObject)
+			return PlacementResult.GameObjectMismatch;
 
 		PlacementContext context = placedObjects[worker.gameObject];
 		GridFootprint footprint = context.placeableDefinition.gridFootprint;
@@ -261,7 +301,7 @@ public class GridService : MonoBehaviour
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = context.center + rotatedOffset;
 				if (gridMap.IsInBound(target) == false)
-					return false;
+					return PlacementResult.TriedToMoveOutOfBound;
 				// clear to cell
 				Map[target.x, target.y, target.z].Remove(footprint.Get(x, z), worker.gameObject);
 			}
@@ -276,13 +316,18 @@ public class GridService : MonoBehaviour
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = context.center + rotatedOffset;
 				if (gridMap.IsInBound(target) == false)
-					return false;
+					return PlacementResult.TriedToMoveOutOfBound;
 				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), worker.gameObject);
 			}
 		}
 
 		worker.SetPosition(to);
-		return true;
+		return PlacementResult.Success;
+	}
+
+	public FindRoute GetReservedFindRoute(in int3 pos)
+	{
+		return gridMap.Map[pos.x, pos.y, pos.z].ReservedRoute;
 	}
 
 	// force moving
