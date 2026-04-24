@@ -151,10 +151,9 @@ public class FindRoute : MonoBehaviour
 			return;
 		}
 
+		// 이동중이지 않은 worker에 닿았을 때
 		if (blockedBy.pathResultBuffer == null)
 		{
-			Debug.LogWarning("The blocking route has no path buffer.");
-
 			blockingRoutes.Add(blockedBy);
 
 			// find leaf sub path
@@ -192,10 +191,11 @@ public class FindRoute : MonoBehaviour
 			return;
 		}
 
+		// 이동중인 worker와 닿았을 때
 		var otherNextNode = blockedBy.pathResultBuffer.NextNode;
-
 		if (otherNextNode == null)
 		{
+			// 상대방이 endpoint에 도착하기 직전일 때
 			var otherCurNode = blockedBy.pathResultBuffer.CurrentNode;
 			GridCell targetCell = GridService.GetCell(otherCurNode.Position);
 			if (targetCell != null)
@@ -207,11 +207,14 @@ public class FindRoute : MonoBehaviour
 		}
 		else if (otherNextNode.Position.Equals(worker.GridPosition))
 		{
+			// 경로가 교착되었을 때
+			// 저거임
 			// Deadlock case: the other route plans to enter our current tile next.
 			// A yield policy will be needed here.
 		}
 		else
 		{
+			// 상대방의 경로가 나와 완전히 다를 때
 			GridCell targetCell = GridService.GetCell(otherNextNode.Position);
 			if (targetCell != null)
 			{
