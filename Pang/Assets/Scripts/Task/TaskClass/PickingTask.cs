@@ -127,12 +127,16 @@ public sealed class PickingTask : WorkerTask
 		if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var placeable)
 			&& placeable is PackingStation station)
 		{
-			task.carryBox.GetBox(out var box);
-			station.PutBox(box);
-			Debug.Log("Box Put in Station!");
-			task.isTaskEnd = true;
-
-			return Success;
+			if (task.carryBox.GetBox(out var box) && station.PutBox(box))
+			{
+				Debug.Log("Box Put in Station!");
+				task.isTaskEnd = true;
+				return Success;
+			}
+			else if (box != null)
+			{
+				task.carryBox.PutBox(box);
+			}
 		}
 
 		return Failure;

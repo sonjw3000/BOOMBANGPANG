@@ -279,17 +279,21 @@ public class GridService : MonoBehaviour
 		return gridMap.Map[pos.x, pos.y, pos.z].TryUnreserve(findRoute);
 	}
 
-	public PlacementResult TryMove(AIWorker worker, in int3 from, in int3 to)
+	public PlacementResult TryMove(FindRoute findRoute, in int3 from, in int3 to)
 	{
 		var obj = gridMap.GetObjectOnGrid(from);
-	
+		var gridCell = GetCell(to);
+
 		if (IsBlocked(to))
 			return PlacementResult.BlockedByStaticObstacle;
 
-		if (obj != worker.gameObject)
+		if (obj != findRoute.gameObject)
 			return PlacementResult.GameObjectMismatch;
 
-		PlacementContext context = placedObjects[worker.gameObject];
+		if (gridCell.ReservedRoute != findRoute)
+			return PlacementResult.BlockedByDynamicObstacle;
+
+		PlacementContext context = placedObjects[findRoute.gameObject];
 		GridFootprint footprint = context.placeableDefinition.gridFootprint;
 		Vector2Int pivot = footprint.Pivot;
 		
@@ -303,7 +307,7 @@ public class GridService : MonoBehaviour
 				if (gridMap.IsInBound(target) == false)
 					return PlacementResult.TriedToMoveOutOfBound;
 				// clear to cell
-				Map[target.x, target.y, target.z].Remove(footprint.Get(x, z), worker.gameObject);
+				Map[target.x, target.y, target.z].Remove(footprint.Get(x, z), findRoute.gameObject);
 			}
 		}
 
@@ -317,11 +321,10 @@ public class GridService : MonoBehaviour
 				int3 target = context.center + rotatedOffset;
 				if (gridMap.IsInBound(target) == false)
 					return PlacementResult.TriedToMoveOutOfBound;
-				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), worker.gameObject);
+				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), findRoute.gameObject);
 			}
 		}
 
-		worker.SetPosition(to);
 		return PlacementResult.Success;
 	}
 

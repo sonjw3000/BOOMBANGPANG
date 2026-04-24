@@ -63,8 +63,6 @@ public class PathFindingService : MonoBehaviour
 		}
 	}
 
-
-
 	public void RequestRoute(PathRequest request)
 	{
 		var searchBuffer = searchBufferPool.Get();

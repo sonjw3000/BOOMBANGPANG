@@ -1,9 +1,11 @@
-﻿using System;
+﻿using NUnit.Framework.Constraints;
+using System;
 using System.Collections.Generic;
-using UnityEngine;
+using System.Linq;
 using Unity.Mathematics;
 using UnityEditorInternal.Profiling.Memory.Experimental;
-using System.Linq;
+using UnityEngine;
+using static UnityEngine.GraphicsBuffer;
 
 
 public struct LocalGrid
@@ -66,21 +68,24 @@ public struct PathNodeRecord
 
 public class PathRequest
 {
-	public FindRoute target;
-	public int3 startPosition;
-	public int3 endPosition;
-	public FacingDirection startFacingDirection;
+	public readonly FindRoute target;
+	public readonly int3 startPosition;
+	public readonly int3 endPosition;
+	public readonly FacingDirection startFacingDirection;
 
 	public readonly int MovementCost;
 	public readonly int RotationCost;
 
-	public PathRequest(FindRoute target, int3 startPosition, int3 endPosition, FacingDirection startFacingDirection)
+	public readonly FindRoute AvoidTarget = null;
+	public bool IsSubPathRequest => AvoidTarget != null;
+
+	public PathRequest(FindRoute target, int3 startPosition, int3 endPosition, FacingDirection startFacingDirection, FindRoute avoidTarget = null)
 	{
 		this.target = target;
 		this.startPosition = startPosition;
 		this.endPosition = endPosition;
 		this.startFacingDirection = startFacingDirection;
-
+		this.AvoidTarget = avoidTarget;
 
 		MovementCost = 1;
 		RotationCost = 2;
@@ -288,6 +293,13 @@ public sealed class PathSearchJob
 		if (GridService.IsBlocked(pos))
 			return;
 
+		if (request.IsSubPathRequest)
+		{
+			var reservedRoute = GridService.GetReservedFindRoute(pos);
+			if (reservedRoute != null && request.target.BlockingRoutes.Contains(reservedRoute))
+				return;
+		}
+
 		int stateIndex = buffer.GetStateIndex(pos, dir);
 		ref PathNodeRecord nodeRecord = ref buffer.GetStateRecordByStateIndex(stateIndex);
 
@@ -361,7 +373,7 @@ public sealed class PathSearchJob
 			return null;
 		}
 
-		var result = new PathResultBuffer();
+		var result = new PathResultBuffer(request.target, request.AvoidTarget);
 
 		var nodeRecord = buffer.GetStateRecordByStateIndex(index);
 		while (true)
@@ -386,22 +398,137 @@ public sealed class PathSearchJob
 
 public class PathResultBuffer
 {
-	static public ItemPool<PathNode> resultPool;
-	public static void InitializePool(int capacity) => resultPool = new ItemPool<PathNode>(capacity, () => { return new(); });
+	// statics
+	private static ItemPool<PathNode> resultPool;
 	private static PathNode GetItem() => resultPool.Get();
+	public static void InitializePool(int capacity) => resultPool = new ItemPool<PathNode>(capacity, () => { return new(); });
 
+	private readonly FindRoute target = null;
+	private readonly FindRoute toAvoid = null;
+	private LinkedListNode<PathNode> currentNode = null;
+	private PathResultBuffer subPathResult = null;
 
 	public LinkedList<PathNode> Path = new();
 	public int CurrentIndex = 0;
 
+	public PathResultBuffer(FindRoute target, FindRoute toAvoid = null)
+	{
+		this.target = target;
+		this.toAvoid = toAvoid;
+	}
+
 	public bool IsGoalReached => CurrentIndex >= Path.Count;
-	public PathNode CurrentNode => IsGoalReached ? null : Path.ElementAt(CurrentIndex);
-	public PathNode NextNode => CurrentIndex + 1 >= Path.Count ? null : Path.ElementAt(CurrentIndex + 1);
+	public LinkedListNode<PathNode> CurrentLinkedListNode
+	{
+		get
+		{
+			if (IsGoalReached)
+				return null;
+
+			if (subPathResult == null)
+				return currentNode;
+			return subPathResult.CurrentLinkedListNode;
+		}
+	}
+	public PathNode CurrentNode => CurrentLinkedListNode?.Value;
+	public PathNode NextNode
+	{
+		get
+		{
+			if (subPathResult != null)
+			{
+				if (subPathResult.CurrentLinkedListNode.Next != null)
+					return subPathResult.CurrentLinkedListNode.Next.Value;
+
+				return currentNode?.Value;
+			}
+
+			return currentNode?.Next?.Value;
+		}
+	}
+	public PathResultBuffer SubPathResult
+	{
+		get => subPathResult;
+		set
+		{
+			if (subPathResult != null && value == null)
+			{
+				subPathResult.Clear();
+				subPathResult = null;
+				return;
+			}
+
+			OnSubPathSet(value);
+			if (subPathResult != null)
+				subPathResult.SubPathResult = value;
+
+			subPathResult = value;
+		}
+	}
+
+
+	private void OnSubPathSet(PathResultBuffer subPath)
+	{
+		if (subPath == null)
+			return;
+
+		// 이미 subPath가 존재하면 subPath의 subPath로 만들어버림
+		if (subPathResult != null)
+		{
+			subPathResult.SubPathResult = subPath;
+			return;
+		}
+
+		// subPath의 노드와 본인의 노드가 교차되는 부분을 찾아 교차점까지만 경로를 설정 후 제거
+		Dictionary<int3, bool> pathSet = new();
+
+		for (var node = currentNode.Next; node != null; node = node.Next)
+		{
+			pathSet[node.Value.Position] = true;
+		}
+
+		for (var node = subPath.Path.First; node != subPath.Path.Last; node = node.Next)
+		{
+			if (pathSet.ContainsKey(node.Value.Position) == false)
+				continue;
+			
+			// 이후의 노드들은 제거
+			for (var toRemove = node.Next; toRemove != null;)
+			{
+				var next = toRemove.Next;
+				resultPool.Release(toRemove.Value);
+				subPath.Path.Remove(toRemove);
+				toRemove = next;
+			}
+			break;
+		}
+	}
 
 	public void MoveToNextNode()
 	{
 		if (!IsGoalReached)
+		{
+			if (SubPathResult != null)
+			{
+				SubPathResult.MoveToNextNode();
+				if (SubPathResult.IsGoalReached)
+				{
+					SubPathResult = null;
+					CurrentIndex++;
+					currentNode = currentNode.Next;
+				}
+				return;
+			}
+
+			if (currentNode == null)
+			{
+				currentNode = Path.First;
+				return;
+			}
+
 			CurrentIndex++;
+			currentNode = currentNode.Next;
+		}
 	}	
 
 	public void AddNode(in int3 position, FacingDirection direction)
@@ -419,8 +546,12 @@ public class PathResultBuffer
 			resultPool.Release(node);
 		}
 		Path.Clear();
-		CurrentIndex = 0;
-	}
 
+		if (toAvoid != null)
+			target.RemoveBlocked(toAvoid);
+
+		CurrentIndex = 0;
+		currentNode = null;
+	}
 }
 

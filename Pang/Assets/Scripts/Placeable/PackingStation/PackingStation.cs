@@ -103,7 +103,7 @@ public class PackingStation :
 		CurrentPackingWorker == null;
 
 	public override bool CanGetBox() => EndStackBox != null;
-	public override bool CanPutBox() => WaitStackBox != null;
+	public override bool CanPutBox() => WaitStackBox == null;
 
 	private void Start()
 	{

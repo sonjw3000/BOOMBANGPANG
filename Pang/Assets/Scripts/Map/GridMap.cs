@@ -77,7 +77,7 @@ public class GridCell
 
 	public bool TryReserve(FindRoute routeWorker)
 	{
-		if (reservedBy != null)
+		if (routeWorker != reservedBy && reservedBy != null)
 			return false;
 
 		reservedBy = routeWorker;
