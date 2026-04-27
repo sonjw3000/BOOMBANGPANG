@@ -48,20 +48,26 @@ public class WaterTask : WorkerTask
 
 	protected override IBaseNode BuildWorkNode()
 	{
-		SelectorNode root = new();
+		SequenceNode root = new();
 
-		SelectorNode checkBoxState = new();
+		SelectorNode ensureCarryState = new();
 
+		// check need box
 		SequenceNode checkRequirement = new();
 		checkRequirement.Add(new ActionNode(CheckBoxState));
 		checkRequirement.Add(AIWorker.GetBox(BoxType.Personal));
+		checkRequirement.Add(new ActionNode(SetCarryStateReady));
 
+		// check return box
 		SequenceNode checkBoxReq = new();
 		checkBoxReq.Add(new ActionNode(CheckBoxNotNeedState));
 		checkBoxReq.Add(AIWorker.ReturnBox());
+		checkBoxReq.Add(new ActionNode(SetCarryStateReady));
 
-		checkBoxState.Add(checkBoxReq);
-		checkBoxState.Add(checkRequirement);
+		ensureCarryState.Add(new ActionNode(IsCarryStateReady));
+		ensureCarryState.Add(checkBoxReq);
+		ensureCarryState.Add(checkRequirement);
+		ensureCarryState.Add(new ActionNode(WaitForCarryRequirement));
 
 		SequenceNode work = new();
 		work.Add(AIWorker.MoveToTarget(WorkerStatusTarget.None, InteractionKind.Pick, PickSet));
@@ -70,7 +76,7 @@ public class WaterTask : WorkerTask
 		work.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, Put));
 		work.Add(new ActionNode(AIWorker.TaskCompleted));
 
-		root.Add(checkBoxState);
+		root.Add(ensureCarryState);
 		root.Add(work);
 
 		return root;
@@ -89,14 +95,46 @@ public class WaterTask : WorkerTask
 	}
 #endif
 
+	static public NodeState IsCarryStateReady(in BTContext ctx)
+	{
+		// return true when box state is ready
+		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+
+		if (task.workPhase)
+			return Success;
+
+		// if fulfilled workPhase = true;
+		if ((task.from.transferType == TransferObjectType.Item && task.carryBox.CarringBox != null) ||
+			(task.from.transferType == TransferObjectType.Box && task.carryBox.CarringBox == null))
+		{
+			task.workPhase = true;
+			return Success;
+		}
+
+		return Failure;
+	}
+
+	static public NodeState SetCarryStateReady(in BTContext ctx)
+	{
+		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+		task.workPhase = true;
+
+		return Success;
+	}
+
+	static public NodeState WaitForCarryRequirement(in BTContext ctx)
+	{
+		Debug.Log("Waiting for box requirement fulfill");
+		return Running;
+	}
+
 	static public NodeState CheckBoxState(in BTContext ctx)
 	{
 		// if the box is required in picking, then have to pick box
 		// 
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
 
-		if (task.workPhase == false &&
-			task.from.transferType == TransferObjectType.Item &&
+		if (task.from.transferType == TransferObjectType.Item &&
 			task.carryBox.CarringBox == null)
 			return Success;
 
@@ -108,8 +146,7 @@ public class WaterTask : WorkerTask
 		// if box is not required in picking, then don't need to pick box
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
 		
-		if (task.workPhase == false &&
-			task.from.transferType == TransferObjectType.Box &&
+		if (task.from.transferType == TransferObjectType.Box &&
 			task.carryBox.CarringBox != null)
 			return Success;
 
@@ -119,8 +156,6 @@ public class WaterTask : WorkerTask
 	static public NodeState PickSet(in BTContext ctx)
 	{
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
-
-		task.workPhase = true;
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.from.target as IGridPlaceable);
 		return Success;
