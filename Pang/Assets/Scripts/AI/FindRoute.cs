@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
-using static FindRoute;
 
 public class FindRoute : MonoBehaviour
 {
