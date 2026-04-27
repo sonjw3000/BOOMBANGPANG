@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 using static FindRoute;
 
@@ -56,7 +57,7 @@ public class FindRoute : MonoBehaviour
 
 		if (pathResultBuffer.CurrentNode.Direction != worker.Direction)
 		{
-			Vector3 direction = worker.Direction.GetDirectionDiff(pathResultBuffer.CurrentNode.Direction).normalized;
+			Vector3 direction = pathResultBuffer.CurrentNode.Direction.ForwardDirection().ToVector3().normalized;
 
 			if (Vector3.zero.Equals(direction))
 			{

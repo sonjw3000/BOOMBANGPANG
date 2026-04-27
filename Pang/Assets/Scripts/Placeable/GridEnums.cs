@@ -87,11 +87,6 @@ public static class FacingDirectionExt
 	{
 		return (dir.TurnAround()).ForwardDirection();
 	}
-
-	public static UnityEngine.Vector3 GetDirectionDiff(this FacingDirection dir, FacingDirection other)
-	{
-		return (other.ForwardDirection() - dir.ForwardDirection()).ToVector3();
-	}
 }
 
 [System.Flags]
