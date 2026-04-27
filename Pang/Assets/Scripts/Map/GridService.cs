@@ -230,7 +230,7 @@ public class GridService : MonoBehaviour
 		placedObjects[obj] = ctx;
 
 		var gridPlaceable = obj.GetComponent<IGridPlaceable>();
-		if( gridPlaceable != null)
+		if (gridPlaceable != null)
 		{
 			gridPlaceable.OnPositionSet(ctx.center, ctx.facingDirection);
 		}

@@ -31,6 +31,14 @@ public enum FacingDirection : byte
 
 }
 
+public static class Int3Ext
+{
+	public static UnityEngine.Vector3 ToVector3(this int3 i)
+	{
+		return new UnityEngine.Vector3(i.x, i.y, i.z);
+	}
+}
+
 public static class FacingDirectionExt
 {
 	public static FacingDirection Rotate90CW(this FacingDirection dir)
@@ -78,6 +86,11 @@ public static class FacingDirectionExt
 	public static int3 BackwardDirection(this FacingDirection dir)
 	{
 		return (dir.TurnAround()).ForwardDirection();
+	}
+
+	public static UnityEngine.Vector3 GetDirectionDiff(this FacingDirection dir, FacingDirection other)
+	{
+		return (other.ForwardDirection() - dir.ForwardDirection()).ToVector3();
 	}
 }
 

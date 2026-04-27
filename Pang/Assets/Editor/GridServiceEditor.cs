@@ -18,7 +18,7 @@ class GridServiceEditor : Editor
 			for (int i = 0; i < 6; ++i)
 			{
 				PlacementContext ctxRobots = new(
-					center: new int3(2 + i, 0, 2),
+					center: new int3(3 + i, 0, 2),
 					dir: FacingDirection.North,
 					def: catalog.FindById("PalletRobot_00")
 				);

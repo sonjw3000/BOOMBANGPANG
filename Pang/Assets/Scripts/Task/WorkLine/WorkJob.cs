@@ -51,7 +51,7 @@ public sealed class WorkJob
 
 
 
-	public void MoveToLextLine()
+	public void MoveToNextLine()
 	{
 		var WorkLine = Lines[currentLineIndex];
 

@@ -1,6 +1,7 @@
-using UnityEngine;
-using Unity.Mathematics;
 using System.Collections.Generic;
+using Unity.Mathematics;
+using UnityEngine;
+using static FindRoute;
 
 public class FindRoute : MonoBehaviour
 {
@@ -55,7 +56,15 @@ public class FindRoute : MonoBehaviour
 
 		if (pathResultBuffer.CurrentNode.Direction != worker.Direction)
 		{
-			Vector3 direction = math.normalize(targetPos - transform.position);
+			Vector3 direction = worker.Direction.GetDirectionDiff(pathResultBuffer.CurrentNode.Direction).normalized;
+
+			if (Vector3.zero.Equals(direction))
+			{
+				// 
+				Debug.LogError("Same Rotation but tried to rotate");
+				worker.SetDirection(pathResultBuffer.CurrentNode.Direction);
+				return;
+			}
 
 			float rotSpeed = GetRotationSpeed();
 			Quaternion targetRotation = Quaternion.LookRotation(direction);
@@ -194,6 +203,7 @@ public class FindRoute : MonoBehaviour
 		}
 
 		// 이동중인 worker와 닿았을 때
+		var otherToNode = blockedBy.pathResultBuffer.CurrentNode;
 		var otherNextNode = blockedBy.pathResultBuffer.NextNode;
 		if (otherNextNode == null)
 		{
@@ -207,8 +217,14 @@ public class FindRoute : MonoBehaviour
 				enabled = false;
 			}
 		}
+		else if (otherToNode.Position.Equals(worker.GridPosition))
+		{
+			// 교착상태일 때
+			Debug.Log("Deadlock!!!!!");
+		}
 		else if (otherNextNode.Position.Equals(worker.GridPosition))
 		{
+			Debug.Log("Deadlock?????");
 			// 경로가 교착되었을 때
 			// 저거임
 			// Deadlock case: the other route plans to enter our current tile next.
@@ -220,7 +236,9 @@ public class FindRoute : MonoBehaviour
 			GridCell targetCell = GridService.GetCell(otherNextNode.Position);
 			if (targetCell != null)
 			{
-				Debug.Log("Waiting because the target tile is still reserved by another route.");
+				Debug.Log("왜일까 한번 체크해보자" + 
+					$"other cur: {blockedBy.worker.GridPosition} to: {otherToNode.Position}, next: {otherNextNode?.Position}, " +
+					$"mine Cur: {worker.GridPosition}, next: {pathResultBuffer.CurrentNode.Position}");
 				targetCell.OnGridUnReserved += OnCanReserve;
 				enabled = false;
 			}
@@ -229,7 +247,7 @@ public class FindRoute : MonoBehaviour
 
 	private bool RequestSubPath(in int3 goalPos, FindRoute avoidTarget)
 	{
-		PathRequest request = new PathRequest(this, worker.GridPosition, goalPos, worker.Direction, avoidTarget);
+		PathRequest request = new(this, worker.GridPosition, goalPos, worker.Direction, avoidTarget);
 		PathFinding.RequestRoute(request);
 
 		Debug.Log($"SubPath Req: from: {worker.GridPosition} to: {goalPos}");
@@ -259,8 +277,10 @@ public class FindRoute : MonoBehaviour
 
 	public bool SetGoalPosition(in int3 goalPos)
 	{
-		PathRequest request = new PathRequest(this, worker.GridPosition, goalPos, worker.Direction);
+		PathRequest request = new(this, worker.GridPosition, goalPos, worker.Direction);
 		PathFinding.RequestRoute(request);
+
+		movementState = MovementState.PathPending;
 
 		worker.enabled = false;
 
@@ -293,10 +313,10 @@ public class FindRoute : MonoBehaviour
 			// its sub path, so we need to append it to the existing path buffer
 			var curNode = pathResultBuffer.CurrentLinkedListNode;
 
-			Debug.Log($"SubPath Res: " +
-				$"from: {pathBuffer.Path.First.Value.Position}" +
-				$" to: {pathBuffer.Path.Last.Value.Position}," +
-				$" next: {curNode.Next.Value.Position}");
+			//Debug.Log($"SubPath Res: " +
+			//	$"from: {pathBuffer.Path.First.Value.Position}" +
+			//	$" to: {pathBuffer.Path.Last.Value.Position}," +
+			//	$" next: {curNode.Next.Value.Position}");
 
 			pathResultBuffer.SubPathResult = pathBuffer;
 		}

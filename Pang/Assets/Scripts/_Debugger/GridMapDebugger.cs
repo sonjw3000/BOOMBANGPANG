@@ -56,6 +56,7 @@ public sealed class GridMapDebugger : MonoBehaviour
 	{
 		if (cell.ReservedRoute != null) return new Color(0f, 1f, 0f, 0.55f);
 		if (cell.IsBlocked) return new Color(1f, 0f, 0f, 0.45f);
+		if (cell.Flags.HasFlag(GridFlags.Interaction)) return new Color(0f, 1f, 1f, 0.45f);
 		return new Color(1f, 1f, 1f, 0.12f);
 	}
 }

@@ -1,4 +1,5 @@
-﻿using Unity.IO.LowLevel.Unsafe;
+﻿using NUnit.Framework.Constraints;
+using Unity.IO.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
@@ -94,8 +95,11 @@ public abstract partial class AIWorker
 		{
 			// todo
 			// pool에 사용 가능한 박스가 없다는 점을 플레이어에게 알려줘야함
+			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			return Failure;
 		}
+
+		context.LocalBlackBoard.RemoveTargetBuilding();
 
 		return context.Worker.TryAttachBox(box) ? Success : Failure;
 	}
@@ -111,6 +115,8 @@ public abstract partial class AIWorker
 			Debug.LogError("Worker tried to put box but has no box attached...");
 			return Failure;
 		}
+
+		context.LocalBlackBoard.RemoveTargetBuilding();
 
 		if (pool.PutBox(box) == false)
 		{
@@ -149,6 +155,13 @@ public abstract partial class AIWorker
 		return Success;
 	}
 
+	private static NodeState TryRemoveTargetBuilding(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.RemoveTargetBuilding();
+
+		return Success;
+	}
+
 	// for tote box getting
 	// tote를 가지고 오기 위해 만든 노드
 	// picking이던 뭐던 잘 쓰면 된다
@@ -160,7 +173,6 @@ public abstract partial class AIWorker
 		SequenceNode moveToAndPick = MoveToTarget(WorkerStatusTarget.BoxPool, InteractionKind.Pick, SetGoalClosestBoxPool);
 		moveToAndPick.Add(new ActionNode(PickBox));
 		
-		node.Add(new ActionNode(CheckWorkerHasBox));
 		node.Add(moveToAndPick);
 		
 		return node;
@@ -177,17 +189,6 @@ public abstract partial class AIWorker
 
 		return node;
 	}
-
-	//public static SequenceNode MoveToTarget(ActionFunc goalSettingFunc)
-	//{
-	//	SequenceNode node = new();
-
-	//	node.Add(new ActionNode(goalSettingFunc));
-	//	node.Add(new ActionNode(SetDestination));
-	//	node.Add(new ActionNode(MoveTo));
-
-	//	return node;
-	//}
 
 	public static SequenceNode MoveToTarget(WorkerStatusTarget target, InteractionKind kind, ActionFunc settingTargetBuilding = null)
 	{
@@ -222,18 +223,6 @@ public abstract partial class AIWorker
 		return node;
 	}
 
-	// picking, storing에서 목적지를 갱신하며 이동할 때 사용
-	//public static SequenceNode BuildCarryMoveInteract(BoxType boxRequirement, ActionFunc setGoal, ActionFunc interact)
-	//{
-	//	SequenceNode node = new();
-
-	//	if (boxRequirement != BoxType.None) node.Add(GetBox(boxRequirement));
-	//	node.Add(MoveToTarget(setGoal));
-	//	if (interact != null) node.Add(new ActionNode(interact));
-
-	//	return node;
-	//}
-
 	public static SelectorNode CheckBoxAndGet(BoxType boxRequirement)
 	{
 		SelectorNode node = new();
@@ -263,7 +252,11 @@ public abstract partial class AIWorker
 
 		node.Add(setWorkTime);
 		node.Add(work);
-		if (interact != null) node.Add(new ActionNode(interact));
+		if (interact != null)
+		{
+			node.Add(new ActionNode(interact));
+			node.Add(new ActionNode(TryRemoveTargetBuilding));
+		}
 		node.Add(calculateFatigue);
 		node.Add(new ActionNode((in BTContext ctx) =>
 		{

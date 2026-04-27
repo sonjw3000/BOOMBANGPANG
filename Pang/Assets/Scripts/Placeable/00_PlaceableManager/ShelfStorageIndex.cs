@@ -151,37 +151,16 @@ public class ShelfStorageIndex : MonoBehaviour
 		}
 	}
 
-	//public void TestStoreItem()
-	//{
-	//	if (Containers.Count < 3)
-	//	{
-	//		Debug.Log($"ItemContainer is not enough!!, need more than 3! current: {Containers.Count}");
-	//		return;
-	//	}
+	public void TestStoreItem()
+	{
+		if (Containers.Count <= 0)
+		{
+			Debug.Log("No Item Container Found");
+			return;
+		}
 
-	//	AddItemLocation(123333, Containers[0]);
-	//	AddItemLocation(123123, Containers[1]);
-	//	AddItemLocation(14412, Containers[2]);
-
-	//	ItemDB.InsertOrderedItems(123333);
-	//	ItemDB.InsertOrderedItems(123123);
-	//	ItemDB.InsertOrderedItems(14412);
-
-	//	Debug.Log("Test Store Item");
-	//}
-
-	//public void TestFullStockItems()
-	//{
-	//	if (Containers.Count <= 0)
-	//	{
-	//		Debug.Log("No Item Container Found");
-	//		return;
-	//	}
-
-	//	Containers[0].AddItem(123333, 100);
-	//	Containers[1].AddItem(123123, 100);
-	//	Containers[2].AddItem(14412, 100);
-	//}
+		Containers[0].AddItem(111111, 10);
+	}
 
 
 }

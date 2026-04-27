@@ -195,7 +195,7 @@ public sealed class PickingTask : WorkerTask
 			return Failure;
 		}
 
-		task.PickingData.MoveToLextLine();
+		task.PickingData.MoveToNextLine();
 
 		return Success;
 	}

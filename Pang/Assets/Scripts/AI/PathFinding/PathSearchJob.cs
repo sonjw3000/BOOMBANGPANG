@@ -96,13 +96,13 @@ public class PathRequest
 
 	public static LocalGrid BuildLocalGrid(in int3 start, in int3 end, int margin)
 	{
-		int3 min = new int3(
+		int3 min = new(
 			math.min(start.x, end.x) - margin,
 			math.min(start.y, end.y) - margin,
 			math.min(start.z, end.z) - margin
 		);
 
-		int3 max = new int3(
+		int3 max = new(
 			math.max(start.x, end.x) + margin,
 			math.max(start.y, end.y) + margin,
 			math.max(start.z, end.z) + margin

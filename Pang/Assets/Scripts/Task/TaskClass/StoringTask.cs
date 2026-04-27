@@ -120,7 +120,7 @@ public class StoringTask : WorkerTask
 			return Failure;
 		}
 
-		task.storeJob.MoveToLextLine();
+		task.storeJob.MoveToNextLine();
 
 		// 모두 모았다면
 		if (task.storeJob.IsJobEnd)
