@@ -76,9 +76,17 @@ public abstract partial class AIWorker
 		return Success;
 	}
 
-	private static NodeState SetGoalClosestBoxPool(in BTContext context)
+	private static NodeState SetGoalClosestBoxPoolPick(in BTContext context)
 	{
 		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Pick);
+		context.LocalBlackBoard.SetTargetBuilding(pool);
+
+		return Success;
+	}
+
+	private static NodeState SetGoalClosestBoxPoolPut(in BTContext context)
+	{
+		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Put);
 		context.LocalBlackBoard.SetTargetBuilding(pool);
 
 		return Success;
@@ -170,7 +178,7 @@ public abstract partial class AIWorker
 		// todo
 		// boxtype에 대한 판단을 하게 해주어야함
 		SelectorNode node = new();
-		SequenceNode moveToAndPick = MoveToTarget(WorkerStatusTarget.BoxPool, InteractionKind.Pick, SetGoalClosestBoxPool);
+		SequenceNode moveToAndPick = MoveToTarget(WorkerStatusTarget.BoxPool, InteractionKind.Pick, SetGoalClosestBoxPoolPick);
 		moveToAndPick.Add(new ActionNode(PickBox));
 		
 		node.Add(moveToAndPick);
@@ -181,7 +189,7 @@ public abstract partial class AIWorker
 	static public SelectorNode ReturnBox()
 	{
 		SelectorNode node = new();
-		SequenceNode moveToAndReturn = MoveToTarget(WorkerStatusTarget.BoxPool, InteractionKind.Put, SetGoalClosestBoxPool);
+		SequenceNode moveToAndReturn = MoveToTarget(WorkerStatusTarget.BoxPool, InteractionKind.Put, SetGoalClosestBoxPoolPut);
 		moveToAndReturn.Add(new ActionNode(PutBox));
 
 		node.Add(new ActionNode(CheckWorkerHasNoBox));
