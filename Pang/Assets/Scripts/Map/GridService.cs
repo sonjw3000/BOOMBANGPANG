@@ -31,8 +31,11 @@ public class GridService : MonoBehaviour
 
 	private readonly GridMap gridMap = new();
 
+
 	public GridCell[,,] Map => gridMap.Map;
 	public int3 MapSize => gridMap.MapSize;
+
+	public bool IsReady { get; private set; }
 
 	public GridCell GetCell(in int3 pos)
 	{
@@ -71,6 +74,8 @@ public class GridService : MonoBehaviour
 		tileFloor.transform.position = new Vector3(gridMap.MapSize.x / 2 - 0.5f, 0, gridMap.MapSize.z / 2 - 0.5f);
 
 		tileFloor.transform.parent = gridParent.transform;
+
+		IsReady = true;
 	}
 
 	public void BuildDefaultMap()
@@ -281,17 +286,26 @@ public class GridService : MonoBehaviour
 
 	public PlacementResult TryMove(FindRoute findRoute, in int3 from, in int3 to)
 	{
-		var obj = gridMap.GetObjectOnGrid(from);
-		var gridCell = GetCell(to);
+		var fromGridCell = GetCell(from);
+		//var obj = gridMap.GetObjectOnGrid(from);
+		var toGridCell = GetCell(to);
 
 		if (IsBlocked(to))
 			return PlacementResult.BlockedByStaticObstacle;
 
-		if (obj != findRoute.gameObject)
+		if (fromGridCell.ReservedRoute != findRoute)
+		{
+			// reserve로 바꾸었기 때문에 해당 내용은 일어나선 안된다
+			Debug.LogWarning("Cant Hit Here!! Need Check" + $", from: {fromGridCell.ReservedRoute}, to: {findRoute}");
 			return PlacementResult.GameObjectMismatch;
+		}
 
-		if (gridCell.ReservedRoute != findRoute)
+		if (toGridCell.ReservedRoute != findRoute)
+		{
+			// reserve로 바꾸었기 때문에 해당 내용은 일어나선 안된다
+			Debug.LogWarning("Cant Hit Here!! Need Check");
 			return PlacementResult.BlockedByDynamicObstacle;
+		}
 
 		PlacementContext context = placedObjects[findRoute.gameObject];
 		GridFootprint footprint = context.placeableDefinition.gridFootprint;

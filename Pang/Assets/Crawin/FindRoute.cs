@@ -44,6 +44,7 @@ public class FindRoute : MonoBehaviour
 			MoveOnTile();
 	}
 
+
 	private void MoveOnTile()
 	{
 		if (pathResultBuffer.IsGoalReached)
@@ -113,7 +114,8 @@ public class FindRoute : MonoBehaviour
 
 		worker.SetPosition(pathResultBuffer.CurrentNode.Position);
 
-		GridService.TryUnreserve(this, previousPos);
+		if (worker.GridPosition.Equals(previousPos) == false)
+			GridService.TryUnreserve(this, previousPos);
 		pathResultBuffer.MoveToNextNode();
 		isNextNodeReserved = false;
 		SyncTargetPositionToCurrentNode();
@@ -269,6 +271,7 @@ public class FindRoute : MonoBehaviour
 	{
 		this.worker = worker;
 
+		Debug.Log($"Init Grid Position!, GridPos: {worker.GridPosition}");
 		// Reserve the current tile from initialization time.
 		if (GridService.TryReserve(this, worker.GridPosition) == false)
 		{

@@ -897,6 +897,65 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b5f4eec0d1c4ef44699a7688aa992fe7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &1717744550
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1717744552}
+  - component: {fileID: 1717744551}
+  m_Layer: 0
+  m_Name: GridDebugging
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1717744551
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1717744550}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6110bc7f1a8e3d648a0412838e890056, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GridMapDebugger
+  gridService: {fileID: 1841127558}
+  draw: 0
+  cubeHeight: 0.05
+  cellSize: {x: 1, y: 0.05, z: 1}
+--- !u!4 &1717744552
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1717744550}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 12.0686, y: -73.20751, z: 109.18639}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1841127558 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
+  m_PrefabInstance: {fileID: 1360170320}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26d655559bfb9454194b982737f35dfc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &2034096768
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1729,3 +1788,4 @@ SceneRoots:
   - {fileID: 1083331509}
   - {fileID: 3522281970858641529}
   - {fileID: 2034096768}
+  - {fileID: 1717744552}
