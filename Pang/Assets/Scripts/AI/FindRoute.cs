@@ -53,6 +53,21 @@ public class FindRoute : MonoBehaviour
 			return;
 		}
 
+		if (isNextNodeReserved == false)
+		{
+			if (TryReserveNextTile())
+			{
+				isNextNodeReserved = true;
+				movementState = MovementState.Moving;
+			}
+			else
+			{
+				HandleBlocked();
+				movementState = MovementState.Blocked;
+				return;
+			}
+		}
+
 		if (pathResultBuffer.CurrentNode.Direction != worker.Direction)
 		{
 			Vector3 direction = pathResultBuffer.CurrentNode.Direction.ForwardDirection().ToVector3().normalized;
@@ -77,21 +92,6 @@ public class FindRoute : MonoBehaviour
 			}
 
 			return;
-		}
-
-		if (isNextNodeReserved == false)
-		{
-			if (TryReserveNextTile())
-			{
-				isNextNodeReserved = true;
-				movementState = MovementState.Moving;
-			}
-			else
-			{
-				HandleBlocked();
-				movementState = MovementState.Blocked;
-				return;
-			}
 		}
 
 		transform.position = Vector3.MoveTowards(transform.position, targetPos, GetMovementSpeed() * Time.deltaTime);
