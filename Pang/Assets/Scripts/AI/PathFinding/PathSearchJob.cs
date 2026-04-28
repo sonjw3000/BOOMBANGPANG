@@ -1,11 +1,9 @@
-﻿using NUnit.Framework.Constraints;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Mathematics;
-using UnityEditorInternal.Profiling.Memory.Experimental;
+using Unity.VisualScripting;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
 
 
 public struct LocalGrid
@@ -373,12 +371,14 @@ public sealed class PathSearchJob
 			return null;
 		}
 
-		var result = new PathResultBuffer(request.target, request.AvoidTarget);
+				LinkedList<PathNode> path = new();
 
 		var nodeRecord = buffer.GetStateRecordByStateIndex(index);
 		while (true)
 		{
-			result.AddNode(buffer.GetPosition(index), buffer.GetFacingDirection(index));
+			PathNode node = PathResultBuffer.GetNewNode(buffer.GetPosition(index), buffer.GetFacingDirection(index));
+			path.AddFirst(node);
+
 			if (nodeRecord.ParentIndex == -1)
 				break;
 
@@ -386,6 +386,7 @@ public sealed class PathSearchJob
 			nodeRecord = buffer.GetStateRecordByStateIndex(index);
 		}
 
+		var result = new PathResultBuffer(path, request.target, request.AvoidTarget);
 		return result;
 	}
 
@@ -406,18 +407,32 @@ public class PathResultBuffer
 	private readonly FindRoute target = null;
 	private readonly FindRoute toAvoid = null;
 	private LinkedListNode<PathNode> currentNode = null;
+
+	private PathResultBuffer parentBuffer = null;
 	private PathResultBuffer subPathResult = null;
 
-	public LinkedList<PathNode> Path = new();
+	private LinkedList<PathNode> path = new();
 	public int CurrentIndex = 0;
 
-	public PathResultBuffer(FindRoute target, FindRoute toAvoid = null)
+	static public PathNode GetNewNode(in int3 position, FacingDirection direction)
 	{
-		this.target = target;
-		this.toAvoid = toAvoid;
+		var node = GetItem();
+		node.Position = position;
+		node.Direction = direction;
+		return node;
 	}
 
-	public bool IsGoalReached => CurrentIndex >= Path.Count;
+	public PathResultBuffer(LinkedList<PathNode> path, FindRoute target, FindRoute toAvoid = null)
+	{
+		this.path = path;
+		this.target = target;
+		this.toAvoid = toAvoid;
+
+		currentNode = path.First;
+	}
+
+	public LinkedList<PathNode> Path => path;
+	public bool IsGoalReached => CurrentIndex >= path.Count;
 	public LinkedListNode<PathNode> CurrentLinkedListNode
 	{
 		get
@@ -425,9 +440,9 @@ public class PathResultBuffer
 			if (IsGoalReached)
 				return null;
 
-			if (subPathResult == null)
-				return currentNode;
-			return subPathResult.CurrentLinkedListNode;
+			var leaf = FindLeafBuffer(this);
+
+			return leaf.currentNode;
 		}
 	}
 	public PathNode CurrentNode => CurrentLinkedListNode?.Value;
@@ -435,17 +450,18 @@ public class PathResultBuffer
 	{
 		get
 		{
-			if (subPathResult != null)
-			{
-				if (subPathResult.CurrentLinkedListNode.Next != null)
-					return subPathResult.CurrentLinkedListNode.Next.Value;
+			PathResultBuffer leaf = FindLeafBuffer(this);
 
-				return currentNode?.Value;
-			}
+			if (leaf.currentNode.Next != null)
+				return leaf.currentNode.Next.Value;
 
-			return currentNode?.Next?.Value;
+			if (leaf.parentBuffer != null && leaf.parentBuffer.currentNode.Next != null)
+				return leaf.parentBuffer.currentNode.Next.Value;
+
+			return null;
 		}
 	}
+	public PathResultBuffer ParentBuffer => parentBuffer;
 	public PathResultBuffer SubPathResult
 	{
 		get => subPathResult;
@@ -454,50 +470,53 @@ public class PathResultBuffer
 			if (subPathResult != null && value == null)
 			{
 				subPathResult.Clear();
+				subPathResult.parentBuffer = null;
 				subPathResult = null;
 				return;
 			}
 
-			OnSubPathSet(value);
-			if (subPathResult != null)
-				subPathResult.SubPathResult = value;
-
-			subPathResult = value;
+			AppendSubPath(value);
 		}
 	}
 
-
-	private void OnSubPathSet(PathResultBuffer subPath)
+	static public PathResultBuffer FindLeafBuffer(PathResultBuffer buffer)
 	{
-		if (subPath == null)
-			return;
+		PathResultBuffer leaf = buffer;
 
-		// 이미 subPath가 존재하면 subPath의 subPath로 만들어버림
-		if (subPathResult != null)
+		while (leaf.subPathResult != null)
 		{
-			subPathResult.SubPathResult = subPath;
-			return;
+			leaf = leaf.subPathResult;
 		}
+
+		return leaf;
+	}
+
+	private void AppendSubPath(PathResultBuffer subPath)
+	{
+		PathResultBuffer leaf = FindLeafBuffer(this);
+
+		leaf.subPathResult = subPath;
+		subPath.parentBuffer = leaf;
 
 		// subPath의 노드와 본인의 노드가 교차되는 부분을 찾아 교차점까지만 경로를 설정 후 제거
 		Dictionary<int3, bool> pathSet = new();
 
-		for (var node = currentNode.Next; node != null; node = node.Next)
+		for (var node = currentNode?.Next; node != null; node = node.Next)
 		{
 			pathSet[node.Value.Position] = true;
 		}
 
-		for (var node = subPath.Path.First; node != subPath.Path.Last; node = node.Next)
+		for (var node = subPath.path.First; node != subPath.path.Last; node = node.Next)
 		{
 			if (pathSet.ContainsKey(node.Value.Position) == false)
 				continue;
-			
+
 			// 이후의 노드들은 제거
 			for (var toRemove = node.Next; toRemove != null;)
 			{
 				var next = toRemove.Next;
 				resultPool.Release(toRemove.Value);
-				subPath.Path.Remove(toRemove);
+				subPath.path.Remove(toRemove);
 				toRemove = next;
 			}
 			break;
@@ -506,46 +525,39 @@ public class PathResultBuffer
 
 	public void MoveToNextNode()
 	{
-		if (!IsGoalReached)
+		if (IsGoalReached)
+			return;
+
+		PathResultBuffer leaf = FindLeafBuffer(this);
+
+		while (true)
 		{
-			if (SubPathResult != null)
-			{
-				SubPathResult.MoveToNextNode();
-				if (SubPathResult.IsGoalReached)
-				{
-					SubPathResult = null;
-					CurrentIndex++;
-					currentNode = currentNode.Next;
-				}
-				return;
-			}
+			var parent = leaf.parentBuffer;
 
-			if (currentNode == null)
-			{
-				currentNode = Path.First;
-				return;
-			}
+			leaf.currentNode = leaf.currentNode.Next;
+			++leaf.CurrentIndex;
 
-			CurrentIndex++;
-			currentNode = currentNode.Next;
+			if (leaf.IsGoalReached == false || parent == null)
+				break;
+
+			parent.SubPathResult = null;
+
+			leaf = parent;
 		}
-	}	
-
-	public void AddNode(in int3 position, FacingDirection direction)
-	{
-		var node = GetItem();
-		node.Position = position;
-		node.Direction = direction;
-		Path.AddFirst(node);
 	}
+
+	//public void AddNode()
+	//{
+	//	path.AddFirst(node);
+	//}
 
 	public void Clear()
 	{
-		foreach (var node in Path)
+		foreach (var node in path)
 		{
 			resultPool.Release(node);
 		}
-		Path.Clear();
+		path.Clear();
 
 		if (toAvoid != null)
 			target.RemoveBlocked(toAvoid);

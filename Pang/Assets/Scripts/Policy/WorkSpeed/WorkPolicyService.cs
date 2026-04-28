@@ -36,4 +36,21 @@ public class WorkPolicyService : MonoBehaviour
 
 	public float GetBoost(AIWorker targetWorker, WorkActionType actionType)
 		=> workTimeBoost[targetWorker.WorkerType][actionType];
+
+	public bool IsTargetHigherPriority(AIWorker targetWorker, AIWorker other)
+	{
+		// 우선순위를 나누자
+		// 1. 긴급한 순위를 나눠야 한다
+		// 먼저 task에서 우선순위를 나누고
+		// task 끼리의 우선순위 또한 필요하다
+		// 그것 마저 똑같다면
+		// 남은 경로의 수가 길면 후순위
+		// 긴급자가 대기
+		// 후순위가 우회
+
+		// 일단은 항상 true를 리턴함
+
+		return true;
+	}
+
 }
