@@ -8,12 +8,15 @@ public class BoxPoolUIProvider : UIProvider<BoxPool>
 	public int CurrentBoxCount => currentTarget != null ? currentTarget.CurrentBoxCount : 0;
 
 	//public 
-	public BoxPool Target => currentTarget;
-
 	public override void BuildInfoBlocks()
 	{
 		infoBlocks.Clear();
 		infoBlocks.Add(new KeyValueBlock("Current Size", $"{CurrentBoxCount} units"));
+	}
+
+	public override void OnUpdate()
+	{
+		(infoBlocks[0] as KeyValueBlock).UpdateValue($"{CurrentBoxCount} units");
 	}
 
 }

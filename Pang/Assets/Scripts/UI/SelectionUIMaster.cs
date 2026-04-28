@@ -23,6 +23,7 @@ public class SelectionUIMaster : MonoBehaviour
 		providers[typeof(Shelf)] = new ShelfUIProvider();
 		providers[typeof(BoxPool)] = new BoxPoolUIProvider();
 		providers[typeof(HumanWorker)] = new HumanWorkerUIProvider();
+		providers[typeof(CargoPort)] = new CargoPortUIProvider();
 
 		GameContext.Instance.InteractionCtx.OnItemSelected += OnSelected;
 
@@ -111,6 +112,7 @@ public class SelectionUIMaster : MonoBehaviour
 	{
 		// 여기서 각 UIProvider에 맞는 DetailUI를 활성화 시켜줘야함
 		currentDetailContent?.gameObject.SetActive(false);
+		currentDetailContent = null;
 
 		foreach (var content in detailContents)
 		{
@@ -122,14 +124,19 @@ public class SelectionUIMaster : MonoBehaviour
 			}
 		}
 
-		detailUI.SetDetailContent(currentDetailContent);
-		detailUI.gameObject.SetActive(true);
+		if (currentDetailContent != null)
+		{
+			detailUI.SetDetailContent(currentDetailContent);
+			detailUI.gameObject.SetActive(true);
+		}
+		else
+		{
+			Debug.LogWarning($"No suitable UI DetailBuilder found for the selected object, Target: {currentObj.name}");
+		}
 	}
 
 	public void OnFocusBtnClicked()
 	{
 
 	}
-
-
 }

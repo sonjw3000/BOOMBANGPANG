@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using UnityEditor.Experimental.GraphView;
+using UnityEngine;
 
 using static WorkerTask;
 
@@ -67,9 +68,6 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 		OrderMgr.CreateRandomOrder();
 	}
 
-	// ----------------------------------------------------------------
-	// unity 함수
-
 	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
 	{
 		if (port.FilledPercent >= cargoPortThresholdPercent)
@@ -83,8 +81,19 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 			TaskMgr.EnqueueTask(loadingTask);
 		}
-
 	}
+
+	public void BuildLoadingTask(CargoPort cargoPort)
+	{
+		cargoPort.SetInputReady(false);
+
+		LoadingTask loadingTask = new LoadingTask(cargoPort);
+
+		TaskMgr.EnqueueTask(loadingTask);
+	}
+
+	// ----------------------------------------------------------------
+	// unity 함수
 
 	private void Awake()
 	{

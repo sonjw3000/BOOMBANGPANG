@@ -47,6 +47,8 @@ public abstract class UIProvider<T> : UIProviderBase
 {
 	protected T currentTarget = null;
 
+	public T Target => currentTarget;
+
 	public override bool IsTargetType(GameObject obj) => obj.TryGetComponent<T>(out _);
 	public override void LinkObject(GameObject obj)
 	{

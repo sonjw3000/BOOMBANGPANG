@@ -18,14 +18,21 @@ public abstract class DetailContentBase : MonoBehaviour
 		}
 	}
 
-	private void Awake()
+	private void OnEnable()
 	{
 		DeleteButtonEvent.AddListener(() => provider?.DeleteObject());
 
 		AddListener();
 	}
 
+	private void OnDisable()
+	{
+		DeleteButtonEvent.RemoveAllListeners();
+		RemoveListeners();
+	}
+
 	protected virtual void AddListener() { }
+	protected virtual void RemoveListeners() { }
 
 	public abstract bool IsTargetType(GameObject obj);
 	public void SetProvider(UIProviderBase provider)

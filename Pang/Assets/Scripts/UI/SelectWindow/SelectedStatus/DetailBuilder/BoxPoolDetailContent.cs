@@ -13,10 +13,15 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 
 	protected override void AddListener()
 	{
-		addBoxButton.onClick.AddListener(() =>
-		{
+		addBoxButton.onClick.AddListener(() => 
+		{ 
 			BoxPoolService.GiveNewBox(((BoxPoolUIProvider)provider).Target, BoxType.Personal);
 		});
+	}
+
+	protected override void RemoveListeners()
+	{
+		addBoxButton.onClick.RemoveAllListeners();
 	}
 
 	protected override void LinkData()

@@ -18,6 +18,8 @@ public class CargoPort :
 	static private CargoPortService IBCargoPorts => GameContext.Instance.IBWorkflowMgr.CargoPorts;
 	static private CargoPortService OBCargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
 
+	public bool IsInbound => isInbound;
+
 	public void SetInputReady(bool ready)
 	{
 		inputReady = ready;

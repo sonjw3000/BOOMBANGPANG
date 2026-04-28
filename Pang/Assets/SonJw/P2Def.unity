@@ -927,7 +927,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridMapDebugger
   gridService: {fileID: 1841127558}
-  draw: 0
+  draw: 1
   cubeHeight: 0.05
   cellSize: {x: 1, y: 0.05, z: 1}
 --- !u!4 &1717744552
