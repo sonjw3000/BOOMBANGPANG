@@ -31,7 +31,7 @@ public class LoadingTask : WorkerTask
 	{
 		SequenceNode root = new();
 
-
+		root.Add(AIWorker.CheckBoxAndGet(BoxType.Cargo));
 		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetLoadTarget));
 		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCargo));
 
