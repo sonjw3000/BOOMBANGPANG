@@ -172,20 +172,14 @@ public class FindRoute : MonoBehaviour
 		}
 
 		// 이동중이지 않은 worker에 닿았을 때
-		if (blockedBy.pathResultBuffer == null || blockedBy.enabled == false)
+		// 혹은 마지막 노드인 상대 worker
+		var otherCurNode = blockedBy.pathResultBuffer?.CurrentNode;
+		var otherNextNode = blockedBy.pathResultBuffer?.NextNode;
+
+		if (blockedBy.pathResultBuffer == null || blockedBy.enabled == false || otherNextNode == null)
 		{
 			blockingRoutes.Add(blockedBy);
 
-			RequestSubPath(pathResultBuffer.NextNode.Position, blockedBy);
-			return;
-		}
-
-		var otherCurNode = blockedBy.pathResultBuffer.CurrentNode;
-		var otherNextNode = blockedBy.pathResultBuffer.NextNode;
-
-		// 마지막 노드인 상대 worker
-		if (otherNextNode == null)
-		{
 			RequestSubPath(pathResultBuffer.NextNode.Position, blockedBy);
 			return;
 		}
@@ -207,10 +201,12 @@ public class FindRoute : MonoBehaviour
 			// low: req new sub path
 			high.WaitForTargetCell(high.pathResultBuffer.CurrentNode.Position);
 			low.RequestSubPath(low.pathResultBuffer.NextNode.Position, high);
+
+			return;
 		}
 
 		// 상대방이 다른 자리로 이동할 것이다
-		WaitForTargetCell(otherNextNode.Position);
+		WaitForTargetCell(pathResultBuffer.CurrentNode.Position);
 	}
 
 	private bool RequestSubPath(in int3 goalPos, FindRoute avoidTarget)
