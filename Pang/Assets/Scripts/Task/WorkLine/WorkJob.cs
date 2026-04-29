@@ -8,6 +8,8 @@ public enum WorkOp
 
 	// 적치 (storing의 물건 분류
 	Storing,
+
+	Packing,
 }
 
 public sealed class WorkLine
@@ -16,7 +18,9 @@ public sealed class WorkLine
 	public readonly uint ItemID;
 	public readonly int Quantity;
 	public readonly OrderLine RelatedOrderLine = null;
+	public int CompleteQuantity = 0;
 
+	public bool IsComplete => Quantity == CompleteQuantity;
 
 	public WorkLine(ShelfBase source, uint itemID, int quantity, OrderLine relatedOrderLine = null)
 	{
@@ -34,13 +38,14 @@ public sealed class WorkJob
 	
 	public readonly List<WorkLine> Lines;
 	public readonly int JobID;
-	public readonly WorkOp WorkType;
+	public WorkOp WorkType;
 
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 
 	public int CurrentLineIndex => currentLineIndex;
 	public bool IsJobEnd => currentLineIndex >= Lines.Count;
 
+	public WorkLine CurrentLine => IsJobEnd ? null : Lines[currentLineIndex];
 
 	public WorkJob(int jobID, List<WorkLine> lines, WorkOp workType)
 	{
@@ -49,19 +54,24 @@ public sealed class WorkJob
 		WorkType = workType;
 	}
 
-
-
 	public void MoveToNextLine()
 	{
 		var WorkLine = Lines[currentLineIndex];
 
-		if (WorkType == WorkOp.Picking)
+		if (WorkType != WorkOp.Storing)
 		{
 			// change order status to order manager
-			OrderMgr.ChangeOrderStatus(WorkLine.RelatedOrderLine, OrderStatus.Picking);
+			var status = WorkType == WorkOp.Packing ? OrderStatus.Picking : OrderStatus.Packaging;
+
+			OrderMgr.ChangeOrderStatus(WorkLine.RelatedOrderLine, status);
 		}
 
 		++currentLineIndex;
+	}
 
+	public void ResetForPacking()
+	{
+		WorkType = WorkOp.Packing;
+		currentLineIndex = 0;
 	}
 }

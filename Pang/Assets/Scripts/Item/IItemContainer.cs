@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Drawing;
 using Unity.Mathematics;
 
 // 아이템 보관함
@@ -16,9 +15,9 @@ public interface IItemContainer
 
 	public bool CanRegister();
 
-	public int AddItem(uint itemId, int quantity);
+	// public int AddItem(uint itemId, int quantity);
 
-	public int RemoveItem(uint itemId, int quantity);
+	// public int RemoveItem(uint itemId, int quantity);
 }
 
 // 실제 item 저장
@@ -70,6 +69,26 @@ public class ItemStack
 		return amount;
 	}
 
+}
+
+public enum PackingType
+{
+	Box,
+	PlasticBag,
+
+}
+public class ItemPackage : ItemStack
+{
+	private OrderLine releatedOrder;
+	private PackingType packingType;
+
+	public ItemPackage(PackingType type, OrderLine order, uint itemID, int quantity) : base(itemID, float.MaxValue)
+	{
+		packingType = type;
+		releatedOrder = order;
+
+		AddItem(quantity);
+	}
 }
 
 // 특정 item이 위치한 정보를 간편히 표현한 자료구조

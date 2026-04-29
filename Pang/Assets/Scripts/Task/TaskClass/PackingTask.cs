@@ -1,7 +1,7 @@
-﻿using Unity.Mathematics;
-using UnityEngine;
+﻿using Unity.VisualScripting;
 using static IBaseNode;
 using static IBaseNode.NodeState;
+
 public class PackingTask : WorkerTask
 {
 	private static PackingStationService PackingService => GameContext.Instance.OBWorkflowMgr.PackingStations;
@@ -26,33 +26,34 @@ public class PackingTask : WorkerTask
 		// 
 		// phase 2 work
 		// if no box, wait
-		// if box, pack box
+		// if box,
 		// when finish packing, check packed stack point
 		// if packed stack point is full, wait till there is space
 		// move cur pack to stack point
 		// add to waiting queue
 
-		SelectorNode root = new SelectorNode();
+		SelectorNode root = new();
 
-		SequenceNode findPackingStation = new SequenceNode();
-		SequenceNode work = new SequenceNode();
+		SequenceNode packEnd = new();
+		packEnd.Add(new ActionNode(CheckPackedBoxEnd));
+		packEnd.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.MoveBox, PackEnd));
 
-		root.Add(findPackingStation);
-		root.Add(work);
+		SequenceNode packItems = new();
+		packItems.Add(new ActionNode(CheckBoxToPack));
+		packItems.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.MoveBox, PackItems));
 
-		// find packing station
+		SequenceNode prepareBox = new();
+		prepareBox.Add(new ActionNode(CheckWaitingBoxMoveable));
+		prepareBox.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.MoveBox, PrepareBox));
+
+		SequenceNode findPackingStation = new();
 		findPackingStation.Add(new ActionNode(CheckPackingStation));
 		findPackingStation.Add(AIWorker.MoveToTarget(WorkerStatusTarget.PackingStation, InteractionKind.Work, FindPackingStation));
 
-		ActionNode checkBox = new ActionNode(CheckBoxToPack);
-		SequenceNode moveBox2Desk = AIWorker.BuildWorkTimeInteract(WorkActionType.MoveBox, PrepareToPack);
-		SequenceNode packBox = AIWorker.BuildWorkTimeInteract(WorkActionType.PackItem, null);
-		SequenceNode removeFromDesk = AIWorker.BuildWorkTimeInteract(WorkActionType.MoveBox, PackEnd);
-
-		work.Add(checkBox);
-		work.Add(moveBox2Desk);
-		work.Add(packBox);
-		work.Add(removeFromDesk);
+		root.Add(packEnd);
+		root.Add(packItems);
+		root.Add(prepareBox);
+		root.Add(findPackingStation);
 
 		return root;
 	}
@@ -70,12 +71,103 @@ public class PackingTask : WorkerTask
 
 #endif
 
-	public static NodeState CheckPackingStation(in BTContext ctx)
+	// --------------------------------------------------
+	// Pack End
+	public static NodeState CheckPackedBoxEnd(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet<PackingStation>("WorkingPoint", out var _))
+		var station = ctx.Worker.CurrentWorkingBuilding as PackingStation;
+		if (station != null && station.CurrentPackingBox.IsFullyPacked)
+		{
+			if (station.IsBoxMoveableToEnd)
+				return Success;
+
+			// packed tote is not removed!!!!
+			// wait till tote removed
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
+			ctx.Worker.enabled = false;
+			return Running;
+		}
+
+		return Failure;
+
+	}
+
+	public static NodeState PackEnd(in BTContext ctx)
+	{
+		var station = ctx.Worker.CurrentWorkingBuilding as PackingStation;
+		if (station != null && station.EndWorkingBox())
+			return Success;
+
+		return Failure;
+	}
+
+	// --------------------------------------------------
+	// Pack Items
+	public static NodeState CheckBoxToPack(in BTContext ctx)
+	{
+		var station = ctx.Worker.CurrentWorkingBuilding as PackingStation;
+		if (station != null && station.CurrentPackingBox?.IsFullyPacked == false)
+			return Success;
+
+		return Failure;
+	}
+
+	public static NodeState PackItems(in BTContext ctx)
+	{
+		var station = ctx.Worker.CurrentWorkingBuilding as PackingStation;
+		if (station == null)
 			return Failure;
 
-		// have to find
+		// pack item here
+		BoxWithOrder box = station.CurrentPackingBox;
+		WorkLine line = box.Job.CurrentLine;
+
+		// todo
+		// Item Packing에 관련해서 뭔가를 더 해주어야하는데 일단은 박스로 고정하겠다
+		ItemPackage package = new(PackingType.Box, line.RelatedOrderLine, line.ItemID, box.Box.RemoveItem(line.ItemID, line.CompleteQuantity));
+		// station.Stacks.Add(package);
+
+		box.Job.MoveToNextLine();
+
+		return Success;
+	}
+
+	// --------------------------------------------------
+	// Prepare Box
+	public static NodeState CheckWaitingBoxMoveable(in BTContext ctx)
+	{
+		var station = ctx.Worker.CurrentWorkingBuilding as PackingStation;
+		if (station != null)
+		{
+			if (station.IsBoxMoveableToPack)
+				return Success;
+
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
+			ctx.Worker.enabled = false;
+			return Running;
+		}
+
+		return Failure;
+	}
+
+	public static NodeState PrepareBox(in BTContext ctx)
+	{
+		var station = ctx.Worker.CurrentWorkingBuilding as PackingStation;
+		if (station != null && station.PrepareBox())
+			return Success;
+
+		return Failure;
+	}
+
+	// --------------------------------------------------
+	// Find Station
+	public static NodeState CheckPackingStation(in BTContext ctx)
+	{
+		if (ctx.Worker.CurrentWorkingBuilding is PackingStation)
+			return Failure;
+
 		return Success;
 	}
 
@@ -87,54 +179,7 @@ public class PackingTask : WorkerTask
 		if (packingStation != null)
 			packingStation.CurrentPackingWorker = worker;
 
-		ctx.LocalBlackBoard.Set("WorkingPoint", packingStation);
 		ctx.LocalBlackBoard.SetTargetBuilding(packingStation);
 		return Success;
 	}
-
-	public static NodeState CheckBoxToPack(in BTContext ctx)
-	{
-		if (ctx.LocalBlackBoard.TryGet<PackingStation>("WorkingPoint", out var station))
-		{
-			if (station.IsBoxPackable())
-				return Success;
-
-			ctx.Worker.enabled = false;
-		}
-
-		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
-
-		return Failure;
-	}
-
-	public static NodeState PrepareToPack(in BTContext ctx)
-	{
-		if (ctx.LocalBlackBoard.TryGet<PackingStation>("WorkingPoint", out var station))
-		{
-			if (station.PrepareBox())
-				return Success;
-
-		}
-		return Failure;
-	}
-
-	public static NodeState PackEnd(in BTContext ctx)
-	{
-		if (ctx.LocalBlackBoard.TryGet<PackingStation>("WorkingPoint", out var station))
-		{
-			if (station.EndWorkingBox() == false)
-			{
-				// packed tote is not removed!!!!
-				// wait till tote removed
-				ctx.Worker.enabled = false;
-				return Running;
-			}
-
-			return Success;
-		}
-
-		return Failure;
-	}
-
 }

@@ -1,7 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Threading;
-using Unity.Mathematics;
-using UnityEngine;
+﻿using UnityEngine;
+using UnityEngine.UIElements;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
@@ -125,7 +123,7 @@ public sealed class PickingTask : WorkerTask
 		if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var placeable)
 			&& placeable is PackingStation station)
 		{
-			if (task.carryBox.GetBox(out var box) && station.PutBox(box))
+			if (task.carryBox.GetBox(out var box) && station.PutBoxToPack(new BoxWithOrder(box, task.pickJob)))
 			{
 				task.isTaskEnd = true;
 				return Success;
@@ -183,9 +181,10 @@ public sealed class PickingTask : WorkerTask
 
 		int realAdded = box.AddItem(task.CurrentLine.ItemID, removed);
 
+		task.CurrentLine.CompleteQuantity += realAdded;
 		// 갯수를 체크해야한다
 		// 중요함!
-		if (task.CurrentLine.Quantity != realAdded)
+		if (task.CurrentLine.IsComplete)
 		{
 			// 갯수가 다르기 때문에 다른곳에서 동일 물품을 줏어야 한다. 새로운 위치로 이동해야하지 않을까?
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");

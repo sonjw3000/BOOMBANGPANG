@@ -7,7 +7,8 @@ using UnityEngine;
 
 
 public abstract class ShelfBase :
-	ItemInteraction
+	ItemInteraction,
+	IItemContainer
 {
 	[SerializeField] protected int maxStacks = 16;
 	[SerializeField] protected float sizePerStack;

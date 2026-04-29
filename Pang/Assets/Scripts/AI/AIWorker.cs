@@ -91,6 +91,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private int3 position;
 	private FacingDirection facingDirection;
 
+	private IInteractionPoint currentWorkingPoint = null;
+
 	public float BaseMoveSpeedMultiplier => workerArchetype.baseMoveSpeedMultiplier;
 	public float MinimumMoveSpeedMultiplier => workerArchetype.minimumMoveSpeedMultiplier;
 	public float BaseWorkSpeedMultiplier => workerArchetype.baseWorkSpeedMultiplier;
@@ -105,6 +107,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public WorkerStatusInfo WorkerState => workerState;
 
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.None;
+
+	public IInteractionPoint CurrentWorkingBuilding => currentWorkingPoint;
 
 	public void SetWorkerAction(WorkerStatusAction action) => workerState.Action = action;
 	public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = target;
@@ -261,6 +265,10 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		// 
 	}
 
+	public void OnWorkingPointSet(IInteractionPoint workingPoint)
+	{
+		currentWorkingPoint = workingPoint;
+	}
 
 	public virtual float GetWorkSpeedMultiplier() { return 1.0f; }
 	public virtual float GetMoveSpeedMultiplier() { return 1.0f; }

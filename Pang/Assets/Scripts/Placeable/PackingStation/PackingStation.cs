@@ -1,54 +1,89 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
+public class BoxWithOrder
+{
+	public BoxBase Box;
+	public WorkJob Job;
+
+	public bool IsFullyPacked => Job.IsJobEnd;
+
+	public BoxWithOrder(BoxBase box, WorkJob job)
+	{
+		Box = box;
+		Job = job;
+	}
+}
+
 public class PackingStation :
-	BoxInteraction
+	BoxInteraction,
+	IItemContainer
 {
 	[SerializeField] Transform waitStackSlot = null;
 	[SerializeField] Transform packingSlot = null;
 	[SerializeField] Transform endStackSlot = null;
 	[SerializeField] Transform workerSlot = null;
 
+	[SerializeField] protected int maxStacks = 16;
+	[SerializeField] protected float sizePerStack = 100;
+
 	private AIWorker currentPackingWorker = null;
 
-	private BoxBase waitStackBox = null;
-	private BoxBase currentPackingBox = null;
-	private BoxBase endPackingBox = null;
+	private BoxWithOrder waitStackBox = null;
+	private BoxWithOrder currentPackingBox = null;
+	private BoxWithOrder endPackingBox = null;
 
+	// item container for packing items
+	private List<ItemPackage> packedItems = new();
+	protected Dictionary<uint, int> itemTotals = new();
+	private float totalSize = 0.0f;
+
+
+	// IItemContainer's property
+	public IReadOnlyList<ItemStack> Stacks => packedItems;
+	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
+	public float TotalSize => totalSize;
+	public float MaxSize => sizePerStack * maxStacks;
+	public bool CanRegister() => maxStacks > Stacks.Count;
+
+	// properties
 	private PackingStationService PackingStations => GameContext.Instance.OBWorkflowMgr.PackingStations;
 
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.PackingStation;
+
 
 	public AIWorker CurrentPackingWorker { 
 		get { return currentPackingWorker; }
 		set
 		{
-			//value.transform.SetParent(workerSlot);
-			//value.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+			if (currentPackingWorker != null)
+				currentPackingWorker.OnWorkingPointSet(null);
+
 			currentPackingWorker = value;
 			if (value != null)
 			{
+				currentPackingWorker.OnWorkingPointSet(this);
 				PackingStations.Enqueue(this);
 			}
 		}
 	}
-	public BoxBase CurrentPackingBox
+	public BoxWithOrder CurrentPackingBox
 	{
 		get { return currentPackingBox; }
 		private set
 		{
 			if (value != null)
 			{
-				value.transform.SetParent(packingSlot);
-				value.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+				value.Box.transform.SetParent(packingSlot);
+				value.Box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 			}
 			if (currentPackingBox != null)
-				currentPackingBox.transform.SetParent(null);
+				currentPackingBox.Box.transform.SetParent(null);
 			currentPackingBox = value;
 		}
 	}
-	public BoxBase WaitStackBox
+	public BoxWithOrder WaitStackBox
 	{
 		get { return waitStackBox; }
 		private set
@@ -57,8 +92,8 @@ public class PackingStation :
 			{ 
 				//Debug.Log("Packing box set at station");
 
-				value.transform.SetParent(waitStackSlot);
-				value.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+				value.Box.transform.SetParent(waitStackSlot);
+				value.Box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
 				currentPackingWorker.enabled = true;
 			}
@@ -68,11 +103,11 @@ public class PackingStation :
 			}
 
 			if (waitStackBox != null)
-				waitStackBox.transform.SetParent(null);
+				waitStackBox.Box.transform.SetParent(null);
 			waitStackBox = value;
 		}
 	}
-	public BoxBase EndStackBox
+	public BoxWithOrder EndStackBox
 	{
 		get { return endPackingBox; }
 		private set
@@ -84,12 +119,12 @@ public class PackingStation :
 			}
 			else
 			{
-				value.transform.SetParent(endStackSlot);
-				value.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+				value.Box.transform.SetParent(endStackSlot);
+				value.Box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 			}
 
 			if (endPackingBox != null)
-				endPackingBox.transform.SetParent(null);
+				endPackingBox.Box.transform.SetParent(null);
 			endPackingBox = value;
 
 		}
@@ -131,7 +166,9 @@ public class PackingStation :
 	{
 	}
 
-	public bool IsBoxPackable() => WaitStackBox != null && CurrentPackingBox == null;
+	public bool IsBoxMoveableToPack => WaitStackBox != null && CurrentPackingBox == null;
+	public bool IsBoxMoveableToEnd => CurrentPackingBox != null && EndStackBox == null;
+
 	public bool PrepareBox()
 	{
 		if (WaitStackBox == null)
@@ -168,7 +205,7 @@ public class PackingStation :
 		if (EndStackBox == null)
 			return false;
 
-		box = EndStackBox;
+		box = EndStackBox.Box;
 		EndStackBox = null;
 
 		return true;
@@ -179,7 +216,18 @@ public class PackingStation :
 		if (WaitStackBox != null)
 			return false;
 
-		WaitStackBox = box;
+		WaitStackBox.Box = box;
+
+		return true;
+	}
+
+	public bool PutBoxToPack(BoxWithOrder boxToPack)
+	{
+		if (WaitStackBox != null)
+			return false;
+
+		waitStackBox = boxToPack;
+		boxToPack.Job.ResetForPacking();
 
 		return true;
 	}

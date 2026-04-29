@@ -70,11 +70,11 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
 	{
-		if (port.FilledPercent >= cargoPortThresholdPercent)
+		CargoPort cargoPort = (CargoPort)port;
+
+		if (cargoPort.InputReady && cargoPort.FilledPercent >= cargoPortThresholdPercent)
 		{
 			// build loading task here
-			CargoPort cargoPort = (CargoPort)port;
-
 			cargoPort.SetInputReady(false);
 
 			LoadingTask loadingTask = new LoadingTask(cargoPort);
@@ -85,6 +85,12 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	public void BuildLoadingTask(CargoPort cargoPort)
 	{
+		if (cargoPort.InputReady == false)
+		{
+			Debug.Log("cargo port input is not ready");
+			return;
+		}
+
 		cargoPort.SetInputReady(false);
 
 		LoadingTask loadingTask = new LoadingTask(cargoPort);
