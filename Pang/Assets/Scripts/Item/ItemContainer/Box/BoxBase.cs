@@ -118,6 +118,28 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 		return res;
 	}
 
+	public bool AddStack(ItemStack stack)
+	{
+		if (stack.StackSize + size >= MaxSize)
+			return false;
+
+		stacks.Add(stack);
+
+		UpdateSize();
+
+		return true;
+	}
+
+	public bool RemoveStack(ItemStack stack)
+	{
+		if (stacks.Remove(stack) == false)
+			return false;
+
+		UpdateSize();
+
+		return true;
+	}
+
 	// pallet같은 경우에는 소유한 pallet들의 capacity들을 합쳐야하기 때문에
 	protected abstract void UpdateSize();
 

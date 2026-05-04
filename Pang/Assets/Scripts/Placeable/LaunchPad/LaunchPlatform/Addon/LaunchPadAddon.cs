@@ -5,6 +5,10 @@ public class LaunchPadAddon : PlatformAddon
 	private BoxBase cargoToLaunch = null;
 	private Rocket rocket = null;
 
+	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
+	private static OrderDeliveryManager OrderDelivery => GameContext.Instance.OrderDelivery;
+	private static GameTime GameTime => GameContext.Instance.GameTime;
+
 	private bool readyToLaunch = false;
 
 	public bool IsReady => readyToLaunch;
@@ -26,26 +30,42 @@ public class LaunchPadAddon : PlatformAddon
 
 	private void Launch()
 	{
-		if (cargoToLaunch != null)
+		if (cargoToLaunch == null)
+			return;
+		// launch the box
+		//boxToLaunch.LaunchFromPad();
+		// clear the reference
+		
+		// todo
+		// rocket launch effect
+		// rocket animation
+		// sound effect
+		// 물량 조절
+		//GameContext.Instance.WMSys.ItemLedger.Launch();
+
+		foreach (var stack in cargoToLaunch.Stacks)
 		{
-			// launch the box
-			//boxToLaunch.LaunchFromPad();
-			// clear the reference
+			if (stack is ItemPackage pkg == false)
+			{
+				Debug.LogError("LaunchPad: This Stack in box is not packed!!");
+				return;
+			}
 
-			// todo
-			// rocket launch effect
-			// rocket animation
-			// sound effect
-			// 물량 조절
-			//GameContext.Instance.WMSys.ItemLedger.Launch();
-
-			Debug.Log("LaunchPadAddon: Launching cargo!");
-
-			readyToLaunch = false;
-
-			cargoToLaunch = null;
-			rocket = null;
+			OrderMgr.ChangeOrderStatus(pkg.RelatedOrderLine, OrderStatus.IndDelivery);
 		}
+
+		Debug.Log("LaunchPadAddon: Launching cargo!");
+
+		// todo
+		// weeks to seconds
+		// delivery type(emergency/normal) 에 따라서 weeks를 조절해야함
+		// 
+		OrderDelivery.DeliverCargo(cargoToLaunch, GameTime.WeekToSeconds(4));
+
+		readyToLaunch = false;
+		cargoToLaunch = null;
+
+		rocket = null;
 	}
 
 	private void Update()

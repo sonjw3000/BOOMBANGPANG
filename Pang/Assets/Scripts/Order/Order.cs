@@ -13,6 +13,8 @@ public enum OrderStatus
 	Packaging,
 	// 배송 작업중
 	Shipping,
+	// 배송중
+	IndDelivery,
 	// 주문 완료
 	Completed,
 	// 주문 취소됨

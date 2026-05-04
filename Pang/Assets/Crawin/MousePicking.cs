@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -14,7 +12,6 @@ public class MousePicking : MonoBehaviour
 
 	public GameObject SelectedObject => selectedObject;
 
-	// ¼±ÅÃµÈ ¿ÀºêÁ§Æ®¸¦ ÇÏÀÌ¶óÀÌÆ®
 	[SerializeField] private GameObject floorhighLight;
 	[SerializeField] private GameObject goalPositionHighlight;
 
@@ -23,7 +20,6 @@ public class MousePicking : MonoBehaviour
 	private GameObject selectedObject;
 
 
-	// MousePicking¿¡¼­ ¾²´Â º¯¼ö
 	private int currentFloor = 0;
 	private int3 currentTargetPoint = new(0);
 	private Plane groundPlane;
@@ -74,7 +70,7 @@ public class MousePicking : MonoBehaviour
 		currentTargetPoint.y = currentFloor;
 		currentTargetPoint.z = Mathf.FloorToInt(point.z + 0.5f);
 
-		// ¸¶¿ì½º À§Ä¡°¡ ÀÌµ¿Çß´Ù
+		// ï¿½ï¿½ï¿½ì½º ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½Ìµï¿½ï¿½ß´ï¿½
 		if (math.all(befPos == currentTargetPoint) == false)
 		{
 			OnMouseMoved?.Invoke(currentTargetPoint);

@@ -134,8 +134,7 @@ public class PackingStation :
 		CurrentPackingWorker != null &&
 		CurrentPackingBox != null;
 
-	public bool IsNoWorkerAssigned =>
-		CurrentPackingWorker == null;
+	public bool IsNoWorkerAssigned => CurrentPackingWorker == null;
 
 	public override bool CanGetBox() => EndStackBox != null;
 	public override bool CanPutBox() => WaitStackBox == null;
@@ -189,6 +188,17 @@ public class PackingStation :
 	{
 		if (EndStackBox != null)
 			return false;
+		
+		// move stacked items to current packing box
+		for (int i = packedItems.Count -1; i >= 0; --i)
+		{
+			if (currentPackingBox.Box.AddStack(packedItems[i]) == false)
+			{
+				Debug.LogWarning("Box's Stack is full");
+				break;
+			}
+			packedItems.RemoveAt(i);
+		}
 
 		EndStackBox = CurrentPackingBox;
 		CurrentPackingBox = null;
@@ -228,6 +238,36 @@ public class PackingStation :
 
 		waitStackBox = boxToPack;
 		boxToPack.Job.ResetForPacking();
+
+		return true;
+	}
+
+	public int AddItem(uint itemId, int quantity)
+	{
+		Debug.LogError("Should not add item to packing station");
+		return 0;
+	}
+
+	public int RemoveItem(uint itemId, int quantity)
+	{
+		Debug.LogError("Should not remove item to packing station");
+		return 0;
+	}
+
+	public bool AddStack(ItemStack stack)
+	{
+		if (maxStacks >= packedItems.Count || stack is not ItemPackage pkg)
+			return false;
+		
+		packedItems.Add(pkg);
+
+		return true;
+	}
+
+	public bool RemoveStack(ItemStack stack)
+	{
+		if (stack is not ItemPackage pkg || packedItems.Remove(pkg) == false)
+			return false;
 
 		return true;
 	}

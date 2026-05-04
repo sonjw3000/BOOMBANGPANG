@@ -1,8 +1,8 @@
 using UnityEngine;
 
-// ÀÌ°Í¸¸Àº ²À ÁöÅ°ÀÚ
-// GameContext´Â µ¥ÀÌÅÍ¸¸ °¡Áø´Ù
-// ·ÎÁ÷À» °¡Á®¼± ¾ÈµÈ´Ù
+// ï¿½Ì°Í¸ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Å°ï¿½ï¿½
+// GameContextï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ÈµÈ´ï¿½
 
 [DefaultExecutionOrder(-100)]
 public class GameContext : MonoBehaviour
@@ -25,38 +25,39 @@ public class GameContext : MonoBehaviour
 
 	// game system multiplier
 	// todo
-	// ³ªÁß¿¡ ´Ù¸¥ °÷À¸·Î »©µµ µÉ µí?
+	// ï¿½ï¿½ï¿½ß¿ï¿½ ï¿½Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½?
 
 	// datas
 	//[SerializeField] private Resources mapResources;
 	[SerializeField] private bool gameCheat = false;
 	
-	[Header("½Ã°£")]
+	[Header("ï¿½Ã°ï¿½")]
 	[SerializeField] private GameTime gameTime;
 
-	[Header("°æÁ¦")]
+	[Header("ï¿½ï¿½ï¿½ï¿½")]
 	[SerializeField] private EconomyService economyService;
 
-	[Header("¾ÆÀÌÅÛ µ¥ÀÌÅÍº£ÀÌ½º")]
+	[Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Íºï¿½ï¿½Ì½ï¿½")]
 	[SerializeField] private ItemDatabase itemDB;
 
-	[Header("¸Ê")]
+	[Header("ï¿½ï¿½")]
 	//[SerializeField] private GridMap gridMap;
 	[SerializeField] private GridService gridService;
 	[SerializeField] private string mapJsonFile;
 
-	[Header("µµ¸ÞÀÎ ¸Å´ÏÀú")]
+	[Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Å´ï¿½ï¿½ï¿½")]
 	// domain managers
 	[SerializeField] private WorkerManager workerManager;
 	[SerializeField] private TaskManager taskManager;
 	[SerializeField] private ShelfStorageIndex itemInventory;
 	[SerializeField] private RocketManager rocketManager;
 	[SerializeField] private OrderManager orderManager;
+	[SerializeField] private OrderDeliveryManager orderDelivery;
 	[SerializeField] private WMSystem warehouseManagement;
 	[SerializeField] private ContractService contractService;
 	[SerializeField] private PathFindingService pathFindingService;
 
-	[Header("¿öÅ©ÇÃ·Î¿ì ¸Å´ÏÀú")]
+	[Header("ï¿½ï¿½Å©ï¿½Ã·Î¿ï¿½ ï¿½Å´ï¿½ï¿½ï¿½")]
 	// workflow managers
 	[SerializeField] private InboundWorkflowManager inboundWorkFlowManager;
 	[SerializeField] private OutboundWorkflowManager outboundWorkFlowManager;
@@ -69,13 +70,13 @@ public class GameContext : MonoBehaviour
 	[Header("Risk Service")]
 	[SerializeField] private HumanIncidentService humanIncidentService;
 
-	[Header("UI°ü·ÃÇØ¼­ Ãß°¡ÇÔ")]
+	[Header("UIï¿½ï¿½ï¿½ï¿½ï¿½Ø¼ï¿½ ï¿½ß°ï¿½ï¿½ï¿½")]
 	[SerializeField] private ProcessStatsCollector processStats;
 	[SerializeField] private MetricsService metrics;
 
 	private DeliveryService deliveryService = new();
 
-	//[Header("³ªÁß¿¡ »©ÀÚ")]
+	//[Header("ï¿½ï¿½ï¿½ß¿ï¿½ ï¿½ï¿½ï¿½ï¿½")]
 	private InteractionContext interactionCtx;
 
 	//public Resources MapResources => mapResources;
@@ -90,6 +91,7 @@ public class GameContext : MonoBehaviour
 	public ShelfStorageIndex StorageIndex => itemInventory;
 	public RocketManager RocketMgr => rocketManager;
 	public OrderManager OrderMgr => orderManager;
+	public OrderDeliveryManager OrderDelivery => orderDelivery;
 	public WMSystem WMSys => warehouseManagement;
 	public ContractService ContractMgr => contractService;
 	public PathFindingService PathFinding => pathFindingService;
@@ -139,8 +141,8 @@ public class GameContext : MonoBehaviour
 		GameSaveLoader loadGame = new();
 
 		// todo
-		// ¸Ê ·Îµå ½ÇÆÐ½Ã ±âº»¸Ê »ý¼º
-		// ÀÏ´ÜÀº ¸Ê ·Îµå ½ÇÆÐ¸¦ °¡Á¤ÇÔ
+		// ï¿½ï¿½ ï¿½Îµï¿½ ï¿½ï¿½ï¿½Ð½ï¿½ ï¿½âº»ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+		// ï¿½Ï´ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Îµï¿½ ï¿½ï¿½ï¿½Ð¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		//if (loadGame.LoadMap(mapJsonFile) == false)
 		if (true)
 		{
@@ -156,7 +158,7 @@ public class GameContext : MonoBehaviour
 		gridService.OnGameStart();
 	}
 
-	// ¼ø¼­°¡ Áß¿äÇÑ ÀÌº¥Æ®µéÀº ¿©±â¼­ µî·Ï
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß¿ï¿½ï¿½ï¿½ ï¿½Ìºï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½â¼­ ï¿½ï¿½ï¿½
 	private void AddEvent()
 	{
 		// times to process
@@ -165,8 +167,8 @@ public class GameContext : MonoBehaviour
 		// times for payments
 		gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
 
-		// ¼ø¼­°¡ Áß¿äÇÑ°¡?
-		// ÀÏ´ÜÀº ¿©±â¿¡¼­ µî·ÏÇÏÀÚ
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß¿ï¿½ï¿½Ñ°ï¿½?
+		// ï¿½Ï´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½â¿¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		gridService.OnPlaceableInstalled += economyService.OnPlacement;
 	}
 

@@ -64,4 +64,9 @@ public class GameTime : MonoBehaviour
 			OnYearPassed?.Invoke();
 		}
 	}
+
+	public float WeekToSeconds(int weeks)
+	{
+		return SecondsPerWeek * weeks;
+	}
 }

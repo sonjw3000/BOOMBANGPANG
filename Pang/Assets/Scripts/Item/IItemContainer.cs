@@ -15,9 +15,13 @@ public interface IItemContainer
 
 	public bool CanRegister();
 
-	// public int AddItem(uint itemId, int quantity);
+	public int AddItem(uint itemId, int quantity);
 
-	// public int RemoveItem(uint itemId, int quantity);
+	public int RemoveItem(uint itemId, int quantity);
+
+	public bool AddStack(ItemStack stack);
+
+	public bool RemoveStack(ItemStack stack);
 }
 
 // 실제 item 저장
@@ -38,6 +42,8 @@ public class ItemStack
 
 	public uint ItemID => itemID;
 	public int Quantity => quantity;
+
+	public float StackSize => maxStackSize;
 
 	public ItemStack(uint itemID, float maxStackSize)
 	{
@@ -81,6 +87,8 @@ public class ItemPackage : ItemStack
 {
 	private OrderLine releatedOrder;
 	private PackingType packingType;
+
+	public OrderLine RelatedOrderLine => releatedOrder;
 
 	public ItemPackage(PackingType type, OrderLine order, uint itemID, int quantity) : base(itemID, float.MaxValue)
 	{

@@ -16,22 +16,6 @@ public class PackingTask : WorkerTask
 	protected override IBaseNode BuildWorkNode()
 	{
 		// root selector
-
-		// sequence 1: find packing station
-		// sequence 2: work
-
-		// pahse 1: find packing station
-		// if packing station is null
-		// find the nearest packing station and when arrival, enqueue to wating queue
-		// 
-		// phase 2 work
-		// if no box, wait
-		// if box,
-		// when finish packing, check packed stack point
-		// if packed stack point is full, wait till there is space
-		// move cur pack to stack point
-		// add to waiting queue
-
 		SelectorNode root = new();
 
 		SequenceNode packEnd = new();
@@ -48,7 +32,8 @@ public class PackingTask : WorkerTask
 
 		SequenceNode findPackingStation = new();
 		findPackingStation.Add(new ActionNode(CheckPackingStation));
-		findPackingStation.Add(AIWorker.MoveToTarget(WorkerStatusTarget.PackingStation, InteractionKind.Work, FindPackingStation));
+		findPackingStation.Add(AIWorker.MoveToTarget(WorkerStatusTarget.PackingStation, 
+			InteractionKind.Work, FindPackingStation));
 
 		root.Add(packEnd);
 		root.Add(packItems);
@@ -76,7 +61,7 @@ public class PackingTask : WorkerTask
 	public static NodeState CheckPackedBoxEnd(in BTContext ctx)
 	{
 		var station = ctx.Worker.CurrentWorkingBuilding as PackingStation;
-		if (station != null && station.CurrentPackingBox.IsFullyPacked)
+		if (station != null && station.CurrentPackingBox?.IsFullyPacked == true)
 		{
 			if (station.IsBoxMoveableToEnd)
 				return Success;
@@ -125,8 +110,9 @@ public class PackingTask : WorkerTask
 
 		// todo
 		// Item Packing에 관련해서 뭔가를 더 해주어야하는데 일단은 박스로 고정하겠다
-		ItemPackage package = new(PackingType.Box, line.RelatedOrderLine, line.ItemID, box.Box.RemoveItem(line.ItemID, line.CompleteQuantity));
-		// station.Stacks.Add(package);
+		ItemPackage package = new(PackingType.Box, line.RelatedOrderLine, line.ItemID, 
+			box.Box.RemoveItem(line.ItemID, line.CompleteQuantity));
+		station.AddStack(package);
 
 		box.Job.MoveToNextLine();
 

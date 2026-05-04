@@ -215,6 +215,27 @@ public abstract class ShelfBase :
 		return removed;
 	}
 
+	public bool AddStack(ItemStack stack)
+	{
+		if (stack.StackSize > sizePerStack || stacks.Count >= maxStacks)
+			return false;
+
+		stacks.Add(stack);
+
+		UpdateSize();
+
+		return true;
+	}
+
+	public bool RemoveStack(ItemStack stack)
+	{
+		if (stacks.Remove(stack) == false)
+			return false;
+
+		UpdateSize();
+
+		return true;
+	}
 	public bool CanAccept(uint itemId, int quantity)
 	{
 		int capacity = 0;
