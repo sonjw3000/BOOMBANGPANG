@@ -17,6 +17,7 @@ public class CargoPort :
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.CargoPort;
 	static private CargoPortService IBCargoPorts => GameContext.Instance.IBWorkflowMgr.CargoPorts;
 	static private CargoPortService OBCargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
+	static private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 
 	public bool IsInbound => isInbound;
 
@@ -25,7 +26,27 @@ public class CargoPort :
 		inputReady = ready;
 	}
 
+	public override bool BringFromBox(BoxBase box)
+	{
+		if (isInbound)
+			return base.BringFromBox(box);
 
+		// if ob, set stacks in box to WaitingForShipping
+
+		foreach (ItemStack stk in box.Stacks)
+		{
+			if (stk is ItemPackage pkg == false)
+			{
+				Debug.LogError("Not ItemStack In OB CargoPort!!!");
+				break;
+			}
+
+			OrderMgr.ChangeOrderStatus(pkg.RelatedOrderLine, OrderStatus.WaitingForShipping);
+		}
+
+
+		return base.BringFromBox(box);
+	}
 
 	private void OnEnable()
 	{

@@ -22,7 +22,6 @@ public class CargoStorageAddon
 				Debug.LogError("CargoStorage: This Stack in box is not packed!!");
 				return;
 			}
-
 			OrderMgr.ChangeOrderStatus(pkg.RelatedOrderLine, OrderStatus.Shipping);
 		}
 

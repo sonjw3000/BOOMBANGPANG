@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using Unity.Mathematics;
+using static UnityEditor.Progress;
 
 // 아이템 보관함
 // 선반, 상자, 기타등등이 이를 사용
@@ -42,7 +44,7 @@ public class ItemStack
 
 	public uint ItemID => itemID;
 	public int Quantity => quantity;
-
+	public float Size => Quantity * ItemDB.GetItemSize(ItemID);
 	public float StackSize => maxStackSize;
 
 	public ItemStack(uint itemID, float maxStackSize)

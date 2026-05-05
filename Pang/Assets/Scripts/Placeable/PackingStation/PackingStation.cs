@@ -236,7 +236,7 @@ public class PackingStation :
 		if (WaitStackBox != null)
 			return false;
 
-		waitStackBox = boxToPack;
+		WaitStackBox = boxToPack;
 		boxToPack.Job.ResetForPacking();
 
 		return true;
@@ -256,7 +256,7 @@ public class PackingStation :
 
 	public bool AddStack(ItemStack stack)
 	{
-		if (maxStacks >= packedItems.Count || stack is not ItemPackage pkg)
+		if (maxStacks <= packedItems.Count || stack is not ItemPackage pkg)
 			return false;
 		
 		packedItems.Add(pkg);

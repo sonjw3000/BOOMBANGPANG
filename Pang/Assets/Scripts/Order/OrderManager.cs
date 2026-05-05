@@ -99,11 +99,15 @@ public class OrderManager : MonoBehaviour
 
 	public void ChangeOrderStatus(OrderLine targetOrder, OrderStatus status)
 	{
+		Debug.Log($"OrderID: {targetOrder.ParentOrder.OrderID} / ItemID: {targetOrder.ItemID} bef {targetOrder.Status} => now {status}!!");
+
 		var befStatus = targetOrder.ParentOrder.Status;
 		var afterStatus = targetOrder.ChangeOrderStatus(status);
 
+
 		if (befStatus != afterStatus)
 		{
+			Debug.Log($"OrderID: {targetOrder.ParentOrder} bef: {befStatus}, now: {afterStatus}!!");
 			var parent = targetOrder.ParentOrder;
 			orderStatus[befStatus].Remove(parent);
 			orderStatus[afterStatus].AddLast(parent);

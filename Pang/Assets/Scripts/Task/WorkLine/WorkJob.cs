@@ -61,7 +61,7 @@ public sealed class WorkJob
 		if (WorkType != WorkOp.Storing)
 		{
 			// change order status to order manager
-			var status = WorkType == WorkOp.Packing ? OrderStatus.Picking : OrderStatus.Packaging;
+			var status = WorkType == WorkOp.Packing ? OrderStatus.Packaging : OrderStatus.Picking;
 
 			OrderMgr.ChangeOrderStatus(WorkLine.RelatedOrderLine, status);
 		}

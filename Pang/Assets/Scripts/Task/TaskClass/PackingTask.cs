@@ -1,4 +1,5 @@
 ﻿using Unity.VisualScripting;
+using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
@@ -112,7 +113,12 @@ public class PackingTask : WorkerTask
 		// Item Packing에 관련해서 뭔가를 더 해주어야하는데 일단은 박스로 고정하겠다
 		ItemPackage package = new(PackingType.Box, line.RelatedOrderLine, line.ItemID, 
 			box.Box.RemoveItem(line.ItemID, line.CompleteQuantity));
-		station.AddStack(package);
+
+		if (station.AddStack(package) == false)
+		{
+			Debug.Log("Station Stack Is Full");
+			return Success;
+		}
 
 		box.Job.MoveToNextLine();
 

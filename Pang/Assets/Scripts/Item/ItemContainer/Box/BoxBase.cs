@@ -120,7 +120,7 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 	public bool AddStack(ItemStack stack)
 	{
-		if (stack.StackSize + size >= MaxSize)
+		if (stack.Size + size > MaxSize)
 			return false;
 
 		stacks.Add(stack);

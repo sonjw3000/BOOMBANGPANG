@@ -11,6 +11,8 @@ public enum OrderStatus
 	Picking,
 	// 포장 작업중
 	Packaging,
+	// 배송 대기중
+	WaitingForShipping,
 	// 배송 작업중
 	Shipping,
 	// 배송중
