@@ -1,7 +1,6 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Unity.Mathematics;
-using static UnityEditor.Progress;
+using UnityEngine;
 
 // 아이템 보관함
 // 선반, 상자, 기타등등이 이를 사용
@@ -31,7 +30,7 @@ public interface IItemContainer
 public class ItemStack
 {
 	private uint itemID;
-	private int quantity;
+	private int quantity = 0;
 
 	// if <= 0 >>>>>> max
 	private float maxStackSize;
@@ -63,6 +62,9 @@ public class ItemStack
 
 		quantity += amount;
 
+		if (quantity < 0)
+			Debug.LogError("Why it's under 0");
+
 		return amount;
 	}
 
@@ -74,6 +76,9 @@ public class ItemStack
 
 		quantity -= amount;
 
+		if (quantity < 0)
+			Debug.LogError("Why it's under 0");
+
 		return amount;
 	}
 
@@ -83,8 +88,24 @@ public enum PackingType
 {
 	Box,
 	PlasticBag,
-
 }
+
+public static class PackingTypeExt
+{
+	public static float GetPackageSize(this PackingType type)
+	{
+		switch (type)
+		{
+			case PackingType.Box:
+				return 50;
+			case PackingType.PlasticBag:
+				return 50;
+			default:
+				return 50;
+		}
+	}
+}
+
 public class ItemPackage : ItemStack
 {
 	private OrderLine releatedOrder;
@@ -92,7 +113,7 @@ public class ItemPackage : ItemStack
 
 	public OrderLine RelatedOrderLine => releatedOrder;
 
-	public ItemPackage(PackingType type, OrderLine order, uint itemID, int quantity) : base(itemID, float.MaxValue)
+	public ItemPackage(PackingType type, OrderLine order, uint itemID, int quantity) : base(itemID, type.GetPackageSize())
 	{
 		packingType = type;
 		releatedOrder = order;

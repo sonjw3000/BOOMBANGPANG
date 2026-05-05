@@ -15,12 +15,15 @@ public class LaunchPadAddon : PlatformAddon
 
 	public bool IsReadyToLaunch => cargoToLaunch != null && rocket != null;
 
-	public bool TryLoad(in BoxBase cargo)
+	public bool TryLoad(BoxBase cargo)
 	{
 		// todo
 		// rocket을 추가해야함
 		//if (rocket == null) return false;
 		if (cargoToLaunch != null) return false;
+
+		// todo
+		// rocket의 cargo point에 cargo를 넣어야함
 
 		cargoToLaunch = cargo;
 		readyToLaunch = true;
@@ -51,15 +54,15 @@ public class LaunchPadAddon : PlatformAddon
 				return;
 			}
 
+			Debug.Log($"OrderID: {pkg.RelatedOrderLine.ParentOrder.OrderID} / item: {pkg.ItemID}, qty: {pkg.Quantity} Launched!!");
 			OrderMgr.ChangeOrderStatus(pkg.RelatedOrderLine, OrderStatus.IndDelivery);
 		}
-
-		Debug.Log("LaunchPadAddon: Launching cargo!");
 
 		// todo
 		// weeks to seconds
 		// delivery type(emergency/normal) 에 따라서 weeks를 조절해야함
 		// 
+		cargoToLaunch.transform.SetParent(null);
 		OrderDelivery.DeliverCargo(cargoToLaunch, GameTime.WeekToSeconds(4));
 
 		readyToLaunch = false;

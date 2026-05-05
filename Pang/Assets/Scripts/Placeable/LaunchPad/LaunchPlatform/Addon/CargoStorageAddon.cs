@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 public class CargoStorageAddon 
 	: PlatformAddon
 {
+	[SerializeField] private Transform cargoStorageSlot;
 	[SerializeField] private int maxCargoSlot = 10;
 
 	// queue 식으로 사용한다
@@ -14,7 +16,10 @@ public class CargoStorageAddon
 	public void StoreCargo(BoxBase cargo)
 	{
 		cargosToLaunch.AddLast(cargo);
-		
+
+		cargo.transform.SetParent(transform);
+		cargo.transform.SetLocalPositionAndRotation(Vector3.zero + new Vector3(0, cargosToLaunch.Count, 0), Quaternion.identity);
+
 		foreach (var stack in cargo.Stacks)
 		{
 			if (stack is ItemPackage pkg == false)
@@ -24,9 +29,25 @@ public class CargoStorageAddon
 			}
 			OrderMgr.ChangeOrderStatus(pkg.RelatedOrderLine, OrderStatus.Shipping);
 		}
-
 	}
 
+	private void RemoveCargo(BoxBase cargo)
+	{
+		if (cargo == null)
+		{
+			Debug.LogWarning("[CargoStorageAddon] Tried to remove null cargo");
+			return;
+		}
+
+		if (cargosToLaunch.Contains(cargo) == false)
+		{
+			Debug.LogWarning("[CargoStorageAddon] Tried to remove not containing cargo");
+			return;
+		}
+
+		cargo.transform.SetParent(null);
+		cargosToLaunch.Remove(cargo);
+	}
 
 	private void Update()
 	{
@@ -34,11 +55,8 @@ public class CargoStorageAddon
 		{
 			var next = it.Next;
 
-			if (station.TryGetLaunchablePad(it.Value, out var pad))
-			{
-				pad.TryLoad(it.Value);
-				cargosToLaunch.Remove(it);
-			}
+			if (station.TryGetAddon<LaunchPadAddon>(out var pad) && pad.TryLoad(it.Value))
+				RemoveCargo(it.Value);
 
 			it = next;
 		}

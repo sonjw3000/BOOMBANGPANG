@@ -111,8 +111,8 @@ public class PackingTask : WorkerTask
 
 		// todo
 		// Item Packing에 관련해서 뭔가를 더 해주어야하는데 일단은 박스로 고정하겠다
-		ItemPackage package = new(PackingType.Box, line.RelatedOrderLine, line.ItemID, 
-			box.Box.RemoveItem(line.ItemID, line.CompleteQuantity));
+		int res = box.Box.RemoveItem(line.ItemID, line.CompleteQuantity);
+		ItemPackage package = new(PackingType.Box, line.RelatedOrderLine, line.ItemID, res);
 
 		if (station.AddStack(package) == false)
 		{

@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
+using static UnityEditor.Progress;
 
 
 
@@ -56,55 +58,43 @@ public abstract class ShelfBase :
 
 	public override bool BringFromBox(BoxBase box)
 	{
-		Dictionary<uint, int> deletedItems = new();
-
-		foreach (var item in box.ItemTotals)
+		for (int i = box.Stacks.Count - 1; i >= 0; --i)
 		{
-			int bef = item.Value;
-			int added = AddItem(item.Key, item.Value);
-
-			deletedItems[item.Key] = added;
-			if (added != bef)
+			var stack = box.Stacks[i];
+			if (AddStack(stack) == false)
 			{
 				// shelf가 가득 차서 옮겨지지 않았다
-				Debug.LogWarning($"Could not move all items from box. ItemID: {item.Key}, Requested: {item.Value}, Added: {added}");
+				Debug.LogWarning($"Could not move all items from box. ItemID: {stack.ItemID}, Requested: {stack.Quantity}");
+				break;
+			}
+
+			if (box.RemoveStack(stack) == false)
+			{
+				Debug.Log("??");
 				break;
 			}
 		}
 
-		foreach (var item in deletedItems)
-		{
-			box.RemoveItem(item.Key, item.Value);
-		}
-
-		if (box.ItemTotals.Count > 0)
-		{
-			return false;
-		}
-
-
-		return true;
+		return box.ItemTotals.Count <= 0;
 	}
 
 	// box가 꽉 차면 return false를 해주어야함
 	public override bool MoveToBox(BoxBase box)
 	{
-		for (int i = Stacks.Count - 1; i >= 0; --i)
+		for (int i = stacks.Count - 1; i >= 0; --i)
 		{
-			var stack = Stacks[i];
-			int befItemCounts = stack.Quantity;
+			var stack = stacks[i];
+			if (box.AddStack(stack) == false)
+				break;
 
-			int added = box.AddItem(stack.ItemID, stack.Quantity);
-			RemoveItem(stack.ItemID, added);
-
-			if (added != befItemCounts)
+			if (RemoveStack(stack) == false)
 			{
-				// box가 가득 차서 옮겨지지 않았다
-				return false;
+				Debug.Log("??");
+				break;
 			}
 		}
 
-		return true;
+		return ItemTotals.Count <= 0;
 	}
 
 	private void UpdateSize()

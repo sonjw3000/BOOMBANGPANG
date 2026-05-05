@@ -26,12 +26,13 @@ public class CargoPort :
 		inputReady = ready;
 	}
 
-	public override bool BringFromBox(BoxBase box)
+	public override bool MoveToBox(BoxBase box)
 	{
 		if (isInbound)
-			return base.BringFromBox(box);
+			return base.MoveToBox(box);
 
 		// if ob, set stacks in box to WaitingForShipping
+		bool res = base.MoveToBox(box);
 
 		foreach (ItemStack stk in box.Stacks)
 		{
@@ -44,8 +45,7 @@ public class CargoPort :
 			OrderMgr.ChangeOrderStatus(pkg.RelatedOrderLine, OrderStatus.WaitingForShipping);
 		}
 
-
-		return base.BringFromBox(box);
+		return res;
 	}
 
 	private void OnEnable()

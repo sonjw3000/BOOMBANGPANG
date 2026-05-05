@@ -45,35 +45,19 @@ public class LaunchStation
 		LaunchStations.Unregister(this);
 	}
 
-	public bool TryGetStoreablePad(out CargoStorageAddon addon)
+	public bool TryGetAddon<T>(out T addon) where T : PlatformAddon
 	{
 		foreach (var a in addons)
 		{
-			if (a.GetComponent<CargoStorageAddon>() == null)
+			if (a.GetComponent<T>() == null)
 				continue;
-			addon = (CargoStorageAddon)a;
+			addon = a as T;
 			return true;
 		}
 
 		addon = null;
 		return false;
 	}
-
-	public bool TryGetLaunchablePad(in BoxBase cargo, out LaunchPadAddon addon)
-	{
-		foreach (var a in addons)
-		{
-			if (a.GetComponent<LaunchPadAddon>() != null)
-			{
-				addon = (LaunchPadAddon)a;
-				return true;
-			}
-		}
-
-		addon = null;
-		return false;
-	}
-
 
 	public void OnPositionSet(in int3 position, FacingDirection direction)
 	{

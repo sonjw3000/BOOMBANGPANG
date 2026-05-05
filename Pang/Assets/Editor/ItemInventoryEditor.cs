@@ -10,6 +10,11 @@ class ItemInventoryEditor : Editor
 
 		ShelfStorageIndex invData = (ShelfStorageIndex)target;
 
+		if (UnityEngine.GUILayout.Button("테스트용 랙에 아이템 배치"))
+		{
+			invData.TestStoreItem();
+		}
+
 		foreach (ShelfBase shelf in invData.Containers)
 		{
 			if (shelf == null)
@@ -42,10 +47,7 @@ class ItemInventoryEditor : Editor
 			EditorGUI.indentLevel--;
 		}
 
-		if (UnityEngine.GUILayout.Button("테스트용 랙에 아이템 배치"))
-		{
-			invData.TestStoreItem();
-		}
+
 
 		//if (GUILayout.Button("랙에 아이템 채우기"))
 		//{

@@ -75,7 +75,8 @@ public class LoadingTask : WorkerTask
 		}
 
 		BoxBase box = ctx.Worker.GetComponent<CarryBoxAbility>().CarringBox;
-		task.targetPort.BringFromBox(box);
+
+		task.targetPort.MoveToBox(box);
 		task.targetPort.SetInputReady(true);
 
 		return Success;
@@ -94,8 +95,7 @@ public class LoadingTask : WorkerTask
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
 		var carryAbility = ctx.Worker.GetComponent<CarryBoxAbility>();
-		BoxBase box = carryAbility.CarringBox;
-		
+				
 		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Pick);
 		if (launchStation == null)
 		{
@@ -105,8 +105,10 @@ public class LoadingTask : WorkerTask
 			return Failure;
 		}
 
-		launchStation.TryGetStoreablePad(out var pad);
-		pad.StoreCargo(box);
+		launchStation.TryGetAddon<CargoStorageAddon>(out var pad);
+
+		if (carryAbility.GetBox(out var box))
+			pad.StoreCargo(box);
 
 		task.isLoadEnd = true;
 		return Success;
