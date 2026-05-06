@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
@@ -30,8 +30,15 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
 
 	public float Capacity => capacity;
+	public BoxType Type => boxType;
 
-	
+	public virtual void ResetContainer()
+	{
+		stacks.Clear();
+		itemTotals.Clear();
+		size = 0;
+	}
+
 	public void UpdateToteCapacity(float capacity) => this.capacity = capacity;
 
 	private void Start()

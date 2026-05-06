@@ -1,4 +1,4 @@
-﻿
+
 using System.Collections.Generic;
 using System.Linq;
 
@@ -10,6 +10,20 @@ public class Pallet : BoxBase
 	{
 		size = stacks.Sum(s => itemDB.GetItemSize(s.ItemID) * s.Quantity);
 		size += boxes.Sum(s => s.Capacity);
+	}
+
+	public override void ResetContainer()
+	{
+		base.ResetContainer();
+		while (boxes.Count > 0)
+		{
+			var box = boxes.Pop();
+			// We should return these nested boxes to the pool as well if they are being cleared
+			if (BoxService != null)
+				BoxService.ReturnToPool(box);
+			else
+				Destroy(box.gameObject);
+		}
 	}
 
 	public bool AddBox(BoxBase box)

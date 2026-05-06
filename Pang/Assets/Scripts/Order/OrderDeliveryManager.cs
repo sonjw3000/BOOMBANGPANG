@@ -39,7 +39,7 @@ public class OrderDeliveryManager : MonoBehaviour
 
 			Debug.Log("Cargo Delivered!");
 
-			Destroy(progress.Cargo.gameObject);
+			GameContext.Instance.WMSys.BoxPoolMgr.ReturnToPool(progress.Cargo);
 			deliveryProgresses.RemoveAt(i);
 		}
 	}

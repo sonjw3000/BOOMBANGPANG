@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Unity.Mathematics;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class BoxPoolService : GridPlaceableManager<BoxPool>
@@ -12,11 +11,22 @@ public class BoxPoolService : GridPlaceableManager<BoxPool>
 	// 실제 박스들
 	private List<BoxBase> boxes = new();
 
-	// 박스 보관소들
-	//private List<BoxPool> boxPoolZones = new();
+	private Dictionary<BoxType, Stack<BoxBase>> pool = new();
 
-	// todo
-	// boxtype에 따른 뭔가를 만들어줘야하는데 뭐라해야하지 이걸 어쨋든 그래
+	private GameObject poolContainer;
+
+	private void Awake()
+	{
+		poolContainer = new GameObject("BoxPool_Inactive");
+		poolContainer.transform.SetParent(this.transform);
+		poolContainer.SetActive(false);
+
+		foreach (BoxType type in System.Enum.GetValues(typeof(BoxType)))
+		{
+			if (type == BoxType.None || type == BoxType.Any) continue;
+			pool[type] = new Stack<BoxBase>();
+		}
+	}
 
 	public IReadOnlyList<BoxBase> Boxes => boxes;
 	//public IReadOnlyList<BoxPool> BoxPoolZones => boxPoolZones;
@@ -25,7 +35,8 @@ public class BoxPoolService : GridPlaceableManager<BoxPool>
 
 	public void RegisterBox(BoxBase box)
 	{
-		boxes.Add(box);
+		if (!boxes.Contains(box))
+			boxes.Add(box);
 	}
 
 	public void UnRegisterBox(BoxBase box)
@@ -33,9 +44,35 @@ public class BoxPoolService : GridPlaceableManager<BoxPool>
 		boxes.Remove(box);
 	}
 
+	public void ReturnToPool(BoxBase box)
+	{
+		if (box == null) return;
+
+		box.ResetContainer();
+		box.gameObject.SetActive(false);
+		box.transform.SetParent(poolContainer.transform);
+
+		if (!pool.ContainsKey(box.Type))
+		{
+			pool[box.Type] = new Stack<BoxBase>();
+		}
+		
+		pool[box.Type].Push(box);
+	}
+
 	public void GiveNewBox(BoxPool boxPool, BoxType type)
 	{
-		var box = Instantiate(type == BoxType.Cargo ? palletPrefab : boxPrefab, boxPool.transform).GetComponent<BoxBase>();
+		BoxBase box = null;
+
+		if (pool.TryGetValue(type, out var stack) && stack.Count > 0)
+		{
+			box = stack.Pop();
+			box.gameObject.SetActive(true);
+		}
+		else
+		{
+			box = Instantiate(type == BoxType.Cargo ? palletPrefab : boxPrefab, boxPool.transform).GetComponent<BoxBase>();
+		}
 
 		if (box is ToteBox tote)
 			tote.UpdateToteCapacity(toteCapacity);
