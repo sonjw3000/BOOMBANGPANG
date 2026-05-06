@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -107,7 +107,36 @@ public class OrderManager : MonoBehaviour
 			var parent = targetOrder.ParentOrder;
 			orderStatus[befStatus].Remove(parent);
 			orderStatus[afterStatus].AddLast(parent);
+
+			if (afterStatus == OrderTotalStatus.Completed)
+			{
+				SettleOrder(parent);
+			}
 		}
+	}
+
+	private void SettleOrder(Order order)
+	{
+		int totalRevenue = 0;
+		var itemDB = GameContext.Instance.ItemDB;
+
+		foreach (var line in order.Lines)
+		{
+			if (itemDB.GetItemData(line.ItemID, out var data))
+			{
+				totalRevenue += data.Price * line.Quantity;
+			}
+		}
+
+		var transaction = new EconomyTransaction
+		{
+			moneyDelta = totalRevenue,
+			reputationDelta = 1.0f, // Example reputation gain
+			reason = EconomyTransaction.Reason.OrderSettlement
+		};
+
+		GameContext.Instance.EconomyService.ApplyTransaction(transaction);
+		Debug.Log($"Order {order.OrderID} settled. Total Revenue: {totalRevenue}");
 	}
 
 }

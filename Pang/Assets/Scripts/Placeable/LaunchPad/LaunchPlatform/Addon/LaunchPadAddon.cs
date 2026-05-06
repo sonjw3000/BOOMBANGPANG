@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public class LaunchPadAddon : PlatformAddon
 {
@@ -35,17 +35,17 @@ public class LaunchPadAddon : PlatformAddon
 	{
 		if (cargoToLaunch == null)
 			return;
-		// launch the box
-		//boxToLaunch.LaunchFromPad();
-		// clear the reference
-		
-		// todo
-		// rocket launch effect
-		// rocket animation
-		// sound effect
-		// 물량 조절
-		//GameContext.Instance.WMSys.ItemLedger.Launch();
 
+		// Spawn and launch visual rocket
+		var visualRocket = GameContext.Instance.RocketMgr.GetRocketForLaunch(transform.position);
+		if (visualRocket != null)
+		{
+			// Attach cargo to rocket for visual effect
+			cargoToLaunch.transform.SetParent(visualRocket.transform);
+			cargoToLaunch.transform.localPosition = Vector3.up * 1.0f; // Offset to sit on rocket
+			visualRocket.Launch();
+		}
+		
 		foreach (var stack in cargoToLaunch.Stacks)
 		{
 			if (stack is ItemPackage pkg == false)
@@ -58,11 +58,6 @@ public class LaunchPadAddon : PlatformAddon
 			OrderMgr.ChangeOrderStatus(pkg.RelatedOrderLine, OrderStatus.IndDelivery);
 		}
 
-		// todo
-		// weeks to seconds
-		// delivery type(emergency/normal) 에 따라서 weeks를 조절해야함
-		// 
-		cargoToLaunch.transform.SetParent(null);
 		OrderDelivery.DeliverCargo(cargoToLaunch, GameTime.WeekToSeconds(4));
 
 		readyToLaunch = false;

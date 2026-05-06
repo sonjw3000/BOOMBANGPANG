@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 
 public class OrderDeliveryManager : MonoBehaviour
@@ -39,6 +39,7 @@ public class OrderDeliveryManager : MonoBehaviour
 
 			Debug.Log("Cargo Delivered!");
 
+			Destroy(progress.Cargo.gameObject);
 			deliveryProgresses.RemoveAt(i);
 		}
 	}

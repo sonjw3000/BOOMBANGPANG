@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -117,8 +117,32 @@ public class RocketManager : GridPlaceableManager<Rocket>
 		rocket.gameObject.SetActive(true);
 	}
 
+	public Rocket GetRocketForLaunch(Vector3 position)
+	{
+		if (rocketPool.Count <= 0)
+			InstantiateNewRocket();
+
+		rocketPool.TryDequeue(out Rocket rocket);
+
+		if (rocket != null)
+		{
+			rocket.transform.position = position;
+			rocket.transform.rotation = Quaternion.identity; // Upright for launch
+			rocket.gameObject.SetActive(true);
+			activeRockets.Add(rocket);
+		}
+
+		return rocket;
+	}
+
 	public void DisableRocket(Rocket rocket)
 	{
+		// Unparent children (like cargo) so they don't stay attached in the pool
+		for (int i = rocket.transform.childCount - 1; i >= 0; i--)
+		{
+			rocket.transform.GetChild(i).SetParent(null);
+		}
+
 		rocket.gameObject.SetActive(false);
 		activeRockets.Remove(rocket);
 		rocketPool.Enqueue(rocket);

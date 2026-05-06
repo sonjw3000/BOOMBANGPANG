@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 [Flags]
@@ -23,10 +23,13 @@ public class ItemDefinition : ScriptableObject
 	// 혹시 모를 render를 위한 프리팹
 	[SerializeField] private GameObject itemPrefab;
 
+	[SerializeField] private int price = 100;
+
 	public uint ItemID => itemID;
 	public float Size => size;
 	public ItemTag Tag => tag;
 	public GameObject ItemPrefab => itemPrefab;
+	public int Price => price;
 }
 
 

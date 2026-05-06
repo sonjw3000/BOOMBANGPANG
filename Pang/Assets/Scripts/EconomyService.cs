@@ -9,7 +9,8 @@ public class EconomyTransaction
 		Remove,
 		Payday,
 		MontlyContract,
-	}
+		OrderSettlement,
+		}
 
 	public int moneyDelta;
 	public float reputationDelta;
