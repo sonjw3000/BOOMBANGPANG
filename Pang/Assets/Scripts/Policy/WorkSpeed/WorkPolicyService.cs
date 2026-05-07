@@ -1,9 +1,7 @@
-﻿using UnityEngine;
 using AYellowpaper.SerializedCollections;
-
-
-// 작업자들의 속도 등을 관리
-// 속도를 높일수록 fatigue / battery usage 증가량이 늘어남
+using UnityEngine;
+using System.Collections.Generic;
+using static WorkerTask;
 
 public class WorkPolicyService : MonoBehaviour
 {
@@ -39,18 +37,68 @@ public class WorkPolicyService : MonoBehaviour
 
 	public bool IsTargetHigherPriority(AIWorker targetWorker, AIWorker other)
 	{
-		// 우선순위를 나누자
-		// 1. 긴급한 순위를 나눠야 한다
-		// 먼저 task에서 우선순위를 나누고
-		// task 끼리의 우선순위 또한 필요하다
-		// 그것 마저 똑같다면
-		// 남은 경로의 수가 길면 후순위
-		// 긴급자가 대기
-		// 후순위가 우회
+		// 1. 긴급도 (Emergency/HandleMistake)
+		bool targetEmergency = IsEmergency(targetWorker);
+		bool otherEmergency = IsEmergency(other);
+		if (targetEmergency != otherEmergency) return targetEmergency;
 
-		// 일단은 항상 true를 리턴함
+		// 2. Express Contract 우선순위
+		bool targetExpress = IsExpress(targetWorker);
+		bool otherExpress = IsExpress(other);
+		if (targetExpress != otherExpress) return targetExpress;
 
-		return true;
+		// 3. 남은 거리 (적은 쪽 우선 - 빨리 비켜주기)
+		int targetDist = GetRemainingDistance(targetWorker);
+		int otherDist = GetRemainingDistance(other);
+
+		if (targetDist != otherDist) return targetDist < otherDist;
+
+		// 4. ID 기반 결정론적 선택
+		return targetWorker.gameObject.GetInstanceID() < other.gameObject.GetInstanceID();
 	}
 
+	private bool IsEmergency(AIWorker worker)
+	{
+		if (worker.CurrentTask != null && worker.CurrentTask.IsEmergency) return true;
+		if (worker.WorkerState.Action == WorkerStatusAction.HandlingMistake) return true;
+		if (worker.TaskType == TaskType.HandleMistake) return true;
+		return false;
+	}
+
+	private bool IsExpress(AIWorker worker)
+	{
+		var task = worker.CurrentTask;
+		if (task == null) return false;
+
+		if (task is PickingTask picking)
+		{
+			return HasExpressLine(picking.PickingData.Lines);
+		}
+		if (task is PackingTask packing)
+		{
+			if (worker.CurrentWorkingBuilding is PackingStation station)
+			{
+				if (station.CurrentPackingBox?.Job != null)
+					return HasExpressLine(station.CurrentPackingBox.Job.Lines);
+			}
+		}
+		return false;
+	}
+
+	private bool HasExpressLine(List<WorkLine> lines)
+	{
+		if (lines == null) return false;
+		foreach (var line in lines)
+		{
+			if (line.RelatedOrderLine?.SourceContract?.Type == Assets.Scripts.Contract.ContractType.Express)
+				return true;
+		}
+		return false;
+	}
+
+	private int GetRemainingDistance(AIWorker worker)
+	{
+		var findRoute = worker.GetComponent<FindRoute>();
+		return findRoute != null ? findRoute.RemainingDistance : int.MaxValue;
+	}
 }

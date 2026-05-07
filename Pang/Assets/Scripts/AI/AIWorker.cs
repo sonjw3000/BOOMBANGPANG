@@ -81,7 +81,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	
 	[SerializeField] private int tick = 0;
 	[SerializeField] private string workerName;
-	[SerializeField] private int workerID;
+	[SerializeField] private uint workerID;
 	[SerializeField] private WorkerTask currentTask = null;
 
 	private BehaviorTree behaviorTree;
@@ -132,13 +132,15 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public WorkerTask.TaskType TaskType => workerMainTaskType;
 	public string Name => workerName;
-	public int WorkerID => workerID;
+	public uint WorkerID => workerID;
 	public WorkerTask CurrentTask => currentTask;
 
 	public int3 GridPosition => position;
 	public FacingDirection Direction => facingDirection;
 
 	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
+
+	public void SetWorkerID(uint id) => workerID = id;
 
 	private void Start()
 	{

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Mathematics;
@@ -27,11 +27,11 @@ public class PathNode
 
 public struct PathNodeRecord
 {
-	public int ParentIndex;		// state index of parent node
+	public int ParentIndex;     // state index of parent node
 	public int GCost;
 	public int HCost;
 
-	public int HeapIndex;		// self index in heap
+	public int HeapIndex;       // self index in heap
 	public NodeVisitedState VisitState;
 
 	public readonly int FCost => GCost + HCost;
@@ -283,13 +283,22 @@ public sealed class PathSearchJob
 			CheckNode(befG, currentPosition + currentDirection.BackwardDirection(), currentDirection.TurnAround(), 2);
 		}
 
+		if (buffer.OpenSet.Count == 0)
+			return true;
+
 		return false;
 	}
 
 	private void CheckNode(int befG, int3 pos, FacingDirection dir, int rotationAmount)
 	{
 		if (GridService.IsBlocked(pos))
-			return;
+		{
+			// SubPath 요청인 경우, 최종 목적지(endPosition)가 점유(예약)되어 있더라도 탐색을 허용합니다.
+			// 우회 경로의 목적지는 원래 유효했던 경로의 노드이므로 정적 장애물일 가능성이 없으며,
+			// 타일 예약으로 인해 경로 탐색이 실패하여 무한 루프에 빠지는 것을 방지하기 위한 조치입니다.
+			if (!(request.IsSubPathRequest && math.all(pos == request.endPosition)))
+				return;
+		}
 
 		if (request.IsSubPathRequest)
 		{
@@ -367,11 +376,11 @@ public sealed class PathSearchJob
 
 		if (index == -1)
 		{
-			Debug.LogError("Failed to build path result: No valid goal state found in buffer.");
-			return null;
+			// Debug.LogWarning("Failed to build path result: No valid goal state found in buffer.");
+			return new PathResultBuffer(new LinkedList<PathNode>(), request.target, request.AvoidTarget);
 		}
 
-				LinkedList<PathNode> path = new();
+		LinkedList<PathNode> path = new();
 
 		var nodeRecord = buffer.GetStateRecordByStateIndex(index);
 		while (true)

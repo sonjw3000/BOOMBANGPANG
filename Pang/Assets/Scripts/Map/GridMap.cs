@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -87,10 +87,14 @@ public class GridCell
 	public bool TryUnreserve(FindRoute routeWorker)
 	{
 		if (reservedBy != routeWorker)
+		{
+			// Debug.LogWarning($"[GridCell] Unreserve failed. Reserved by: {(reservedBy != null ? reservedBy.name : "null")}, but requested by: {routeWorker.name}");
 			return false;
+		}
 
 		reservedBy = null;
 
+		//Debug.Log($"[GridCell] Unreserved. Invoking events for listeners.");
 		OnGridUnReserved?.Invoke(this);
 		return true;
 	}

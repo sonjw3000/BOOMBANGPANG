@@ -19,7 +19,9 @@ public abstract class WorkerTask
 
 		Water,
 		// undef
-		Undefined
+		Undefined,
+
+		HandleMistake
 	}
 
 	public enum Status

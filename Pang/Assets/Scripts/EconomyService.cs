@@ -65,7 +65,7 @@ public class EconomyService : MonoBehaviour
 		// worker transaction
 		var workerTransaction = new EconomyTransaction
 		{
-			moneyDelta = -GameContext.Instance.WorkerMgr.MontylyCost,
+			moneyDelta = -GameContext.Instance.WorkerMgr.CostPerMonth,
 			reputationDelta = 0,
 			reason = EconomyTransaction.Reason.Payday
 		};

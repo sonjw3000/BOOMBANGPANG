@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using static UnityEngine.GraphicsBuffer;
 
 public class FindRoute : MonoBehaviour
 {
@@ -24,15 +25,70 @@ public class FindRoute : MonoBehaviour
 	private PathResultBuffer pathResultBuffer = null;
 	private Vector3 targetPos = Vector3.zero;
 	private bool isNextNodeReserved = false;
+	private GridCell waitingCell = null;
 
 	private HashSet<FindRoute> blockingRoutes = new();
+
+
+#if UNITY_EDITOR
+
+	private Color pathColor = Color.darkSeaGreen;
+	private Vector3 cellSize = new(0.8f, 0.05f, 0.8f);
+
+	private void DrawPath(PathResultBuffer buf)
+	{
+		if (buf == null)
+			return;
+
+		var node = buf.CurrentLinkedListNode;
+
+		while (node != null)
+		{
+			Vector3 world = new(node.Value.Position.x, node.Value.Position.y, node.Value.Position.z);
+
+			Gizmos.color = pathColor;
+			Gizmos.DrawCube(world, cellSize);
+
+			node = node.Next;
+		}
+	}
+
+	private void OnDrawGizmos()
+	{
+		var buf = pathResultBuffer;
+
+		while (buf != null)
+		{
+			DrawPath(buf);
+			buf = buf.SubPathResult;
+		}
+	}
+
+#endif
+	private void OnDisable()
+	{
+		ClearWait();
+	}
+
+	private void ClearWait()
+	{
+		if (waitingCell != null)
+		{
+			waitingCell.OnGridUnReserved -= OnCanReserve;
+			waitingCell = null;
+		}
+		CancelInvoke(nameof(OnWaitTimeout));
+	}
 
 	public float GetMovementSpeed() => WorkPolicy.GetMoveSpeed(worker);
 	public float GetRotationSpeed() => GetMovementSpeed() * 2.5f;
 
 	public IReadOnlyCollection<FindRoute> BlockingRoutes => blockingRoutes;
 	public bool IsGoal => movementState == MovementState.Arrived;
+	public bool IsWaiting => waitingCell != null;
 	public MovementState CurrentMovementState => movementState;
+
+	public int RemainingDistance => pathResultBuffer != null ? pathResultBuffer.Path.Count - pathResultBuffer.CurrentIndex : int.MaxValue;
 
 	private void Start()
 	{
@@ -124,7 +180,10 @@ public class FindRoute : MonoBehaviour
 		worker.SetPosition(pathResultBuffer.CurrentNode.Position);
 
 		if (worker.GridPosition.Equals(previousPos) == false)
-			GridService.TryUnreserve(this, previousPos);
+		{
+			bool unreserveRes = GridService.TryUnreserve(this, previousPos);
+			//Debug.Log($"[FindRoute] {transform.name} Unreserved {previousPos}. Result: {unreserveRes}");
+		}
 
 		pathResultBuffer.MoveToNextNode();
 		isNextNodeReserved = false;
@@ -159,14 +218,17 @@ public class FindRoute : MonoBehaviour
 
 		if (blockedBy == null)
 		{
-			Debug.LogError("Reserve failed, but no blocking FindRoute was found.");
+			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} Reserve failed, but no blocking FindRoute was found. Maybe new placeable");
+			RequestSubPath(pathResultBuffer.NextNode.Position, null);
 			return;
 		}
 
 		// path 목적지가 한 개 남았을 때
 		if (pathResultBuffer.NextNode == null)
 		{
-			Debug.Log("[FindRoute] Something is Blocking the goal position!!");
+			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} " +
+				$"detected {blockedBy.name}, ID: {blockedBy.worker.WorkerID} is Blocking the goal position!! " +
+				$"Waiting For: {pathResultBuffer.CurrentNode.Position}");
 			WaitForTargetCell(pathResultBuffer.CurrentNode.Position);
 			return;
 		}
@@ -176,8 +238,12 @@ public class FindRoute : MonoBehaviour
 		var otherCurNode = blockedBy.pathResultBuffer?.CurrentNode;
 		var otherNextNode = blockedBy.pathResultBuffer?.NextNode;
 
-		if (blockedBy.pathResultBuffer == null || blockedBy.enabled == false || otherNextNode == null)
+		// 상대방이 대기 중(IsWaiting)이라면 정적 장애물로 판단하지 않습니다.
+		if (blockedBy.pathResultBuffer == null || (blockedBy.enabled == false && !blockedBy.IsWaiting) || otherNextNode == null)
 		{
+			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} " +
+				$"detected {blockedBy.name}, ID: {blockedBy.worker.WorkerID} is static or finishing. Requesting SubPath. " +
+				$"Target: {pathResultBuffer.NextNode.Position}");
 			blockingRoutes.Add(blockedBy);
 
 			RequestSubPath(pathResultBuffer.NextNode.Position, blockedBy);
@@ -188,9 +254,14 @@ public class FindRoute : MonoBehaviour
 		// 상대방이 내 자리를 노린다면
 		if (otherNextNode.Position.Equals(worker.GridPosition))
 		{
-			Debug.Log($"Deadlock!!!!!, " +
-				$"other cur: {blockedBy.worker.GridPosition} cur: {otherCurNode.Position}, next: {otherNextNode?.Position}, " +
-				$"mine Cur: {worker.GridPosition}, cur: {pathResultBuffer.CurrentNode.Position}, next: {pathResultBuffer.NextNode?.Position}, ");
+			Debug.Log($"[FindRoute] DeadLock!! {transform.name}, ID: {worker.WorkerID}, with {blockedBy.name}, ID: {blockedBy.worker.WorkerID} " +
+				$"ID: {blockedBy.worker.WorkerID} cur: {blockedBy.worker.GridPosition} " +
+				$"cur: {otherCurNode.Position}, " +
+				$"next: {otherNextNode?.Position}, " +
+				$"ID: {worker.WorkerID} " +
+				$"Cur: {worker.GridPosition}, " +
+				$"cur: {pathResultBuffer.CurrentNode.Position}," +
+				$" next: {pathResultBuffer.NextNode?.Position}, ");
 
 			bool res = WorkPolicy.IsTargetHigherPriority(worker, blockedBy.worker);
 
@@ -224,7 +295,8 @@ public class FindRoute : MonoBehaviour
 
 	private void WaitForTargetCell(in int3 pos)
 	{
-		Debug.Log("Waiting until the blocking route finishes.");
+		ClearWait();
+		//Debug.Log("Waiting until the blocking route finishes.");
 		GridCell targetCell = GridService.GetCell(pos);
 
 		if (targetCell == null)
@@ -232,14 +304,23 @@ public class FindRoute : MonoBehaviour
 			return;
 		}
 
-		targetCell.OnGridUnReserved += OnCanReserve;
+		waitingCell = targetCell;
+		waitingCell.OnGridUnReserved += OnCanReserve;
 		enabled = false;
+
+		Invoke(nameof(OnWaitTimeout), 5f);
+	}
+
+	private void OnWaitTimeout()
+	{
+		Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} Wait timeout reached. Waking up to retry.");
+		OnCanReserve(null);
 	}
 
 	private void OnCanReserve(GridCell target)
 	{
-		target.OnGridUnReserved -= OnCanReserve;
-		//Debug.Log("Wait released.");
+		ClearWait();
+		Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} Wake up by unreserve");
 		enabled = true;
 	}
 
@@ -256,6 +337,7 @@ public class FindRoute : MonoBehaviour
 
 	public bool SetGoalPosition(in int3 goalPos)
 	{
+		ClearWait();
 		PathRequest request = new(this, worker.GridPosition, goalPos, worker.Direction);
 		PathFinding.RequestRoute(request);
 
@@ -280,10 +362,21 @@ public class FindRoute : MonoBehaviour
 
 	public void OnPathFound(PathResultBuffer pathBuffer)
 	{
-		if (pathBuffer.Path.Count <= 0)
+		if (isNextNodeReserved)
+		{
+			int3 oldTarget = new((int)targetPos.x, (int)targetPos.y, (int)targetPos.z);
+			if (oldTarget.Equals(worker.GridPosition) == false)
+				GridService.TryUnreserve(this, oldTarget);
+
+			isNextNodeReserved = false;
+		}
+
+		if (pathBuffer == null || pathBuffer.Path?.Count <= 0)
 		{
 			movementState = MovementState.Failed;
-			Debug.Log(transform.name + " could not find a route to the goal.");
+			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} could not find a route to the goal.");
+			//worker.enabled = true;
+			enabled = true;
 			return;
 		}
 
@@ -309,15 +402,6 @@ public class FindRoute : MonoBehaviour
 
 		SyncTargetPositionToCurrentNode();
 		enabled = true;
-
-#if UNITY_EDITOR
-		//Debug.Log(transform.name + " started moving to the goal. Path length: " + pathResultBuffer.Path.Count);
-		//for (int i = 0; i < pathResultBuffer.Path.Count; i++)
-		//{
-		//	var node = pathResultBuffer.Path.ElementAt(i);
-		//	Debug.Log($"Path {i}: position({node.Position.x}, {node.Position.y}, {node.Position.z}), direction: {node.Direction}");
-		//}
-#endif
 	}
 
 	public void RemoveBlocked(FindRoute route)

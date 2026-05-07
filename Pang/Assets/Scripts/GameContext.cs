@@ -111,6 +111,8 @@ public class GameContext : MonoBehaviour
 
 	private void Awake()
 	{
+		Application.runInBackground = true;
+
 		Debug.Log("GameGlobalContext Online!");
 		if (instance != null && instance != this)
 		{

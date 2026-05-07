@@ -946,7 +946,7 @@ MonoBehaviour:
   landingZoneCenter:
     x: 10
     y: 0
-    z: 10
+    z: 20
   landingZoneRadius: 5
   fallingTimeRange: {x: 3, y: 7}
   fallingSpeedRange: {x: 3, y: 7}
