@@ -23,8 +23,8 @@ public class OrderManager : MonoBehaviour
 
 	public IReadOnlyCollection<Order> Orders => orders;
 	public IReadOnlyDictionary<uint, Queue<OrderLine>> ItemOrderLines => itemOrderLines;
-	public IReadOnlyDictionary<OrderTotalStatus, LinkedList<Order>> OrderStatus => orderStatus;
-	private void Start()
+	public IReadOnlyDictionary<OrderTotalStatus, LinkedList<Order>> OrderStatusMap => orderStatus;
+private void Start()
 	{
 		foreach (OrderTotalStatus status in Enum.GetValues(typeof(OrderTotalStatus)))
 		{
@@ -34,25 +34,22 @@ public class OrderManager : MonoBehaviour
 
 	public void CreateRandomOrder()
 	{
-		var order = OrderFactory.CreateRandomOrder();
+		var newOrders = OrderFactory.CreateOrdersFromContracts();
 
-		if (order == null)
+		foreach (var order in newOrders)
 		{
-			//Debug.Log("No items available to create an order.");
-			return;
-		}
-
-		orders.Add(order);
-		orderStatus[OrderTotalStatus.Pending].AddLast(order);
-		// convert order to OrderLines
-		foreach (var line in order.Lines)
-		{
-			if (!itemOrderLines.ContainsKey(line.ItemID))
+			orders.Add(order);
+			orderStatus[OrderTotalStatus.Pending].AddLast(order);
+			// convert order to OrderLines
+			foreach (var line in order.Lines)
 			{
-				itemOrderLines[line.ItemID] = new Queue<OrderLine>();
-			}
+				if (!itemOrderLines.ContainsKey(line.ItemID))
+				{
+					itemOrderLines[line.ItemID] = new Queue<OrderLine>();
+				}
 
-			itemOrderLines[line.ItemID].Enqueue(line);
+				itemOrderLines[line.ItemID].Enqueue(line);
+			}
 		}
 	}
 
@@ -102,6 +99,18 @@ public class OrderManager : MonoBehaviour
 		var befStatus = targetOrder.ParentOrder.Status;
 		var afterStatus = targetOrder.ChangeOrderStatus(status);
 
+		// ContractRuntime에 결과 기록
+		if (status == OrderStatus.Completed)
+		{
+			int currentWeek = GameContext.Instance.GameTime.WeeksPassed;
+			var contractStatus = currentWeek > targetOrder.DueWeek ? Assets.Scripts.Contract.Status.Delayed : Assets.Scripts.Contract.Status.Success;
+			targetOrder.SourceContract.AddResult(contractStatus, 1);
+		}
+		else if (status == OrderStatus.Cancelled)
+		{
+			targetOrder.SourceContract.AddResult(Assets.Scripts.Contract.Status.Failed, 1);
+		}
+
 		if (befStatus != afterStatus)
 		{
 			var parent = targetOrder.ParentOrder;
@@ -115,28 +124,85 @@ public class OrderManager : MonoBehaviour
 		}
 	}
 
+	public void CheckExpiredOrders()
+	{
+		int currentWeek = GameContext.Instance.GameTime.WeeksPassed;
+		List<OrderLine> linesToCancel = new();
+
+		// Pending이나 InProgress인 주문의 라인들 확인
+		foreach (var status in new[] { OrderTotalStatus.Pending, OrderTotalStatus.InProgress })
+		{
+			foreach (var order in orderStatus[status])
+			{
+				foreach (var line in order.Lines)
+				{
+					if (line.Status == OrderStatus.Completed || line.Status == OrderStatus.Cancelled)
+						continue;
+
+					// 마감 기한으로부터 2주 이상 지났을 경우
+					if (currentWeek > line.DueWeek + 2)
+					{
+						// 30% 확률로 주문 취소
+						if (UnityEngine.Random.value < 0.3f)
+						{
+							// Cancel은 일시적으로 막아둠
+							//linesToCancel.Add(line);
+						}
+					}
+				}
+			}
+		}
+
+		foreach (var line in linesToCancel)
+		{
+			Debug.Log($"OrderLine in {line.ParentOrder.OrderID} is cancelled due to extreme delay.");
+			ChangeOrderStatus(line, OrderStatus.Cancelled);
+		}
+	}
+
 	private void SettleOrder(Order order)
 	{
-		int totalRevenue = 0;
+		int totalItemRevenue = 0;
+		int totalBonusReward = 0;
+		float totalReputationDelta = 0;
+
 		var itemDB = GameContext.Instance.ItemDB;
+		int currentWeek = GameContext.Instance.GameTime.WeeksPassed;
 
 		foreach (var line in order.Lines)
 		{
+			if (line.Status == OrderStatus.Cancelled) continue;
+
+			// 아이템 기본 수익
 			if (itemDB.GetItemData(line.ItemID, out var data))
 			{
-				totalRevenue += data.Price * line.Quantity;
+				totalItemRevenue += data.Price * line.Quantity;
 			}
+
+			// 계약 보상 및 패널티
+			bool isDelayed = currentWeek > line.DueWeek;
+			int bonus = line.BaseReward;
+			float rep = line.ReputationChange;
+
+			if (isDelayed)
+			{
+				bonus -= line.DelayPenalty;
+				rep *= 0.2f;
+			}
+
+			totalBonusReward += bonus;
+			totalReputationDelta += rep;
 		}
 
 		var transaction = new EconomyTransaction
 		{
-			moneyDelta = totalRevenue,
-			reputationDelta = 1.0f, // Example reputation gain
+			moneyDelta = totalItemRevenue + totalBonusReward,
+			reputationDelta = totalReputationDelta,
 			reason = EconomyTransaction.Reason.OrderSettlement
 		};
 
 		GameContext.Instance.EconomyService.ApplyTransaction(transaction);
-		Debug.Log($"Order {order.OrderID} settled. Total Revenue: {totalRevenue}");
+		Debug.Log($"Order {order.OrderID} settled. Revenue: {totalItemRevenue + totalBonusReward}, Rep: {totalReputationDelta}");
 	}
 
 }

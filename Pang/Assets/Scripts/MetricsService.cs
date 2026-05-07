@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 // 1. 병목 측정
@@ -9,13 +9,13 @@ public class MetricsService : MonoBehaviour
 		=> GameContext.Instance.TaskMgr.TaskQueue;
 	private IReadOnlyDictionary<WorkerTask.TaskType, LinkedList<WorkerTask>> TaskOnProgress
 		=> GameContext.Instance.TaskMgr.TaskOnProgress;
-	private IReadOnlyDictionary<OrderTotalStatus, LinkedList<Order>> OrderStatus
-		=> GameContext.Instance.OrderMgr.OrderStatus;
+	private IReadOnlyDictionary<OrderTotalStatus, LinkedList<Order>> OrderStatusMap
+		=> GameContext.Instance.OrderMgr.OrderStatusMap;
 
 	// workers
 	public int GetQueueLength(WorkerTask.TaskType type) => TaskQueue[type].Count;
 	public int GetOnProgressLength(WorkerTask.TaskType type) => TaskOnProgress[type].Count;
 
 	// orders
-	public int GetOrderStatusLength(OrderTotalStatus status) => OrderStatus[status].Count;
+	public int GetOrderStatusLength(OrderTotalStatus status) => OrderStatusMap[status].Count;
 }

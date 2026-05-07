@@ -163,9 +163,10 @@ public class GameContext : MonoBehaviour
 	{
 		// times to process
 		gameTime.OnWeekPassed += contractService.AdvanceWeek;
+		gameTime.OnWeekPassed += orderManager.CheckExpiredOrders;
 
 		// times for payments
-		gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
+gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
 
 		// ������ �߿��Ѱ�?
 		// �ϴ��� ���⿡�� �������
@@ -175,6 +176,7 @@ public class GameContext : MonoBehaviour
 	private void RemoveEvent()
 	{
 		gameTime.OnWeekPassed -= contractService.AdvanceWeek;
+		gameTime.OnWeekPassed -= orderManager.CheckExpiredOrders;
 		gameTime.OnMonthPassed -= economyService.ProcessMonthlyPayment;
 
 		gridService.OnPlaceableInstalled -= economyService.OnPlacement;

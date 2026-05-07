@@ -1,41 +1,63 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 public class OrderFactory
 {
 	static ItemLedger ItemLedger => GameContext.Instance.WMSys.ItemLedger;
 	static int orderIDCounter = 0;
 
-	public static Order CreateRandomOrder()
+	public static List<Order> CreateOrdersFromContracts()
 	{
+		List<Order> createdOrders = new();
+		var activeContracts = GameContext.Instance.ContractMgr.ActiveContracts;
+		var currentTime = GameContext.Instance.GameTime;
+
+		if (activeContracts.Count == 0) return createdOrders;
+
+		// 1회 호출 시 최대 3종까지 주문이 들어올 수 있음
+		int maxTypes = Math.Min(3, activeContracts.Count);
+		int numTypes = UnityEngine.Random.Range(1, maxTypes + 1);
+
+		// 랜덤하게 선택하기 위해 셔플
+		var shuffledContracts = activeContracts.OrderBy(x => UnityEngine.Random.value).Take(numTypes).ToList();
+
 		Order order = new();
-
-		// 추세에 따라서 랜덤한 주문을 생성한다.
-		// 현재는 완전 랜덤값으로 설정함
 		order.OrderID = orderIDCounter++;
-		int orderables = ItemLedger.OrderableItems.Count;
-		int numberOfLines = Math.Clamp(UnityEngine.Random.Range(1, 2), 0, orderables);
+		order.Lines = new List<OrderLine>();
 
-		if (numberOfLines == 0)
-			return null;
-
-		order.Lines = new List<OrderLine>(numberOfLines);
-
-		for (int i = 0; i < numberOfLines; ++i)
+		foreach (var contract in shuffledContracts)
 		{
-			uint targetItem = ItemLedger.OrderableItems[UnityEngine.Random.Range(0, orderables)];
-			int maxOrderable = ItemLedger.GetAvailable(targetItem);
-			if (maxOrderable <= 0)
+			uint itemID = contract.Definition.ItemToHandle.ItemID;
+
+			if (!ItemLedger.OrderableItems.Contains(itemID))
 				continue;
-			
-			int quantity = Math.Clamp(UnityEngine.Random.Range(1, 4), 1, maxOrderable);
 
-			OrderLine line = new(order, targetItem, quantity);
+			int available = ItemLedger.GetAvailable(itemID);
+			if (available <= 0)
+				continue;
+
+			var spec = contract.CurrentSpec;
+			int quantity = Math.Clamp(UnityEngine.Random.Range(1, 4), 1, available);
+
+			OrderLine line = new(order, itemID, quantity, contract)
+			{
+				StartWeek = currentTime.WeeksPassed,
+				DueWeek = currentTime.WeeksPassed + spec.DeliveryTimeLimitWeeks,
+				BaseReward = spec.BaseReward,
+				DelayPenalty = spec.DelayPenalty,
+				ReputationChange = spec.ReputationChange
+			};
+
 			order.Lines.Add(line);
-
-			ItemLedger.OnItemReserved(line.ItemID, line.Quantity);
+			ItemLedger.OnItemReserved(itemID, quantity);
 		}
 
-		return order;
+		if (order.Lines.Count > 0)
+		{
+			createdOrders.Add(order);
+		}
+
+		return createdOrders;
 	}
 }

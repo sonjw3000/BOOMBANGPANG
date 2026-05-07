@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 public enum OrderStatus
@@ -39,62 +39,64 @@ public class Order
 	public List<OrderLine> Lines;
 	public Tuple<int, int> DeadLine;
 	public int Priority;
-	
+
 	private OrderTotalStatus status = OrderTotalStatus.Pending;
 
 	public OrderTotalStatus Status => status;
 
 	public OrderTotalStatus ChangeOrderStatus(OrderStatus status)
 	{
-		// check all lines are completed
-		if (status == OrderStatus.Completed)
+		// check all lines are in a final state (Completed or Cancelled)
+		bool isAllFinal = true;
+		foreach (var line in Lines)
 		{
-			bool isAllCompleted = true;
-			foreach (var line in Lines)
+			if (line.Status != OrderStatus.Completed && line.Status != OrderStatus.Cancelled)
 			{
-				if (line.Status != OrderStatus.Completed)
-				{
-					isAllCompleted = false;
-					break;
-				}
+				isAllFinal = false;
+				break;
 			}
-
-			if (isAllCompleted)
-			{
-				this.status = OrderTotalStatus.Completed;
-			}
-
-			return this.status;
 		}
 
-		// todo
-		// 유저의 액션이나 주문 지연으로 인한 고객의 취소 등을 대응해야한다
-		// 여기에
+		if (isAllFinal)
+		{
+			this.status = OrderTotalStatus.Completed; // Or create a Settle state
+		}
+		else
+		{
+			this.status = OrderTotalStatus.InProgress;
+		}
 
-		this.status = OrderTotalStatus.InProgress;
 		return this.status;
 	}
-}
+	}
 
-// 지구가 제일 힘들었던 시기는?
-// 고생대
+	// 지구가 제일 힘들었던 시기는?
+	// 고생대
 
-// 수요를 정리함
-// 주문이 만족되었는지를 판단하기 위한 데이터
-public class OrderLine
-{
+	// 수요를 정리함
+	// 주문이 만족되었는지를 판단하기 위한 데이터
+	public class OrderLine
+	{
 	public readonly Order ParentOrder;
 	public readonly uint ItemID;
 	public readonly int Quantity;
+	public readonly Assets.Scripts.Contract.ContractRuntime SourceContract;
+
+	public int StartWeek;
+	public int DueWeek;
+	public int BaseReward;
+	public int DelayPenalty;
+	public float ReputationChange;
 
 	private OrderStatus status = OrderStatus.Pending;
 	public OrderStatus Status => status;
 
-	public OrderLine(Order parentOrder, uint itemID, int quantity)
+	public OrderLine(Order parentOrder, uint itemID, int quantity, Assets.Scripts.Contract.ContractRuntime sourceContract)
 	{
 		ParentOrder = parentOrder;
 		ItemID = itemID;
 		Quantity = quantity;
+		SourceContract = sourceContract;
 	}
 
 	public OrderTotalStatus ChangeOrderStatus(OrderStatus status)

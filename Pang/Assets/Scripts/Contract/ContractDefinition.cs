@@ -1,7 +1,22 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Assets.Scripts.Contract
 {
+
+	public enum ContractType
+	{
+		Standard,
+		Express
+	}
+
+	[System.Serializable]
+	public class ContractTypeSpec
+	{
+		public int DeliveryTimeLimitWeeks = 5;
+		public int BaseReward = 10;
+		public int DelayPenalty = 5;
+		public float ReputationChange = 1.0f;
+	}
 
 	[CreateAssetMenu(menuName = "Contract/Contract Definition")]
 	public class ContractDefinition : ScriptableObject
@@ -20,19 +35,14 @@ namespace Assets.Scripts.Contract
 		[Range(-100f, 100f)] public float MinimumRequiredReputation = 0f;
 		[Range(-100f, 100f)] public float MaximumRequiredReputation = 100f;
 
-		[Header("Contract Duration and Income")]
+		[Header("Contract Duration")]
 		public int ContractDuration = 12;
-		public int IncomePerItem = 10;
 
-		[Header("Monthly Reward Money")]
-		public int RewardOnTime = 100;
-		public int RewardLate = 50;
-		public int RewardFailed = 200;
+		[Header("Standard Specification")]
+		public ContractTypeSpec StandardSpec = new ContractTypeSpec();
 
-		[Header("Monthly Reward Reputation")]
-		public float RepOnTime = 0.5f;
-		public float RepLate= 0.25f;
-		public float RepFailed = 0.5f;
+		[Header("Express Specification")]
+		public ContractTypeSpec ExpressSpec = new ContractTypeSpec();
 
 		[Header("Releated Items")]
 		[Tooltip("아직 미구현, 자리만 만들어둔 것")]

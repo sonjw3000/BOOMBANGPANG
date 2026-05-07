@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Assets.Scripts.Contract
@@ -31,6 +31,9 @@ namespace Assets.Scripts.Contract
 
 		const int MaximumHistory = 48;
 		public ContractDefinition Definition { get; private set; }
+		public ContractType Type { get; private set; }
+
+		public ContractTypeSpec CurrentSpec => Type == ContractType.Express ? Definition.ExpressSpec : Definition.StandardSpec;
 
 		private int remainDuration;
 		private int deliveryDelta = 0;
@@ -44,9 +47,10 @@ namespace Assets.Scripts.Contract
 
 		private readonly LinkedList<ContractResult> resultPerWeek = new();
 
-		public ContractRuntime(ContractDefinition definition, int duration)
+		public ContractRuntime(ContractDefinition definition, int duration, ContractType type = ContractType.Standard)
 		{
 			Definition = definition;
+			Type = type;
 			remainDuration = duration * 4;
 			resultPerWeek.AddLast(new ContractResult());
 		}

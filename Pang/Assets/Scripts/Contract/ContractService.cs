@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using System;
 
@@ -14,6 +14,7 @@ public class ContractService : MonoBehaviour
 	private readonly ContractHistory contractHistory = new();
 
 	public IReadOnlyList<ContractDefinition> ContractDefinitions => definitions;
+	public IReadOnlyList<ContractRuntime> ActiveContracts => currentActiveContracts;
 
 	// rocket item queue
 	private readonly Queue<ItemStack> itemsToBeDelivered = new();
@@ -55,9 +56,9 @@ public class ContractService : MonoBehaviour
 		return default;
 	}
 
-	public void AddContract(int index, int duration)
+	public void AddContract(int index, int duration, ContractType type = ContractType.Standard)
 	{
-		currentActiveContracts.Add(new ContractRuntime(definitions[index], duration));
+		currentActiveContracts.Add(new ContractRuntime(definitions[index], duration, type));
 	}
 
 }

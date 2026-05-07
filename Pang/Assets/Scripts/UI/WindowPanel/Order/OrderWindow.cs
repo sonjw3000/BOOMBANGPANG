@@ -77,36 +77,80 @@ namespace Assets.Scripts.UI
 
             StringBuilder sb = new StringBuilder();
             
-            // Future Tab Header Placeholder
-            sb.AppendLine($"[ Tab: {currentTab} ]");
-            sb.AppendLine("----------------------------");
-
             IEnumerable<Order> targetOrders = orderMgr.Orders;
             
             int count = 0;
+            int totalExpectedMoney = 0;
+            float totalExpectedRep = 0;
+            int currentWeek = GameContext.Instance.GameTime.WeeksPassed;
+
+            StringBuilder ordersSb = new StringBuilder();
+
             foreach (var order in targetOrders)
             {
                 if (!ShouldShowInTab(order)) continue;
 
-                sb.AppendLine($"Order ID: {order.OrderID} <color=#AAAAAA>[{order.Status}]</color>");
+                // Calculate Order summary info
+                int maxDueWeek = 0;
+                int minStartWeek = int.MaxValue;
+                int orderMoney = 0;
+                float orderRep = 0;
+
+                foreach(var line in order.Lines)
+                {
+                    if (line.DueWeek > maxDueWeek) maxDueWeek = line.DueWeek;
+                    if (line.StartWeek < minStartWeek) minStartWeek = line.StartWeek;
+
+                    if (line.Status != OrderStatus.Cancelled)
+                    {
+                        // 아이템 가격 수익
+                        if (GameContext.Instance.ItemDB.GetItemData(line.ItemID, out var data))
+                        {
+                            orderMoney += data.Price * line.Quantity;
+                        }
+
+                        // 보상 및 지연 패널티 계산 (현재 시점 기준)
+                        int bonus = line.BaseReward;
+                        float rep = line.ReputationChange;
+                        if (currentWeek > line.DueWeek)
+                        {
+                            bonus -= line.DelayPenalty;
+                            rep *= 0.2f;
+                        }
+                        orderMoney += bonus;
+                        orderRep += rep;
+                    }
+                }
+
+                ordersSb.AppendLine($"Order ID: {order.OrderID} <color=#AAAAAA>[{order.Status}]</color>");
+                ordersSb.AppendLine($"  Due: Week {minStartWeek} - {maxDueWeek}");
+                ordersSb.AppendLine($"  Expected: <color=#FFD700>${orderMoney}</color> / <color=#00FF00>Rep {orderRep:F1}</color>");
+
                 foreach (var line in order.Lines)
                 {
                     string itemName = GetItemName(line.ItemID);
-                    sb.AppendLine($"  - {itemName} (ID:{line.ItemID}): {line.Quantity} <color=#888888>[{line.Status}]</color>");
+                    string delayStatus = (currentWeek > line.DueWeek && line.Status != OrderStatus.Completed) ? "<color=red>[DELAYED]</color> " : "";
+                    ordersSb.AppendLine($"    - {itemName} x{line.Quantity} {delayStatus}<color=#888888>[{line.Status}]</color>");
                 }
-                sb.AppendLine();
+                ordersSb.AppendLine();
+                
+                totalExpectedMoney += orderMoney;
+                totalExpectedRep += orderRep;
                 count++;
             }
 
-            sb.Insert(0, $"Total Displayed: {count}\n");
-            
+            sb.AppendLine($"[ Tab: {currentTab} ]");
+            sb.AppendLine($"Total Orders: {count}");
+            sb.AppendLine($"Total Expected Rewards: <color=#FFD700>${totalExpectedMoney}</color> | <color=#00FF00>Rep {totalExpectedRep:F1}</color>");
+            sb.AppendLine("----------------------------");
+            sb.Append(ordersSb.ToString());
+
             string newText = sb.ToString();
             if (newText != lastText)
             {
                 statusText.text = newText;
                 lastText = newText;
                 
-                // Force layout update so ScrollRect knows the new size immediately
                 UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(window.ContentRoot);
             }
         }
