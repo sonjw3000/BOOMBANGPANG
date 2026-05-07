@@ -1,5 +1,5 @@
-using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class OrbitCamera : MonoBehaviour
 {
@@ -81,12 +81,19 @@ public class OrbitCamera : MonoBehaviour
 		}
 
 		// zoom by mouse wheel
-		float wheelMount = Input.GetAxis("Mouse ScrollWheel");
-		if (Mathf.Approximately(wheelMount, 0.0f) == false)
+		if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
 		{
-			// wheel move
-			_GoalDistance -= wheelMount * _WheelSpeed;
-			_GoalDistance = Mathf.Clamp(_GoalDistance, _MinDistance, _MaxDistance);
+			// Mouse is over UI, do not zoom
+		}
+		else
+		{
+			float wheelMount = Input.GetAxis("Mouse ScrollWheel");
+			if (Mathf.Approximately(wheelMount, 0.0f) == false)
+			{
+				// wheel move
+				_GoalDistance -= wheelMount * _WheelSpeed;
+				_GoalDistance = Mathf.Clamp(_GoalDistance, _MinDistance, _MaxDistance);
+			}
 		}
 		
 		if (Mathf.Approximately(_GoalDistance, _CurDistance))

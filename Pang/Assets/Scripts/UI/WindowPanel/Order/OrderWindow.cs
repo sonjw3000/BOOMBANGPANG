@@ -16,7 +16,6 @@ namespace Assets.Scripts.UI
         }
 
         [SerializeField] private UIWindow window;
-        [SerializeField] private RectTransform orderContent;
         [SerializeField] private TextMeshProUGUI statusText;
 
         [Header("Window MetaData")]
@@ -31,11 +30,9 @@ namespace Assets.Scripts.UI
             window.SetTitle(title);
             window.SetIcon(icon);
 
-            if (orderContent != null)
+            if (statusText != null)
             {
-                orderContent.SetParent(window.ContentRoot, false);
-                orderContent.offsetMin = Vector2.zero;
-                orderContent.offsetMax = Vector2.zero;
+                statusText.rectTransform.SetParent(window.ContentRoot, false);
             }
             
             gameObject.SetActive(false);
@@ -72,6 +69,8 @@ namespace Assets.Scripts.UI
             UpdateOrderDisplay();
         }
 
+        private string lastText = "";
+
         private void UpdateOrderDisplay()
         {
             if (orderMgr == null) return;
@@ -84,13 +83,6 @@ namespace Assets.Scripts.UI
 
             IEnumerable<Order> targetOrders = orderMgr.Orders;
             
-            // Filter by tab if implemented
-            if (currentTab != TabType.All)
-            {
-                // Note: orderMgr.OrderStatus dictionary can be used here for efficiency
-                // orderMgr.OrderStatus[(OrderTotalStatus)currentTab-1] ...
-            }
-
             int count = 0;
             foreach (var order in targetOrders)
             {
@@ -107,7 +99,16 @@ namespace Assets.Scripts.UI
             }
 
             sb.Insert(0, $"Total Displayed: {count}\n");
-            statusText.text = sb.ToString();
+            
+            string newText = sb.ToString();
+            if (newText != lastText)
+            {
+                statusText.text = newText;
+                lastText = newText;
+                
+                // Force layout update so ScrollRect knows the new size immediately
+                UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(window.ContentRoot);
+            }
         }
 
         private bool ShouldShowInTab(Order order)

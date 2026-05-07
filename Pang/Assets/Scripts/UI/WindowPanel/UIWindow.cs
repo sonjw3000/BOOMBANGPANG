@@ -1,4 +1,3 @@
-﻿using UnityEditor.PackageManager.UI;
 using UnityEngine;
 
 // 상단바 드래그
@@ -37,8 +36,14 @@ namespace Assets.Scripts.UI
 
 		public void Open()
 		{
-
 			root.SetActive(true);
+			
+			// Reset scroll position to top if ScrollRect exists
+			var scrollRect = GetComponentInChildren<UnityEngine.UI.ScrollRect>(true);
+			if (scrollRect != null)
+			{
+				scrollRect.verticalNormalizedPosition = 1f;
+			}
 		}
 
 		public void Close()
