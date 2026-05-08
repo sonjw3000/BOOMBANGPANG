@@ -23,20 +23,15 @@ public class WorkerArchetype : ScriptableObject
 	public int monthlyCost;
 
 	// 아 배열로 넣고 하고싶다,,,
-	[Header("Worker의 능력, endabled off면 가지지 않음")]
-	public CarryBoxConfig carryBoxConfig;
-	public LabelingConfig labelingConfig;
-	public PackageConfig packageConfig;
-	public PickStoreConfig pickStoreConfig;
-	public CargoHandlingConfig cargoHandlingConfig;
+	[Header("Worker's Ability")]
+	public AbilityConfigBase[] abilities;
 
 	public void SetupWorker(AIWorker worker)
 	{
-		if (carryBoxConfig.enabled) carryBoxConfig.Setup(worker);
-		if (labelingConfig.enabled) labelingConfig.Setup(worker);
-		if (packageConfig.enabled) packageConfig.Setup(worker);
-		if (pickStoreConfig.enabled) pickStoreConfig.Setup(worker);
-		if (cargoHandlingConfig.enabled) cargoHandlingConfig.Setup(worker);
+		foreach (var ability in abilities)
+		{
+			ability.Setup(worker);
+		}
 	}
 
 }

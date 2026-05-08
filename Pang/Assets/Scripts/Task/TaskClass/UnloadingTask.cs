@@ -82,7 +82,7 @@ public class UnloadingTask : WorkerTask
 		// items를 worker에게 건내줘야함
 		AIWorker worker = ctx.Worker;
 
-		BoxBase box = worker.GetComponent<CarryBoxAbility>().CarringBox;
+		BoxBase box = worker.GetComponent<CarryBoxAbility>().CarryingBox;
 		if (box == null)
 		{
 			Debug.Log("No Box OMG!!");
@@ -130,7 +130,7 @@ public class UnloadingTask : WorkerTask
 
 		// load on cargoport
 
-		BoxBase box = task.carryBox.CarringBox;
+		BoxBase box = task.carryBox.CarryingBox;
 
 		List<uint> ids = new(box.Stacks.Count);
 		List<int> cnts = new(box.Stacks.Count);

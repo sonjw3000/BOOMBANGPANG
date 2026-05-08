@@ -170,7 +170,7 @@ public sealed class PickingTask : WorkerTask
 		var curLine = task.CurrentLine;
 		int removed = curLine.Source.RemoveItem(curLine.ItemID, curLine.Quantity);
 
-		BoxBase box = ctx.Worker.GetComponent<CarryBoxAbility>().CarringBox;
+		BoxBase box = ctx.Worker.GetComponent<CarryBoxAbility>().CarryingBox;
 
 		if (box == null)
 		{

@@ -1,10 +1,8 @@
 ﻿using UnityEngine;
 
 [System.Serializable]
-public abstract class AbilityConfigBase
+public abstract class AbilityConfigBase : ScriptableObject
 {
-	public bool enabled;
-
 	public abstract void Setup(AIWorker worker);
 }
 
@@ -29,7 +27,7 @@ public abstract class Ability<TConfig> : AbilityBase
 {
 	protected TConfig Config { get; private set; }
 
-	public void Initailize(AIWorker worker, TConfig config)
+	public void Initialize(AIWorker worker, TConfig config)
 	{
 		this.Config = config;
 		Init(worker);

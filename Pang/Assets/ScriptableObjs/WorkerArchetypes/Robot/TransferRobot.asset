@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e011ae21194f1564f9f90d6b7333197b, type: 3}
+  m_Name: TransferRobot
+  m_EditorClassIdentifier: 
+  id: Test
+  workerType: 0
+  baseMoveSpeedMultiplier: 1
+  minimumMoveSpeedMultiplier: 0.5
+  baseWorkSpeedMultiplier: 1
+  minimumWorkSpeedMultiplier: 0.5
+  monthlyCost: 0
+  abilities:
+  - {fileID: 11400000, guid: fa085fca6cf2c064a9c459444cdf4217, type: 2}
+  - {fileID: 11400000, guid: e4efff149ea790e488344d57df04c563, type: 2}
+  - {fileID: 11400000, guid: 15c42aacc5cc4594cb53acd28e8c322f, type: 2}
+  - {fileID: 11400000, guid: 01cd68622048fce46982fd8aefab90a6, type: 2}
+  - {fileID: 11400000, guid: de992de30da6c4445926604b2915b6da, type: 2}

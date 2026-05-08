@@ -55,7 +55,7 @@ public abstract partial class AIWorker
 			return Failure;
 		}
 
-		if (boxStatus.CarringBox == null)
+		if (boxStatus.CarryingBox == null)
 			return Failure;
 		return Success;
 	}
@@ -70,7 +70,7 @@ public abstract partial class AIWorker
 			return Failure;
 		}
 
-		if (boxStatus.CarringBox != null)
+		if (boxStatus.CarryingBox != null)
 			return Failure;
 		
 		return Success;

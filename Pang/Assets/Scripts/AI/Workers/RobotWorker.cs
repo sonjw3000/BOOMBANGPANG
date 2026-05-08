@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class RobotWorker : AIWorker
+public abstract class RobotWorker : AIWorker
 {
 	[SerializeField] private float batteryLevel = 100f;
 	private float batteryEfficiency;

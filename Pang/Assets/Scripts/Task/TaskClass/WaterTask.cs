@@ -103,8 +103,8 @@ public class WaterTask : WorkerTask
 			return Success;
 
 		// if fulfilled workPhase = true;
-		if ((task.from.transferType == TransferObjectType.Item && task.carryBox.CarringBox != null) ||
-			(task.from.transferType == TransferObjectType.Box && task.carryBox.CarringBox == null))
+		if ((task.from.transferType == TransferObjectType.Item && task.carryBox.CarryingBox != null) ||
+			(task.from.transferType == TransferObjectType.Box && task.carryBox.CarryingBox == null))
 		{
 			task.workPhase = true;
 			return Success;
@@ -134,7 +134,7 @@ public class WaterTask : WorkerTask
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
 
 		if (task.from.transferType == TransferObjectType.Item &&
-			task.carryBox.CarringBox == null)
+			task.carryBox.CarryingBox == null)
 			return Success;
 
 		return Failure;
@@ -146,7 +146,7 @@ public class WaterTask : WorkerTask
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
 		
 		if (task.from.transferType == TransferObjectType.Box &&
-			task.carryBox.CarringBox != null)
+			task.carryBox.CarryingBox != null)
 			return Success;
 
 		return Failure;
@@ -172,7 +172,7 @@ public class WaterTask : WorkerTask
 				return Failure;
 			}
 
-			if (target.MoveToBox(task.carryBox.CarringBox))
+			if (target.MoveToBox(task.carryBox.CarryingBox))
 			{
 				// 추가 뭐시기를 요청하던가 해야함
 			}
@@ -207,7 +207,7 @@ public class WaterTask : WorkerTask
 				return Failure;
 			}
 
-			target.BringFromBox(task.carryBox.CarringBox);
+			target.BringFromBox(task.carryBox.CarryingBox);
 		}
 		else
 		{

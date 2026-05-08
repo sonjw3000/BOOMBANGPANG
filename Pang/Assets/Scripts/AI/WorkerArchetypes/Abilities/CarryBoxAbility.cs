@@ -1,33 +1,18 @@
 ﻿using UnityEngine;
 
-[System.Serializable]
-public class CarryBoxConfig : AbilityConfigBase
-{
-	public float carriableSize;
-
-	public override void Setup(AIWorker worker)
-	{
-		var ability = worker.gameObject.AddComponent<CarryBoxAbility>();
-		ability.Initailize(worker, this);
-	}
-}
-
 public class CarryBoxAbility : Ability<CarryBoxConfig>, IBoxHandleable
 {
-	private float carriableSize;
-	private BoxBase carringBox = null;
+	private BoxBase carryingBox = null;
 
 	[SerializeField] private Transform boxSlot;
 
-	public BoxBase CarringBox => carringBox;
+	public BoxBase CarryingBox => carryingBox;
 
-	public bool CanGetBox() => carringBox != null;
-	public bool CanPutBox() => carringBox == null;
+	public bool CanGetBox() => carryingBox != null;
+	public bool CanPutBox() => carryingBox == null;
 
 	protected override void OnInit()
 	{
-		carriableSize = Config.carriableSize;
-
 		boxSlot = Worker.transform.Find("SlotRoot");
 
 		if (boxSlot == null)
@@ -50,7 +35,7 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>, IBoxHandleable
 		box.transform.SetParent(boxSlot);
 		box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
-		carringBox = box;
+		carryingBox = box;
 
 		return true;
 	}
@@ -58,13 +43,13 @@ public class CarryBoxAbility : Ability<CarryBoxConfig>, IBoxHandleable
 	public bool GetBox(out BoxBase box)
 	{
 		box = null;
-		if (carringBox == null)
+		if (carryingBox == null)
 			return false;
 
-		box = carringBox;
+		box = carryingBox;
 
-		carringBox.transform.SetParent(null);
-		carringBox = null;
+		carryingBox.transform.SetParent(null);
+		carryingBox = null;
 
 		return true;
 	}

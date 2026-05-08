@@ -103,7 +103,7 @@ public class StoringTask : WorkerTask
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
 		int removed = task.CurrentLine.Source.RemoveItem(task.CurrentLine.ItemID, task.CurrentLine.Quantity);
 
-		BoxBase box = task.CarryingAbility.CarringBox;
+		BoxBase box = task.CarryingAbility.CarryingBox;
 
 		if (box == null)
 		{
@@ -140,7 +140,7 @@ public class StoringTask : WorkerTask
 	public static NodeState SetPlacingPosition(in BTContext ctx)
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
-		BoxBase box = task.CarryingAbility.CarringBox;
+		BoxBase box = task.CarryingAbility.CarryingBox;
 		PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, out var decision);
 
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
@@ -168,7 +168,7 @@ public class StoringTask : WorkerTask
 
 		// place items to target
 		WorkLine line = task.placingLine;
-		BoxBase box = task.carryBox.CarringBox;
+		BoxBase box = task.carryBox.CarryingBox;
 		
 		int addedItem = line.Source.AddItem(line.ItemID, line.Quantity);
 		box.RemoveItem(line.ItemID, addedItem);
