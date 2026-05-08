@@ -6,7 +6,6 @@
 // 이거에 맞게 구현해야 할 듯
 
 using UnityEngine;
-using Unity.Mathematics;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 

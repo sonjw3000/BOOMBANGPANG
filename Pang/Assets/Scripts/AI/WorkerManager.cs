@@ -64,6 +64,9 @@ public class WorkerManager : MonoBehaviour
 		monthlyCost -= worker.MonthlyCost;
 	}
 
+	static public bool CanChangeType(AIWorker worker, TaskType type) => 
+		worker.HasAbility(WorkerTaskTypeRequirement.GetRequiredAbilities(type));
+
 	public void ChangeWorkerTaskType(AIWorker worker, TaskType type)
 	{
 		// have to check ability

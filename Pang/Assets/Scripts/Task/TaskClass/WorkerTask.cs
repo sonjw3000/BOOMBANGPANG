@@ -1,5 +1,25 @@
 ﻿using UnityEngine;
 
+public static class WorkerTaskTypeRequirement
+{
+	public static WorkerAbility GetRequiredAbilities(WorkerTask.TaskType taskType)
+	{
+		return taskType switch
+		{
+			WorkerTask.TaskType.Unloading => WorkerAbility.CargoHandling,
+			WorkerTask.TaskType.Storing => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.Picking => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.Packing => WorkerAbility.Packing,
+			WorkerTask.TaskType.Loading => WorkerAbility.CargoHandling,
+			WorkerTask.TaskType.Water => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.Undefined => WorkerAbility.None,
+			WorkerTask.TaskType.HandleMistake => WorkerAbility.None,
+
+			_ => WorkerAbility.None,
+		};
+	}
+}
+
 public abstract class WorkerTask
 {
 	public enum TaskType
@@ -35,7 +55,6 @@ public abstract class WorkerTask
 	private IBaseNode baseNode = null;
 
 	protected CarryBoxAbility carryBox = null;
-
 
 	public AIWorker OccupyWorker { get; private set; }
 	public TaskType Type { get; private set; }

@@ -1,4 +1,4 @@
-﻿using Assets.Scripts.UI;
+using Assets.Scripts.UI;
 using System.Threading;
 using UnityEngine;
 
@@ -30,8 +30,20 @@ public class PlaceableWindow : MonoBehaviour
 		gameObject.SetActive(false);
 	}
 
-	private void BuildContentUI()
+	public void Open()
 	{
+		gameObject.SetActive(true);
+		window.Open();
+	}
+
+	public void Close()
+	{
+		window.Close();
+		gameObject.SetActive(false);
+	}
+
+	private void BuildContentUI()
+{
 		if (catalog == null)
 		{
 			Debug.LogError("No Caltalog!");

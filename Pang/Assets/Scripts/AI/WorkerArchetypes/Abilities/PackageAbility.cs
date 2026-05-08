@@ -1,11 +1,6 @@
 ﻿
 
-public class PackageAbility : Ability<PackageConfig>
+public class PackageAbility : AbilityBase
 {
-	private float handSpeed;
-
-	protected override void OnInit()
-	{
-	}
 }
 

@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using Unity.Mathematics;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 

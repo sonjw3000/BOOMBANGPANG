@@ -7,9 +7,10 @@ public enum WorkerAbility
 {
 	None = 0,
 	CarryBox = 1 << 0,
-	PickOrStore = 1 << 1,
-	Package = 1 << 2,
+	PickingStoring = 1 << 1,
+	Packing = 1 << 2,
 	Labeling = 1 << 3,
+	CargoHandling = 1 << 4,
 	// ...
 }
 
@@ -105,6 +106,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public int MonthlyCost => workerArchetype.monthlyCost;
 
+	public WorkerAbility Ability => workerArchetype.abilities;
+
 	public WorkerStatusInfo WorkerState => workerState;
 
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.None;
@@ -117,7 +120,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		workerState.Action = action;
 		OnActionChanged?.Invoke(action);
 	}
-public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = target;
+	public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = target;
 
 	// should build BT here
 	private void BuildBehaviorTree()
@@ -148,6 +151,8 @@ public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = t
 
 	public void SetWorkerID(uint id) => workerID = id;
 
+	public bool HasAbility(WorkerAbility req) => (Ability & req) == req;
+
 	private void Start()
 	{
 		routeFinder = transform.GetComponent<FindRoute>();
@@ -160,6 +165,7 @@ public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = t
 		}
 
 		workerArchetype.SetupWorker(this);
+		workerName = workerArchetype.workerName;
 
 		// register AI's BT to AI Manager
 		WorkerMgr.RegisterWorker(this);

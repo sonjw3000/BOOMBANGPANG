@@ -1,8 +1,5 @@
 ﻿
 
-public class PickStoreAbility : Ability<PickStoreConfig>
+public class PickStoreAbility : AbilityBase
 {
-	protected override void OnInit()
-	{
-	}
 }

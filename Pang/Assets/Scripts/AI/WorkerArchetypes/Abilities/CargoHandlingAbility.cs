@@ -1,7 +1,5 @@
 ﻿
-public class CargoHandlingAbility : Ability<CargoHandlingConfig>
+
+public class CargoHandlingAbility : AbilityBase
 {
-	protected override void OnInit()
-	{
-	}
 }

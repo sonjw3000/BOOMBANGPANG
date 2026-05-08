@@ -1458,10 +1458,10 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 2969914265370432285}
-        m_TargetAssemblyTypeName: 
+      - m_Target: {fileID: 6729566453941831141}
+        m_TargetAssemblyTypeName: Assets.Scripts.UI.OrderWindow, Assembly-CSharp
         m_MethodName: Open
-        m_Mode: 1
+        m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: 
@@ -3366,13 +3366,13 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 4876407882669674093}
-        m_TargetAssemblyTypeName: Assets.Scripts.UI.UIWindow, Assembly-CSharp
+      - m_Target: {fileID: 7651628518190465256}
+        m_TargetAssemblyTypeName: PlaceableWindow, Assembly-CSharp
         m_MethodName: Open
-        m_Mode: 1
+        m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgumentAssemblyTypeName: 
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -3710,22 +3710,22 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: eff98250b30fc1c4881dfc6f1a582fc0, type: 3}
---- !u!114 &4876407882669674093 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7750292123926684671, guid: eff98250b30fc1c4881dfc6f1a582fc0, type: 3}
-  m_PrefabInstance: {fileID: 2892132011187154322}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 28d6d28b8e703b84289b23dc80a5c308, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!224 &5824624626730372032 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 8716668156146951762, guid: eff98250b30fc1c4881dfc6f1a582fc0, type: 3}
   m_PrefabInstance: {fileID: 2892132011187154322}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &7651628518190465256 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4761115306483871098, guid: eff98250b30fc1c4881dfc6f1a582fc0, type: 3}
+  m_PrefabInstance: {fileID: 2892132011187154322}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7fec872a58af77499c8a29e3fa2448e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &3827406106483914335
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4262,11 +4262,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6322612757333378499, guid: a075e6e40cb3c534f92b61a28ef8b46f, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 100
+      value: 500
       objectReference: {fileID: 0}
     - target: {fileID: 6322612757333378499, guid: a075e6e40cb3c534f92b61a28ef8b46f, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 100
+      value: 300
       objectReference: {fileID: 0}
     - target: {fileID: 6322612757333378499, guid: a075e6e40cb3c534f92b61a28ef8b46f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -4530,19 +4530,19 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 8fd1be23ffcd35b4bb06d326f2919be0, type: 3}
---- !u!114 &2969914265370432285 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7750292123926684671, guid: 8fd1be23ffcd35b4bb06d326f2919be0, type: 3}
-  m_PrefabInstance: {fileID: 4808103693543895266}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 28d6d28b8e703b84289b23dc80a5c308, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!224 &4201299165603714736 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 8716668156146951762, guid: 8fd1be23ffcd35b4bb06d326f2919be0, type: 3}
   m_PrefabInstance: {fileID: 4808103693543895266}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &6729566453941831141 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2296248521558062343, guid: 8fd1be23ffcd35b4bb06d326f2919be0, type: 3}
+  m_PrefabInstance: {fileID: 4808103693543895266}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d2c94de51b7e8e4e93319cc81b94682, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.UI.OrderWindow

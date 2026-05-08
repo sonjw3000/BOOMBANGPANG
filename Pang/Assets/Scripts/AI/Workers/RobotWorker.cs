@@ -1,13 +1,13 @@
 using UnityEngine;
 
-public abstract class RobotWorker : AIWorker
+public class RobotWorker : AIWorker
 {
 	[SerializeField] private float batteryLevel = 100f;
 	private float batteryEfficiency;
 
 	public float BatteryLevel => batteryLevel;
 
-	[SerializeField] private int montlyMaintenanceCost = 100;
+	[SerializeField] private int monthlyMaintenanceCost = 100;
 
 	public override void TickVitals(float deltaTime)
 	{
@@ -21,8 +21,6 @@ public abstract class RobotWorker : AIWorker
 
 	public override void AddFatigue(float fatigue)
 	{
-		// todo
-		// st battery
 	}
 
 	public override float GetFatigue() => 0;

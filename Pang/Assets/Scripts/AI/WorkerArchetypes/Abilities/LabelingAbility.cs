@@ -1,11 +1,7 @@
 ﻿
 
-public class LabelingAbility : Ability<LabelingConfig>
+public class LabelingAbility : AbilityBase
 {
-
-	protected override void OnInit()
-	{
-	}
 }
 
 

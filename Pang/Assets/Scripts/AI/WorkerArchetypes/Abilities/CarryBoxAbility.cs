@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-public class CarryBoxAbility : Ability<CarryBoxConfig>, IBoxHandleable
+public class CarryBoxAbility : AbilityBase, IBoxHandleable
 {
 	private BoxBase carryingBox = null;
 
