@@ -22,6 +22,8 @@ namespace Assets.Scripts.UI
 		[SerializeField] private UIWindow window;
 		[SerializeField] private WorkerItemView itemPrefab;
 		[SerializeField] private Transform listRoot;
+		[SerializeField] private UnityEngine.UI.Button openMarketButton;
+		[SerializeField] private WorkforceMarketWindow marketWindow;
 
 		[Header("Window MetaData")]
 		[SerializeField] private string title = "Worker Management";
@@ -39,11 +41,25 @@ namespace Assets.Scripts.UI
 			window.SetTitle(title);
 			window.SetIcon(icon);
 			SetupTabs();
+            
+			if (openMarketButton != null)
+			{
+				openMarketButton.onClick.AddListener(OpenMarket);
+			}
+
 			gameObject.SetActive(false);
 		}
 
-		private void SetupTabs()
+		private void OpenMarket()
 		{
+			if (marketWindow != null)
+			{
+				marketWindow.Open();
+			}
+		}
+
+		private void SetupTabs()
+{
 			if (tabsInitialized) return;
 			window.ClearTabs();
 

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TransferRobot
   m_EditorClassIdentifier: 
   workerName: 
-  workerType: 0
+  workerType: 3
   baseMoveSpeedMultiplier: 1
   minimumMoveSpeedMultiplier: 0.5
   baseWorkSpeedMultiplier: 1
