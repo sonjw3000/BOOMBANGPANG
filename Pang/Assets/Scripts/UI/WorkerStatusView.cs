@@ -73,32 +73,32 @@ public class WorkerStatusView : MonoBehaviour
 
 	private void UpdateVisibility()
 	{
-	    if (worker == null || spriteRenderer == null) return;
+		if (worker == null || spriteRenderer == null) return;
 
-	    WorkerStatusAction action = worker.WorkerState.Action;
-	    if (action == WorkerStatusAction.None)
-	    {
-	        spriteRenderer.enabled = false;
-	        return;
-	    }
+		WorkerStatusAction action = worker.WorkerState.Action;
+		if (action == WorkerStatusAction.None)
+		{
+			spriteRenderer.enabled = false;
+			return;
+		}
 
-	    bool isAlwaysVisible = IsAlwaysVisible(action);
-        
-	    GameObject selected = GameContext.Instance.InteractionCtx.SelectedObject;
-	    bool isSelected = selected != null && (selected == worker.gameObject || selected.transform.IsChildOf(worker.transform));
+		bool isAlwaysVisible = IsAlwaysVisible(action);
 
-	    if (isAlwaysVisible)
-	    {
-	        spriteRenderer.enabled = true;
-	    }
-	    else
-	    {
-	        // "선택" icons are shown only when selected
-	        spriteRenderer.enabled = isSelected;
-	    }
+		GameObject selected = GameContext.Instance.InteractionCtx.SelectedObject;
+		bool isSelected = selected != null && (selected == worker.gameObject || selected.transform.IsChildOf(worker.transform));
 
-	    // Ensure scale is visible (sometimes sprites can be too small in 3D)
-	    transform.localScale = Vector3.one * 0.5f; // Adjust based on scene scale if needed
+		if (isAlwaysVisible)
+		{
+			spriteRenderer.enabled = true;
+		}
+		else
+		{
+			// "선택" icons are shown only when selected
+			spriteRenderer.enabled = isSelected;
+		}
+
+		// Ensure scale is visible (sometimes sprites can be too small in 3D)
+		transform.localScale = Vector3.one * 0.5f; // Adjust based on scene scale if needed
 	}
 
 	private bool IsAlwaysVisible(WorkerStatusAction action)
