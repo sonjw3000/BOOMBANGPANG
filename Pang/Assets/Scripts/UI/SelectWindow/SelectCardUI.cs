@@ -1,6 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using TMPro;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -23,10 +22,16 @@ public class SelectCardUI : MonoBehaviour
 
 	private Dictionary<InfoBlockType, GameObjectPool> infoPools = new();
 
+	private void Awake()
+	{
+		if (bodyTextExample != null)
+		{
+			infoPools[InfoBlockType.KeyValue] = new(textPoolSize, () => { return Instantiate(bodyTextExample, bodyTextTransform); });
+		}
+	}
+
 	private void Start()
 	{
-		infoPools[InfoBlockType.KeyValue] = new(textPoolSize, () => { return Instantiate(bodyTextExample, bodyTextTransform); });
-
 		gameObject.SetActive(false);
 	}
 
@@ -53,8 +58,15 @@ public class SelectCardUI : MonoBehaviour
 	{
 		foreach (var block in provider.InfoBlocks)
 		{
-			var textObj = infoPools[block.InfoType].Get();
-			block.SetGameObject(textObj);
+			if (infoPools.TryGetValue(block.InfoType, out var pool))
+			{
+				var textObj = pool.Get();
+				block.SetGameObject(textObj);
+			}
+			else
+			{
+				Debug.LogWarning($"No pool found for InfoBlockType: {block.InfoType}");
+			}
 		}
 	}
 

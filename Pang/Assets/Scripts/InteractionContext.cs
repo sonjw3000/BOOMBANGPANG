@@ -1,4 +1,4 @@
-﻿using Unity.Mathematics;
+using Unity.Mathematics;
 using UnityEngine;
 
 
@@ -14,6 +14,7 @@ public class InteractionContext
 
 	// select
 	private GameObject selectedObject;
+	public GameObject SelectedObject => selectedObject;
 
 	// placement
 	private FacingDirection direction = FacingDirection.North;

@@ -1,4 +1,4 @@
-﻿using Assets.Scripts.AI.BT;
+using Assets.Scripts.AI.BT;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -87,6 +87,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private BehaviorTree behaviorTree;
 	private readonly BlackBoard localBlackBoard = new();
 	private WorkerStatusInfo workerState = WorkerStatusInfo.None;
+	public event System.Action<WorkerStatusAction> OnActionChanged;
 
 	private int3 position;
 	private FacingDirection facingDirection;
@@ -110,8 +111,13 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public IInteractionPoint CurrentWorkingBuilding => currentWorkingPoint;
 
-	public void SetWorkerAction(WorkerStatusAction action) => workerState.Action = action;
-	public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = target;
+	public void SetWorkerAction(WorkerStatusAction action) 
+	{
+		if (workerState.Action == action) return;
+		workerState.Action = action;
+		OnActionChanged?.Invoke(action);
+	}
+public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = target;
 
 	// should build BT here
 	private void BuildBehaviorTree()
