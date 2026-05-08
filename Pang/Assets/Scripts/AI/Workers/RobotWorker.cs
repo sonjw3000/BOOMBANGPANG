@@ -1,9 +1,11 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public class RobotWorker : AIWorker
 {
-	private float batteryLevel;
+	[SerializeField] private float batteryLevel = 100f;
 	private float batteryEfficiency;
+
+	public float BatteryLevel => batteryLevel;
 
 	[SerializeField] private int montlyMaintenanceCost = 100;
 
