@@ -13,12 +13,17 @@ public class PathFindingService : MonoBehaviour
 
 	[SerializeField] private int activeJobLimit = 5;
 	[SerializeField] private int stepBudgetPerFrame = 500;
+	[SerializeField] private int plannedPathCongestionCost = 2;
+	[SerializeField] private int stalePlannedPathCongestionCost = 6;
 
 	//private ItemPool<PathResultBuffer> resultPool;
 	private ItemPool<PathSearchJob> jobPool;
 	private ItemPool<SearchBuffer> searchBufferPool;
 
 	private List<PathSearchJob> activeJobs = new();
+
+	public int PlannedPathCongestionCost => plannedPathCongestionCost;
+	public int StalePlannedPathCongestionCost => stalePlannedPathCongestionCost;
 
 	private void Start()
 	{

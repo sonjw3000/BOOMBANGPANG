@@ -284,6 +284,48 @@ public class GridService : MonoBehaviour
 		return gridMap.Map[pos.x, pos.y, pos.z].TryUnreserve(findRoute);
 	}
 
+	public bool RegisterPlannedPath(FindRoute findRoute, in int3 pos)
+	{
+		GridCell cell = GetCell(pos);
+		if (cell == null)
+			return false;
+
+		return cell.RegisterPlannedRoute(findRoute);
+	}
+
+	public bool UnregisterPlannedPath(FindRoute findRoute, in int3 pos)
+	{
+		GridCell cell = GetCell(pos);
+		if (cell == null)
+			return false;
+
+		return cell.UnregisterPlannedRoute(findRoute);
+	}
+
+	public int GetPlannedPathCongestionCost(in int3 pos, FindRoute requester, int activePathCost, int stalePathCost)
+	{
+		GridCell cell = GetCell(pos);
+		if (cell == null || cell.PlannedPathCount == 0)
+			return 0;
+
+		int totalCost = 0;
+		foreach (var plannedRoute in cell.PlannedRoutes)
+		{
+			if (plannedRoute == requester)
+				continue;
+
+			if (plannedRoute == null || plannedRoute.HasPlannedPath == false)
+			{
+				totalCost += stalePathCost;
+				continue;
+			}
+
+			totalCost += activePathCost;
+		}
+
+		return totalCost;
+	}
+
 	public PlacementResult TryMove(FindRoute findRoute, in int3 from, in int3 to)
 	{
 		var fromGridCell = GetCell(from);

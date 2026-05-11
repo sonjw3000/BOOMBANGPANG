@@ -213,6 +213,7 @@ public class SearchBuffer
 public sealed class PathSearchJob
 {
 	private GridService GridService => GameContext.Instance.GridService;
+	private PathFindingService PathFinding => GameContext.Instance.PathFinding;
 
 	private SearchBuffer buffer;
 	private PathRequest request;
@@ -342,7 +343,12 @@ public sealed class PathSearchJob
 		// 모든 노드의 이동 비용은 동일하나 rotation시간의 뭐시기가 더 들어감
 		int distanceCost = request.MovementCost;
 		int rotationCost = rotationAmount * request.RotationCost;
-		return distanceCost + rotationCost;
+		int congestionCost = GridService.GetPlannedPathCongestionCost(
+			node,
+			request.target,
+			PathFinding.PlannedPathCongestionCost,
+			PathFinding.StalePlannedPathCongestionCost);
+		return distanceCost + rotationCost + congestionCost;
 	}
 
 	private int GetH(in int3 node, in int3 goal)
@@ -532,6 +538,30 @@ public class PathResultBuffer
 		}
 	}
 
+	public void CollectRemainingPositions(System.Collections.Generic.ISet<int3> positions)
+	{
+		if (positions == null)
+			throw new ArgumentNullException(nameof(positions));
+
+		if (IsGoalReached)
+			return;
+
+		PathResultBuffer leaf = FindLeafBuffer(this);
+
+		for (var node = leaf.currentNode; node != null; node = node.Next)
+		{
+			positions.Add(node.Value.Position);
+		}
+
+		for (var parent = leaf.parentBuffer; parent != null; parent = parent.parentBuffer)
+		{
+			for (var node = parent.currentNode?.Next; node != null; node = node.Next)
+			{
+				positions.Add(node.Value.Position);
+			}
+		}
+	}
+
 	public void MoveToNextNode()
 	{
 		if (IsGoalReached)
@@ -562,6 +592,13 @@ public class PathResultBuffer
 
 	public void Clear()
 	{
+		if (subPathResult != null)
+		{
+			subPathResult.Clear();
+			subPathResult.parentBuffer = null;
+			subPathResult = null;
+		}
+
 		foreach (var node in path)
 		{
 			resultPool.Release(node);

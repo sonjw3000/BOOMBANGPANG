@@ -28,6 +28,8 @@ public class FindRoute : MonoBehaviour
 	private GridCell waitingCell = null;
 
 	private HashSet<FindRoute> blockingRoutes = new();
+	private readonly HashSet<int3> plannedPathCells = new();
+	private readonly HashSet<int3> plannedPathScratch = new();
 
 
 #if UNITY_EDITOR
@@ -70,6 +72,19 @@ public class FindRoute : MonoBehaviour
 		ClearWait();
 	}
 
+	private void OnDestroy()
+	{
+		ClearWait();
+		ClearPlannedPathRegistration();
+		ReleaseReservedNextTile();
+		ClearPathBuffer();
+
+		if (GameContext.HasInstance && worker != null)
+		{
+			GridService.TryUnreserve(this, worker.GridPosition);
+		}
+	}
+
 	private void ClearWait()
 	{
 		if (waitingCell != null)
@@ -84,6 +99,7 @@ public class FindRoute : MonoBehaviour
 	public float GetRotationSpeed() => GetMovementSpeed() * 2.5f;
 
 	public IReadOnlyCollection<FindRoute> BlockingRoutes => blockingRoutes;
+	public bool HasPlannedPath => plannedPathCells.Count > 0;
 	public bool IsGoal => movementState == MovementState.Arrived;
 	public bool IsWaiting => waitingCell != null;
 	public MovementState CurrentMovementState => movementState;
@@ -186,8 +202,89 @@ public class FindRoute : MonoBehaviour
 		}
 
 		pathResultBuffer.MoveToNextNode();
+		RefreshPlannedPathRegistration();
 		isNextNodeReserved = false;
 		SyncTargetPositionToCurrentNode();
+	}
+
+	private void ReleaseReservedNextTile()
+	{
+		if (isNextNodeReserved == false || worker == null || GameContext.HasInstance == false)
+			return;
+
+		int3 reservedPos = new((int)targetPos.x, (int)targetPos.y, (int)targetPos.z);
+		if (reservedPos.Equals(worker.GridPosition) == false)
+		{
+			GridService.TryUnreserve(this, reservedPos);
+		}
+
+		isNextNodeReserved = false;
+	}
+
+	private void ClearPathBuffer()
+	{
+		if (pathResultBuffer == null)
+			return;
+
+		pathResultBuffer.Clear();
+		pathResultBuffer = null;
+	}
+
+	private void ClearPlannedPathRegistration()
+	{
+		if (GameContext.HasInstance)
+		{
+			foreach (var cellPos in plannedPathCells)
+			{
+				GridService.UnregisterPlannedPath(this, cellPos);
+			}
+		}
+
+		plannedPathCells.Clear();
+		plannedPathScratch.Clear();
+	}
+
+	private void RefreshPlannedPathRegistration()
+	{
+		plannedPathScratch.Clear();
+		pathResultBuffer?.CollectRemainingPositions(plannedPathScratch);
+
+		if (GameContext.HasInstance)
+		{
+			foreach (var cellPos in plannedPathCells)
+			{
+				if (plannedPathScratch.Contains(cellPos))
+					continue;
+
+				GridService.UnregisterPlannedPath(this, cellPos);
+			}
+
+			foreach (var cellPos in plannedPathScratch)
+			{
+				if (plannedPathCells.Contains(cellPos))
+					continue;
+
+				GridService.RegisterPlannedPath(this, cellPos);
+			}
+		}
+
+		plannedPathCells.Clear();
+		foreach (var cellPos in plannedPathScratch)
+		{
+			plannedPathCells.Add(cellPos);
+		}
+	}
+
+	private void ResetCurrentPathPlan(bool clearBlockingRoutes)
+	{
+		ReleaseReservedNextTile();
+		ClearPlannedPathRegistration();
+		ClearPathBuffer();
+
+		if (clearBlockingRoutes)
+		{
+			blockingRoutes.Clear();
+		}
 	}
 
 	private bool TryReserveNextTile()
@@ -204,8 +301,8 @@ public class FindRoute : MonoBehaviour
 
 	private void OnArrived()
 	{
-		pathResultBuffer.Clear();
-		pathResultBuffer = null;
+		ClearPlannedPathRegistration();
+		ClearPathBuffer();
 
 		movementState = MovementState.Arrived;
 		worker.enabled = true;
@@ -289,6 +386,7 @@ public class FindRoute : MonoBehaviour
 
 		enabled = false;
 		pathResultBuffer.MoveToNextNode();
+		RefreshPlannedPathRegistration();
 
 		return true;
 	}
@@ -338,6 +436,7 @@ public class FindRoute : MonoBehaviour
 	public bool SetGoalPosition(in int3 goalPos)
 	{
 		ClearWait();
+		ResetCurrentPathPlan(true);
 		PathRequest request = new(this, worker.GridPosition, goalPos, worker.Direction);
 		PathFinding.RequestRoute(request);
 
@@ -362,18 +461,12 @@ public class FindRoute : MonoBehaviour
 
 	public void OnPathFound(PathResultBuffer pathBuffer)
 	{
-		if (isNextNodeReserved)
-		{
-			int3 oldTarget = new((int)targetPos.x, (int)targetPos.y, (int)targetPos.z);
-			if (oldTarget.Equals(worker.GridPosition) == false)
-				GridService.TryUnreserve(this, oldTarget);
-
-			isNextNodeReserved = false;
-		}
+		ReleaseReservedNextTile();
 
 		if (pathBuffer == null || pathBuffer.Path?.Count <= 0)
 		{
 			movementState = MovementState.Failed;
+			RefreshPlannedPathRegistration();
 			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} could not find a route to the goal.");
 			//worker.enabled = true;
 			enabled = true;
@@ -401,6 +494,7 @@ public class FindRoute : MonoBehaviour
 		}
 
 		SyncTargetPositionToCurrentNode();
+		RefreshPlannedPathRegistration();
 		enabled = true;
 	}
 

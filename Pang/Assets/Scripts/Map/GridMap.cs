@@ -38,6 +38,7 @@ public class GridCell
 	private GameObject objectRef = null;
 
 	private FindRoute reservedBy = null;
+	private readonly HashSet<FindRoute> plannedRoutes = new();
 
 	public GridFlags Flags => flags;
 
@@ -47,6 +48,8 @@ public class GridCell
 	public GameObject ObjectOnGrid => objectRef;
 
 	public FindRoute ReservedRoute => reservedBy;
+	public int PlannedPathCount => plannedRoutes.Count;
+	public IReadOnlyCollection<FindRoute> PlannedRoutes => plannedRoutes;
 
 	public event System.Action<GridCell> OnGridUnReserved;
 
@@ -98,6 +101,22 @@ public class GridCell
 		//Debug.Log($"[GridCell] Unreserved. Invoking events for listeners.");
 		OnGridUnReserved?.Invoke(this);
 		return true;
+	}
+
+	public bool RegisterPlannedRoute(FindRoute routeWorker)
+	{
+		if (routeWorker == null)
+			return false;
+
+		return plannedRoutes.Add(routeWorker);
+	}
+
+	public bool UnregisterPlannedRoute(FindRoute routeWorker)
+	{
+		if (routeWorker == null)
+			return false;
+
+		return plannedRoutes.Remove(routeWorker);
 	}
 
 }
