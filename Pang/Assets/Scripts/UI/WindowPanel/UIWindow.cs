@@ -24,6 +24,7 @@ namespace Assets.Scripts.UI
 		private List<TabButton> tabButtons = new List<TabButton>();
 
 		public RectTransform ContentRoot => contentRoot;
+		public RectTransform RootRect => root != null ? root.GetComponent<RectTransform>() : GetComponent<RectTransform>();
 
 		private void Awake()
 		{
