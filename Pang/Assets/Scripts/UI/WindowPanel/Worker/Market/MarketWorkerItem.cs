@@ -28,9 +28,20 @@ namespace Assets.Scripts.UI
 
 		private void Hire()
 		{
-			// Placeholder for hire logic
-			Debug.Log($"Hired {currentArchetype.workerName}!");
-			// In a real scenario, this would notify WorkerManager to instantiate and register a new worker.
+			var workerSpawnMgr = GameContext.Instance.WorkerSpawnMgr;
+			if (workerSpawnMgr == null)
+			{
+				Debug.LogWarning("WorkerSpawnManager is not available.");
+				return;
+			}
+
+			if (workerSpawnMgr.TrySpawnWorker(currentArchetype, this, out var spawnedWorker) == false)
+			{
+				Debug.LogWarning($"Failed to hire {currentArchetype.workerName}");
+				return;
+			}
+
+			Debug.Log($"Hired {spawnedWorker.Name}!");
 		}
 	}
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,15 +14,45 @@ public enum ZoneType
 	Storage,
 }
 
+public static class WorkerSpawnZoneType
+{
+	public static bool IsWorkerSpawnZone(this ZoneType zoneType)
+	{
+		return zoneType == ZoneType.HumanSpawn || zoneType == ZoneType.RobotSpawn;
+	}
+
+	public static ZoneType ToSpawnZoneType(this WorkerType workerType)
+	{
+		return workerType == WorkerType.Robot ? ZoneType.RobotSpawn : ZoneType.HumanSpawn;
+	}
+}
+
 public class ZoneManager : MonoBehaviour
 {
+	[SerializeField] private List<ZoneArea> registeredZones = new();
+
 	private readonly Dictionary<int, Dictionary<ZoneType, List<ZoneArea>>> zones = new();
 
-	private List<ZoneArea> TargetZoneList(ZoneArea zone) => CheckHavingZone(zone) ? null : zones[zone.Floor][zone.Type];
+	public IReadOnlyList<ZoneArea> RegisteredZones => registeredZones;
+
+	private void Awake()
+	{
+		RebuildZoneLookup();
+	}
+
+#if UNITY_EDITOR
+	private void OnValidate()
+	{
+		RebuildZoneLookup();
+	}
+#endif
+
+	private List<ZoneArea> TargetZoneList(ZoneArea zone) => CheckHavingZone(zone) ? zones[zone.Floor][zone.Type] : null;
 
 	private bool CheckHavingZone(ZoneArea zone)
 	{
-		if (zones.ContainsKey(zone.Floor) == false || 
+		if (zone == null ||
+			zones.ContainsKey(zone.Floor) == false ||
 			zones[zone.Floor].ContainsKey(zone.Type) == false ||
 			zones[zone.Floor][zone.Type].Contains(zone) == false)
 		{
@@ -33,40 +63,75 @@ public class ZoneManager : MonoBehaviour
 		return true;
 	}
 
-	public ZoneArea AddZone(string name, ZoneType type, in RectInt bound, int floor)
+	public void RebuildZoneLookup()
+	{
+		zones.Clear();
+
+		foreach (var zone in registeredZones)
+		{
+			RegisterZone(zone);
+		}
+	}
+
+	private void RegisterZone(ZoneArea zone)
+	{
+		if (zone == null)
+			return;
+
+		if (zones.ContainsKey(zone.Floor) == false)
+			zones[zone.Floor] = new();
+
+		if (zones[zone.Floor].ContainsKey(zone.Type) == false)
+			zones[zone.Floor][zone.Type] = new();
+
+		if (zones[zone.Floor][zone.Type].Contains(zone) == false)
+			zones[zone.Floor][zone.Type].Add(zone);
+	}
+
+	private bool HasOverlap(int floor, in RectInt bound, ZoneArea ignore = null)
 	{
 		if (zones.ContainsKey(floor) == false)
-			zones[floor] = new();
+			return false;
 
-		if (zones[floor].ContainsKey(type) == false)
-			zones[floor][type] = new();
-
-		var list = zones[floor][type];
-
-		// check for intersect
-		foreach (var other in list)
+		foreach (var list in zones[floor].Values)
 		{
-			if (bound.Overlaps(other.Bounds))
+			foreach (var other in list)
 			{
-				Debug.Log($"Zone{name} is Overlapped by other{other.DisplayName}");
-				return null;
+				if (other == ignore)
+					continue;
+
+				if (bound.Overlaps(other.Bounds))
+					return true;
 			}
 		}
 
+		return false;
+	}
+
+	public ZoneArea AddZone(string name, ZoneType type, in RectInt bound, int floor)
+	{
+		if (HasOverlap(floor, bound))
+		{
+			Debug.Log($"Zone {name} is overlapped by another zone");
+			return null;
+		}
+
 		ZoneArea res = new(name, type, bound, floor);
-		list.Add(res);
+		registeredZones.Add(res);
+		RegisterZone(res);
 
 		return res;
 	}
 
 	public bool RemoveZone(ZoneArea zone)
 	{
-		var zones = TargetZoneList(zone);
+		var targetZones = TargetZoneList(zone);
 
-		if (zones == null)
+		if (targetZones == null)
 			return false;
-		
-		zones.Remove(zone);
+
+		targetZones.Remove(zone);
+		registeredZones.Remove(zone);
 		return true;
 	}
 
@@ -75,41 +140,43 @@ public class ZoneManager : MonoBehaviour
 		if (CheckHavingZone(zone) == false)
 			return false;
 
-		foreach (var lists in zones[zone.Floor])
+		if (HasOverlap(zone.Floor, newBound, zone))
 		{
-			foreach (var otherZone in lists.Value)
-			{
-				if (otherZone == zone) continue;
-
-				if (newBound.Overlaps(otherZone.Bounds))
-				{
-					Debug.Log("Zone Resize Failed!, Out of bound!");
-					return false;
-				}
-			}
+			Debug.Log("Zone Resize Failed!, Out of bound!");
+			return false;
 		}
 
 		zone.Resize(newBound);
 		return true;
 	}
 
+	public bool TryGetZones(out IReadOnlyList<ZoneArea> result, int floor, ZoneType zoneType)
+	{
+		result = null;
+
+		if (zones.ContainsKey(floor) == false || zones[floor].ContainsKey(zoneType) == false)
+			return false;
+
+		result = zones[floor][zoneType];
+		return result.Count > 0;
+	}
+
 	public bool TryGetAvailableZone(out ZoneArea result, int floor, ZoneType zoneType, Predicate<ZoneArea> pred = null)
 	{
 		result = null;
 
-		if (zones.ContainsKey(floor) == false || zones[floor].ContainsKey(zoneType) == false) 
+		if (TryGetZones(out var targetZones, floor, zoneType) == false)
 			return false;
 
-		foreach (var zone in zones[floor][zoneType])
+		foreach (var zone in targetZones)
 		{
-			if (pred == null || pred(zone) == true)
+			if (pred == null || pred(zone))
 			{
 				result = zone;
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
-
 }

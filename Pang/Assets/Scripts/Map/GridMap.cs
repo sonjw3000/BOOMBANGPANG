@@ -7,6 +7,7 @@ public enum PlacementEvent
 {
 	Normal,
 	Load,
+	WorkerSpawn,
 	RocketLanding,
 	RocketCrashLanding,
 }

@@ -1,12 +1,14 @@
-﻿using Unity.Mathematics;
+using System;
+using Unity.Mathematics;
 using UnityEngine;
 
+[Serializable]
 public class ZoneArea
 {
-	private string displayName;
-	private ZoneType type;
-	private RectInt bound;
-	private int floor;
+	[SerializeField] private string displayName;
+	[SerializeField] private ZoneType type;
+	[SerializeField] private RectInt bound;
+	[SerializeField] private int floor;
 
 	public string DisplayName => displayName;
 	public ZoneType Type => type;
@@ -25,12 +27,10 @@ public class ZoneArea
 
 	public void GetRandomPoint(out int3 val)
 	{
-		var rand = new System.Random();
 		val = new int3(
-			rand.Next(bound.min.x, bound.max.x),
+			UnityEngine.Random.Range(bound.min.x, bound.max.x),
 			floor,
-			rand.Next(bound.min.y, bound.max.y)
+			UnityEngine.Random.Range(bound.min.y, bound.max.y)
 		);
 	}
-
 }

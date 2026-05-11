@@ -10,6 +10,7 @@ public class GameContext : MonoBehaviour
 	public const bool CHEATMODE = true;
 
 	private static GameContext instance;
+	public static bool HasInstance => instance != null;
 	public static GameContext Instance
 	{
 		get
@@ -48,6 +49,7 @@ public class GameContext : MonoBehaviour
 	[Header("������ �Ŵ���")]
 	// domain managers
 	[SerializeField] private WorkerManager workerManager;
+	[SerializeField] private WorkerSpawnManager workerSpawnManager;
 	[SerializeField] private TaskManager taskManager;
 	[SerializeField] private ShelfStorageIndex itemInventory;
 	[SerializeField] private RocketManager rocketManager;
@@ -87,6 +89,16 @@ public class GameContext : MonoBehaviour
 	//public GridMap GridMap => gridMap;
 	public GridService GridService => gridService;
 	public WorkerManager WorkerMgr => workerManager;
+	public WorkerSpawnManager WorkerSpawnMgr
+	{
+		get
+		{
+			if (workerSpawnManager == null)
+				workerSpawnManager = FindObjectOfType<WorkerSpawnManager>();
+
+			return workerSpawnManager;
+		}
+	}
 	public TaskManager TaskMgr => taskManager;
 	public ShelfStorageIndex StorageIndex => itemInventory;
 	public RocketManager RocketMgr => rocketManager;

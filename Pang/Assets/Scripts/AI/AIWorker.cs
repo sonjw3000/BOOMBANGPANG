@@ -94,6 +94,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private FacingDirection facingDirection;
 
 	private IInteractionPoint currentWorkingPoint = null;
+	private bool isRegistered = false;
 
 	public float BaseMoveSpeedMultiplier => workerArchetype.baseMoveSpeedMultiplier;
 	public float MinimumMoveSpeedMultiplier => workerArchetype.minimumMoveSpeedMultiplier;
@@ -153,8 +154,27 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool HasAbility(WorkerAbility req) => (Ability & req) == req;
 
+	public void ApplyArchetype(WorkerArchetype archetype)
+	{
+		if (archetype == null)
+		{
+			Debug.LogError($"Worker archetype is missing on {name}");
+			return;
+		}
+
+		workerArchetype = archetype;
+		workerName = string.IsNullOrWhiteSpace(archetype.workerName) ? archetype.name : archetype.workerName;
+	}
+
 	private void Start()
 	{
+		if (workerArchetype == null)
+		{
+			Debug.LogError($"Worker archetype is missing on {name}");
+			enabled = false;
+			return;
+		}
+
 		routeFinder = transform.GetComponent<FindRoute>();
 
 		if (routeFinder == null)
@@ -165,10 +185,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		}
 
 		workerArchetype.SetupWorker(this);
-		workerName = workerArchetype.workerName;
+		workerName = string.IsNullOrWhiteSpace(workerArchetype.workerName) ? workerArchetype.name : workerArchetype.workerName;
 
 		// register AI's BT to AI Manager
 		WorkerMgr.RegisterWorker(this);
+		isRegistered = true;
 
 		routeFinder.SetAIMaster(this);
 		BuildBehaviorTree();
@@ -177,6 +198,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private void OnDestroy()
 	{
 		// unregister AI
+		if (isRegistered == false || GameContext.HasInstance == false)
+			return;
+
 		WorkerMgr.UnregisterWorker(this);
 	}
 
