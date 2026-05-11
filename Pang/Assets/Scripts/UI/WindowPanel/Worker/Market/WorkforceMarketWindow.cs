@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using System.Collections.Generic;
 using UnityEngine.UI;
+using System;
 
 namespace Assets.Scripts.UI
 {
@@ -22,6 +23,9 @@ namespace Assets.Scripts.UI
 		[Header("Window MetaData")]
 		[SerializeField] private string title = "Workforce Market";
 		[SerializeField] private Sprite icon;
+
+		[SerializeField] private int displayPerPage = 15;
+		[SerializeField] private int page = 0;
 
 		private void Awake()
 		{
@@ -80,20 +84,21 @@ namespace Assets.Scripts.UI
 			GameObject go = Instantiate(categoryItemPrefab, categoryListRoot);
 			// Assuming categoryItem has a text component or a script
 			var btn = go.GetComponent<Button>();
-			btn.GetComponentInChildren<TMP_Text>().text = $" - {so.name}";
+			btn.GetComponentInChildren<TMP_Text>().text = $" - {so.WorkForceMarketName}";
 			btn.onClick.AddListener(() => DisplayWorkerList(so));
 		}
 
 		private void DisplayWorkerList(WorkforceMarketData_SO so)
 		{
-			foreach (Transform child in workerListRoot) Destroy(child.gameObject);
+			foreach (Transform child in workerListRoot)
+				Destroy(child.gameObject);
 
-			foreach (var archetype in so.AvailableArchetypes)
+			foreach (var archetype in so.EnumerateArchetypes(page, displayPerPage))
 			{
 				// Robot check if needed (user requested verification)
-				if (so.name.ToLower().Contains("robot") || archetype.workerType == WorkerType.Robot)
+				if (so.name.ToLower().Contains("robot") || archetype.AbilityDefinition.workerType == WorkerType.Robot)
 				{
-					if (archetype.workerType != WorkerType.Robot) continue;
+					if (archetype.AbilityDefinition.workerType != WorkerType.Robot) continue;
 				}
 
 				GameObject go = Instantiate(workerItemPrefab, workerListRoot);

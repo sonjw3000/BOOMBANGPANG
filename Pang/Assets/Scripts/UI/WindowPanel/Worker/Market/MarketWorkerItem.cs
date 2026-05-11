@@ -17,9 +17,9 @@ namespace Assets.Scripts.UI
 		public void Setup(WorkerArchetype archetype)
 		{
 			currentArchetype = archetype;
-			nameText.text = archetype.workerName;
-			abilityText.text = $"Ability: {archetype.abilities}";
-			wageText.text = $"Wage: {archetype.monthlyCost}/month"; // Changed to monthly as per current SO
+			nameText.text = $"{currentArchetype.workerNameDefinition.WorkerFirstName} {currentArchetype.workerNameDefinition.WorkerLastName}";
+			abilityText.text = $"Ability: {archetype.AbilityDefinition.abilities}";
+			wageText.text = $"Wage: {archetype.AbilityDefinition.monthlyCost}/month"; // Changed to monthly as per current SO
 			riskText.text = "Risk: Low"; // Defaulting as requested
 
 			hireButton.onClick.RemoveAllListeners();
@@ -37,7 +37,7 @@ namespace Assets.Scripts.UI
 
 			if (workerSpawnMgr.TrySpawnWorker(currentArchetype, this, out var spawnedWorker) == false)
 			{
-				Debug.LogWarning($"Failed to hire {currentArchetype.workerName}");
+				Debug.LogWarning($"Failed to hire {currentArchetype.workerNameDefinition.WorkerFirstName} {currentArchetype.workerNameDefinition.WorkerLastName}");
 				return;
 			}
 

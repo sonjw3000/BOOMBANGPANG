@@ -75,20 +75,31 @@ public struct WorkerStatusInfo
 [System.Serializable]
 public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
 {
-	[SerializeField] private WorkerArchetype workerArchetype;
-
-	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
-	private FindRoute routeFinder;
-	
-	[SerializeField] private int tick = 0;
-	[SerializeField] private string workerName;
+	// worker identity
+	[SerializeField] private string workerFirstName;
+	[SerializeField] private string workerLastName;
 	[SerializeField] private uint workerID;
-	[SerializeField] private WorkerTask currentTask = null;
 
+	// worker ability def
+	[SerializeField] private WorkerType workerType;
+	[SerializeField] private WorkerAbility abilities;
+	[SerializeField] private int monthlyCost;
+
+	// base stat
+	[SerializeField] private float baseMoveSpeedMultiplier = 1.0f;
+	[SerializeField] private float minimumMoveSpeedMultiplier = 0.5f;
+	[SerializeField] private float baseWorkSpeedMultiplier = 1.0f;
+	[SerializeField] private float minimumWorkSpeedMultiplier = 0.5f;
+	
+	// task and bt
+	[SerializeField] private int tick = 0;
+	[SerializeField] private WorkerTask currentTask = null;
+	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
+
+	private FindRoute routeFinder;
 	private BehaviorTree behaviorTree;
 	private readonly BlackBoard localBlackBoard = new();
 	private WorkerStatusInfo workerState = WorkerStatusInfo.None;
-	public event System.Action<WorkerStatusAction> OnActionChanged;
 
 	private int3 position;
 	private FacingDirection facingDirection;
@@ -96,25 +107,40 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private IInteractionPoint currentWorkingPoint = null;
 	private bool isRegistered = false;
 
-	public float BaseMoveSpeedMultiplier => workerArchetype.baseMoveSpeedMultiplier;
-	public float MinimumMoveSpeedMultiplier => workerArchetype.minimumMoveSpeedMultiplier;
-	public float BaseWorkSpeedMultiplier => workerArchetype.baseWorkSpeedMultiplier;
-	public float MinimumWorkSpeedMultiplier => workerArchetype.minimumWorkSpeedMultiplier;
+	// event
+	public event System.Action<WorkerStatusAction> OnActionChanged;
 
-	public WorkerType WorkerType => workerArchetype.workerType;
+	// worker identity
+	public string Name => $"{workerFirstName} {workerLastName}";
+	public uint WorkerID => workerID;
 
-	protected WorkerArchetype Archetype => workerArchetype;
+	// worker ability
+	public WorkerType WorkerType => workerType;
+	public WorkerAbility Ability => abilities;
+	public int MonthlyCost => monthlyCost;
 
-	public int MonthlyCost => workerArchetype.monthlyCost;
+	// stat
+	public float BaseMoveSpeedMultiplier => baseMoveSpeedMultiplier;
+	public float MinimumMoveSpeedMultiplier => minimumMoveSpeedMultiplier;
+	public float BaseWorkSpeedMultiplier => baseWorkSpeedMultiplier;
+	public float MinimumWorkSpeedMultiplier => minimumWorkSpeedMultiplier;
 
-	public WorkerAbility Ability => workerArchetype.abilities;
+	// grid
+	public int3 GridPosition => position;
+	public FacingDirection Direction => facingDirection;
 
-	public WorkerStatusInfo WorkerState => workerState;
-
-	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.None;
-
+	// task
+	public WorkerTask CurrentTask => currentTask;
+	public WorkerTask.TaskType TaskType => workerMainTaskType;
 	public IInteractionPoint CurrentWorkingBuilding => currentWorkingPoint;
 
+	// worker show stat
+	public WorkerStatusInfo WorkerState => workerState;
+	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.None;
+
+	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
+
+	// worker show stat setting
 	public void SetWorkerAction(WorkerStatusAction action) 
 	{
 		if (workerState.Action == action) return;
@@ -140,15 +166,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		behaviorTree = new BehaviorTree(root);
 	}
 
-	public WorkerTask.TaskType TaskType => workerMainTaskType;
-	public string Name => workerName;
-	public uint WorkerID => workerID;
-	public WorkerTask CurrentTask => currentTask;
-
-	public int3 GridPosition => position;
-	public FacingDirection Direction => facingDirection;
-
-	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 
 	public void SetWorkerID(uint id) => workerID = id;
 
@@ -162,19 +179,23 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			return;
 		}
 
-		workerArchetype = archetype;
-		workerName = string.IsNullOrWhiteSpace(archetype.workerName) ? archetype.name : archetype.workerName;
+		workerFirstName = archetype.workerNameDefinition.WorkerFirstName;
+		workerLastName = archetype.workerNameDefinition.WorkerLastName;
+
+		workerType = archetype.AbilityDefinition.workerType;
+		abilities = archetype.AbilityDefinition.abilities;
+		monthlyCost = archetype.AbilityDefinition.monthlyCost;
+
+		baseMoveSpeedMultiplier = archetype.WorkerBaseStat.baseMoveSpeedMultiplier;
+		minimumMoveSpeedMultiplier = archetype.WorkerBaseStat.minimumMoveSpeedMultiplier;
+		baseWorkSpeedMultiplier = archetype.WorkerBaseStat.baseWorkSpeedMultiplier;
+		minimumWorkSpeedMultiplier = archetype.WorkerBaseStat.minimumWorkSpeedMultiplier;
+
+		archetype.SetupWorker(this);
 	}
 
 	private void Start()
 	{
-		if (workerArchetype == null)
-		{
-			Debug.LogError($"Worker archetype is missing on {name}");
-			enabled = false;
-			return;
-		}
-
 		routeFinder = transform.GetComponent<FindRoute>();
 
 		if (routeFinder == null)
@@ -183,9 +204,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 			return;
 		}
-
-		workerArchetype.SetupWorker(this);
-		workerName = string.IsNullOrWhiteSpace(workerArchetype.workerName) ? workerArchetype.name : workerArchetype.workerName;
 
 		// register AI's BT to AI Manager
 		WorkerMgr.RegisterWorker(this);

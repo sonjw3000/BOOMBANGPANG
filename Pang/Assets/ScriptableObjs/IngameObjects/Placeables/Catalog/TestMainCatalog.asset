@@ -15,7 +15,6 @@ MonoBehaviour:
   placeables:
   - {fileID: 11400000, guid: 0fb3866728761c643a40de584785582a, type: 2}
   - {fileID: 11400000, guid: 34e3c33baf49eb143b6a251fafbc3cb3, type: 2}
-  - {fileID: 11400000, guid: d21e03551e5d2f84097e9b13284bf46c, type: 2}
   - {fileID: 11400000, guid: 2ec03056c7250cb419e466c2d300bdcf, type: 2}
   - {fileID: 11400000, guid: a46d5da0bfe444d4194f5c3ca3319ded, type: 2}
   - {fileID: 11400000, guid: 232217d3954223446a5baaed4c42edb5, type: 2}

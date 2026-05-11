@@ -353,6 +353,8 @@ MonoBehaviour:
   window: {fileID: 1840033130058677978}
   humanCategories:
   - {fileID: 11400000, guid: ebb5ca66081333e45a4ddf22c04db6af, type: 2}
+  - {fileID: 11400000, guid: 36f0e2559b8cd6c4488149cde5286e0e, type: 2}
+  - {fileID: 11400000, guid: aede63e51664b3f47a52fd732ea268a4, type: 2}
   robotCategories:
   - {fileID: 11400000, guid: 22073902b8aebe84b87b86d28df81eee, type: 2}
   categoryListRoot: {fileID: 4496559353054607718}
@@ -361,6 +363,8 @@ MonoBehaviour:
   workerItemPrefab: {fileID: 531549051158065116, guid: 685a2a8a70832174b91a4b2cec6e9076, type: 3}
   title: Workforce Market
   icon: {fileID: 0}
+  displayPerPage: 15
+  page: 0
 --- !u!1 &8836559798215587866
 GameObject:
   m_ObjectHideFlags: 0

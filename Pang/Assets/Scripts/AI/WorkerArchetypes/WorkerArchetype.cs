@@ -1,39 +1,28 @@
 ﻿using Unity.VisualScripting;
-using UnityEngine;
 
-public enum WorkerType
+[System.Serializable]
+public class WorkerArchetype
 {
-	FullTime,
-	PartTime,
-	Illegal,
-	Robot,
-}
+	public WorkerNameDefinition workerNameDefinition;
+	public WorkerVisualDefinition workerVisualDefinition;
+	public WorkerAbilityDefinition AbilityDefinition;
+	public WorkerBaseStatDefinition WorkerBaseStat;
 
-[CreateAssetMenu(menuName = "Worker/Archetype")]
-public class WorkerArchetype : ScriptableObject
-{
-	[Header("기본 정보")]
-	public string workerName;
-	public WorkerType workerType;
-
-	[Header("공통 스텟, 추가 예정")]
-	public float baseMoveSpeedMultiplier = 1.0f;
-	public float minimumMoveSpeedMultiplier = 0.5f;
-	public float baseWorkSpeedMultiplier = 1.0f;
-	public float minimumWorkSpeedMultiplier = 0.5f;
-	public int monthlyCost;
-
-	// 아 배열로 넣고 하고싶다,,,
-	[Header("Worker's Ability")]
-	public WorkerAbility abilities;
+	public WorkerArchetype(WorkerNameDefinition workerName, WorkerVisualDefinition workerVisual, WorkerAbilityDefinition abilityDefinition, WorkerBaseStatDefinition workerBaseStat)
+	{
+		workerNameDefinition = workerName;
+		workerVisualDefinition = workerVisual;
+		AbilityDefinition = abilityDefinition;
+		WorkerBaseStat = workerBaseStat;
+	}
 
 	public void SetupWorker(AIWorker worker)
 	{
-		if (abilities.HasFlag(WorkerAbility.CargoHandling))		worker.AddComponent<CargoHandlingAbility>();
-		if (abilities.HasFlag(WorkerAbility.CarryBox))			worker.AddComponent<CarryBoxAbility>();
-		if (abilities.HasFlag(WorkerAbility.Labeling))			worker.AddComponent<LabelingAbility>();
-		if (abilities.HasFlag(WorkerAbility.Packing))			worker.AddComponent<PackageAbility>();
-		if (abilities.HasFlag(WorkerAbility.PickingStoring))	worker.AddComponent<PickStoreAbility>();
+		if (AbilityDefinition.abilities.HasFlag(WorkerAbility.CargoHandling))		worker.AddComponent<CargoHandlingAbility>();
+		if (AbilityDefinition.abilities.HasFlag(WorkerAbility.CarryBox))			worker.AddComponent<CarryBoxAbility>();
+		if (AbilityDefinition.abilities.HasFlag(WorkerAbility.Labeling))			worker.AddComponent<LabelingAbility>();
+		if (AbilityDefinition.abilities.HasFlag(WorkerAbility.Packing))				worker.AddComponent<PackageAbility>();
+		if (AbilityDefinition.abilities.HasFlag(WorkerAbility.PickingStoring))		worker.AddComponent<PickStoreAbility>();
 	}
 
 }

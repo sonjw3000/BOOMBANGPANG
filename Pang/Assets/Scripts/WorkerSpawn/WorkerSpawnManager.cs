@@ -52,7 +52,7 @@ public class WorkerSpawnManager : MonoBehaviour
 			return false;
 		}
 
-		ZoneType zoneType = archetype.workerType.ToSpawnZoneType();
+		ZoneType zoneType = archetype.AbilityDefinition.workerType.ToSpawnZoneType();
 		if (TryGetSpawnDefinition(zoneType, out var spawnDefinition) == false)
 		{
 			Debug.LogWarning($"Worker spawn definition is missing for {zoneType}");
@@ -61,7 +61,7 @@ public class WorkerSpawnManager : MonoBehaviour
 
 		if (TryGetSpawnPoint(zoneType, spawnDefinition, out var spawnZone, out var spawnPoint) == false)
 		{
-			Debug.LogWarning($"No available spawn point for {archetype.name} ({zoneType})");
+			//Debug.LogWarning($"No available spawn point for {archetype.name} ({zoneType})");
 			return false;
 		}
 
