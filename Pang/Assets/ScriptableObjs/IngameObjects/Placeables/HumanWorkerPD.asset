@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ea39cd9d2906294b915277300334413, type: 3}
+  m_Name: HumanWorkerPD
+  m_EditorClassIdentifier: 
+  placeableID: PalletRobot_00
+  displayName: PalletRobot
+  icon: {fileID: -4566190091907096745, guid: 83392a0c45d009b4ca9b8bc8ec04cc55, type: 3}
+  prefab: {fileID: 4046099219731300723, guid: 880b2d8adc62f7d4aa4b1b1b77c0e23d, type: 3}
+  gridFootprint: {fileID: 11400000, guid: 49041a8338c2ff0458278621b2ceac95, type: 2}
+  definitionType: 2
+  Cost: 10

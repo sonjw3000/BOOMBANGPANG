@@ -267,10 +267,10 @@ MonoBehaviour:
   randomSearchCountPerZone: 12
   spawnDefinitions:
   - zoneType: 1
-    placeableDefinition: {fileID: 11400000, guid: d21e03551e5d2f84097e9b13284bf46c, type: 2}
+    placeableDefinition: {fileID: 11400000, guid: 0155fd8c9b5ebf04e9510c074c29badf, type: 2}
     facingDirection: 0
   - zoneType: 0
-    placeableDefinition: {fileID: 11400000, guid: d21e03551e5d2f84097e9b13284bf46c, type: 2}
+    placeableDefinition: {fileID: 11400000, guid: c60b80c613183a6459b8323e63293c9c, type: 2}
     facingDirection: 0
 --- !u!1 &875820236229004950
 GameObject:
@@ -433,6 +433,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PathFindingService
   activeJobLimit: 5
   stepBudgetPerFrame: 500
+  plannedPathCongestionCost: 2
+  stalePlannedPathCongestionCost: 6
 --- !u!1 &2108312062391713874
 GameObject:
   m_ObjectHideFlags: 0
@@ -820,7 +822,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ZoneManager
   registeredZones: []
-  workerSpawnAreaPresets: []
 --- !u!1 &4035456000139343244
 GameObject:
   m_ObjectHideFlags: 0

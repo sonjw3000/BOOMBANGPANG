@@ -97,10 +97,14 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private WorkerTask currentTask = null;
 	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
 
+	[Header("Visual")]
+	[SerializeField] private Transform visualRoot;
+
 	private FindRoute routeFinder;
 	private BehaviorTree behaviorTree;
 	private readonly BlackBoard localBlackBoard = new();
 	private WorkerStatusInfo workerState = WorkerStatusInfo.None;
+	private GameObject currentVisualInstance;
 
 	private int3 position;
 	private FacingDirection facingDirection;
@@ -192,7 +196,29 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		baseWorkSpeedMultiplier = archetype.WorkerBaseStat.baseWorkSpeedMultiplier;
 		minimumWorkSpeedMultiplier = archetype.WorkerBaseStat.minimumWorkSpeedMultiplier;
 
+		ApplyVisual(archetype.WorkerVisualDefinition);
 		archetype.SetupWorker(this);
+	}
+
+	private void ApplyVisual(WorkerVisualDefinition visualDefinition)
+	{
+		if (currentVisualInstance != null)
+		{
+			Destroy(currentVisualInstance);
+			currentVisualInstance = null;
+		}
+
+		if (visualDefinition == null || visualDefinition.Prefab == null)
+			return;
+
+		Transform targetRoot = visualRoot != null ? visualRoot : transform;
+		currentVisualInstance = Instantiate(visualDefinition.Prefab, targetRoot);
+		currentVisualInstance.transform.localPosition = Vector3.zero;
+		currentVisualInstance.transform.localRotation = Quaternion.identity;
+		currentVisualInstance.transform.localScale = Vector3.one;
+
+		// Keep presentation under VisualRoot so animation/presenter components can be added later
+		// without mixing visual-only hierarchy concerns into gameplay/root components.
 	}
 
 	private void Start()

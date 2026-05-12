@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51d80e577b235904d95f599b26aa4bac, type: 3}
   m_Name: Transfer_Visual
   m_EditorClassIdentifier: Assembly-CSharp::WorkerVisualDefinition
-  Prefab: {fileID: 0}
+  Prefab: {fileID: 169019862425434347, guid: 2b6e5fa2bdeacb8439110d54dd0cabe5, type: 3}
   icon: {fileID: 0}
