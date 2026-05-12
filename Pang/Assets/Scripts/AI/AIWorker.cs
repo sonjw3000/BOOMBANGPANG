@@ -138,12 +138,15 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public WorkerTask CurrentTask => currentTask;
 	public WorkerTask.TaskType TaskType => workerMainTaskType;
 	public IInteractionPoint CurrentWorkingBuilding => currentWorkingPoint;
+	public bool IsAssignedToPackingStation => currentWorkingPoint is PackingStation;
 
 	// worker show stat
 	public WorkerStatusInfo WorkerState => workerState;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.None;
 
 	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
+	static private GridService GridService => GameContext.Instance.GridService;
+	static private ZoneManager ZoneManager => GameContext.Instance.ZoneMgr;
 
 	// worker show stat setting
 	public void SetWorkerAction(WorkerStatusAction action) 
@@ -297,6 +300,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public void SetTask(WorkerTask task)
 	{
+		if (GameContext.HasInstance && task != null)
+			WorkerMgr.RemoveIdleWorker(this);
+
 		task?.SetAIWorker(this);
 		currentTask = task;
 	}
@@ -353,10 +359,146 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		currentWorkingPoint = workingPoint;
 	}
 
+	public bool CanAcceptGeneralTask(WorkerTask.TaskType taskType)
+	{
+		if (currentTask != null || TaskType != taskType)
+			return false;
+
+		if (IsAssignedToPackingStation)
+			return false;
+
+		if (NeedsRecovery() && TryFindRecoveryPoint(out _))
+			return false;
+
+		return true;
+	}
+
+	public bool CanAcceptGeneralTask(WorkerTask task)
+	{
+		return task != null && CanAcceptGeneralTask(task.Type);
+	}
+
+	public bool CanAcceptPreferredTask(WorkerTask task)
+	{
+		if (currentTask != null || task == null || TaskType != task.Type)
+			return false;
+
+		if (task is PackingTask packingTask)
+		{
+			PackingStation targetStation = packingTask.TargetStation;
+			if (targetStation == null)
+				return false;
+
+			return targetStation.CurrentPackingWorker == this;
+		}
+
+		return CanAcceptGeneralTask(task);
+	}
+
+	public void UpdatePackingRecoveryState()
+	{
+		if (CurrentWorkingBuilding is PackingStation station)
+			station.SetIncomingRequestSuspended(NeedsRecovery());
+	}
+
+	public bool CanLeaveAssignedStationForRecovery()
+	{
+		if (CurrentWorkingBuilding is not PackingStation station)
+			return true;
+
+		return station.CanAssignedWorkerLeaveForRecovery();
+	}
+
+	public bool TryCanBeginRecovery(out int3 recoveryPoint)
+	{
+		recoveryPoint = default;
+
+		if (NeedsRecovery() == false)
+			return false;
+
+		if (CanLeaveAssignedStationForRecovery() == false)
+			return false;
+
+		return TryFindRecoveryPoint(out recoveryPoint);
+	}
+
+	public void BeginRecovery()
+	{
+		if (CurrentWorkingBuilding is PackingStation station)
+		{
+			station.CurrentPackingWorker = null;
+			station.RefreshWaitingState();
+		}
+	}
+
+	public bool TryFindRecoveryPoint(out int3 recoveryPoint)
+	{
+		recoveryPoint = default;
+
+		if (ZoneManager == null)
+			return false;
+
+		if (ZoneManager.TryGetZones(out var zones, GridPosition.y, GetRecoveryZoneType()) == false)
+			return false;
+
+		int startIndex = UnityEngine.Random.Range(0, zones.Count);
+		for (int i = 0; i < zones.Count; ++i)
+		{
+			var zone = zones[(startIndex + i) % zones.Count];
+			if (TryFindPointInZone(zone, out recoveryPoint))
+				return true;
+		}
+
+		return false;
+	}
+
+	private bool TryFindPointInZone(ZoneArea zone, out int3 recoveryPoint)
+	{
+		for (int i = 0; i < 8; ++i)
+		{
+			zone.GetRandomPoint(out var candidate);
+			if (IsRecoveryPointAvailable(candidate))
+			{
+				recoveryPoint = candidate;
+				return true;
+			}
+		}
+
+		for (int z = zone.Bounds.yMin; z < zone.Bounds.yMax; ++z)
+		{
+			for (int x = zone.Bounds.xMin; x < zone.Bounds.xMax; ++x)
+			{
+				var candidate = new int3(x, zone.Floor, z);
+				if (IsRecoveryPointAvailable(candidate))
+				{
+					recoveryPoint = candidate;
+					return true;
+				}
+			}
+		}
+
+		recoveryPoint = default;
+		return false;
+	}
+
+	private bool IsRecoveryPointAvailable(in int3 candidate)
+	{
+		var cell = GridService?.GetCell(candidate);
+		if (cell == null || cell.IsBlocked)
+			return false;
+
+		return cell.CanPlaceObject || candidate.Equals(GridPosition);
+	}
+
 	public virtual float GetWorkSpeedMultiplier() { return 1.0f; }
 	public virtual float GetMoveSpeedMultiplier() { return 1.0f; }
 	public virtual void OnTaskCompleted() { }
 	public virtual void TickVitals(float deltaTime) { }
+	public abstract bool NeedsRecovery();
+	public abstract bool IsRecoveryComplete();
+	public abstract void TickRecovery(float deltaTime);
+	public abstract WorkerStatusAction GetRecoveryAction();
+	public abstract ZoneType GetRecoveryZoneType();
 
 	public abstract void AddFatigue(float fatigue);
 	public abstract float GetFatigue();

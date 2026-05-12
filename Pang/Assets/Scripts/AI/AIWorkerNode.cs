@@ -12,8 +12,18 @@ public abstract partial class AIWorker
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 	static private WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
 	static private HumanIncidentService HumanIncident => GameContext.Instance.HumanIncident;
+	private static readonly string RecoveryGoalKey = "RecoveryGoalPos";
 
 	protected virtual IBaseNode BuildWorkerBaseNode() { return null; }
+	protected static SequenceNode BuildRecoveryNode()
+	{
+		SequenceNode root = new();
+		root.Add(new ActionNode(CheckRecoveryNeeded));
+		root.Add(MoveToRecoveryPoint());
+		root.Add(new ActionNode(Recover));
+
+		return root;
+	}
 
 	// AI's basic actions
 	public static NodeState CheckFulfilled(in BTContext ctx)
@@ -142,14 +152,6 @@ public abstract partial class AIWorker
 		var task = ctx.Worker.CurrentTask;
 		task.EndTask();
 
-		//Debug.Log("TaskCompleted!");
-
-		// todo
-		// 이벤트로 만들어보자
-		// task end actions
-
-		WorkerMgr.AddIdleWorker(ctx.Worker);
-
 		return Success;
 	}
 
@@ -231,6 +233,23 @@ public abstract partial class AIWorker
 		return node;
 	}
 
+	private static SequenceNode MoveToRecoveryPoint()
+	{
+		SequenceNode node = new();
+		node.Add(new ActionNode((in BTContext ctx) =>
+		{
+			if (ctx.LocalBlackBoard.TryGet(RecoveryGoalKey, out int3 goalPos) == false)
+				return Failure;
+
+			ctx.Worker.routeFinder.enabled = true;
+			ctx.Worker.routeFinder.SetGoalPosition(goalPos);
+			return Success;
+		}));
+		node.Add(new ActionNode(MoveTo));
+
+		return node;
+	}
+
 	public static SelectorNode CheckBoxAndGet(BoxType boxRequirement)
 	{
 		SelectorNode node = new();
@@ -281,6 +300,32 @@ public abstract partial class AIWorker
 		}));
 
 		return node;
+	}
+
+	protected static NodeState CheckRecoveryNeeded(in BTContext ctx)
+	{
+		if (ctx.Worker.CurrentTask != null)
+			return Failure;
+
+		if (ctx.Worker.TryCanBeginRecovery(out var recoveryPoint) == false)
+			return Failure;
+
+		ctx.Worker.BeginRecovery();
+		ctx.LocalBlackBoard.Set(RecoveryGoalKey, recoveryPoint);
+		return Success;
+	}
+
+	protected static NodeState Recover(in BTContext ctx)
+	{
+		ctx.Worker.SetWorkerAction(ctx.Worker.GetRecoveryAction());
+		ctx.Worker.TickRecovery(ctx.DeltaTime);
+
+		if (ctx.Worker.IsRecoveryComplete() == false)
+			return Running;
+
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.None);
+		ctx.LocalBlackBoard.Remove<int3>(RecoveryGoalKey);
+		return Success;
 	}
 
 	// for incident

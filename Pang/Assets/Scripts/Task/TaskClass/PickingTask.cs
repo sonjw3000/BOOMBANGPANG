@@ -109,10 +109,10 @@ public sealed class PickingTask : WorkerTask
 
 	public static NodeState GetAvailablePackingStation(in BTContext ctx)
 	{
-		PackingService.TryGetWaitingStation(out var targetStation);
+		PackingService.TryReserveWaitingStation(ctx.Worker, out var targetStation);
 
 		ctx.LocalBlackBoard.SetTargetBuilding(targetStation);
-		return Success;
+		return targetStation != null ? Success : Failure;
 	}
 
 	public static NodeState PickingEndAction(in BTContext ctx)
@@ -129,6 +129,7 @@ public sealed class PickingTask : WorkerTask
 			}
 			else if (box != null)
 			{
+				station.ClearIncomingBoxReservation(ctx.Worker);
 				task.carryBox.PutBox(box);
 			}
 		}

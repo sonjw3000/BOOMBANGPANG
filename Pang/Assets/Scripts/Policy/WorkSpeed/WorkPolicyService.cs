@@ -17,6 +17,10 @@ public class WorkPolicyService : MonoBehaviour
 	// worker rest/charge
 	[SerializeField] private float workerRestFatigue = 70.0f;
 	[SerializeField] private float robotChargeBattery = 30.0f;
+	[SerializeField] private float workerRestTargetFatigue = 20.0f;
+	[SerializeField] private float robotChargeTargetBattery = 80.0f;
+	[SerializeField] private float workerRestRecoveryPerSecond = 15.0f;
+	[SerializeField] private float robotChargeRecoveryPerSecond = 20.0f;
 
 	public float GetMoveSpeed(AIWorker targetWorker) 
 		=> workPolicy.moveSpeed[targetWorker.WorkerType]
@@ -34,6 +38,13 @@ public class WorkPolicyService : MonoBehaviour
 
 	public float GetBoost(AIWorker targetWorker, WorkActionType actionType)
 		=> workTimeBoost[targetWorker.WorkerType][actionType];
+
+	public float WorkerRestFatigueThreshold => workerRestFatigue;
+	public float RobotChargeBatteryThreshold => robotChargeBattery;
+	public float WorkerRestTargetFatigue => workerRestTargetFatigue;
+	public float RobotChargeTargetBattery => robotChargeTargetBattery;
+	public float WorkerRestRecoveryPerSecond => workerRestRecoveryPerSecond;
+	public float RobotChargeRecoveryPerSecond => robotChargeRecoveryPerSecond;
 
 	public bool IsTargetHigherPriority(AIWorker targetWorker, AIWorker other)
 	{

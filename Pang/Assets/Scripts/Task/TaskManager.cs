@@ -40,18 +40,21 @@ public class TaskManager : MonoBehaviour
 		// find tasks to do
 		foreach (var (key, queue) in taskQueue)
 		{
-			while (queue.Count > 0)
+			var node = queue.First;
+			while (node != null)
 			{
-				WorkerTask data = queue.First.Value;
+				var next = node.Next;
+				WorkerTask data = node.Value;
 				AIWorker worker = GameContext.Instance.WorkerMgr.GetAvailableWorkers(data);
 
-				// if no available workers break;
-				if (worker == null)
-					break;
+				if (worker != null)
+				{
+					queue.Remove(node);
+					worker.SetTask(data);
+					taskOnProgress[key].AddLast(data);
+				}
 
-				queue.RemoveFirst();
-				worker.SetTask(data);
-				taskOnProgress[key].AddLast(data);
+				node = next;
 			}
 		}
 	}
@@ -75,6 +78,7 @@ public class TaskManager : MonoBehaviour
 
 			// OB
 			case TaskType.Picking:
+			case TaskType.Packing:
 			//case TaskType.Sorting:
 			//case TaskType.Packaging:
 			case TaskType.Loading:
