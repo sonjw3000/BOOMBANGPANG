@@ -24,6 +24,15 @@ public class ZoneArea
 	}
 
 	public void Resize(in RectInt bound) => this.bound = bound;
+	public void Rename(string newDisplayName) => displayName = newDisplayName;
+
+	public bool Contains(in int3 pos)
+	{
+		if (pos.y != floor)
+			return false;
+
+		return bound.Contains(new Vector2Int(pos.x, pos.z));
+	}
 
 	public void GetRandomPoint(out int3 val)
 	{

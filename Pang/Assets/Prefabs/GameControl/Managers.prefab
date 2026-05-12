@@ -787,6 +787,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2328145040729025625}
   - component: {fileID: 3365747867954475864}
+  - component: {fileID: 1150268374612000001}
   m_Layer: 0
   m_Name: ZoneManager
   m_TagString: Untagged
@@ -822,6 +823,40 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ZoneManager
   registeredZones: []
+  zoneColors:
+    _serializedList:
+    - Key: 0
+      Value: {r: 0.32, g: 0.74, b: 0.98, a: 1}
+    - Key: 1
+      Value: {r: 1, g: 0.63, b: 0.2, a: 1}
+    - Key: 2
+      Value: {r: 0.52, g: 0.86, b: 0.46, a: 1}
+    - Key: 3
+      Value: {r: 0.95, g: 0.85, b: 0.36, a: 1}
+    - Key: 4
+      Value: {r: 0.94, g: 0.45, b: 0.45, a: 1}
+    - Key: 5
+      Value: {r: 0.48, g: 0.66, b: 0.95, a: 1}
+--- !u!114 &1150268374612000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3704459829102123052}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f98110844e454474c8ef5a91b7e3ae8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ZoneOverlayController
+  zoneManager: {fileID: 3365747867954475864}
+  previewPoolSize: 8
+  zoneOverlayHeight: 0.02
+  labelHeight: 0.03
+  previewHeight: 0.035
+  overlayAlpha: 0.25
+  invalidPreviewColor: {r: 1, g: 0.25, b: 0.25, a: 0.4}
+  currentFloor: 0
 --- !u!1 &4035456000139343244
 GameObject:
   m_ObjectHideFlags: 0

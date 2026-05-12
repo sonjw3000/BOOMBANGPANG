@@ -58,6 +58,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private WMSystem warehouseManagement;
 	[SerializeField] private ContractService contractService;
 	[SerializeField] private PathFindingService pathFindingService;
+	[SerializeField] private ZoneManager zoneManager;
 
 	[Header("��ũ�÷ο� �Ŵ���")]
 	// workflow managers
@@ -94,7 +95,7 @@ public class GameContext : MonoBehaviour
 		get
 		{
 			if (workerSpawnManager == null)
-				workerSpawnManager = FindObjectOfType<WorkerSpawnManager>();
+				workerSpawnManager = FindFirstObjectByType<WorkerSpawnManager>();
 
 			return workerSpawnManager;
 		}
@@ -107,6 +108,16 @@ public class GameContext : MonoBehaviour
 	public WMSystem WMSys => warehouseManagement;
 	public ContractService ContractMgr => contractService;
 	public PathFindingService PathFinding => pathFindingService;
+	public ZoneManager ZoneMgr
+	{
+		get
+		{
+			if (zoneManager == null)
+				zoneManager = FindFirstObjectByType<ZoneManager>();
+
+			return zoneManager;
+		}
+	}
 
 	public InboundWorkflowManager IBWorkflowMgr => inboundWorkFlowManager;
 	public OutboundWorkflowManager OBWorkflowMgr => outboundWorkFlowManager;

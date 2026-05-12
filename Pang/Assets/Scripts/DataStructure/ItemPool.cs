@@ -34,10 +34,12 @@ public class GameObjectPool
 		}
 
 		if (item == null)
+		{
 			item = factory();
+			items.Add(item);
+		}
 
 		item.SetActive(true);
-		items.Add(item);
 		return item;
 	}
 

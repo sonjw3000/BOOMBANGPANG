@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AYellowpaper.SerializedCollections;
 using UnityEngine;
 
 public enum ZoneType
@@ -30,10 +31,17 @@ public static class WorkerSpawnZoneType
 public class ZoneManager : MonoBehaviour
 {
 	[SerializeField] private List<ZoneArea> registeredZones = new();
+	[SerializedDictionary("ZoneType", "OverlayColor")]
+	[SerializeField] private SerializedDictionary<ZoneType, Color> zoneColors = new();
 
 	private readonly Dictionary<int, Dictionary<ZoneType, List<ZoneArea>>> zones = new();
 
 	public IReadOnlyList<ZoneArea> RegisteredZones => registeredZones;
+
+	public event Action<ZoneArea> OnZoneAdded;
+	public event Action<ZoneArea> OnZoneRemoved;
+	public event Action<ZoneArea> OnZoneChanged;
+	public event Action OnZonesRebuilt;
 
 	private void Awake()
 	{
@@ -71,6 +79,8 @@ public class ZoneManager : MonoBehaviour
 		{
 			RegisterZone(zone);
 		}
+
+		OnZonesRebuilt?.Invoke();
 	}
 
 	private void RegisterZone(ZoneArea zone)
@@ -108,9 +118,17 @@ public class ZoneManager : MonoBehaviour
 		return false;
 	}
 
+	public bool CanPlaceZone(int floor, in RectInt bound, ZoneArea ignore = null)
+	{
+		if (bound.width <= 0 || bound.height <= 0)
+			return false;
+
+		return HasOverlap(floor, bound, ignore) == false;
+	}
+
 	public ZoneArea AddZone(string name, ZoneType type, in RectInt bound, int floor)
 	{
-		if (HasOverlap(floor, bound))
+		if (CanPlaceZone(floor, bound) == false)
 		{
 			Debug.Log($"Zone {name} is overlapped by another zone");
 			return null;
@@ -119,8 +137,14 @@ public class ZoneManager : MonoBehaviour
 		ZoneArea res = new(name, type, bound, floor);
 		registeredZones.Add(res);
 		RegisterZone(res);
+		OnZoneAdded?.Invoke(res);
 
 		return res;
+	}
+
+	public ZoneArea AddZone(ZoneType type, in RectInt bound, int floor)
+	{
+		return AddZone(BuildDefaultZoneName(type), type, bound, floor);
 	}
 
 	public bool RemoveZone(ZoneArea zone)
@@ -132,6 +156,7 @@ public class ZoneManager : MonoBehaviour
 
 		targetZones.Remove(zone);
 		registeredZones.Remove(zone);
+		OnZoneRemoved?.Invoke(zone);
 		return true;
 	}
 
@@ -140,13 +165,24 @@ public class ZoneManager : MonoBehaviour
 		if (CheckHavingZone(zone) == false)
 			return false;
 
-		if (HasOverlap(zone.Floor, newBound, zone))
+		if (CanPlaceZone(zone.Floor, newBound, zone) == false)
 		{
 			Debug.Log("Zone Resize Failed!, Out of bound!");
 			return false;
 		}
 
 		zone.Resize(newBound);
+		OnZoneChanged?.Invoke(zone);
+		return true;
+	}
+
+	public bool RenameZone(ZoneArea zone, string newName)
+	{
+		if (CheckHavingZone(zone) == false)
+			return false;
+
+		zone.Rename(newName);
+		OnZoneChanged?.Invoke(zone);
 		return true;
 	}
 
@@ -159,6 +195,28 @@ public class ZoneManager : MonoBehaviour
 
 		result = zones[floor][zoneType];
 		return result.Count > 0;
+	}
+
+	public bool TryGetZoneAt(in Unity.Mathematics.int3 pos, out ZoneArea result)
+	{
+		result = null;
+
+		if (zones.ContainsKey(pos.y) == false)
+			return false;
+
+		foreach (var list in zones[pos.y].Values)
+		{
+			foreach (var zone in list)
+			{
+				if (zone.Contains(pos))
+				{
+					result = zone;
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	public bool TryGetAvailableZone(out ZoneArea result, int floor, ZoneType zoneType, Predicate<ZoneArea> pred = null)
@@ -178,5 +236,28 @@ public class ZoneManager : MonoBehaviour
 		}
 
 		return false;
+	}
+
+	public Color GetZoneColor(ZoneType zoneType)
+	{
+		if (zoneColors.TryGetValue(zoneType, out var color))
+			return color;
+
+		return new Color(1f, 1f, 1f, 0.2f);
+	}
+
+	private string BuildDefaultZoneName(ZoneType zoneType)
+	{
+		string baseName = zoneType.ToString();
+		int suffix = 1;
+		string candidate = baseName;
+
+		while (registeredZones.Exists(zone => zone != null && zone.DisplayName == candidate))
+		{
+			suffix += 1;
+			candidate = $"{baseName} {suffix}";
+		}
+
+		return candidate;
 	}
 }

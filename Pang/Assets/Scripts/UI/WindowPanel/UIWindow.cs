@@ -23,6 +23,11 @@ namespace Assets.Scripts.UI
 		[SerializeField] private GameObject tabButtonPrefab;
 		private List<TabButton> tabButtons = new List<TabButton>();
 
+		public event Action Opened;
+		public event Action Closed;
+
+		public bool IsOpen => root != null && root.activeSelf;
+
 		public RectTransform ContentRoot => contentRoot;
 		public RectTransform RootRect => root != null ? root.GetComponent<RectTransform>() : GetComponent<RectTransform>();
 
@@ -126,6 +131,7 @@ namespace Assets.Scripts.UI
 		public void Open()
 		{
 			root.SetActive(true);
+			Opened?.Invoke();
 			
 			// Reset scroll position to top if ScrollRect exists
 			var scrollRect = GetComponentInChildren<UnityEngine.UI.ScrollRect>(true);
@@ -141,6 +147,7 @@ namespace Assets.Scripts.UI
 			// 사라지는 애니메이션 재생
 
 			root.SetActive(false);
+			Closed?.Invoke();
 		}
 
 	}

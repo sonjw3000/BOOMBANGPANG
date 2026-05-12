@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-
 public class SelectionUIMaster : MonoBehaviour
 {
 	[Header("Select UIs")]
@@ -17,13 +16,13 @@ public class SelectionUIMaster : MonoBehaviour
 	private DetailContentBase currentDetailContent = null;
 	private GameObject currentObj = null;
 
-
 	private void Awake()
 	{
 		providers[typeof(Shelf)] = new ShelfUIProvider();
 		providers[typeof(BoxPool)] = new BoxPoolUIProvider();
 		providers[typeof(HumanWorker)] = new HumanWorkerUIProvider();
 		providers[typeof(CargoPort)] = new CargoPortUIProvider();
+		providers[typeof(ZoneSelectionProxy)] = new ZoneUIProvider();
 
 		GameContext.Instance.InteractionCtx.OnItemSelected += OnSelected;
 
@@ -31,17 +30,13 @@ public class SelectionUIMaster : MonoBehaviour
 		cardUI.DetailsButton.onClick.AddListener(OnDetailClicked);
 	}
 
-	private void Start()
-	{
-
-	}
-
 	private void OnDisable()
 	{
-		//cardUI.DetailsButton.onClick.RemoveListener(OnDetailClicked);
-		//cardUI.FocusButton.onClick.RemoveListener(OnFocusBtnClicked);
+		cardUI.DetailsButton.onClick.RemoveListener(OnDetailClicked);
+		cardUI.FocusButton.onClick.RemoveListener(OnFocusBtnClicked);
 
-		//GameContext.Instance.InteractionCtx.OnItemSelected -= OnSelected;
+		if (GameContext.HasInstance && GameContext.Instance.InteractionCtx != null)
+			GameContext.Instance.InteractionCtx.OnItemSelected -= OnSelected;
 	}
 
 	private void Update()
@@ -65,10 +60,7 @@ public class SelectionUIMaster : MonoBehaviour
 		currentProvider = null;
 
 		if (currentObj == null)
-		{
-			//Debug.LogError("Current Object is null");
 			return false;
-		}
 
 		foreach (var prov in providers.Values)
 		{
@@ -80,7 +72,6 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 
 		Debug.LogWarning($"No suitable UI Provider found for the selected object, Target: {currentObj.name}");
-
 		return false;
 	}
 
@@ -88,7 +79,6 @@ public class SelectionUIMaster : MonoBehaviour
 	{
 		if (currentProvider == null)
 		{
-			// disalbe
 			DisableCard();
 			detailUI.gameObject.SetActive(false);
 			return;
@@ -97,7 +87,6 @@ public class SelectionUIMaster : MonoBehaviour
 		currentProvider.LinkObject(currentObj);
 		currentProvider.BuildInfoBlocks();
 
-		// enable card UI
 		cardUI.SetUpCard(currentProvider);
 		cardUI.gameObject.SetActive(true);
 	}
@@ -110,7 +99,13 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnDetailClicked()
 	{
-		// 여기서 각 UIProvider에 맞는 DetailUI를 활성화 시켜줘야함
+		if (currentProvider is ZoneUIProvider zoneProvider)
+		{
+			detailUI.SetZoneDetail(zoneProvider);
+			detailUI.gameObject.SetActive(true);
+			return;
+		}
+
 		currentDetailContent?.gameObject.SetActive(false);
 		currentDetailContent = null;
 
@@ -137,6 +132,5 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnFocusBtnClicked()
 	{
-
 	}
 }

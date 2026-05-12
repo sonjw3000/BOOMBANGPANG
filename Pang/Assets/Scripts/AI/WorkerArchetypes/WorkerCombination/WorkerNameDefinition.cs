@@ -1,6 +1,6 @@
 ﻿
 [System.Serializable]
-public class WorkerNameDefinition
+public struct WorkerNameDefinition
 {
 	public string WorkerFirstName;
 	public string WorkerLastName;

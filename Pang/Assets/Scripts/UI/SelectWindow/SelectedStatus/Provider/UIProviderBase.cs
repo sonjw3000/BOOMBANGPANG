@@ -25,7 +25,7 @@ public abstract class UIProviderBase
 	protected virtual void OnDataChanged() { }
 	public virtual void OnUpdate() { }
 
-	public void DeleteObject()
+	public virtual void DeleteObject()
 	{
 		if (linkedObject == null) return;
 
