@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HumanMarketData
   workforceMarketName: Part Timers
   workerNames:
+  - WorkerFirstName: Minsub
+    WorkerLastName: Kim
   - WorkerFirstName: Jinbum
     WorkerLastName: Kim
   - WorkerFirstName: HyeonHo

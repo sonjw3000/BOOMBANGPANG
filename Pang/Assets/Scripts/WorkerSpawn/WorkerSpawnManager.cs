@@ -24,6 +24,16 @@ public class WorkerSpawnManager : MonoBehaviour
 	[SerializeField] private List<WorkerSpawnDefinition> spawnDefinitions = new();
 
 	private GridService GridService => GameContext.Instance.GridService;
+	private ZoneManager ZoneManager
+	{
+		get
+		{
+			if (zoneManager == null && GameContext.HasInstance)
+				zoneManager = GameContext.Instance.ZoneMgr;
+
+			return zoneManager;
+		}
+	}
 
 #if UNITY_EDITOR
 	private void OnValidate()
@@ -46,7 +56,7 @@ public class WorkerSpawnManager : MonoBehaviour
 			return false;
 		}
 
-		if (zoneManager == null)
+		if (ZoneManager == null)
 		{
 			Debug.LogWarning("Worker spawn request failed: ZoneManager is not assigned");
 			return false;
@@ -92,7 +102,7 @@ public class WorkerSpawnManager : MonoBehaviour
 		spawnZone = null;
 		spawnPoint = default;
 
-		if (zoneManager.TryGetZones(out var zones, workerSpawnFloor, zoneType) == false)
+		if (ZoneManager.TryGetZones(out var zones, workerSpawnFloor, zoneType) == false)
 			return false;
 
 		int startIndex = UnityEngine.Random.Range(0, zones.Count);

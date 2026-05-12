@@ -2,13 +2,14 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-
 public class RocketManager : GridPlaceableManager<Rocket>
 {
 	[SerializeField] private int initialPoolSize = 5;
-
-	[SerializeField] private int3 landingZoneCenter = new(10, 0, 10);
-	[SerializeField] private int landingZoneRadius = 5;
+	[SerializeField] private ZoneManager zoneManager;
+	[SerializeField] private ZoneType landingZoneType = ZoneType.RocketLanding;
+	[SerializeField] private int landingZoneFloor = 0;
+	[SerializeField] private int randomSearchCountPerZone = 12;
+	[SerializeField] private FacingDirection landingFacingDirection = FacingDirection.North;
 
 	[SerializeField] private Vector2 fallingTimeRange = new(3.0f, 7.0f);
 	[SerializeField] private Vector2 fallingSpeedRange = new(3.0f, 7.0f);
@@ -21,29 +22,32 @@ public class RocketManager : GridPlaceableManager<Rocket>
 	[SerializeField] private List<Rocket> activeRockets = new();
 	private readonly Queue<Rocket> rocketPool = new();
 
-	public int3 ZoneCenter => landingZoneCenter;
-	public int ZoneRadius => landingZoneRadius;
 	public IReadOnlyList<ShelfBase> Rockets => activeRockets;
 
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private InboundWorkflowManager IBWorkflowMgr => GameContext.Instance.IBWorkflowMgr;
-	//private Resources ResourceMgr => GameContext.Instance.MapResources;
 	private GridService GridService => GameContext.Instance.GridService;
-
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
+	private ZoneManager ZoneManager
+	{
+		get
+		{
+			if (zoneManager == null && GameContext.HasInstance)
+				zoneManager = GameContext.Instance.ZoneMgr;
+
+			return zoneManager;
+		}
+	}
 
 	private GameObject rocketPoolParent = null;
-
 	private PlaceableDefinition rocketPD;
 
 	private void Start()
 	{
-		rocketPD =  GameContext.Instance.PlaceableCatalog.FindById("TestRocket");
+		rocketPD = GameContext.Instance.PlaceableCatalog.FindById("TestRocket");
 
 		if (rocketPD == null)
-		{
 			Debug.LogError("No rocketPD");
-		}
 
 		if (rocketPoolParent == null)
 		{
@@ -52,22 +56,18 @@ public class RocketManager : GridPlaceableManager<Rocket>
 		}
 
 		for (int i = 0; i < initialPoolSize; ++i)
-		{
 			InstantiateNewRocket();
-		}
 	}
 
 	private void Update()
 	{
 		timeSinceLastSpawn += Time.deltaTime;
 
-		// spawn rocket every 10 seconds
 		if (timeSinceLastSpawn >= spawnInterval)
 		{
-			// 스폰 간격이 지났고 delivery 요구가 있으면 스폰
 			if (DeliveryService.TryPeek(out var _) == false)
 				return;
-		
+
 			timeSinceLastSpawn = 0.0f;
 			SpawnRocketOnRandom();
 		}
@@ -75,7 +75,10 @@ public class RocketManager : GridPlaceableManager<Rocket>
 
 	public void SpawnRocketOnRandom()
 	{
-		if (rocketPool.Count <= 0) 
+		if (TryGetLandingPoint(out _, out var landingPoint) == false)
+			return;
+
+		if (rocketPool.Count <= 0)
 			InstantiateNewRocket();
 
 		rocketPool.TryDequeue(out Rocket rocket);
@@ -86,35 +89,85 @@ public class RocketManager : GridPlaceableManager<Rocket>
 			return;
 		}
 
-		// set random landing point near gamecontext's rocket landing zone
-		// todo
-		// 모든 타일이 균등하게 선택될 수 있도록 수정해야 한다
-		int randomX = UnityEngine.Random.Range(-ZoneRadius, ZoneRadius + 1);
-		int absX = Mathf.Abs(randomX);
-		int randomZ = UnityEngine.Random.Range(-ZoneRadius + absX, ZoneRadius + 1 - absX);
-
-		int3 landingPoint = ZoneCenter + new int3(randomX, 0, randomZ);
-
 		float randomYRotation = UnityEngine.Random.Range(0.0f, 360.0f);
 		Quaternion rot = Quaternion.Euler(20.0f, randomYRotation, 180.0f);
 		rocket.transform.rotation = rot;
 
-		// set position and direction
 		Vector3 forwardVector = rot * new Vector3(0, 1, 0);
 
 		float randSpeed = UnityEngine.Random.Range(fallingSpeedRange.x, fallingSpeedRange.y);
 		float randTime = UnityEngine.Random.Range(fallingTimeRange.x, fallingTimeRange.y);
 		rocket.transform.position = new Vector3(landingPoint.x, landingPoint.y, landingPoint.z) - forwardVector * randTime;
 
-		// initialize rocket position
 		rocket.InitializePosition(landingPoint, forwardVector, randSpeed);
-
-		// set rocket's payload
 		rocket.SetupPayloadByDelivery();
-
-		// render on & rocket move on
 		rocket.enabled = true;
 		rocket.gameObject.SetActive(true);
+	}
+
+	private bool TryGetLandingPoint(out ZoneArea landingZone, out int3 landingPoint)
+	{
+		landingZone = null;
+		landingPoint = default;
+
+		if (ZoneManager == null || rocketPD == null)
+			return false;
+
+		if (ZoneManager.TryGetZones(out var zones, landingZoneFloor, landingZoneType) == false)
+			return false;
+
+		int startIndex = UnityEngine.Random.Range(0, zones.Count);
+		for (int i = 0; i < zones.Count; ++i)
+		{
+			var zone = zones[(startIndex + i) % zones.Count];
+			if (TryFindLandingPoint(zone, out landingPoint))
+			{
+				landingZone = zone;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private bool TryFindLandingPoint(ZoneArea zone, out int3 landingPoint)
+	{
+		for (int i = 0; i < Mathf.Max(1, randomSearchCountPerZone); ++i)
+		{
+			zone.GetRandomPoint(out var candidatePoint);
+			if (CanLand(candidatePoint))
+			{
+				landingPoint = candidatePoint;
+				return true;
+			}
+		}
+
+		for (int z = zone.Bounds.yMin; z < zone.Bounds.yMax; ++z)
+		{
+			for (int x = zone.Bounds.xMin; x < zone.Bounds.xMax; ++x)
+			{
+				var candidatePoint = new int3(x, zone.Floor, z);
+				if (CanLand(candidatePoint))
+				{
+					landingPoint = candidatePoint;
+					return true;
+				}
+			}
+		}
+
+		landingPoint = default;
+		return false;
+	}
+
+	private bool CanLand(in int3 candidatePoint)
+	{
+		if (rocketPD == null)
+			return false;
+
+		List<int3> possible = new();
+		List<int3> blocked = new();
+		PlacementContext context = new(candidatePoint, landingFacingDirection, rocketPD, PlacementEvent.RocketCrashLanding);
+		return GridService.OnCheckInstallable(context, possible, blocked) && blocked.Count == 0;
 	}
 
 	public Rocket GetRocketForLaunch(Vector3 position)
@@ -127,7 +180,7 @@ public class RocketManager : GridPlaceableManager<Rocket>
 		if (rocket != null)
 		{
 			rocket.transform.position = position;
-			rocket.transform.rotation = Quaternion.identity; // Upright for launch
+			rocket.transform.rotation = Quaternion.identity;
 			rocket.gameObject.SetActive(true);
 			activeRockets.Add(rocket);
 		}
@@ -137,11 +190,8 @@ public class RocketManager : GridPlaceableManager<Rocket>
 
 	public void DisableRocket(Rocket rocket)
 	{
-		// Unparent children (like cargo) so they don't stay attached in the pool
 		for (int i = rocket.transform.childCount - 1; i >= 0; i--)
-		{
 			rocket.transform.GetChild(i).SetParent(null);
-		}
 
 		rocket.gameObject.SetActive(false);
 		activeRockets.Remove(rocket);
@@ -158,43 +208,31 @@ public class RocketManager : GridPlaceableManager<Rocket>
 
 	private List<ItemStack> BuildRandomPayload()
 	{
-		// todo
-		// testing with random item
-		// 
-		// Todo
-		// 나중에는 유저의 주문에 따라서 (재고 물건 부족에 따라서)
-		// 아이템을 세팅해주어야 한다
-		// itemstack을 만들어서 넘겨주자!(payload라 명명)
-
 		List<ItemStack> payload = new();
-		
+
 		uint randomItemID = ItemDB.GetRandomItemID();
 		ItemStack newStack = new(randomItemID, rocketPayloadSize);
 		newStack.AddItem(10);
 
-		payload.Add(newStack);// { ItemID = randomItemID, Quantity = 10 };
-
+		payload.Add(newStack);
 		return payload;
 	}
 
 	public void OnRocketLanding(Rocket rocket)
 	{
-		// 해당 rocket을 activeRockets에 추가
 		activeRockets.Add(rocket);
 
 		PlacementContext ctx = new(
 			rocket.LandingPos,
-			FacingDirection.North,
+			landingFacingDirection,
 			rocketPD,
 			PlacementEvent.RocketCrashLanding,
 			rocket.gameObject
-			);
+		);
 
 		GridService.OnInstall(ctx);
-		
 		rocket.enabled = false;
 
 		IBWorkflowMgr.BuildTaskByPayload(rocket);
 	}
-
 }

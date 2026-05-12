@@ -1083,11 +1083,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   items: []
   initialPoolSize: 5
-  landingZoneCenter:
-    x: 10
-    y: 0
-    z: 20
-  landingZoneRadius: 5
+  zoneManager: {fileID: 3365747867954475864}
+  landingZoneType: 4
+  landingZoneFloor: 0
+  randomSearchCountPerZone: 12
+  landingFacingDirection: 0
   fallingTimeRange: {x: 3, y: 7}
   fallingSpeedRange: {x: 3, y: 7}
   timeSinceLastSpawn: 0
