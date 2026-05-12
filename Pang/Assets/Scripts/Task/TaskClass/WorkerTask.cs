@@ -99,6 +99,11 @@ public abstract class WorkerTask
 	}
 
 	protected virtual void OnTaskAssigned() { }
+	public virtual bool TryGetPreferredWorker(out AIWorker worker)
+	{
+		worker = null;
+		return false;
+	}
 
 	protected abstract IBaseNode BuildWorkNode();
 

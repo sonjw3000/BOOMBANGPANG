@@ -2,6 +2,7 @@
 
 public class HumanWorker : AIWorker
 {
+	private static WorkPolicyService WorkPolicy => GameContext.Instance.WMSys.WorkPolicyService;
 	private float experience;
 
 	[SerializeField] private float fatigue;
@@ -14,7 +15,9 @@ public class HumanWorker : AIWorker
 		SelectorNode root = new SelectorNode();
 
 		var incident = BuildHumanIncidentNode();
+		var recovery = BuildRecoveryNode();
 		root.Add(incident);
+		root.Add(recovery);
 
 		return root;
 	}
@@ -49,4 +52,17 @@ public class HumanWorker : AIWorker
 	{
 		return fatigue;
 	}
+
+	public override bool NeedsRecovery() => fatigue >= WorkPolicy.WorkerRestFatigueThreshold;
+
+	public override bool IsRecoveryComplete() => fatigue <= WorkPolicy.WorkerRestTargetFatigue;
+
+	public override void TickRecovery(float deltaTime)
+	{
+		fatigue = Mathf.Max(0.0f, fatigue - WorkPolicy.WorkerRestRecoveryPerSecond * deltaTime);
+	}
+
+	public override WorkerStatusAction GetRecoveryAction() => WorkerStatusAction.Resting;
+
+	public override ZoneType GetRecoveryZoneType() => ZoneType.Resting;
 }

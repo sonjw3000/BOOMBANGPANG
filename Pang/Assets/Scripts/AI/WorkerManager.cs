@@ -1,6 +1,5 @@
 ﻿using Assets.Scripts.AI.BT;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using static WorkerTask;
 //using static WorkerTask.TaskType;
@@ -19,6 +18,7 @@ public class WorkerManager : MonoBehaviour
 
 	// 중간지점 삭제를 할 경우도 있다
 	private readonly Dictionary<TaskType, LinkedList<AIWorker>> idleWorkersQueue = new();
+	private readonly Dictionary<TaskType, HashSet<AIWorker>> idleWorkersSet = new();
 	private uint nextWorkerID = 0;
 	private int monthlyCost = 0;
 
@@ -38,17 +38,15 @@ public class WorkerManager : MonoBehaviour
 		{
 			workersPerTaskType[type] = new();
 			idleWorkersQueue[type] = new();
+			idleWorkersSet[type] = new();
 		}
 	}
 
 	public void RegisterWorker(AIWorker worker)
 	{
 		workers.Add(worker);
-		workersPerTaskType[TaskType.Undefined].Add(worker);
+		workersPerTaskType[worker.TaskType].Add(worker);
 		worker.SetWorkerID(nextWorkerID++);
-
-		if (worker.CurrentTask == null)
-			idleWorkersQueue[worker.TaskType].AddLast(worker);
 
 		monthlyCost += worker.MonthlyCost;
 	}
@@ -57,9 +55,7 @@ public class WorkerManager : MonoBehaviour
 	{
 		workers.Remove(worker);
 		workersPerTaskType[worker.TaskType].Remove(worker);
-
-		if (worker.CurrentTask == null)
-			idleWorkersQueue[worker.TaskType].Remove(worker);
+		RemoveIdleWorker(worker);
 
 		monthlyCost -= worker.MonthlyCost;
 	}
@@ -108,21 +104,7 @@ public class WorkerManager : MonoBehaviour
 		workersPerTaskType[type].Add(worker);
 
 		worker.ChangeWorkerType(type);
-
-
-		// 임시코드
-		// 나중에 모두 위와 같은 방식으로 task 부여해야함
-		if (type == TaskType.Packing)
-		{
-			PackingTask task = new PackingTask();
-			worker.SetTask(task);
-			return;
-		}
-
-		if (worker.CurrentTask == null)
-		{
-			idleWorkersQueue[type].AddLast(worker);
-		}
+		RemoveIdleWorker(worker);
 
 
 		// todo
@@ -132,26 +114,63 @@ public class WorkerManager : MonoBehaviour
 
 	public AIWorker GetAvailableWorkers(WorkerTask taskData)
 	{
-		// is available worker there?
-		// todo
-		// 태스크의 조건과 알맞은 작업자를 돌려줌
-
-		AIWorker worker = null;
-
-		if (idleWorkersQueue[taskData.Type].Count > 0)
+		if (taskData.TryGetPreferredWorker(out var preferredWorker))
 		{
-			// todo if picking storing이라면 일단 해당 zone에 있는 작업자를 찾아야한다
+			if (preferredWorker != null && preferredWorker.CanAcceptPreferredTask(taskData))
+			{
+				RemoveIdleWorker(preferredWorker);
+				return preferredWorker;
+			}
 
-			worker = idleWorkersQueue[taskData.Type].First();
-			idleWorkersQueue[taskData.Type].RemoveFirst();
+			return null;
 		}
 
-		return worker;
+		var queue = idleWorkersQueue[taskData.Type];
+		while (queue.Count > 0)
+		{
+			var worker = queue.First.Value;
+			queue.RemoveFirst();
+			idleWorkersSet[taskData.Type].Remove(worker);
+
+			if (worker == null || worker.CanAcceptGeneralTask(taskData) == false)
+				continue;
+
+			return worker;
+		}
+
+		return null;
 	}
 
 	public void AddIdleWorker(AIWorker worker)
 	{
+		if (worker == null)
+			return;
+
+		if (idleWorkersSet[worker.TaskType].Add(worker) == false)
+			return;
+
 		idleWorkersQueue[worker.TaskType].AddLast(worker);
+	}
+
+	public void RemoveIdleWorker(AIWorker worker)
+	{
+		if (worker == null)
+			return;
+
+		if (idleWorkersSet[worker.TaskType].Remove(worker) == false)
+			return;
+
+		idleWorkersQueue[worker.TaskType].Remove(worker);
+	}
+
+	private void SyncWorkerAvailability(AIWorker worker)
+	{
+		worker.UpdatePackingRecoveryState();
+
+		if (worker.CanAcceptGeneralTask(worker.TaskType))
+			AddIdleWorker(worker);
+		else
+			RemoveIdleWorker(worker);
 	}
 
 	private void Update()
@@ -162,6 +181,8 @@ public class WorkerManager : MonoBehaviour
 		// 
 		foreach (var worker in workers)
 		{
+			SyncWorkerAvailability(worker);
+
 			if (worker.enabled)
 				worker.RunBT(globalBlackboard);
 		}
