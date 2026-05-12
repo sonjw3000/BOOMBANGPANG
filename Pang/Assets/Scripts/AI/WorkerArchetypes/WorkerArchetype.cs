@@ -3,18 +3,10 @@
 [System.Serializable]
 public class WorkerArchetype
 {
-	public WorkerNameDefinition workerNameDefinition;
-	public WorkerVisualDefinition workerVisualDefinition;
-	public WorkerAbilityDefinition AbilityDefinition;
-	public WorkerBaseStatDefinition WorkerBaseStat;
-
-	public WorkerArchetype(WorkerNameDefinition workerName, WorkerVisualDefinition workerVisual, WorkerAbilityDefinition abilityDefinition, WorkerBaseStatDefinition workerBaseStat)
-	{
-		workerNameDefinition = workerName;
-		workerVisualDefinition = workerVisual;
-		AbilityDefinition = abilityDefinition;
-		WorkerBaseStat = workerBaseStat;
-	}
+	public WorkerNameDefinition WorkerNameDefinition = new();
+	public WorkerVisualDefinition WorkerVisualDefinition;
+	public WorkerAbilityDefinition AbilityDefinition = new();
+	public WorkerBaseStatDefinition WorkerBaseStat = new();
 
 	public void SetupWorker(AIWorker worker)
 	{
@@ -25,4 +17,13 @@ public class WorkerArchetype
 		if (AbilityDefinition.abilities.HasFlag(WorkerAbility.PickingStoring))		worker.AddComponent<PickStoreAbility>();
 	}
 
+	public void Duplicate(WorkerArchetype other)
+	{
+		other.WorkerNameDefinition = WorkerNameDefinition;
+		other.WorkerVisualDefinition = WorkerVisualDefinition;
+		other.AbilityDefinition = AbilityDefinition;
+		other.WorkerBaseStat = WorkerBaseStat;
+	}
 }
+
+

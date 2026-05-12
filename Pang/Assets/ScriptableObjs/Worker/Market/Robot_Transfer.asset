@@ -9,17 +9,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7b032f025ffb8374c95accd806a0f63e, type: 3}
+  m_Script: {fileID: 11500000, guid: 0c08f82b65823944bbde1704bd58f420, type: 3}
   m_Name: Robot_Transfer
-  m_EditorClassIdentifier: Assembly-CSharp::WorkforceMarketData_SO
-  workforceMarketName: Transfer Robot
-  randomCombination: 0
-  workerNames:
-  - WorkerFirstName: Basic Transper
-    WorkerLastName: 
-  workerVisuals:
-  - {fileID: 11400000, guid: 00a46c9b5b069034b935cd930c83a9d9, type: 2}
-  workerAbilities:
-  - {fileID: 11400000, guid: 0abd1b71e0075d4408ab5ab8044ee5f4, type: 2}
-  workerBaseStats:
-  - {fileID: 11400000, guid: 7a352c2e08c936f4496dc225166fc854, type: 2}
+  m_EditorClassIdentifier: Assembly-CSharp::RobotMarketData
+  workforceMarketName: Transfer Robots
+  archetypeList:
+  - WorkerNameDefinition:
+      WorkerFirstName: Basic_Transfer_Robot
+      WorkerLastName: 
+    WorkerVisualDefinition: {fileID: 11400000, guid: 00a46c9b5b069034b935cd930c83a9d9, type: 2}
+    AbilityDefinition:
+      workerType: 3
+      abilities: 19
+      monthlyCost: 0
+      installCost: 500
+    WorkerBaseStat:
+      baseMoveSpeedMultiplier: 1
+      minimumMoveSpeedMultiplier: 1
+      baseWorkSpeedMultiplier: 1
+      minimumWorkSpeedMultiplier: 1

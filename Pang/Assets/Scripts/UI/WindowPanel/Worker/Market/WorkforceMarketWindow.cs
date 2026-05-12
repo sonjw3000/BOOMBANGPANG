@@ -27,8 +27,14 @@ namespace Assets.Scripts.UI
 		[SerializeField] private int displayPerPage = 15;
 		[SerializeField] private int page = 0;
 
+		private GameObjectPool workerListPool;
+
+		private int randomSeed = 0;
+
 		private void Awake()
 		{
+			workerListPool = new(15, () => { return Instantiate(workerItemPrefab, workerListRoot); });
+
 			if (window == null) window = GetComponentInChildren<UIWindow>(true);
 			window.SetTitle(title);
 			window.SetIcon(icon);
@@ -50,6 +56,9 @@ namespace Assets.Scripts.UI
 
 		private void RefreshCategories()
 		{
+			// set random seed
+			randomSeed = UnityEngine.Random.Range(0, int.MaxValue);
+
 			// Clear existing
 			foreach (Transform child in categoryListRoot) Destroy(child.gameObject);
 
@@ -90,20 +99,16 @@ namespace Assets.Scripts.UI
 
 		private void DisplayWorkerList(WorkforceMarketData_SO so)
 		{
-			foreach (Transform child in workerListRoot)
-				Destroy(child.gameObject);
+			workerListPool.ReleaseAll();
 
-			foreach (var archetype in so.EnumerateArchetypes(page, displayPerPage))
+			int seed = randomSeed + page * 1000 + page;
+			System.Random rng = new(seed);
+
+			for (int i = 0; i < displayPerPage && page * displayPerPage + i < so.GetMaxCount(); ++i)
 			{
-				// Robot check if needed (user requested verification)
-				if (so.name.ToLower().Contains("robot") || archetype.AbilityDefinition.workerType == WorkerType.Robot)
-				{
-					if (archetype.AbilityDefinition.workerType != WorkerType.Robot) continue;
-				}
-
-				GameObject go = Instantiate(workerItemPrefab, workerListRoot);
-				var itemView = go.GetComponent<MarketWorkerItem>();
-				itemView.Setup(archetype);
+				MarketWorkerItem workerItem = workerListPool.Get().GetComponent<MarketWorkerItem>();
+				so.FillWorkerArchetype(workerItem.CurrentArchetype, rng, page, i);
+				workerItem.Setup();
 			}
 		}
 	}

@@ -8,11 +8,12 @@ public enum WorkerType
 	Robot,
 }
 
-[CreateAssetMenu(menuName = "Worker/Ability")]
-public class WorkerAbilityDefinition : ScriptableObject
+[System.Serializable]
+public struct WorkerAbilityDefinition
 {
 	public WorkerType workerType;
 	public WorkerAbility abilities;
 	public int monthlyCost;
+	public int installCost;
 }
 

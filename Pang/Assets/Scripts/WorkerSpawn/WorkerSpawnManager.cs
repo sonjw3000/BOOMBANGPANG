@@ -39,7 +39,7 @@ public class WorkerSpawnManager : MonoBehaviour
 	public bool TrySpawnWorker(WorkerArchetype archetype, UnityEngine.Object requester, out AIWorker spawnedWorker)
 	{
 		spawnedWorker = null;
-
+		
 		if (archetype == null)
 		{
 			Debug.LogWarning("Worker spawn request failed: archetype is null");

@@ -352,9 +352,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.UI.WorkforceMarketWindow
   window: {fileID: 1840033130058677978}
   humanCategories:
-  - {fileID: 11400000, guid: ebb5ca66081333e45a4ddf22c04db6af, type: 2}
-  - {fileID: 11400000, guid: 36f0e2559b8cd6c4488149cde5286e0e, type: 2}
-  - {fileID: 11400000, guid: aede63e51664b3f47a52fd732ea268a4, type: 2}
+  - {fileID: 11400000, guid: 108bbc4cb52654340aa1b49a9a0ccb5a, type: 2}
+  - {fileID: 11400000, guid: ee258fa8d1b70984c90daaa12308f6b3, type: 2}
+  - {fileID: 11400000, guid: a2d2bad0fac024440a9b808cf524322a, type: 2}
   robotCategories:
   - {fileID: 11400000, guid: 22073902b8aebe84b87b86d28df81eee, type: 2}
   categoryListRoot: {fileID: 4496559353054607718}

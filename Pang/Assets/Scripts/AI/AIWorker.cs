@@ -1,5 +1,6 @@
 using Assets.Scripts.AI.BT;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 
 [System.Flags]
@@ -179,8 +180,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			return;
 		}
 
-		workerFirstName = archetype.workerNameDefinition.WorkerFirstName;
-		workerLastName = archetype.workerNameDefinition.WorkerLastName;
+		workerFirstName = archetype.WorkerNameDefinition.WorkerFirstName;
+		workerLastName = archetype.WorkerNameDefinition.WorkerLastName;
 
 		workerType = archetype.AbilityDefinition.workerType;
 		abilities = archetype.AbilityDefinition.abilities;

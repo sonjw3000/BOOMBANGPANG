@@ -12,14 +12,13 @@ namespace Assets.Scripts.UI
 		[SerializeField] private TMP_Text riskText;
 		[SerializeField] private Button hireButton;
 
-		private WorkerArchetype currentArchetype;
+		public WorkerArchetype CurrentArchetype = new();
 
-		public void Setup(WorkerArchetype archetype)
+		public void Setup()
 		{
-			currentArchetype = archetype;
-			nameText.text = $"{currentArchetype.workerNameDefinition.WorkerFirstName} {currentArchetype.workerNameDefinition.WorkerLastName}";
-			abilityText.text = $"Ability: {archetype.AbilityDefinition.abilities}";
-			wageText.text = $"Wage: {archetype.AbilityDefinition.monthlyCost}/month"; // Changed to monthly as per current SO
+			nameText.text = $"{CurrentArchetype.WorkerNameDefinition.WorkerFirstName} {CurrentArchetype.WorkerNameDefinition.WorkerLastName}";
+			abilityText.text = $"Ability: {CurrentArchetype.AbilityDefinition.abilities}";
+			wageText.text = $"Wage: {CurrentArchetype.AbilityDefinition.monthlyCost}/month"; // Changed to monthly as per current SO
 			riskText.text = "Risk: Low"; // Defaulting as requested
 
 			hireButton.onClick.RemoveAllListeners();
@@ -35,11 +34,13 @@ namespace Assets.Scripts.UI
 				return;
 			}
 
-			if (workerSpawnMgr.TrySpawnWorker(currentArchetype, this, out var spawnedWorker) == false)
+			if (workerSpawnMgr.TrySpawnWorker(CurrentArchetype, this, out var spawnedWorker) == false)
 			{
-				Debug.LogWarning($"Failed to hire {currentArchetype.workerNameDefinition.WorkerFirstName} {currentArchetype.workerNameDefinition.WorkerLastName}");
+				Debug.LogWarning($"Failed to hire {CurrentArchetype.WorkerNameDefinition.WorkerFirstName} {CurrentArchetype.WorkerNameDefinition.WorkerLastName}");
 				return;
 			}
+
+			CurrentArchetype = new();
 
 			Debug.Log($"Hired {spawnedWorker.Name}!");
 		}
