@@ -40,6 +40,7 @@ public class GridCell
 	private FindRoute reservedBy = null;
 	private readonly HashSet<FindRoute> plannedRoutes = new();
 
+	public int Tile => tile;
 	public GridFlags Flags => flags;
 
 	public bool IsPassable => Flags.HasFlag(GridFlags.BlockMovement | GridFlags.DynamicObstacle);

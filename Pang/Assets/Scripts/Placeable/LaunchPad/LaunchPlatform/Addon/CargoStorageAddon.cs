@@ -10,6 +10,7 @@ public class CargoStorageAddon
 
 	// queue 식으로 사용한다
 	private LinkedList<BoxBase> cargosToLaunch = new();
+	public IEnumerable<BoxBase> CargosToLaunch => cargosToLaunch;
 
 	static private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 
@@ -60,6 +61,16 @@ public class CargoStorageAddon
 
 			it = next;
 		}
+	}
+
+	public void RestoreState(IEnumerable<BoxBase> cargos)
+	{
+		cargosToLaunch.Clear();
+		if (cargos == null)
+			return;
+
+		foreach (var cargo in cargos)
+			StoreCargo(cargo);
 	}
 
 }

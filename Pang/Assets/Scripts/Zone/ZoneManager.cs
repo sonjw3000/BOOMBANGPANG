@@ -260,4 +260,42 @@ public class ZoneManager : MonoBehaviour
 
 		return candidate;
 	}
+
+	public ZoneManagerSaveData CaptureState()
+	{
+		ZoneManagerSaveData data = new();
+		foreach (var zone in registeredZones)
+		{
+			if (zone == null)
+				continue;
+
+			data.Zones.Add(new ZoneSaveData
+			{
+				Name = zone.DisplayName,
+				Type = zone.Type,
+				Floor = zone.Floor,
+				Bounds = new RectIntSaveData(zone.Bounds.x, zone.Bounds.y, zone.Bounds.width, zone.Bounds.height),
+			});
+		}
+
+		return data;
+	}
+
+	public void RestoreState(ZoneManagerSaveData data)
+	{
+		ResetRuntimeState();
+		if (data == null)
+			return;
+
+		foreach (var zoneData in data.Zones)
+		{
+			AddZone(zoneData.Name, zoneData.Type, new RectInt(zoneData.Bounds.X, zoneData.Bounds.Y, zoneData.Bounds.Width, zoneData.Bounds.Height), zoneData.Floor);
+		}
+	}
+
+	public void ResetRuntimeState()
+	{
+		registeredZones.Clear();
+		RebuildZoneLookup();
+	}
 }

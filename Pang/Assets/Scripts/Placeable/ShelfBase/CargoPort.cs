@@ -64,4 +64,20 @@ public class CargoPort :
 			OBCargoPorts.Unregister(this);
 	}
 
+	public CargoPortSaveData CaptureState()
+	{
+		return new CargoPortSaveData
+		{
+			InputReady = inputReady,
+		};
+	}
+
+	public void RestoreState(CargoPortSaveData data)
+	{
+		if (data == null)
+			return;
+
+		inputReady = data.InputReady;
+	}
+
 }

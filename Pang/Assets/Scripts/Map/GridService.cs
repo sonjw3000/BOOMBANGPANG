@@ -58,6 +58,8 @@ public class GridService : MonoBehaviour
 		return gridMap.Map[pos.x, pos.y, pos.z].IsBlocked;
 	}
 
+	public IEnumerable<KeyValuePair<GameObject, PlacementContext>> GetPlacedObjectsSnapshot() => placedObjects;
+
 
 	private readonly Dictionary<GameObject, PlacementContext> placedObjects = new();
 
@@ -95,6 +97,63 @@ public class GridService : MonoBehaviour
 		}
 
 		gridMap.SetMap(newMap);
+	}
+
+	public GridMapSaveData CaptureState()
+	{
+		GridMapSaveData data = new();
+		data.MapSize = new Int3SaveData(MapSize.x, MapSize.y, MapSize.z);
+		data.Tiles = new int[MapSize.x * MapSize.y * MapSize.z];
+
+		for (int x = 0; x < MapSize.x; ++x)
+		{
+			for (int y = 0; y < MapSize.y; ++y)
+			{
+				for (int z = 0; z < MapSize.z; ++z)
+				{
+					int idx = x + MapSize.x * (y + MapSize.y * z);
+					data.Tiles[idx] = 0;
+				}
+			}
+		}
+
+		return data;
+	}
+
+	public void RestoreState(GridMapSaveData data)
+	{
+		if (data == null)
+		{
+			BuildDefaultMap();
+			OnGameStart();
+			return;
+		}
+
+		JsonData.GridMapData gridData = new JsonData.GridMapData
+		{
+			X = data.MapSize.X,
+			Y = data.MapSize.Y,
+			Z = data.MapSize.Z,
+			Tiles = data.Tiles,
+		};
+
+		gridMap.LoadByData(gridData);
+		OnGameStart();
+	}
+
+	public void ResetRuntimeState()
+	{
+		foreach (Transform child in placeableParent.transform)
+		{
+			child.gameObject.SetActive(false);
+			Destroy(child.gameObject);
+		}
+
+		foreach (Transform child in gridParent.transform)
+			Destroy(child.gameObject);
+
+		placedObjects.Clear();
+		IsReady = false;
 	}
 
 	public void LoadByData(GameSaveLoader loadedData)

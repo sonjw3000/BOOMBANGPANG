@@ -5,6 +5,8 @@ using UnityEngine;
 public abstract class PickingTaskAllocator
 {
 	static protected int jobID = 1;
+	public static int GetNextJobId() => jobID;
+	public static void SetNextJobId(int nextJobId) => jobID = nextJobId;
 
 	//static protected float MaxCarryWeight => GameContext.Instance.Config.MaxCarryWeight;
 	static protected float MaxCarryWeight => GameContext.Instance.WMSys.BoxPoolMgr.ToteCapacity;

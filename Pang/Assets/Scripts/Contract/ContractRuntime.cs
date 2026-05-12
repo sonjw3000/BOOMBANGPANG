@@ -85,5 +85,24 @@ namespace Assets.Scripts.Contract
 		{
 			resultPerWeek.Last.Value.ContractHistoryPerWeek[status] += cnt;
 		}
+
+		public ContractRuntimeSaveData CaptureState()
+		{
+			return new ContractRuntimeSaveData
+			{
+				ContractId = Definition.ContractId,
+				Type = Type,
+				RemainingDuration = remainDuration,
+				DeliveryDelta = deliveryDelta,
+				AutoRenewal = AutoRenewal,
+			};
+		}
+
+		public void RestoreState(int remainingDuration, int deliveryDelta, bool autoRenewal)
+		{
+			remainDuration = remainingDuration;
+			this.deliveryDelta = deliveryDelta;
+			AutoRenewal = autoRenewal;
+		}
 	}
 }

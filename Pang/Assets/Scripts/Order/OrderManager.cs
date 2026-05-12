@@ -205,4 +205,99 @@ private void Start()
 		Debug.Log($"Order {order.OrderID} settled. Revenue: {totalItemRevenue + totalBonusReward}, Rep: {totalReputationDelta}");
 	}
 
+	public OrderManagerSaveData CaptureState(Func<OrderLine, int> registerOrderLine)
+	{
+		OrderManagerSaveData data = new()
+		{
+			NextOrderId = OrderFactory.NextOrderId,
+		};
+
+		foreach (Order order in orders)
+		{
+			OrderSaveData orderData = new()
+			{
+				OrderId = order.OrderID,
+				Status = order.Status,
+			};
+
+			foreach (OrderLine line in order.Lines)
+			{
+				int lineId = registerOrderLine != null ? registerOrderLine(line) : line.SaveId;
+				orderData.Lines.Add(new OrderLineSaveData
+				{
+					LineId = lineId,
+					ItemId = line.ItemID,
+					Quantity = line.Quantity,
+					Status = line.Status,
+					SourceContractId = line.SourceContract.Definition.ContractId,
+					StartWeek = line.StartWeek,
+					DueWeek = line.DueWeek,
+					BaseReward = line.BaseReward,
+					DelayPenalty = line.DelayPenalty,
+					ReputationChange = line.ReputationChange,
+				});
+			}
+
+			data.Orders.Add(orderData);
+		}
+
+		return data;
+	}
+
+	public void RestoreState(OrderManagerSaveData data, ContractService contractService, Dictionary<int, OrderLine> restoredLines)
+	{
+		ResetRuntimeState();
+		if (data == null)
+			return;
+
+		foreach (OrderSaveData orderData in data.Orders)
+		{
+			Order order = new Order
+			{
+				OrderID = orderData.OrderId,
+				Lines = new List<OrderLine>(),
+			};
+
+			foreach (OrderLineSaveData lineData in orderData.Lines)
+			{
+				if (contractService.TryGetActiveContract(lineData.SourceContractId, out var sourceContract) == false)
+					continue;
+
+				OrderLine line = new(order, lineData.ItemId, lineData.Quantity, sourceContract);
+				line.RestoreState(lineData.LineId, lineData.Status, lineData.StartWeek, lineData.DueWeek, lineData.BaseReward, lineData.DelayPenalty, lineData.ReputationChange);
+				order.Lines.Add(line);
+				restoredLines[lineData.LineId] = line;
+			}
+
+			order.RestoreStatus(orderData.Status);
+			orders.Add(order);
+			orderStatus[order.Status].AddLast(order);
+		}
+
+		foreach (Order order in orders)
+		{
+			foreach (OrderLine line in order.Lines)
+			{
+				if (line.Status == OrderStatus.Pending || line.Status == OrderStatus.Allocated)
+				{
+					if (itemOrderLines.ContainsKey(line.ItemID) == false)
+						itemOrderLines[line.ItemID] = new Queue<OrderLine>();
+
+					itemOrderLines[line.ItemID].Enqueue(line);
+				}
+			}
+		}
+
+		OrderFactory.SetNextOrderId(data.NextOrderId);
+	}
+
+	public void ResetRuntimeState()
+	{
+		orders.Clear();
+		itemOrderLines.Clear();
+		orderStatus.Clear();
+		foreach (OrderTotalStatus status in Enum.GetValues(typeof(OrderTotalStatus)))
+			orderStatus[status] = new();
+	}
+
 }

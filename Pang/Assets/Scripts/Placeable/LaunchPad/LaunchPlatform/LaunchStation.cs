@@ -20,6 +20,7 @@ public class LaunchStation
 
 	private List<InteractionPoint> interactionPoints = new();
 	private Dictionary<InteractionKind, List<int3>> interactionPointMap = new();
+	private bool isRegistered = false;
 
 	public int3 GridPosition => gridPosition;
 	public FacingDirection Direction => facingDirection;
@@ -37,12 +38,16 @@ public class LaunchStation
 
 	private void Start()
 	{
-		LaunchStations.Register(this);
+		InitializeForSaveLoad();
 	}
 
 	private void OnDestroy()
 	{
-		LaunchStations.Unregister(this);
+		if (isRegistered)
+		{
+			LaunchStations.Unregister(this);
+			isRegistered = false;
+		}
 	}
 
 	public bool TryGetAddon<T>(out T addon) where T : PlatformAddon
@@ -119,5 +124,60 @@ public class LaunchStation
 	public bool IsInteractionAvailable(InteractionKind interactionKind)
 	{
 		return true;
+	}
+
+	public void InitializeForSaveLoad()
+	{
+		if (isRegistered)
+			return;
+
+		LaunchStations.Register(this);
+		isRegistered = true;
+	}
+
+	public LaunchStationSaveData CaptureState()
+	{
+		LaunchStationSaveData data = new();
+		if (TryGetAddon<CargoStorageAddon>(out var cargoStorage))
+		{
+			foreach (var cargo in cargoStorage.CargosToLaunch)
+			{
+				if (cargo != null)
+					data.CargoQueueBoxIds.Add(cargo.BoxId);
+			}
+		}
+
+		if (TryGetAddon<LaunchPadAddon>(out var launchPad))
+		{
+			data.ReadyToLaunch = launchPad.IsReady;
+			if (launchPad.CargoToLaunch != null)
+				data.LoadedCargoBoxId = launchPad.CargoToLaunch.BoxId;
+		}
+
+		return data;
+	}
+
+	public void RestoreState(LaunchStationSaveData data, IReadOnlyDictionary<uint, BoxBase> restoredBoxes)
+	{
+		if (data == null || restoredBoxes == null)
+			return;
+
+		if (TryGetAddon<CargoStorageAddon>(out var cargoStorage))
+		{
+			List<BoxBase> cargos = new();
+			foreach (var cargoId in data.CargoQueueBoxIds)
+			{
+				if (restoredBoxes.TryGetValue(cargoId, out var cargo))
+					cargos.Add(cargo);
+			}
+
+			cargoStorage.RestoreState(cargos);
+		}
+
+		if (TryGetAddon<LaunchPadAddon>(out var launchPad))
+		{
+			restoredBoxes.TryGetValue(data.LoadedCargoBoxId, out var loadedCargo);
+			launchPad.RestoreState(loadedCargo, data.ReadyToLaunch);
+		}
 	}
 }

@@ -71,4 +71,29 @@ public class BoxPool :
 	{
 
 	}
+
+	public BoxPoolSaveData CaptureState()
+	{
+		BoxPoolSaveData data = new();
+		foreach (var box in boxes)
+		{
+			if (box != null)
+				data.BoxIds.Add(box.BoxId);
+		}
+
+		return data;
+	}
+
+	public void RestoreState(BoxPoolSaveData data, IReadOnlyDictionary<uint, BoxBase> restoredBoxes)
+	{
+		boxes.Clear();
+		if (data == null || restoredBoxes == null)
+			return;
+
+		for (int i = data.BoxIds.Count - 1; i >= 0; i--)
+		{
+			if (restoredBoxes.TryGetValue(data.BoxIds[i], out var box))
+				PutBox(box);
+		}
+	}
 }

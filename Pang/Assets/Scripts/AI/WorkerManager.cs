@@ -28,6 +28,7 @@ public class WorkerManager : MonoBehaviour
 
 	public IReadOnlyList<AIWorker> Workers => workers;
 	public int CostPerMonth => monthlyCost;
+	public uint NextWorkerId => nextWorkerID;
 	// todo
 	// 전역 블랙보드의 관리는 다른곳에 넘겨야함
 	private BlackBoard globalBlackboard;
@@ -186,5 +187,24 @@ public class WorkerManager : MonoBehaviour
 			if (worker.enabled)
 				worker.RunBT(globalBlackboard);
 		}
+	}
+
+	public void ResetRuntimeState()
+	{
+		workers.Clear();
+		monthlyCost = 0;
+		nextWorkerID = 0;
+
+		foreach (TaskType type in System.Enum.GetValues(typeof(TaskType)))
+		{
+			workersPerTaskType[type].Clear();
+			idleWorkersQueue[type].Clear();
+			idleWorkersSet[type].Clear();
+		}
+	}
+
+	public void SetNextWorkerId(uint nextWorkerId)
+	{
+		nextWorkerID = nextWorkerId;
 	}
 }

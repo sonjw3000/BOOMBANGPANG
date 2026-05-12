@@ -83,4 +83,23 @@ public class EconomyService : MonoBehaviour
 
 	}
 
+	public EconomySaveData CaptureState()
+	{
+		return new EconomySaveData
+		{
+			Money = money,
+			Reputation = reputation,
+		};
+	}
+
+	public void RestoreState(EconomySaveData data)
+	{
+		if (data == null)
+			return;
+
+		money = data.Money;
+		reputation = data.Reputation;
+		history.Clear();
+	}
+
 }

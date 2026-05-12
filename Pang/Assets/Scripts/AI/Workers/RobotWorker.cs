@@ -43,4 +43,16 @@ public class RobotWorker : AIWorker
 	public override WorkerStatusAction GetRecoveryAction() => WorkerStatusAction.Charging;
 
 	public override ZoneType GetRecoveryZoneType() => ZoneType.Charge;
+
+	protected override void CaptureSubclassState(WorkerSaveData data)
+	{
+		data.BatteryLevel = batteryLevel;
+		data.BatteryEfficiency = batteryEfficiency;
+	}
+
+	protected override void RestoreSubclassState(WorkerSaveData data)
+	{
+		batteryLevel = data.BatteryLevel;
+		batteryEfficiency = data.BatteryEfficiency;
+	}
 }

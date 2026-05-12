@@ -145,4 +145,12 @@ public class PackingStationService : MonoBehaviour
 
 		TaskManager.EnqueueTask(new WaterTask(from, to));
 	}
+
+	public void ResetRuntimeState()
+	{
+		packingStations.Clear();
+		waitingQueue.Clear();
+		waitingSet.Clear();
+		queuedPackingTasks.Clear();
+	}
 }

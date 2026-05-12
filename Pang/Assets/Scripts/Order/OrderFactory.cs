@@ -7,6 +7,9 @@ public class OrderFactory
 	static ItemLedger ItemLedger => GameContext.Instance.WMSys.ItemLedger;
 	static int orderIDCounter = 0;
 
+	public static int NextOrderId => orderIDCounter;
+	public static void SetNextOrderId(int nextOrderId) => orderIDCounter = nextOrderId;
+
 	public static List<Order> CreateOrdersFromContracts()
 	{
 		List<Order> createdOrders = new();

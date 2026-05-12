@@ -12,6 +12,7 @@ public class LaunchPadAddon : PlatformAddon
 	private bool readyToLaunch = false;
 
 	public bool IsReady => readyToLaunch;
+	public BoxBase CargoToLaunch => cargoToLaunch;
 
 	public bool IsReadyToLaunch => cargoToLaunch != null && rocket != null;
 
@@ -72,6 +73,12 @@ public class LaunchPadAddon : PlatformAddon
 		{
 			Launch();
 		}
+	}
+
+	public void RestoreState(BoxBase cargo, bool ready)
+	{
+		cargoToLaunch = cargo;
+		readyToLaunch = ready;
 	}
 
 }

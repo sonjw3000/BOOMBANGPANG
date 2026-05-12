@@ -65,4 +65,16 @@ public class HumanWorker : AIWorker
 	public override WorkerStatusAction GetRecoveryAction() => WorkerStatusAction.Resting;
 
 	public override ZoneType GetRecoveryZoneType() => ZoneType.Resting;
+
+	protected override void CaptureSubclassState(WorkerSaveData data)
+	{
+		data.Fatigue = fatigue;
+		data.Experience = experience;
+	}
+
+	protected override void RestoreSubclassState(WorkerSaveData data)
+	{
+		fatigue = data.Fatigue;
+		experience = data.Experience;
+	}
 }

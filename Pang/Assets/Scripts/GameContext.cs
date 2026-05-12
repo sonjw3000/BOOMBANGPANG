@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 // �̰͸��� �� ��Ű��
 // GameContext�� �����͸� ������
@@ -78,6 +78,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private MetricsService metrics;
 
 	private DeliveryService deliveryService = new();
+	private GameSaveService saveService;
 
 	//[Header("���߿� ����")]
 	private InteractionContext interactionCtx;
@@ -131,6 +132,7 @@ public class GameContext : MonoBehaviour
 	public MetricsService Metrics => metrics;
 	public DeliveryService DeliveryService => deliveryService;
 	public InteractionContext InteractionCtx => interactionCtx;
+	public GameSaveService SaveService => saveService;
 
 	private void Awake()
 	{
@@ -146,6 +148,9 @@ public class GameContext : MonoBehaviour
 
 		instance = this;
 		interactionCtx = new InteractionContext();
+		saveService = GetComponent<GameSaveService>();
+		if (saveService == null)
+			saveService = gameObject.AddComponent<GameSaveService>();
 		DontDestroyOnLoad(gameObject);
 
 	}

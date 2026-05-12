@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Assets.Scripts.AI.BT;
 using Unity.Mathematics;
 using Unity.VisualScripting;
@@ -226,6 +228,14 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	private void Start()
 	{
+		InitializeForSaveLoad();
+	}
+
+	public void InitializeForSaveLoad()
+	{
+		if (isRegistered)
+			return;
+
 		routeFinder = transform.GetComponent<FindRoute>();
 
 		if (routeFinder == null)
@@ -505,4 +515,78 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	// decreased chance by researches or some pieces of equipment
 	public virtual float GetIncidentMitigationMultiplier() { return 1.0f; }
+
+	public WorkerSaveData CaptureState(Func<BoxBase, uint> registerBox)
+	{
+		WorkerSaveData data = new()
+		{
+			WorkerId = workerID,
+			FirstName = workerFirstName,
+			LastName = workerLastName,
+			WorkerType = workerType,
+			Abilities = abilities,
+			MonthlyCost = monthlyCost,
+			BaseMoveSpeedMultiplier = baseMoveSpeedMultiplier,
+			MinimumMoveSpeedMultiplier = minimumMoveSpeedMultiplier,
+			BaseWorkSpeedMultiplier = baseWorkSpeedMultiplier,
+			MinimumWorkSpeedMultiplier = minimumWorkSpeedMultiplier,
+			MainTaskType = workerMainTaskType,
+			StatusAction = workerState.Action,
+			StatusTarget = workerState.Target,
+			CarryingBoxId = 0,
+		};
+
+		if (TryGetComponent<CarryBoxAbility>(out var carryBoxAbility) &&
+			carryBoxAbility.CarryingBox != null &&
+			registerBox != null)
+		{
+			data.CarryingBoxId = registerBox(carryBoxAbility.CarryingBox);
+		}
+
+		CaptureSubclassState(data);
+		return data;
+	}
+
+	public void RestoreState(WorkerSaveData data, Dictionary<uint, BoxBase> restoredBoxes)
+	{
+		if (data == null)
+			return;
+
+		workerFirstName = data.FirstName;
+		workerLastName = data.LastName;
+		workerID = data.WorkerId;
+		workerType = data.WorkerType;
+		abilities = data.Abilities;
+		monthlyCost = data.MonthlyCost;
+		baseMoveSpeedMultiplier = data.BaseMoveSpeedMultiplier;
+		minimumMoveSpeedMultiplier = data.MinimumMoveSpeedMultiplier;
+		baseWorkSpeedMultiplier = data.BaseWorkSpeedMultiplier;
+		minimumWorkSpeedMultiplier = data.MinimumWorkSpeedMultiplier;
+		workerMainTaskType = data.MainTaskType;
+		workerState = new WorkerStatusInfo(data.StatusAction, data.StatusTarget);
+		tick = 0;
+
+		EnsureAbilitiesConfigured();
+		RestoreSubclassState(data);
+
+		if (data.CarryingBoxId > 0 && restoredBoxes.TryGetValue(data.CarryingBoxId, out var box))
+			TryAttachBox(box);
+	}
+
+	protected virtual void CaptureSubclassState(WorkerSaveData data) { }
+	protected virtual void RestoreSubclassState(WorkerSaveData data) { }
+
+	private void EnsureAbilitiesConfigured()
+	{
+		if (abilities.HasFlag(WorkerAbility.CargoHandling) && GetComponent<CargoHandlingAbility>() == null)
+			gameObject.AddComponent<CargoHandlingAbility>();
+		if (abilities.HasFlag(WorkerAbility.CarryBox) && GetComponent<CarryBoxAbility>() == null)
+			gameObject.AddComponent<CarryBoxAbility>();
+		if (abilities.HasFlag(WorkerAbility.Labeling) && GetComponent<LabelingAbility>() == null)
+			gameObject.AddComponent<LabelingAbility>();
+		if (abilities.HasFlag(WorkerAbility.Packing) && GetComponent<PackageAbility>() == null)
+			gameObject.AddComponent<PackageAbility>();
+		if (abilities.HasFlag(WorkerAbility.PickingStoring) && GetComponent<PickStoreAbility>() == null)
+			gameObject.AddComponent<PickStoreAbility>();
+	}
 }

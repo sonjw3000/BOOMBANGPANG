@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 using System.Collections.Generic;
 
 public class OrderDeliveryManager : MonoBehaviour
@@ -47,5 +48,40 @@ public class OrderDeliveryManager : MonoBehaviour
 	public void DeliverCargo(BoxBase box, float duration)
 	{
 		deliveryProgresses.Add(new(box, duration));
+	}
+
+	public OrderDeliverySaveData CaptureState(Func<BoxBase, uint> registerBox)
+	{
+		OrderDeliverySaveData data = new();
+		foreach (var progress in deliveryProgresses)
+		{
+			data.Progresses.Add(new DeliveryProgressSaveData
+			{
+				BoxId = registerBox != null ? registerBox(progress.Cargo) : 0,
+				TimeRemain = progress.TimeRemain,
+			});
+		}
+
+		return data;
+	}
+
+	public void RestoreState(OrderDeliverySaveData data, IReadOnlyDictionary<uint, BoxBase> restoredBoxes)
+	{
+		ResetRuntimeState();
+		if (data == null || restoredBoxes == null)
+			return;
+
+		foreach (var progress in data.Progresses)
+		{
+			if (restoredBoxes.TryGetValue(progress.BoxId, out var cargo) == false)
+				continue;
+
+			deliveryProgresses.Add(new DeliveryProgress(cargo, progress.TimeRemain));
+		}
+	}
+
+	public void ResetRuntimeState()
+	{
+		deliveryProgresses.Clear();
 	}
 }

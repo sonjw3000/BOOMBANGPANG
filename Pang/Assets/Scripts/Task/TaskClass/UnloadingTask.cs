@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System;
 using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
@@ -15,6 +16,22 @@ public class UnloadingTask : WorkerTask
 	public UnloadingTask(Rocket rocket) : base(TaskType.Unloading)
 	{
 		targetRocket = rocket;
+	}
+
+	public UnloadingTaskSaveData CaptureState(Func<GameObject, int> getPlaceableId)
+	{
+		return new UnloadingTaskSaveData
+		{
+			TargetRocketId = targetRocket != null && getPlaceableId != null ? getPlaceableId(targetRocket.gameObject) : -1,
+			CargoPortId = cargoPort != null && getPlaceableId != null ? getPlaceableId(cargoPort.gameObject) : -1,
+			IsUnloadEnd = IsUnloadEnd,
+		};
+	}
+
+	public void RestoreState(CargoPort cargoPort, bool isUnloadEnd)
+	{
+		this.cargoPort = cargoPort;
+		IsUnloadEnd = isUnloadEnd;
 	}
 
 	protected override void OnTaskAssigned()

@@ -69,4 +69,27 @@ public class GameTime : MonoBehaviour
 	{
 		return SecondsPerWeek * weeks;
 	}
+
+	public TimeSaveData CaptureState()
+	{
+		return new TimeSaveData
+		{
+			TimeElapsed = timeElapsed,
+			ElapsedWeek = elapsedWeek,
+			ElapsedMonth = elapsedMonth,
+			TimeScale = timeScale,
+		};
+	}
+
+	public void RestoreState(TimeSaveData data)
+	{
+		if (data == null)
+			return;
+
+		timeElapsed = data.TimeElapsed;
+		elapsedWeek = data.ElapsedWeek;
+		elapsedMonth = data.ElapsedMonth;
+		timeScale = data.TimeScale;
+		Time.timeScale = timeScale;
+	}
 }

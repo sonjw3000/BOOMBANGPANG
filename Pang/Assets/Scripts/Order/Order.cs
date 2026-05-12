@@ -44,6 +44,11 @@ public class Order
 
 	public OrderTotalStatus Status => status;
 
+	public void RestoreStatus(OrderTotalStatus status)
+	{
+		this.status = status;
+	}
+
 	public OrderTotalStatus ChangeOrderStatus(OrderStatus status)
 	{
 		// check all lines are in a final state (Completed or Cancelled)
@@ -77,6 +82,7 @@ public class Order
 	// 주문이 만족되었는지를 판단하기 위한 데이터
 	public class OrderLine
 	{
+	public int SaveId { get; set; }
 	public readonly Order ParentOrder;
 	public readonly uint ItemID;
 	public readonly int Quantity;
@@ -104,5 +110,16 @@ public class Order
 		this.status = status;
 
 		return ParentOrder.ChangeOrderStatus(status);
+	}
+
+	public void RestoreState(int saveId, OrderStatus status, int startWeek, int dueWeek, int baseReward, int delayPenalty, float reputationChange)
+	{
+		SaveId = saveId;
+		this.status = status;
+		StartWeek = startWeek;
+		DueWeek = dueWeek;
+		BaseReward = baseReward;
+		DelayPenalty = delayPenalty;
+		ReputationChange = reputationChange;
 	}
 }

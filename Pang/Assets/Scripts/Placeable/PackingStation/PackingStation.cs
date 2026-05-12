@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
@@ -31,6 +32,7 @@ public class PackingStation :
 	private AIWorker currentPackingWorker = null;
 	private AIWorker incomingPickingWorker = null;
 	private bool incomingRequestSuspended = false;
+	private bool isRegistered = false;
 
 	private BoxWithOrder waitStackBox = null;
 	private BoxWithOrder currentPackingBox = null;
@@ -77,6 +79,9 @@ public class PackingStation :
 
 	public AIWorker IncomingPickingWorker => incomingPickingWorker;
 	public BoxWithOrder CurrentPackingBox => currentPackingBox;
+	public BoxWithOrder WaitingBox => waitStackBox;
+	public BoxWithOrder EndPackingBox => endPackingBox;
+	public bool IncomingRequestSuspended => incomingRequestSuspended;
 	public bool HasWaitingBox => waitStackBox != null;
 	public bool IsNoWorkerAssigned => currentPackingWorker == null;
 	public bool IsBoxMoveableToPack => waitStackBox != null && currentPackingBox == null;
@@ -87,12 +92,16 @@ public class PackingStation :
 
 	private void Start()
 	{
-		PackingStations.Register(this);
+		InitializeForSaveLoad();
 	}
 
 	private void OnDestroy()
 	{
-		PackingStations.UnRegister(this);
+		if (isRegistered)
+		{
+			PackingStations.UnRegister(this);
+			isRegistered = false;
+		}
 	}
 
 	public override void OnPositionSet(in int3 pos, FacingDirection direction)
@@ -306,5 +315,110 @@ public class PackingStation :
 			endPackingBox.Box.transform.SetParent(null);
 
 		endPackingBox = value;
+	}
+
+	public void InitializeForSaveLoad()
+	{
+		if (isRegistered)
+			return;
+
+		PackingStations.Register(this);
+		isRegistered = true;
+	}
+
+	public PackingStationSaveData CaptureState(Func<OrderLine, int> registerOrderLine, Func<GameObject, int> getPlaceableId)
+	{
+		return new PackingStationSaveData
+		{
+			PackedItems = packedItems.ConvertAll(pkg => new ItemStackSaveData
+			{
+				ItemId = pkg.ItemID,
+				Quantity = pkg.Quantity,
+				IsPackage = true,
+				RelatedOrderLineId = registerOrderLine != null ? registerOrderLine(pkg.RelatedOrderLine) : -1,
+			}),
+			WaitingBox = CaptureBoxWithOrder(waitStackBox, registerOrderLine, getPlaceableId),
+			CurrentBox = CaptureBoxWithOrder(currentPackingBox, registerOrderLine, getPlaceableId),
+			EndBox = CaptureBoxWithOrder(endPackingBox, registerOrderLine, getPlaceableId),
+			CurrentWorkerId = currentPackingWorker != null ? (int)currentPackingWorker.WorkerID : -1,
+			IncomingWorkerId = incomingPickingWorker != null ? (int)incomingPickingWorker.WorkerID : -1,
+			IncomingRequestSuspended = incomingRequestSuspended,
+		};
+	}
+
+	public void RestoreState(
+		PackingStationSaveData data,
+		Dictionary<uint, BoxBase> restoredBoxes,
+		Dictionary<int, OrderLine> restoredOrderLines,
+		Dictionary<int, GameObject> restoredPlaceables)
+	{
+		packedItems.Clear();
+		itemTotals.Clear();
+		totalSize = 0.0f;
+		waitStackBox = null;
+		currentPackingBox = null;
+		endPackingBox = null;
+		currentPackingWorker = null;
+		incomingPickingWorker = null;
+		incomingRequestSuspended = data != null && data.IncomingRequestSuspended;
+
+		if (data == null)
+			return;
+
+		foreach (var pkgData in data.PackedItems)
+		{
+			if (restoredOrderLines.TryGetValue(pkgData.RelatedOrderLineId, out var line) == false)
+				continue;
+
+			ItemPackage package = new(PackingType.Box, line, pkgData.ItemId, pkgData.Quantity);
+			packedItems.Add(package);
+			itemTotals[pkgData.ItemId] = itemTotals.GetValueOrDefault(pkgData.ItemId) + pkgData.Quantity;
+		}
+
+		SetWaitStackBox(RestoreBoxWithOrder(data.WaitingBox, restoredBoxes, restoredOrderLines, restoredPlaceables));
+		SetCurrentPackingBox(RestoreBoxWithOrder(data.CurrentBox, restoredBoxes, restoredOrderLines, restoredPlaceables));
+		SetEndStackBox(RestoreBoxWithOrder(data.EndBox, restoredBoxes, restoredOrderLines, restoredPlaceables));
+	}
+
+	public void RestoreWorkerBindings(Dictionary<uint, AIWorker> workersById, PackingStationSaveData data)
+	{
+		if (data == null)
+			return;
+
+		if (data.CurrentWorkerId >= 0 && workersById.TryGetValue((uint)data.CurrentWorkerId, out var currentWorker))
+			CurrentPackingWorker = currentWorker;
+
+		if (data.IncomingWorkerId >= 0 && workersById.TryGetValue((uint)data.IncomingWorkerId, out var incomingWorker))
+			incomingPickingWorker = incomingWorker;
+
+		SetIncomingRequestSuspended(data.IncomingRequestSuspended);
+	}
+
+	private static BoxWithOrderSaveData CaptureBoxWithOrder(BoxWithOrder value, Func<OrderLine, int> registerOrderLine, Func<GameObject, int> getPlaceableId)
+	{
+		if (value == null)
+			return null;
+
+		return new BoxWithOrderSaveData
+		{
+			BoxId = value.Box != null ? value.Box.BoxId : 0,
+			Job = value.Job != null ? value.Job.CaptureState(getPlaceableId, registerOrderLine) : null,
+		};
+	}
+
+	private static BoxWithOrder RestoreBoxWithOrder(
+		BoxWithOrderSaveData data,
+		Dictionary<uint, BoxBase> restoredBoxes,
+		Dictionary<int, OrderLine> restoredOrderLines,
+		Dictionary<int, GameObject> restoredPlaceables)
+	{
+		if (data == null || data.Job == null)
+			return null;
+
+		if (restoredBoxes.TryGetValue(data.BoxId, out var box) == false)
+			return null;
+
+		WorkJob job = data.Job.Restore(restoredPlaceables, restoredOrderLines);
+		return box != null && job != null ? new BoxWithOrder(box, job) : null;
 	}
 }

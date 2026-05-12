@@ -15,6 +15,8 @@ using UnityEngine;
 public abstract class StoringPlanner
 {
 	static protected int jobID = 1;
+	public static int GetNextJobId() => jobID;
+	public static void SetNextJobId(int nextJobId) => jobID = nextJobId;
 
 	protected InboundWorkflowManager IBManager => GameContext.Instance.IBWorkflowMgr;
 	static protected float MaxCarryWeight => GameContext.Instance.WMSys.BoxPoolMgr.ToteCapacity;

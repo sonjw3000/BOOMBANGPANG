@@ -98,4 +98,21 @@ public class TaskManager : MonoBehaviour
 	{
 		Dispatch();
 	}
+
+	public void AddRestoredInProgressTask(WorkerTask task)
+	{
+		if (task == null)
+			return;
+
+		taskOnProgress[task.Type].AddLast(task);
+	}
+
+	public void ResetRuntimeState()
+	{
+		foreach (TaskType type in Enum.GetValues(typeof(TaskType)))
+		{
+			taskQueue[type].Clear();
+			taskOnProgress[type].Clear();
+		}
+	}
 }

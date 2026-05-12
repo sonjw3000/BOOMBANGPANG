@@ -235,4 +235,26 @@ public class RocketManager : GridPlaceableManager<Rocket>
 
 		IBWorkflowMgr.BuildTaskByPayload(rocket);
 	}
+
+	public RocketManagerSaveData CaptureState()
+	{
+		return new RocketManagerSaveData
+		{
+			TimeSinceLastSpawn = timeSinceLastSpawn,
+		};
+	}
+
+	public void RestoreState(RocketManagerSaveData data)
+	{
+		if (data == null)
+			return;
+
+		timeSinceLastSpawn = data.TimeSinceLastSpawn;
+	}
+
+	public void ResetRuntimeState()
+	{
+		timeSinceLastSpawn = 0.0f;
+		activeRockets.Clear();
+	}
 }
