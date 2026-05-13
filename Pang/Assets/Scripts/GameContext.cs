@@ -68,6 +68,7 @@ public class GameContext : MonoBehaviour
 	// go to resource
 	[Header("InGame Objects")]
 	[SerializeField] private PlaceableCatalog catalog;
+	[SerializeField] private BuildPlaceableCatalog buildCatalog;
 	[SerializeField] private TileCatalog baseTiles;
 
 	[Header("Risk Service")]
@@ -124,6 +125,17 @@ public class GameContext : MonoBehaviour
 	public OutboundWorkflowManager OBWorkflowMgr => outboundWorkFlowManager;
 
 	public PlaceableCatalog PlaceableCatalog => catalog;
+	public PlaceableCatalog PlaceableDefinitionRegistry => catalog;
+	public BuildPlaceableCatalog BuildPlaceableCatalog
+	{
+		get
+		{
+			if (buildCatalog == null)
+				buildCatalog = Resources.Load<BuildPlaceableCatalog>("BuildCatalogs/DefaultBuildPlaceableCatalog");
+
+			return buildCatalog;
+		}
+	}
 	public TileCatalog BaseTiles => baseTiles;
 
 	public HumanIncidentService HumanIncident => humanIncidentService;

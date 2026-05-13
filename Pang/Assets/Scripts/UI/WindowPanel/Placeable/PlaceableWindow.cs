@@ -14,7 +14,7 @@ public class PlaceableWindow : MonoBehaviour
 	[Header("Button UI")]
 	[SerializeField] private PlaceableButtonView buttonPrefab;
 
-	private PlaceableCatalog catalog => GameContext.Instance.PlaceableCatalog;
+	private BuildPlaceableCatalog catalog => GameContext.Instance.BuildPlaceableCatalog;
 
 	private void Awake()
 	{
@@ -50,7 +50,7 @@ public class PlaceableWindow : MonoBehaviour
 			return;
 		}
 
-		foreach (var def in catalog.placeables)
+		foreach (var def in catalog.EnumerateDefinitions())
 		{
 			var btn = Instantiate(buttonPrefab, workerContent);
 			btn.gameObject.SetActive(true);

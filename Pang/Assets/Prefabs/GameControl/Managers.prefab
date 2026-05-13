@@ -649,9 +649,11 @@ MonoBehaviour:
   warehouseManagement: {fileID: 4181363907245693410}
   contractService: {fileID: 1422058608903141302}
   pathFindingService: {fileID: 2045873797293161509}
+  zoneManager: {fileID: 0}
   inboundWorkFlowManager: {fileID: 2554155626171990247}
   outboundWorkFlowManager: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
+  buildCatalog: {fileID: 11400000, guid: 5d0343acafd94d92b6576be9c3396768, type: 2}
   baseTiles: {fileID: 0}
   humanIncidentService: {fileID: 7355657413807301279}
   processStats: {fileID: 2003437797910367155}
@@ -1420,6 +1422,10 @@ MonoBehaviour:
           Value: 1
   workerRestFatigue: 70
   robotChargeBattery: 30
+  workerRestTargetFatigue: 20
+  robotChargeTargetBattery: 80
+  workerRestRecoveryPerSecond: 15
+  robotChargeRecoveryPerSecond: 20
 --- !u!1 &7027379629001389123
 GameObject:
   m_ObjectHideFlags: 0

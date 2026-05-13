@@ -12,17 +12,11 @@ class GridServiceEditor : Editor
 		if (GUILayout.Button("Test Building Set"))
 		{
 			GridService gridService = (GridService)target;
-			PlaceableCatalog catalog = GameContext.Instance.PlaceableCatalog;
-		
-			// robot
-			for (int i = 0; i < 6; ++i)
+			BuildPlaceableCatalog catalog = GameContext.Instance.BuildPlaceableCatalog;
+			if (catalog == null)
 			{
-				PlacementContext ctxRobots = new(
-					center: new int3(3 + i, 0, 2),
-					dir: FacingDirection.North,
-					def: catalog.FindById("PalletRobot_00")
-				);
-				gridService.OnInstall(ctxRobots);
+				EditorGUILayout.HelpBox("Build placeable catalog is missing.", MessageType.Error);
+				return;
 			}
 
 			// shelf
