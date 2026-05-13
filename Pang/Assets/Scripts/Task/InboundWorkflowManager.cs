@@ -18,6 +18,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	// for storing policy
 	[SerializeField] private float storingTaskBuildTime = 10.0f;
+	[SerializeField] private int maxStoreTasksPerUpdate = 64;
 	private float timer = 0;
 
 	// todo
@@ -78,8 +79,15 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 		{
 			timer = 0;
 
+			int builtCount = 0;
 			while (storingPlanner.BuildStoreTask(out var task))
 			{
+				if (++builtCount > maxStoreTasksPerUpdate)
+				{
+					Debug.LogError($"[InboundWorkflow] Aborted storing task build loop after {maxStoreTasksPerUpdate} tasks in one update.");
+					break;
+				}
+
 				//Debug.Log("StoreTask Built!");
 
 				if (task != null)
@@ -156,6 +164,13 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	{
 		CheckStoreTaskAvailable();
 
+	}
+
+	public void ResetRuntimeState()
+	{
+		cargoPortsByItem.Clear();
+		timer = 0.0f;
+		storingPlanner = new StoringItemFriendly();
 	}
 	// ----------------------------------------------------------------
 }

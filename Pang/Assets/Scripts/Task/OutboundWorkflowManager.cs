@@ -130,4 +130,9 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 		}
 
 	}
+
+	public void ResetRuntimeState()
+	{
+		timeSinceLastOrder = 0.0f;
+	}
 }

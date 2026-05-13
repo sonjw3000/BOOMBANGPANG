@@ -29,7 +29,7 @@ public class StoringTask : WorkerTask
 	}
 
 
-	public WorkLine CurrentLine => storeJob.Lines[storeJob.CurrentLineIndex];
+	public WorkLine CurrentLine => storeJob?.CurrentLine;
 
 	static public IPlacingPolicy PlacingPolicy => GameContext.Instance.IBWorkflowMgr.PlacingPolicy;
 
@@ -166,7 +166,12 @@ public class StoringTask : WorkerTask
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
 		BoxBase box = task.CarryingAbility.CarryingBox;
-		PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, out var decision);
+		if (PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, out var decision) == false)
+		{
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
+			return Failure;
+		}
 
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
 
@@ -194,6 +199,12 @@ public class StoringTask : WorkerTask
 		// place items to target
 		WorkLine line = task.placingLine;
 		BoxBase box = task.carryBox.CarryingBox;
+
+		if (line == null || box == null)
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
+			return Failure;
+		}
 		
 		int addedItem = line.Source.AddItem(line.ItemID, line.Quantity);
 		box.RemoveItem(line.ItemID, addedItem);

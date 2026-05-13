@@ -10,6 +10,12 @@ public class NearestPlacingPolicy : IPlacingPolicy
 	{
 		decision = default;
 
+		if (box == null || box.Stacks.Count == 0)
+		{
+			Debug.LogWarning("Cannot decide placing target without a carried box.");
+			return false;
+		}
+
 		ShelfBase best = null;
 		int bestDist = int.MaxValue;
 

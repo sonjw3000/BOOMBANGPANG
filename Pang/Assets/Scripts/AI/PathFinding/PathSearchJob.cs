@@ -203,6 +203,8 @@ public class SearchBuffer
 		return (FacingDirection)directionIndex;
 	}
 
+	public int StateCount => RecordsStates.Length;
+
 	public ref PathNodeRecord GetStateRecordByStateIndex(int stateIndex)
 	{
 		return ref RecordsStates[stateIndex];
@@ -387,10 +389,19 @@ public sealed class PathSearchJob
 		}
 
 		LinkedList<PathNode> path = new();
+		HashSet<int> visited = new();
+		int guard = 0;
+		int maxSteps = math.max(1, buffer.StateCount);
 
 		var nodeRecord = buffer.GetStateRecordByStateIndex(index);
 		while (true)
 		{
+			if (++guard > maxSteps || visited.Add(index) == false)
+			{
+				Debug.LogError($"[PathSearchJob] Detected cyclic or overlong parent chain while building path. Start: {request.startPosition}, Goal: {request.endPosition}, StateIndex: {index}");
+				return new PathResultBuffer(new LinkedList<PathNode>(), request.target, request.AvoidTarget);
+			}
+
 			PathNode node = PathResultBuffer.GetNewNode(buffer.GetPosition(index), buffer.GetFacingDirection(index));
 			path.AddFirst(node);
 
@@ -497,9 +508,16 @@ public class PathResultBuffer
 	static public PathResultBuffer FindLeafBuffer(PathResultBuffer buffer)
 	{
 		PathResultBuffer leaf = buffer;
+		int guard = 0;
 
 		while (leaf.subPathResult != null)
 		{
+			if (++guard > 256)
+			{
+				Debug.LogError("[PathResultBuffer] Detected suspicious sub-path cycle while finding leaf buffer.");
+				break;
+			}
+
 			leaf = leaf.subPathResult;
 		}
 
@@ -508,7 +526,31 @@ public class PathResultBuffer
 
 	private void AppendSubPath(PathResultBuffer subPath)
 	{
+		if (subPath == null)
+			return;
+
+		if (ReferenceEquals(subPath, this))
+		{
+			Debug.LogError("[PathResultBuffer] Refused to append self as sub-path.");
+			return;
+		}
+
 		PathResultBuffer leaf = FindLeafBuffer(this);
+		int guard = 0;
+		for (var parent = leaf; parent != null; parent = parent.parentBuffer)
+		{
+			if (++guard > 256)
+			{
+				Debug.LogError("[PathResultBuffer] Parent chain exceeded guard while appending sub-path.");
+				return;
+			}
+
+			if (ReferenceEquals(parent, subPath))
+			{
+				Debug.LogError("[PathResultBuffer] Refused to append sub-path that would create a cycle.");
+				return;
+			}
+		}
 
 		leaf.subPathResult = subPath;
 		subPath.parentBuffer = leaf;
@@ -568,9 +610,16 @@ public class PathResultBuffer
 			return;
 
 		PathResultBuffer leaf = FindLeafBuffer(this);
+		int guard = 0;
 
 		while (true)
 		{
+			if (++guard > 256)
+			{
+				Debug.LogError("[PathResultBuffer] Aborted MoveToNextNode due to suspected cyclic parent/sub-path chain.");
+				return;
+			}
+
 			var parent = leaf.parentBuffer;
 
 			leaf.currentNode = leaf.currentNode.Next;

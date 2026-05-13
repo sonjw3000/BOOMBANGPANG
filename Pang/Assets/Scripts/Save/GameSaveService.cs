@@ -19,7 +19,7 @@ public sealed class GameSaveService : MonoBehaviour
 
 	private string SavePath => Path.Combine(Application.persistentDataPath, saveFileNameDef);
 
-	private string SavePathPerSlot(int slot) => Path.Combine(Application.persistentDataPath, fileExt + slot + fileExt);
+	private string SavePathPerSlot(int slot) => Path.Combine(Application.persistentDataPath, saveFileName + slot + fileExt);
 
 	private GameContext Ctx => GameContext.Instance;
 
@@ -130,6 +130,8 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.ContractMgr.ResetRuntimeState();
 		Ctx.OrderMgr.ResetRuntimeState();
 		Ctx.DeliveryService.ResetRuntimeState();
+		Ctx.IBWorkflowMgr.ResetRuntimeState();
+		Ctx.OBWorkflowMgr.ResetRuntimeState();
 		Ctx.WorkerMgr.ResetRuntimeState();
 		Ctx.ZoneMgr.ResetRuntimeState();
 		Ctx.WMSys.ItemLedger.ResetRuntimeState();
@@ -344,7 +346,7 @@ public sealed class GameSaveService : MonoBehaviour
 		if (obj.TryGetComponent<AIWorker>(out var worker) && save.Worker != null)
 		{
 			worker.RestoreState(save.Worker, restoredBoxes);
-			worker.InitializeForSaveLoad();
+			worker.InitializeForSaveLoad(preserveWorkerId: true);
 			workersById[worker.WorkerID] = worker;
 		}
 	}

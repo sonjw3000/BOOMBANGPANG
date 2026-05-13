@@ -88,8 +88,16 @@ public class Rocket : ShelfBase
 
 	public void SetupPayloadByDelivery()
 	{
+		int guard = 0;
+		const int maxIterations = 1024;
 		while (true)
 		{
+			if (++guard > maxIterations)
+			{
+				Debug.LogError($"[Rocket] Aborted SetupPayloadByDelivery after {maxIterations} iterations.");
+				break;
+			}
+
 			if (DeliveryService.TryPeek(out var request) == false)
 				break;
 

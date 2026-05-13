@@ -234,7 +234,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		InitializeForSaveLoad();
 	}
 
-	public void InitializeForSaveLoad()
+	public void InitializeForSaveLoad(bool preserveWorkerId = false)
 	{
 		if (isRegistered)
 			return;
@@ -249,7 +249,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		}
 
 		// register AI's BT to AI Manager
-		WorkerMgr.RegisterWorker(this);
+		WorkerMgr.RegisterWorker(this, preserveWorkerId);
 		isRegistered = true;
 
 		routeFinder.SetAIMaster(this);

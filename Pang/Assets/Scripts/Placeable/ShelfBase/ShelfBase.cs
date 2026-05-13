@@ -367,7 +367,10 @@ public abstract class ShelfBase :
 
 			itemsReservedPick.Clear();
 			foreach (var entry in data.ReservedPick)
+			{
 				itemsReservedPick[entry.ItemId] = entry.Quantity;
+				OnItemReservedPickChanged?.Invoke(this, entry.ItemId, entry.Quantity);
+			}
 		}
 
 		UpdateSize();

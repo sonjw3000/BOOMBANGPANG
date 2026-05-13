@@ -53,6 +53,29 @@ public sealed class StoringItemFriendly : StoringPlanner
 {
 	private Dictionary<uint, int> itemQuantityCanPick = new();
 
+	private int ReconcilePickableQuantity(uint itemId, List<CargoPort> cargoPorts)
+	{
+		int totalPickable = 0;
+
+		if (cargoPorts != null)
+		{
+			foreach (var port in cargoPorts)
+			{
+				if (port == null)
+					continue;
+
+				totalPickable += Mathf.Max(0, port.GetPickableQuantity(itemId));
+			}
+		}
+
+		if (totalPickable > 0)
+			itemQuantityCanPick[itemId] = totalPickable;
+		else
+			itemQuantityCanPick.Remove(itemId);
+
+		return totalPickable;
+	}
+
 	private bool GetBestFit(out uint bestFitID)
 	{
 		bestFitID = 0;
@@ -113,26 +136,45 @@ public sealed class StoringItemFriendly : StoringPlanner
 		List<WorkLine> line = new();
 
 		bool boxFull = false;
+		int guard = 0;
 
 		while (boxFull == false && GetBestFit(out var itemID))
 		{
+			if (++guard > 128)
+			{
+				Debug.LogError("[StoringPlanner] Aborted BuildStoreTask due to excessive iterations.");
+				break;
+			}
+
 			var cargoPorts = IBManager.CargoPortsByItem.GetValueOrDefault(itemID, new List<CargoPort>());
 
 			if (cargoPorts.Count <= 0)
-				break;
+			{
+				itemQuantityCanPick.Remove(itemID);
+				continue;
+			}
 			
 			// find the most quantity port
-			CargoPort mostFitCargo = cargoPorts[0];
-			int max = mostFitCargo.GetPickableQuantity(itemID);
+			CargoPort mostFitCargo = null;
+			int max = 0;
 
 			foreach (var port in cargoPorts)
 			{
+				if (port == null)
+					continue;
+
 				int cnt = port.GetPickableQuantity(itemID);
 				if (cnt > max)
 				{
 					max = cnt;
 					mostFitCargo = port;
 				}
+			}
+
+			if (mostFitCargo == null || max <= 0)
+			{
+				ReconcilePickableQuantity(itemID, cargoPorts);
+				continue;
 			}
 
 			// pq로 하고싶은데 어케 방법이 없을까 그냥 이대로 할게
@@ -142,12 +184,18 @@ public sealed class StoringItemFriendly : StoringPlanner
 				int pickable = mostFitCargo.GetPickableQuantity(itemID);
 				int quantityCanPick = AdjustQuantityToFit(curWeight, itemWeight, pickable);
 
+				if (quantityCanPick <= 0)
+				{
+					boxFull = true;
+					break;
+				}
+
 				curWeight += quantityCanPick * itemWeight;
 				int actualReserved = mostFitCargo.ReservePicking(itemID, quantityCanPick);
 
 				if (actualReserved <= 0)
 				{
-					Debug.Log("Cantbe, lets check");
+					ReconcilePickableQuantity(itemID, cargoPorts);
 					break;
 				}
 

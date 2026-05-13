@@ -43,11 +43,20 @@ public class WorkerManager : MonoBehaviour
 		}
 	}
 
-	public void RegisterWorker(AIWorker worker)
+	public void RegisterWorker(AIWorker worker, bool preserveWorkerId = false)
 	{
 		workers.Add(worker);
 		workersPerTaskType[worker.TaskType].Add(worker);
-		worker.SetWorkerID(nextWorkerID++);
+
+		if (preserveWorkerId)
+		{
+			if (nextWorkerID <= worker.WorkerID)
+				nextWorkerID = worker.WorkerID + 1;
+		}
+		else
+		{
+			worker.SetWorkerID(nextWorkerID++);
+		}
 
 		monthlyCost += worker.MonthlyCost;
 	}
@@ -205,6 +214,6 @@ public class WorkerManager : MonoBehaviour
 
 	public void SetNextWorkerId(uint nextWorkerId)
 	{
-		nextWorkerID = nextWorkerId;
+		nextWorkerID = nextWorkerId > nextWorkerID ? nextWorkerId : nextWorkerID;
 	}
 }

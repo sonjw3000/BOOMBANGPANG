@@ -24,8 +24,20 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 	public bool PutBox(BoxBase box)
 	{
 		if (box == null) return false;
+
+		if (EnsureInitialized() == false)
+			return false;
+
 		// todo
 		// 뭐 있는지 확인 해야함
+		if (boxSlot == null)
+		{
+			boxSlot = transform.Find("SlotRoot");
+
+			if (boxSlot == null)
+				boxSlot = Worker != null ? Worker.transform.Find("SlotRoot") : null;
+		}
+
 		if (boxSlot == null)
 		{
 			Debug.Log("No box slot!");
