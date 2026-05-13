@@ -74,6 +74,9 @@ public class GameContext : MonoBehaviour
 	[Header("Risk Service")]
 	[SerializeField] private HumanIncidentService humanIncidentService;
 
+	[Header("Worker Visuals")]
+	[SerializeField] private WorkerVisualCatalog workerVisualCatalog;
+
 	[Header("UI�����ؼ� �߰���")]
 	[SerializeField] private ProcessStatsCollector processStats;
 	[SerializeField] private MetricsService metrics;
@@ -139,6 +142,16 @@ public class GameContext : MonoBehaviour
 	public TileCatalog BaseTiles => baseTiles;
 
 	public HumanIncidentService HumanIncident => humanIncidentService;
+	public WorkerVisualCatalog WorkerVisualCatalog
+	{
+		get
+		{
+			if (workerVisualCatalog == null)
+				workerVisualCatalog = Resources.Load<WorkerVisualCatalog>("Worker/DefaultWorkerVisualCatalog");
+
+			return workerVisualCatalog;
+		}
+	}
 
 	public ProcessStatsCollector ProcessStats => processStats;
 	public MetricsService Metrics => metrics;

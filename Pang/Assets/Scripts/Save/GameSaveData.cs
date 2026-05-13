@@ -194,6 +194,7 @@ public sealed class WorkerSaveData
 	public uint WorkerId;
 	public string FirstName;
 	public string LastName;
+	public string VisualId;
 	public WorkerType WorkerType;
 	public WorkerAbility Abilities;
 	public int MonthlyCost;

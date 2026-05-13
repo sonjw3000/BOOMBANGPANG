@@ -107,6 +107,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private readonly BlackBoard localBlackBoard = new();
 	private WorkerStatusInfo workerState = WorkerStatusInfo.None;
 	private GameObject currentVisualInstance;
+	private WorkerVisualDefinition currentVisualDefinition;
 
 	private int3 position;
 	private FacingDirection facingDirection;
@@ -212,6 +213,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			Destroy(currentVisualInstance);
 			currentVisualInstance = null;
 		}
+
+		currentVisualDefinition = visualDefinition;
 
 		if (visualDefinition == null || visualDefinition.Prefab == null)
 			return;
@@ -526,6 +529,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			WorkerType = workerType,
 			Abilities = abilities,
 			MonthlyCost = monthlyCost,
+			VisualId = currentVisualDefinition != null ? currentVisualDefinition.VisualId : string.Empty,
 			BaseMoveSpeedMultiplier = baseMoveSpeedMultiplier,
 			MinimumMoveSpeedMultiplier = minimumMoveSpeedMultiplier,
 			BaseWorkSpeedMultiplier = baseWorkSpeedMultiplier,
@@ -565,6 +569,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		workerMainTaskType = data.MainTaskType;
 		workerState = new WorkerStatusInfo(data.StatusAction, data.StatusTarget);
 		tick = 0;
+
+		if (string.IsNullOrWhiteSpace(data.VisualId) == false)
+			ApplyVisual(GameContext.Instance.WorkerVisualCatalog?.FindById(data.VisualId));
 
 		EnsureAbilitiesConfigured();
 		RestoreSubclassState(data);

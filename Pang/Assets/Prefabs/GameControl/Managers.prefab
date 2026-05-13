@@ -649,13 +649,14 @@ MonoBehaviour:
   warehouseManagement: {fileID: 4181363907245693410}
   contractService: {fileID: 1422058608903141302}
   pathFindingService: {fileID: 2045873797293161509}
-  zoneManager: {fileID: 0}
+  zoneManager: {fileID: 3365747867954475864}
   inboundWorkFlowManager: {fileID: 2554155626171990247}
   outboundWorkFlowManager: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
   buildCatalog: {fileID: 11400000, guid: 5d0343acafd94d92b6576be9c3396768, type: 2}
   baseTiles: {fileID: 0}
   humanIncidentService: {fileID: 7355657413807301279}
+  workerVisualCatalog: {fileID: 11400000, guid: b1fe725a3f7141ba9c561c2746eb719e, type: 2}
   processStats: {fileID: 2003437797910367155}
   metrics: {fileID: 2607858685587643834}
 --- !u!1 &2697779351811629630
