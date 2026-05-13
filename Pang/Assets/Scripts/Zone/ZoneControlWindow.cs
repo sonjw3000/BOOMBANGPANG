@@ -13,6 +13,7 @@ public class ZoneControlWindow : MonoBehaviour
 	[SerializeField] private ZoneType defaultZoneType = ZoneType.Storage;
 
 	private readonly Dictionary<ZoneType, Toggle> toggles = new();
+	private bool initialized;
 
 	private RectTransform contentRoot;
 	private TMP_Text statusText;
@@ -24,24 +25,7 @@ public class ZoneControlWindow : MonoBehaviour
 
 	private void Awake()
 	{
-		if (window == null)
-			window = GetComponentInChildren<UIWindow>(true);
-
-		if (overlayController == null)
-			overlayController = FindFirstObjectByType<ZoneOverlayController>();
-
-		selectedZoneType = defaultZoneType;
-		window.SetTitle(windowTitle);
-
-		BuildContent();
-
-		window.Opened += HandleWindowOpened;
-		window.Closed += HandleWindowClosed;
-		Interaction.OnZonePlacementChanged += HandleZonePlacementChanged;
-
-		gameObject.SetActive(true);
-		window.Close();
-		UpdateStatus();
+		EnsureInitialized();
 	}
 
 	private void OnDestroy()
@@ -58,19 +42,39 @@ public class ZoneControlWindow : MonoBehaviour
 
 	public void ToggleWindow()
 	{
-		if (window.IsOpen)
-			window.Close();
-		else
+		EnsureInitialized();
+
+		if (window == null)
+			return;
+
+		bool shouldOpen = gameObject.activeSelf == false || window.IsOpen == false;
+		if (shouldOpen)
+		{
+			EnsureHostActive();
 			window.Open();
+		}
+		else
+		{
+			window.Close();
+		}
 	}
 
 	public void Open()
 	{
+		EnsureInitialized();
+		EnsureHostActive();
+		if (window == null)
+			return;
+
 		window.Open();
 	}
 
 	public void Close()
 	{
+		EnsureInitialized();
+		if (window == null)
+			return;
+
 		window.Close();
 	}
 
@@ -95,6 +99,15 @@ public class ZoneControlWindow : MonoBehaviour
 	{
 		if (statusText == null || createButton == null)
 			return;
+
+		if (GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null)
+		{
+			createButton.interactable = false;
+			if (createButtonText != null)
+				createButtonText.text = "Create Zone";
+			statusText.text = "Interaction context is unavailable.";
+			return;
+		}
 
 		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.ZonePlacement;
 		createButton.interactable = isCreating == false;
@@ -159,6 +172,43 @@ public class ZoneControlWindow : MonoBehaviour
 			toggles[zoneType] = toggle;
 			toggle.isOn = zoneType == selectedZoneType;
 		}
+	}
+
+	private void EnsureInitialized()
+	{
+		if (initialized)
+			return;
+
+		window ??= GetComponent<UIWindow>();
+		window ??= GetComponentInChildren<UIWindow>(true);
+		overlayController ??= FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
+		selectedZoneType = defaultZoneType;
+
+		if (window == null)
+			return;
+
+		window.SetTitle(windowTitle);
+		BuildContent();
+		window.Opened -= HandleWindowOpened;
+		window.Closed -= HandleWindowClosed;
+		window.Opened += HandleWindowOpened;
+		window.Closed += HandleWindowClosed;
+
+		if (GameContext.HasInstance && GameContext.Instance.InteractionCtx != null)
+		{
+			Interaction.OnZonePlacementChanged -= HandleZonePlacementChanged;
+			Interaction.OnZonePlacementChanged += HandleZonePlacementChanged;
+		}
+
+		window.Close();
+		UpdateStatus();
+		initialized = true;
+	}
+
+	private void EnsureHostActive()
+	{
+		if (gameObject.activeSelf == false)
+			gameObject.SetActive(true);
 	}
 
 	private void HandleCreateButtonClicked()

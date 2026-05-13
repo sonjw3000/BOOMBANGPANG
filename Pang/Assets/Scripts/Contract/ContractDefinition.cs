@@ -28,7 +28,6 @@ namespace Assets.Scripts.Contract
 
 		[Header("Delivery Info")]
 		public int DeliveryIntervalWeek = 1;
-		public int AmountPerDelivery = 100;
 		public int ItemCountsPerDelivery = 100;
 
 		[Header("Reputation Requirement")]

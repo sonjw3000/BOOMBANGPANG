@@ -12,8 +12,16 @@ public class ContractService : MonoBehaviour
 	private readonly List<ContractDefinition> definitions = new();
 	private readonly List<ContractRuntime> currentActiveContracts = new();
 	private readonly ContractHistory contractHistory = new();
+	private bool definitionsLoaded;
 
-	public IReadOnlyList<ContractDefinition> ContractDefinitions => definitions;
+	public IReadOnlyList<ContractDefinition> ContractDefinitions
+	{
+		get
+		{
+			EnsureDefinitionsLoaded();
+			return definitions;
+		}
+	}
 	public IReadOnlyList<ContractRuntime> ActiveContracts => currentActiveContracts;
 
 	// rocket item queue
@@ -22,12 +30,9 @@ public class ContractService : MonoBehaviour
 	// contract missions
 	//private readonly Dictionary<ItemDefinition, int> itemDeliveryMissions = new();
 
-	private void Start()
+	private void Awake()
 	{
-		foreach (var catalog in contractCatalogs)
-		{
-			definitions.AddRange(catalog.Contracts);
-		}
+		EnsureDefinitionsLoaded();
 	}
 
 	public void AdvanceWeek()
@@ -58,6 +63,7 @@ public class ContractService : MonoBehaviour
 
 	public void AddContract(int index, int duration, ContractType type = ContractType.Standard)
 	{
+		EnsureDefinitionsLoaded();
 		currentActiveContracts.Add(new ContractRuntime(definitions[index], duration, type));
 	}
 
@@ -72,6 +78,7 @@ public class ContractService : MonoBehaviour
 
 	public void RestoreState(ContractServiceSaveData data)
 	{
+		EnsureDefinitionsLoaded();
 		ResetRuntimeState();
 		if (data == null)
 			return;
@@ -97,6 +104,24 @@ public class ContractService : MonoBehaviour
 	public void ResetRuntimeState()
 	{
 		currentActiveContracts.Clear();
+	}
+
+	private void EnsureDefinitionsLoaded()
+	{
+		if (definitionsLoaded)
+			return;
+
+		definitions.Clear();
+
+		foreach (var catalog in contractCatalogs)
+		{
+			if (catalog == null || catalog.Contracts == null)
+				continue;
+
+			definitions.AddRange(catalog.Contracts);
+		}
+
+		definitionsLoaded = true;
 	}
 
 }

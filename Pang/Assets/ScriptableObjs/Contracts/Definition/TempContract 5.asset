@@ -10,21 +10,24 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ab68d1243c41b0d40a7f4021d254158e, type: 3}
-  m_Name: TempContract
+  m_Name: TempContract 5
   m_EditorClassIdentifier: Assembly-CSharp::ContractDefinition
-  ContractName: Test 1
-  ContractId: 123
-  ItemToHandle: {fileID: 11400000, guid: 9901440dab8a1e944971c64cd0aefef7, type: 2}
-  AmountPerDelivery: 100
-  DeliveryInterval: 1
+  ContractName: Test 5
+  ContractId: 115
+  ItemToHandle: {fileID: 11400000, guid: 1e785f39ed06ee0479f70f9809355b28, type: 2}
+  DeliveryIntervalWeek: 1
+  ItemCountsPerDelivery: 100
   MinimumRequiredReputation: 0
   MaximumRequiredReputation: 100
-  DurationInMonths: 12
-  IncomePerItem: 10
-  RewardOnTime: 100
-  RewardLate: 50
-  RewardFailed: 200
-  RepOnTime: 0.5
-  RepLate: -0.1
-  RepFailed: -0.5
+  ContractDuration: 12
+  StandardSpec:
+    DeliveryTimeLimitWeeks: 5
+    BaseReward: 10
+    DelayPenalty: 5
+    ReputationChange: 1
+  ExpressSpec:
+    DeliveryTimeLimitWeeks: 5
+    BaseReward: 10
+    DelayPenalty: 5
+    ReputationChange: 1
   RelatedItems: []

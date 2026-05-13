@@ -37,8 +37,11 @@ namespace Assets.Scripts.Contract
 
 		private int remainDuration;
 		private int deliveryDelta = 0;
+		private int totalDuration;
 
 		public int RemainingDuration => remainDuration;
+		public int TotalDuration => totalDuration;
+		public int DeliveryDelta => deliveryDelta;
 		public int DeliveryInterval => Definition.DeliveryIntervalWeek;
 
 		private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
@@ -51,7 +54,8 @@ namespace Assets.Scripts.Contract
 		{
 			Definition = definition;
 			Type = type;
-			remainDuration = duration * 4;
+			totalDuration = duration * 4;
+			remainDuration = totalDuration;
 			resultPerWeek.AddLast(new ContractResult());
 		}
 
