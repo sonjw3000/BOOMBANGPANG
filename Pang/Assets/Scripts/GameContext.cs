@@ -1,9 +1,5 @@
 ﻿using UnityEngine;
 
-// �̰͸��� �� ��Ű��
-// GameContext�� �����͸� ������
-// ������ ������ �ȵȴ�
-
 [DefaultExecutionOrder(-100)]
 public class GameContext : MonoBehaviour
 {
@@ -26,27 +22,26 @@ public class GameContext : MonoBehaviour
 
 	// game system multiplier
 	// todo
-	// ���߿� �ٸ� ������ ���� �� ��?
-
+	
 	// datas
 	//[SerializeField] private Resources mapResources;
 	[SerializeField] private bool gameCheat = false;
 	
-	[Header("�ð�")]
+	[Header("Time")]
 	[SerializeField] private GameTime gameTime;
 
-	[Header("����")]
+	[Header("Company Economy")]
 	[SerializeField] private EconomyService economyService;
 
-	[Header("������ �����ͺ��̽�")]
+	[Header("Item Data")]
 	[SerializeField] private ItemDatabase itemDB;
 
-	[Header("��")]
+	[Header("Map")]
 	//[SerializeField] private GridMap gridMap;
 	[SerializeField] private GridService gridService;
 	[SerializeField] private string mapJsonFile;
 
-	[Header("������ �Ŵ���")]
+	[Header("Domain Managers")]
 	// domain managers
 	[SerializeField] private WorkerManager workerManager;
 	[SerializeField] private WorkerSpawnManager workerSpawnManager;
@@ -60,7 +55,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private PathFindingService pathFindingService;
 	[SerializeField] private ZoneManager zoneManager;
 
-	[Header("��ũ�÷ο� �Ŵ���")]
+	[Header("Workflow Managers")]
 	// workflow managers
 	[SerializeField] private InboundWorkflowManager inboundWorkFlowManager;
 	[SerializeField] private OutboundWorkflowManager outboundWorkFlowManager;
@@ -77,14 +72,13 @@ public class GameContext : MonoBehaviour
 	[Header("Worker Visuals")]
 	[SerializeField] private WorkerVisualCatalog workerVisualCatalog;
 
-	[Header("UI�����ؼ� �߰���")]
+	[Header("UI's Game Tracking")]
 	[SerializeField] private ProcessStatsCollector processStats;
 	[SerializeField] private MetricsService metrics;
 
 	private DeliveryService deliveryService = new();
 	private GameSaveService saveService;
 
-	//[Header("���߿� ����")]
 	private InteractionContext interactionCtx;
 
 	//public Resources MapResources => mapResources;
@@ -176,8 +170,7 @@ public class GameContext : MonoBehaviour
 		saveService = GetComponent<GameSaveService>();
 		if (saveService == null)
 			saveService = gameObject.AddComponent<GameSaveService>();
-		DontDestroyOnLoad(gameObject);
-
+		//DontDestroyOnLoad(gameObject);
 	}
 
 	private void Start()
@@ -193,11 +186,7 @@ public class GameContext : MonoBehaviour
 
 	private void LoadMap()
 	{
-		GameSaveLoader loadGame = new();
-
 		// todo
-		// �� �ε� ���н� �⺻�� ����
-		// �ϴ��� �� �ε� ���и� ������
 		//if (loadGame.LoadMap(mapJsonFile) == false)
 		if (true)
 		{
@@ -206,14 +195,13 @@ public class GameContext : MonoBehaviour
 		}
 		else
 		{
-			gridService.LoadByData(loadGame);
+
 		}
 
 		// on game start
 		gridService.OnGameStart();
 	}
 
-	// ������ �߿��� �̺�Ʈ���� ���⼭ ���
 	private void AddEvent()
 	{
 		// times to process
@@ -221,10 +209,8 @@ public class GameContext : MonoBehaviour
 		gameTime.OnWeekPassed += orderManager.CheckExpiredOrders;
 
 		// times for payments
-gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
+		gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
 
-		// ������ �߿��Ѱ�?
-		// �ϴ��� ���⿡�� �������
 		gridService.OnPlaceableInstalled += economyService.OnPlacement;
 	}
 

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using Assets.Scripts.Save.JsonData;
 
 
 public enum PlacementEvent
@@ -140,7 +141,7 @@ public class GridMap
 	public void SetMap(GridCell[,,] map) => this.map = map;
 
 
-	public void LoadByData(JsonData.GridMapData data)
+	public void LoadByData(GridMapData data)
 	{
 		mapSize = new int3(data.X, data.Y, data.Z);
 		map = new GridCell[mapSize.x, mapSize.y, mapSize.z];

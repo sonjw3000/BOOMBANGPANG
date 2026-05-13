@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using Assets.Scripts.Save.JsonData;
 
 public enum PlacementResult
 {
@@ -130,7 +131,7 @@ public class GridService : MonoBehaviour
 			return;
 		}
 
-		JsonData.GridMapData gridData = new JsonData.GridMapData
+		GridMapData gridData = new()
 		{
 			X = data.MapSize.X,
 			Y = data.MapSize.Y,
@@ -155,27 +156,6 @@ public class GridService : MonoBehaviour
 
 		placedObjects.Clear();
 		IsReady = false;
-	}
-
-	public void LoadByData(GameSaveLoader loadedData)
-	{
-		gridMap.LoadByData(loadedData.GetGrid());
-		LoadByData(loadedData.GetPlaceable());
-	}
-
-	private void LoadByData(JsonData.PlaceableData data)
-	{
-		foreach (var obj in data.placeables)
-		{
-			int3 pos = new(obj.x, obj.y, obj.z);
-
-			PlacementContext context = new(pos, obj.facingDirection, GameContext.Instance.PlaceableCatalog.FindById(obj.placeableID), PlacementEvent.Load);
-			if (OnInstall(context) == false)
-			{
-				Debug.LogError("Cant be");
-				return;
-			}
-		}
 	}
 
 	public bool OnCheckInstallable(in PlacementContext ctx, List<int3> possibleCell, List<int3> blocked)
