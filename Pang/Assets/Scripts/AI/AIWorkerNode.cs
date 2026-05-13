@@ -57,7 +57,7 @@ public abstract partial class AIWorker
 
 	private static NodeState CheckWorkerHasBox(in BTContext context)
 	{
-		CarryBoxAbility boxStatus = context.Worker.CurrentTask.CarryingAbility;
+		CarryBoxAbility boxStatus = context.Worker.CarryingAbility;
 
 		if (boxStatus == null)
 		{
@@ -72,7 +72,7 @@ public abstract partial class AIWorker
 
 	private static NodeState CheckWorkerHasNoBox(in BTContext context)
 	{
-		CarryBoxAbility boxStatus = context.Worker.CurrentTask.CarryingAbility;
+		CarryBoxAbility boxStatus = context.Worker.CarryingAbility;
 
 		if (boxStatus == null)
 		{

@@ -42,7 +42,8 @@ public sealed class PickingTask : WorkerTask
 
 	protected override void OnTaskAssigned()
 	{
-		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
+		if (WorkerCarryBox == null)
+			Debug.LogError("No carryBox ability but assigned to picking!!");
 	}
 
 	protected override IBaseNode BuildWorkNode()
@@ -137,7 +138,7 @@ public sealed class PickingTask : WorkerTask
 		if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var placeable)
 			&& placeable is PackingStation station)
 		{
-			if (task.carryBox.GetBox(out var box) && station.PutBoxToPack(new BoxWithOrder(box, task.pickJob)))
+			if (task.WorkerCarryBox.GetBox(out var box) && station.PutBoxToPack(new BoxWithOrder(box, task.pickJob)))
 			{
 				task.isTaskEnd = true;
 				return Success;
@@ -145,7 +146,7 @@ public sealed class PickingTask : WorkerTask
 			else if (box != null)
 			{
 				station.ClearIncomingBoxReservation(ctx.Worker);
-				task.carryBox.PutBox(box);
+				task.WorkerCarryBox.PutBox(box);
 			}
 		}
 
@@ -186,7 +187,7 @@ public sealed class PickingTask : WorkerTask
 		var curLine = task.CurrentLine;
 		int removed = curLine.Source.RemoveItem(curLine.ItemID, curLine.Quantity);
 
-		BoxBase box = ctx.Worker.GetComponent<CarryBoxAbility>().CarryingBox;
+		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
 
 		if (box == null)
 		{

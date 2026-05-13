@@ -65,9 +65,7 @@ public class StoringTask : WorkerTask
 
 	protected override void OnTaskAssigned()
 	{
-		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
-
-		if (carryBox == null)
+		if (WorkerCarryBox == null)
 		{
 			Debug.LogError("No carryBox ability but assigned to storing!!");
 		}
@@ -198,7 +196,7 @@ public class StoringTask : WorkerTask
 
 		// place items to target
 		WorkLine line = task.placingLine;
-		BoxBase box = task.carryBox.CarryingBox;
+		BoxBase box = task.WorkerCarryBox.CarryingBox;
 
 		if (line == null || box == null)
 		{

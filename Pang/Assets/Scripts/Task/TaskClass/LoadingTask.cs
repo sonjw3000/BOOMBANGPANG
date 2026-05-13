@@ -32,9 +32,7 @@ public class LoadingTask : WorkerTask
 
 	protected override void OnTaskAssigned()
 	{
-		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
-
-		if (carryBox == null)
+		if (WorkerCarryBox == null)
 		{
 			Debug.LogError("No carryBox ability but assigned to ccc!!");
 		}
@@ -88,7 +86,7 @@ public class LoadingTask : WorkerTask
 			return Failure;
 		}
 
-		BoxBase box = ctx.Worker.GetComponent<CarryBoxAbility>().CarryingBox;
+		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
 
 		task.targetPort.MoveToBox(box);
 		task.targetPort.SetInputReady(true);
@@ -108,7 +106,7 @@ public class LoadingTask : WorkerTask
 	static private NodeState StoreCargo(in BTContext ctx)
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
-		var carryAbility = ctx.Worker.GetComponent<CarryBoxAbility>();
+		var carryAbility = ctx.Worker.CarryingAbility;
 				
 		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Pick);
 		if (launchStation == null)
@@ -116,6 +114,14 @@ public class LoadingTask : WorkerTask
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 			Debug.LogError("No available launch station found!");
+			return Failure;
+		}
+
+		if (carryAbility == null || carryAbility.CarryingBox == null)
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
+			Debug.LogError("Loading worker has no carried box.");
 			return Failure;
 		}
 

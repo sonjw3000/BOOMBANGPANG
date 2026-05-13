@@ -53,9 +53,7 @@ public class WaterTask : WorkerTask
 	{
 		// todo
 		// check human like ability
-		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
-
-		if (carryBox == null)
+		if (WorkerCarryBox == null)
 		{
 			Debug.LogError("No carryBox ability but assigned to ccc!!");
 		}
@@ -119,8 +117,8 @@ public class WaterTask : WorkerTask
 			return Success;
 
 		// if fulfilled workPhase = true;
-		if ((task.from.transferType == TransferObjectType.Item && task.carryBox.CarryingBox != null) ||
-			(task.from.transferType == TransferObjectType.Box && task.carryBox.CarryingBox == null))
+		if ((task.from.transferType == TransferObjectType.Item && task.WorkerCarryBox.CarryingBox != null) ||
+			(task.from.transferType == TransferObjectType.Box && task.WorkerCarryBox.CarryingBox == null))
 		{
 			task.workPhase = true;
 			return Success;
@@ -150,7 +148,7 @@ public class WaterTask : WorkerTask
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
 
 		if (task.from.transferType == TransferObjectType.Item &&
-			task.carryBox.CarryingBox == null)
+			task.WorkerCarryBox.CarryingBox == null)
 			return Success;
 
 		return Failure;
@@ -162,7 +160,7 @@ public class WaterTask : WorkerTask
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
 		
 		if (task.from.transferType == TransferObjectType.Box &&
-			task.carryBox.CarryingBox != null)
+			task.WorkerCarryBox.CarryingBox != null)
 			return Success;
 
 		return Failure;
@@ -188,7 +186,7 @@ public class WaterTask : WorkerTask
 				return Failure;
 			}
 
-			if (target.MoveToBox(task.carryBox.CarryingBox))
+			if (target.MoveToBox(task.WorkerCarryBox.CarryingBox))
 			{
 				// 추가 뭐시기를 요청하던가 해야함
 			}
@@ -197,7 +195,7 @@ public class WaterTask : WorkerTask
 		{
 			BoxInteraction boxInteraction = task.from.target as BoxInteraction;
 			if (boxInteraction.GetBox(out var box) == false) return Failure;
-			if (task.carryBox.PutBox(box) == false) return Failure;
+			if (task.WorkerCarryBox.PutBox(box) == false) return Failure;
 		}
 
 		return Success;
@@ -223,13 +221,13 @@ public class WaterTask : WorkerTask
 				return Failure;
 			}
 
-			target.BringFromBox(task.carryBox.CarryingBox);
+			target.BringFromBox(task.WorkerCarryBox.CarryingBox);
 		}
 		else
 		{
 			BoxInteraction boxInteraction = task.from.target as BoxInteraction;
 
-			if (task.carryBox.GetBox(out var box) == false)
+			if (task.WorkerCarryBox.GetBox(out var box) == false)
 			{
 				Debug.LogError("No box to put??");
 				return Failure;

@@ -36,9 +36,7 @@ public class UnloadingTask : WorkerTask
 
 	protected override void OnTaskAssigned()
 	{
-		carryBox = OccupyWorker.GetComponent<CarryBoxAbility>();
-
-		if (carryBox == null)
+		if (WorkerCarryBox == null)
 		{
 			Debug.LogError("No carryBox ability but assigned to ccc!!");
 		}
@@ -99,7 +97,7 @@ public class UnloadingTask : WorkerTask
 		// items를 worker에게 건내줘야함
 		AIWorker worker = ctx.Worker;
 
-		BoxBase box = worker.GetComponent<CarryBoxAbility>().CarryingBox;
+		BoxBase box = worker.CarryingAbility?.CarryingBox;
 		if (box == null)
 		{
 			Debug.Log("No Box OMG!!");
@@ -147,7 +145,7 @@ public class UnloadingTask : WorkerTask
 
 		// load on cargoport
 
-		BoxBase box = task.carryBox.CarryingBox;
+		BoxBase box = task.WorkerCarryBox.CarryingBox;
 
 		List<uint> ids = new(box.Stacks.Count);
 		List<int> cnts = new(box.Stacks.Count);

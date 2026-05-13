@@ -108,6 +108,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private WorkerStatusInfo workerState = WorkerStatusInfo.None;
 	private GameObject currentVisualInstance;
 	private WorkerVisualDefinition currentVisualDefinition;
+	private CarryBoxAbility carryingAbility;
 
 	private int3 position;
 	private FacingDirection facingDirection;
@@ -142,6 +143,16 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public WorkerTask.TaskType TaskType => workerMainTaskType;
 	public IInteractionPoint CurrentWorkingBuilding => currentWorkingPoint;
 	public bool IsAssignedToPackingStation => currentWorkingPoint is PackingStation;
+	public CarryBoxAbility CarryingAbility
+	{
+		get
+		{
+			if (carryingAbility == null)
+				TryGetComponent(out carryingAbility);
+
+			return carryingAbility;
+		}
+	}
 
 	// worker show stat
 	public WorkerStatusInfo WorkerState => workerState;
@@ -267,7 +278,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool TryAttachBox(BoxBase box)
 	{
-		gameObject.TryGetComponent<CarryBoxAbility>(out var component);
+		var component = CarryingAbility;
 		if (component == null)
 		{
 			Debug.LogError("No CarryBox Ability!!!!!!");
@@ -281,7 +292,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool TryDetachBox(out BoxBase box)
 	{
-		gameObject.TryGetComponent<CarryBoxAbility>(out var component);
+		var component = CarryingAbility;
 		if (component == null)
 		{
 			Debug.LogError("No CarryBox Ability!!!!!!");
@@ -540,7 +551,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			CarryingBoxId = 0,
 		};
 
-		if (TryGetComponent<CarryBoxAbility>(out var carryBoxAbility) &&
+		var carryBoxAbility = CarryingAbility;
+		if (carryBoxAbility != null &&
 			carryBoxAbility.CarryingBox != null &&
 			registerBox != null)
 		{
@@ -587,8 +599,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	{
 		if (abilities.HasFlag(WorkerAbility.CargoHandling) && GetComponent<CargoHandlingAbility>() == null)
 			gameObject.AddComponent<CargoHandlingAbility>();
-		if (abilities.HasFlag(WorkerAbility.CarryBox) && GetComponent<CarryBoxAbility>() == null)
-			gameObject.AddComponent<CarryBoxAbility>();
+		if (abilities.HasFlag(WorkerAbility.CarryBox))
+		{
+			if (CarryingAbility == null)
+				carryingAbility = gameObject.AddComponent<CarryBoxAbility>();
+		}
 		if (abilities.HasFlag(WorkerAbility.Labeling) && GetComponent<LabelingAbility>() == null)
 			gameObject.AddComponent<LabelingAbility>();
 		if (abilities.HasFlag(WorkerAbility.Packing) && GetComponent<PackageAbility>() == null)

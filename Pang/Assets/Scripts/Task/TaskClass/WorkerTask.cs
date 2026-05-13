@@ -54,14 +54,14 @@ public abstract class WorkerTask
 
 	private IBaseNode baseNode = null;
 
-	protected CarryBoxAbility carryBox = null;
+	protected CarryBoxAbility WorkerCarryBox => OccupyWorker != null ? OccupyWorker.CarryingAbility : null;
 
 	public AIWorker OccupyWorker { get; private set; }
 	public TaskType Type { get; private set; }
 	public Status CurrentStatus { get; private set; } = Status.Blocked;
 	public float TaskBuiltTime { get; private set; }
 	public bool IsEmergency { get; private set; }
-	public CarryBoxAbility CarryingAbility => carryBox;
+	public CarryBoxAbility CarryingAbility => WorkerCarryBox;
 
 	private TaskManager Manager => GameContext.Instance.TaskMgr;
 	//static public TaskManager Manager { get; private set; } = null;
