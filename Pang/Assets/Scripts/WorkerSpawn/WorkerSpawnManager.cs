@@ -23,6 +23,8 @@ public class WorkerSpawnManager : MonoBehaviour
 	[SerializeField] private int randomSearchCountPerZone = 12;
 	[SerializeField] private List<WorkerSpawnDefinition> spawnDefinitions = new();
 
+	public Transform SpawnedWorkerRoot => spawnedWorkerRoot;
+
 	private GridService GridService => GameContext.Instance.GridService;
 	private ZoneManager ZoneManager
 	{

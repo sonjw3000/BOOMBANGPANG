@@ -66,6 +66,7 @@ public class GridService : MonoBehaviour
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
 
 	private EconomyService Economy => GameContext.Instance.EconomyService;
+	private WorkerSpawnManager WorkerSpawnMgr => GameContext.Instance.WorkerSpawnMgr;
 
 	public void OnGameStart()
 	{
@@ -235,6 +236,8 @@ public class GridService : MonoBehaviour
 		if (obj == null)
 			obj = Instantiate(ctx.placeableDefinition.prefab, placeableParent.transform);
 
+		NormalizePlacedObjectParent(obj);
+
 		if (obj == null)
 		{
 			Debug.LogError("Failed to instantiate placeable prefab.");
@@ -298,6 +301,23 @@ public class GridService : MonoBehaviour
 
 		//Debug.Log("PlacementSuccess");
 		return true;
+	}
+
+	private void NormalizePlacedObjectParent(GameObject obj)
+	{
+		if (obj == null)
+			return;
+
+		Transform desiredParent = placeableParent != null ? placeableParent.transform : null;
+		if (obj.TryGetComponent<AIWorker>(out _) &&
+			WorkerSpawnMgr != null &&
+			WorkerSpawnMgr.SpawnedWorkerRoot != null)
+		{
+			desiredParent = WorkerSpawnMgr.SpawnedWorkerRoot;
+		}
+
+		if (desiredParent != null && obj.transform.parent != desiredParent)
+			obj.transform.SetParent(desiredParent, true);
 	}
 
 	public bool OnRemove(GameObject targetObj)
