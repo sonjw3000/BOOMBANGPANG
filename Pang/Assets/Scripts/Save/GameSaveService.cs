@@ -7,7 +7,9 @@ using UnityEngine;
 
 public sealed class GameSaveService : MonoBehaviour
 {
-	[SerializeField] private string saveFileName = "savegame.json";
+	[SerializeField] private string saveFileName = "savegame_";
+	[SerializeField] private string saveFileNameDef = "savegame.json";
+	private readonly string fileExt = ".json";
 	[SerializeField] private bool enableDebugHotkeys = true;
 
 	private readonly Dictionary<GameObject, int> placeableIds = new();
@@ -15,7 +17,9 @@ public sealed class GameSaveService : MonoBehaviour
 	private int nextPlaceableId = 1;
 	private int nextOrderLineId = 1;
 
-	private string SavePath => Path.Combine(Application.persistentDataPath, saveFileName);
+	private string SavePath => Path.Combine(Application.persistentDataPath, saveFileNameDef);
+
+	private string SavePathPerSlot(int slot) => Path.Combine(Application.persistentDataPath, fileExt + slot + fileExt);
 
 	private GameContext Ctx => GameContext.Instance;
 
@@ -24,30 +28,50 @@ public sealed class GameSaveService : MonoBehaviour
 		if (enableDebugHotkeys == false || GameContext.HasInstance == false)
 			return;
 
+		// save
 		if (Input.GetKeyDown(KeyCode.F5))
-			SaveGame();
+			SaveGame(SavePath);
 
+		if (Input.GetKeyDown(KeyCode.F6))
+			SaveGame(SavePathPerSlot(1));
+
+		if (Input.GetKeyDown(KeyCode.F7))
+			SaveGame(SavePathPerSlot(2));
+
+		if (Input.GetKeyDown(KeyCode.F8))
+			SaveGame(SavePathPerSlot(3));
+
+		// load
 		if (Input.GetKeyDown(KeyCode.F9))
-			LoadGame();
+			LoadGame(SavePath);
+
+		if (Input.GetKeyDown(KeyCode.F10))
+			LoadGame(SavePathPerSlot(1));
+
+		if (Input.GetKeyDown(KeyCode.F11))
+			LoadGame(SavePathPerSlot(2));
+
+		if (Input.GetKeyDown(KeyCode.F12))
+			LoadGame(SavePathPerSlot(3));
 	}
 
-	public void SaveGame()
+	public void SaveGame(string savePath)
 	{
 		GameSaveData data = Capture();
 		string json = JsonUtility.ToJson(data, true);
-		File.WriteAllText(SavePath, json);
-		Debug.Log($"[Save] Game saved to {SavePath}");
+		File.WriteAllText(savePath, json);
+		Debug.Log($"[Save] Game saved to {savePath}");
 	}
 
-	public bool LoadGame()
+	public bool LoadGame(string savePath)
 	{
-		if (File.Exists(SavePath) == false)
+		if (File.Exists(savePath) == false)
 		{
-			Debug.LogWarning($"[Save] No save file at {SavePath}");
+			Debug.LogWarning($"[Save] No save file at {savePath}");
 			return false;
 		}
 
-		string json = File.ReadAllText(SavePath);
+		string json = File.ReadAllText(savePath);
 		GameSaveData data = JsonUtility.FromJson<GameSaveData>(json);
 		if (data == null)
 		{
@@ -56,7 +80,7 @@ public sealed class GameSaveService : MonoBehaviour
 		}
 
 		Restore(data);
-		Debug.Log($"[Save] Game loaded from {SavePath}");
+		Debug.Log($"[Save] Game loaded from {savePath}");
 		return true;
 	}
 
