@@ -41,7 +41,7 @@ namespace Assets.Scripts.Save
 			public PlaceableData PlaceableData;
 		}
 	}
-};
+}
 
 
 [Serializable]
