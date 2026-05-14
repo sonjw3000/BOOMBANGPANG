@@ -17,6 +17,8 @@ public sealed class GameSaveService : MonoBehaviour
 	private int nextPlaceableId = 1;
 	private int nextOrderLineId = 1;
 
+	public static string SaveDirectoryPath => Application.persistentDataPath;
+
 	private string SavePath => Path.Combine(Application.persistentDataPath, saveFileNameDef);
 
 	private string SavePathPerSlot(int slot) => Path.Combine(Application.persistentDataPath, saveFileName + slot + fileExt);
@@ -65,22 +67,50 @@ public sealed class GameSaveService : MonoBehaviour
 
 	public bool LoadGame(string savePath)
 	{
+		if (TryReadSaveData(savePath, out GameSaveData data) == false)
+			return false;
+
+		Restore(data);
+		Debug.Log($"[Save] Game loaded from {savePath}");
+		return true;
+	}
+
+	public static IEnumerable<string> EnumerateJsonSaveFiles()
+	{
+		if (Directory.Exists(SaveDirectoryPath) == false)
+			yield break;
+
+		foreach (string filePath in Directory.EnumerateFiles(SaveDirectoryPath, "*.json", SearchOption.TopDirectoryOnly))
+			yield return filePath;
+	}
+
+	public static bool TryReadSaveData(string savePath, out GameSaveData data)
+	{
+		data = null;
+
 		if (File.Exists(savePath) == false)
 		{
 			Debug.LogWarning($"[Save] No save file at {savePath}");
 			return false;
 		}
 
-		string json = File.ReadAllText(savePath);
-		GameSaveData data = JsonUtility.FromJson<GameSaveData>(json);
-		if (data == null)
+		try
 		{
-			Debug.LogError("[Save] Failed to parse save file.");
+			string json = File.ReadAllText(savePath);
+			data = JsonUtility.FromJson<GameSaveData>(json);
+		}
+		catch (Exception ex)
+		{
+			Debug.LogWarning($"[Save] Failed to read save file at {savePath}: {ex.Message}");
 			return false;
 		}
 
-		Restore(data);
-		Debug.Log($"[Save] Game loaded from {savePath}");
+		if (data == null)
+		{
+			Debug.LogWarning($"[Save] Failed to parse save file at {savePath}");
+			return false;
+		}
+
 		return true;
 	}
 
