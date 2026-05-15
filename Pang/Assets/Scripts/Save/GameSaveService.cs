@@ -123,6 +123,8 @@ public sealed class GameSaveService : MonoBehaviour
 
 		GameSaveData data = new();
 		data.SavedAtUtc = DateTime.UtcNow.ToString("O");
+		data.Policy.WorkSpeed = Ctx.WMSys.WorkPolicyService.CaptureState();
+		data.Policy.WorkApproach = Ctx.IBWorkflowMgr.CapturePolicyState();
 		data.Time = Ctx.GameTime.CaptureState();
 		data.Economy = Ctx.EconomyService.CaptureState();
 		data.ItemLedger = Ctx.WMSys.ItemLedger.CaptureState();
@@ -164,6 +166,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.OBWorkflowMgr.ResetRuntimeState();
 		Ctx.WorkerMgr.ResetRuntimeState();
 		Ctx.ZoneMgr.ResetRuntimeState();
+		Ctx.WMSys.WorkPolicyService.ResetRuntimeState();
 		Ctx.WMSys.ItemLedger.ResetRuntimeState();
 		Ctx.WMSys.BoxPoolMgr.ResetRuntimeState();
 		Ctx.WMSys.BoxPoolMgr.DestroyAllBoxes();
@@ -173,6 +176,8 @@ public sealed class GameSaveService : MonoBehaviour
 
 		Ctx.GridService.RestoreState(data.Grid);
 		Ctx.ZoneMgr.RestoreState(data.Zones);
+		Ctx.WMSys.WorkPolicyService.RestoreState(data.Policy != null ? data.Policy.WorkSpeed : null);
+		Ctx.IBWorkflowMgr.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);
 		Ctx.GameTime.RestoreState(data.Time);
 		Ctx.EconomyService.RestoreState(data.Economy);
 		Ctx.ContractMgr.RestoreState(data.Contracts);

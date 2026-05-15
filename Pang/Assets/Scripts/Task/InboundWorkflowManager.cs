@@ -12,6 +12,8 @@ using static WorkerTask.TaskType;
 
 public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 {
+	private const StoringPlacingPolicyType DefaultPlacingPolicyType = StoringPlacingPolicyType.BelowAverageFilledNearest;
+
 	// inbound manager's cargo port service
 	[SerializeField] CargoPortService cargoPortService;
 	private readonly Dictionary<uint, List<CargoPort>> cargoPortsByItem = new();
@@ -30,13 +32,35 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	//private
 
 	// 평균 이하 적재율 선반 중 최근접 선반을 우선 선택한다.
-	private IPlacingPolicy placingPolicy = new BelowAverageFilledNearestPlacingPolicy();
+	private IPlacingPolicy placingPolicy;
 	private StoringPlanner storingPlanner = new StoringItemFriendly();
+	private StoringPlacingPolicyType storingPlacingPolicyType = DefaultPlacingPolicyType;
 
 	public CargoPortService CargoPorts => cargoPortService;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	public Dictionary<uint, List<CargoPort>> CargoPortsByItem => cargoPortsByItem;
 	public IPlacingPolicy PlacingPolicy => placingPolicy;
+	public StoringPlacingPolicyType StoringPlacingPolicyType => storingPlacingPolicyType;
+
+	public void SetStoringPlacingPolicy(StoringPlacingPolicyType policyType)
+	{
+		storingPlacingPolicyType = policyType;
+		placingPolicy = StoringPlacingPolicyFactory.Create(policyType);
+	}
+
+	public InboundWorkflowPolicySaveData CapturePolicyState()
+	{
+		return new InboundWorkflowPolicySaveData
+		{
+			StoringPlacingPolicy = storingPlacingPolicyType,
+		};
+	}
+
+	public void RestorePolicyState(InboundWorkflowPolicySaveData data)
+	{
+		StoringPlacingPolicyType policyType = data != null ? data.StoringPlacingPolicy : DefaultPlacingPolicyType;
+		SetStoringPlacingPolicy(policyType);
+	}
 
 	// ----------------------------------------------------------------
 	// inbound의 task를 연계생성
@@ -148,6 +172,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	// unity 함수
 	private void Start()
 	{
+		SetStoringPlacingPolicy(storingPlacingPolicyType);
 		cargoPortService.OnItemPresentChanged += OnPortItemPresentChanged;
 		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
 		cargoPortService.OnReserveQuantityChanged += OnPortItemReserved;
@@ -171,6 +196,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 		cargoPortsByItem.Clear();
 		timer = 0.0f;
 		storingPlanner = new StoringItemFriendly();
+		SetStoringPlacingPolicy(DefaultPlacingPolicyType);
 	}
 	// ----------------------------------------------------------------
 }

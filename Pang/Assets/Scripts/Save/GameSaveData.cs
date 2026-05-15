@@ -50,6 +50,7 @@ public sealed class GameSaveData
 	public int Version = 1;
 	public string SavedAtUtc;
 
+	public PolicyStateSaveData Policy = new();
 	public TimeSaveData Time = new();
 	public EconomySaveData Economy = new();
 	public ItemLedgerSaveData ItemLedger = new();
@@ -65,6 +66,33 @@ public sealed class GameSaveData
 	public WorkJobCounterSaveData WorkJobCounters = new();
 	public List<PlaceableSaveData> Placeables = new();
 	public List<TaskSaveData> Tasks = new();
+}
+
+[Serializable]
+public sealed class PolicyStateSaveData
+{
+	public WorkPolicyRuntimeSaveData WorkSpeed = new();
+	public InboundWorkflowPolicySaveData WorkApproach = new();
+}
+
+[Serializable]
+public sealed class WorkPolicyRuntimeSaveData
+{
+	public List<WorkerTypeFloatSaveData> MoveSpeedMultipliers = new();
+	public List<WorkerTypeFloatSaveData> WorkSpeedMultipliers = new();
+}
+
+[Serializable]
+public sealed class WorkerTypeFloatSaveData
+{
+	public WorkerType WorkerType;
+	public float Value = 1.0f;
+}
+
+[Serializable]
+public sealed class InboundWorkflowPolicySaveData
+{
+	public StoringPlacingPolicyType StoringPlacingPolicy = StoringPlacingPolicyType.BelowAverageFilledNearest;
 }
 
 [Serializable]
