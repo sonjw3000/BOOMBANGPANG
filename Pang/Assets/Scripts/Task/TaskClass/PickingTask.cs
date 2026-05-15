@@ -20,6 +20,7 @@ public sealed class PickingTask : WorkerTask
 
 	static private CargoPortService CargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
 	static private PackingStationService PackingService => GameContext.Instance.OBWorkflowMgr.PackingStations;
+	static private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 
 	public PickingTask(WorkJob pickJob) : base(TaskType.Picking)
 	{
@@ -196,6 +197,11 @@ public sealed class PickingTask : WorkerTask
 		}
 
 		int realAdded = box.AddItem(task.CurrentLine.ItemID, removed);
+		int pickedQuantity = OrderMgr.ReportPickingCompleted(curLine.RelatedOrderLine, realAdded);
+		if (pickedQuantity != realAdded)
+		{
+			Debug.LogWarning($"[PickingTask] Pick progress mismatch. requested={realAdded}, applied={pickedQuantity}");
+		}
 
 		task.CurrentLine.CompleteQuantity += realAdded;
 		// 갯수를 체크해야한다

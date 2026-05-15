@@ -64,7 +64,7 @@ public class OrderManager : MonoBehaviour
 		List<uint> keysToRemove = new();
 		foreach (var kvp in itemOrderLines)
 		{
-			if (HasAllocatableLine(kvp.Value) == false)
+			if (kvp.Value == null || kvp.Value.Count == 0)
 				keysToRemove.Add(kvp.Key);
 		}
 

@@ -6,6 +6,7 @@ using static IBaseNode.NodeState;
 public class PackingTask : WorkerTask
 {
 	private static PackingStationService PackingService => GameContext.Instance.OBWorkflowMgr.PackingStations;
+	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 
 	private readonly PackingStation targetStation;
 	private bool isTaskEnd = false;
@@ -162,6 +163,12 @@ public class PackingTask : WorkerTask
 		{
 			Debug.Log("Station Stack Is Full");
 			return Success;
+		}
+
+		int packedQuantity = OrderMgr.ReportPackagingCompleted(line.RelatedOrderLine, res);
+		if (packedQuantity != res)
+		{
+			Debug.LogWarning($"[PackingTask] Packing progress mismatch. packed={res}, applied={packedQuantity}");
 		}
 
 		box.Job.MoveToNextLine();

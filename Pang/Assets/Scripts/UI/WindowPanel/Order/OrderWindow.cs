@@ -172,7 +172,7 @@ namespace Assets.Scripts.UI
 				{
 					string itemName = GetItemName(line.ItemID);
 					string delayStatus = (currentWeek > line.DueWeek && line.Status != OrderStatus.Completed) ? "<color=red>[DELAYED]</color> " : "";
-					ordersSb.AppendLine($"    - {itemName} x{line.Quantity} {delayStatus}<color=#888888>[{line.Status}]</color>");
+					ordersSb.AppendLine($"    - {itemName} x{line.Quantity} {delayStatus}<color=#888888>[{line.Status}]</color> {BuildLineProgressSummary(line)}");
 				}
 				ordersSb.AppendLine();
 
@@ -232,6 +232,37 @@ namespace Assets.Scripts.UI
 				return data.name;
 			}
 			return "Unknown Item";
+		}
+
+		private static string BuildLineProgressSummary(OrderLine line)
+		{
+			List<string> parts = new();
+
+			if (line.PickingAllocatedQuantity > 0 && line.PickingCompletedQuantity == 0)
+				parts.Add($"Alloc {line.PickingAllocatedQuantity}/{line.Quantity}");
+
+			if (line.PickingCompletedQuantity > 0)
+				parts.Add($"Pick {line.PickingCompletedQuantity}/{line.Quantity}");
+
+			if (line.PackagingCompletedQuantity > 0)
+				parts.Add($"Pack {line.PackagingCompletedQuantity}/{line.Quantity}");
+
+			if (line.WaitingForShippingQuantity > 0)
+				parts.Add($"Port {line.WaitingForShippingQuantity}/{line.Quantity}");
+
+			if (line.ShippingQuantity > 0)
+				parts.Add($"Ship {line.ShippingQuantity}/{line.Quantity}");
+
+			if (line.InDeliveryQuantity > 0)
+				parts.Add($"Flight {line.InDeliveryQuantity}/{line.Quantity}");
+
+			if (line.CompletedQuantity > 0 || line.Status == OrderStatus.Completed)
+				parts.Add($"Done {line.CompletedQuantity}/{line.Quantity}");
+
+			if (parts.Count == 0)
+				parts.Add($"Pending 0/{line.Quantity}");
+
+			return $"({string.Join(" | ", parts)})";
 		}
 	}
 }

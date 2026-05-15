@@ -35,7 +35,7 @@ public class OrderDeliveryManager : MonoBehaviour
 			foreach (var stack in progress.Cargo.Stacks)
 			{
 				ItemPackage pkg = stack as ItemPackage;
-				OrderMgr.ChangeOrderStatus(pkg.RelatedOrderLine, OrderStatus.Completed);
+				OrderMgr.ReportCompleted(pkg.RelatedOrderLine, pkg.Quantity);
 			}
 
 			Debug.Log("Cargo Delivered!");

@@ -42,7 +42,7 @@ public class CargoPort :
 				break;
 			}
 
-			OrderMgr.ChangeOrderStatus(pkg.RelatedOrderLine, OrderStatus.WaitingForShipping);
+			OrderMgr.ReportWaitingForShipping(pkg.RelatedOrderLine, pkg.Quantity);
 		}
 
 		return res;
