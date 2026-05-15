@@ -11,10 +11,7 @@
 */[Uu]ser[Ss]ettings/
 */.agents/
 */Assets/Plugins/NuGet*
-docs/
-docs.meta
-AGENTS.md
-AGENTS.md.meta
+
 *AI Toolkit
 *AI Toolkit.meta
 
