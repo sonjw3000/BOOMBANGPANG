@@ -1,12 +1,13 @@
-﻿using UnityEngine;
+using System;
+using System.Collections.Generic;
 using Unity.Mathematics;
+using UnityEngine;
 
 public class NearestPlacingPolicy : IPlacingPolicy
 {
 	private ShelfStorageIndex StorageIndex => GameContext.Instance.StorageIndex;
-	//private readonly ShelfStorageIndex 
 
-	public bool TryDecide(in int3 workerPos, BoxBase box, out PlaceDecision decision)
+	public bool TryDecide(in int3 workerPos, BoxBase box, Predicate<ShelfBase> pred, out PlaceDecision decision)
 	{
 		decision = default;
 
@@ -18,15 +19,16 @@ public class NearestPlacingPolicy : IPlacingPolicy
 
 		ShelfBase best = null;
 		int bestDist = int.MaxValue;
-
-		// todo
-		// 가장 많은 용량을 먼저 해치우고싶은데
 		ItemStack bestStack = box.Stacks[0];
-
 		int quantity = 0;
 
 		foreach (var shelf in StorageIndex.QueryPlaceCandidate(bestStack.ItemID, bestStack.Quantity))
 		{
+			if (pred != null && pred(shelf) == false)
+			{
+				continue;
+			}
+
 			int3 shelfInteraction = shelf.GetClosestInteractionPoint(InteractionKind.Put, workerPos);
 			int dist =
 				math.abs(workerPos.x - shelfInteraction.x) +
@@ -43,8 +45,6 @@ public class NearestPlacingPolicy : IPlacingPolicy
 
 		if (best == null)
 		{
-			// todo
-			// 여분 shelf가 없다는 것을 유저에게 알려주어야 함
 			Debug.Log("No suitable shelf found for placing.");
 			return false;
 		}
@@ -52,9 +52,79 @@ public class NearestPlacingPolicy : IPlacingPolicy
 		decision.shelf = best;
 		decision.ItemID = bestStack.ItemID;
 		decision.Quantity = quantity;
+		return true;
+	}
+}
 
-		//Debug.Log($"bsetShelfPos: {best.GridPosition}, ItemID: {bestStack.ItemID}, Quantity: {quantity}");
+public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
+{
+	private ShelfStorageIndex StorageIndex => GameContext.Instance.StorageIndex;
 
-		return best != null;
+	public bool TryDecide(in int3 workerPos, BoxBase box, Predicate<ShelfBase> pred, out PlaceDecision decision)
+	{
+		decision = default;
+
+		if (box == null || box.Stacks.Count == 0)
+		{
+			Debug.LogWarning("Cannot decide placing target without a carried box.");
+			return false;
+		}
+
+		ItemStack bestStack = box.Stacks[0];
+		List<ShelfBase> candidates = new();
+		float filledPercentSum = 0.0f;
+
+		foreach (var shelf in StorageIndex.QueryPlaceCandidate(bestStack.ItemID, bestStack.Quantity))
+		{
+			if (pred != null && pred(shelf) == false)
+			{
+				continue;
+			}
+
+			candidates.Add(shelf);
+			filledPercentSum += shelf.FilledPercent;
+		}
+
+		if (candidates.Count <= 0)
+		{
+			Debug.Log("No suitable shelf found for placing.");
+			return false;
+		}
+
+		float averageFilledPercent = filledPercentSum / candidates.Count;
+		ShelfBase best = null;
+		int bestDist = int.MaxValue;
+
+		for (int i = 0; i < candidates.Count; ++i)
+		{
+			ShelfBase shelf = candidates[i];
+			if (shelf.FilledPercent > averageFilledPercent)
+			{
+				continue;
+			}
+
+			int3 shelfInteraction = shelf.GetClosestInteractionPoint(InteractionKind.Put, workerPos);
+			int dist =
+				math.abs(workerPos.x - shelfInteraction.x) +
+				math.abs(workerPos.y - shelfInteraction.y) +
+				math.abs(workerPos.z - shelfInteraction.z);
+
+			if (dist < bestDist)
+			{
+				bestDist = dist;
+				best = shelf;
+			}
+		}
+
+		if (best == null)
+		{
+			Debug.Log("No suitable shelf found for placing.");
+			return false;
+		}
+
+		decision.shelf = best;
+		decision.ItemID = bestStack.ItemID;
+		decision.Quantity = bestStack.Quantity;
+		return true;
 	}
 }

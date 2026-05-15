@@ -164,7 +164,7 @@ public class StoringTask : WorkerTask
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
 		BoxBase box = task.CarryingAbility.CarryingBox;
-		if (PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, out var decision) == false)
+		if (PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, null, out var decision) == false)
 		{
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);

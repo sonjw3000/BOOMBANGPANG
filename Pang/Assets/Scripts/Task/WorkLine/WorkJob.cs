@@ -42,8 +42,6 @@ public sealed class WorkJob
 	public readonly int JobID;
 	public WorkOp WorkType;
 
-	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
-
 	public int CurrentLineIndex => currentLineIndex;
 	public bool IsJobEnd => currentLineIndex >= Lines.Count;
 
@@ -58,16 +56,6 @@ public sealed class WorkJob
 
 	public void MoveToNextLine()
 	{
-		var WorkLine = Lines[currentLineIndex];
-
-		if (WorkType != WorkOp.Storing)
-		{
-			// change order status to order manager
-			var status = WorkType == WorkOp.Packing ? OrderStatus.Packaging : OrderStatus.Picking;
-
-			OrderMgr.ChangeOrderStatus(WorkLine.RelatedOrderLine, status);
-		}
-
 		++currentLineIndex;
 	}
 

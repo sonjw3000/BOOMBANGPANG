@@ -1,4 +1,5 @@
-﻿using Unity.Mathematics;
+using System;
+using Unity.Mathematics;
 
 public struct PlaceDecision
 {
@@ -9,5 +10,5 @@ public struct PlaceDecision
 
 public interface IPlacingPolicy
 {
-	bool TryDecide(in int3 workerPos, BoxBase box, out PlaceDecision decision);
+	bool TryDecide(in int3 workerPos, BoxBase box, Predicate<ShelfBase> pred, out PlaceDecision decision);
 }

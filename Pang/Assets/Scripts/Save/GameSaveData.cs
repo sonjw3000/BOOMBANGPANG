@@ -157,6 +157,13 @@ public sealed class OrderLineSaveData
 	public int BaseReward;
 	public int DelayPenalty;
 	public float ReputationChange;
+	public int PickingAllocatedQuantity;
+	public int PickingCompletedQuantity;
+	public int PackagingCompletedQuantity;
+	public int WaitingForShippingQuantity;
+	public int ShippingQuantity;
+	public int InDeliveryQuantity;
+	public int CompletedQuantity;
 }
 
 [Serializable]

@@ -3,25 +3,15 @@ using System.Collections.Generic;
 
 public enum OrderStatus
 {
-	// 주문 처리 대기중
 	Pending,
-	// 주문 할당됨
 	Allocated,
-	// 피킹 작업중
 	Picking,
-	// 포장 작업중
 	Packaging,
-	// 배송 대기중
 	WaitingForShipping,
-	// 배송 작업중
 	Shipping,
-	// 배송중
 	IndDelivery,
-	// 주문 완료
 	Completed,
-	// 주문 취소됨
 	Cancelled,
-	// 주문 딜레이
 	Delayed,
 }
 
@@ -49,39 +39,57 @@ public class Order
 		this.status = status;
 	}
 
-	public OrderTotalStatus ChangeOrderStatus(OrderStatus status)
+	public OrderTotalStatus RecalculateStatus()
 	{
-		// check all lines are in a final state (Completed or Cancelled)
-		bool isAllFinal = true;
-		foreach (var line in Lines)
+		if (Lines == null || Lines.Count == 0)
 		{
-			if (line.Status != OrderStatus.Completed && line.Status != OrderStatus.Cancelled)
-			{
-				isAllFinal = false;
-				break;
-			}
+			status = OrderTotalStatus.Pending;
+			return status;
 		}
 
-		if (isAllFinal)
+		bool anyStarted = false;
+		bool allFinal = true;
+		bool allCancelled = true;
+
+		foreach (var line in Lines)
 		{
-			this.status = OrderTotalStatus.Completed; // Or create a Settle state
+			if (line == null)
+				continue;
+
+			OrderStatus lineStatus = line.Status;
+			if (lineStatus != OrderStatus.Pending)
+				anyStarted = true;
+
+			if (line.IsFinal == false)
+				allFinal = false;
+
+			if (lineStatus != OrderStatus.Cancelled)
+				allCancelled = false;
+		}
+
+		if (allCancelled)
+		{
+			status = OrderTotalStatus.Cancelled;
+		}
+		else if (allFinal)
+		{
+			status = OrderTotalStatus.Completed;
+		}
+		else if (anyStarted)
+		{
+			status = OrderTotalStatus.InProgress;
 		}
 		else
 		{
-			this.status = OrderTotalStatus.InProgress;
+			status = OrderTotalStatus.Pending;
 		}
 
-		return this.status;
+		return status;
 	}
-	}
+}
 
-	// 지구가 제일 힘들었던 시기는?
-	// 고생대
-
-	// 수요를 정리함
-	// 주문이 만족되었는지를 판단하기 위한 데이터
-	public class OrderLine
-	{
+public class OrderLine
+{
 	public int SaveId { get; set; }
 	public readonly Order ParentOrder;
 	public readonly uint ItemID;
@@ -94,8 +102,19 @@ public class Order
 	public int DelayPenalty;
 	public float ReputationChange;
 
-	private OrderStatus status = OrderStatus.Pending;
-	public OrderStatus Status => status;
+	private bool isCancelled = false;
+
+	public int PickingAllocatedQuantity { get; private set; }
+	public int PickingCompletedQuantity { get; private set; }
+	public int PackagingCompletedQuantity { get; private set; }
+	public int WaitingForShippingQuantity { get; private set; }
+	public int ShippingQuantity { get; private set; }
+	public int InDeliveryQuantity { get; private set; }
+	public int CompletedQuantity { get; private set; }
+
+	public OrderStatus Status => isCancelled ? OrderStatus.Cancelled : EvaluateStatus();
+	public bool IsFinal => Status == OrderStatus.Completed || Status == OrderStatus.Cancelled;
+	public bool CanAllocatePicking => isCancelled == false && GetPickingAllocatableQuantity() > 0;
 
 	public OrderLine(Order parentOrder, uint itemID, int quantity, Assets.Scripts.Contract.ContractRuntime sourceContract)
 	{
@@ -105,21 +124,255 @@ public class Order
 		SourceContract = sourceContract;
 	}
 
-	public OrderTotalStatus ChangeOrderStatus(OrderStatus status)
+	public int GetPickingAllocatableQuantity()
 	{
-		this.status = status;
-
-		return ParentOrder.ChangeOrderStatus(status);
+		return ClampInt(Quantity - PickingCompletedQuantity - PickingAllocatedQuantity, 0, Quantity);
 	}
 
-	public void RestoreState(int saveId, OrderStatus status, int startWeek, int dueWeek, int baseReward, int delayPenalty, float reputationChange)
+	public int TryAllocatePicking(int quantity)
+	{
+		if (isCancelled)
+			return 0;
+
+		int actual = ClampInt(quantity, 0, GetPickingAllocatableQuantity());
+		PickingAllocatedQuantity += actual;
+		return actual;
+	}
+
+	public int ReportPickingCompleted(int quantity)
+	{
+		int actual = ClampInt(quantity, 0, PickingAllocatedQuantity);
+		PickingAllocatedQuantity -= actual;
+		PickingCompletedQuantity += actual;
+		ClampProgress();
+		return actual;
+	}
+
+	public int ReportPackagingCompleted(int quantity)
+	{
+		int actual = ClampInt(quantity, 0, PickingCompletedQuantity - PackagingCompletedQuantity);
+		PackagingCompletedQuantity += actual;
+		ClampProgress();
+		return actual;
+	}
+
+	public int ReportWaitingForShipping(int quantity)
+	{
+		int actual = ClampInt(quantity, 0, PackagingCompletedQuantity - WaitingForShippingQuantity);
+		WaitingForShippingQuantity += actual;
+		ClampProgress();
+		return actual;
+	}
+
+	public int ReportShipping(int quantity)
+	{
+		int actual = ClampInt(quantity, 0, WaitingForShippingQuantity - ShippingQuantity);
+		ShippingQuantity += actual;
+		ClampProgress();
+		return actual;
+	}
+
+	public int ReportInDelivery(int quantity)
+	{
+		int actual = ClampInt(quantity, 0, ShippingQuantity - InDeliveryQuantity);
+		InDeliveryQuantity += actual;
+		ClampProgress();
+		return actual;
+	}
+
+	public int ReportCompleted(int quantity)
+	{
+		int actual = ClampInt(quantity, 0, InDeliveryQuantity - CompletedQuantity);
+		CompletedQuantity += actual;
+		ClampProgress();
+		return actual;
+	}
+
+	public void Cancel()
+	{
+		isCancelled = true;
+	}
+
+	public int GetProgressQuantityForStatus(OrderStatus status)
+	{
+		return status switch
+		{
+			OrderStatus.Allocated => PickingAllocatedQuantity,
+			OrderStatus.Picking => PickingCompletedQuantity,
+			OrderStatus.Packaging => PackagingCompletedQuantity,
+			OrderStatus.WaitingForShipping => WaitingForShippingQuantity,
+			OrderStatus.Shipping => ShippingQuantity,
+			OrderStatus.IndDelivery => InDeliveryQuantity,
+			OrderStatus.Completed => CompletedQuantity,
+			_ => 0,
+		};
+	}
+
+	public void RestoreState(
+		int saveId,
+		OrderStatus status,
+		int startWeek,
+		int dueWeek,
+		int baseReward,
+		int delayPenalty,
+		float reputationChange,
+		int pickingAllocatedQuantity,
+		int pickingCompletedQuantity,
+		int packagingCompletedQuantity,
+		int waitingForShippingQuantity,
+		int shippingQuantity,
+		int inDeliveryQuantity,
+		int completedQuantity)
 	{
 		SaveId = saveId;
-		this.status = status;
 		StartWeek = startWeek;
 		DueWeek = dueWeek;
 		BaseReward = baseReward;
 		DelayPenalty = delayPenalty;
 		ReputationChange = reputationChange;
+
+		isCancelled = status == OrderStatus.Cancelled;
+
+		if (IsLegacyProgressEmpty(
+			pickingAllocatedQuantity,
+			pickingCompletedQuantity,
+			packagingCompletedQuantity,
+			waitingForShippingQuantity,
+			shippingQuantity,
+			inDeliveryQuantity,
+			completedQuantity))
+		{
+			RestoreLegacyProgress(status);
+		}
+		else
+		{
+			PickingAllocatedQuantity = pickingAllocatedQuantity;
+			PickingCompletedQuantity = pickingCompletedQuantity;
+			PackagingCompletedQuantity = packagingCompletedQuantity;
+			WaitingForShippingQuantity = waitingForShippingQuantity;
+			ShippingQuantity = shippingQuantity;
+			InDeliveryQuantity = inDeliveryQuantity;
+			CompletedQuantity = completedQuantity;
+			ClampProgress();
+		}
+	}
+
+	private OrderStatus EvaluateStatus()
+	{
+		if (CompletedQuantity >= Quantity)
+			return OrderStatus.Completed;
+
+		if (InDeliveryQuantity > 0)
+			return OrderStatus.IndDelivery;
+
+		if (ShippingQuantity > 0)
+			return OrderStatus.Shipping;
+
+		if (WaitingForShippingQuantity > 0)
+			return OrderStatus.WaitingForShipping;
+
+		if (PackagingCompletedQuantity > 0)
+			return OrderStatus.Packaging;
+
+		if (PickingCompletedQuantity > 0)
+			return OrderStatus.Picking;
+
+		if (PickingAllocatedQuantity > 0)
+			return OrderStatus.Allocated;
+
+		return OrderStatus.Pending;
+	}
+
+	private void RestoreLegacyProgress(OrderStatus status)
+	{
+		PickingAllocatedQuantity = 0;
+		PickingCompletedQuantity = 0;
+		PackagingCompletedQuantity = 0;
+		WaitingForShippingQuantity = 0;
+		ShippingQuantity = 0;
+		InDeliveryQuantity = 0;
+		CompletedQuantity = 0;
+
+		switch (status)
+		{
+			case OrderStatus.Allocated:
+				PickingAllocatedQuantity = Quantity;
+				break;
+			case OrderStatus.Picking:
+				PickingCompletedQuantity = Quantity;
+				break;
+			case OrderStatus.Packaging:
+				PickingCompletedQuantity = Quantity;
+				PackagingCompletedQuantity = Quantity;
+				break;
+			case OrderStatus.WaitingForShipping:
+				PickingCompletedQuantity = Quantity;
+				PackagingCompletedQuantity = Quantity;
+				WaitingForShippingQuantity = Quantity;
+				break;
+			case OrderStatus.Shipping:
+				PickingCompletedQuantity = Quantity;
+				PackagingCompletedQuantity = Quantity;
+				WaitingForShippingQuantity = Quantity;
+				ShippingQuantity = Quantity;
+				break;
+			case OrderStatus.IndDelivery:
+				PickingCompletedQuantity = Quantity;
+				PackagingCompletedQuantity = Quantity;
+				WaitingForShippingQuantity = Quantity;
+				ShippingQuantity = Quantity;
+				InDeliveryQuantity = Quantity;
+				break;
+			case OrderStatus.Completed:
+				PickingCompletedQuantity = Quantity;
+				PackagingCompletedQuantity = Quantity;
+				WaitingForShippingQuantity = Quantity;
+				ShippingQuantity = Quantity;
+				InDeliveryQuantity = Quantity;
+				CompletedQuantity = Quantity;
+				break;
+		}
+
+		ClampProgress();
+	}
+
+	private void ClampProgress()
+	{
+		PickingCompletedQuantity = ClampInt(PickingCompletedQuantity, 0, Quantity);
+		PickingAllocatedQuantity = ClampInt(PickingAllocatedQuantity, 0, Quantity - PickingCompletedQuantity);
+		PackagingCompletedQuantity = ClampInt(PackagingCompletedQuantity, 0, PickingCompletedQuantity);
+		WaitingForShippingQuantity = ClampInt(WaitingForShippingQuantity, 0, PackagingCompletedQuantity);
+		ShippingQuantity = ClampInt(ShippingQuantity, 0, WaitingForShippingQuantity);
+		InDeliveryQuantity = ClampInt(InDeliveryQuantity, 0, ShippingQuantity);
+		CompletedQuantity = ClampInt(CompletedQuantity, 0, InDeliveryQuantity);
+	}
+
+	private static bool IsLegacyProgressEmpty(
+		int pickingAllocatedQuantity,
+		int pickingCompletedQuantity,
+		int packagingCompletedQuantity,
+		int waitingForShippingQuantity,
+		int shippingQuantity,
+		int inDeliveryQuantity,
+		int completedQuantity)
+	{
+		return pickingAllocatedQuantity == 0 &&
+			pickingCompletedQuantity == 0 &&
+			packagingCompletedQuantity == 0 &&
+			waitingForShippingQuantity == 0 &&
+			shippingQuantity == 0 &&
+			inDeliveryQuantity == 0 &&
+			completedQuantity == 0;
+	}
+
+	private static int ClampInt(int value, int min, int max)
+	{
+		if (value < min)
+			return min;
+
+		if (value > max)
+			return max;
+
+		return value;
 	}
 }

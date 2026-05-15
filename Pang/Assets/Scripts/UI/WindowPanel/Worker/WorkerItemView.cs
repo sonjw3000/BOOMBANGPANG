@@ -63,8 +63,8 @@ namespace Assets.Scripts.UI
 
 				foreach (WorkerTask.TaskType type in System.Enum.GetValues(typeof(WorkerTask.TaskType)))
 				{
-					// Exclude Undefined and HandleMistake
-					if (type == WorkerTask.TaskType.Undefined || type == WorkerTask.TaskType.HandleMistake)
+					// Hide only internal emergency handling from the management UI.
+					if (type == WorkerTask.TaskType.HandleMistake)
 						continue;
 
 					if (WorkerManager.CanChangeType(worker, type))

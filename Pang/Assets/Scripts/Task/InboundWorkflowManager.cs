@@ -29,8 +29,8 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	//
 	//private
 
-	// 일단은 근접 우선으로 설정
-	private IPlacingPolicy placingPolicy = new NearestPlacingPolicy();
+	// 평균 이하 적재율 선반 중 최근접 선반을 우선 선택한다.
+	private IPlacingPolicy placingPolicy = new BelowAverageFilledNearestPlacingPolicy();
 	private StoringPlanner storingPlanner = new StoringItemFriendly();
 
 	public CargoPortService CargoPorts => cargoPortService;
