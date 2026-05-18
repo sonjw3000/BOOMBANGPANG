@@ -20,6 +20,7 @@ public class SelectionUIMaster : MonoBehaviour
 	{
 		providers[typeof(Shelf)] = new ShelfUIProvider();
 		providers[typeof(BoxPool)] = new BoxPoolUIProvider();
+		providers[typeof(RobotWorker)] = new RobotWorkerUIProvider();
 		providers[typeof(HumanWorker)] = new HumanWorkerUIProvider();
 		providers[typeof(CargoPort)] = new CargoPortUIProvider();
 		providers[typeof(ZoneSelectionProxy)] = new ZoneUIProvider();

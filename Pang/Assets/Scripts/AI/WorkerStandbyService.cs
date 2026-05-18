@@ -67,6 +67,7 @@ public class WorkerStandbyService : MonoBehaviour
 		{
 			case WorkerTask.TaskType.Picking:
 			case WorkerTask.TaskType.Storing:
+			case WorkerTask.TaskType.Water:
 				zoneType = ZoneType.StorageStandby;
 				return true;
 
