@@ -166,9 +166,10 @@ public class StoringTask : WorkerTask
 		BoxBase box = task.CarryingAbility.CarryingBox;
 		if (PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, null, out var decision) == false)
 		{
+			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
-			return Failure;
+			return Running;
 		}
 
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
@@ -177,9 +178,10 @@ public class StoringTask : WorkerTask
 		{
 			// todo
 			// 가능한 placingLine을 받지 못했다는 것을 어디선가 알려야 한다
+			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No shelf");
-			return Failure;
+			return Running;
 		}
 
 		// 너는 즉석으로 workline을 만들어서 이동하나보다
@@ -200,8 +202,9 @@ public class StoringTask : WorkerTask
 
 		if (line == null || box == null)
 		{
+			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
-			return Failure;
+			return Running;
 		}
 		
 		int addedItem = line.Source.AddItem(line.ItemID, line.Quantity);

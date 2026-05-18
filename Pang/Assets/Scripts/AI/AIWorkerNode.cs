@@ -124,8 +124,9 @@ public abstract partial class AIWorker
 		{
 			// todo
 			// pool에 사용 가능한 박스가 없다는 점을 플레이어에게 알려줘야함
+			// todo worker를 off 후 대기시켜야함
 			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return Failure;
+			return Running;
 		}
 
 		context.LocalBlackBoard.RemoveTargetBuilding();
@@ -151,8 +152,9 @@ public abstract partial class AIWorker
 		{
 			// todo
 			// pool이 가득 찼다는 것을 플레이어에게 알려야함
+			// todo worker를 off 후 대기시켜야함
 			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return Failure;
+			return Running;
 		}
 
 		return Success;
@@ -225,9 +227,10 @@ public abstract partial class AIWorker
 			if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var building) == false ||
 				building == null)
 			{
+				// todo worker를 off 후 대기시켜야함
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 				ctx.LocalBlackBoard.RemoveTargetBuilding();
-				return Failure;
+				return Running;
 			}
 
 			var interaction = building as IInteractionPoint;
@@ -366,6 +369,7 @@ public abstract partial class AIWorker
 
 			case StandbyPointResult.NoZone:
 			case StandbyPointResult.NoAvailablePoint:
+				// todo worker를 off 후 대기시켜야함
 				ctx.Worker.SetWorkerTarget(WorkerStatusTarget.StandbyZone);
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 				return Running;

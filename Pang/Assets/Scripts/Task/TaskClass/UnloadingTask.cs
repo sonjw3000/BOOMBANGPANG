@@ -139,8 +139,11 @@ public class UnloadingTask : WorkerTask
 
 		if (task.cargoPort == null)
 		{
+			// todo worker를 off 후 대기시켜야함
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No Cargoport Available!!");
-			return Failure;
+			return Running;
 		}
 
 		// load on cargoport

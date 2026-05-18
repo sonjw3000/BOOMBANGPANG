@@ -82,8 +82,9 @@ public class LoadingTask : WorkerTask
 		if (task.targetPort == null)
 		{
 			Debug.LogError("No available load port found!");
+			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return Failure;
+			return Running;
 		}
 
 		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
@@ -111,18 +112,20 @@ public class LoadingTask : WorkerTask
 		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Pick);
 		if (launchStation == null)
 		{
+			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 			Debug.LogError("No available launch station found!");
-			return Failure;
+			return Running;
 		}
 
 		if (carryAbility == null || carryAbility.CarryingBox == null)
 		{
+			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
 			Debug.LogError("Loading worker has no carried box.");
-			return Failure;
+			return Running;
 		}
 
 		launchStation.TryGetAddon<CargoStorageAddon>(out var pad);
