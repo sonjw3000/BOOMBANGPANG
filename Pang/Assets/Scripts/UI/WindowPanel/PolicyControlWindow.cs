@@ -262,7 +262,9 @@ namespace Assets.Scripts.UI
 		private static GameObject CreateCard(string objectName, Transform parent)
 		{
 			GameObject card = CreateVerticalContainer(objectName, parent, 8f);
-			card.AddComponent<LayoutElement>().preferredHeight = 0f;
+			LayoutElement layout = card.AddComponent<LayoutElement>();
+			layout.minHeight = 120f;
+			layout.preferredHeight = 120f;
 
 			Image image = card.AddComponent<Image>();
 			image.color = new Color(0.12f, 0.12f, 0.12f, 0.82f);
@@ -289,6 +291,8 @@ namespace Assets.Scripts.UI
 			text.fontSize = 20f;
 			text.color = Color.white;
 			text.alignment = TextAlignmentOptions.MidlineLeft;
+			text.textWrappingMode = TextWrappingModes.NoWrap;
+			text.overflowMode = TextOverflowModes.Ellipsis;
 
 			RectTransform rect = text.rectTransform;
 			rect.anchorMin = Vector2.zero;
@@ -308,7 +312,7 @@ namespace Assets.Scripts.UI
 			rowLayout.spacing = 12f;
 			rowLayout.childAlignment = TextAnchor.MiddleLeft;
 			rowLayout.childControlHeight = true;
-			rowLayout.childControlWidth = false;
+			rowLayout.childControlWidth = true;
 			rowLayout.childForceExpandWidth = false;
 			rowLayout.childForceExpandHeight = false;
 
@@ -438,7 +442,7 @@ namespace Assets.Scripts.UI
 			rowLayout.spacing = 12f;
 			rowLayout.childAlignment = TextAnchor.MiddleLeft;
 			rowLayout.childControlHeight = true;
-			rowLayout.childControlWidth = false;
+			rowLayout.childControlWidth = true;
 			rowLayout.childForceExpandWidth = false;
 			rowLayout.childForceExpandHeight = false;
 
@@ -450,7 +454,9 @@ namespace Assets.Scripts.UI
 
 			GameObject sliderObject = new("Slider", typeof(RectTransform), typeof(Slider), typeof(LayoutElement));
 			sliderObject.transform.SetParent(row.transform, false);
-			sliderObject.GetComponent<LayoutElement>().preferredWidth = 260f;
+			LayoutElement sliderLayout = sliderObject.GetComponent<LayoutElement>();
+			sliderLayout.preferredWidth = 260f;
+			sliderLayout.preferredHeight = 28f;
 
 			Slider slider = sliderObject.GetComponent<Slider>();
 			slider.minValue = MinSpeedMultiplier;
