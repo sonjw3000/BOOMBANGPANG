@@ -231,10 +231,6 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 240335978130797857, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
-      propertyPath: targetWindow
-      value: 
-      objectReference: {fileID: 69082292}
     - target: {fileID: 303549557382982144, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -1274,6 +1270,22 @@ PrefabInstance:
     - target: {fileID: 4424354178417595621, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: -36.82
+      objectReference: {fileID: 0}
+    - target: {fileID: 4487778294532036740, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4487778294532036740, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4487778294532036740, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4487778294532036740, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4520272881278545174, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
       propertyPath: m_AnchorMax.y
@@ -2400,17 +2412,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
---- !u!114 &69082292 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7770806619649647226, guid: 4845acd79cc106e46a7a006b6efb01a7, type: 3}
-  m_PrefabInstance: {fileID: 69082291}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4099fb6a34030f74ca22cea80d5d5715, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.UI.ContractWindow
 --- !u!1 &213792729
 GameObject:
   m_ObjectHideFlags: 0
