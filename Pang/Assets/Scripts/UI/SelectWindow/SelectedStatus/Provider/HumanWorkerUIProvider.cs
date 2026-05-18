@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class HumanWorkerUIProvider : UIProvider<HumanWorker>
 {
-	public override string Name => currentTarget != null ? currentTarget.name : "Unknown Worker";
+	public override string Name => currentTarget != null ? currentTarget.Name : "Unknown Worker";
 	public override Sprite Icon => null; // Placeholder for shelf icon
 
 	public float Fatigue => currentTarget != null ? currentTarget.Fatigue : 0f;

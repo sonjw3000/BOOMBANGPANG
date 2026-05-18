@@ -120,7 +120,14 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public event System.Action<WorkerStatusAction> OnActionChanged;
 
 	// worker identity
-	public string Name => $"{workerFirstName} {workerLastName}";
+	public string Name
+	{
+		get
+		{
+			string displayName = $"{workerFirstName} {workerLastName}".Trim();
+			return string.IsNullOrWhiteSpace(displayName) ? name : displayName;
+		}
+	}
 	public uint WorkerID => workerID;
 
 	// worker ability
@@ -203,6 +210,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 		workerFirstName = archetype.WorkerNameDefinition.WorkerFirstName;
 		workerLastName = archetype.WorkerNameDefinition.WorkerLastName;
+		gameObject.name = Name;
 
 		workerType = archetype.AbilityDefinition.workerType;
 		abilities = archetype.AbilityDefinition.abilities;
