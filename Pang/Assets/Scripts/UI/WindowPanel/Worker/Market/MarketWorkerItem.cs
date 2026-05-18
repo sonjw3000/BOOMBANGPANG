@@ -21,6 +21,7 @@ namespace Assets.Scripts.UI
 			wageText.text = $"Wage: {CurrentArchetype.AbilityDefinition.monthlyCost}/month"; // Changed to monthly as per current SO
 			riskText.text = "Risk: Low"; // Defaulting as requested
 
+			hireButton.interactable = true;
 			hireButton.onClick.RemoveAllListeners();
 			hireButton.onClick.AddListener(Hire);
 		}
@@ -41,6 +42,7 @@ namespace Assets.Scripts.UI
 			}
 
 			CurrentArchetype = new();
+			hireButton.interactable = false;
 
 			Debug.Log($"Hired {spawnedWorker.Name}!");
 		}

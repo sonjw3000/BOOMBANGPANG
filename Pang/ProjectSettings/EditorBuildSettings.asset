@@ -6,10 +6,10 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/SonJw/TitleScene.unity
+    path: Assets/Scenes/TitleScene.unity
     guid: b31a30b585290ad4c98ab7d8e66837e5
   - enabled: 1
-    path: Assets/SonJw/GameScene.unity
+    path: Assets/Scenes/GameScene.unity
     guid: b9881de03abe697438d8855661b3ae9b
   - enabled: 1
     path: Assets/Scenes/SampleScene.unity
