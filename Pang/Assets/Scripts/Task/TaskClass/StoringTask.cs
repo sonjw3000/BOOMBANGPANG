@@ -181,7 +181,7 @@ public class StoringTask : WorkerTask
 			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No shelf");
-			return Running;
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
 		// 너는 즉석으로 workline을 만들어서 이동하나보다

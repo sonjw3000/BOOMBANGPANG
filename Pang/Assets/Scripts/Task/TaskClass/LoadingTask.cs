@@ -84,7 +84,7 @@ public class LoadingTask : WorkerTask
 			Debug.LogError("No available load port found!");
 			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return Running;
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
 		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
@@ -116,7 +116,7 @@ public class LoadingTask : WorkerTask
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 			Debug.LogError("No available launch station found!");
-			return Running;
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
 		if (carryAbility == null || carryAbility.CarryingBox == null)

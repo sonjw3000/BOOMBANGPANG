@@ -143,7 +143,7 @@ public class UnloadingTask : WorkerTask
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No Cargoport Available!!");
-			return Running;
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
 		// load on cargoport

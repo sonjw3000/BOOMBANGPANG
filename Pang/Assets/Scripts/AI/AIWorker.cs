@@ -334,7 +334,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public void SetTask(WorkerTask task)
 	{
 		if (GameContext.HasInstance && task != null)
+		{
 			WorkerMgr.RemoveIdleWorker(this);
+			if (workerState.Target == WorkerStatusTarget.StandbyZone)
+				routeFinder?.StopAfterCurrentStep();
+		}
 
 		task?.SetAIWorker(this);
 		currentTask = task;

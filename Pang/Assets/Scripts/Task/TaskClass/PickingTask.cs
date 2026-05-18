@@ -119,7 +119,7 @@ public sealed class PickingTask : WorkerTask
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No Available OB cargo port!");
-			return Running;
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(targetPos);
@@ -138,7 +138,7 @@ public sealed class PickingTask : WorkerTask
 		// todo worker를 off 후 대기시켜야함
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.PackingStation);
 		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-		return Running;
+		return AIWorker.MoveToStandbyWhileWaiting(ctx);
 	}
 
 	public static NodeState PickingEndAction(in BTContext ctx)

@@ -25,6 +25,9 @@ public class FindRoute : MonoBehaviour
 	private PathResultBuffer pathResultBuffer = null;
 	private Vector3 targetPos = Vector3.zero;
 	private bool isNextNodeReserved = false;
+	private bool stopAfterCurrentStep = false;
+	private bool hasPendingGoal = false;
+	private int3 pendingGoalPos;
 	private GridCell waitingCell = null;
 
 	private HashSet<FindRoute> blockingRoutes = new();
@@ -201,9 +204,25 @@ public class FindRoute : MonoBehaviour
 			//Debug.Log($"[FindRoute] {transform.name} Unreserved {previousPos}. Result: {unreserveRes}");
 		}
 
+		isNextNodeReserved = false;
+
+		if (hasPendingGoal)
+		{
+			int3 goalPos = pendingGoalPos;
+			hasPendingGoal = false;
+			ApplyGoalPosition(goalPos);
+			return;
+		}
+
+		if (stopAfterCurrentStep)
+		{
+			stopAfterCurrentStep = false;
+			StopCurrentPathAtCurrentTile();
+			return;
+		}
+
 		pathResultBuffer.MoveToNextNode();
 		RefreshPlannedPathRegistration();
-		isNextNodeReserved = false;
 		SyncTargetPositionToCurrentNode();
 	}
 
@@ -285,6 +304,16 @@ public class FindRoute : MonoBehaviour
 		{
 			blockingRoutes.Clear();
 		}
+	}
+
+	private void StopCurrentPathAtCurrentTile()
+	{
+		ClearWait();
+		hasPendingGoal = false;
+		ResetCurrentPathPlan(true);
+		movementState = MovementState.Arrived;
+		worker.enabled = true;
+		enabled = false;
 	}
 
 	private bool TryReserveNextTile()
@@ -435,7 +464,22 @@ public class FindRoute : MonoBehaviour
 
 	public bool SetGoalPosition(in int3 goalPos)
 	{
+		if (isNextNodeReserved)
+		{
+			pendingGoalPos = goalPos;
+			hasPendingGoal = true;
+			stopAfterCurrentStep = false;
+			worker.enabled = false;
+			return true;
+		}
+
+		return ApplyGoalPosition(goalPos);
+	}
+
+	private bool ApplyGoalPosition(in int3 goalPos)
+	{
 		ClearWait();
+		stopAfterCurrentStep = false;
 		ResetCurrentPathPlan(true);
 		PathRequest request = new(this, worker.GridPosition, goalPos, worker.Direction);
 		PathFinding.RequestRoute(request);
@@ -445,6 +489,21 @@ public class FindRoute : MonoBehaviour
 		worker.enabled = false;
 
 		return true;
+	}
+
+	public void StopAfterCurrentStep()
+	{
+		if (pathResultBuffer == null && waitingCell == null)
+			return;
+
+		if (isNextNodeReserved)
+		{
+			stopAfterCurrentStep = true;
+			hasPendingGoal = false;
+			return;
+		}
+
+		StopCurrentPathAtCurrentTile();
 	}
 
 	public void SetAIMaster(AIWorker worker)

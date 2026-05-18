@@ -126,7 +126,7 @@ public abstract partial class AIWorker
 			// pool에 사용 가능한 박스가 없다는 점을 플레이어에게 알려줘야함
 			// todo worker를 off 후 대기시켜야함
 			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return Running;
+			return MoveToStandbyWhileWaiting(context);
 		}
 
 		context.LocalBlackBoard.RemoveTargetBuilding();
@@ -154,7 +154,7 @@ public abstract partial class AIWorker
 			// pool이 가득 찼다는 것을 플레이어에게 알려야함
 			// todo worker를 off 후 대기시켜야함
 			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return Running;
+			return MoveToStandbyWhileWaiting(context);
 		}
 
 		return Success;
@@ -230,7 +230,7 @@ public abstract partial class AIWorker
 				// todo worker를 off 후 대기시켜야함
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 				ctx.LocalBlackBoard.RemoveTargetBuilding();
-				return Running;
+				return MoveToStandbyWhileWaiting(ctx);
 			}
 
 			var interaction = building as IInteractionPoint;
@@ -245,6 +245,17 @@ public abstract partial class AIWorker
 		node.Add(new ActionNode(MoveTo));
 
 		return node;
+	}
+
+	public static NodeState MoveToStandbyWhileWaiting(in BTContext ctx)
+	{
+		if (StandbyService.TryFindStandbyPoint(ctx.Worker, out var standbyPoint) == StandbyPointResult.Success)
+		{
+			ctx.Worker.routeFinder.enabled = true;
+			ctx.Worker.routeFinder.SetGoalPosition(standbyPoint);
+		}
+
+		return Running;
 	}
 
 	private static SequenceNode MoveToRecoveryPoint()
@@ -272,6 +283,7 @@ public abstract partial class AIWorker
 			if (ctx.LocalBlackBoard.TryGet(StandbyGoalKey, out int3 goalPos) == false)
 				return Failure;
 
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.StandbyZone);
 			ctx.Worker.routeFinder.enabled = true;
 			ctx.Worker.routeFinder.SetGoalPosition(goalPos);
 			return Success;
