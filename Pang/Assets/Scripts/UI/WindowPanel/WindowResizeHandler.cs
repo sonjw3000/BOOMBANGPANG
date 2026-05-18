@@ -15,6 +15,7 @@ namespace Assets.Scripts.UI
 		[SerializeField] private Vector2 minSize = new Vector2(100, 100);
 
 		private Canvas canvas;
+		private Vector2 effectiveMinSize;
 
 		private void Awake()
 		{
@@ -28,6 +29,20 @@ namespace Assets.Scripts.UI
 			}
 
 			canvas = GetComponentInParent<Canvas>();
+
+			if (targetRect != null)
+			{
+				Vector2 initialSize = targetRect.rect.size;
+				if (initialSize.x <= 0.0f || initialSize.y <= 0.0f)
+					initialSize = targetRect.sizeDelta;
+
+				effectiveMinSize = Vector2.Max(minSize, initialSize);
+				ClampTargetToMinimumSize();
+			}
+			else
+			{
+				effectiveMinSize = minSize;
+			}
 		}
 
 		public void OnDrag(PointerEventData eventData)
@@ -42,8 +57,8 @@ namespace Assets.Scripts.UI
 			float widthSign = (direction == ResizeDirection.TopRight || direction == ResizeDirection.BottomRight) ? 1f : -1f;
 			float heightSign = (direction == ResizeDirection.TopLeft || direction == ResizeDirection.TopRight) ? 1f : -1f;
 
-			float newWidth = Mathf.Max(oldWidth + delta.x * widthSign, minSize.x);
-			float newHeight = Mathf.Max(oldHeight + delta.y * heightSign, minSize.y);
+			float newWidth = Mathf.Max(oldWidth + delta.x * widthSign, effectiveMinSize.x);
+			float newHeight = Mathf.Max(oldHeight + delta.y * heightSign, effectiveMinSize.y);
 
 			float actualDiffX = newWidth - oldWidth;
 			float actualDiffY = newHeight - oldHeight;
@@ -71,6 +86,14 @@ namespace Assets.Scripts.UI
 		{
 			direction = dir;
 		}
+
+		private void ClampTargetToMinimumSize()
+		{
+			float width = Mathf.Max(targetRect.rect.width, effectiveMinSize.x);
+			float height = Mathf.Max(targetRect.rect.height, effectiveMinSize.y);
+
+			targetRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+			targetRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+		}
 	}
 }
-
