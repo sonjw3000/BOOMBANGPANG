@@ -16,8 +16,10 @@ public class HumanWorker : AIWorker
 
 		var incident = BuildHumanIncidentNode();
 		var recovery = BuildRecoveryNode();
+		var standby = BuildStandbyNode();
 		root.Add(incident);
 		root.Add(recovery);
+		root.Add(standby);
 
 		return root;
 	}

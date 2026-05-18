@@ -12,7 +12,11 @@ public class RobotWorker : AIWorker
 
 	protected override IBaseNode BuildWorkerBaseNode()
 	{
-		return BuildRecoveryNode();
+		SelectorNode root = new();
+		root.Add(BuildRecoveryNode());
+		root.Add(BuildStandbyNode());
+
+		return root;
 	}
 
 	public override void TickVitals(float deltaTime)

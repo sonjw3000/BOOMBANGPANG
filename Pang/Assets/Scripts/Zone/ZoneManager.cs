@@ -10,6 +10,9 @@ public enum ZoneType
 
 	Resting,
 	Charge,
+	StorageStandby,
+	InboundStandby,
+	OutboundStandby,
 
 	RocketLanding,
 	Storage,

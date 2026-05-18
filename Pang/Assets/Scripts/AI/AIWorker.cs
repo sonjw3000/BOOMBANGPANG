@@ -58,6 +58,7 @@ public enum WorkerStatusTarget
 	PackingStation,
 	LaunchStation,
 	Charger,
+	StandbyZone,
 	WorkTarget
 }
 

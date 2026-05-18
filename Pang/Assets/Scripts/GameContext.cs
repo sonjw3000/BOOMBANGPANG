@@ -54,6 +54,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ContractService contractService;
 	[SerializeField] private PathFindingService pathFindingService;
 	[SerializeField] private ZoneManager zoneManager;
+	[SerializeField] private WorkerStandbyService workerStandbyService;
 
 	[Header("Workflow Managers")]
 	// workflow managers
@@ -115,6 +116,19 @@ public class GameContext : MonoBehaviour
 				zoneManager = FindFirstObjectByType<ZoneManager>();
 
 			return zoneManager;
+		}
+	}
+	public WorkerStandbyService WorkerStandbyService
+	{
+		get
+		{
+			if (workerStandbyService == null)
+				workerStandbyService = GetComponent<WorkerStandbyService>();
+
+			if (workerStandbyService == null)
+				workerStandbyService = gameObject.AddComponent<WorkerStandbyService>();
+
+			return workerStandbyService;
 		}
 	}
 

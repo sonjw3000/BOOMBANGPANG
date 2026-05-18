@@ -12,7 +12,9 @@ public abstract partial class AIWorker
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 	static private WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
 	static private HumanIncidentService HumanIncident => GameContext.Instance.HumanIncident;
+	static private WorkerStandbyService StandbyService => GameContext.Instance.WorkerStandbyService;
 	private static readonly string RecoveryGoalKey = "RecoveryGoalPos";
+	private static readonly string StandbyGoalKey = "StandbyGoalPos";
 
 	protected virtual IBaseNode BuildWorkerBaseNode() { return null; }
 	protected static SequenceNode BuildRecoveryNode()
@@ -21,6 +23,15 @@ public abstract partial class AIWorker
 		root.Add(new ActionNode(CheckRecoveryNeeded));
 		root.Add(MoveToRecoveryPoint());
 		root.Add(new ActionNode(Recover));
+
+		return root;
+	}
+
+	protected static SequenceNode BuildStandbyNode()
+	{
+		SequenceNode root = new();
+		root.Add(new ActionNode(CheckStandbyNeeded));
+		root.Add(MoveToStandbyPoint());
 
 		return root;
 	}
@@ -250,6 +261,30 @@ public abstract partial class AIWorker
 		return node;
 	}
 
+	private static SequenceNode MoveToStandbyPoint()
+	{
+		SequenceNode node = new();
+		node.Add(new ActionNode((in BTContext ctx) =>
+		{
+			if (ctx.LocalBlackBoard.TryGet(StandbyGoalKey, out int3 goalPos) == false)
+				return Failure;
+
+			ctx.Worker.routeFinder.enabled = true;
+			ctx.Worker.routeFinder.SetGoalPosition(goalPos);
+			return Success;
+		}));
+		node.Add(new ActionNode(MoveTo));
+		node.Add(new ActionNode((in BTContext ctx) =>
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.Idle);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.StandbyZone);
+			ctx.LocalBlackBoard.Remove<int3>(StandbyGoalKey);
+			return Success;
+		}));
+
+		return node;
+	}
+
 	public static SelectorNode CheckBoxAndGet(BoxType boxRequirement)
 	{
 		SelectorNode node = new();
@@ -313,6 +348,31 @@ public abstract partial class AIWorker
 		ctx.Worker.BeginRecovery();
 		ctx.LocalBlackBoard.Set(RecoveryGoalKey, recoveryPoint);
 		return Success;
+	}
+
+	protected static NodeState CheckStandbyNeeded(in BTContext ctx)
+	{
+		if (ctx.Worker.CurrentTask != null)
+			return Failure;
+
+		if (ctx.Worker.NeedsRecovery())
+			return Failure;
+
+		switch (StandbyService.TryFindStandbyPoint(ctx.Worker, out var standbyPoint))
+		{
+			case StandbyPointResult.Success:
+				ctx.LocalBlackBoard.Set(StandbyGoalKey, standbyPoint);
+				return Success;
+
+			case StandbyPointResult.NoZone:
+			case StandbyPointResult.NoAvailablePoint:
+				ctx.Worker.SetWorkerTarget(WorkerStatusTarget.StandbyZone);
+				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+				return Running;
+
+			default:
+				return Failure;
+		}
 	}
 
 	protected static NodeState Recover(in BTContext ctx)
