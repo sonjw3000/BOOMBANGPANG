@@ -90,6 +90,15 @@ public enum PackingType
 	PlasticBag,
 }
 
+public enum PackageOutboundStage
+{
+	None,
+	WaitingForShipping,
+	Shipping,
+	InDelivery,
+	Completed,
+}
+
 public static class PackingTypeExt
 {
 	public static float GetPackageSize(this PackingType type)
@@ -110,15 +119,56 @@ public class ItemPackage : ItemStack
 {
 	private OrderLine releatedOrder;
 	private PackingType packingType;
+	private PackageOutboundStage outboundStage;
 
 	public OrderLine RelatedOrderLine => releatedOrder;
+	public PackageOutboundStage OutboundStage => outboundStage;
 
-	public ItemPackage(PackingType type, OrderLine order, uint itemID, int quantity) : base(itemID, type.GetPackageSize())
+	public ItemPackage(
+		PackingType type,
+		OrderLine order,
+		uint itemID,
+		int quantity,
+		PackageOutboundStage outboundStage = PackageOutboundStage.None) : base(itemID, type.GetPackageSize())
 	{
 		packingType = type;
 		releatedOrder = order;
+		this.outboundStage = outboundStage;
 
 		AddItem(quantity);
+	}
+
+	public void ReportOutboundProgress(OrderManager orderManager, PackageOutboundStage targetStage)
+	{
+		if (orderManager == null || releatedOrder == null)
+			return;
+
+		if (targetStage <= outboundStage)
+			return;
+
+		for (PackageOutboundStage nextStage = outboundStage + 1; nextStage <= targetStage; ++nextStage)
+		{
+			switch (nextStage)
+			{
+				case PackageOutboundStage.WaitingForShipping:
+					orderManager.ReportWaitingForShipping(releatedOrder, Quantity);
+					break;
+
+				case PackageOutboundStage.Shipping:
+					orderManager.ReportShipping(releatedOrder, Quantity);
+					break;
+
+				case PackageOutboundStage.InDelivery:
+					orderManager.ReportInDelivery(releatedOrder, Quantity);
+					break;
+
+				case PackageOutboundStage.Completed:
+					orderManager.ReportCompleted(releatedOrder, Quantity);
+					break;
+			}
+		}
+
+		outboundStage = targetStage;
 	}
 }
 

@@ -336,6 +336,7 @@ public class PackingStation :
 				Quantity = pkg.Quantity,
 				IsPackage = true,
 				RelatedOrderLineId = registerOrderLine != null ? registerOrderLine(pkg.RelatedOrderLine) : -1,
+				OutboundStage = pkg.OutboundStage,
 			}),
 			WaitingBox = CaptureBoxWithOrder(waitStackBox, registerOrderLine, getPlaceableId),
 			CurrentBox = CaptureBoxWithOrder(currentPackingBox, registerOrderLine, getPlaceableId),
@@ -370,7 +371,7 @@ public class PackingStation :
 			if (restoredOrderLines.TryGetValue(pkgData.RelatedOrderLineId, out var line) == false)
 				continue;
 
-			ItemPackage package = new(PackingType.Box, line, pkgData.ItemId, pkgData.Quantity);
+			ItemPackage package = new(PackingType.Box, line, pkgData.ItemId, pkgData.Quantity, pkgData.OutboundStage);
 			packedItems.Add(package);
 			itemTotals[pkgData.ItemId] = itemTotals.GetValueOrDefault(pkgData.ItemId) + pkgData.Quantity;
 		}

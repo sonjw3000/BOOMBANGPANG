@@ -319,6 +319,7 @@ public abstract class ShelfBase :
 					Quantity = pkg.Quantity,
 					IsPackage = true,
 					RelatedOrderLineId = registerOrderLine != null ? registerOrderLine(pkg.RelatedOrderLine) : -1,
+					OutboundStage = pkg.OutboundStage,
 				});
 			}
 			else
@@ -357,7 +358,7 @@ public abstract class ShelfBase :
 					orderLines != null &&
 					orderLines.TryGetValue(stackData.RelatedOrderLineId, out var line))
 				{
-					AddStack(new ItemPackage(PackingType.Box, line, stackData.ItemId, stackData.Quantity));
+					AddStack(new ItemPackage(PackingType.Box, line, stackData.ItemId, stackData.Quantity, stackData.OutboundStage));
 				}
 				else
 				{

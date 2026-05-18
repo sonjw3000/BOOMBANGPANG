@@ -56,7 +56,7 @@ public class LaunchPadAddon : PlatformAddon
 			}
 
 			Debug.Log($"OrderID: {pkg.RelatedOrderLine.ParentOrder.OrderID} / item: {pkg.ItemID}, qty: {pkg.Quantity} Launched!!");
-			OrderMgr.ReportInDelivery(pkg.RelatedOrderLine, pkg.Quantity);
+			pkg.ReportOutboundProgress(OrderMgr, PackageOutboundStage.InDelivery);
 		}
 
 		OrderDelivery.DeliverCargo(cargoToLaunch, GameTime.WeekToSeconds(4));

@@ -175,6 +175,7 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 					Quantity = pkg.Quantity,
 					IsPackage = true,
 					RelatedOrderLineId = registerOrderLine != null ? registerOrderLine(pkg.RelatedOrderLine) : -1,
+					OutboundStage = pkg.OutboundStage,
 				});
 			}
 			else
@@ -202,7 +203,7 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 				orderLines != null &&
 				orderLines.TryGetValue(stackData.RelatedOrderLineId, out var line))
 			{
-				AddStack(new ItemPackage(PackingType.Box, line, stackData.ItemId, stackData.Quantity));
+				AddStack(new ItemPackage(PackingType.Box, line, stackData.ItemId, stackData.Quantity, stackData.OutboundStage));
 			}
 			else
 			{

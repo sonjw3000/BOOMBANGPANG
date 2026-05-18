@@ -364,6 +364,7 @@ public sealed class ItemStackSaveData
 	public int Quantity;
 	public bool IsPackage;
 	public int RelatedOrderLineId = -1;
+	public PackageOutboundStage OutboundStage = PackageOutboundStage.None;
 }
 
 [Serializable]
