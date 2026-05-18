@@ -230,6 +230,7 @@ public class RocketManager : GridPlaceableManager<Rocket>
 			rocket.gameObject
 		);
 
+		rocket.transform.position = Vector3.zero;
 		GridService.OnInstall(ctx);
 		rocket.enabled = false;
 
