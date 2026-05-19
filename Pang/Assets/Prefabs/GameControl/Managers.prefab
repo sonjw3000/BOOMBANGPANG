@@ -650,6 +650,7 @@ MonoBehaviour:
   contractService: {fileID: 1422058608903141302}
   pathFindingService: {fileID: 2045873797293161509}
   zoneManager: {fileID: 3365747867954475864}
+  workerStandbyService: {fileID: 0}
   inboundWorkFlowManager: {fileID: 2554155626171990247}
   outboundWorkFlowManager: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
@@ -1087,7 +1088,7 @@ MonoBehaviour:
   items: []
   initialPoolSize: 5
   zoneManager: {fileID: 3365747867954475864}
-  landingZoneType: 4
+  landingZoneType: 7
   landingZoneFloor: 0
   randomSearchCountPerZone: 12
   landingFacingDirection: 0
@@ -1272,6 +1273,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cargoPortService: {fileID: 4830617511745632944}
   storingTaskBuildTime: 10
+  maxStoreTasksPerUpdate: 64
 --- !u!1 &6111891437738369852
 GameObject:
   m_ObjectHideFlags: 0
@@ -1421,6 +1423,26 @@ MonoBehaviour:
           Value: 1
         - Key: 5
           Value: 1
+  moveSpeedMultipliers:
+    _serializedList:
+    - Key: 0
+      Value: 1
+    - Key: 1
+      Value: 1
+    - Key: 2
+      Value: 1
+    - Key: 3
+      Value: 1
+  workSpeedMultipliers:
+    _serializedList:
+    - Key: 0
+      Value: 1
+    - Key: 1
+      Value: 1
+    - Key: 2
+      Value: 1
+    - Key: 3
+      Value: 1
   workerRestFatigue: 70
   robotChargeBattery: 30
   workerRestTargetFatigue: 20
