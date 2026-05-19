@@ -167,10 +167,11 @@ public class StoringTask : WorkerTask
 		BoxBase box = task.CarryingAbility.CarryingBox;
 		if (PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, null, out var decision) == false)
 		{
-			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
-			return Running;
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			// 현재는 standby에서 task를 계속 재평가한다.
+			// 이후 shelf/storage manager가 worker를 disable 후 가능해질 때 enable하는 패턴으로 교체할 수 있다.
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
@@ -179,7 +180,6 @@ public class StoringTask : WorkerTask
 		{
 			// todo
 			// 가능한 placingLine을 받지 못했다는 것을 어디선가 알려야 한다
-			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No shelf");
 			return AIWorker.MoveToStandbyWhileWaiting(ctx);
@@ -209,13 +209,20 @@ public class StoringTask : WorkerTask
 		}
 		
 		ItemTransferResult result = ItemTransferUtility.MoveItem(new(box, line.Source, line.ItemID, line.Quantity));
+		line.CompleteQuantity += result.Moved;
 
-		// if fully removed, delete line
 		if (result.Kind == TransferResultKind.Complete)
 		{
 			task.placingLine = null;
 		}
-	
+		else
+		{
+			// 현재 목적지가 더 받을 수 없으면 다음 평가에서 placing policy에게 새 위치를 요청한다.
+			// 새 위치가 없다면 SetPlacingPosition에서 standby로 이동한다.
+			task.placingLine = null;
+			return Failure;
+		}
+
 		// if no items in box, end job
 		if (box.Stacks.Count == 0)
 		{
