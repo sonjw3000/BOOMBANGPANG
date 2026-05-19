@@ -14,6 +14,8 @@ public class GameTime : MonoBehaviour
 
 	private float SecondsPerWeek => secondsPerMonth / 4.0f;
 	private float timeElapsed = 0f;
+	private float preservedPauseTimeScale = 1.0f;
+	private int preservedPauseCount;
 
 	private int elapsedWeek = 0;
 	private int elapsedMonth = 0;
@@ -83,6 +85,25 @@ public class GameTime : MonoBehaviour
 		SetTimeScale(0.0f);
 	}
 
+	public void PausePreservingSpeed()
+	{
+		if (preservedPauseCount == 0)
+			preservedPauseTimeScale = timeScale;
+
+		++preservedPauseCount;
+		ApplyTimeScale(0.0f, true);
+	}
+
+	public void ResumePreservedSpeed()
+	{
+		if (preservedPauseCount <= 0)
+			return;
+
+		--preservedPauseCount;
+		if (preservedPauseCount == 0)
+			ApplyTimeScale(preservedPauseTimeScale, true);
+	}
+
 	public void SetNormalSpeed()
 	{
 		SetTimeScale(1.0f);
@@ -101,6 +122,7 @@ public class GameTime : MonoBehaviour
 
 	public void SetTimeScale(float value)
 	{
+		preservedPauseCount = 0;
 		ApplyTimeScale(value, true);
 	}
 
@@ -111,7 +133,7 @@ public class GameTime : MonoBehaviour
 			TimeElapsed = timeElapsed,
 			ElapsedWeek = elapsedWeek,
 			ElapsedMonth = elapsedMonth,
-			TimeScale = timeScale,
+			TimeScale = preservedPauseCount > 0 ? preservedPauseTimeScale : timeScale,
 		};
 	}
 
@@ -123,6 +145,8 @@ public class GameTime : MonoBehaviour
 		timeElapsed = data.TimeElapsed;
 		elapsedWeek = data.ElapsedWeek;
 		elapsedMonth = data.ElapsedMonth;
+		preservedPauseCount = 0;
+		preservedPauseTimeScale = data.TimeScale;
 		ApplyTimeScale(data.TimeScale, true);
 	}
 
