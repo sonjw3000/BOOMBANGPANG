@@ -3,6 +3,7 @@
 public class RobotWorkerUIProvider : UIProvider<RobotWorker>
 {
 	public override string Name => currentTarget != null ? currentTarget.Name : "Unknown Worker";
+    public override string Subtitle => currentTarget != null ? currentTarget.WorkerType.ToString() : "Unknown Worker";
 	public override Sprite Icon => null; // Placeholder for shelf icon
 
 	public float BatteryLevel => currentTarget != null ? currentTarget.BatteryLevel : 0f;

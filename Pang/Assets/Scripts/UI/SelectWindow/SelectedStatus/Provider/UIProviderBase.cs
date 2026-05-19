@@ -9,6 +9,7 @@ public abstract class UIProviderBase
 {
 	//public abstract bool TryBuild(out SelectionModel model);
 	public abstract string Name { get; }
+	public abstract string Subtitle { get; }
 	public abstract Sprite Icon { get; }
 	public IEnumerable<InfoBlock> InfoBlocks => infoBlocks;
 	

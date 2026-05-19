@@ -3,6 +3,7 @@
 public class BoxPoolUIProvider : UIProvider<BoxPool>
 {
 	public override string Name => currentTarget != null ? currentTarget.name : "Unknown Shelf";
+    public override string Subtitle => "Box Pool";
 	public override Sprite Icon => null; // Placeholder for shelf icon
 
 	public int CurrentBoxCount => currentTarget != null ? currentTarget.CurrentBoxCount : 0;

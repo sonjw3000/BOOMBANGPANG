@@ -49,7 +49,7 @@ public class SelectCardUI : MonoBehaviour
 
 		iconImage.sprite = provider.Icon;
 		titleText.text = provider.Name;
-		subTitleText.text = provider.Name;
+		subTitleText.text = provider.Subtitle;
 
 		SetBody(provider);
 	}

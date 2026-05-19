@@ -3,6 +3,7 @@
 public sealed class ShelfUIProvider : UIProvider<Shelf>
 {
 	public override string Name => currentTarget != null ? currentTarget.name : "Unknown Shelf";
+    public override string Subtitle => "Shelf";
 	public override Sprite Icon => null;
 
 	public float Capacity => currentTarget != null ? currentTarget.MaxSize : 0f;
