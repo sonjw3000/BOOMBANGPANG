@@ -35,7 +35,10 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 		switch (task.Type)
 		{
 			case TaskType.Picking:
+				break;
 			case TaskType.Packing:
+				if (task is PackingTask packingTask)
+					PackingStations.OnPackingTaskCompleted(packingTask.TargetStation);
 				break;
 			//case TaskType.Sorting:
 			//	break;

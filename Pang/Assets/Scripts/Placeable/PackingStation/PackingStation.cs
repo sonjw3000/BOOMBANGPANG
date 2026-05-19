@@ -204,7 +204,6 @@ public class PackingStation :
 		SetCurrentPackingBox(null);
 
 		PackingStations.OnPackingComplete(this);
-		PackingStations.OnPackingTaskCompleted(this);
 		return true;
 	}
 
