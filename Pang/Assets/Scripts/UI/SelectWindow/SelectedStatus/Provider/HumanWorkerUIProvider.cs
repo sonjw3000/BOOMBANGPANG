@@ -26,7 +26,7 @@ public class HumanWorkerUIProvider : UIProvider<HumanWorker>
 		(infoBlocks[1] as KeyValueBlock).UpdateValue($"x{currentTarget.GetMoveSpeedMultiplier()}");
 		(infoBlocks[2] as KeyValueBlock).UpdateValue($"{currentTarget.GridPosition}");
 		(infoBlocks[3] as KeyValueBlock).UpdateValue($"{currentTarget.TaskType}");
-		(infoBlocks[3] as KeyValueBlock).UpdateValue($"{currentTarget.WorkerState.Action}");
-		(infoBlocks[4] as KeyValueBlock).UpdateValue($"{currentTarget.WorkerState.Target}");
+		(infoBlocks[4] as KeyValueBlock).UpdateValue($"{currentTarget.WorkerState.Action}");
+		(infoBlocks[5] as KeyValueBlock).UpdateValue($"{currentTarget.WorkerState.Target}");
 	}
 }

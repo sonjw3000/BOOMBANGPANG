@@ -118,10 +118,29 @@ public abstract partial class AIWorker
 		context.LocalBlackBoard.TryGetTargetBuilding(out var building);
 		BoxPool pool = building as BoxPool;
 
+		if (pool == null)
+		{
+			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			return MoveToStandbyWhileWaiting(context);
+		}
+
 		pool.GetBox(out var box);
 
 		if (box == null)
 		{
+			BoxPool nextPool = WMSys.BoxPoolMgr.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Pick);
+			context.LocalBlackBoard.SetTargetBuilding(nextPool);
+
+			if (nextPool != null)
+			{
+				int3 goalPos = nextPool.GetClosestInteractionPoint(InteractionKind.Pick, in context.Worker.position);
+				context.Worker.SetWorkerTarget(WorkerStatusTarget.BoxPool);
+				context.Worker.SetWorkerAction(WorkerStatusAction.MovingTo);
+				context.Worker.routeFinder.enabled = true;
+				context.Worker.routeFinder.SetGoalPosition(goalPos);
+				return Running;
+			}
+
 			// todo
 			// pool에 사용 가능한 박스가 없다는 점을 플레이어에게 알려줘야함
 			// todo worker를 off 후 대기시켜야함
@@ -226,6 +245,15 @@ public abstract partial class AIWorker
 
 			if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var building) == false ||
 				building == null)
+			{
+				if (settingTargetBuilding != null)
+				{
+					settingTargetBuilding(ctx);
+					ctx.LocalBlackBoard.TryGetTargetBuilding(out building);
+				}
+			}
+
+			if (building == null)
 			{
 				// todo worker를 off 후 대기시켜야함
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
