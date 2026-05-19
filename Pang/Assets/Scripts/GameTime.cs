@@ -9,6 +9,8 @@ public class GameTime : MonoBehaviour
 
 	[Header("게임 시간 배율")]
 	[SerializeField] private float timeScale = 1.0f;
+	[Tooltip("최대 배속 지수. 3이면 2^3 = 8배속까지 허용한다.")]
+	[SerializeField, Min(0)] private int maxSpeedExponent = 3;
 
 	private float SecondsPerWeek => secondsPerMonth / 4.0f;
 	private float timeElapsed = 0f;
@@ -22,18 +24,24 @@ public class GameTime : MonoBehaviour
 
 	public int WeeksPassed => elapsedWeek;
 	public int MonthsPassed => elapsedMonth;
+	public float TimeScale => timeScale;
+	public int MaxSpeedExponent => maxSpeedExponent;
+	public int MaxTimeScale => 1 << Mathf.Max(0, maxSpeedExponent);
+	public bool IsPaused => Mathf.Approximately(timeScale, 0.0f);
 
 	public event Action OnWeekPassed;
 	public event Action OnMonthPassed;
 	public event Action OnYearPassed;
+	public event Action<float> OnTimeScaleChanged;
+
+	private void Awake()
+	{
+		ApplyTimeScale(timeScale, false);
+	}
 
 
 	private void Update()
 	{
-		// todo
-		// UI로 빼자
-		Time.timeScale = timeScale;
-
 		timeElapsed += Time.deltaTime;
 
 		if (timeElapsed >= SecondsPerWeek)
@@ -70,6 +78,32 @@ public class GameTime : MonoBehaviour
 		return SecondsPerWeek * weeks;
 	}
 
+	public void Pause()
+	{
+		SetTimeScale(0.0f);
+	}
+
+	public void SetNormalSpeed()
+	{
+		SetTimeScale(1.0f);
+	}
+
+	public void DoubleSpeed()
+	{
+		if (timeScale < 2.0f)
+		{
+			SetTimeScale(2.0f);
+			return;
+		}
+
+		SetTimeScale(timeScale * 2.0f);
+	}
+
+	public void SetTimeScale(float value)
+	{
+		ApplyTimeScale(value, true);
+	}
+
 	public TimeSaveData CaptureState()
 	{
 		return new TimeSaveData
@@ -89,7 +123,21 @@ public class GameTime : MonoBehaviour
 		timeElapsed = data.TimeElapsed;
 		elapsedWeek = data.ElapsedWeek;
 		elapsedMonth = data.ElapsedMonth;
-		timeScale = data.TimeScale;
+		ApplyTimeScale(data.TimeScale, true);
+	}
+
+	private void ApplyTimeScale(float value, bool notify)
+	{
+		timeScale = Mathf.Clamp(value, 0.0f, MaxTimeScale);
 		Time.timeScale = timeScale;
+
+		if (notify)
+			OnTimeScaleChanged?.Invoke(timeScale);
+	}
+
+	private void OnValidate()
+	{
+		maxSpeedExponent = Mathf.Max(0, maxSpeedExponent);
+		timeScale = Mathf.Clamp(timeScale, 0.0f, MaxTimeScale);
 	}
 }

@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameTime
   secondsPerMonth: 120
   timeScale: 1
+  maxSpeedExponent: 3
