@@ -52,7 +52,7 @@ public static class GameSaveFileCatalog
 				0,
 				0f,
 				false,
-				"로드할 수 없는 파일");
+				"Cannot load file");
 		}
 
 		return new GameSaveFileSummary(
@@ -63,7 +63,7 @@ public static class GameSaveFileCatalog
 			data.Economy != null ? data.Economy.Money : 0,
 			data.Economy != null ? data.Economy.Reputation : 0f,
 			true,
-			"로드 가능");
+			"Loadable");
 	}
 
 	private static string FormatSavedAt(string savedAtUtc)
