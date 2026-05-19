@@ -3,8 +3,8 @@ using UnityEngine;
 public sealed class ZoneUIProvider : UIProvider<ZoneSelectionProxy>
 {
 	private ZoneArea Zone => currentTarget != null ? currentTarget.Zone : null;
-
 	public override string Name => Zone != null ? Zone.DisplayName : "Unknown Zone";
+    public override string Subtitle => Zone != null ? Zone.Type.ToString() : "Unknown Zone Type";
 	public override Sprite Icon => null;
 
 	public override void BuildInfoBlocks()
