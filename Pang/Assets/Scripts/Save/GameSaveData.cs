@@ -73,6 +73,7 @@ public sealed class PolicyStateSaveData
 {
 	public WorkPolicyRuntimeSaveData WorkSpeed = new();
 	public InboundWorkflowPolicySaveData WorkApproach = new();
+	public OutboundWorkflowPolicySaveData OutboundWorkApproach = new();
 }
 
 [Serializable]
@@ -92,7 +93,14 @@ public sealed class WorkerTypeFloatSaveData
 [Serializable]
 public sealed class InboundWorkflowPolicySaveData
 {
-	public StoringPlacingPolicyType StoringPlacingPolicy = StoringPlacingPolicyType.BelowAverageFilledNearest;
+	public CollectingPolicyType StoringCollectingPolicy = CollectingPolicyType.Nearest;
+	public PlacingPolicyType StoringPlacingPolicy = PlacingPolicyType.BelowAverageFilledNearest;
+}
+
+[Serializable]
+public sealed class OutboundWorkflowPolicySaveData
+{
+	public CollectingPolicyType PickingCollectingPolicy = CollectingPolicyType.Nearest;
 }
 
 [Serializable]
@@ -408,6 +416,7 @@ public sealed class LoadingTaskSaveData
 public sealed class PickingTaskSaveData
 {
 	public WorkJobSaveData Job;
+	public bool IsPickingPhaseEnd;
 	public bool IsTaskEnd;
 }
 

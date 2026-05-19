@@ -1,7 +1,6 @@
-﻿using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 using static WorkerTask.TaskType;
+
 // inbound 작업 흐름을 관리
 // 깨차
 
@@ -12,167 +11,86 @@ using static WorkerTask.TaskType;
 
 public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 {
-	private const StoringPlacingPolicyType DefaultPlacingPolicyType = StoringPlacingPolicyType.BelowAverageFilledNearest;
+	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
+	private const PlacingPolicyType DefaultPlacingPolicyType = PlacingPolicyType.BelowAverageFilledNearest;
 
-	// inbound manager's cargo port service
-	[SerializeField] CargoPortService cargoPortService;
-	private readonly Dictionary<uint, List<CargoPort>> cargoPortsByItem = new();
-
-	// for storing policy
-	[SerializeField] private float storingTaskBuildTime = 10.0f;
+	[SerializeField] private CargoPortService cargoPortService;
+	[SerializeField] private InboundRequestManager requestManager;
 	[SerializeField] private int maxStoreTasksPerUpdate = 64;
-	private float timer = 0;
+	[SerializeField] [Range(1f, 100f)] private float storingBoxFillLimitPercent = 80.0f;
+	[SerializeField] private CollectingPolicyType defaultStoringCollectingPolicyType = DefaultCollectingPolicyType;
+	[SerializeField] private PlacingPolicyType defaultStoringPlacingPolicyType = DefaultPlacingPolicyType;
 
-	// todo
-	// 아래 이것들을 만들어야한다, 위에 저걸 죽여버리고
-	// collecting policy
-	// placing policy
-
-	//
-	//private
-
-	// 평균 이하 적재율 선반 중 최근접 선반을 우선 선택한다.
-	private IPlacingPolicy placingPolicy;
-	private StoringPlanner storingPlanner = new StoringItemFriendly();
-	private StoringPlacingPolicyType storingPlacingPolicyType = DefaultPlacingPolicyType;
+	private StoringPlanner storingPlanner;
 
 	public CargoPortService CargoPorts => cargoPortService;
+	public InboundRequestManager RequestManager => requestManager;
+	public StoringPlanner StoringPlanner => storingPlanner;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
-	public Dictionary<uint, List<CargoPort>> CargoPortsByItem => cargoPortsByItem;
-	public IPlacingPolicy PlacingPolicy => placingPolicy;
-	public StoringPlacingPolicyType StoringPlacingPolicyType => storingPlacingPolicyType;
+	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
+	private BoxPoolService BoxPoolMgr => GameContext.Instance.WMSys.BoxPoolMgr;
+	public CollectingPolicyType StoringCollectingPolicyType => storingPlanner != null ? storingPlanner.CollectingPolicyType : defaultStoringCollectingPolicyType;
+	public PlacingPolicyType StoringPlacingPolicyType => storingPlanner != null ? storingPlanner.PlacingPolicyType : defaultStoringPlacingPolicyType;
 
-	public void SetStoringPlacingPolicy(StoringPlacingPolicyType policyType)
+	public void SetStoringCollectingPolicy(CollectingPolicyType policyType)
 	{
-		storingPlacingPolicyType = policyType;
-		placingPolicy = StoringPlacingPolicyFactory.Create(policyType);
+		defaultStoringCollectingPolicyType = policyType;
+		if (storingPlanner == null)
+			return;
+
+		storingPlanner.SetCollectingPolicy(policyType);
+	}
+
+	public void SetStoringPlacingPolicy(PlacingPolicyType policyType)
+	{
+		defaultStoringPlacingPolicyType = policyType;
+		if (storingPlanner == null)
+			return;
+
+		storingPlanner.SetPlacingPolicy(policyType);
 	}
 
 	public InboundWorkflowPolicySaveData CapturePolicyState()
 	{
 		return new InboundWorkflowPolicySaveData
 		{
-			StoringPlacingPolicy = storingPlacingPolicyType,
+			StoringCollectingPolicy = StoringCollectingPolicyType,
+			StoringPlacingPolicy = StoringPlacingPolicyType,
 		};
 	}
 
 	public void RestorePolicyState(InboundWorkflowPolicySaveData data)
 	{
-		StoringPlacingPolicyType policyType = data != null ? data.StoringPlacingPolicy : DefaultPlacingPolicyType;
+		CollectingPolicyType collectingPolicyType = data != null ? data.StoringCollectingPolicy : DefaultCollectingPolicyType;
+		PlacingPolicyType policyType = data != null ? data.StoringPlacingPolicy : DefaultPlacingPolicyType;
+		SetStoringCollectingPolicy(collectingPolicyType);
 		SetStoringPlacingPolicy(policyType);
 	}
 
-	// ----------------------------------------------------------------
-	// inbound의 task를 연계생성
 	public void OnTaskCompleted(WorkerTask task)
 	{
 		switch (task.Type)
 		{
 			case Unloading:
-
 				break;
 			case Storing:
-
-				// nothing to do
-
 				break;
 		}
 	}
-	
-	// ----------------------------------------------------------------
-	// payload로 task 생성
+
 	public void BuildTaskByPayload(Rocket rocket)
 	{
 		UnloadingTask task = new(rocket);
-
-		// unloading은 cargo port로 보내는 것으로 완성
 		TaskMgr.EnqueueTask(task);
 	}
-	
-	// ----------------------------------------------------------------
-	// store 생성 가능 체크
-	private void CheckStoreTaskAvailable()
+
+	private void Awake()
 	{
-		timer += Time.deltaTime;
-
-		// store task build 조건 시간으로만 체크
-		// cargo port의 상태를 체크해서 상자를 채울 수 있으면 store task를 만들 수 있게 하자
-		if (timer >= storingTaskBuildTime ||
-			storingPlanner.CanBuildFullTask()
-			)
-		{
-			timer = 0;
-
-			int builtCount = 0;
-			while (storingPlanner.BuildStoreTask(out var task))
-			{
-				if (++builtCount > maxStoreTasksPerUpdate)
-				{
-					Debug.LogError($"[InboundWorkflow] Aborted storing task build loop after {maxStoreTasksPerUpdate} tasks in one update.");
-					break;
-				}
-
-				//Debug.Log("StoreTask Built!");
-
-				if (task != null)
-					TaskMgr.EnqueueTask(task);
-			}
-		}
-	}
-	
-	// ----------------------------------------------------------------
-	// --- 이벤트 핸들러들 ----
-	private void OnPortItemPresentChanged(ShelfBase port, uint itemId, bool present)
-	{
-		if (present)
-		{
-			OnPortItemAdded(port, itemId);
-			storingPlanner.OnPortItemAdded(port, itemId);
-		}
-		else
-		{
-			OnPortItemRemoved(port, itemId);
-			storingPlanner.OnPortItemRemoved(port, itemId);
-		}
-	}
-	
-	private void OnPortItemAdded(ShelfBase port, uint itemId)
-	{
-		if (cargoPortsByItem.TryGetValue(itemId, out var ports) == false)
-		{
-			ports = new();
-			cargoPortsByItem.Add(itemId, ports);
-		}
-
-		ports.Add((CargoPort)port);
+		RebuildPlanner();
 	}
 
-	private void OnPortItemRemoved(ShelfBase port, uint itemId)
-	{
-		if (cargoPortsByItem.TryGetValue(itemId, out var ports) == false)
-		{
-			// should not happen
-			Debug.LogError("ERROR!! No id here but tried to remove port");
-			cargoPortsByItem[itemId] = new();
-		}
-		cargoPortsByItem[itemId].Remove((CargoPort)port);
-	}
-	
-	private void OnPortItemReserved(ShelfBase port, uint itemId, int quantity)
-	{
-		storingPlanner.OnPortItemReserved(port, itemId, quantity);
-	}
-
-	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
-	{
-		storingPlanner.OnPortItemQuantityChanged(port, itemId, quantityDelta);
-	}
-
-	// ----------------------------------------------------------------
-	// unity 함수
 	private void Start()
 	{
-		SetStoringPlacingPolicy(storingPlacingPolicyType);
 		cargoPortService.OnItemPresentChanged += OnPortItemPresentChanged;
 		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
 		cargoPortService.OnReserveQuantityChanged += OnPortItemReserved;
@@ -188,15 +106,84 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 	private void Update()
 	{
 		CheckStoreTaskAvailable();
-
 	}
 
 	public void ResetRuntimeState()
 	{
-		cargoPortsByItem.Clear();
-		timer = 0.0f;
-		storingPlanner = new StoringItemFriendly();
-		SetStoringPlacingPolicy(DefaultPlacingPolicyType);
+		requestManager?.ResetRuntimeState();
+		RebuildPlanner();
 	}
-	// ----------------------------------------------------------------
+
+	private void CheckStoreTaskAvailable()
+	{
+		if (storingPlanner == null || storingPlanner.HasPendingCollectWork() == false)
+			return;
+
+		int desiredTaskCount = GetDesiredStoringTaskCount();
+		int currentTaskCount = GetCurrentStoringTaskCount();
+		if (desiredTaskCount <= currentTaskCount)
+			return;
+
+		int tasksToBuild = Mathf.Min(maxStoreTasksPerUpdate, Mathf.Max(0, desiredTaskCount - currentTaskCount));
+		for (int i = 0; i < tasksToBuild; ++i)
+		{
+			if (storingPlanner.BuildStoreTask(out var task) == false)
+				break;
+
+			if (task != null)
+				TaskMgr.EnqueueTask(task);
+		}
+	}
+
+	private void OnPortItemPresentChanged(ShelfBase port, uint itemId, bool present)
+	{
+		requestManager.OnPortItemPresentChanged(port, itemId, present);
+	}
+
+	private void OnPortItemReserved(ShelfBase port, uint itemId, int quantity)
+	{
+		requestManager.OnPortItemReservedChanged(port, itemId, quantity);
+	}
+
+	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
+	{
+		requestManager.OnPortItemQuantityChanged(port, itemId, quantityDelta);
+	}
+
+	private void RebuildPlanner()
+	{
+		storingPlanner = new StoringPlanner(
+			cargoPortService,
+			requestManager,
+			defaultStoringCollectingPolicyType,
+			defaultStoringPlacingPolicyType);
+	}
+
+	private int GetCurrentStoringTaskCount()
+	{
+		return TaskMgr.TaskQueue[Storing].Count + TaskMgr.TaskOnProgress[Storing].Count;
+	}
+
+	private int GetDesiredStoringTaskCount()
+	{
+		float effectiveBoxCapacity = GetEffectiveStoringBoxCapacity();
+		if (effectiveBoxCapacity <= 0.0f)
+			return 0;
+
+		float totalOutstandingSize = requestManager != null ? requestManager.GetOutstandingTotalSize(ItemDB) : 0.0f;
+		if (totalOutstandingSize <= 0.0f)
+			return 0;
+
+		return Mathf.CeilToInt(totalOutstandingSize / effectiveBoxCapacity);
+	}
+
+	private float GetEffectiveStoringBoxCapacity()
+	{
+		float toteCapacity = BoxPoolMgr != null ? BoxPoolMgr.ToteCapacity : 0.0f;
+		if (toteCapacity <= 0.0f)
+			return 0.0f;
+
+		float fillRatio = Mathf.Clamp01(storingBoxFillLimitPercent / 100.0f);
+		return toteCapacity * fillRatio;
+	}
 }

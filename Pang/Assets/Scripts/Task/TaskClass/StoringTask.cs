@@ -30,8 +30,7 @@ public class StoringTask : WorkerTask
 
 
 	public WorkLine CurrentLine => storeJob?.CurrentLine;
-
-	static public IPlacingPolicy PlacingPolicy => GameContext.Instance.IBWorkflowMgr.PlacingPolicy;
+	private static StoringPlanner Planner => GameContext.Instance.IBWorkflowMgr.StoringPlanner;
 
 	public StoringTask(WorkJob job) : base(TaskType.Storing)
 	{
@@ -116,6 +115,24 @@ public class StoringTask : WorkerTask
 	public static NodeState SetCollectingPosition(in BTContext ctx)
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
+		if (task.CurrentLine == null)
+		{
+			if (Planner != null && Planner.TryAllocateNextCollectLine(ctx.Worker, out var nextLine))
+			{
+				task.storeJob.Lines.Add(nextLine);
+			}
+			else if (task.CarryingAbility?.CarryingBox != null && task.CarryingAbility.CarryingBox.Stacks.Count > 0)
+			{
+				task.CurrentPhase = Phase.Place;
+				return Failure;
+			}
+			else
+			{
+				task.IsJobEnd = true;
+				return Failure;
+			}
+		}
+
 		ctx.LocalBlackBoard.SetTargetBuilding(task.CurrentLine.Source);
 
 		return Success;
@@ -146,12 +163,6 @@ public class StoringTask : WorkerTask
 
 		task.storeJob.MoveToNextLine();
 
-		// 모두 모았다면
-		if (task.storeJob.IsJobEnd)
-		{
-			task.CurrentPhase = Phase.Place;
-		}
-
 		return Success;
 	}
 
@@ -164,8 +175,7 @@ public class StoringTask : WorkerTask
 	public static NodeState SetPlacingPosition(in BTContext ctx)
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
-		BoxBase box = task.CarryingAbility.CarryingBox;
-		if (PlacingPolicy.TryDecide(ctx.Worker.GridPosition, box, null, out var decision) == false)
+		if (task.placingLine == null && (Planner == null || Planner.TryDecideNextPlacingLine(ctx.Worker, out task.placingLine) == false))
 		{
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
@@ -175,20 +185,7 @@ public class StoringTask : WorkerTask
 		}
 
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
-
-		if (decision.shelf == null)
-		{
-			// todo
-			// 가능한 placingLine을 받지 못했다는 것을 어디선가 알려야 한다
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			Debug.Log("No shelf");
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
-		}
-
-		// 너는 즉석으로 workline을 만들어서 이동하나보다
-		// 내가 그렇게 짰나보다
-		task.placingLine = new WorkLine(decision.shelf, decision.ItemID, decision.Quantity);
-		ctx.LocalBlackBoard.SetTargetBuilding(decision.shelf);
+		ctx.LocalBlackBoard.SetTargetBuilding(task.placingLine.Source);
 
 		return Success;
 	}

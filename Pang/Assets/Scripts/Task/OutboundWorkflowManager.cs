@@ -1,6 +1,4 @@
-﻿using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-
 using static WorkerTask;
 
 // outbound 작업 흐름 관리
@@ -8,28 +6,30 @@ using static WorkerTask;
 
 public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 {
-	// inbound manager's cargo port service
-	[SerializeField] PackingStationService packingStationService;
-	[SerializeField] CargoPortService cargoPortService;
-	[SerializeField] LaunchStationService launchStationService;
+	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 
-	[SerializeField] private float timeSinceLastOrder = 0.0f;
+	[SerializeField] private PackingStationService packingStationService;
+	[SerializeField] private CargoPortService cargoPortService;
+	[SerializeField] private LaunchStationService launchStationService;
 	[SerializeField] private float orderInterval = 10.0f;
-
 	[SerializeField] private float cargoPortThresholdPercent = 80.0f;
+	[SerializeField] [Range(1f, 100f)] private float pickingBoxFillLimitPercent = 80.0f;
+	[SerializeField] private int maxPickingTasksPerUpdate = 64;
+	[SerializeField] private CollectingPolicyType defaultPickingCollectingPolicyType = DefaultCollectingPolicyType;
+
+	private float timeSinceLastOrder = 0.0f;
+	private PickingPlanner pickingPlanner;
 
 	public PackingStationService PackingStations => packingStationService;
 	public CargoPortService CargoPorts => cargoPortService;
 	public LaunchStationService LaunchStations => launchStationService;
+	public PickingPlanner PickingPlanner => pickingPlanner;
+	public CollectingPolicyType PickingCollectingPolicyType => pickingPlanner != null ? pickingPlanner.CollectingPolicyType : defaultPickingCollectingPolicyType;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
+	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
+	private BoxPoolService BoxPoolMgr => GameContext.Instance.WMSys.BoxPoolMgr;
 
-
-	// 주문을 묶는 역할
-	private PickingTaskAllocator pickingTaskAllocator = new TestingPickingTaskAllocator();
-
-	// ----------------------------------------------------------------
-	// outbound의 task를 연계생성
 	public void OnTaskCompleted(WorkerTask task)
 	{
 		switch (task.Type)
@@ -40,51 +40,37 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 				if (task is PackingTask packingTask)
 					PackingStations.OnPackingTaskCompleted(packingTask.TargetStation);
 				break;
-			//case TaskType.Sorting:
-			//	break;
-			//case TaskType.Packaging:
-			//	break;
 			case TaskType.Loading:
 				break;
 		}
 	}
 
-	// ----------------------------------------------------------------
-	// 주문이 들어왔을 때 작업 생성
-	private void BuildPickingTaskJob()
-	{
-		// todo
-		// OrderLineQueue가 빌 때 까지 반복해야한다
-		var task = pickingTaskAllocator.BuildPickingTask();
-		if (task == null)
-		{
-			//Debug.Log("No Picking Task Created");
-			return;
-		}
-
-		TaskMgr.EnqueueTask(task);
-	}
-
-	// ----------------------------------------------------------------
-	// 주문 관련
 	public void MakeOrder()
 	{
 		OrderMgr.CreateRandomOrder();
 	}
 
-	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
+	public void SetPickingCollectingPolicy(CollectingPolicyType policyType)
 	{
-		CargoPort cargoPort = (CargoPort)port;
+		defaultPickingCollectingPolicyType = policyType;
+		if (pickingPlanner == null)
+			return;
 
-		if (cargoPort.InputReady && cargoPort.FilledPercent >= cargoPortThresholdPercent)
+		pickingPlanner.SetCollectingPolicy(policyType);
+	}
+
+	public OutboundWorkflowPolicySaveData CapturePolicyState()
+	{
+		return new OutboundWorkflowPolicySaveData
 		{
-			// build loading task here
-			cargoPort.SetInputReady(false);
+			PickingCollectingPolicy = PickingCollectingPolicyType,
+		};
+	}
 
-			LoadingTask loadingTask = new LoadingTask(cargoPort);
-
-			TaskMgr.EnqueueTask(loadingTask);
-		}
+	public void RestorePolicyState(OutboundWorkflowPolicySaveData data)
+	{
+		CollectingPolicyType policyType = data != null ? data.PickingCollectingPolicy : DefaultCollectingPolicyType;
+		SetPickingCollectingPolicy(policyType);
 	}
 
 	public void BuildLoadingTask(CargoPort cargoPort)
@@ -96,18 +82,13 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 		}
 
 		cargoPort.SetInputReady(false);
-
-		LoadingTask loadingTask = new LoadingTask(cargoPort);
-
-		TaskMgr.EnqueueTask(loadingTask);
+		TaskMgr.EnqueueTask(new LoadingTask(cargoPort));
 	}
-
-	// ----------------------------------------------------------------
-	// unity 함수
 
 	private void Awake()
 	{
 		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
+		RebuildPlanner();
 	}
 
 	private void OnDestroy()
@@ -115,27 +96,88 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 		cargoPortService.OnItemQuantityChanged -= OnPortItemQuantityChanged;
 	}
 
-	private void Start()
-	{
-		// cargoport 서비스 구독
-		//cargoPortService.OnItemPresentChanged;
-	}
-
-	void Update()
+	private void Update()
 	{
 		timeSinceLastOrder += Time.deltaTime;
-
 		if (timeSinceLastOrder >= orderInterval)
 		{
 			timeSinceLastOrder = 0.0f;
 			MakeOrder();
-			BuildPickingTaskJob();
 		}
 
+		CheckPickingTaskAvailable();
 	}
 
 	public void ResetRuntimeState()
 	{
 		timeSinceLastOrder = 0.0f;
+		RebuildPlanner();
+	}
+
+	private void CheckPickingTaskAvailable()
+	{
+		if (pickingPlanner == null || pickingPlanner.HasPendingCollectWork() == false)
+			return;
+
+		int desiredTaskCount = GetDesiredPickingTaskCount();
+		int currentTaskCount = GetCurrentPickingTaskCount();
+		if (desiredTaskCount <= currentTaskCount)
+			return;
+
+		int tasksToBuild = Mathf.Min(maxPickingTasksPerUpdate, Mathf.Max(0, desiredTaskCount - currentTaskCount));
+		for (int i = 0; i < tasksToBuild; ++i)
+		{
+			if (pickingPlanner.BuildPickingTask(out var task) == false)
+				break;
+
+			if (task != null)
+				TaskMgr.EnqueueTask(task);
+		}
+	}
+
+	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
+	{
+		CargoPort cargoPort = (CargoPort)port;
+		if (cargoPort.InputReady && cargoPort.FilledPercent >= cargoPortThresholdPercent)
+		{
+			cargoPort.SetInputReady(false);
+			TaskMgr.EnqueueTask(new LoadingTask(cargoPort));
+		}
+	}
+
+	private void RebuildPlanner()
+	{
+		pickingPlanner = new PickingPlanner(
+			GameContext.Instance.StorageIndex,
+			GameContext.Instance.OrderMgr,
+			pickingBoxFillLimitPercent,
+			defaultPickingCollectingPolicyType);
+	}
+
+	private int GetCurrentPickingTaskCount()
+	{
+		return TaskMgr.TaskQueue[TaskType.Picking].Count + TaskMgr.TaskOnProgress[TaskType.Picking].Count;
+	}
+
+	private int GetDesiredPickingTaskCount()
+	{
+		float effectiveBoxCapacity = GetEffectivePickingBoxCapacity();
+		if (effectiveBoxCapacity <= 0.0f)
+			return 0;
+
+		float totalOutstandingSize = OrderMgr != null ? OrderMgr.GetOutstandingPickingTotalSize(ItemDB) : 0.0f;
+		if (totalOutstandingSize <= 0.0f)
+			return 0;
+
+		return Mathf.CeilToInt(totalOutstandingSize / effectiveBoxCapacity);
+	}
+
+	private float GetEffectivePickingBoxCapacity()
+	{
+		float toteCapacity = BoxPoolMgr != null ? BoxPoolMgr.ToteCapacity : 0.0f;
+		if (toteCapacity <= 0.0f)
+			return 0.0f;
+
+		return toteCapacity * Mathf.Clamp01(pickingBoxFillLimitPercent / 100.0f);
 	}
 }

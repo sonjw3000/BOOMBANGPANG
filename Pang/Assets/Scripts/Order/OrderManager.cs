@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class OrderManager : MonoBehaviour
+public class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLine>
 {
 	private readonly List<Order> orders = new();
 	private readonly Dictionary<OrderTotalStatus, LinkedList<Order>> orderStatus = new();
@@ -57,6 +57,50 @@ public class OrderManager : MonoBehaviour
 			if (line != null && line.CanAllocatePicking)
 				yield return line;
 		}
+	}
+
+	public IEnumerable<uint> GetRequestedItemIds() => GetAllOrderedItemIDs();
+
+	public IEnumerable<OrderLine> GetRequestLines(uint itemId) => GetOrderLine(itemId);
+
+	public int GetAllocatableQuantity(OrderLine requestLine) => requestLine != null ? requestLine.GetPickingAllocatableQuantity() : 0;
+
+	public int Allocate(OrderLine requestLine, int quantity) => AllocatePicking(requestLine, quantity);
+
+	public WorkLine CreateWorkLine(ShelfBase source, uint itemId, int quantity, OrderLine requestLine)
+	{
+		return source == null || requestLine == null ? null : new WorkLine(source, itemId, quantity, requestLine);
+	}
+
+	public float GetOutstandingPickingTotalSize(ItemDatabase itemDatabase)
+	{
+		if (itemDatabase == null)
+			return 0.0f;
+
+		float totalSize = 0.0f;
+		foreach (var kvp in itemOrderLines)
+		{
+			float itemSize = itemDatabase.GetItemSize(kvp.Key);
+			if (itemSize <= 0.0f)
+				continue;
+
+			List<OrderLine> lines = kvp.Value;
+			if (lines == null)
+				continue;
+
+			for (int i = 0; i < lines.Count; ++i)
+			{
+				OrderLine line = lines[i];
+				if (line == null)
+					continue;
+
+				int allocatable = line.GetPickingAllocatableQuantity();
+				if (allocatable > 0)
+					totalSize += itemSize * allocatable;
+			}
+		}
+
+		return totalSize;
 	}
 
 	public void ClearEmptyQueues()

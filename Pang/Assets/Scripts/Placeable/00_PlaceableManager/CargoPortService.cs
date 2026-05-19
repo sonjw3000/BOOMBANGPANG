@@ -2,7 +2,7 @@
 using Unity.Mathematics;
 using UnityEngine;
 
-public class CargoPortService : GridPlaceableManager<CargoPort>
+public class CargoPortService : GridPlaceableManager<CargoPort>, ICollectSupplySource
 {
 	//private List<CargoPort> cargoPorts = new();
 
@@ -84,6 +84,16 @@ public class CargoPortService : GridPlaceableManager<CargoPort>
 		}
 
 		return true;
+	}
+
+	public IEnumerable<ShelfBase> GetSources(uint itemId)
+	{
+		for (int i = 0; i < items.Count; ++i)
+		{
+			CargoPort port = items[i];
+			if (port != null && port.GetPickableQuantity(itemId) > 0)
+				yield return port;
+		}
 	}
 
 }

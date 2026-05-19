@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System;
 using static IBaseNode;
 using static IBaseNode.NodeState;
@@ -6,10 +6,13 @@ using static IBaseNode.NodeState;
 public sealed class PickingTask : WorkerTask
 {
 	private WorkJob pickJob;
+	private bool isPickingPhaseEnd = false;
 	private bool isTaskEnd = false;
 
 	public WorkJob PickingData => pickJob;
-	public WorkLine CurrentLine { get
+	public WorkLine CurrentLine
+	{
+		get
 		{
 			if (PickingData.CurrentLineIndex >= pickJob.Lines.Count)
 				return null;
@@ -18,9 +21,10 @@ public sealed class PickingTask : WorkerTask
 		}
 	}
 
-	static private CargoPortService CargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
-	static private PackingStationService PackingService => GameContext.Instance.OBWorkflowMgr.PackingStations;
-	static private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
+	private static CargoPortService CargoPorts => GameContext.Instance.OBWorkflowMgr.CargoPorts;
+	private static PackingStationService PackingService => GameContext.Instance.OBWorkflowMgr.PackingStations;
+	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
+	private static PickingPlanner Planner => GameContext.Instance.OBWorkflowMgr.PickingPlanner;
 
 	public PickingTask(WorkJob pickJob) : base(TaskType.Picking)
 	{
@@ -32,12 +36,14 @@ public sealed class PickingTask : WorkerTask
 		return new PickingTaskSaveData
 		{
 			Job = pickJob?.CaptureState(getPlaceableId, registerOrderLine),
+			IsPickingPhaseEnd = isPickingPhaseEnd,
 			IsTaskEnd = isTaskEnd,
 		};
 	}
 
-	public void RestoreState(bool isTaskEnd)
+	public void RestoreState(bool isPickingPhaseEnd, bool isTaskEnd)
 	{
+		this.isPickingPhaseEnd = isPickingPhaseEnd;
 		this.isTaskEnd = isTaskEnd;
 	}
 
@@ -55,12 +61,11 @@ public sealed class PickingTask : WorkerTask
 
 		SequenceNode put = new SequenceNode();
 		put.Add(new ActionNode(CheckPickingEnd));
-		put.Add(AIWorker.MoveToTarget(WorkerStatusTarget.PackingStation, InteractionKind.Put ,GetAvailablePackingStation));
+		put.Add(AIWorker.MoveToTarget(WorkerStatusTarget.PackingStation, InteractionKind.Put, GetAvailablePackingStation));
 		put.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, PickingEndAction));
 
 		SequenceNode pick = new SequenceNode();
 		pick.Add(new ActionNode(CheckIsPickingState));
-
 		pick.Add(AIWorker.CheckBoxAndGet(BoxType.Personal));
 		pick.Add(new ActionNode(LogErrorIfPickingBoxHasItems));
 		pick.Add(AIWorker.MoveToTarget(WorkerStatusTarget.Shelf, InteractionKind.Pick, SetTarget));
@@ -82,28 +87,20 @@ public sealed class PickingTask : WorkerTask
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
-		return $"Picking Task: {PickingData.CurrentLineIndex} / {PickingData.Lines.Count}," + CurrentLine != null ? "" : "Goal: {CurrentLine.Source.GridPosition}";
+		return $"Picking Task: {PickingData.CurrentLineIndex} / {PickingData.Lines.Count}";
 	}
 #endif
 
 	public static NodeState CheckPickingEnd(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
-		if (task.PickingData.IsJobEnd)
-		{
-			return Success;
-		}
-		return Failure;
+		return task.isPickingPhaseEnd ? Success : Failure;
 	}
 
 	public static NodeState CheckIsPickingState(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
-		if (task.PickingData.IsJobEnd == false)
-		{
-			return Success;
-		}
-		return Failure;
+		return task.isPickingPhaseEnd == false ? Success : Failure;
 	}
 
 	public static NodeState LogErrorIfPickingBoxHasItems(in BTContext ctx)
@@ -118,15 +115,10 @@ public sealed class PickingTask : WorkerTask
 
 	public static NodeState GetAvailableOBCargoPort(in BTContext ctx)
 	{
-		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
-
-		ShelfBase targetPos = null;
-
-		targetPos = CargoPorts.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
+		ShelfBase targetPos = CargoPorts.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
 
 		if (targetPos == null)
 		{
-			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No Available OB cargo port!");
@@ -134,7 +126,6 @@ public sealed class PickingTask : WorkerTask
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(targetPos);
-		
 		return Success;
 	}
 
@@ -146,7 +137,6 @@ public sealed class PickingTask : WorkerTask
 		if (targetStation != null)
 			return Success;
 
-		// todo worker를 off 후 대기시켜야함
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.PackingStation);
 		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 		return AIWorker.MoveToStandbyWhileWaiting(ctx);
@@ -176,39 +166,31 @@ public sealed class PickingTask : WorkerTask
 
 	public static NodeState SetTarget(in BTContext ctx)
 	{
-		// test code
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 
-		if (task.PickingData.IsJobEnd)
+		if (task.CurrentLine == null)
 		{
-			int cnt = task.PickingData.Lines.Count;
-			Debug.Log($"task line idx: {task.PickingData.CurrentLineIndex}, task lines: {cnt}");
-			// should not hit here
-			Debug.Log("공이 웃으면?\n풋볼");
-			Debug.Log("자가용의 반댓말은?\n커용");
-			Debug.Log("푸가 넘어지면?\n쿵푸");
-			Debug.Log("문신하면 무시할 수 없는 이유는?");
-			Debug.Log("무시");
-			Debug.Log("ㄴㄴ");
-
-			return Failure;
+			if (Planner != null && Planner.TryAllocateNextCollectLine(ctx.Worker, out var nextLine))
+			{
+				task.PickingData.Lines.Add(nextLine);
+			}
+			else
+			{
+				task.isPickingPhaseEnd = true;
+				return Failure;
+			}
 		}
 
-		// set goalPosition
-		var line = task.CurrentLine;
-		//ctx.LocalBlackBoard.Set<int3>("goalPos", line.Source.GetClosestInteractionPoint(InteractionKind.Pick, ctx.Worker.GridPosition));
-		ctx.LocalBlackBoard.SetTargetBuilding(line.Source);
-
+		ctx.LocalBlackBoard.SetTargetBuilding(task.CurrentLine.Source);
 		return Success;
 	}
 
 	public static NodeState PickItems(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
-		var curLine = task.CurrentLine;
+		WorkLine curLine = task.CurrentLine;
 
 		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
-
 		if (box == null)
 		{
 			Debug.Log("NO BOX??? WHY?");
@@ -223,18 +205,14 @@ public sealed class PickingTask : WorkerTask
 			Debug.LogWarning($"[PickingTask] Pick progress mismatch. requested={result.Moved}, applied={pickedQuantity}");
 		}
 
-		task.CurrentLine.CompleteQuantity += result.Moved;
-		// 갯수를 체크해야한다
-		// 중요함!
-		if (task.CurrentLine.IsComplete == false)
+		curLine.CompleteQuantity += result.Moved;
+		if (curLine.IsComplete == false)
 		{
-			// 갯수가 다르기 때문에 다른곳에서 동일 물품을 줏어야 한다. 새로운 위치로 이동해야하지 않을까?
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
 			return Failure;
 		}
 
 		task.PickingData.MoveToNextLine();
-
 		return Success;
 	}
 

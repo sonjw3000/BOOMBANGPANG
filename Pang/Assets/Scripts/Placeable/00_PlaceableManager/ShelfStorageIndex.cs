@@ -14,7 +14,7 @@ using UnityEngine;
 // itemstack 실제 아이템의 데이터
 
 [System.Serializable]
-public class ShelfStorageIndex : MonoBehaviour
+public class ShelfStorageIndex : MonoBehaviour, ICollectSupplySource
 {
 	// shelf, bin 등 아이템 컨테이너 리스트
 	[SerializeField] private List<ShelfBase> containers = new();
@@ -119,6 +119,19 @@ public class ShelfStorageIndex : MonoBehaviour
 		shelf = locations[0];
 
 		return true;
+	}
+
+	public IEnumerable<ShelfBase> GetSources(uint itemId)
+	{
+		if (shelvesByItem.TryGetValue(itemId, out var locations) == false)
+			yield break;
+
+		for (int i = 0; i < locations.Count; ++i)
+		{
+			ShelfBase shelf = locations[i];
+			if (shelf != null && shelf.GetPickableQuantity(itemId) > 0)
+				yield return shelf;
+		}
 	}
 
 	public IEnumerable<ShelfBase> QueryPlaceCandidate(uint itemID, int qty)

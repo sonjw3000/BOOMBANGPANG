@@ -25,10 +25,16 @@ namespace Assets.Scripts.UI
 			public TMP_Text WorkValueText;
 		}
 
-		private static readonly StoringPlacingPolicyType[] PlacingPolicyOptions =
+		private static readonly PlacingPolicyType[] PlacingPolicyOptions =
 		{
-			StoringPlacingPolicyType.BelowAverageFilledNearest,
-			StoringPlacingPolicyType.Nearest,
+			PlacingPolicyType.BelowAverageFilledNearest,
+			PlacingPolicyType.Nearest,
+		};
+
+		private static readonly CollectingPolicyType[] CollectingPolicyOptions =
+		{
+			CollectingPolicyType.Nearest,
+			CollectingPolicyType.LargestQuantityNearest,
 		};
 
 		private static Font defaultFont;
@@ -38,8 +44,9 @@ namespace Assets.Scripts.UI
 
 		private readonly Dictionary<WorkerType, WorkerSpeedControls> speedControlsByType = new();
 
+		private Dropdown storingCollectingPolicyDropdown;
 		private Dropdown placingPolicyDropdown;
-		private Dropdown pickingPlaceholderDropdown;
+		private Dropdown pickingCollectingPolicyDropdown;
 		private GameObject workApproachTabRoot;
 		private GameObject workSpeedTabRoot;
 		private TabType currentTab;
@@ -47,6 +54,7 @@ namespace Assets.Scripts.UI
 
 		private WorkPolicyService WorkPolicyService => GameContext.HasInstance ? GameContext.Instance.WMSys?.WorkPolicyService : null;
 		private InboundWorkflowManager InboundWorkflowManager => GameContext.HasInstance ? GameContext.Instance.IBWorkflowMgr : null;
+		private OutboundWorkflowManager OutboundWorkflowManager => GameContext.HasInstance ? GameContext.Instance.OBWorkflowMgr : null;
 
 		private void Awake()
 		{
@@ -151,25 +159,30 @@ namespace Assets.Scripts.UI
 		private void BuildWorkApproachTab(Transform parent)
 		{
 			CreateSectionHeader(parent, "Storing");
+			storingCollectingPolicyDropdown = CreateDropdownRow(parent, "Collecting Policy", HandleStoringCollectingPolicyChanged);
+			storingCollectingPolicyDropdown.ClearOptions();
+			storingCollectingPolicyDropdown.AddOptions(new List<string>
+			{
+				GetCollectingPolicyLabel(CollectingPolicyType.Nearest),
+				GetCollectingPolicyLabel(CollectingPolicyType.LargestQuantityNearest),
+			});
+
 			placingPolicyDropdown = CreateDropdownRow(parent, "Placing Policy", HandlePlacingPolicyChanged);
 			placingPolicyDropdown.ClearOptions();
 			placingPolicyDropdown.AddOptions(new List<string>
 			{
-				GetPlacingPolicyLabel(StoringPlacingPolicyType.BelowAverageFilledNearest),
-				GetPlacingPolicyLabel(StoringPlacingPolicyType.Nearest),
+				GetPlacingPolicyLabel(PlacingPolicyType.BelowAverageFilledNearest),
+				GetPlacingPolicyLabel(PlacingPolicyType.Nearest),
 			});
 
 			CreateSectionHeader(parent, "Picking");
-			pickingPlaceholderDropdown = CreateDropdownRow(parent, "Picking Strategy", null);
-			pickingPlaceholderDropdown.ClearOptions();
-			pickingPlaceholderDropdown.AddOptions(new List<string> { "Pending PickingAllocator Refactor" });
-			pickingPlaceholderDropdown.value = 0;
-			pickingPlaceholderDropdown.interactable = false;
-
-			TMP_Text infoText = CreateText("PickingPlaceholderInfo", parent, "Reserved for future picking strategy controls.");
-			infoText.textWrappingMode = TextWrappingModes.Normal;
-			infoText.fontSize = 18f;
-			infoText.color = new Color(0.8f, 0.8f, 0.8f, 1f);
+			pickingCollectingPolicyDropdown = CreateDropdownRow(parent, "Collecting Policy", HandlePickingCollectingPolicyChanged);
+			pickingCollectingPolicyDropdown.ClearOptions();
+			pickingCollectingPolicyDropdown.AddOptions(new List<string>
+			{
+				GetCollectingPolicyLabel(CollectingPolicyType.Nearest),
+				GetCollectingPolicyLabel(CollectingPolicyType.LargestQuantityNearest),
+			});
 		}
 
 		private void BuildWorkSpeedTab(Transform parent)
@@ -206,8 +219,20 @@ namespace Assets.Scripts.UI
 
 			if (InboundWorkflowManager != null && placingPolicyDropdown != null)
 			{
+				if (storingCollectingPolicyDropdown != null)
+				{
+					int collectingDropdownIndex = Array.IndexOf(CollectingPolicyOptions, InboundWorkflowManager.StoringCollectingPolicyType);
+					storingCollectingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, collectingDropdownIndex));
+				}
+
 				int dropdownIndex = Array.IndexOf(PlacingPolicyOptions, InboundWorkflowManager.StoringPlacingPolicyType);
 				placingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, dropdownIndex));
+			}
+
+			if (OutboundWorkflowManager != null && pickingCollectingPolicyDropdown != null)
+			{
+				int dropdownIndex = Array.IndexOf(CollectingPolicyOptions, OutboundWorkflowManager.PickingCollectingPolicyType);
+				pickingCollectingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, dropdownIndex));
 			}
 
 			if (WorkPolicyService == null)
@@ -232,6 +257,26 @@ namespace Assets.Scripts.UI
 				return;
 
 			InboundWorkflowManager.SetStoringPlacingPolicy(PlacingPolicyOptions[optionIndex]);
+		}
+
+		private void HandleStoringCollectingPolicyChanged(int optionIndex)
+		{
+			if (InboundWorkflowManager == null)
+				return;
+			if (optionIndex < 0 || optionIndex >= CollectingPolicyOptions.Length)
+				return;
+
+			InboundWorkflowManager.SetStoringCollectingPolicy(CollectingPolicyOptions[optionIndex]);
+		}
+
+		private void HandlePickingCollectingPolicyChanged(int optionIndex)
+		{
+			if (OutboundWorkflowManager == null)
+				return;
+			if (optionIndex < 0 || optionIndex >= CollectingPolicyOptions.Length)
+				return;
+
+			OutboundWorkflowManager.SetPickingCollectingPolicy(CollectingPolicyOptions[optionIndex]);
 		}
 
 		private void EnsureHostActive()
@@ -564,16 +609,29 @@ namespace Assets.Scripts.UI
 
 		private static string FormatMultiplier(float value) => value.ToString("0.00");
 
-		private static string GetPlacingPolicyLabel(StoringPlacingPolicyType type)
+		private static string GetPlacingPolicyLabel(PlacingPolicyType type)
 		{
 			switch (type)
 			{
-				case StoringPlacingPolicyType.Nearest:
+				case PlacingPolicyType.Nearest:
 					return "Nearest";
 
-				case StoringPlacingPolicyType.BelowAverageFilledNearest:
+				case PlacingPolicyType.BelowAverageFilledNearest:
 				default:
 					return "Below Avg Filled + Nearest";
+			}
+		}
+
+		private static string GetCollectingPolicyLabel(CollectingPolicyType type)
+		{
+			switch (type)
+			{
+				case CollectingPolicyType.LargestQuantityNearest:
+					return "Largest Qty + Nearest";
+
+				case CollectingPolicyType.Nearest:
+				default:
+					return "Nearest";
 			}
 		}
 

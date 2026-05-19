@@ -125,6 +125,7 @@ public sealed class GameSaveService : MonoBehaviour
 		data.SavedAtUtc = DateTime.UtcNow.ToString("O");
 		data.Policy.WorkSpeed = Ctx.WMSys.WorkPolicyService.CaptureState();
 		data.Policy.WorkApproach = Ctx.IBWorkflowMgr.CapturePolicyState();
+		data.Policy.OutboundWorkApproach = Ctx.OBWorkflowMgr.CapturePolicyState();
 		data.Time = Ctx.GameTime.CaptureState();
 		data.Economy = Ctx.EconomyService.CaptureState();
 		data.ItemLedger = Ctx.WMSys.ItemLedger.CaptureState();
@@ -137,7 +138,7 @@ public sealed class GameSaveService : MonoBehaviour
 		data.RocketManager = Ctx.RocketMgr.CaptureState();
 		data.BoxRegistry = Ctx.WMSys.BoxPoolMgr.CaptureSaveData(RegisterOrderLine);
 		data.WorkerManager.NextWorkerId = Ctx.WorkerMgr.NextWorkerId;
-		data.WorkJobCounters.NextPickingJobId = PickingTaskAllocator.GetNextJobId();
+		data.WorkJobCounters.NextPickingJobId = PickingPlanner.GetNextJobId();
 		data.WorkJobCounters.NextStoringJobId = StoringPlanner.GetNextJobId();
 
 		foreach (var entry in Ctx.GridService.GetPlacedObjectsSnapshot().OrderBy(e => e.Value.center.x).ThenBy(e => e.Value.center.y).ThenBy(e => e.Value.center.z))
@@ -178,6 +179,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.ZoneMgr.RestoreState(data.Zones);
 		Ctx.WMSys.WorkPolicyService.RestoreState(data.Policy != null ? data.Policy.WorkSpeed : null);
 		Ctx.IBWorkflowMgr.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);
+		Ctx.OBWorkflowMgr.RestorePolicyState(data.Policy != null ? data.Policy.OutboundWorkApproach : null);
 		Ctx.GameTime.RestoreState(data.Time);
 		Ctx.EconomyService.RestoreState(data.Economy);
 		Ctx.ContractMgr.RestoreState(data.Contracts);
@@ -195,7 +197,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.OrderDelivery.RestoreState(data.OrderDelivery, restoredBoxes);
 		Ctx.RocketMgr.RestoreState(data.RocketManager);
 		Ctx.WorkerMgr.SetNextWorkerId(data.WorkerManager.NextWorkerId);
-		PickingTaskAllocator.SetNextJobId(data.WorkJobCounters.NextPickingJobId);
+		PickingPlanner.SetNextJobId(data.WorkJobCounters.NextPickingJobId);
 		StoringPlanner.SetNextJobId(data.WorkJobCounters.NextStoringJobId);
 
 		foreach (PlaceableSaveData placeableData in data.Placeables)
@@ -487,7 +489,7 @@ public static class TaskSaveDataExtensions
 			return null;
 
 		PickingTask task = new(job);
-		task.RestoreState(data.IsTaskEnd);
+		task.RestoreState(data.IsPickingPhaseEnd, data.IsTaskEnd);
 		return task;
 	}
 
