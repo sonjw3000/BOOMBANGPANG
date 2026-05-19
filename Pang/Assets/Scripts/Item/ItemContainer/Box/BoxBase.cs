@@ -79,12 +79,23 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 	public int AddItem(uint itemId, int quantity)
 	{
+		int requestedQuantity = quantity;
 		float availableSize = capacity - size;
 		float itemSize = itemDB.GetItemSize(itemId);
 
 		// quantity를 줄여야한다
 		if (availableSize < itemSize * quantity)
 			quantity = Mathf.FloorToInt(availableSize / itemSize);
+
+		if (quantity < 0)
+		{
+			Debug.LogError(
+				$"[BoxBase] Negative add quantity calculated. " +
+				$"BoxId={boxId}, BoxType={boxType}, ItemId={itemId}, " +
+				$"Requested={requestedQuantity}, Adjusted={quantity}, " +
+				$"Capacity={capacity}, CurrentSize={size}, AvailableSize={availableSize}, ItemSize={itemSize}, " +
+				$"Stacks={BuildStackDebugText()}");
+		}
 
 		// 0이면 불필요한 로직을 타지 않게
 		if (quantity == 0)
@@ -102,6 +113,16 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 		int res = stack.AddItem(quantity);
 
+		if (stack.Quantity < 0)
+		{
+			Debug.LogError(
+				$"[BoxBase] Stack quantity is negative after AddItem. " +
+				$"BoxId={boxId}, BoxType={boxType}, ItemId={itemId}, " +
+				$"Requested={requestedQuantity}, Adjusted={quantity}, Added={res}, " +
+				$"Capacity={capacity}, CurrentSize={size}, StackQuantity={stack.Quantity}, " +
+				$"Stacks={BuildStackDebugText()}");
+		}
+
 		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId, 0) + res;
 
 		UpdateSize();
@@ -118,6 +139,15 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 		int res = stack.RemoveItem(quantity);
 
+		if (stack.Quantity < 0)
+		{
+			Debug.LogError(
+				$"[BoxBase] Stack quantity is negative after RemoveItem. " +
+				$"BoxId={boxId}, BoxType={boxType}, ItemId={itemId}, Requested={quantity}, Removed={res}, " +
+				$"Capacity={capacity}, CurrentSize={size}, StackQuantity={stack.Quantity}, " +
+				$"Stacks={BuildStackDebugText()}");
+		}
+
 		if (stack.Quantity <= 0)
 		{
 			stacks.Remove(stack);
@@ -128,6 +158,23 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 		UpdateSize();
 
 		return res;
+	}
+
+	private string BuildStackDebugText()
+	{
+		if (stacks == null || stacks.Count == 0)
+			return "empty";
+
+		List<string> stackTexts = new(stacks.Count);
+		foreach (ItemStack stack in stacks)
+		{
+			if (stack == null)
+				continue;
+
+			stackTexts.Add($"{stack.ItemID}x{stack.Quantity}");
+		}
+
+		return string.Join(", ", stackTexts);
 	}
 
 	public bool AddStack(ItemStack stack)
@@ -213,4 +260,3 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	}
 
 }
-

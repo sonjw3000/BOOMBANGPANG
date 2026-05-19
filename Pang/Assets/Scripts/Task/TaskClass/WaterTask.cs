@@ -225,7 +225,7 @@ public class WaterTask : WorkerTask
 		}
 		else
 		{
-			BoxInteraction boxInteraction = task.from.target as BoxInteraction;
+			BoxInteraction boxInteraction = task.to.target as BoxInteraction;
 
 			if (task.WorkerCarryBox.GetBox(out var box) == false)
 			{

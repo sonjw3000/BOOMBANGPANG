@@ -13,10 +13,35 @@ public class PackingStationService : MonoBehaviour
 
 	public bool TryReserveWaitingStation(AIWorker picker, out PackingStation station)
 	{
+		if (TryGetReservedStationForPicker(picker, out station))
+			return true;
+
 		if (TryReserveWaitingStation(picker, candidate => candidate.CurrentPackingWorker != null, out station))
 			return true;
 
 		return TryReserveWaitingStation(picker, candidate => candidate.CurrentPackingWorker == null, out station);
+	}
+
+	private bool TryGetReservedStationForPicker(AIWorker picker, out PackingStation station)
+	{
+		station = null;
+		if (picker == null)
+			return false;
+
+		for (int i = 0; i < packingStations.Count; ++i)
+		{
+			var candidate = packingStations[i];
+			if (candidate == null)
+				continue;
+
+			if (candidate.IncomingPickingWorker != picker)
+				continue;
+
+			station = candidate;
+			return true;
+		}
+
+		return false;
 	}
 
 	private bool TryReserveWaitingStation(AIWorker picker, System.Predicate<PackingStation> predicate, out PackingStation station)
