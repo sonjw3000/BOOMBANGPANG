@@ -62,6 +62,7 @@ public sealed class PickingTask : WorkerTask
 		pick.Add(new ActionNode(CheckIsPickingState));
 
 		pick.Add(AIWorker.CheckBoxAndGet(BoxType.Personal));
+		pick.Add(new ActionNode(LogErrorIfPickingBoxHasItems));
 		pick.Add(AIWorker.MoveToTarget(WorkerStatusTarget.Shelf, InteractionKind.Pick, SetTarget));
 		pick.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickItem, PickItems));
 
@@ -103,6 +104,16 @@ public sealed class PickingTask : WorkerTask
 			return Success;
 		}
 		return Failure;
+	}
+
+	public static NodeState LogErrorIfPickingBoxHasItems(in BTContext ctx)
+	{
+		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
+		if (box == null || box.Stacks.Count <= 0)
+			return Success;
+
+		Debug.LogError($"[PickingTask] Picking worker received a non-empty box. worker={ctx.Worker.WorkerID}, box={box.name}, stacks={FormatStacks(box)}");
+		return Success;
 	}
 
 	public static NodeState GetAvailableOBCargoPort(in BTContext ctx)
@@ -225,5 +236,23 @@ public sealed class PickingTask : WorkerTask
 		task.PickingData.MoveToNextLine();
 
 		return Success;
+	}
+
+	private static string FormatStacks(BoxBase box)
+	{
+		if (box == null || box.Stacks.Count <= 0)
+			return "empty";
+
+		string result = "";
+		for (int i = 0; i < box.Stacks.Count; ++i)
+		{
+			ItemStack stack = box.Stacks[i];
+			if (i > 0)
+				result += ", ";
+
+			result += $"{stack.ItemID}x{stack.Quantity}";
+		}
+
+		return result;
 	}
 }

@@ -10,6 +10,7 @@ public class LoadingTask : WorkerTask
 	private CargoPort targetPort = null;
 
 	static private LaunchStationService LaunchStations => GameContext.Instance.OBWorkflowMgr.LaunchStations;
+	static private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 
 	public LoadingTask(CargoPort cargoPort) : base(TaskType.Loading)
 	{
@@ -92,6 +93,13 @@ public class LoadingTask : WorkerTask
 		if (box == null)
 			return Failure;
 
+		if (task.targetPort.Stacks.Count <= 0)
+		{
+			task.targetPort.SetInputReady(true);
+			task.isLoadEnd = true;
+			return Success;
+		}
+
 		TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(task.targetPort, box, ReportWaitingForShipping));
 		if (result == TransferResultKind.Complete)
 		{
@@ -99,7 +107,16 @@ public class LoadingTask : WorkerTask
 			return Success;
 		}
 
-		return result == TransferResultKind.Partial ? Running : Failure;
+		if (result == TransferResultKind.Partial)
+		{
+			TaskMgr.EnqueueTask(new LoadingTask(task.targetPort));
+			return Success;
+		}
+
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
+		// Future: replace this polling standby with a box/cargo-port manager wake-up when a suitable carrier is available.
+		return AIWorker.MoveToStandbyWhileWaiting(ctx);
 	}
 
 	private static void ReportWaitingForShipping(ItemStack stack)
@@ -130,7 +147,7 @@ public class LoadingTask : WorkerTask
 		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Pick);
 		if (launchStation == null)
 		{
-			// todo worker를 off 후 대기시켜야함
+			// Future: launch station manager should wake this worker when storage has room.
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 			Debug.LogError("No available launch station found!");
@@ -147,9 +164,21 @@ public class LoadingTask : WorkerTask
 		}
 
 		launchStation.TryGetAddon<CargoStorageAddon>(out var pad);
+		if (pad == null || pad.CanStoreCargo(carryAbility.CarryingBox) == false)
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
+			// Future: cargo storage/launch station manager should disable and re-enable this worker when capacity opens.
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+		}
 
-		if (carryAbility.GetBox(out var box))
-			pad.StoreCargo(box);
+		if (carryAbility.GetBox(out var box) == false || pad.TryStoreCargo(box) == false)
+		{
+			if (box != null)
+				carryAbility.PutBox(box);
+
+			return Failure;
+		}
 
 		task.isLoadEnd = true;
 		return Success;

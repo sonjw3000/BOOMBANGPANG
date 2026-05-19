@@ -433,6 +433,7 @@ public sealed class WaterTaskSaveData
 	public TransferContextSaveData From;
 	public TransferContextSaveData To;
 	public bool WorkPhase;
+	public bool HasPicked;
 }
 
 [Serializable]

@@ -14,8 +14,25 @@ public class CargoStorageAddon
 
 	static private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 
-	public void StoreCargo(BoxBase cargo)
+	public bool CanStoreCargo(BoxBase cargo)
 	{
+		return cargo != null && cargosToLaunch.Count < maxCargoSlot;
+	}
+
+	public bool TryStoreCargo(BoxBase cargo)
+	{
+		if (CanStoreCargo(cargo) == false)
+			return false;
+
+		foreach (var stack in cargo.Stacks)
+		{
+			if (stack is not ItemPackage)
+			{
+				Debug.LogError("CargoStorage: This Stack in box is not packed!!");
+				return false;
+			}
+		}
+
 		cargosToLaunch.AddLast(cargo);
 
 		cargo.transform.SetParent(transform);
@@ -23,13 +40,11 @@ public class CargoStorageAddon
 
 		foreach (var stack in cargo.Stacks)
 		{
-			if (stack is ItemPackage pkg == false)
-			{
-				Debug.LogError("CargoStorage: This Stack in box is not packed!!");
-				return;
-			}
+			ItemPackage pkg = (ItemPackage)stack;
 			pkg.ReportOutboundProgress(OrderMgr, PackageOutboundStage.Shipping);
 		}
+
+		return true;
 	}
 
 	private void RemoveCargo(BoxBase cargo)
@@ -70,7 +85,7 @@ public class CargoStorageAddon
 			return;
 
 		foreach (var cargo in cargos)
-			StoreCargo(cargo);
+			TryStoreCargo(cargo);
 	}
 
 }

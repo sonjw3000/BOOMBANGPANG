@@ -527,7 +527,7 @@ public static class TaskSaveDataExtensions
 			return null;
 
 		WaterTask task = new(from, to);
-		task.RestoreState(data.WorkPhase);
+		task.RestoreState(data.WorkPhase, data.HasPicked);
 		return task;
 	}
 

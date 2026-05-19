@@ -277,6 +277,8 @@ public abstract partial class AIWorker
 
 	public static NodeState MoveToStandbyWhileWaiting(in BTContext ctx)
 	{
+		// Current behavior keeps the task alive and re-evaluates it after standby movement.
+		// Future: waiting managers should disable workers here and re-enable them when the target/resource becomes available.
 		if (StandbyService.TryFindStandbyPoint(ctx.Worker, out var standbyPoint) == StandbyPointResult.Success)
 		{
 			ctx.Worker.routeFinder.enabled = true;

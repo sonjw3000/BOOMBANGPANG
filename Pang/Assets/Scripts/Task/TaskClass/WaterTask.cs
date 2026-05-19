@@ -27,6 +27,7 @@ public class WaterTask : WorkerTask
 	private readonly TransferContext to;
 
 	private bool workPhase = false;
+	private bool hasPicked = false;
 
 	public WaterTask(TransferContext from, TransferContext to) : base(TaskType.Water)
 	{
@@ -41,12 +42,14 @@ public class WaterTask : WorkerTask
 			From = CaptureTransferContext(from, getPlaceableId),
 			To = CaptureTransferContext(to, getPlaceableId),
 			WorkPhase = workPhase,
+			HasPicked = hasPicked,
 		};
 	}
 
-	public void RestoreState(bool workPhase)
+	public void RestoreState(bool workPhase, bool hasPicked)
 	{
 		this.workPhase = workPhase;
+		this.hasPicked = hasPicked;
 	}
 
 	protected override void OnTaskAssigned()
@@ -82,9 +85,16 @@ public class WaterTask : WorkerTask
 		ensureCarryState.Add(checkRequirement);
 		ensureCarryState.Add(new ActionNode(WaitForCarryRequirement));
 
+		SelectorNode pickIfNeeded = new();
+		pickIfNeeded.Add(new ActionNode(HasPicked));
+
+		SequenceNode pick = new();
+		pick.Add(AIWorker.MoveToTarget(WorkerStatusTarget.None, InteractionKind.Pick, PickSet));
+		pick.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, Pick));
+		pickIfNeeded.Add(pick);
+
 		SequenceNode work = new();
-		work.Add(AIWorker.MoveToTarget(WorkerStatusTarget.None, InteractionKind.Pick, PickSet));
-		work.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, Pick));
+		work.Add(pickIfNeeded);
 		work.Add(AIWorker.MoveToTarget(WorkerStatusTarget.None, InteractionKind.Put, PutSet));
 		work.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, Put));
 		work.Add(new ActionNode(AIWorker.TaskCompleted));
@@ -141,6 +151,12 @@ public class WaterTask : WorkerTask
 		return Running;
 	}
 
+	static public NodeState HasPicked(in BTContext ctx)
+	{
+		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+		return task.hasPicked ? Success : Failure;
+	}
+
 	static public NodeState CheckBoxState(in BTContext ctx)
 	{
 		// if the box is required in picking, then have to pick box
@@ -189,6 +205,9 @@ public class WaterTask : WorkerTask
 			TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(fromContainer, task.WorkerCarryBox.CarryingBox));
 			if (result == TransferResultKind.None)
 				return Failure;
+
+			if (result == TransferResultKind.Partial)
+				GameContext.Instance.TaskMgr.EnqueueTask(new WaterTask(task.from, task.to));
 		}
 		else
 		{
@@ -197,12 +216,56 @@ public class WaterTask : WorkerTask
 			if (task.WorkerCarryBox.PutBox(box) == false) return Failure;
 		}
 
+		task.hasPicked = true;
 		return Success;
 	}
 
 	static public NodeState PutSet(in BTContext ctx)
 	{
 		WaterTask task = ctx.Worker.CurrentTask as WaterTask;
+
+		if (task.to.transferType == TransferObjectType.Item)
+		{
+			if (task.to.target is not IItemContainer toContainer)
+			{
+				Debug.LogError("Target is not item interaction but transfer type is item??");
+				return Failure;
+			}
+
+			BoxBase box = task.WorkerCarryBox.CarryingBox;
+			if (box == null)
+			{
+				Debug.LogError("No box to put??");
+				return Failure;
+			}
+
+			if (CanAcceptAllStacks(toContainer, box) == false)
+			{
+				// 현재는 standby에서 task를 계속 재평가한다.
+				// 이후 목적지/자원 매니저가 worker를 disable 후 가능해질 때 enable하는 패턴으로 교체할 수 있다.
+				ctx.Worker.SetWorkerTarget(WorkerStatusTarget.WorkTarget);
+				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+				return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			}
+		}
+		else
+		{
+			if (task.to.target is not BoxInteraction boxInteraction)
+			{
+				Debug.LogError("Target is not box interaction but transfer type is box??");
+				return Failure;
+			}
+
+			if (boxInteraction.CanPutBox() == false)
+			{
+				// 현재는 standby에서 task를 계속 재평가한다.
+				// 이후 목적지/자원 매니저가 worker를 disable 후 가능해질 때 enable하는 패턴으로 교체할 수 있다.
+				ctx.Worker.SetWorkerTarget(WorkerStatusTarget.WorkTarget);
+				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+				return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			}
+		}
+
 		ctx.LocalBlackBoard.SetTargetBuilding(task.to.target as IGridPlaceable);
 
 		return Success;
@@ -223,6 +286,12 @@ public class WaterTask : WorkerTask
 			TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(task.WorkerCarryBox.CarryingBox, toContainer));
 			if (result == TransferResultKind.None)
 				return Failure;
+			if (result == TransferResultKind.Partial)
+			{
+				// PutSet에서 사전 검사했는데도 partial이면 도착 후 경쟁 상태가 생긴 것이다.
+				// hasPicked 상태를 유지하고 다음 평가에서 목적지 가능 여부를 다시 확인한다.
+				return Failure;
+			}
 		}
 		else
 		{
@@ -235,12 +304,27 @@ public class WaterTask : WorkerTask
 			}
 			if (boxInteraction.PutBox(box) == false)
 			{
+				task.WorkerCarryBox.PutBox(box);
 				Debug.LogError("Failed to put box??");
 				return Failure;
 			}
 		}
 
 		return Success;
+	}
+
+	private static bool CanAcceptAllStacks(IItemContainer target, BoxBase source)
+	{
+		if (target == null || source == null)
+			return false;
+
+		for (int i = 0; i < source.Stacks.Count; ++i)
+		{
+			if (target.CanAcceptStack(source.Stacks[i]) == false)
+				return false;
+		}
+
+		return true;
 	}
 
 	private static TransferContextSaveData CaptureTransferContext(TransferContext context, Func<GameObject, int> getPlaceableId)
