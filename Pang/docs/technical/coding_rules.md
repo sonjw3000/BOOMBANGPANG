@@ -39,6 +39,15 @@ Examples:
 - ApplyXXX / CommitXXX should explicitly mutate state.
 - ReportXXX should notify other systems.
 
+## Item Transfer
+
+- Move gameplay items through `ItemTransferUtility` instead of calling paired `AddItem` / `RemoveItem` or `AddStack` / `RemoveStack` directly from task flow.
+- Use `MoveItem` for quantity-based workflow lines, reservations, and allocation/progress accounting.
+- Use `MoveItemAsStack` when a quantity is converted into a new stack object, such as packaging picked items into an `ItemPackage`.
+- Use `MoveAllStacks` only for whole-stack transfers where stack identity must be preserved, such as packaged outbound cargo.
+- Treat `TransferResultKind.None`, `Partial`, and `Complete` explicitly before advancing a task.
+- `OnStackMove` callbacks should only perform after-commit reporting such as outbound stage updates or logging; they must not mutate source or target container quantities.
+
 ---
 
 ## Update Usage

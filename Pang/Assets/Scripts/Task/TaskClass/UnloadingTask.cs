@@ -104,21 +104,24 @@ public class UnloadingTask : WorkerTask
 			return Failure;
 		}
 		
-		var items = rocket.GetPayload();
-		box.AddItem(items);
+		TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(rocket, box));
 
 		// todo
 		// 새로운 작업이 필요할것이다
 		
 		// disable rocket
-		if (items.Count == 0)
+		if (result == TransferResultKind.Complete)
 			GameContext.Instance.RocketMgr.DisableRocket(task.targetRocket);
-		else
+		else if (result == TransferResultKind.Partial)
 		{
 			// todo
 			// add new task to unload remaining items
 			UnloadingTask newTask = new(task.targetRocket);
 			GameContext.Instance.TaskMgr.EnqueueTask(newTask);
+		}
+		else
+		{
+			return Failure;
 		}
 
 		return Success;
@@ -150,25 +153,15 @@ public class UnloadingTask : WorkerTask
 
 		BoxBase box = task.WorkerCarryBox.CarryingBox;
 
-		List<uint> ids = new(box.Stacks.Count);
-		List<int> cnts = new(box.Stacks.Count);
+		TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(box, task.cargoPort));
 
-		foreach (var stack in box.Stacks)
+		if (result == TransferResultKind.Complete)
 		{
-			ids.Add(stack.ItemID);
-			cnts.Add(stack.Quantity);
+			task.IsUnloadEnd = true;
+			return Success;
 		}
 
-		for (int i = 0; i < box.Stacks.Count; ++i)
-		{
-			int befStack = cnts[i];
-			int moveTocargo = task.cargoPort.AddItem(ids[i], cnts[i]);
-
-			box.RemoveItem(ids[i], moveTocargo);
-		}
-
-		task.IsUnloadEnd = true;
-		return Success;
+		return result == TransferResultKind.Partial ? Running : Failure;
 	}
 
 }

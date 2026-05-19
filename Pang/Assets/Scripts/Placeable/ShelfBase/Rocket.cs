@@ -117,7 +117,13 @@ public class Rocket : ShelfBase
 
 	public void SetupPayload(List<ItemStack> payload)
 	{
-		stacks = payload;
+		stacks.Clear();
+		itemTotals.Clear();
+		if (payload == null)
+			return;
+
+		for (int i = 0; i < payload.Count; ++i)
+			AddStack(payload[i]);
 	}
 
 	public List<ItemStack> GetPayload()

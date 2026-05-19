@@ -195,7 +195,6 @@ public sealed class PickingTask : WorkerTask
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 		var curLine = task.CurrentLine;
-		int removed = curLine.Source.RemoveItem(curLine.ItemID, curLine.Quantity);
 
 		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
 
@@ -205,14 +204,15 @@ public sealed class PickingTask : WorkerTask
 			return Failure;
 		}
 
-		int realAdded = box.AddItem(task.CurrentLine.ItemID, removed);
-		int pickedQuantity = OrderMgr.ReportPickingCompleted(curLine.RelatedOrderLine, realAdded);
-		if (pickedQuantity != realAdded)
+		int remainingQuantity = curLine.Quantity - curLine.CompleteQuantity;
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(curLine.Source, box, curLine.ItemID, remainingQuantity));
+		int pickedQuantity = OrderMgr.ReportPickingCompleted(curLine.RelatedOrderLine, result.Moved);
+		if (pickedQuantity != result.Moved)
 		{
-			Debug.LogWarning($"[PickingTask] Pick progress mismatch. requested={realAdded}, applied={pickedQuantity}");
+			Debug.LogWarning($"[PickingTask] Pick progress mismatch. requested={result.Moved}, applied={pickedQuantity}");
 		}
 
-		task.CurrentLine.CompleteQuantity += realAdded;
+		task.CurrentLine.CompleteQuantity += result.Moved;
 		// 갯수를 체크해야한다
 		// 중요함!
 		if (task.CurrentLine.IsComplete == false)

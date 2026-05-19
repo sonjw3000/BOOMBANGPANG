@@ -124,7 +124,6 @@ public class StoringTask : WorkerTask
 	public static NodeState PickItems(in BTContext ctx)
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
-		int removed = task.CurrentLine.Source.RemoveItem(task.CurrentLine.ItemID, task.CurrentLine.Quantity);
 
 		BoxBase box = task.CarryingAbility.CarryingBox;
 
@@ -134,11 +133,13 @@ public class StoringTask : WorkerTask
 			return Failure;
 		}
 
-		int realAdded = box.AddItem(task.CurrentLine.ItemID, removed);
+		int remainingQuantity = task.CurrentLine.Quantity - task.CurrentLine.CompleteQuantity;
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(task.CurrentLine.Source, box, task.CurrentLine.ItemID, remainingQuantity));
+		task.CurrentLine.CompleteQuantity += result.Moved;
 
-		if (task.CurrentLine.Quantity != realAdded)
+		if (task.CurrentLine.IsComplete == false)
 		{
-			Debug.Log($"Quantity: {task.CurrentLine.Quantity}, real picked: {realAdded}");
+			Debug.Log($"Quantity: {task.CurrentLine.Quantity}, real picked: {task.CurrentLine.CompleteQuantity}");
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
 			return Failure;
 		}
@@ -207,11 +208,10 @@ public class StoringTask : WorkerTask
 			return Running;
 		}
 		
-		int addedItem = line.Source.AddItem(line.ItemID, line.Quantity);
-		box.RemoveItem(line.ItemID, addedItem);
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(box, line.Source, line.ItemID, line.Quantity));
 
 		// if fully removed, delete line
-		if (addedItem == line.Quantity)
+		if (result.Kind == TransferResultKind.Complete)
 		{
 			task.placingLine = null;
 		}

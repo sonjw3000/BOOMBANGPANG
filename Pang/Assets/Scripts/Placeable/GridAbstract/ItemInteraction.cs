@@ -7,8 +7,7 @@ public abstract class ItemInteraction :
 	MonoBehaviour,
 	IGridPlaceable,
 	IGridPlacementEffect,
-	IInteractionPoint,
-	IItemHandleable
+	IInteractionPoint
 {
 	protected int3 position;
 	protected FacingDirection facingDirection;
@@ -28,11 +27,6 @@ public abstract class ItemInteraction :
 	public abstract void OnPositionSet(in int3 pos, FacingDirection direction);
 	public abstract void OnDestroyedBy(in DestroyContext ctx);
 	public abstract void OnRemoved();
-
-
-	// Item Handleable
-	public abstract bool MoveToBox(BoxBase item);
-	public abstract bool BringFromBox(BoxBase item);
 
 	// interaction point
 	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point)

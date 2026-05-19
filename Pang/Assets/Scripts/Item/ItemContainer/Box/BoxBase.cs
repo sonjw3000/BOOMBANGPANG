@@ -58,6 +58,29 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 	public bool CanRegister() => true;
 
+	public int GetQuantity(uint itemId)
+	{
+		return itemTotals.GetValueOrDefault(itemId);
+	}
+
+	public int GetAcceptableQuantity(uint itemId, int requested)
+	{
+		if (requested <= 0)
+			return 0;
+
+		float availableSize = capacity - size;
+		float itemSize = itemDB.GetItemSize(itemId);
+		if (itemSize <= 0.0f)
+			return 0;
+
+		return Mathf.Clamp(Mathf.FloorToInt(availableSize / itemSize), 0, requested);
+	}
+
+	public bool CanAcceptStack(ItemStack stack)
+	{
+		return stack != null && stack.Size + size <= MaxSize;
+	}
+
 	// return true when the payload fully moved
 	public bool AddItem(List<ItemStack> payload)
 	{
@@ -179,10 +202,11 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 	public bool AddStack(ItemStack stack)
 	{
-		if (stack.Size + size > MaxSize)
+		if (CanAcceptStack(stack) == false)
 			return false;
 
 		stacks.Add(stack);
+		itemTotals[stack.ItemID] = itemTotals.GetValueOrDefault(stack.ItemID) + stack.Quantity;
 
 		UpdateSize();
 
@@ -191,8 +215,12 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 	public bool RemoveStack(ItemStack stack)
 	{
-		if (stacks.Remove(stack) == false)
+		if (stack == null || stacks.Remove(stack) == false)
 			return false;
+
+		itemTotals[stack.ItemID] = itemTotals.GetValueOrDefault(stack.ItemID) - stack.Quantity;
+		if (itemTotals[stack.ItemID] <= 0)
+			itemTotals.Remove(stack.ItemID);
 
 		UpdateSize();
 

@@ -180,16 +180,15 @@ public class WaterTask : WorkerTask
 
 		if (task.from.transferType == TransferObjectType.Item)
 		{
-			if (task.from.target is ItemInteraction target == false)
+			if (task.from.target is not IItemContainer fromContainer)
 			{
 				Debug.LogError("Target is not item interaction but transfer type is item??");
 				return Failure;
 			}
 
-			if (target.MoveToBox(task.WorkerCarryBox.CarryingBox))
-			{
-				// 추가 뭐시기를 요청하던가 해야함
-			}
+			TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(fromContainer, task.WorkerCarryBox.CarryingBox));
+			if (result == TransferResultKind.None)
+				return Failure;
 		}
 		else
 		{
@@ -215,13 +214,15 @@ public class WaterTask : WorkerTask
 
 		if (task.to.transferType == TransferObjectType.Item)
 		{
-			if (task.to.target is ItemInteraction target == false)
+			if (task.to.target is not IItemContainer toContainer)
 			{
 				Debug.LogError("Target is not item interaction but transfer type is item??");
 				return Failure;
 			}
 
-			target.BringFromBox(task.WorkerCarryBox.CarryingBox);
+			TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(task.WorkerCarryBox.CarryingBox, toContainer));
+			if (result == TransferResultKind.None)
+				return Failure;
 		}
 		else
 		{

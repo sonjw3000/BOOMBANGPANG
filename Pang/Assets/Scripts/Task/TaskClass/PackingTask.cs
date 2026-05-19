@@ -156,19 +156,23 @@ public class PackingTask : WorkerTask
 		if (box == null || line == null)
 			return Failure;
 
-		int res = box.Box.RemoveItem(line.ItemID, line.CompleteQuantity);
-		ItemPackage package = new(PackingType.Box, line.RelatedOrderLine, line.ItemID, res);
+		int quantityToPack = Math.Min(line.CompleteQuantity, box.Box.GetQuantity(line.ItemID));
+		ItemPackage package = new(PackingType.Box, line.RelatedOrderLine, line.ItemID, quantityToPack);
 
-		if (station.AddStack(package) == false)
+		if (quantityToPack <= 0 || station.CanAcceptStack(package) == false)
 		{
 			Debug.Log("Station Stack Is Full");
-			return Success;
+			return quantityToPack <= 0 ? Failure : Running;
 		}
 
-		int packedQuantity = OrderMgr.ReportPackagingCompleted(line.RelatedOrderLine, res);
-		if (packedQuantity != res)
+		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(box.Box, station, package);
+		if (result.Kind != TransferResultKind.Complete)
+			return Failure;
+
+		int packedQuantity = OrderMgr.ReportPackagingCompleted(line.RelatedOrderLine, result.Moved);
+		if (packedQuantity != result.Moved)
 		{
-			Debug.LogWarning($"[PackingTask] Packing progress mismatch. packed={res}, applied={packedQuantity}");
+			Debug.LogWarning($"[PackingTask] Packing progress mismatch. packed={result.Moved}, applied={packedQuantity}");
 		}
 
 		box.Job.MoveToNextLine();

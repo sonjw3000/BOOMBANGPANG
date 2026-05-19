@@ -45,6 +45,39 @@ public abstract class ShelfBase :
 	public bool CanRegister() => MaxStack > Stacks.Count;
 	public float MaxStack => maxStacks;
 
+	public int GetQuantity(uint itemId)
+	{
+		return itemTotals.GetValueOrDefault(itemId);
+	}
+
+	public int GetAcceptableQuantity(uint itemId, int requested)
+	{
+		if (requested <= 0)
+			return 0;
+
+		float itemSize = itemDB.GetItemSize(itemId);
+		if (itemSize <= 0.0f)
+			return 0;
+
+		int capacity = 0;
+		for (int i = 0; i < stacks.Count; ++i)
+		{
+			ItemStack stack = stacks[i];
+			if (stack.ItemID == itemId)
+				capacity += stack.AvailableAmount;
+		}
+
+		int freeSlots = maxStacks - stacks.Count;
+		capacity += freeSlots * Mathf.FloorToInt(sizePerStack / itemSize);
+
+		return Mathf.Clamp(capacity, 0, requested);
+	}
+
+	public bool CanAcceptStack(ItemStack stack)
+	{
+		return stack != null && stack.StackSize <= sizePerStack && stacks.Count < maxStacks;
+	}
+
 	protected virtual void Awake()
 	{
 		stacks = new List<ItemStack>(capacity: maxStacks);
@@ -55,47 +88,6 @@ public abstract class ShelfBase :
 
 	// 식인종이 우사인볼트를 보면?
 	// 패스트푸드
-
-	public override bool BringFromBox(BoxBase box)
-	{
-		for (int i = box.Stacks.Count - 1; i >= 0; --i)
-		{
-			var stack = box.Stacks[i];
-			if (AddStack(stack) == false)
-			{
-				// shelf가 가득 차서 옮겨지지 않았다
-				Debug.LogWarning($"Could not move all items from box. ItemID: {stack.ItemID}, Requested: {stack.Quantity}");
-				break;
-			}
-
-			if (box.RemoveStack(stack) == false)
-			{
-				Debug.Log("??");
-				break;
-			}
-		}
-
-		return box.ItemTotals.Count <= 0;
-	}
-
-	// box가 꽉 차면 return false를 해주어야함
-	public override bool MoveToBox(BoxBase box)
-	{
-		for (int i = stacks.Count - 1; i >= 0; --i)
-		{
-			var stack = stacks[i];
-			if (box.AddStack(stack) == false)
-				break;
-
-			if (RemoveStack(stack) == false)
-			{
-				Debug.Log("??");
-				break;
-			}
-		}
-
-		return ItemTotals.Count <= 0;
-	}
 
 	private void UpdateSize()
 	{
@@ -207,10 +199,17 @@ public abstract class ShelfBase :
 
 	public bool AddStack(ItemStack stack)
 	{
-		if (stack.StackSize > sizePerStack || stacks.Count >= maxStacks)
+		if (CanAcceptStack(stack) == false)
 			return false;
 
+		int befItemCounts = itemTotals.GetValueOrDefault(stack.ItemID);
 		stacks.Add(stack);
+		itemTotals[stack.ItemID] = befItemCounts + stack.Quantity;
+
+		if (befItemCounts == 0)
+			OnItemPresentChanged?.Invoke(this, stack.ItemID, true);
+
+		OnItemQuantityChanged?.Invoke(this, stack.ItemID, stack.Quantity);
 
 		UpdateSize();
 
@@ -219,8 +218,20 @@ public abstract class ShelfBase :
 
 	public bool RemoveStack(ItemStack stack)
 	{
-		if (stacks.Remove(stack) == false)
+		if (stack == null || stacks.Remove(stack) == false)
 			return false;
+
+		itemTotals[stack.ItemID] = itemTotals.GetValueOrDefault(stack.ItemID) - stack.Quantity;
+		if (itemTotals[stack.ItemID] <= 0)
+		{
+			if (itemTotals[stack.ItemID] < 0)
+				Debug.LogWarning($"Item total for {stack.ItemID} went below zero after removing stack. Adjusting to zero.");
+
+			itemTotals.Remove(stack.ItemID);
+			OnItemPresentChanged?.Invoke(this, stack.ItemID, false);
+		}
+
+		OnItemQuantityChanged?.Invoke(this, stack.ItemID, -stack.Quantity);
 
 		UpdateSize();
 

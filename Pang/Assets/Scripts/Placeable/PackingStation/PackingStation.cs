@@ -48,6 +48,21 @@ public class PackingStation :
 	public float MaxSize => sizePerStack * maxStacks;
 	public bool CanRegister() => maxStacks > Stacks.Count;
 
+	public int GetQuantity(uint itemId)
+	{
+		return itemTotals.GetValueOrDefault(itemId);
+	}
+
+	public int GetAcceptableQuantity(uint itemId, int requested)
+	{
+		return 0;
+	}
+
+	public bool CanAcceptStack(ItemStack stack)
+	{
+		return stack is ItemPackage && packedItems.Count < maxStacks;
+	}
+
 	private PackingStationService PackingStations => GameContext.Instance.OBWorkflowMgr.PackingStations;
 
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.PackingStation;
@@ -189,16 +204,9 @@ public class PackingStation :
 		if (endPackingBox != null || currentPackingBox == null)
 			return false;
 
-		for (int i = packedItems.Count - 1; i >= 0; --i)
-		{
-			if (currentPackingBox.Box.AddStack(packedItems[i]) == false)
-			{
-				Debug.LogWarning("Box's Stack is full");
-				break;
-			}
-
-			packedItems.RemoveAt(i);
-		}
+		TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(this, currentPackingBox.Box));
+		if (result != TransferResultKind.Complete)
+			return false;
 
 		SetEndStackBox(currentPackingBox);
 		SetCurrentPackingBox(null);
@@ -251,10 +259,12 @@ public class PackingStation :
 
 	public bool AddStack(ItemStack stack)
 	{
-		if (maxStacks <= packedItems.Count || stack is not ItemPackage pkg)
+		if (CanAcceptStack(stack) == false || stack is not ItemPackage pkg)
 			return false;
 
 		packedItems.Add(pkg);
+		itemTotals[pkg.ItemID] = itemTotals.GetValueOrDefault(pkg.ItemID) + pkg.Quantity;
+		UpdateSize();
 		return true;
 	}
 
@@ -263,7 +273,19 @@ public class PackingStation :
 		if (stack is not ItemPackage pkg || packedItems.Remove(pkg) == false)
 			return false;
 
+		itemTotals[pkg.ItemID] = itemTotals.GetValueOrDefault(pkg.ItemID) - pkg.Quantity;
+		if (itemTotals[pkg.ItemID] <= 0)
+			itemTotals.Remove(pkg.ItemID);
+
+		UpdateSize();
 		return true;
+	}
+
+	private void UpdateSize()
+	{
+		totalSize = 0.0f;
+		for (int i = 0; i < packedItems.Count; ++i)
+			totalSize += packedItems[i].Size;
 	}
 
 	private void SetCurrentPackingBox(BoxWithOrder value)

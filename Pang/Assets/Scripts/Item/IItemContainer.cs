@@ -16,6 +16,12 @@ public interface IItemContainer
 
 	public bool CanRegister();
 
+	public int GetQuantity(uint itemId);
+
+	public int GetAcceptableQuantity(uint itemId, int requested);
+
+	public bool CanAcceptStack(ItemStack stack);
+
 	public int AddItem(uint itemId, int quantity);
 
 	public int RemoveItem(uint itemId, int quantity);

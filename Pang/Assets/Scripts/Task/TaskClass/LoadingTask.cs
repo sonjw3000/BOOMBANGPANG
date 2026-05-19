@@ -89,10 +89,28 @@ public class LoadingTask : WorkerTask
 
 		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
 
-		task.targetPort.MoveToBox(box);
-		task.targetPort.SetInputReady(true);
+		if (box == null)
+			return Failure;
 
-		return Success;
+		TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(task.targetPort, box, ReportWaitingForShipping));
+		if (result == TransferResultKind.Complete)
+		{
+			task.targetPort.SetInputReady(true);
+			return Success;
+		}
+
+		return result == TransferResultKind.Partial ? Running : Failure;
+	}
+
+	private static void ReportWaitingForShipping(ItemStack stack)
+	{
+		if (stack is ItemPackage pkg == false)
+		{
+			Debug.LogError("Not ItemStack In OB CargoPort!!!");
+			return;
+		}
+
+		pkg.ReportOutboundProgress(GameContext.Instance.OrderMgr, PackageOutboundStage.WaitingForShipping);
 	}
 
 	static private NodeState SetLaunchStation(in BTContext ctx)
