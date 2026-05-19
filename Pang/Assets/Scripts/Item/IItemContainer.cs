@@ -88,6 +88,16 @@ public class ItemStack
 		return amount;
 	}
 
+	public virtual ItemStack CreateTransferStack(int amount)
+	{
+		if (amount <= 0)
+			return null;
+
+		ItemStack stack = new(itemID, maxStackSize);
+		stack.AddItem(amount);
+		return stack;
+	}
+
 }
 
 public enum PackingType
@@ -175,6 +185,13 @@ public class ItemPackage : ItemStack
 		}
 
 		outboundStage = targetStage;
+	}
+
+	public override ItemStack CreateTransferStack(int amount)
+	{
+		return amount <= 0 ?
+			null :
+			new ItemPackage(packingType, releatedOrder, ItemID, amount, outboundStage);
 	}
 }
 

@@ -124,11 +124,22 @@ public static class ItemTransferUtility
 
 		int stackCount = payload.From.Stacks.Count;
 		int movedCount = 0;
+		bool movedPartially = false;
 		for (int i = stackCount - 1; i >= 0; --i)
 		{
 			var stack = payload.From.Stacks[i];
 			if (payload.To.CanAcceptStack(stack) == false)
+			{
+				if (TryMovePartialStack(payload, stack, out ItemStack movedStack))
+				{
+					movedPartially = true;
+					++movedCount;
+					payload.OnStackMove?.Invoke(movedStack);
+					continue;
+				}
+
 				return movedCount == 0 ? TransferResultKind.None : TransferResultKind.Partial;
+			}
 
 			if (payload.From.RemoveStack(stack) == false)
 				return movedCount == 0 ? TransferResultKind.None : TransferResultKind.Partial;
@@ -144,6 +155,71 @@ public static class ItemTransferUtility
 			payload.OnStackMove?.Invoke(stack);
 		}
 
-		return TransferResultKind.Complete;
+		return movedPartially ? TransferResultKind.Partial : TransferResultKind.Complete;
+	}
+
+	private static bool TryMovePartialStack(in FullyTransferPayload payload, ItemStack stack, out ItemStack movedStack)
+	{
+		movedStack = null;
+
+		if (stack == null)
+			return false;
+
+		int acceptable = payload.To.GetAcceptableQuantity(stack.ItemID, stack.Quantity);
+		if (acceptable <= 0)
+			return false;
+
+		if (stack is ItemPackage)
+			return TryMovePartialPackageStack(payload, stack, acceptable, out movedStack);
+
+		ItemTransferResult result = MoveItem(new(payload.From, payload.To, stack.ItemID, acceptable));
+		if (result.Kind == TransferResultKind.None)
+			return false;
+
+		movedStack = stack.CreateTransferStack(result.Moved);
+		return movedStack != null;
+	}
+
+	private static bool TryMovePartialPackageStack(in FullyTransferPayload payload, ItemStack stack, int acceptable, out ItemStack movedStack)
+	{
+		movedStack = stack.CreateTransferStack(acceptable);
+		if (movedStack == null || payload.To.CanAcceptStack(movedStack) == false)
+			return false;
+
+		int removed = payload.From.RemoveItem(stack.ItemID, acceptable);
+		if (removed != acceptable)
+		{
+			Debug.LogError($"[ItemTransferUtility] Partial package move removed an unexpected amount. item={stack.ItemID}, requested={acceptable}, removed={removed}");
+			if (removed > 0)
+				RestoreStack(payload.From, movedStack.CreateTransferStack(removed));
+
+			movedStack = null;
+			return false;
+		}
+
+		if (payload.To.AddStack(movedStack) == false)
+		{
+			Debug.LogError("[ItemTransferUtility] Partial package move failed after size check passed.");
+			RestoreStack(payload.From, movedStack);
+			movedStack = null;
+			return false;
+		}
+
+		return true;
+	}
+
+	private static void RestoreStack(IItemContainer container, ItemStack stack)
+	{
+		if (container == null || stack == null)
+			return;
+
+		if (container.AddStack(stack))
+			return;
+
+		int restored = container.AddItem(stack.ItemID, stack.Quantity);
+		if (restored != stack.Quantity)
+		{
+			Debug.LogError($"[ItemTransferUtility] Failed to restore moved stack. item={stack.ItemID}, requested={stack.Quantity}, restored={restored}");
+		}
 	}
 }
