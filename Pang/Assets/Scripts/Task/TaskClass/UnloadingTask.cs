@@ -130,10 +130,16 @@ public class UnloadingTask : WorkerTask
 	public static NodeState SetZoneTarget(in BTContext ctx)
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
-		task.cargoPort = PortService.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
+		BoxBase box = task.WorkerCarryBox?.CarryingBox;
+		task.cargoPort = PortService.GetClosestAvailableTargetForBox(ctx.Worker.GridPosition, InteractionKind.Put, box);
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.cargoPort);
-		return Success;
+		if (task.cargoPort != null)
+			return Success;
+
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+		return AIWorker.MoveToStandbyWhileWaiting(ctx);
 	}
 
 	public static NodeState PutOnBuffer(in BTContext ctx)
