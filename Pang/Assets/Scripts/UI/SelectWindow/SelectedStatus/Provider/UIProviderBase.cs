@@ -11,6 +11,7 @@ public abstract class UIProviderBase
 	public abstract string Name { get; }
 	public abstract string Subtitle { get; }
 	public abstract Sprite Icon { get; }
+	public abstract System.Type TargetType { get; }
 	public IEnumerable<InfoBlock> InfoBlocks => infoBlocks;
 	
 	// info blocks
@@ -49,6 +50,7 @@ public abstract class UIProvider<T> : UIProviderBase
 	protected T currentTarget = null;
 
 	public T Target => currentTarget;
+	public override System.Type TargetType => typeof(T);
 
 	public override bool IsTargetType(GameObject obj) => obj.TryGetComponent<T>(out _);
 	public override void LinkObject(GameObject obj)

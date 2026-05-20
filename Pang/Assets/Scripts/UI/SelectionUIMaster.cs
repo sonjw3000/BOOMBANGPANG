@@ -18,11 +18,12 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void Awake()
 	{
+		providers[typeof(CargoPort)] = new CargoPortUIProvider();
+		providers[typeof(Rocket)] = new RocketUIProvider();
 		providers[typeof(ShelfBase)] = new ShelfUIProvider();
 		providers[typeof(BoxPool)] = new BoxPoolUIProvider();
 		providers[typeof(RobotWorker)] = new RobotWorkerUIProvider();
 		providers[typeof(HumanWorker)] = new HumanWorkerUIProvider();
-		providers[typeof(CargoPort)] = new CargoPortUIProvider();
 		providers[typeof(ZoneSelectionProxy)] = new ZoneUIProvider();
 
 		GameContext.Instance.InteractionCtx.OnItemSelected += OnSelected;
@@ -58,19 +59,12 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private bool GetProvider()
 	{
-		currentProvider = null;
-
 		if (currentObj == null)
 			return false;
 
-		foreach (var prov in providers.Values)
-		{
-			if (prov.IsTargetType(currentObj))
-			{
-				currentProvider = prov;
-				return true;
-			}
-		}
+		currentProvider = GetBestProvider();
+		if (currentProvider != null)
+			return true;
 
 		Debug.LogWarning($"No suitable UI Provider found for the selected object, Target: {currentObj.name}");
 		return false;
@@ -108,17 +102,8 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 
 		currentDetailContent?.gameObject.SetActive(false);
-		currentDetailContent = null;
-
-		foreach (var content in detailContents)
-		{
-			if (content.IsTargetType(currentObj))
-			{
-				currentDetailContent = content;
-				currentDetailContent.SetProvider(currentProvider);
-				break;
-			}
-		}
+		currentDetailContent = GetBestDetailContent();
+		currentDetailContent?.SetProvider(currentProvider);
 
 		if (currentDetailContent != null)
 		{
@@ -133,5 +118,64 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnFocusBtnClicked()
 	{
+	}
+
+	private UIProviderBase GetBestProvider()
+	{
+		UIProviderBase bestProvider = null;
+		int bestDistance = int.MaxValue;
+
+		foreach (UIProviderBase provider in providers.Values)
+		{
+			int distance = GetMatchDistance(provider.TargetType);
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				bestProvider = provider;
+			}
+		}
+
+		return bestProvider;
+	}
+
+	private DetailContentBase GetBestDetailContent()
+	{
+		DetailContentBase bestContent = null;
+		int bestDistance = int.MaxValue;
+
+		foreach (DetailContentBase content in detailContents)
+		{
+			int distance = GetMatchDistance(content.TargetType);
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				bestContent = content;
+			}
+		}
+
+		return bestContent;
+	}
+
+	private int GetMatchDistance(System.Type candidateType)
+	{
+		if (currentObj == null || candidateType == null)
+			return int.MaxValue;
+
+		Component matchedComponent = currentObj.GetComponent(candidateType);
+		if (matchedComponent == null)
+			return int.MaxValue;
+
+		System.Type currentType = matchedComponent.GetType();
+		int distance = 0;
+		while (currentType != null)
+		{
+			if (currentType == candidateType)
+				return distance;
+
+			currentType = currentType.BaseType;
+			distance++;
+		}
+
+		return int.MaxValue;
 	}
 }

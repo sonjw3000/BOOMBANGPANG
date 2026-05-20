@@ -23,6 +23,7 @@ public abstract class DetailContentBase : MonoBehaviour
 	protected virtual bool UseDefaultTabs => true;
 	protected virtual string DefaultInfoTabLabel => "Info";
 	protected virtual string DefaultActionTabLabel => "Action";
+	public abstract System.Type TargetType { get; }
 
 	private void OnValidate()
 	{
@@ -37,7 +38,7 @@ public abstract class DetailContentBase : MonoBehaviour
 
 	private void OnEnable()
 	{
-		if (UseDefaultTabs == false)
+		if (UseDefaultTabs == false && deleteButton != null)
 		{
 			DeleteButtonEvent.AddListener(() => provider?.DeleteObject());
 		}
@@ -47,7 +48,9 @@ public abstract class DetailContentBase : MonoBehaviour
 
 	private void OnDisable()
 	{
-		DeleteButtonEvent.RemoveAllListeners();
+		if (deleteButton != null)
+			DeleteButtonEvent.RemoveAllListeners();
+
 		ClearRuntimeActionButtons();
 		RemoveListeners();
 	}
@@ -304,7 +307,7 @@ public abstract class DetailContentBase : MonoBehaviour
 public abstract class DetailContent<T> : DetailContentBase
 	where T : Component
 {
-	
+	public override System.Type TargetType => typeof(T);
 	public override bool IsTargetType(GameObject obj) => obj.TryGetComponent<T>(out _);
 	
 	private void Update()
