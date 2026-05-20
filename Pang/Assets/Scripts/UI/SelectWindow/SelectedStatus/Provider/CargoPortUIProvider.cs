@@ -1,26 +1,8 @@
-﻿
-using UnityEngine;
-
-public class CargoPortUIProvider : UIProvider<CargoPort>
+﻿public class CargoPortUIProvider : ShelfBaseUIProviderBase<CargoPort>
 {
-	public override string Name => currentTarget != null ? currentTarget.name : "Unknown CargoPort";
-    public override string Subtitle => currentTarget != null ?
+	public override string Subtitle => currentTarget != null ?
 		(currentTarget.IsInbound ? "IBCargo Port" : "OBCargo Port") :
 		"Unknown type";
-		
-	public override Sprite Icon => null; // Placeholder for shelf icon
 
 	public float FilledPercent => currentTarget != null ? currentTarget.FilledPercent : 0.0f;
-
-	public override void BuildInfoBlocks()
-	{
-		infoBlocks.Clear();
-		infoBlocks.Add(new KeyValueBlock("", $"{FilledPercent}% / 100% Filled"));
-
-	}
-
-	public override void OnUpdate()
-	{
-		(infoBlocks[0] as KeyValueBlock).UpdateValue($"{FilledPercent}% / 100% Filled");
-	}
 }

@@ -1,39 +1,43 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class BoxPoolDetailContent : DetailContent<BoxPool>
+public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
+	where TShelf : ShelfBase
 {
-	[SerializeField] private Button addBoxButton;
 	protected override bool UseDefaultTabs => false;
 
-	private enum BoxPoolTab
+	private enum ShelfBaseTab
 	{
 		Info,
-		Boxes,
+		Items,
 		Action,
 	}
 
 	private UIWindow window;
 	private RectTransform bodyRoot;
 	private readonly List<GameObject> tabRoots = new();
-	private readonly List<GameObject> boxRows = new();
 	private readonly List<Button> actionButtons = new();
+	private readonly List<GameObject> itemRows = new();
 
 	private TextMeshProUGUI nameValue;
 	private TextMeshProUGUI typeValue;
-	private TextMeshProUGUI currentBoxesValue;
-	private TextMeshProUGUI maxBoxesValue;
-	private RectTransform boxesRoot;
+	private TextMeshProUGUI capacityValue;
+	private TextMeshProUGUI currentSizeValue;
+	private TextMeshProUGUI filledValue;
+	private RectTransform itemsRoot;
 	private RectTransform actionRoot;
 	private bool uiBuilt;
 
-	private static BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolMgr;
+	protected virtual string InfoTabLabel => "Info";
+	protected virtual string ItemsTabLabel => "Items";
+	protected virtual string ActionTabLabel => "Action";
 
 	protected override void RemoveListeners()
 	{
+		ClearItemRows();
 		foreach (Button actionButton in actionButtons)
 		{
 			if (actionButton != null)
@@ -46,13 +50,41 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 		EnsureUi();
 		BuildActionTab();
 		SetupTabs();
-		SetTab((int)BoxPoolTab.Info);
+		SetTab((int)ShelfBaseTab.Info);
 		RefreshAll();
 	}
 
 	protected override void UpdateData()
 	{
 		RefreshAll();
+	}
+
+	protected virtual void RefreshExtraInfo(IShelfBaseUIProvider shelfProvider)
+	{
+	}
+
+	protected virtual void BuildActionTab()
+	{
+		foreach (Button actionButton in actionButtons)
+		{
+			if (actionButton != null)
+				Destroy(actionButton.gameObject);
+		}
+
+		actionButtons.Clear();
+		actionButtons.Add(CreateDeleteActionButton(actionRoot));
+	}
+
+	protected Button AddActionButton(string label, UnityEngine.Events.UnityAction onClick)
+	{
+		Button button = CreateRuntimeActionButton(actionRoot, label, onClick);
+		actionButtons.Add(button);
+		return button;
+	}
+
+	protected TextMeshProUGUI AddInfoLine(string label)
+	{
+		return CreateInfoLine(tabRoots[(int)ShelfBaseTab.Info].transform, label);
 	}
 
 	private void EnsureUi()
@@ -72,19 +104,20 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 			selfRect.offsetMax = Vector2.zero;
 		}
 
-		bodyRoot = CreateRuntimeVerticalContainer("BoxPoolDetailBody", transform, 6f);
+		bodyRoot = CreateRuntimeVerticalContainer("ShelfBaseDetailBody", transform, 6f);
 		SetTopStretch(bodyRoot, 12f, 12f, 4f);
 
 		GameObject infoTab = CreateRuntimeVerticalContainer("InfoTab", bodyRoot, 6f).gameObject;
 		nameValue = CreateInfoLine(infoTab.transform, "Name");
 		typeValue = CreateInfoLine(infoTab.transform, "Type");
-		currentBoxesValue = CreateInfoLine(infoTab.transform, "Current Boxes");
-		maxBoxesValue = CreateInfoLine(infoTab.transform, "Max Boxes");
+		capacityValue = CreateInfoLine(infoTab.transform, "Capacity");
+		currentSizeValue = CreateInfoLine(infoTab.transform, "Current Size");
+		filledValue = CreateInfoLine(infoTab.transform, "Filled");
 		tabRoots.Add(infoTab);
 
-		GameObject boxesTab = CreateRuntimeVerticalContainer("BoxesTab", bodyRoot, 6f).gameObject;
-		boxesRoot = CreateRuntimeVerticalContainer("BoxesRoot", boxesTab.transform, 6f);
-		tabRoots.Add(boxesTab);
+		GameObject itemsTab = CreateRuntimeVerticalContainer("ItemsTab", bodyRoot, 6f).gameObject;
+		itemsRoot = CreateRuntimeVerticalContainer("ItemsRoot", itemsTab.transform, 6f);
+		tabRoots.Add(itemsTab);
 
 		GameObject actionTab = CreateRuntimeVerticalContainer("ActionTab", bodyRoot, 6f).gameObject;
 		actionRoot = CreateRuntimeVerticalContainer("ActionRoot", actionTab.transform, 6f);
@@ -99,9 +132,9 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 			return;
 
 		window.ClearTabs();
-		window.AddTab("Info", SetTab);
-		window.AddTab("Boxes", SetTab);
-		window.AddTab("Action", SetTab);
+		window.AddTab(InfoTabLabel, SetTab);
+		window.AddTab(ItemsTabLabel, SetTab);
+		window.AddTab(ActionTabLabel, SetTab);
 		window.UpdateTabVisuals(0);
 	}
 
@@ -117,62 +150,69 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 
 	private void RefreshAll()
 	{
-		if (provider is not BoxPoolUIProvider prov)
+		if (provider is not IShelfBaseUIProvider shelfProvider)
 			return;
 
-		addBoxButton?.gameObject.SetActive(false);
-		deleteButton?.gameObject.SetActive(false);
-
-		nameValue.text = prov.Name;
-		typeValue.text = prov.Subtitle;
-		currentBoxesValue.text = prov.CurrentBoxCount.ToString();
-		maxBoxesValue.text = prov.MaxBoxCount.ToString();
-		RefreshBoxes(prov);
+		nameValue.text = shelfProvider.Name;
+		typeValue.text = shelfProvider.Subtitle;
+		capacityValue.text = shelfProvider.CapacityDisplay;
+		currentSizeValue.text = shelfProvider.CurrentSizeDisplay;
+		filledValue.text = shelfProvider.FilledPercentDisplay;
+		RefreshExtraInfo(shelfProvider);
+		RefreshItems(shelfProvider);
 	}
 
-	private void RefreshBoxes(BoxPoolUIProvider prov)
+	private void RefreshItems(IShelfBaseUIProvider shelfProvider)
 	{
-		foreach (GameObject boxRow in boxRows)
-		{
-			if (boxRow != null)
-				Destroy(boxRow);
-		}
+		ClearItemRows();
 
-		boxRows.Clear();
 		bool hasAny = false;
-		foreach (string summary in prov.GetBoxSummaries())
+		foreach (ItemDisplayInfo itemInfo in shelfProvider.GetItemDisplayInfos())
 		{
 			hasAny = true;
-			TextMeshProUGUI text = CreateRuntimeBodyText("BoxSummary", boxesRoot);
-			text.text = summary;
-			boxRows.Add(text.gameObject);
+			itemRows.Add(CreateItemRow(itemInfo));
 		}
 
 		if (hasAny == false)
 		{
-			TextMeshProUGUI emptyText = CreateRuntimeBodyText("EmptyBoxes", boxesRoot);
-			emptyText.text = "No boxes available.";
-			boxRows.Add(emptyText.gameObject);
+			TextMeshProUGUI emptyText = CreateRuntimeBodyText("EmptyItemsText", itemsRoot);
+			emptyText.text = "No items stored.";
+			itemRows.Add(emptyText.gameObject);
 		}
 	}
 
-	private void BuildActionTab()
+	private GameObject CreateItemRow(ItemDisplayInfo itemInfo)
 	{
-		foreach (Button actionButton in actionButtons)
-		{
-			if (actionButton != null)
-				Destroy(actionButton.gameObject);
-		}
+		RectTransform row = CreateRuntimeHorizontalContainer(itemInfo.ItemName + "Row", itemsRoot, 8f);
 
-		actionButtons.Clear();
-		actionButtons.Add(CreateDeleteActionButton(actionRoot));
-		actionButtons.Add(CreateRuntimeActionButton(actionRoot, "Add Personal Box", () =>
-		{
-			BoxPoolService.GiveNewBox(((BoxPoolUIProvider)provider).Target, BoxType.Personal);
-		}));
+		TextMeshProUGUI nameText = CreateRuntimeBodyText("ItemName", row);
+		nameText.text = itemInfo.ItemName;
+		LayoutElement nameLayout = nameText.GetComponent<LayoutElement>();
+		nameLayout.preferredWidth = 220f;
+		nameLayout.flexibleWidth = 1f;
+
+		TextMeshProUGUI quantityText = CreateRuntimeBodyText("ItemQuantity", row);
+		quantityText.text = itemInfo.Quantity.ToString();
+		quantityText.alignment = TextAlignmentOptions.TopRight;
+		LayoutElement quantityLayout = quantityText.GetComponent<LayoutElement>();
+		quantityLayout.preferredWidth = 80f;
+		quantityLayout.flexibleWidth = 0f;
+
+		return row.gameObject;
 	}
 
-	private static RectTransform CreateRuntimeVerticalContainer(string name, Transform parent, float spacing)
+	private void ClearItemRows()
+	{
+		foreach (GameObject itemRow in itemRows)
+		{
+			if (itemRow != null)
+				Destroy(itemRow);
+		}
+
+		itemRows.Clear();
+	}
+
+	protected static RectTransform CreateRuntimeVerticalContainer(string name, Transform parent, float spacing)
 	{
 		GameObject root = new(name, typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement), typeof(ContentSizeFitter));
 		root.transform.SetParent(parent, false);
@@ -196,7 +236,7 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 		return root.GetComponent<RectTransform>();
 	}
 
-	private static RectTransform CreateRuntimeHorizontalContainer(string name, Transform parent, float spacing)
+	protected static RectTransform CreateRuntimeHorizontalContainer(string name, Transform parent, float spacing)
 	{
 		GameObject root = new(name, typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement), typeof(ContentSizeFitter));
 		root.transform.SetParent(parent, false);
@@ -220,7 +260,7 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 		return root.GetComponent<RectTransform>();
 	}
 
-	private static TextMeshProUGUI CreateRuntimeBodyText(string name, Transform parent)
+	protected static TextMeshProUGUI CreateRuntimeBodyText(string name, Transform parent)
 	{
 		GameObject textRoot = new(name, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
 		textRoot.transform.SetParent(parent, false);
@@ -239,7 +279,7 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 		return text;
 	}
 
-	private static TextMeshProUGUI CreateInfoLine(Transform parent, string label)
+	protected static TextMeshProUGUI CreateInfoLine(Transform parent, string label)
 	{
 		RectTransform row = CreateRuntimeHorizontalContainer(label + "Row", parent, 8f);
 
@@ -252,6 +292,9 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 		labelLayout.flexibleWidth = 0f;
 
 		TextMeshProUGUI valueText = CreateRuntimeBodyText(label + "Value", row);
+		LayoutElement valueLayout = valueText.GetComponent<LayoutElement>();
+		valueLayout.flexibleWidth = 1f;
+		valueLayout.minWidth = 0f;
 		return valueText;
 	}
 }

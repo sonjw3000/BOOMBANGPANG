@@ -18,7 +18,7 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void Awake()
 	{
-		providers[typeof(Shelf)] = new ShelfUIProvider();
+		providers[typeof(ShelfBase)] = new ShelfUIProvider();
 		providers[typeof(BoxPool)] = new BoxPoolUIProvider();
 		providers[typeof(RobotWorker)] = new RobotWorkerUIProvider();
 		providers[typeof(HumanWorker)] = new HumanWorkerUIProvider();

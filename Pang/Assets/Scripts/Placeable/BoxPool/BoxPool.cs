@@ -18,6 +18,8 @@ public class BoxPool :
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 
 	public int CurrentBoxCount => boxes.Count;
+	public int MaxStackCount => maxStack;
+	public IEnumerable<BoxBase> Boxes => boxes;
 
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.BoxPool;
 	//public int3 GridPosition => position;
