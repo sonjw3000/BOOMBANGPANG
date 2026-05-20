@@ -11,22 +11,21 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 
 	private static BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolMgr;
 
-	protected override void AddListener()
+	protected override void BuildActionButtons(RectTransform actionRoot)
 	{
-		addBoxButton.onClick.AddListener(() => 
-		{ 
+		base.BuildActionButtons(actionRoot);
+		addBoxButton?.gameObject.SetActive(false);
+		RegisterActionButton(CreateRuntimeActionButton(actionRoot, "Add Personal Box", () =>
+		{
 			BoxPoolService.GiveNewBox(((BoxPoolUIProvider)provider).Target, BoxType.Personal);
-		});
-	}
-
-	protected override void RemoveListeners()
-	{
-		addBoxButton.onClick.RemoveAllListeners();
+		}));
 	}
 
 	protected override void LinkData()
 	{
 		var prov = (BoxPoolUIProvider)provider;
+		addBoxButton?.gameObject.SetActive(false);
+		deleteButton?.gameObject.SetActive(false);
 
 		currentBoxText.text = prov.CurrentBoxCount.ToString();
 	}

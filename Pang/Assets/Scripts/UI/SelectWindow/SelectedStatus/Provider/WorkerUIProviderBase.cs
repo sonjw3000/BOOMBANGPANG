@@ -156,7 +156,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 				continue;
 
 			if (builder.Length > 0)
-				builder.Append(", ");
+				builder.Append('\n');
 
 			builder.Append(flag);
 		}

@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 public class HumanWorkerDetailContent : DetailContent<AIWorker>
 {
+	protected override bool UseDefaultTabs => false;
+
 	private enum WorkerDetailTab
 	{
 		Basic,
@@ -86,11 +88,20 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 
 		HideLegacyVisuals();
 		window = GetComponentInParent<UIWindow>(true);
-		Transform contentParent = window != null ? window.ContentRoot : transform;
-		bodyRoot = CreateVerticalContainer("WorkerDetailBody", contentParent, 10f);
-		SetStretch(bodyRoot, 12f, 12f, 12f, 12f);
+		RectTransform selfRect = GetComponent<RectTransform>();
+		if (selfRect != null)
+		{
+			selfRect.anchorMin = Vector2.zero;
+			selfRect.anchorMax = Vector2.one;
+			selfRect.offsetMin = Vector2.zero;
+			selfRect.offsetMax = Vector2.zero;
+			selfRect.pivot = new Vector2(0.5f, 0.5f);
+		}
 
-		GameObject basicTab = CreateVerticalContainer("BasicTab", bodyRoot, 8f).gameObject;
+		bodyRoot = CreateVerticalContainer("WorkerDetailBody", transform, 4f);
+		SetTopStretch(bodyRoot, 12f, 12f, 4f);
+
+		GameObject basicTab = CreateVerticalContainer("BasicTab", bodyRoot, 6f).gameObject;
 		nameValue = AddLabeledValue(basicTab.transform, "Name");
 		typeValue = AddLabeledValue(basicTab.transform, "Type");
 		workerIdValue = AddLabeledValue(basicTab.transform, "ID");
@@ -102,26 +113,26 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 		monthlyCostValue = AddLabeledValue(basicTab.transform, "Monthly Cost");
 		tabRoots.Add(basicTab);
 
-		GameObject statusTab = CreateVerticalContainer("StatusTab", bodyRoot, 8f).gameObject;
+		GameObject statusTab = CreateVerticalContainer("StatusTab", bodyRoot, 6f).gameObject;
 		positionValue = AddLabeledValue(statusTab.transform, "Position");
 		destinationValue = AddLabeledValue(statusTab.transform, "Destination");
 		actionValue = AddLabeledValue(statusTab.transform, "Action");
 		targetValue = AddLabeledValue(statusTab.transform, "Target");
 		tabRoots.Add(statusTab);
 
-		GameObject taskTab = CreateVerticalContainer("TaskTab", bodyRoot, 8f).gameObject;
+		GameObject taskTab = CreateVerticalContainer("TaskTab", bodyRoot, 6f).gameObject;
 		currentTaskButton = CreateButton("CurrentTaskButton", taskTab.transform, out currentTaskButtonLabel, 42f);
 		currentTaskSummary = CreateBodyText("CurrentTaskSummary", taskTab.transform);
 		tabRoots.Add(taskTab);
 
-		GameObject carryTab = CreateVerticalContainer("CarryTab", bodyRoot, 8f).gameObject;
+		GameObject carryTab = CreateVerticalContainer("CarryTab", bodyRoot, 6f).gameObject;
 		carryStateLabel = CreateBodyText("CarryState", carryTab.transform);
 		carryFillLabel = CreateBodyText("CarryFill", carryTab.transform);
 		carryListRoot = CreateVerticalContainer("CarryList", carryTab.transform, 8f);
 		tabRoots.Add(carryTab);
 
-		GameObject actionTab = CreateVerticalContainer("ActionTab", bodyRoot, 8f).gameObject;
-		actionRoot = CreateVerticalContainer("ActionRoot", actionTab.transform, 8f);
+		GameObject actionTab = CreateVerticalContainer("ActionTab", bodyRoot, 6f).gameObject;
+		actionRoot = CreateVerticalContainer("ActionRoot", actionTab.transform, 6f);
 		tabRoots.Add(actionTab);
 
 		uiBuilt = true;
@@ -305,7 +316,7 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 
 		HorizontalLayoutGroup layout = root.GetComponent<HorizontalLayoutGroup>();
 		layout.spacing = spacing;
-		layout.childAlignment = TextAnchor.MiddleLeft;
+		layout.childAlignment = TextAnchor.UpperLeft;
 		layout.childControlWidth = true;
 		layout.childControlHeight = true;
 		layout.childForceExpandWidth = true;
@@ -334,12 +345,16 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 		TextMeshProUGUI labelText = CreateBodyText($"{label}Label", row);
 		labelText.text = $"{label}:";
 		labelText.fontStyle = FontStyles.Bold;
+		labelText.alignment = TextAlignmentOptions.TopLeft;
+		labelText.textWrappingMode = TextWrappingModes.NoWrap;
+		labelText.overflowMode = TextOverflowModes.Overflow;
 		LayoutElement labelLayout = labelText.gameObject.AddComponent<LayoutElement>();
 		labelLayout.flexibleWidth = 0f;
-		labelLayout.preferredWidth = 180f;
+		labelLayout.preferredWidth = 150f;
 
 		TextMeshProUGUI valueText = CreateBodyText($"{label}Value", row);
 		valueText.text = string.Empty;
+		valueText.alignment = TextAlignmentOptions.TopLeft;
 		LayoutElement valueLayout = valueText.gameObject.AddComponent<LayoutElement>();
 		valueLayout.flexibleWidth = 1f;
 		valueLayout.minWidth = 0f;
@@ -354,11 +369,18 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 		LayoutElement layout = buttonRoot.GetComponent<LayoutElement>();
 		layout.preferredHeight = preferredHeight;
 		layout.minHeight = preferredHeight;
-		layout.preferredWidth = 160f;
-		layout.flexibleWidth = 0f;
+		layout.minWidth = 220f;
+		layout.preferredWidth = 220f;
+		layout.flexibleWidth = 1f;
 
 		Image image = buttonRoot.GetComponent<Image>();
 		image.color = new Color(0.18f, 0.18f, 0.18f, 0.85f);
+
+		RectTransform buttonRect = buttonRoot.GetComponent<RectTransform>();
+		buttonRect.anchorMin = new Vector2(0f, 1f);
+		buttonRect.anchorMax = new Vector2(1f, 1f);
+		buttonRect.pivot = new Vector2(0.5f, 1f);
+		buttonRect.sizeDelta = new Vector2(0f, preferredHeight);
 
 		GameObject textRoot = new("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
 		textRoot.transform.SetParent(buttonRoot.transform, false);
@@ -366,6 +388,8 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 		buttonText.alignment = TextAlignmentOptions.Center;
 		buttonText.fontSize = 20f;
 		buttonText.color = Color.white;
+		buttonText.textWrappingMode = TextWrappingModes.NoWrap;
+		buttonText.overflowMode = TextOverflowModes.Ellipsis;
 
 		RectTransform textRect = buttonText.rectTransform;
 		textRect.anchorMin = Vector2.zero;
@@ -384,9 +408,9 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 		TextMeshProUGUI text = textRoot.GetComponent<TextMeshProUGUI>();
 		text.fontSize = 22f;
 		text.color = Color.white;
-		text.alignment = TextAlignmentOptions.Left;
-		text.textWrappingMode = TextWrappingModes.NoWrap;
-		text.overflowMode = TextOverflowModes.Overflow;
+		text.alignment = TextAlignmentOptions.TopLeft;
+		text.textWrappingMode = TextWrappingModes.Normal;
+		text.overflowMode = TextOverflowModes.Truncate;
 		text.text = string.Empty;
 		LayoutElement layout = textRoot.AddComponent<LayoutElement>();
 		layout.flexibleWidth = 1f;
@@ -394,12 +418,4 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 		return text;
 	}
 
-	private static void SetStretch(RectTransform rect, float left, float right, float top, float bottom)
-	{
-		rect.anchorMin = Vector2.zero;
-		rect.anchorMax = Vector2.one;
-		rect.offsetMin = new Vector2(left, bottom);
-		rect.offsetMax = new Vector2(-right, -top);
-		rect.pivot = new Vector2(0.5f, 0.5f);
-	}
 }
