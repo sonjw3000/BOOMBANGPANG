@@ -19,6 +19,7 @@ public class FindRoute : MonoBehaviour
 	private static GridService GridService => GameContext.Instance.GridService;
 	private static PathFindingService PathFinding => GameContext.Instance.PathFinding;
 	private static WorkPolicyService WorkPolicy => GameContext.Instance.WMSys.WorkPolicyService;
+	private static TrafficCoordinator TrafficCoordinator => GameContext.Instance.TrafficCoordinator;
 
 	private AIWorker worker;
 	private MovementState movementState = MovementState.Idle;
@@ -106,10 +107,39 @@ public class FindRoute : MonoBehaviour
 	public bool IsGoal => movementState == MovementState.Arrived;
 	public bool IsWaiting => waitingCell != null;
 	public MovementState CurrentMovementState => movementState;
+	public AIWorker Worker => worker;
 	public bool HasActiveGoal => pathResultBuffer != null || waitingCell != null || hasPendingGoal || movementState == MovementState.PathPending || movementState == MovementState.Moving || movementState == MovementState.Arrived;
 	public int3 CurrentGoalPosition => new((int)targetPos.x, (int)targetPos.y, (int)targetPos.z);
 
 	public int RemainingDistance => pathResultBuffer != null ? pathResultBuffer.Path.Count - pathResultBuffer.CurrentIndex : int.MaxValue;
+
+	public int3 TrafficFromCell => worker.GridPosition;
+	public bool TryGetTrafficToCell(out int3 cell)
+	{
+		if (pathResultBuffer == null || pathResultBuffer.IsGoalReached)
+		{
+			cell = default;
+			return false;
+		}
+
+		cell = pathResultBuffer.CurrentNode.Position;
+		return true;
+	}
+
+	public bool TryGetFutureToCell(out int3 cell)
+	{
+		cell = default;
+		if (pathResultBuffer == null || pathResultBuffer.IsGoalReached)
+			return false;
+
+		var nextNode = pathResultBuffer.NextNode;
+
+		if (nextNode == null)
+			return false;
+
+		cell = nextNode.Position;
+		return true;
+	}
 
 	private void Start()
 	{
@@ -342,76 +372,16 @@ public class FindRoute : MonoBehaviour
 
 	private void HandleBlocked()
 	{
-		FindRoute blockedBy = GridService.GetReservedFindRoute(pathResultBuffer.CurrentNode.Position);
-
-		if (blockedBy == null)
-		{
-			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} Reserve failed, but no blocking FindRoute was found. Maybe new placeable");
-			RequestSubPath(pathResultBuffer.NextNode.Position, null);
-			return;
-		}
-
-		// path 목적지가 한 개 남았을 때
-		if (pathResultBuffer.NextNode == null)
-		{
-			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} " +
-				$"detected {blockedBy.name}, ID: {blockedBy.worker.WorkerID} is Blocking the goal position!! " +
-				$"Waiting For: {pathResultBuffer.CurrentNode.Position}");
-			WaitForTargetCell(pathResultBuffer.CurrentNode.Position);
-			return;
-		}
-
-		// 이동중이지 않은 worker에 닿았을 때
-		// 혹은 마지막 노드인 상대 worker
-		var otherCurNode = blockedBy.pathResultBuffer?.CurrentNode;
-		var otherNextNode = blockedBy.pathResultBuffer?.NextNode;
-
-		// 상대방이 대기 중(IsWaiting)이라면 정적 장애물로 판단하지 않습니다.
-		if (blockedBy.pathResultBuffer == null || (blockedBy.enabled == false && !blockedBy.IsWaiting) || otherNextNode == null)
-		{
-			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} " +
-				$"detected {blockedBy.name}, ID: {blockedBy.worker.WorkerID} is static or finishing. Requesting SubPath. " +
-				$"Target: {pathResultBuffer.NextNode.Position}");
-			blockingRoutes.Add(blockedBy);
-
-			RequestSubPath(pathResultBuffer.NextNode.Position, blockedBy);
-			return;
-		}
-
-		// 상대방이 이동한다
-		// 상대방이 내 자리를 노린다면
-		if (otherNextNode.Position.Equals(worker.GridPosition))
-		{
-			Debug.Log($"[FindRoute] DeadLock!! {transform.name}, ID: {worker.WorkerID}, with {blockedBy.name}, ID: {blockedBy.worker.WorkerID} " +
-				$"ID: {blockedBy.worker.WorkerID} cur: {blockedBy.worker.GridPosition} " +
-				$"cur: {otherCurNode.Position}, " +
-				$"next: {otherNextNode?.Position}, " +
-				$"ID: {worker.WorkerID} " +
-				$"Cur: {worker.GridPosition}, " +
-				$"cur: {pathResultBuffer.CurrentNode.Position}," +
-				$" next: {pathResultBuffer.NextNode?.Position}, ");
-
-			bool res = WorkPolicy.IsTargetHigherPriority(worker, blockedBy.worker);
-
-			FindRoute high = res ? this : blockedBy;
-			FindRoute low = res ? blockedBy : this;
-
-			// high: wait
-			// low: req new sub path
-			high.WaitForTargetCell(high.pathResultBuffer.CurrentNode.Position);
-			low.RequestSubPath(low.pathResultBuffer.NextNode.Position, high);
-
-			return;
-		}
-
-		// 상대방이 다른 자리로 이동할 것이다
-		WaitForTargetCell(pathResultBuffer.CurrentNode.Position);
+		TrafficCoordinator.RegisterBlocked(this);
 	}
 
-	private bool RequestSubPath(in int3 goalPos, FindRoute avoidTarget)
+	public bool RequestSubPath(in int3 goalPos, FindRoute avoidTarget)
 	{
-		//Debug.Log($"SubPath Req: from: {worker.GridPosition} to: {goalPos}, avoiding: {avoidTarget.worker.GridPosition}");
-		
+		if (avoidTarget != null)
+		{
+			blockingRoutes.Add(avoidTarget);
+		}
+
 		PathRequest request = new(this, worker.GridPosition, goalPos, worker.Direction, avoidTarget);
 		PathFinding.RequestRoute(request);
 
@@ -422,24 +392,18 @@ public class FindRoute : MonoBehaviour
 		return true;
 	}
 
-	private void WaitForTargetCell(in int3 pos)
+	public void SuspendForTraffic()
 	{
 		ClearWait();
-		//Debug.Log("Waiting until the blocking route finishes.");
-		GridCell targetCell = GridService.GetCell(pos);
-
-		if (targetCell == null)
-		{
-			return;
-		}
-
-		waitingCell = targetCell;
-		waitingCell.OnGridUnReserved += OnCanReserve;
+		movementState = MovementState.Blocked;
 		enabled = false;
-
-		Invoke(nameof(OnWaitTimeout), 5f);
 	}
 
+	public void ResumeFromTraffic()
+	{
+		ClearWait();
+		enabled = true;
+	}
 	private void OnWaitTimeout()
 	{
 		Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} Wait timeout reached. Waking up to retry.");
@@ -564,6 +528,10 @@ public class FindRoute : MonoBehaviour
 		if (blockingRoutes.Contains(route))
 		{
 			blockingRoutes.Remove(route);
+			if (GameContext.HasInstance)
+			{
+				TrafficCoordinator.NotifyAvoidTargetCleared(this, route);
+			}
 			//Debug.Log("Removed blocking route: " + route.name);
 		}
 	}
