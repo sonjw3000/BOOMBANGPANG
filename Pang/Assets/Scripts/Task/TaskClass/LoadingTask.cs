@@ -66,6 +66,14 @@ public class LoadingTask : WorkerTask
 	}
 #endif
 
+	public override string GetStatusSummary()
+	{
+		if (isLoadEnd)
+			return $"CargoPort: {targetPort?.name ?? "None"}\nLoading complete.";
+
+		return $"CargoPort: {targetPort?.name ?? "None"}\nMoving cargo to launch station.";
+	}
+
 	static private NodeState SetLoadTarget(in BTContext ctx)
 	{
 		var task = ctx.Worker.CurrentTask as LoadingTask;

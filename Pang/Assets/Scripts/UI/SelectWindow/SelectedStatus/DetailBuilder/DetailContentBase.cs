@@ -1,6 +1,6 @@
-﻿
-using UnityEditor.VersionControl;
+﻿using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 public abstract class DetailContentBase : MonoBehaviour
@@ -40,6 +40,56 @@ public abstract class DetailContentBase : MonoBehaviour
 		this.provider = provider;
 		LinkData();
 		gameObject.SetActive(true);
+	}
+
+	protected void HideLegacyVisuals()
+	{
+		foreach (Transform child in transform)
+		{
+			child.gameObject.SetActive(false);
+		}
+
+		if (deleteButton != null)
+			deleteButton.gameObject.SetActive(false);
+	}
+
+	protected Button CreateRuntimeActionButton(Transform parent, string label, UnityAction onClick)
+	{
+		GameObject buttonRoot = new(label.Replace(" ", string.Empty) + "Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+		buttonRoot.transform.SetParent(parent, false);
+
+		LayoutElement layout = buttonRoot.GetComponent<LayoutElement>();
+		layout.preferredHeight = 40f;
+		layout.minHeight = 40f;
+		layout.preferredWidth = 180f;
+
+		Image image = buttonRoot.GetComponent<Image>();
+		image.color = new Color(0.18f, 0.18f, 0.18f, 0.9f);
+
+		Button button = buttonRoot.GetComponent<Button>();
+		button.onClick.AddListener(onClick);
+
+		GameObject textRoot = new("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+		textRoot.transform.SetParent(buttonRoot.transform, false);
+
+		TextMeshProUGUI text = textRoot.GetComponent<TextMeshProUGUI>();
+		text.text = label;
+		text.fontSize = 20f;
+		text.alignment = TextAlignmentOptions.Center;
+		text.color = Color.white;
+
+		RectTransform textRect = text.rectTransform;
+		textRect.anchorMin = Vector2.zero;
+		textRect.anchorMax = Vector2.one;
+		textRect.offsetMin = Vector2.zero;
+		textRect.offsetMax = Vector2.zero;
+
+		return button;
+	}
+
+	protected Button CreateDeleteActionButton(Transform parent)
+	{
+		return CreateRuntimeActionButton(parent, "Delete", () => provider?.DeleteObject());
 	}
 
 	protected abstract void LinkData();

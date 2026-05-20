@@ -165,6 +165,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	// worker show stat
 	public WorkerStatusInfo WorkerState => workerState;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.None;
+	public FindRoute RouteFinder => routeFinder;
 
 	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 	static private GridService GridService => GameContext.Instance.GridService;
@@ -487,6 +488,36 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		}
 
 		return false;
+	}
+
+	public bool TryGetCurrentDestination(out string destinationName, out int3 destinationPosition)
+	{
+		destinationName = string.Empty;
+		destinationPosition = default;
+
+		if (localBlackBoard.TryGetTargetBuilding(out var targetPlaceable) && targetPlaceable is Component targetComponent)
+		{
+			destinationName = targetComponent.name;
+			if (routeFinder != null && routeFinder.HasActiveGoal)
+			{
+				destinationPosition = routeFinder.CurrentGoalPosition;
+				return true;
+			}
+		}
+
+		if (routeFinder == null || routeFinder.HasActiveGoal == false)
+			return false;
+
+		destinationPosition = routeFinder.CurrentGoalPosition;
+		destinationName = workerState.Target switch
+		{
+			WorkerStatusTarget.StandbyZone => "Standby Zone",
+			WorkerStatusTarget.Charger => "Charger",
+			_ when workerState.Action == WorkerStatusAction.Resting || workerState.Action == WorkerStatusAction.Charging => "Recovery Point",
+			_ => workerState.Target != WorkerStatusTarget.None ? workerState.Target.ToString() : "Destination",
+		};
+
+		return true;
 	}
 
 	private bool TryFindPointInZone(ZoneArea zone, out int3 recoveryPoint)

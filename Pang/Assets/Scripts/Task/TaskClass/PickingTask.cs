@@ -8,6 +8,7 @@ public sealed class PickingTask : WorkerTask
 	private WorkJob pickJob;
 	private bool isPickingPhaseEnd = false;
 	private bool isTaskEnd = false;
+	private BoxBase checkedPickingBox = null;
 
 	public WorkJob PickingData => pickJob;
 	public WorkLine CurrentLine
@@ -66,8 +67,7 @@ public sealed class PickingTask : WorkerTask
 
 		SequenceNode pick = new SequenceNode();
 		pick.Add(new ActionNode(CheckIsPickingState));
-		pick.Add(AIWorker.CheckBoxAndGet(BoxType.Personal));
-		pick.Add(new ActionNode(LogErrorIfPickingBoxHasItems));
+		pick.Add(BuildEnsureEmptyPickingBox());
 		pick.Add(AIWorker.MoveToTarget(WorkerStatusTarget.Shelf, InteractionKind.Pick, SetTarget));
 		pick.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickItem, PickItems));
 
@@ -77,6 +77,14 @@ public sealed class PickingTask : WorkerTask
 		root.Add(pickAfterPut);
 
 		return root;
+	}
+
+	private static SequenceNode BuildEnsureEmptyPickingBox()
+	{
+		SequenceNode node = new();
+		node.Add(AIWorker.CheckBoxAndGet(BoxType.Personal));
+		node.Add(new ActionNode(LogErrorIfNewPickingBoxHasItems));
+		return node;
 	}
 
 	public override bool CheckTaskEnd()
@@ -91,6 +99,18 @@ public sealed class PickingTask : WorkerTask
 	}
 #endif
 
+	public override string GetStatusSummary()
+	{
+		if (isTaskEnd)
+			return "Picking complete.";
+
+		if (isPickingPhaseEnd)
+			return "Phase: Deliver\nMoving picked box to packing station.";
+
+		string sourceName = CurrentLine?.Source != null ? CurrentLine.Source.name : "None";
+		return $"Phase: Pick\nSource: {sourceName}";
+	}
+
 	public static NodeState CheckPickingEnd(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
@@ -103,14 +123,36 @@ public sealed class PickingTask : WorkerTask
 		return task.isPickingPhaseEnd == false ? Success : Failure;
 	}
 
-	public static NodeState LogErrorIfPickingBoxHasItems(in BTContext ctx)
+	public static NodeState LogErrorIfNewPickingBoxHasItems(in BTContext ctx)
 	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
-		if (box == null || box.Stacks.Count <= 0)
+		if (box == null || task.checkedPickingBox == box)
+			return Success;
+
+		task.checkedPickingBox = box;
+		if (HasPickedAnyLine(task) || box.Stacks.Count <= 0)
 			return Success;
 
 		Debug.LogError($"[PickingTask] Picking worker received a non-empty box. worker={ctx.Worker.WorkerID}, box={box.name}, stacks={FormatStacks(box)}");
 		return Success;
+	}
+
+	private static bool HasPickedAnyLine(PickingTask task)
+	{
+		if (task?.PickingData?.Lines == null)
+			return false;
+
+		if (task.PickingData.CurrentLineIndex > 0)
+			return true;
+
+		foreach (WorkLine line in task.PickingData.Lines)
+		{
+			if (line != null && line.CompleteQuantity > 0)
+				return true;
+		}
+
+		return false;
 	}
 
 	public static NodeState GetAvailableOBCargoPort(in BTContext ctx)

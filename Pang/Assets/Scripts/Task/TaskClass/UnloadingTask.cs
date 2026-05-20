@@ -73,6 +73,14 @@ public class UnloadingTask : WorkerTask
 	}
 #endif
 
+	public override string GetStatusSummary()
+	{
+		string rocketName = targetRocket != null ? targetRocket.name : "None";
+		string portName = cargoPort != null ? cargoPort.name : "None";
+		string progressText = IsUnloadEnd ? "Unload complete." : "Moving cargo from rocket to cargo port.";
+		return $"Rocket: {rocketName}\nPort: {portName} / {progressText}";
+	}
+
 	// 
 	public static NodeState SetRocketTarget(in BTContext ctx)
 	{

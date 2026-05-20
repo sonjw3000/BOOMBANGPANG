@@ -106,6 +106,8 @@ public class FindRoute : MonoBehaviour
 	public bool IsGoal => movementState == MovementState.Arrived;
 	public bool IsWaiting => waitingCell != null;
 	public MovementState CurrentMovementState => movementState;
+	public bool HasActiveGoal => pathResultBuffer != null || waitingCell != null || hasPendingGoal || movementState == MovementState.PathPending || movementState == MovementState.Moving || movementState == MovementState.Arrived;
+	public int3 CurrentGoalPosition => new((int)targetPos.x, (int)targetPos.y, (int)targetPos.z);
 
 	public int RemainingDistance => pathResultBuffer != null ? pathResultBuffer.Path.Count - pathResultBuffer.CurrentIndex : int.MaxValue;
 

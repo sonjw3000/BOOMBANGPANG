@@ -1,0 +1,176 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using Unity.Mathematics;
+using UnityEngine;
+
+public sealed class WorkerBoxStackDisplayInfo
+{
+	public string ItemName { get; set; }
+	public int Quantity { get; set; }
+	public int? RelatedOrderId { get; set; }
+}
+
+public interface IWorkerUIProvider
+{
+	AIWorker Target { get; }
+	string Name { get; }
+	string Subtitle { get; }
+	string WorkerTypeLabel { get; }
+	string ResourceDisplay { get; }
+	string MoveSpeedDisplay { get; }
+	string WorkSpeedDisplay { get; }
+	string MainTaskTypeDisplay { get; }
+	string AbilityDisplay { get; }
+	string MonthlyCostDisplay { get; }
+	string PositionDisplay { get; }
+	string DestinationDisplay { get; }
+	string ActionDisplay { get; }
+	string TargetDisplay { get; }
+	string CurrentTaskButtonLabel { get; }
+	string CurrentTaskSummary { get; }
+	bool HasAssignedTask { get; }
+	bool HasCarriedBox { get; }
+	string CarriedBoxFillDisplay { get; }
+	IEnumerable<WorkerBoxStackDisplayInfo> GetCarriedBoxStacks();
+}
+
+public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWorkerUIProvider
+	where TWorker : AIWorker
+{
+	protected abstract string ResourceLabel { get; }
+	protected abstract float ResourceValue { get; }
+
+	public override string Name => currentTarget != null ? currentTarget.Name : "Unknown Worker";
+	public override string Subtitle => currentTarget != null ? GetWorkerTypeLabel(currentTarget.WorkerType) : "Unknown Worker";
+	public override Sprite Icon => null;
+	AIWorker IWorkerUIProvider.Target => currentTarget;
+
+	public string WorkerTypeLabel => currentTarget != null ? GetWorkerTypeLabel(currentTarget.WorkerType) : "Unknown";
+	public string ResourceDisplay => $"{ResourceValue:0.0}%";
+	public string MoveSpeedDisplay => currentTarget != null ? $"x{currentTarget.GetMoveSpeedMultiplier():0.00}" : "x0.00";
+	public string WorkSpeedDisplay => currentTarget != null ? $"x{currentTarget.GetWorkSpeedMultiplier():0.00}" : "x0.00";
+	public string MainTaskTypeDisplay => currentTarget != null ? currentTarget.TaskType.ToString() : "None";
+	public string AbilityDisplay => currentTarget != null ? BuildAbilityDisplay(currentTarget.Ability) : "None";
+	public string MonthlyCostDisplay => currentTarget != null ? currentTarget.MonthlyCost.ToString() : "0";
+	public string PositionDisplay => currentTarget != null ? currentTarget.GridPosition.ToString() : "(0,0,0)";
+	public string ActionDisplay => currentTarget != null ? currentTarget.WorkerState.Action.ToString() : "None";
+	public string TargetDisplay => currentTarget != null ? currentTarget.WorkerState.Target.ToString() : "None";
+	public string CurrentTaskButtonLabel => currentTarget?.CurrentTask != null ? currentTarget.CurrentTask.GetType().Name : "None";
+	public string CurrentTaskSummary => currentTarget?.CurrentTask != null ? currentTarget.CurrentTask.GetStatusSummary() : "No assigned task.";
+	public bool HasAssignedTask => currentTarget?.CurrentTask != null;
+	public bool HasCarriedBox => currentTarget?.CarryingAbility?.CarryingBox != null;
+	public float CarriedBoxFillPercent
+	{
+		get
+		{
+			BoxBase box = currentTarget?.CarryingAbility?.CarryingBox;
+			if (box == null || box.MaxSize <= 0.0f)
+				return 0.0f;
+
+			return (box.TotalSize / box.MaxSize) * 100.0f;
+		}
+	}
+	public string CarriedBoxFillDisplay => $"{CarriedBoxFillPercent:0.0}%";
+
+	public string DestinationDisplay
+	{
+		get
+		{
+			if (currentTarget == null || currentTarget.TryGetCurrentDestination(out var name, out var position) == false)
+				return "None";
+
+			return $"{name} ({position.x}, {position.y}, {position.z})";
+		}
+	}
+
+	public IEnumerable<WorkerBoxStackDisplayInfo> GetCarriedBoxStacks()
+	{
+		if (currentTarget?.CarryingAbility?.CarryingBox == null)
+			yield break;
+
+		foreach (ItemStack stack in currentTarget.CarryingAbility.CarryingBox.Stacks)
+		{
+			if (stack == null)
+				continue;
+
+			string itemName = ResolveItemName(stack.ItemID);
+			int? orderId = null;
+			if (stack is ItemPackage package && package.RelatedOrderLine?.ParentOrder != null)
+				orderId = package.RelatedOrderLine.ParentOrder.OrderID;
+
+			yield return new WorkerBoxStackDisplayInfo
+			{
+				ItemName = itemName,
+				Quantity = stack.Quantity,
+				RelatedOrderId = orderId,
+			};
+		}
+	}
+
+	public override void BuildInfoBlocks()
+	{
+		infoBlocks.Clear();
+		infoBlocks.Add(new KeyValueBlock(ResourceLabel, ResourceDisplay));
+		infoBlocks.Add(new KeyValueBlock("MoveSpeed", MoveSpeedDisplay));
+		infoBlocks.Add(new KeyValueBlock("Position", PositionDisplay));
+		infoBlocks.Add(new KeyValueBlock("MainTaskType", MainTaskTypeDisplay));
+		infoBlocks.Add(new KeyValueBlock("Action", ActionDisplay));
+		infoBlocks.Add(new KeyValueBlock("Target", TargetDisplay));
+	}
+
+	public override void OnUpdate()
+	{
+		if (infoBlocks.Count < 6)
+			return;
+
+		(infoBlocks[0] as KeyValueBlock)?.UpdateValue(ResourceDisplay);
+		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(MoveSpeedDisplay);
+		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(PositionDisplay);
+		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(MainTaskTypeDisplay);
+		(infoBlocks[4] as KeyValueBlock)?.UpdateValue(ActionDisplay);
+		(infoBlocks[5] as KeyValueBlock)?.UpdateValue(TargetDisplay);
+	}
+
+	public static string GetWorkerTypeLabel(WorkerType workerType)
+	{
+		return workerType switch
+		{
+			WorkerType.FullTime => "FullTime",
+			WorkerType.PartTime => "PartTime",
+			WorkerType.Illegal => "Illegal",
+			WorkerType.Robot => "Robot",
+			_ => workerType.ToString(),
+		};
+	}
+
+	private static string BuildAbilityDisplay(WorkerAbility ability)
+	{
+		if (ability == WorkerAbility.None)
+			return "None";
+
+		StringBuilder builder = new();
+		foreach (WorkerAbility flag in Enum.GetValues(typeof(WorkerAbility)))
+		{
+			if (flag == WorkerAbility.None || ability.HasFlag(flag) == false)
+				continue;
+
+			if (builder.Length > 0)
+				builder.Append(", ");
+
+			builder.Append(flag);
+		}
+
+		return builder.Length > 0 ? builder.ToString() : "None";
+	}
+
+	private static string ResolveItemName(uint itemId)
+	{
+		if (GameContext.HasInstance == false || GameContext.Instance.ItemDB == null)
+			return $"Item {itemId}";
+
+		return GameContext.Instance.ItemDB.GetItemData(itemId, out ItemDefinition itemDefinition) && itemDefinition != null
+			? itemDefinition.name
+			: $"Item {itemId}";
+	}
+}

@@ -118,6 +118,14 @@ public class WaterTask : WorkerTask
 	}
 #endif
 
+	public override string GetStatusSummary()
+	{
+		string fromName = (from?.target as Component)?.name ?? "None";
+		string toName = (to?.target as Component)?.name ?? "None";
+		string phaseText = hasPicked ? "Delivering transfer payload." : "Collecting transfer payload.";
+		return $"From: {fromName} -> {toName}\n{phaseText}";
+	}
+
 	static public NodeState IsCarryStateReady(in BTContext ctx)
 	{
 		// return true when box state is ready

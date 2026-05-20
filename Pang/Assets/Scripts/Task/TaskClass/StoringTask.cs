@@ -106,6 +106,21 @@ public class StoringTask : WorkerTask
 	}
 #endif
 
+	public override string GetStatusSummary()
+	{
+		if (IsJobEnd)
+			return "Storing complete.";
+
+		if (CurrentPhase == Phase.Collect)
+		{
+			string sourceName = CurrentLine?.Source != null ? CurrentLine.Source.name : "None";
+			return $"Phase: Collect\nSource: {sourceName}";
+		}
+
+		string placeName = placingLine?.Source != null ? placingLine.Source.name : "None";
+		return $"Phase: Place\nTarget: {placeName}";
+	}
+
 	public static NodeState CheckPhaseCollect(in BTContext ctx)
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;

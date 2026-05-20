@@ -89,6 +89,18 @@ public class PackingTask : WorkerTask
 	}
 #endif
 
+	public override string GetStatusSummary()
+	{
+		if (isTaskEnd)
+			return $"Station: {targetStation?.name ?? "None"}\nPacking complete.";
+
+		if (targetStation?.CurrentPackingBox?.IsFullyPacked == true)
+			return $"Station: {targetStation.name}\nMoving completed box.";
+
+		WorkLine line = targetStation?.CurrentPackingBox?.Job?.CurrentLine;
+		return $"Station: {targetStation?.name ?? "None"}\nCurrent line: {(line != null ? line.ItemID.ToString() : "None")}";
+	}
+
 	private static PackingTask GetTask(in BTContext ctx) => ctx.Worker.CurrentTask as PackingTask;
 
 	private static PackingStation GetStation(in BTContext ctx) => GetTask(ctx)?.TargetStation;

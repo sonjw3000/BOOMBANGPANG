@@ -105,6 +105,8 @@ public abstract class WorkerTask
 		return false;
 	}
 
+	public abstract string GetStatusSummary();
+
 	protected abstract IBaseNode BuildWorkNode();
 
 	public abstract bool CheckTaskEnd();
