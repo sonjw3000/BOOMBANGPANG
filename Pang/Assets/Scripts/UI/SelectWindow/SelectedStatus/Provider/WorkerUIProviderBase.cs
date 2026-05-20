@@ -1,15 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
 using Unity.Mathematics;
 using UnityEngine;
-
-public sealed class WorkerBoxStackDisplayInfo
-{
-	public string ItemName { get; set; }
-	public int Quantity { get; set; }
-	public int? RelatedOrderId { get; set; }
-}
 
 public interface IWorkerUIProvider
 {
@@ -32,7 +24,7 @@ public interface IWorkerUIProvider
 	bool HasAssignedTask { get; }
 	bool HasCarriedBox { get; }
 	string CarriedBoxFillDisplay { get; }
-	IEnumerable<WorkerBoxStackDisplayInfo> GetCarriedBoxStacks();
+	ItemContainerDisplayInfo GetCarriedBoxDisplay();
 }
 
 public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWorkerUIProvider
@@ -84,29 +76,14 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		}
 	}
 
-	public IEnumerable<WorkerBoxStackDisplayInfo> GetCarriedBoxStacks()
+	public ItemContainerDisplayInfo GetCarriedBoxDisplay() => new()
 	{
-		if (currentTarget?.CarryingAbility?.CarryingBox == null)
-			yield break;
-
-		foreach (ItemStack stack in currentTarget.CarryingAbility.CarryingBox.Stacks)
-		{
-			if (stack == null)
-				continue;
-
-			string itemName = ResolveItemName(stack.ItemID);
-			int? orderId = null;
-			if (stack is ItemPackage package && package.RelatedOrderLine?.ParentOrder != null)
-				orderId = package.RelatedOrderLine.ParentOrder.OrderID;
-
-			yield return new WorkerBoxStackDisplayInfo
-			{
-				ItemName = itemName,
-				Quantity = stack.Quantity,
-				RelatedOrderId = orderId,
-			};
-		}
-	}
+		ContainerName = currentTarget?.CarryingAbility?.CarryingBox != null
+			? $"{currentTarget.CarryingAbility.CarryingBox.Type} Box #{currentTarget.CarryingAbility.CarryingBox.BoxId}"
+			: "None",
+		HasContainer = currentTarget?.CarryingAbility?.CarryingBox != null,
+		Items = ItemContainerDisplayUtility.BuildItemRows(currentTarget?.CarryingAbility?.CarryingBox),
+	};
 
 	public override void BuildInfoBlocks()
 	{
@@ -162,15 +139,5 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		}
 
 		return builder.Length > 0 ? builder.ToString() : "None";
-	}
-
-	private static string ResolveItemName(uint itemId)
-	{
-		if (GameContext.HasInstance == false || GameContext.Instance.ItemDB == null)
-			return $"Item {itemId}";
-
-		return GameContext.Instance.ItemDB.GetItemData(itemId, out ItemDefinition itemDefinition) && itemDefinition != null
-			? itemDefinition.name
-			: $"Item {itemId}";
 	}
 }

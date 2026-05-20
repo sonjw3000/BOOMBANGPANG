@@ -4,14 +4,16 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
-	where TShelf : ShelfBase
+public class PackingStationDetailContent : DetailContent<PackingStation>
 {
+	private const string BoxPanelPrefabPath = "UI/Select/DetailContents/ItemContainerPanelView";
+
 	protected override bool UseDefaultTabs => false;
 
-	private enum ShelfBaseTab
+	private enum PackingStationTab
 	{
 		Info,
+		Work,
 		Items,
 		Action,
 	}
@@ -23,17 +25,19 @@ public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
 
 	private TextMeshProUGUI nameValue;
 	private TextMeshProUGUI typeValue;
-	private TextMeshProUGUI capacityValue;
-	private TextMeshProUGUI currentSizeValue;
-	private TextMeshProUGUI filledValue;
-	private RectTransform itemsRoot;
-	private ItemContainerPanelView itemsPanel;
+	private TextMeshProUGUI currentWorkerValue;
+	private TextMeshProUGUI incomingWorkerValue;
+	private TextMeshProUGUI incomingStateValue;
+
+	private TextMeshProUGUI workWorkerValue;
+	private TextMeshProUGUI workStatusValue;
+	private TextMeshProUGUI workStageValue;
+
+	private ItemContainerPanelView waitingBoxPanel;
+	private ItemContainerPanelView currentBoxPanel;
+	private ItemContainerPanelView endBoxPanel;
 	private RectTransform actionRoot;
 	private bool uiBuilt;
-
-	protected virtual string InfoTabLabel => "Info";
-	protected virtual string ItemsTabLabel => "Items";
-	protected virtual string ActionTabLabel => "Action";
 
 	protected override void RemoveListeners()
 	{
@@ -49,41 +53,13 @@ public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
 		EnsureUi();
 		BuildActionTab();
 		SetupTabs();
-		SetTab((int)ShelfBaseTab.Info);
+		SetTab((int)PackingStationTab.Info);
 		RefreshAll();
 	}
 
 	protected override void UpdateData()
 	{
 		RefreshAll();
-	}
-
-	protected virtual void RefreshExtraInfo(IShelfBaseUIProvider shelfProvider)
-	{
-	}
-
-	protected virtual void BuildActionTab()
-	{
-		foreach (Button actionButton in actionButtons)
-		{
-			if (actionButton != null)
-				Destroy(actionButton.gameObject);
-		}
-
-		actionButtons.Clear();
-		actionButtons.Add(CreateDeleteActionButton(actionRoot));
-	}
-
-	protected Button AddActionButton(string label, UnityEngine.Events.UnityAction onClick)
-	{
-		Button button = CreateRuntimeActionButton(actionRoot, label, onClick);
-		actionButtons.Add(button);
-		return button;
-	}
-
-	protected TextMeshProUGUI AddInfoLine(string label)
-	{
-		return CreateInfoLine(tabRoots[(int)ShelfBaseTab.Info].transform, label);
 	}
 
 	private void EnsureUi()
@@ -103,20 +79,27 @@ public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
 			selfRect.offsetMax = Vector2.zero;
 		}
 
-		bodyRoot = CreateRuntimeVerticalContainer("ShelfBaseDetailBody", transform, 6f);
+		bodyRoot = CreateRuntimeVerticalContainer("PackingStationDetailBody", transform, 6f);
 		SetTopStretch(bodyRoot, 12f, 12f, 4f);
 
 		GameObject infoTab = CreateRuntimeVerticalContainer("InfoTab", bodyRoot, 6f).gameObject;
 		nameValue = CreateInfoLine(infoTab.transform, "Name");
 		typeValue = CreateInfoLine(infoTab.transform, "Type");
-		capacityValue = CreateInfoLine(infoTab.transform, "Capacity");
-		currentSizeValue = CreateInfoLine(infoTab.transform, "Current Size");
-		filledValue = CreateInfoLine(infoTab.transform, "Filled");
+		currentWorkerValue = CreateInfoLine(infoTab.transform, "Current Worker");
+		incomingWorkerValue = CreateInfoLine(infoTab.transform, "Incoming Worker");
+		incomingStateValue = CreateInfoLine(infoTab.transform, "Incoming Request");
 		tabRoots.Add(infoTab);
 
-		GameObject itemsTab = CreateRuntimeVerticalContainer("ItemsTab", bodyRoot, 6f).gameObject;
-		itemsRoot = CreateRuntimeVerticalContainer("ItemsRoot", itemsTab.transform, 6f);
-		itemsPanel = CreateItemsPanel(itemsRoot);
+		GameObject workTab = CreateRuntimeVerticalContainer("WorkTab", bodyRoot, 6f).gameObject;
+		workWorkerValue = CreateInfoLine(workTab.transform, "Current Worker");
+		workStatusValue = CreateInfoLine(workTab.transform, "Status");
+		workStageValue = CreateInfoLine(workTab.transform, "Stage");
+		tabRoots.Add(workTab);
+
+		GameObject itemsTab = CreateRuntimeVerticalContainer("ItemsTab", bodyRoot, 10f).gameObject;
+		CreateBoxSection(itemsTab.transform, "WaitingBox", out waitingBoxPanel);
+		CreateBoxSection(itemsTab.transform, "CurrentBox", out currentBoxPanel);
+		CreateBoxSection(itemsTab.transform, "EndBox", out endBoxPanel);
 		tabRoots.Add(itemsTab);
 
 		GameObject actionTab = CreateRuntimeVerticalContainer("ActionTab", bodyRoot, 6f).gameObject;
@@ -132,9 +115,10 @@ public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
 			return;
 
 		window.ClearTabs();
-		window.AddTab(InfoTabLabel, SetTab);
-		window.AddTab(ItemsTabLabel, SetTab);
-		window.AddTab(ActionTabLabel, SetTab);
+		window.AddTab("Info", SetTab);
+		window.AddTab("Work", SetTab);
+		window.AddTab("Items", SetTab);
+		window.AddTab("Action", SetTab);
 		window.UpdateTabVisuals(0);
 	}
 
@@ -150,35 +134,55 @@ public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
 
 	private void RefreshAll()
 	{
-		if (provider is not IShelfBaseUIProvider shelfProvider)
+		if (provider is not PackingStationUIProvider packingProvider)
 			return;
 
-		nameValue.text = shelfProvider.Name;
-		typeValue.text = shelfProvider.Subtitle;
-		capacityValue.text = shelfProvider.CapacityDisplay;
-		currentSizeValue.text = shelfProvider.CurrentSizeDisplay;
-		filledValue.text = shelfProvider.FilledPercentDisplay;
-		RefreshExtraInfo(shelfProvider);
-		RefreshItems(shelfProvider);
+		nameValue.text = packingProvider.Name;
+		typeValue.text = packingProvider.Subtitle;
+		currentWorkerValue.text = packingProvider.CurrentWorkerName;
+		incomingWorkerValue.text = packingProvider.IncomingWorkerName;
+		incomingStateValue.text = packingProvider.IncomingRequestDisplay;
+
+		workWorkerValue.text = packingProvider.CurrentWorkerName;
+		workStatusValue.text = packingProvider.WorkStatus;
+		workStageValue.text = packingProvider.WorkStage;
+
+		waitingBoxPanel.SetView(packingProvider.GetWaitingBoxDisplay());
+		currentBoxPanel.SetView(packingProvider.GetCurrentBoxDisplay());
+		endBoxPanel.SetView(packingProvider.GetEndBoxDisplay());
 	}
 
-	private void RefreshItems(IShelfBaseUIProvider shelfProvider)
+	private void BuildActionTab()
 	{
-		itemsPanel?.SetView(shelfProvider.GetItemDisplay());
+		foreach (Button actionButton in actionButtons)
+		{
+			if (actionButton != null)
+				Destroy(actionButton.gameObject);
+		}
+
+		actionButtons.Clear();
+		actionButtons.Add(CreateDeleteActionButton(actionRoot));
 	}
 
-	private static ItemContainerPanelView CreateItemsPanel(Transform parent)
+	private static void CreateBoxSection(Transform parent, string label, out ItemContainerPanelView panelView)
 	{
-		ItemContainerPanelView prefab = Resources.Load<ItemContainerPanelView>("UI/Select/DetailContents/ItemContainerPanelView");
+		TextMeshProUGUI labelText = CreateRuntimeBodyText(label + "Label", parent);
+		labelText.text = label;
+		labelText.fontStyle = FontStyles.Bold;
+
+		ItemContainerPanelView prefab = Resources.Load<ItemContainerPanelView>(BoxPanelPrefabPath);
 		if (prefab != null)
-			return Instantiate(prefab, parent);
+		{
+			panelView = Instantiate(prefab, parent);
+			return;
+		}
 
-		GameObject panelObject = new("ItemsPanel", typeof(RectTransform), typeof(ItemContainerPanelView));
+		GameObject panelObject = new(label + "Panel", typeof(RectTransform), typeof(ItemContainerPanelView));
 		panelObject.transform.SetParent(parent, false);
-		return panelObject.GetComponent<ItemContainerPanelView>();
+		panelView = panelObject.GetComponent<ItemContainerPanelView>();
 	}
 
-	protected static RectTransform CreateRuntimeVerticalContainer(string name, Transform parent, float spacing)
+	private static RectTransform CreateRuntimeVerticalContainer(string name, Transform parent, float spacing)
 	{
 		GameObject root = new(name, typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement), typeof(ContentSizeFitter));
 		root.transform.SetParent(parent, false);
@@ -202,7 +206,7 @@ public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
 		return root.GetComponent<RectTransform>();
 	}
 
-	protected static RectTransform CreateRuntimeHorizontalContainer(string name, Transform parent, float spacing)
+	private static RectTransform CreateRuntimeHorizontalContainer(string name, Transform parent, float spacing)
 	{
 		GameObject root = new(name, typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement), typeof(ContentSizeFitter));
 		root.transform.SetParent(parent, false);
@@ -226,7 +230,7 @@ public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
 		return root.GetComponent<RectTransform>();
 	}
 
-	protected static TextMeshProUGUI CreateRuntimeBodyText(string name, Transform parent)
+	private static TextMeshProUGUI CreateRuntimeBodyText(string name, Transform parent)
 	{
 		GameObject textRoot = new(name, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
 		textRoot.transform.SetParent(parent, false);
@@ -245,7 +249,7 @@ public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
 		return text;
 	}
 
-	protected static TextMeshProUGUI CreateInfoLine(Transform parent, string label)
+	private static TextMeshProUGUI CreateInfoLine(Transform parent, string label)
 	{
 		RectTransform row = CreateRuntimeHorizontalContainer(label + "Row", parent, 8f);
 

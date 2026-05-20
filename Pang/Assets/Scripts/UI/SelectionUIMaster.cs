@@ -19,6 +19,7 @@ public class SelectionUIMaster : MonoBehaviour
 	private void Awake()
 	{
 		providers[typeof(CargoPort)] = new CargoPortUIProvider();
+		providers[typeof(PackingStation)] = new PackingStationUIProvider();
 		providers[typeof(Rocket)] = new RocketUIProvider();
 		providers[typeof(ShelfBase)] = new ShelfUIProvider();
 		providers[typeof(BoxPool)] = new BoxPoolUIProvider();
@@ -59,6 +60,8 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private bool GetProvider()
 	{
+		currentProvider = null;
+
 		if (currentObj == null)
 			return false;
 
@@ -72,7 +75,7 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void SelectionChange()
 	{
-		if (currentProvider == null)
+		if (currentProvider == null || currentObj == null)
 		{
 			DisableCard();
 			detailUI.gameObject.SetActive(false);
@@ -94,6 +97,12 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnDetailClicked()
 	{
+		if (currentObj == null || currentProvider == null)
+		{
+			detailUI.gameObject.SetActive(false);
+			return;
+		}
+
 		if (currentProvider is ZoneUIProvider zoneProvider)
 		{
 			detailUI.SetZoneDetail(zoneProvider);
@@ -112,7 +121,8 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 		else
 		{
-			Debug.LogWarning($"No suitable UI DetailBuilder found for the selected object, Target: {currentObj.name}");
+			string targetName = currentObj != null ? currentObj.name : "None";
+			Debug.LogWarning($"No suitable UI DetailBuilder found for the selected object, Target: {targetName}");
 		}
 	}
 

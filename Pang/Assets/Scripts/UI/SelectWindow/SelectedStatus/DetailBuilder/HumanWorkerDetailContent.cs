@@ -44,8 +44,7 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 
 	private TextMeshProUGUI carryStateLabel;
 	private TextMeshProUGUI carryFillLabel;
-	private RectTransform carryListRoot;
-	private readonly List<GameObject> carryRows = new();
+	private ItemContainerPanelView carryPanel;
 	private RectTransform actionRoot;
 
 	private bool uiBuilt;
@@ -57,7 +56,6 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 	protected override void RemoveListeners()
 	{
 		currentTaskButton?.onClick.RemoveListener(OnTaskButtonClicked);
-		RemoveCarryRowListeners();
 		foreach (Button actionButton in actionButtons)
 		{
 			if (actionButton != null)
@@ -128,7 +126,7 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 		GameObject carryTab = CreateVerticalContainer("CarryTab", bodyRoot, 6f).gameObject;
 		carryStateLabel = CreateBodyText("CarryState", carryTab.transform);
 		carryFillLabel = CreateBodyText("CarryFill", carryTab.transform);
-		carryListRoot = CreateVerticalContainer("CarryList", carryTab.transform, 8f);
+		carryPanel = CreateItemContainerPanel(carryTab.transform);
 		tabRoots.Add(carryTab);
 
 		GameObject actionTab = CreateVerticalContainer("ActionTab", bodyRoot, 6f).gameObject;
@@ -193,53 +191,17 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 
 	private void RefreshCarryTab(IWorkerUIProvider workerProvider)
 	{
-		RemoveCarryRowListeners();
-		foreach (GameObject row in carryRows)
-		{
-			if (row != null)
-				Destroy(row);
-		}
-		carryRows.Clear();
-
 		if (workerProvider.HasCarriedBox == false)
 		{
 			carryStateLabel.text = "No carrying box.";
 			carryFillLabel.text = string.Empty;
+			carryPanel?.SetView(workerProvider.GetCarriedBoxDisplay());
 			return;
 		}
 
 		carryStateLabel.text = "Carrying box.";
 		carryFillLabel.text = $"Filled: {workerProvider.CarriedBoxFillDisplay}";
-
-		foreach (WorkerBoxStackDisplayInfo stackInfo in workerProvider.GetCarriedBoxStacks())
-		{
-			GameObject row = CreateCarryRow(stackInfo);
-			carryRows.Add(row);
-		}
-	}
-
-	private GameObject CreateCarryRow(WorkerBoxStackDisplayInfo stackInfo)
-	{
-		RectTransform rowRoot = CreateHorizontalContainer($"{stackInfo.ItemName}Row", carryListRoot, 8f);
-		rowRoot.gameObject.AddComponent<LayoutElement>().preferredHeight = 36f;
-
-		Button itemButton = CreateButton("ItemButton", rowRoot, out TextMeshProUGUI itemButtonText, 32f);
-		itemButtonText.text = string.Empty;
-		itemButton.onClick.AddListener(() => Debug.Log($"[WorkerDetail] Item button clicked. item={stackInfo.ItemName}"));
-
-		TextMeshProUGUI quantityLabel = CreateBodyText("QuantityLabel", rowRoot);
-		quantityLabel.text = $"{stackInfo.ItemName}: {stackInfo.Quantity}";
-
-		Button orderButton = CreateButton("OrderButton", rowRoot, out TextMeshProUGUI orderButtonText, 32f);
-		orderButtonText.text = stackInfo.RelatedOrderId.HasValue ? $"Order #{stackInfo.RelatedOrderId.Value}" : string.Empty;
-		orderButton.gameObject.SetActive(stackInfo.RelatedOrderId.HasValue);
-		if (stackInfo.RelatedOrderId.HasValue)
-		{
-			int orderId = stackInfo.RelatedOrderId.Value;
-			orderButton.onClick.AddListener(() => Debug.Log($"[WorkerDetail] Order button clicked. orderId={orderId}"));
-		}
-
-		return rowRoot.gameObject;
+		carryPanel?.SetView(workerProvider.GetCarriedBoxDisplay());
 	}
 
 	private void OnTaskButtonClicked()
@@ -265,23 +227,20 @@ public class HumanWorkerDetailContent : DetailContent<AIWorker>
 		actionButtons.Add(CreateDeleteActionButton(actionRoot));
 	}
 
-	private void RemoveCarryRowListeners()
-	{
-		foreach (GameObject row in carryRows)
-		{
-			if (row == null)
-				continue;
-
-			foreach (Button button in row.GetComponentsInChildren<Button>(true))
-			{
-				button.onClick.RemoveAllListeners();
-			}
-		}
-	}
-
 	private static string GetResourceLabel(IWorkerUIProvider workerProvider)
 	{
 		return workerProvider is RobotWorkerUIProvider ? "Battery" : "Fatigue";
+	}
+
+	private static ItemContainerPanelView CreateItemContainerPanel(Transform parent)
+	{
+		ItemContainerPanelView prefab = Resources.Load<ItemContainerPanelView>("UI/Select/DetailContents/ItemContainerPanelView");
+		if (prefab != null)
+			return Instantiate(prefab, parent);
+
+		GameObject panelObject = new("CarryPanel", typeof(RectTransform), typeof(ItemContainerPanelView));
+		panelObject.transform.SetParent(parent, false);
+		return panelObject.GetComponent<ItemContainerPanelView>();
 	}
 
 	private static RectTransform CreateVerticalContainer(string name, Transform parent, float spacing)
