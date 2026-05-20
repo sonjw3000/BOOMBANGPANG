@@ -10,8 +10,11 @@ The warehouse simulation is built around a multi-layered spatial grid system.
 - placement validation
 - movement-related grid state
 - pathfinding-related spatial queries
+- current movement reservations
 
 `GridMap` represents the physical warehouse layout and node state.
+
+Worker traffic decisions are handled by `TrafficCoordinator`, but reservation ownership stays in `GridService`.
 
 ---
 

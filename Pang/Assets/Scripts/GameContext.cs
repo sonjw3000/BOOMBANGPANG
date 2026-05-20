@@ -55,6 +55,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private PathFindingService pathFindingService;
 	[SerializeField] private ZoneManager zoneManager;
 	[SerializeField] private WorkerStandbyService workerStandbyService;
+	[SerializeField] private TrafficCoordinator trafficCoordinator;
 
 	[Header("Workflow Managers")]
 	// workflow managers
@@ -108,6 +109,19 @@ public class GameContext : MonoBehaviour
 	public WMSystem WMSys => warehouseManagement;
 	public ContractService ContractMgr => contractService;
 	public PathFindingService PathFinding => pathFindingService;
+	public TrafficCoordinator TrafficCoordinator
+	{
+		get
+		{
+			if (trafficCoordinator == null)
+				trafficCoordinator = GetComponent<TrafficCoordinator>();
+
+			if (trafficCoordinator == null)
+				trafficCoordinator = gameObject.AddComponent<TrafficCoordinator>();
+
+			return trafficCoordinator;
+		}
+	}
 	public ZoneManager ZoneMgr
 	{
 		get

@@ -53,6 +53,8 @@
 - interaction points
 - occupancy
 - pathfinding
+- worker movement reservations
+- TrafficCoordinator-based movement conflict handling
 
 ## UI
 - SelectionCard

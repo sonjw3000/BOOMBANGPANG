@@ -28,6 +28,7 @@ Examples:
 - GridService
 - WorkerManager
 - TaskManager
+- TrafficCoordinator
 - ItemDatabase
 - Workflow managers
 
@@ -75,6 +76,7 @@ Avoid unnecessary abstraction or speculative architecture unless the project str
 ## Related Documents
 
 - Workflow & Workers: `workflow_task_worker.md`
+- Worker Traffic Coordination: `worker_traffic_coordination.md`
 - Spatial/Grid Structure: `spatial_grid.md`
 - Data & Catalog Structure: `data_catalog.md`
 - UI Interaction Pattern: `ui_interaction.md`

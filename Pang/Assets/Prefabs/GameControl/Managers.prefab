@@ -310,6 +310,7 @@ Transform:
   - {fileID: 8792456289541213448}
   - {fileID: 5376571530870301791}
   - {fileID: 1567717604001397923}
+  - {fileID: 1627249448192533118}
   m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &883947193075033641
@@ -651,6 +652,7 @@ MonoBehaviour:
   pathFindingService: {fileID: 2045873797293161509}
   zoneManager: {fileID: 3365747867954475864}
   workerStandbyService: {fileID: 0}
+  trafficCoordinator: {fileID: 9128034459082980668}
   inboundWorkFlowManager: {fileID: 2554155626171990247}
   outboundWorkFlowManager: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
@@ -737,6 +739,51 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   items: []
+--- !u!1 &2974611487511482037
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1627249448192533118}
+  - component: {fileID: 9128034459082980668}
+  m_Layer: 0
+  m_Name: TrafficCoordinator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1627249448192533118
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2974611487511482037}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7908985302895797192}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9128034459082980668
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2974611487511482037}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23376c934d5cd4149b4c6e2012959207, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrafficCoordinator
+  waitRetrySeconds: 5
 --- !u!1 &3000597967999158332
 GameObject:
   m_ObjectHideFlags: 0

@@ -65,3 +65,19 @@ Robot workers are affected by battery and efficiency systems.
 Worker abilities determine which tasks a worker can perform.
 
 ---
+
+## 4 Worker Movement Traffic
+
+Worker route execution is handled by `FindRoute`.
+
+Movement conflicts are coordinated by `TrafficCoordinator` instead of being resolved locally inside each worker route.
+
+Current flow:
+- `FindRoute` attempts to reserve the next movement cell
+- on reservation failure, `FindRoute` registers itself with `TrafficCoordinator`
+- `TrafficCoordinator` decides whether the route should retry, wait, or request a detour
+- `FindRoute` executes the resulting movement or subpath behavior
+
+The current traffic system keeps yield planning out of worker task logic. Worker-specific systems such as fatigue or battery should not be mixed into traffic conflict rules.
+
+See `worker_traffic_coordination.md` for details.

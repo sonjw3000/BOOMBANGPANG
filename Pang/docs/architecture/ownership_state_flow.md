@@ -48,7 +48,22 @@ Task assignment flows through TaskManager.
 
 ---
 
-## 4 UI
+## 4 TrafficCoordinator
+
+TrafficCoordinator owns:
+- worker movement conflict registration
+- traffic wait state
+- retry and detour decisions for blocked movement
+- head-on conflict resolution
+- clearing priority inheritance for detouring routes
+
+TrafficCoordinator does not own grid occupancy. Grid reservations remain owned by `GridService`.
+
+TrafficCoordinator does not complete tasks. Worker task flow remains owned by workers and task systems.
+
+---
+
+## 5 UI
 
 UI does not own gameplay state.
 
