@@ -6,10 +6,10 @@ public class ItemContainerPanelView : MonoBehaviour
 {
 	private const string RowPrefabPath = "UI/Select/DetailContents/ItemContainerItemRowView";
 
-	private TextMeshProUGUI boxNameText;
-	private TextMeshProUGUI emptyStateText;
-	private ItemContainerItemRowView headerRow;
-	private RectTransform contentRoot;
+	[SerializeField] private TextMeshProUGUI boxNameText;
+	[SerializeField] private TextMeshProUGUI emptyStateText;
+	[SerializeField] private ItemContainerItemRowView headerRow;
+	[SerializeField] private RectTransform contentRoot;
 	private GameObjectPool rowPool;
 	private bool built;
 
@@ -47,6 +47,16 @@ public class ItemContainerPanelView : MonoBehaviour
 	{
 		if (built)
 			return;
+
+		TryBindFromExistingChildren();
+
+		if (boxNameText != null && emptyStateText != null && headerRow != null && contentRoot != null)
+		{
+			headerRow.SetupHeader();
+			rowPool = new GameObjectPool(6, CreateRowObject);
+			built = true;
+			return;
+		}
 
 		RectTransform rect = gameObject.GetComponent<RectTransform>() ?? gameObject.AddComponent<RectTransform>();
 		rect.anchorMin = new Vector2(0f, 1f);
@@ -107,6 +117,7 @@ public class ItemContainerPanelView : MonoBehaviour
 		contentRoot.anchorMax = new Vector2(1f, 1f);
 		contentRoot.pivot = new Vector2(0.5f, 1f);
 		contentRoot.anchoredPosition = Vector2.zero;
+		contentRoot.sizeDelta = Vector2.zero;
 
 		VerticalLayoutGroup contentLayout = content.GetComponent<VerticalLayoutGroup>();
 		contentLayout.spacing = 4f;
@@ -132,6 +143,25 @@ public class ItemContainerPanelView : MonoBehaviour
 
 		rowPool = new GameObjectPool(6, CreateRowObject);
 		built = true;
+	}
+
+	private void TryBindFromExistingChildren()
+	{
+		if (boxNameText == null)
+			boxNameText = transform.Find("ContainerName")?.GetComponent<TextMeshProUGUI>();
+
+		Transform scrollRoot = transform.Find("ScrollRoot");
+		if (contentRoot == null)
+			contentRoot = scrollRoot?.Find("Content") as RectTransform;
+
+		if (contentRoot != null)
+		{
+			if (headerRow == null)
+				headerRow = contentRoot.Find("HeaderRow")?.GetComponent<ItemContainerItemRowView>();
+
+			if (emptyStateText == null)
+				emptyStateText = contentRoot.Find("EmptyState")?.GetComponent<TextMeshProUGUI>();
+		}
 	}
 
 	private GameObject CreateRowObject()

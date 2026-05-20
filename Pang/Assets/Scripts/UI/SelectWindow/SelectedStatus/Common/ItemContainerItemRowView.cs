@@ -4,13 +4,9 @@ using UnityEngine.UI;
 
 public class ItemContainerItemRowView : MonoBehaviour
 {
-	private const float ItemColumnWidth = 0f;
-	private const float QuantityColumnWidth = 84f;
-	private const float OrderColumnWidth = 180f;
-
-	private TextMeshProUGUI itemNameText;
-	private TextMeshProUGUI quantityText;
-	private TextMeshProUGUI orderText;
+	[SerializeField] private TextMeshProUGUI itemNameText;
+	[SerializeField] private TextMeshProUGUI quantityText;
+	[SerializeField] private TextMeshProUGUI orderText;
 	private bool built;
 
 	public void Setup(ItemContainerItemDisplayInfo itemInfo)
@@ -20,7 +16,10 @@ public class ItemContainerItemRowView : MonoBehaviour
 		itemNameText.text = itemInfo?.ItemName ?? "Unknown Item";
 		quantityText.text = itemInfo != null ? itemInfo.Quantity.ToString() : "0";
 		orderText.text = itemInfo?.RelatedOrderId is int orderId ? $"Order #{orderId}" : string.Empty;
-		orderText.gameObject.SetActive(itemInfo?.RelatedOrderId != null);
+		orderText.gameObject.SetActive(true);
+		itemNameText.fontStyle = FontStyles.Normal;
+		quantityText.fontStyle = FontStyles.Normal;
+		orderText.fontStyle = FontStyles.Normal;
 	}
 
 	public void SetupHeader()
@@ -39,6 +38,14 @@ public class ItemContainerItemRowView : MonoBehaviour
 	{
 		if (built)
 			return;
+
+		TryBindFromExistingChildren();
+
+		if (itemNameText != null && quantityText != null && orderText != null)
+		{
+			built = true;
+			return;
+		}
 
 		RectTransform rect = gameObject.GetComponent<RectTransform>() ?? gameObject.AddComponent<RectTransform>();
 		rect.anchorMin = new Vector2(0f, 1f);
@@ -65,15 +72,27 @@ public class ItemContainerItemRowView : MonoBehaviour
 		layoutElement.minHeight = 34f;
 
 		itemNameText = CreateText("ItemName", transform, 18f, TextAlignmentOptions.Left);
-		SetTextLayout(itemNameText, ItemColumnWidth, 1f, 160f);
+		SetTextLayout(itemNameText, 0f, 1f, 160f);
 
 		quantityText = CreateText("Quantity", transform, 18f, TextAlignmentOptions.Center);
-		SetTextLayout(quantityText, QuantityColumnWidth, 0f, QuantityColumnWidth);
+		SetTextLayout(quantityText, 84f, 0f, 84f);
 
 		orderText = CreateText("Order", transform, 18f, TextAlignmentOptions.Right);
-		SetTextLayout(orderText, OrderColumnWidth, 0f, OrderColumnWidth);
+		SetTextLayout(orderText, 180f, 0f, 180f);
 
 		built = true;
+	}
+
+	private void TryBindFromExistingChildren()
+	{
+		if (itemNameText == null)
+			itemNameText = transform.Find("ItemName")?.GetComponent<TextMeshProUGUI>();
+
+		if (quantityText == null)
+			quantityText = transform.Find("Quantity")?.GetComponent<TextMeshProUGUI>();
+
+		if (orderText == null)
+			orderText = transform.Find("Order")?.GetComponent<TextMeshProUGUI>();
 	}
 
 	private static void SetTextLayout(TextMeshProUGUI text, float preferredWidth, float flexibleWidth, float minWidth)
