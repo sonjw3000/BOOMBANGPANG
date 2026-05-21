@@ -111,7 +111,16 @@ When route `A` cannot reserve `A.TrafficToCell`:
 
 ### No Blocking Route
 
-If the desired cell is no longer reserved, `A` is resumed and retries movement.
+If no route reserves the desired cell, the coordinator distinguishes static blockage from a reservation race.
+
+```text
+if the desired cell is statically blocked:
+    request a fresh route to the current goal
+else:
+    resume and retry movement
+```
+
+This handles cases where a structure was placed on the old path after the route was created.
 
 ### Static Or Idle Blocker
 
@@ -206,4 +215,3 @@ Known limits:
 - traffic plans do not reserve future parking or protected cells
 
 These limits are tracked in `docs/future/traffic_coordinator_yield.md`.
-

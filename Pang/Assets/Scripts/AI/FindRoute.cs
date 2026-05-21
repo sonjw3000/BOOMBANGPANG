@@ -28,6 +28,8 @@ public class FindRoute : MonoBehaviour
 	private bool isNextNodeReserved = false;
 	private bool stopAfterCurrentStep = false;
 	private bool hasPendingGoal = false;
+	private bool hasCurrentGoal = false;
+	private int3 currentGoalPos;
 	private int3 pendingGoalPos;
 	private GridCell waitingCell = null;
 
@@ -109,9 +111,21 @@ public class FindRoute : MonoBehaviour
 	public MovementState CurrentMovementState => movementState;
 	public AIWorker Worker => worker;
 	public bool HasActiveGoal => pathResultBuffer != null || waitingCell != null || hasPendingGoal || movementState == MovementState.PathPending || movementState == MovementState.Moving || movementState == MovementState.Arrived;
-	public int3 CurrentGoalPosition => new((int)targetPos.x, (int)targetPos.y, (int)targetPos.z);
+	public int3 CurrentGoalPosition => currentGoalPos;
 
 	public int RemainingDistance => pathResultBuffer != null ? pathResultBuffer.Path.Count - pathResultBuffer.CurrentIndex : int.MaxValue;
+
+	public bool TryGetCurrentGoalCell(out int3 cell)
+	{
+		if (hasCurrentGoal == false)
+		{
+			cell = default;
+			return false;
+		}
+
+		cell = currentGoalPos;
+		return true;
+	}
 
 	public int3 TrafficFromCell => worker.GridPosition;
 	public bool TryGetTrafficToCell(out int3 cell)
@@ -342,6 +356,7 @@ public class FindRoute : MonoBehaviour
 	{
 		ClearWait();
 		hasPendingGoal = false;
+		hasCurrentGoal = false;
 		ResetCurrentPathPlan(true);
 		movementState = MovementState.Arrived;
 		worker.enabled = true;
@@ -364,6 +379,7 @@ public class FindRoute : MonoBehaviour
 	{
 		ClearPlannedPathRegistration();
 		ClearPathBuffer();
+		hasCurrentGoal = false;
 
 		movementState = MovementState.Arrived;
 		worker.enabled = true;
@@ -388,6 +404,26 @@ public class FindRoute : MonoBehaviour
 		enabled = false;
 		pathResultBuffer.MoveToNextNode();
 		RefreshPlannedPathRegistration();
+
+		return true;
+	}
+
+	public bool RequestFreshRouteToCurrentGoal()
+	{
+		if (TryGetCurrentGoalCell(out var goalCell) == false)
+			return false;
+
+		ClearWait();
+		stopAfterCurrentStep = false;
+		hasPendingGoal = false;
+		ResetCurrentPathPlan(true);
+
+		PathRequest request = new(this, worker.GridPosition, goalCell, worker.Direction);
+		PathFinding.RequestRoute(request);
+
+		movementState = MovementState.PathPending;
+		worker.enabled = false;
+		enabled = false;
 
 		return true;
 	}
@@ -446,6 +482,8 @@ public class FindRoute : MonoBehaviour
 	{
 		ClearWait();
 		stopAfterCurrentStep = false;
+		currentGoalPos = goalPos;
+		hasCurrentGoal = true;
 		ResetCurrentPathPlan(true);
 		PathRequest request = new(this, worker.GridPosition, goalPos, worker.Direction);
 		PathFinding.RequestRoute(request);

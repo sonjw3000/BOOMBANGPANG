@@ -104,7 +104,25 @@ public class TrafficCoordinator : MonoBehaviour
 
 		FindRoute blockedBy = GridService.GetReservedFindRoute(desiredCell);
 
-		if (blockedBy == null || blockedBy == requestedRoute)
+		if (blockedBy == null)
+		{
+			UnregisterWait(requestedRoute);
+
+			if (GridService.IsBlocked(desiredCell))
+			{
+				if (requestedRoute.RequestFreshRouteToCurrentGoal() == false)
+				{
+					requestedRoute.ResumeFromTraffic();
+				}
+
+				return;
+			}
+
+			requestedRoute.ResumeFromTraffic();
+			return;
+		}
+
+		if (blockedBy == requestedRoute)
 		{
 			UnregisterWait(requestedRoute);
 			requestedRoute.ResumeFromTraffic();
@@ -152,7 +170,7 @@ public class TrafficCoordinator : MonoBehaviour
 
 	private void ResolveHeadOnDeadlock(FindRoute routeA, FindRoute routeB)
 	{
-		Debug.Log($"[TrafficCoordinator] Head-on traffic block detected. A={routeA.name}, B={routeB.name}");
+		Debug.Log($"[TrafficCoordinator] Head-on traffic block detected. A={routeA.Worker.Name}, B={routeB.Worker.Name}");
 
 		FindRoute routeAOwner = GetEffectivePriorityRoute(routeA);
 		FindRoute routeBOwner = GetEffectivePriorityRoute(routeB);
