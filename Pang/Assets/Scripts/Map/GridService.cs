@@ -29,6 +29,12 @@ public class GridService : MonoBehaviour
 {
 	[SerializeField] private GameObject placeableParent;
 	[SerializeField] private GameObject gridParent;
+	[SerializeField] private Material gridBoundaryMaterial;
+	[SerializeField] private Color[] gridBoundaryColor;
+
+	private Texture2D gridBoundaryTexture;
+	private GameObject gridBoundaryQuad;
+	private short[] gridBoundary;
 
 	private readonly GridMap gridMap = new();
 	private static readonly int3[] SpaceRegionDirections =
@@ -96,6 +102,40 @@ public class GridService : MonoBehaviour
 		tileFloor.transform.position = new Vector3(gridMap.MapSize.x / 2 - 0.5f, 0, gridMap.MapSize.z / 2 - 0.5f);
 
 		tileFloor.transform.parent = gridParent.transform;
+
+		int3 mapSize = MapSize;
+		gridBoundary ??= new short[mapSize.x * mapSize.z];
+
+		if (gridBoundaryQuad != null)
+			Destroy(gridBoundaryQuad);
+
+		// boundary Quad
+		gridBoundaryQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+		gridBoundaryQuad.transform.localScale = new Vector3Int(gridMap.MapSize.x, gridMap.MapSize.z, gridMap.MapSize.y);
+		gridBoundaryQuad.transform.Rotate(90, 0, 0);
+		gridBoundaryQuad.transform.position = new Vector3(gridMap.MapSize.x / 2 - 0.5f, 0, gridMap.MapSize.z / 2 - 0.5f);
+		gridBoundaryQuad.name = "GridBoundaryQuad";
+		gridBoundaryQuad.transform.SetParent(gridParent.transform);
+
+		var collider = gridBoundaryQuad.GetComponent<Collider>();
+		if (collider != null)
+			Destroy(collider);
+
+		if (gridBoundaryTexture != null)
+			Destroy(gridBoundaryTexture);
+
+		gridBoundaryTexture = new(mapSize.x, MapSize.z, TextureFormat.R16, false, true);
+		gridBoundaryTexture.filterMode = FilterMode.Point;
+		gridBoundaryTexture.wrapMode = TextureWrapMode.Clamp;
+
+		gridBoundaryMaterial.SetTexture("_GridTex", gridBoundaryTexture);
+		gridBoundaryMaterial.SetColorArray("_GridColors", gridBoundaryColor);
+
+		var renderer = gridBoundaryQuad.GetComponent<MeshRenderer>();
+		List<Material> mats = new();
+		mats.Add(gridBoundaryMaterial);
+		renderer.SetMaterials(mats);
+		gridBoundaryQuad.SetActive(false);
 
 		IsReady = true;
 		RecalculateSpaceRegions();
@@ -173,6 +213,13 @@ public class GridService : MonoBehaviour
 		foreach (Transform child in gridParent.transform)
 			Destroy(child.gameObject);
 
+		if (gridBoundaryTexture != null)
+		{
+			Destroy(gridBoundaryTexture);
+			gridBoundaryTexture = null;
+		}
+
+		gridBoundaryQuad = null;
 		placedObjects.Clear();
 		IsReady = false;
 	}
@@ -273,12 +320,11 @@ public class GridService : MonoBehaviour
 			gridPlaceable.OnPositionSet(ctx.center, ctx.facingDirection);
 		}
 
-		if (PlaceableAffectsSpaceRegions(ctx.placeableDefinition))
+		if (ctx.placeableDefinition.gridFootprint.IsNeedToRefresh)
 			RecalculateSpaceRegions();
 
 		OnPlaceableInstalled?.Invoke(ctx);
 
-		//Debug.Log("PlacementSuccess");
 		return true;
 	}
 
@@ -326,7 +372,7 @@ public class GridService : MonoBehaviour
 		placedObjects.Remove(targetObj);
 		Destroy(targetObj);
 
-		if (PlaceableAffectsSpaceRegions(context.placeableDefinition))
+		if (context.placeableDefinition.gridFootprint.IsNeedToRefresh)
 			RecalculateSpaceRegions();
 
 		return true;
@@ -442,7 +488,7 @@ public class GridService : MonoBehaviour
 			}
 		}
 
-		if (PlaceableAffectsSpaceRegions(context.placeableDefinition))
+		if (context.placeableDefinition.gridFootprint.IsNeedToRefresh)
 			RecalculateSpaceRegions();
 
 		return PlacementResult.Success;
@@ -479,13 +525,21 @@ public class GridService : MonoBehaviour
 		}
 		placedObjects[targetObj] = ctx;
 
-		if (PlaceableAffectsSpaceRegions(ctx.placeableDefinition))
+		if (ctx.placeableDefinition.gridFootprint.IsNeedToRefresh)
 			RecalculateSpaceRegions();
 	}
 
 	public GameObject GetObjectOnGrid(in int3 pos)
 	{
 		return gridMap.GetObjectOnGrid(pos);
+	}
+
+	public void SetGridBoundaryVisible(bool visible)
+	{
+		if (gridBoundaryQuad == null)
+			return;
+
+		gridBoundaryQuad.SetActive(visible);
 	}
 
 	private static int3 RotateOffset(int3 offset, FacingDirection direction)
@@ -564,24 +618,6 @@ public class GridService : MonoBehaviour
 		return IsIndoor(target) ? allowIndoor : allowOutdoor;
 	}
 
-	private bool PlaceableAffectsSpaceRegions(PlaceableDefinition definition)
-	{
-		if (definition == null || definition.gridFootprint == null)
-			return false;
-
-		GridFootprint footprint = definition.gridFootprint;
-		for (int z = 0; z < footprint.height; ++z)
-		{
-			for (int x = 0; x < footprint.width; ++x)
-			{
-				if ((footprint.Get(x, z).flags & GridFlags.SealsSpace) != 0)
-					return true;
-			}
-		}
-
-		return false;
-	}
-
 	private void RecalculateSpaceRegions()
 	{
 		if (Map == null)
@@ -627,6 +663,12 @@ public class GridService : MonoBehaviour
 			}
 		}
 
+		for (int x = 0; x < size.x; ++x)
+			for (int z = 0; z < size.z; ++z)
+				gridBoundary[z * MapSize.x + x] = (short)(Map[x, 0, z].RegionId);
+
+		gridBoundaryTexture.SetPixelData<short>(gridBoundary, 0, 0);
+		gridBoundaryTexture.Apply(false, false);
 		OnSpaceRegionsChanged?.Invoke();
 	}
 

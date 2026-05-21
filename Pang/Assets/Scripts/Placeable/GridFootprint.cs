@@ -19,8 +19,36 @@ public sealed class GridFootprint : ScriptableObject
 
 	[SerializeField] private Vector2Int pivot = new Vector2Int(0, 0);
 	[SerializeField] private FootprintCell[] footprintCells;
+	[SerializeField, HideInInspector] private bool isBlockingOutside = false;
 
 	public Vector2Int Pivot => pivot;
 	public FootprintCell Get(int x, int y) => footprintCells[y * width + x];
+	public bool IsNeedToRefresh => isBlockingOutside;
+	
+	private void OnEnable()
+	{
+		RebuildBlockingOutsideFlag();
+	}
+
+	private void OnValidate()
+	{
+		RebuildBlockingOutsideFlag();
+	}
+
+	private void RebuildBlockingOutsideFlag()
+	{
+		isBlockingOutside = false;
+		if (footprintCells == null)
+			return;
+
+		foreach (var cell in footprintCells)
+		{
+			if (cell.flags.HasFlag(GridFlags.SealsSpace))
+			{
+				isBlockingOutside = true;
+				break;
+			}
+		}
+	}
 
 }

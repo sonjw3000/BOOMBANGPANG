@@ -582,6 +582,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   placeableParent: {fileID: 883947193075033641}
   gridParent: {fileID: 5065736988825150757}
+  gridBoundaryMaterial: {fileID: 2100000, guid: dff164b831e1a41f198e2922a30c7cb8, type: 2}
+  gridBoundaryColor: []
 --- !u!1 &2435145271861946170
 GameObject:
   m_ObjectHideFlags: 0
