@@ -16,9 +16,9 @@ MonoBehaviour:
   height: 3
   pivot: {x: 0, y: 1}
   footprintCells:
-  - flags: 5
+  - flags: 21
     interactionKind: 2
-  - flags: 3
+  - flags: 19
     interactionKind: 0
-  - flags: 5
+  - flags: 21
     interactionKind: 1

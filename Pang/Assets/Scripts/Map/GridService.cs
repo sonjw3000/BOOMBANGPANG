@@ -31,6 +31,13 @@ public class GridService : MonoBehaviour
 	[SerializeField] private GameObject gridParent;
 
 	private readonly GridMap gridMap = new();
+	private static readonly int3[] SpaceRegionDirections =
+	{
+		new(1, 0, 0),
+		new(-1, 0, 0),
+		new(0, 0, 1),
+		new(0, 0, -1),
+	};
 
 
 	public GridCell[,,] Map => gridMap.Map;
@@ -59,12 +66,23 @@ public class GridService : MonoBehaviour
 		return gridMap.Map[pos.x, pos.y, pos.z].IsBlocked;
 	}
 
+	public bool IsIndoor(in int3 pos) => GetRegionId(pos) >= 1;
+	public bool IsOutdoor(in int3 pos) => GetRegionId(pos) == 0;
+	public int GetRegionId(in int3 pos)
+	{
+		if (gridMap.IsInBound(pos) == false)
+			return 0;
+
+		return gridMap.Map[pos.x, pos.y, pos.z].RegionId;
+	}
+
 	public IEnumerable<KeyValuePair<GameObject, PlacementContext>> GetPlacedObjectsSnapshot() => placedObjects;
 
 
 	private readonly Dictionary<GameObject, PlacementContext> placedObjects = new();
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
+	public event System.Action OnSpaceRegionsChanged;
 
 	private EconomyService Economy => GameContext.Instance.EconomyService;
 	private WorkerSpawnManager WorkerSpawnMgr => GameContext.Instance.WorkerSpawnMgr;
@@ -80,6 +98,7 @@ public class GridService : MonoBehaviour
 		tileFloor.transform.parent = gridParent.transform;
 
 		IsReady = true;
+		RecalculateSpaceRegions();
 	}
 
 	public void BuildDefaultMap()
@@ -166,33 +185,7 @@ public class GridService : MonoBehaviour
 			return false;
 		}
 
-		bool installable = true;
-
-		GridFootprint footprint = ctx.placeableDefinition.gridFootprint;
-		Vector2Int pivot = footprint.Pivot;
-
-		for (int z = 0; z < footprint.height; ++z)
-		{
-			for (int x = 0; x < footprint.width; ++x)
-			{
-				int3 offset = new(x - pivot.x, 0, z - pivot.y);
-				int3 rotatedOffset = RotateOffset(offset, ctx.facingDirection);
-				int3 target = ctx.center + rotatedOffset;
-
-				if (gridMap.IsInBound(target) == false)
-				{
-					installable = false;
-					continue;
-				}
-
-				if (Map[target.x, target.y, target.z].CanPlaceObject)
-					possibleCell.Add(target);
-				else
-					blocked.Add(target);
-			}
-		}
-
-		return installable || (blocked.Count > 0);
+		return EvaluatePlacement(in ctx, possibleCell, blocked);
 	}
 
 	// gridPlaceable이 install이 되었을 때
@@ -203,6 +196,9 @@ public class GridService : MonoBehaviour
 			Debug.LogWarning("No placeable or Footprint!!");
 			return false;
 		}
+
+		if (EvaluatePlacement(in ctx, null, null) == false)
+			return false;
 
 		if (ctx.placementEvent == PlacementEvent.Normal && Economy.CanAfford(ctx.placeableDefinition.Cost) == false)
 		{
@@ -277,7 +273,10 @@ public class GridService : MonoBehaviour
 			gridPlaceable.OnPositionSet(ctx.center, ctx.facingDirection);
 		}
 
-		OnPlaceableInstalled.Invoke(ctx);
+		if (PlaceableAffectsSpaceRegions(ctx.placeableDefinition))
+			RecalculateSpaceRegions();
+
+		OnPlaceableInstalled?.Invoke(ctx);
 
 		//Debug.Log("PlacementSuccess");
 		return true;
@@ -326,6 +325,9 @@ public class GridService : MonoBehaviour
 
 		placedObjects.Remove(targetObj);
 		Destroy(targetObj);
+
+		if (PlaceableAffectsSpaceRegions(context.placeableDefinition))
+			RecalculateSpaceRegions();
 
 		return true;
 	}
@@ -440,6 +442,9 @@ public class GridService : MonoBehaviour
 			}
 		}
 
+		if (PlaceableAffectsSpaceRegions(context.placeableDefinition))
+			RecalculateSpaceRegions();
+
 		return PlacementResult.Success;
 	}
 
@@ -473,6 +478,9 @@ public class GridService : MonoBehaviour
 			gridPlaceable.OnPositionSet(newCenter, ctx.facingDirection);
 		}
 		placedObjects[targetObj] = ctx;
+
+		if (PlaceableAffectsSpaceRegions(ctx.placeableDefinition))
+			RecalculateSpaceRegions();
 	}
 
 	public GameObject GetObjectOnGrid(in int3 pos)
@@ -492,6 +500,187 @@ public class GridService : MonoBehaviour
 		};
 	}
 
+	private bool EvaluatePlacement(in PlacementContext ctx, List<int3> possibleCell, List<int3> blocked)
+	{
+		bool installable = true;
+		GridFootprint footprint = ctx.placeableDefinition.gridFootprint;
+		Vector2Int pivot = footprint.Pivot;
+		PlacementEnvironmentRequirement requirement = ctx.placeableDefinition.placementEnvironment;
+
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, ctx.facingDirection);
+				int3 target = ctx.center + rotatedOffset;
+
+				if (gridMap.IsInBound(target) == false)
+				{
+					installable = false;
+					continue;
+				}
+
+				FootprintCell footprintCell = footprint.Get(x, z);
+				bool canPlace = Map[target.x, target.y, target.z].CanPlaceObject;
+				bool meetsEnvironment = DoesFootprintCellMeetPlacementRequirement(footprintCell, target, requirement);
+
+				if (canPlace && meetsEnvironment)
+				{
+					possibleCell?.Add(target);
+					continue;
+				}
+
+				blocked?.Add(target);
+				installable = false;
+			}
+		}
+
+		return installable;
+	}
+
+	private bool DoesFootprintCellMeetPlacementRequirement(in FootprintCell footprintCell, in int3 target, PlacementEnvironmentRequirement requirement)
+	{
+		if (requirement == PlacementEnvironmentRequirement.None)
+			return false;
+
+		if ((footprintCell.flags & GridFlags.Interaction) != 0)
+			return true;
+
+		return DoesCellMeetPlacementRequirement(target, requirement);
+	}
+
+	private bool DoesCellMeetPlacementRequirement(in int3 target, PlacementEnvironmentRequirement requirement)
+	{
+		if (requirement == PlacementEnvironmentRequirement.None)
+			return false;
+
+		bool allowIndoor = (requirement & PlacementEnvironmentRequirement.Indoor) != 0;
+		bool allowOutdoor = (requirement & PlacementEnvironmentRequirement.Outdoor) != 0;
+
+		if (allowIndoor == false && allowOutdoor == false)
+			return false;
+
+		return IsIndoor(target) ? allowIndoor : allowOutdoor;
+	}
+
+	private bool PlaceableAffectsSpaceRegions(PlaceableDefinition definition)
+	{
+		if (definition == null || definition.gridFootprint == null)
+			return false;
+
+		GridFootprint footprint = definition.gridFootprint;
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				if ((footprint.Get(x, z).flags & GridFlags.SealsSpace) != 0)
+					return true;
+			}
+		}
+
+		return false;
+	}
+
+	private void RecalculateSpaceRegions()
+	{
+		if (Map == null)
+			return;
+
+		int3 size = MapSize;
+		if (size.x <= 0 || size.y <= 0 || size.z <= 0)
+			return;
+
+		bool[,,] visited = new bool[size.x, size.y, size.z];
+		Queue<int3> queue = new();
+
+		for (int x = 0; x < size.x; ++x)
+		{
+			for (int y = 0; y < size.y; ++y)
+			{
+				for (int z = 0; z < size.z; ++z)
+				{
+					Map[x, y, z].SetRegionId(0);
+				}
+			}
+		}
+
+		EnqueueOutdoorBoundaryCells(size, visited, queue);
+		FloodFill(queue, visited, 0);
+
+		int nextRegionId = 1;
+		for (int x = 0; x < size.x; ++x)
+		{
+			for (int y = 0; y < size.y; ++y)
+			{
+				for (int z = 0; z < size.z; ++z)
+				{
+					int3 pos = new(x, y, z);
+					if (visited[x, y, z] || IsSpaceRegionBlocked(pos))
+						continue;
+
+					queue.Enqueue(pos);
+					visited[x, y, z] = true;
+					FloodFill(queue, visited, nextRegionId);
+					nextRegionId++;
+				}
+			}
+		}
+
+		OnSpaceRegionsChanged?.Invoke();
+	}
+
+	private void EnqueueOutdoorBoundaryCells(int3 size, bool[,,] visited, Queue<int3> queue)
+	{
+		for (int y = 0; y < size.y; ++y)
+		{
+			for (int x = 0; x < size.x; ++x)
+			{
+				TryEnqueueOutdoorCell(new int3(x, y, 0), visited, queue);
+				TryEnqueueOutdoorCell(new int3(x, y, size.z - 1), visited, queue);
+			}
+
+			for (int z = 0; z < size.z; ++z)
+			{
+				TryEnqueueOutdoorCell(new int3(0, y, z), visited, queue);
+				TryEnqueueOutdoorCell(new int3(size.x - 1, y, z), visited, queue);
+			}
+		}
+	}
+
+	private void TryEnqueueOutdoorCell(in int3 pos, bool[,,] visited, Queue<int3> queue)
+	{
+		if (gridMap.IsInBound(pos) == false || visited[pos.x, pos.y, pos.z] || IsSpaceRegionBlocked(pos))
+			return;
+
+		visited[pos.x, pos.y, pos.z] = true;
+		queue.Enqueue(pos);
+	}
+
+	private void FloodFill(Queue<int3> queue, bool[,,] visited, int regionId)
+	{
+		while (queue.Count > 0)
+		{
+			int3 current = queue.Dequeue();
+			Map[current.x, current.y, current.z].SetRegionId(regionId);
+
+			for (int i = 0; i < SpaceRegionDirections.Length; ++i)
+			{
+				int3 next = current + SpaceRegionDirections[i];
+				if (gridMap.IsInBound(next) == false || visited[next.x, next.y, next.z] || IsSpaceRegionBlocked(next))
+					continue;
+
+				visited[next.x, next.y, next.z] = true;
+				queue.Enqueue(next);
+			}
+		}
+	}
+
+	private bool IsSpaceRegionBlocked(in int3 pos)
+	{
+		GridCell cell = GetCell(pos);
+		return cell == null || cell.SealsSpace;
+	}
+
 
 }
-

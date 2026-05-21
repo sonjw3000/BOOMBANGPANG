@@ -172,8 +172,8 @@ public class InteractionContext
 					dir: direction,
 					def: toBePlaced
 				);
-				GridService.OnInstall(ctx);
-				ExitPlacementMode();
+				if (GridService.OnInstall(ctx))
+					ExitPlacementMode();
 				break;
 
 			case InteractionMode.ZonePlacement:

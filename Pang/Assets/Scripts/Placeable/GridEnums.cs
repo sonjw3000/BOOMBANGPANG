@@ -22,6 +22,14 @@ public enum PlaceableDefinitionType
 	Other
 }
 
+[System.Flags]
+public enum PlacementEnvironmentRequirement
+{
+	None = 0,
+	Indoor = 1 << 0,
+	Outdoor = 1 << 1,
+}
+
 public enum FacingDirection : byte
 {
 	North = 0,
@@ -99,6 +107,7 @@ public enum GridFlags
 
 	// 동적 장애물 (작업자, 이동 선반 등)
 	DynamicObstacle = 1 << 3,
+	SealsSpace = 1 << 4,
 
 	Error = BlockPlacement | BlockMovement,
 }

@@ -18,3 +18,4 @@ MonoBehaviour:
   prefab: {fileID: 7781608356336454641, guid: f90bfe449eee27b45aab1fa0b205008a, type: 3}
   gridFootprint: {fileID: 11400000, guid: 219c90ad9ae2ad7458da7bbaa162062f, type: 2}
   definitionType: 0
+  placementEnvironment: 3

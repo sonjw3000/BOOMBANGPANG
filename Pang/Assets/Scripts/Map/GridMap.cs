@@ -35,6 +35,7 @@ public class GridCell
 {
 	private int tile = 0;
 	private GridFlags flags = GridFlags.None;
+	private int regionId = 0;
 
 	private GameObject objectRef = null;
 
@@ -43,9 +44,12 @@ public class GridCell
 
 	public int Tile => tile;
 	public GridFlags Flags => flags;
+	public int RegionId => regionId;
 
 	public bool IsPassable => Flags.HasFlag(GridFlags.BlockMovement | GridFlags.DynamicObstacle);
 	public bool IsBlocked => Flags.HasFlag(GridFlags.BlockMovement);
+	public bool IsIndoor => regionId >= 1;
+	public bool SealsSpace => (flags & GridFlags.SealsSpace) != 0;
 	public bool CanPlaceObject => IsBlocked == false && reservedBy == null;
 	public GameObject ObjectOnGrid => objectRef;
 
@@ -71,6 +75,7 @@ public class GridCell
 	public void Clear()
 	{
 		flags = GridFlags.None;
+		regionId = 0;
 		objectRef = null;
 	}
 
@@ -79,6 +84,11 @@ public class GridCell
 		if (objectRef == obj)
 			objectRef = null;
 		flags &= ~cellFootprint.flags;
+	}
+
+	public void SetRegionId(int value)
+	{
+		regionId = value < 0 ? 0 : value;
 	}
 
 	public bool TryReserve(FindRoute routeWorker)

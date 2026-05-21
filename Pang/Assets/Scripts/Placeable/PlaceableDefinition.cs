@@ -14,7 +14,7 @@ public class PlaceableDefinition : ScriptableObject
 
 	[Header("Placeable Definition Type")]
 	public PlaceableDefinitionType definitionType = PlaceableDefinitionType.Other;
+	public PlacementEnvironmentRequirement placementEnvironment = PlacementEnvironmentRequirement.Indoor | PlacementEnvironmentRequirement.Outdoor;
 
 	public int Cost = 10;
 }
-

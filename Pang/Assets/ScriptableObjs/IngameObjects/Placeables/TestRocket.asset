@@ -18,4 +18,5 @@ MonoBehaviour:
   prefab: {fileID: 8130251259797940551, guid: 0278404f42fec1b4a95242bbaacacfa8, type: 3}
   gridFootprint: {fileID: 11400000, guid: 2daef00562627824eb96130dd39b1d6d, type: 2}
   definitionType: 1
+  placementEnvironment: 3
   Cost: 10
