@@ -36,13 +36,15 @@ public readonly struct ItemTransferPayload
 	public readonly IItemContainer To;
 	public readonly uint ItemID;
 	public readonly int Quantity;
+	public readonly bool ConsumeSourcePickReservation;
 
-	public ItemTransferPayload(IItemContainer from, IItemContainer to, uint itemID, int quantity)
+	public ItemTransferPayload(IItemContainer from, IItemContainer to, uint itemID, int quantity, bool consumeSourcePickReservation = false)
 	{
 		From = from;
 		To = to;
 		ItemID = itemID;
 		Quantity = quantity;
+		ConsumeSourcePickReservation = consumeSourcePickReservation;
 	}
 }
 
@@ -51,12 +53,14 @@ public readonly struct FullyTransferPayload
 	public readonly IItemContainer From;
 	public readonly IItemContainer To;
 	public readonly Action<ItemStack> OnStackMove;
+	public readonly bool ConsumeSourcePickReservation;
 
-	public FullyTransferPayload(IItemContainer from, IItemContainer to, Action<ItemStack> onStackMove = null)
+	public FullyTransferPayload(IItemContainer from, IItemContainer to, Action<ItemStack> onStackMove = null, bool consumeSourcePickReservation = false)
 	{
 		From = from;
 		To = to;
 		OnStackMove = onStackMove;
+		ConsumeSourcePickReservation = consumeSourcePickReservation;
 	}
 }
 
@@ -81,6 +85,7 @@ public static class ItemTransferUtility
 			return new(payload, 0);
 
 		int removed = payload.From.RemoveItem(payload.ItemID, movable);
+		ConsumeSourcePickReservation(payload.From, payload.ItemID, removed, payload.ConsumeSourcePickReservation);
 		int moved = payload.To.AddItem(payload.ItemID, removed);
 
 		if (moved != removed)
@@ -89,7 +94,7 @@ public static class ItemTransferUtility
 		return new(payload, moved);
 	}
 
-	public static ItemTransferResult MoveItemAsStack(IItemContainer from, IItemContainer to, ItemStack stack)
+	public static ItemTransferResult MoveItemAsStack(IItemContainer from, IItemContainer to, ItemStack stack, bool consumeSourcePickReservation = false)
 	{
 		if (from == null || to == null || stack == null || stack.Quantity <= 0)
 			return new(new ItemTransferPayload(from, to, stack != null ? stack.ItemID : 0, 0), 0);
@@ -99,6 +104,7 @@ public static class ItemTransferUtility
 			return new(payload, 0);
 
 		int removed = from.RemoveItem(stack.ItemID, stack.Quantity);
+		ConsumeSourcePickReservation(from, stack.ItemID, removed, consumeSourcePickReservation);
 		if (removed != stack.Quantity)
 		{
 			Debug.LogError($"[ItemTransferUtility] MoveItemAsStack removed an unexpected amount. item={stack.ItemID}, requested={stack.Quantity}, removed={removed}");
@@ -151,6 +157,8 @@ public static class ItemTransferUtility
 				return movedCount == 0 ? TransferResultKind.None : TransferResultKind.Partial;
 			}
 
+			ConsumeSourcePickReservation(payload.From, stack.ItemID, stack.Quantity, payload.ConsumeSourcePickReservation);
+
 			++movedCount;
 			payload.OnStackMove?.Invoke(stack);
 		}
@@ -172,7 +180,7 @@ public static class ItemTransferUtility
 		if (stack is ItemPackage)
 			return TryMovePartialPackageStack(payload, stack, acceptable, out movedStack);
 
-		ItemTransferResult result = MoveItem(new(payload.From, payload.To, stack.ItemID, acceptable));
+		ItemTransferResult result = MoveItem(new(payload.From, payload.To, stack.ItemID, acceptable, payload.ConsumeSourcePickReservation));
 		if (result.Kind == TransferResultKind.None)
 			return false;
 
@@ -205,6 +213,8 @@ public static class ItemTransferUtility
 			return false;
 		}
 
+		ConsumeSourcePickReservation(payload.From, stack.ItemID, removed, payload.ConsumeSourcePickReservation);
+
 		return true;
 	}
 
@@ -221,5 +231,19 @@ public static class ItemTransferUtility
 		{
 			Debug.LogError($"[ItemTransferUtility] Failed to restore moved stack. item={stack.ItemID}, requested={stack.Quantity}, restored={restored}");
 		}
+	}
+
+	private static void ConsumeSourcePickReservation(IItemContainer source, uint itemId, int quantity, bool consume)
+	{
+		if (consume == false || quantity <= 0)
+			return;
+
+		if (source is ShelfBase shelf)
+		{
+			shelf.ConsumeReservedPick(itemId, quantity);
+			return;
+		}
+
+		Debug.LogWarning($"[ItemTransferUtility] Requested reserved pick consumption from unsupported source. source={source?.GetType().Name}, item={itemId}, quantity={quantity}");
 	}
 }

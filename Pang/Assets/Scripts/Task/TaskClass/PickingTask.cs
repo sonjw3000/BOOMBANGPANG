@@ -240,7 +240,7 @@ public sealed class PickingTask : WorkerTask
 		}
 
 		int remainingQuantity = curLine.Quantity - curLine.CompleteQuantity;
-		ItemTransferResult result = ItemTransferUtility.MoveItem(new(curLine.Source, box, curLine.ItemID, remainingQuantity));
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(curLine.Source, box, curLine.ItemID, remainingQuantity, consumeSourcePickReservation: true));
 		int pickedQuantity = OrderMgr.ReportPickingCompleted(curLine.RelatedOrderLine, result.Moved);
 		if (pickedQuantity != result.Moved)
 		{

@@ -177,17 +177,6 @@ public abstract class ShelfBase :
 
 		int removed = quantity - remain;
 
-		// adjust tobepicked
-		itemsReservedPick[itemId] = itemsReservedPick.GetValueOrDefault(itemId) - removed;
-		if (itemsReservedPick[itemId] <= 0)
-		{
-			// 0보다 작은 경우의 에러를 체크해보자
-			if (itemsReservedPick[itemId] < 0)
-				Debug.LogWarning("Reserved pick count went below zero. Adjusting to zero.");
-
-			itemsReservedPick.Remove(itemId);
-		}
-
 		OnItemQuantityChanged?.Invoke(this, itemId, -removed);
 
 		UpdateSize();
@@ -313,6 +302,35 @@ public abstract class ShelfBase :
 		OnItemReservedPickChanged?.Invoke(this, itemId, canReserve);
 
 		return canReserve;
+	}
+
+	public int ConsumeReservedPick(uint itemId, int quantity)
+	{
+		if (quantity <= 0)
+			return 0;
+
+		int reserved = itemsReservedPick.GetValueOrDefault(itemId);
+		if (reserved <= 0)
+		{
+			Debug.LogWarning($"[ShelfBase] Tried to consume unreserved pick. shelf={name}, item={itemId}, quantity={quantity}");
+			return 0;
+		}
+
+		int consumed = math.min(quantity, reserved);
+		int remaining = reserved - consumed;
+		if (remaining > 0)
+			itemsReservedPick[itemId] = remaining;
+		else
+			itemsReservedPick.Remove(itemId);
+
+		OnItemReservedPickChanged?.Invoke(this, itemId, -consumed);
+
+		if (consumed != quantity)
+		{
+			Debug.LogWarning($"[ShelfBase] Reserved pick was smaller than removed quantity. shelf={name}, item={itemId}, requested={quantity}, consumed={consumed}");
+		}
+
+		return consumed;
 	}
 
 	public virtual ShelfContainerSaveData CaptureState(Func<OrderLine, int> registerOrderLine)

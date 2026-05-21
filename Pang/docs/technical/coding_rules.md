@@ -43,6 +43,7 @@ Examples:
 
 - Move gameplay items through `ItemTransferUtility` instead of calling paired `AddItem` / `RemoveItem` or `AddStack` / `RemoveStack` directly from task flow.
 - Use `MoveItem` for quantity-based workflow lines, reservations, and allocation/progress accounting.
+- Only consume source pick reservations through an explicit transfer option such as `consumeSourcePickReservation`; plain container removal must not imply reservation consumption.
 - Use `MoveItemAsStack` when a quantity is converted into a new stack object, such as packaging picked items into an `ItemPackage`.
 - Use `MoveAllStacks` only for whole-stack transfers where stack identity must be preserved, such as packaged outbound cargo.
 - Treat `TransferResultKind.None`, `Partial`, and `Complete` explicitly before advancing a task.
