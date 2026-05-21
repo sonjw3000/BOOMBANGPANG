@@ -26,23 +26,25 @@ The current implementation already covers:
 - direct head-on conflicts use priority comparison
 - low-priority routes may request detours
 - detouring routes inherit the priority of the route they are clearing for
+- direct head-on conflicts can fall back to one-worker yield
+- one-worker yield holds the yielding worker until its original cell is vacated after priority passage
 
-The current implementation does not have yield plans.
+The current implementation does not have group yield plans.
 
 ---
 
 ## Future Goal
 
-Yield should become an explicit traffic behavior.
+Group yield should become an explicit traffic behavior.
 
-Yield means:
+Group yield means:
 
 ```text
 a worker temporarily moves to a valid clearing or parking cell
 so a priority route or priority group can pass
 ```
 
-Yield is not just a normal detour. A yield path's target is a traffic-clearing cell, not the next node of the worker's original route.
+The current one-worker yield is only a local fallback. Future group yield should plan multiple participants and protected cells together.
 
 ---
 
@@ -50,7 +52,7 @@ Yield is not just a normal detour. A yield path's target is a traffic-clearing c
 
 Universe Logistics should treat movement congestion as visible logistics pressure, not hidden magic.
 
-Future yield planning should:
+Future group yield planning should:
 
 - keep movement behavior readable
 - make bottlenecks debuggable
@@ -68,7 +70,7 @@ A one-tile corridor with no passing space can become a real bottleneck. That sho
 
 ## Non-Goals
 
-Future yield should not:
+Future group yield should not:
 
 - teleport workers
 - support atomic position swaps
@@ -82,7 +84,7 @@ Future yield should not:
 
 ## Why Current Detours Are Not Enough
 
-The current coordinator can resolve simple head-on conflicts by making the lower-priority route request a detour.
+The current coordinator can resolve simple head-on conflicts by making the lower-priority route request a detour or perform one-worker yield.
 
 This can still fail in one-tile corridors or chains.
 
@@ -377,4 +379,3 @@ Each stage should keep current movement behavior debuggable and avoid large rewr
 - Should priority consider task type, carried item value, or settlement urgency?
 - Should no-yield-space become a player-facing warning immediately, or remain debug-only first?
 - Should traffic plan locks live inside `TrafficCoordinator` or be exposed through `GridService`?
-

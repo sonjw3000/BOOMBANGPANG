@@ -35,6 +35,7 @@ public class GridCell
 {
 	private int tile = 0;
 	private GridFlags flags = GridFlags.None;
+	private readonly Dictionary<GameObject, GridFlags> flagsByObject = new();
 
 	private GameObject objectRef = null;
 
@@ -63,6 +64,11 @@ public class GridCell
 	public void Set(in FootprintCell cellFootprint, GameObject obj)
 	{
 		flags |= cellFootprint.flags;
+		if (obj != null)
+		{
+			flagsByObject.TryGetValue(obj, out GridFlags objectFlags);
+			flagsByObject[obj] = objectFlags | cellFootprint.flags;
+		}
 
 		if (cellFootprint.flags.HasFlag(GridFlags.Interaction) == false)
 			objectRef = obj;
@@ -71,6 +77,7 @@ public class GridCell
 	public void Clear()
 	{
 		flags = GridFlags.None;
+		flagsByObject.Clear();
 		objectRef = null;
 	}
 
@@ -78,7 +85,27 @@ public class GridCell
 	{
 		if (objectRef == obj)
 			objectRef = null;
+
+		if (obj != null && flagsByObject.TryGetValue(obj, out GridFlags objectFlags))
+		{
+			objectFlags &= ~cellFootprint.flags;
+			if (objectFlags == GridFlags.None)
+				flagsByObject.Remove(obj);
+			else
+				flagsByObject[obj] = objectFlags;
+
+			RebuildFlags();
+			return;
+		}
+
 		flags &= ~cellFootprint.flags;
+	}
+
+	private void RebuildFlags()
+	{
+		flags = GridFlags.None;
+		foreach (GridFlags objectFlags in flagsByObject.Values)
+			flags |= objectFlags;
 	}
 
 	public bool TryReserve(FindRoute routeWorker)

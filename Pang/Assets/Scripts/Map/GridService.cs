@@ -66,6 +66,8 @@ public class GridService : MonoBehaviour
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
 
+	public bool IsPlacedObject(GameObject targetObj) => targetObj != null && placedObjects.ContainsKey(targetObj);
+
 	private EconomyService Economy => GameContext.Instance.EconomyService;
 	private WorkerSpawnManager WorkerSpawnMgr => GameContext.Instance.WorkerSpawnMgr;
 
@@ -225,6 +227,7 @@ public class GridService : MonoBehaviour
 		}
 
 		IInteractionPoint interactable = obj.GetComponent<IInteractionPoint>();
+		interactable?.ClearInteractionPoints();
 
 
 		GridFootprint footprint = ctx.placeableDefinition.gridFootprint;
@@ -302,6 +305,11 @@ public class GridService : MonoBehaviour
 
 	public bool OnRemove(GameObject targetObj)
 	{
+		return OnRemove(targetObj, true);
+	}
+
+	public bool OnRemove(GameObject targetObj, bool destroyObject)
+	{
 		if (placedObjects.TryGetValue(targetObj, out var context) == false)
 		{
 			Debug.Log("cant get");
@@ -325,7 +333,14 @@ public class GridService : MonoBehaviour
 		}
 
 		placedObjects.Remove(targetObj);
-		Destroy(targetObj);
+		if (targetObj.TryGetComponent<IGridPlacementEffect>(out var placementEffect))
+			placementEffect.OnRemoved();
+
+		if (targetObj.TryGetComponent<IInteractionPoint>(out var interactable))
+			interactable.ClearInteractionPoints();
+
+		if (destroyObject)
+			Destroy(targetObj);
 
 		return true;
 	}

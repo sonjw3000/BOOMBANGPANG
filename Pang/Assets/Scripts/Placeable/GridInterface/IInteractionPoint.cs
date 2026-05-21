@@ -14,6 +14,8 @@ public class InteractionPoint
 
 public interface IInteractionPoint
 {
+	public void ClearInteractionPoints();
+
 	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point);
 
 	public int3 GetClosestInteractionPoint(InteractionKind interactionKind, in int3 from);

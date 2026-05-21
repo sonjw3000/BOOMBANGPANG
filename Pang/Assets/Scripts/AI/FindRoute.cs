@@ -29,6 +29,7 @@ public class FindRoute : MonoBehaviour
 	private bool stopAfterCurrentStep = false;
 	private bool hasPendingGoal = false;
 	private bool hasCurrentGoal = false;
+	private bool isYieldMove = false;
 	private int3 currentGoalPos;
 	private int3 pendingGoalPos;
 	private GridCell waitingCell = null;
@@ -357,6 +358,7 @@ public class FindRoute : MonoBehaviour
 		ClearWait();
 		hasPendingGoal = false;
 		hasCurrentGoal = false;
+		isYieldMove = false;
 		ResetCurrentPathPlan(true);
 		movementState = MovementState.Arrived;
 		worker.enabled = true;
@@ -379,6 +381,17 @@ public class FindRoute : MonoBehaviour
 	{
 		ClearPlannedPathRegistration();
 		ClearPathBuffer();
+
+		if (isYieldMove)
+		{
+			isYieldMove = false;
+			movementState = MovementState.Blocked;
+			worker.enabled = false;
+			enabled = false;
+			TrafficCoordinator.NotifyYieldArrived(this);
+			return;
+		}
+
 		hasCurrentGoal = false;
 
 		movementState = MovementState.Arrived;
@@ -414,11 +427,33 @@ public class FindRoute : MonoBehaviour
 			return false;
 
 		ClearWait();
+		isYieldMove = false;
 		stopAfterCurrentStep = false;
 		hasPendingGoal = false;
 		ResetCurrentPathPlan(true);
 
 		PathRequest request = new(this, worker.GridPosition, goalCell, worker.Direction);
+		PathFinding.RequestRoute(request);
+
+		movementState = MovementState.PathPending;
+		worker.enabled = false;
+		enabled = false;
+
+		return true;
+	}
+
+	public bool RequestYieldMove(in int3 yieldCell)
+	{
+		if (hasCurrentGoal == false)
+			return false;
+
+		ClearWait();
+		stopAfterCurrentStep = false;
+		hasPendingGoal = false;
+		isYieldMove = true;
+		ResetCurrentPathPlan(true);
+
+		PathRequest request = new(this, worker.GridPosition, yieldCell, worker.Direction);
 		PathFinding.RequestRoute(request);
 
 		movementState = MovementState.PathPending;
@@ -481,6 +516,7 @@ public class FindRoute : MonoBehaviour
 	private bool ApplyGoalPosition(in int3 goalPos)
 	{
 		ClearWait();
+		isYieldMove = false;
 		stopAfterCurrentStep = false;
 		currentGoalPos = goalPos;
 		hasCurrentGoal = true;
@@ -528,6 +564,15 @@ public class FindRoute : MonoBehaviour
 
 		if (pathBuffer == null || pathBuffer.Path?.Count <= 0)
 		{
+			if (isYieldMove)
+			{
+				isYieldMove = false;
+				movementState = MovementState.Blocked;
+				TrafficCoordinator.NotifyYieldMoveFailed(this);
+				enabled = false;
+				return;
+			}
+
 			movementState = MovementState.Failed;
 			RefreshPlannedPathRegistration();
 			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} could not find a route to the goal.");

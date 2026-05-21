@@ -29,6 +29,12 @@ public abstract class ItemInteraction :
 	public abstract void OnRemoved();
 
 	// interaction point
+	public void ClearInteractionPoints()
+	{
+		interactionPoints.Clear();
+		interactionPointMap.Clear();
+	}
+
 	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point)
 	{
 		interactionPoints.Add(new(interactionKind, point));

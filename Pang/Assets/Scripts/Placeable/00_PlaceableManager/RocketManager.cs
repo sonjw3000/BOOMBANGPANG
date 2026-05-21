@@ -190,12 +190,33 @@ public class RocketManager : GridPlaceableManager<Rocket>
 
 	public void DisableRocket(Rocket rocket)
 	{
-		for (int i = rocket.transform.childCount - 1; i >= 0; i--)
-			rocket.transform.GetChild(i).SetParent(null);
+		if (rocket == null)
+			return;
+
+		if (GridService != null && GridService.IsPlacedObject(rocket.gameObject))
+			GridService.OnRemove(rocket.gameObject, destroyObject: false);
+
+		DetachCargoChildren(rocket);
 
 		rocket.gameObject.SetActive(false);
+		if (rocketPoolParent != null)
+			rocket.transform.SetParent(rocketPoolParent.transform, false);
+
 		activeRockets.Remove(rocket);
-		rocketPool.Enqueue(rocket);
+		if (rocketPool.Contains(rocket) == false)
+			rocketPool.Enqueue(rocket);
+	}
+
+	private static void DetachCargoChildren(Rocket rocket)
+	{
+		for (int i = rocket.transform.childCount - 1; i >= 0; --i)
+		{
+			Transform child = rocket.transform.GetChild(i);
+			if (child.TryGetComponent<BoxBase>(out _) == false)
+				continue;
+
+			child.SetParent(null);
+		}
 	}
 
 	private void InstantiateNewRocket()

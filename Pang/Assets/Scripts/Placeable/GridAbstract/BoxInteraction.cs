@@ -35,6 +35,12 @@ public abstract class BoxInteraction :
 	public abstract WorkerStatusTarget BuildingTarget { get; }
 
 	// interaction point
+	public void ClearInteractionPoints()
+	{
+		interactionPoints.Clear();
+		interactionPointMap.Clear();
+	}
+
 	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point)
 	{
 		interactionPoints.Add(new(interactionKind, point));
