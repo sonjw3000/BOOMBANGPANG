@@ -49,7 +49,7 @@ public class WaitNode : IBaseNode
 		{
 			isRunning = false;
 
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.None);
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.Idle);
 
 			return NodeState.Success;
 		}
