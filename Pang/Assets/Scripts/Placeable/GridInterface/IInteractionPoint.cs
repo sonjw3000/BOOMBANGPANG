@@ -1,4 +1,5 @@
-﻿using Unity.Mathematics;
+﻿using System.Collections.Generic;
+using Unity.Mathematics;
 
 public class InteractionPoint
 {
@@ -14,6 +15,8 @@ public class InteractionPoint
 
 public interface IInteractionPoint
 {
+	public IReadOnlyList<InteractionPoint> InteractionPoints { get; }
+
 	public void AddInteractionPoint(InteractionKind interactionKind, in int3 point);
 
 	public int3 GetClosestInteractionPoint(InteractionKind interactionKind, in int3 from);
