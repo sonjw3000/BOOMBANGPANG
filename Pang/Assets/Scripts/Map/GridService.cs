@@ -281,6 +281,10 @@ public class GridService : MonoBehaviour
 		{
 			for (int x = 0; x < footprint.width; ++x)
 			{
+				var footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
 				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, ctx.facingDirection);
 				int3 target = ctx.center + rotatedOffset;
@@ -289,9 +293,6 @@ public class GridService : MonoBehaviour
 
 				if (gridMap.IsInBound(target) == false)
 					return false;
-
-				// set to cell
-				var footprintCell = footprint.Get(x, z);
 
 				Map[target.x, target.y, target.z].Set(footprintCell, obj);
 
@@ -364,13 +365,17 @@ public class GridService : MonoBehaviour
 		{
 			for (int x = 0; x < footprint.width; ++x)
 			{
+				var footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
 				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = context.center + rotatedOffset;
 				if (gridMap.IsInBound(target) == false)
 					return false;
 				// clear to cell
-				Map[target.x, target.y, target.z].Remove(footprint.Get(x, z), targetObj);
+				Map[target.x, target.y, target.z].Remove(footprintCell, targetObj);
 			}
 		}
 
@@ -469,13 +474,17 @@ public class GridService : MonoBehaviour
 		{
 			for (int x = 0; x < footprint.width; ++x)
 			{
+				var footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
 				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = context.center + rotatedOffset;
 				if (gridMap.IsInBound(target) == false)
 					return PlacementResult.TriedToMoveOutOfBound;
 				// clear to cell
-				Map[target.x, target.y, target.z].Remove(footprint.Get(x, z), findRoute.gameObject);
+				Map[target.x, target.y, target.z].Remove(footprintCell, findRoute.gameObject);
 			}
 		}
 
@@ -484,12 +493,16 @@ public class GridService : MonoBehaviour
 		{
 			for (int x = 0; x < footprint.width; ++x)
 			{
+				var footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
 				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = context.center + rotatedOffset;
 				if (gridMap.IsInBound(target) == false)
 					return PlacementResult.TriedToMoveOutOfBound;
-				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), findRoute.gameObject);
+				Map[target.x, target.y, target.z].Set(footprintCell, findRoute.gameObject);
 			}
 		}
 
@@ -517,11 +530,15 @@ public class GridService : MonoBehaviour
 		{
 			for (int x = 0; x < footprint.width; ++x)
 			{
+				var footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
 				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 target = newCenter + offset;
 
 				// set to cell
-				Map[target.x, target.y, target.z].Set(footprint.Get(x, z), targetObj);
+				Map[target.x, target.y, target.z].Set(footprintCell, targetObj);
 			}
 		}
 		if (targetObj.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
@@ -571,6 +588,11 @@ public class GridService : MonoBehaviour
 		};
 	}
 
+	private static bool IsEmptyFootprintCell(in FootprintCell footprintCell)
+	{
+		return footprintCell.flags == GridFlags.None;
+	}
+
 	private bool EvaluatePlacement(in PlacementContext ctx, List<int3> possibleCell, List<int3> blocked)
 	{
 		bool installable = true;
@@ -582,6 +604,10 @@ public class GridService : MonoBehaviour
 		{
 			for (int x = 0; x < footprint.width; ++x)
 			{
+				FootprintCell footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
 				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, ctx.facingDirection);
 				int3 target = ctx.center + rotatedOffset;
@@ -592,7 +618,6 @@ public class GridService : MonoBehaviour
 					continue;
 				}
 
-				FootprintCell footprintCell = footprint.Get(x, z);
 				bool canPlace = Map[target.x, target.y, target.z].CanPlaceObject;
 				bool meetsEnvironment = DoesFootprintCellMeetPlacementRequirement(footprintCell, target, requirement);
 
