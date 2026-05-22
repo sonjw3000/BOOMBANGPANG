@@ -7,6 +7,8 @@ public struct FootprintCell
 {
 	public GridFlags flags;
 	public InteractionKind interactionKind;
+	public GridOccupancyCategory occupancyCategory;
+	public GridOccupancyCategory overrideTargets;
 }
 
 

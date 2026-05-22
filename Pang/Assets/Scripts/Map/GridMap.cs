@@ -38,6 +38,8 @@ public class GridCell
 	private int regionId = 0;
 
 	private GameObject objectRef = null;
+	private GameObject occupancyObjectRef = null;
+	private GridOccupancyCategory occupancyCategory = GridOccupancyCategory.None;
 
 	private FindRoute reservedBy = null;
 	private readonly HashSet<FindRoute> plannedRoutes = new();
@@ -45,6 +47,7 @@ public class GridCell
 	public int Tile => tile;
 	public GridFlags Flags => flags;
 	public int RegionId => regionId;
+	public GridOccupancyCategory OccupancyCategory => occupancyCategory;
 
 	public bool IsPassable => Flags.HasFlag(GridFlags.BlockMovement | GridFlags.DynamicObstacle);
 	public bool IsBlocked => Flags.HasFlag(GridFlags.BlockMovement);
@@ -52,6 +55,7 @@ public class GridCell
 	public bool SealsSpace => (flags & GridFlags.SealsSpace) != 0;
 	public bool CanPlaceObject => IsBlocked == false && reservedBy == null;
 	public GameObject ObjectOnGrid => objectRef;
+	public GameObject OccupancyObjectOnGrid => occupancyObjectRef;
 
 	public FindRoute ReservedRoute => reservedBy;
 	public int PlannedPathCount => plannedRoutes.Count;
@@ -67,6 +71,8 @@ public class GridCell
 	public void Set(in FootprintCell cellFootprint, GameObject obj)
 	{
 		flags |= cellFootprint.flags;
+		occupancyCategory = cellFootprint.occupancyCategory;
+		occupancyObjectRef = obj;
 
 		if (cellFootprint.flags.HasFlag(GridFlags.Interaction) == false)
 			objectRef = obj;
@@ -77,12 +83,21 @@ public class GridCell
 		flags = GridFlags.None;
 		regionId = 0;
 		objectRef = null;
+		occupancyObjectRef = null;
+		occupancyCategory = GridOccupancyCategory.None;
 	}
 
 	public void Remove(in FootprintCell cellFootprint, GameObject obj)
 	{
 		if (objectRef == obj)
 			objectRef = null;
+
+		if (occupancyObjectRef == obj)
+		{
+			occupancyObjectRef = null;
+			occupancyCategory = GridOccupancyCategory.None;
+		}
+
 		flags &= ~cellFootprint.flags;
 	}
 

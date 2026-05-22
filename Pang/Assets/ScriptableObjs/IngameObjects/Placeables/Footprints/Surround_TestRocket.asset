@@ -10,45 +10,45 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 59dc407d06914e24ea682e07f6ff53a3, type: 3}
-  m_Name: PackingStation
-  m_EditorClassIdentifier: Assembly-CSharp::GridFootprint
+  m_Name: Surround_TestRocket
+  m_EditorClassIdentifier: 
   width: 3
   height: 3
   pivot: {x: 1, y: 1}
   footprintCells:
-  - flags: 0
-    interactionKind: 0
+  - flags: 5
+    interactionKind: 3
     occupancyCategory: 0
     overrideTargets: 0
   - flags: 5
-    interactionKind: 4
+    interactionKind: 3
     occupancyCategory: 0
     overrideTargets: 0
-  - flags: 0
-    interactionKind: 0
+  - flags: 5
+    interactionKind: 3
+    occupancyCategory: 0
+    overrideTargets: 0
+  - flags: 5
+    interactionKind: 3
     occupancyCategory: 0
     overrideTargets: 0
   - flags: 3
     interactionKind: 0
-    occupancyCategory: 64
-    overrideTargets: 0
-  - flags: 3
-    interactionKind: 0
-    occupancyCategory: 64
-    overrideTargets: 0
-  - flags: 3
-    interactionKind: 0
-    occupancyCategory: 64
-    overrideTargets: 0
+    occupancyCategory: 256
+    overrideTargets: 264
   - flags: 5
-    interactionKind: 1
-    occupancyCategory: 0
-    overrideTargets: 0
-  - flags: 0
-    interactionKind: 0
+    interactionKind: 3
     occupancyCategory: 0
     overrideTargets: 0
   - flags: 5
-    interactionKind: 2
+    interactionKind: 3
+    occupancyCategory: 0
+    overrideTargets: 0
+  - flags: 5
+    interactionKind: 3
+    occupancyCategory: 0
+    overrideTargets: 0
+  - flags: 5
+    interactionKind: 3
     occupancyCategory: 0
     overrideTargets: 0

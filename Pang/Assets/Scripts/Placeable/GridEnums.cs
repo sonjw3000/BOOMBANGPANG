@@ -113,6 +113,23 @@ public enum GridFlags
 }
 
 [System.Flags]
+public enum GridOccupancyCategory
+{
+	None = 0,
+	Wall = 1 << 0,
+	Shelf = 1 << 1,
+	CargoPort = 1 << 2,
+	Worker = 1 << 3,
+	Door = 1 << 4,
+	LaunchStation = 1 << 5,
+	PackingStation = 1 << 6,
+	BoxPool = 1 << 7,
+	Rocket = 1 << 8,
+	Machine = 1 << 9,
+	Other = 1 << 10,
+}
+
+[System.Flags]
 public enum InteractionKind : byte
 {
 	None = 0,

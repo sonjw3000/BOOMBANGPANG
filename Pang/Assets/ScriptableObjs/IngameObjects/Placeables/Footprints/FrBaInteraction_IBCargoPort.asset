@@ -10,13 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 59dc407d06914e24ea682e07f6ff53a3, type: 3}
-  m_Name: Base
+  m_Name: FrBaInteraction_IBCargoPort
   m_EditorClassIdentifier: 
   width: 1
-  height: 1
-  pivot: {x: 0, y: 0}
+  height: 3
+  pivot: {x: 0, y: 1}
   footprintCells:
+  - flags: 21
+    interactionKind: 2
+    occupancyCategory: 0
+    overrideTargets: 0
   - flags: 19
     interactionKind: 0
-    occupancyCategory: 1
+    occupancyCategory: 4
+    overrideTargets: 5
+  - flags: 21
+    interactionKind: 1
+    occupancyCategory: 0
     overrideTargets: 0

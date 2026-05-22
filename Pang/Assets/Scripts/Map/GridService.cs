@@ -271,6 +271,9 @@ public class GridService : MonoBehaviour
 			return false;
 		}
 
+		CollectOverrideTargets(ctx, out var overrideTargets);
+		NotifyAndRemoveOverrideTargets(overrideTargets, ctx.placeableDefinition, obj);
+
 		IInteractionPoint interactable = obj.GetComponent<IInteractionPoint>();
 
 
@@ -593,6 +596,83 @@ public class GridService : MonoBehaviour
 		return footprintCell.flags == GridFlags.None;
 	}
 
+	private static bool CanOverride(in FootprintCell footprintCell, GridCell targetCell)
+	{
+		if (targetCell == null || targetCell.OccupancyObjectOnGrid == null)
+			return false;
+
+		GridOccupancyCategory targetCategory = targetCell.OccupancyCategory;
+		if (targetCategory == GridOccupancyCategory.None)
+			return false;
+
+		return (footprintCell.overrideTargets & targetCategory) != 0;
+	}
+
+	private void CollectOverrideTargets(in PlacementContext ctx, out HashSet<GameObject> targets)
+	{
+		targets = new HashSet<GameObject>();
+
+		GridFootprint footprint = ctx.placeableDefinition.gridFootprint;
+		Vector2Int pivot = footprint.Pivot;
+
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				FootprintCell footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, ctx.facingDirection);
+				int3 target = ctx.center + rotatedOffset;
+				GridCell targetCell = GetCell(target);
+				if (CanOverride(footprintCell, targetCell) == false)
+					continue;
+
+				targets.Add(targetCell.OccupancyObjectOnGrid);
+			}
+		}
+	}
+
+	private void NotifyAndRemoveOverrideTargets(HashSet<GameObject> targets, PlaceableDefinition overridingDefinition, GameObject overridingObject)
+	{
+		if (targets == null || targets.Count == 0)
+			return;
+
+		foreach (GameObject target in targets)
+		{
+			if (target == null)
+				continue;
+
+			string overridingName = overridingDefinition != null ? overridingDefinition.name : "UnknownPlaceable";
+			string overridingObjectName = overridingObject != null ? overridingObject.name : "PendingInstance";
+			string targetName = target.name;
+			string targetCategory = "Unknown";
+
+			foreach (var entry in placedObjects)
+			{
+				if (entry.Key != target)
+					continue;
+
+				targetCategory = entry.Value.placeableDefinition != null
+					? entry.Value.placeableDefinition.name
+					: targetCategory;
+				break;
+			}
+
+			Debug.Log($"[GridService] Override triggered: target={targetName}, targetDef={targetCategory}, overriddenBy={overridingName}, overridingObject={overridingObjectName}");
+
+			if (target.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
+			{
+				DestroyContext ctx = DestroyContext.ForOverride(overridingDefinition, overridingObject);
+				gridPlaceable.OnDestroyedBy(in ctx);
+			}
+
+			OnRemove(target);
+		}
+	}
+
 	private bool EvaluatePlacement(in PlacementContext ctx, List<int3> possibleCell, List<int3> blocked)
 	{
 		bool installable = true;
@@ -618,7 +698,8 @@ public class GridService : MonoBehaviour
 					continue;
 				}
 
-				bool canPlace = Map[target.x, target.y, target.z].CanPlaceObject;
+				GridCell targetCell = Map[target.x, target.y, target.z];
+				bool canPlace = targetCell.CanPlaceObject || CanOverride(footprintCell, targetCell);
 				bool meetsEnvironment = DoesFootprintCellMeetPlacementRequirement(footprintCell, target, requirement);
 
 				if (canPlace && meetsEnvironment)

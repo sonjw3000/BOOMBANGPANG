@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: IBCargoPort
   icon: {fileID: 8488313772735436221, guid: 32fb0e71e5c2dfc4f8f275025f792fc6, type: 3}
   prefab: {fileID: 7781608356336454641, guid: f90bfe449eee27b45aab1fa0b205008a, type: 3}
-  gridFootprint: {fileID: 11400000, guid: 219c90ad9ae2ad7458da7bbaa162062f, type: 2}
+  gridFootprint: {fileID: 11400000, guid: 11223344556677889900aabbccddeeff, type: 2}
   definitionType: 0
   placementEnvironment: 3

@@ -18,25 +18,49 @@ MonoBehaviour:
   footprintCells:
   - flags: 3
     interactionKind: 0
+    occupancyCategory: 32
+    overrideTargets: 0
   - flags: 3
     interactionKind: 0
+    occupancyCategory: 32
+    overrideTargets: 0
   - flags: 3
     interactionKind: 0
+    occupancyCategory: 32
+    overrideTargets: 0
   - flags: 0
     interactionKind: 0
+    occupancyCategory: 0
+    overrideTargets: 0
   - flags: 3
     interactionKind: 0
+    occupancyCategory: 32
+    overrideTargets: 0
   - flags: 3
     interactionKind: 0
+    occupancyCategory: 32
+    overrideTargets: 0
   - flags: 3
     interactionKind: 0
+    occupancyCategory: 32
+    overrideTargets: 0
   - flags: 4
     interactionKind: 3
+    occupancyCategory: 0
+    overrideTargets: 0
   - flags: 3
     interactionKind: 0
+    occupancyCategory: 32
+    overrideTargets: 0
   - flags: 3
     interactionKind: 0
+    occupancyCategory: 32
+    overrideTargets: 0
   - flags: 3
     interactionKind: 0
+    occupancyCategory: 32
+    overrideTargets: 0
   - flags: 0
     interactionKind: 0
+    occupancyCategory: 0
+    overrideTargets: 0
