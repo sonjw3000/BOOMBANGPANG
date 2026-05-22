@@ -10,11 +10,16 @@ Shader "Custom/GridBoundaryShader"
 		Tags 
 		{
 			"Queue" = "Transparent"
+			"RenderType" = "Transparent"
 			"RenderPipeline" = "UniversalPipeline"
 		}
 
 		Pass
 		{
+			Blend SrcAlpha OneMinusSrcAlpha
+			ZWrite Off
+			Cull Off
+
 			HLSLPROGRAM
 
 			#pragma vertex vert
