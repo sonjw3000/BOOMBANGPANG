@@ -14,6 +14,8 @@ public class ContractService : MonoBehaviour
 	private readonly ContractHistory contractHistory = new();
 	private bool definitionsLoaded;
 
+	public event Action<ContractRuntime> OnContractExpired;
+
 	public IReadOnlyList<ContractDefinition> ContractDefinitions
 	{
 		get
@@ -45,6 +47,7 @@ public class ContractService : MonoBehaviour
 				continue;
 
 			contractHistory.AddContractResult(contract, GameContext.Instance.GameTime.WeeksPassed);
+			OnContractExpired?.Invoke(contract);
 			expiredContracts.Add(contract);
 		}
 
@@ -65,6 +68,20 @@ public class ContractService : MonoBehaviour
 	{
 		EnsureDefinitionsLoaded();
 		currentActiveContracts.Add(new ContractRuntime(definitions[index], duration, type));
+	}
+
+	public bool TryExtendExpiredContract(ContractRuntime contract, int durationMonths)
+	{
+		if (contract == null || durationMonths <= 0)
+			return false;
+
+		if (currentActiveContracts.Contains(contract))
+			return false;
+
+		contractHistory.RemoveContractResult(contract);
+		contract.Restart(durationMonths);
+		currentActiveContracts.Add(contract);
+		return true;
 	}
 
 	public ContractServiceSaveData CaptureState()

@@ -16,6 +16,11 @@ namespace Assets.Scripts.Contract
 		{
 			contractHistory.Add(contract);
 		}
+
+		public void RemoveContractResult(ContractRuntime contract)
+		{
+			contractHistory.Remove(contract);
+		}
 	}
 
 }
