@@ -27,6 +27,10 @@ public class PlacementResultPayload
 
 public class GridService : MonoBehaviour
 {
+	private const int OutdoorRegionId = 0;
+	private const int BoundaryRegionId = 1;
+	private const int IndoorRegionId = 2;
+
 	[SerializeField] private GameObject placeableParent;
 	[SerializeField] private GameObject gridParent;
 	[SerializeField] private Material gridBoundaryMaterial;
@@ -72,12 +76,12 @@ public class GridService : MonoBehaviour
 		return gridMap.Map[pos.x, pos.y, pos.z].IsBlocked;
 	}
 
-	public bool IsIndoor(in int3 pos) => GetRegionId(pos) >= 1;
-	public bool IsOutdoor(in int3 pos) => GetRegionId(pos) == 0;
+	public bool IsIndoor(in int3 pos) => GetRegionId(pos) == IndoorRegionId;
+	public bool IsOutdoor(in int3 pos) => GetRegionId(pos) == OutdoorRegionId;
 	public int GetRegionId(in int3 pos)
 	{
 		if (gridMap.IsInBound(pos) == false)
-			return 0;
+			return OutdoorRegionId;
 
 		return gridMap.Map[pos.x, pos.y, pos.z].RegionId;
 	}
@@ -636,15 +640,15 @@ public class GridService : MonoBehaviour
 			{
 				for (int z = 0; z < size.z; ++z)
 				{
-					Map[x, y, z].SetRegionId(0);
+					GridCell cell = Map[x, y, z];
+					cell.SetRegionId(cell.SealsSpace ? BoundaryRegionId : OutdoorRegionId);
 				}
 			}
 		}
 
 		EnqueueOutdoorBoundaryCells(size, visited, queue);
-		FloodFill(queue, visited, 0);
+		FloodFill(queue, visited, OutdoorRegionId);
 
-		int nextRegionId = 1;
 		for (int x = 0; x < size.x; ++x)
 		{
 			for (int y = 0; y < size.y; ++y)
@@ -657,8 +661,7 @@ public class GridService : MonoBehaviour
 
 					queue.Enqueue(pos);
 					visited[x, y, z] = true;
-					FloodFill(queue, visited, nextRegionId);
-					nextRegionId++;
+					FloodFill(queue, visited, IndoorRegionId);
 				}
 			}
 		}

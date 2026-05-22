@@ -48,7 +48,7 @@ public class GridCell
 
 	public bool IsPassable => Flags.HasFlag(GridFlags.BlockMovement | GridFlags.DynamicObstacle);
 	public bool IsBlocked => Flags.HasFlag(GridFlags.BlockMovement);
-	public bool IsIndoor => regionId >= 1;
+	public bool IsIndoor => regionId == 2;
 	public bool SealsSpace => (flags & GridFlags.SealsSpace) != 0;
 	public bool CanPlaceObject => IsBlocked == false && reservedBy == null;
 	public GameObject ObjectOnGrid => objectRef;

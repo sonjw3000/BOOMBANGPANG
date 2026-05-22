@@ -3098,58 +3098,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.size
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[0].a
-      value: 0.31764707
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[0].b
-      value: 0.6981132
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[0].g
-      value: 0.6981132
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[0].r
-      value: 0.6981132
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[1].a
-      value: 0.34117648
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[1].b
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[1].g
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[1].r
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[2].a
-      value: 0.34117648
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[2].b
-      value: 0.504717
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[2].g
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 5304894839265657876, guid: c8d3422fa2306504485140fa9339c47c, type: 3}
-      propertyPath: gridBoundaryColor.Array.data[2].r
-      value: 0.6153881
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
