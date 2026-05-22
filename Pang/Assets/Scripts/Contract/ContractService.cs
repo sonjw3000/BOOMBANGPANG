@@ -3,6 +3,7 @@ using UnityEngine;
 using System;
 
 using Assets.Scripts.Contract;
+using Assets.Scripts.UI;
 
 
 public class ContractService : MonoBehaviour
@@ -12,9 +13,9 @@ public class ContractService : MonoBehaviour
 	private readonly List<ContractDefinition> definitions = new();
 	private readonly List<ContractRuntime> currentActiveContracts = new();
 	private readonly ContractHistory contractHistory = new();
+	private EventNoticeService eventNoticeService;
 	private bool definitionsLoaded;
-
-	public event Action<ContractRuntime> OnContractExpired;
+	[SerializeField, Min(1)] private int expiredContractExtensionMonths = 12;
 
 	public IReadOnlyList<ContractDefinition> ContractDefinitions
 	{
@@ -25,6 +26,16 @@ public class ContractService : MonoBehaviour
 		}
 	}
 	public IReadOnlyList<ContractRuntime> ActiveContracts => currentActiveContracts;
+	private EventNoticeService EventNoticeService
+	{
+		get
+		{
+			if (eventNoticeService == null)
+				eventNoticeService = FindFirstObjectByType<EventNoticeService>(FindObjectsInactive.Include);
+
+			return eventNoticeService;
+		}
+	}
 
 	// rocket item queue
 	private readonly Queue<ItemStack> itemsToBeDelivered = new();
@@ -47,7 +58,7 @@ public class ContractService : MonoBehaviour
 				continue;
 
 			contractHistory.AddContractResult(contract, GameContext.Instance.GameTime.WeeksPassed);
-			OnContractExpired?.Invoke(contract);
+			NotifyContractExpired(contract);
 			expiredContracts.Add(contract);
 		}
 
@@ -121,6 +132,23 @@ public class ContractService : MonoBehaviour
 	public void ResetRuntimeState()
 	{
 		currentActiveContracts.Clear();
+	}
+
+	private void NotifyContractExpired(ContractRuntime contract)
+	{
+		if (contract?.Definition == null || EventNoticeService == null)
+			return;
+
+		string contractName = string.IsNullOrWhiteSpace(contract.Definition.ContractName)
+			? "Unnamed Contract"
+			: contract.Definition.ContractName;
+
+		EventNoticeService.ShowNotice(new EventNoticeRequest(
+			"Contract Expired",
+			$"Contract '{contractName}' has expired.\nExtend the same contract for {expiredContractExtensionMonths} months if you want to keep it running.",
+			extraAction: new EventNoticeAction(
+				"Extend Contract",
+				() => TryExtendExpiredContract(contract, expiredContractExtensionMonths))));
 	}
 
 	private void EnsureDefinitionsLoaded()

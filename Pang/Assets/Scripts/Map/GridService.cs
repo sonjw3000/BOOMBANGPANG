@@ -92,7 +92,6 @@ public class GridService : MonoBehaviour
 	private readonly Dictionary<GameObject, PlacementContext> placedObjects = new();
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
-	public event System.Action<PlaceableOverrideReport> OnPlaceableOverridden;
 	public event System.Action OnSpaceRegionsChanged;
 
 	private EconomyService Economy => GameContext.Instance.EconomyService;
@@ -665,7 +664,6 @@ public class GridService : MonoBehaviour
 			}
 
 			Debug.Log($"[GridService] Override triggered: target={targetName}, targetDef={targetCategory}, overriddenBy={overridingName}, overridingObject={overridingObjectName}");
-			OnPlaceableOverridden?.Invoke(new PlaceableOverrideReport(target, targetDefinition, overridingDefinition, overridingObject));
 
 			if (target.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
 			{
