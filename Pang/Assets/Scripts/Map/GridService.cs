@@ -315,6 +315,7 @@ public class GridService : MonoBehaviour
 			ctx.center.y,
 			ctx.center.z
 		);
+		obj.transform.rotation = GetRotation(ctx.facingDirection);
 
 		placedObjects[obj] = ctx;
 
@@ -555,6 +556,18 @@ public class GridService : MonoBehaviour
 			FacingDirection.South => new int3(-offset.x, 0, -offset.z),
 			FacingDirection.West => new int3(-offset.z, 0, offset.x),
 			_ => offset
+		};
+	}
+
+	private static Quaternion GetRotation(FacingDirection direction)
+	{
+		return direction switch
+		{
+			FacingDirection.North => Quaternion.identity,
+			FacingDirection.East => Quaternion.Euler(0f, 90f, 0f),
+			FacingDirection.South => Quaternion.Euler(0f, 180f, 0f),
+			FacingDirection.West => Quaternion.Euler(0f, 270f, 0f),
+			_ => Quaternion.identity
 		};
 	}
 

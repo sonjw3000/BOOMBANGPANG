@@ -125,6 +125,7 @@ public class PlacementPreview : MonoBehaviour
 		if (currentPreview != null)
 		{
 			currentPreview.transform.position = new Vector3(previewCenter.x, previewCenter.y, previewCenter.z);
+			currentPreview.transform.rotation = GetRotation(Interaction.Direction);
 		}
 	}
 
@@ -152,5 +153,18 @@ public class PlacementPreview : MonoBehaviour
 
 		currentPreview = pollingPreview[curToBePlaced.placeableID];
 		currentPreview.SetActive(true);
+		currentPreview.transform.rotation = GetRotation(Interaction.Direction);
+	}
+
+	private static Quaternion GetRotation(FacingDirection direction)
+	{
+		return direction switch
+		{
+			FacingDirection.North => Quaternion.identity,
+			FacingDirection.East => Quaternion.Euler(0f, 90f, 0f),
+			FacingDirection.South => Quaternion.Euler(0f, 180f, 0f),
+			FacingDirection.West => Quaternion.Euler(0f, 270f, 0f),
+			_ => Quaternion.identity
+		};
 	}
 }
