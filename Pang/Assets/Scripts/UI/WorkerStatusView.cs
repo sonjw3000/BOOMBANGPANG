@@ -104,6 +104,7 @@ public class WorkerStatusView : MonoBehaviour
 	private bool IsAlwaysVisible(WorkerStatusAction action)
 	{
 		return action == WorkerStatusAction.WaitingForItems ||
+			   action == WorkerStatusAction.TrafficBlock ||
 			   action == WorkerStatusAction.WaitingForTargetBuilding ||
 			   action == WorkerStatusAction.HandlingMistake ||
 			   action == WorkerStatusAction.Collapse;

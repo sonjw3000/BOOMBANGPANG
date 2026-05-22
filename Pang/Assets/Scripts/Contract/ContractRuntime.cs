@@ -108,5 +108,14 @@ namespace Assets.Scripts.Contract
 			this.deliveryDelta = deliveryDelta;
 			AutoRenewal = autoRenewal;
 		}
+
+		public void Restart(int durationMonths)
+		{
+			totalDuration = Mathf.Max(1, durationMonths) * 4;
+			remainDuration = totalDuration;
+			deliveryDelta = 0;
+			resultPerWeek.Clear();
+			resultPerWeek.AddLast(new ContractResult());
+		}
 	}
 }

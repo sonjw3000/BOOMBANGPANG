@@ -16,5 +16,6 @@ MonoBehaviour:
   displayName: PalletRobot
   icon: {fileID: -4566190091907096745, guid: 83392a0c45d009b4ca9b8bc8ec04cc55, type: 3}
   prefab: {fileID: 4046099219731300723, guid: 828fff7bc15f652488cc1c8019a1469f, type: 3}
-  gridFootprint: {fileID: 11400000, guid: 49041a8338c2ff0458278621b2ceac95, type: 2}
+  gridFootprint: {fileID: 11400000, guid: 7a0d6a9e4e7e4abf8e1d9b2c3f4a5b61, type: 2}
   definitionType: 2
+  placementEnvironment: 3

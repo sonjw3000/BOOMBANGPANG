@@ -1,4 +1,5 @@
-﻿using Assets.Scripts.AI.BT;
+﻿using System;
+using Assets.Scripts.AI.BT;
 using System.Collections.Generic;
 using UnityEngine;
 using static WorkerTask;
@@ -15,6 +16,10 @@ public class WorkerManager : MonoBehaviour
 	// 일단 기다려봐
 	[SerializeField] private List<AIWorker> workers = new();
 	private Dictionary<TaskType, List<AIWorker>> workersPerTaskType = new();
+	private readonly Dictionary<TaskType, Dictionary<WorkerStatusAction, int>> workerStatusCountsPerTaskType = new();
+	private readonly Dictionary<TaskType, int> trafficBlockedCountsPerTaskType = new();
+	private readonly Dictionary<WorkerStatusAction, int> workerStatusCounts = new();
+	private int trafficBlockedCount = 0;
 
 	// 중간지점 삭제를 할 경우도 있다
 	private readonly Dictionary<TaskType, LinkedList<AIWorker>> idleWorkersQueue = new();
@@ -29,12 +34,15 @@ public class WorkerManager : MonoBehaviour
 	public IReadOnlyList<AIWorker> Workers => workers;
 	public int CostPerMonth => monthlyCost;
 	public uint NextWorkerId => nextWorkerID;
+	public int TrafficBlockedCount => trafficBlockedCount;
 	// todo
 	// 전역 블랙보드의 관리는 다른곳에 넘겨야함
 	private BlackBoard globalBlackboard;
 
 	private void Awake()
 	{
+		InitializeWorkerStatusCounts();
+
 		foreach (TaskType type in System.Enum.GetValues(typeof(TaskType)))
 		{
 			workersPerTaskType[type] = new();
@@ -45,6 +53,9 @@ public class WorkerManager : MonoBehaviour
 
 	public void RegisterWorker(AIWorker worker, bool preserveWorkerId = false)
 	{
+		if (worker == null || workers.Contains(worker))
+			return;
+
 		workers.Add(worker);
 		workersPerTaskType[worker.TaskType].Add(worker);
 
@@ -59,11 +70,17 @@ public class WorkerManager : MonoBehaviour
 		}
 
 		monthlyCost += worker.MonthlyCost;
+		SubscribeWorker(worker);
+		RegisterWorkerStatus(worker);
 	}
 
 	public void UnregisterWorker(AIWorker worker)
 	{
-		workers.Remove(worker);
+		if (worker == null || workers.Remove(worker) == false)
+			return;
+
+		UnregisterWorkerStatus(worker);
+		UnsubscribeWorker(worker);
 		workersPerTaskType[worker.TaskType].Remove(worker);
 		RemoveIdleWorker(worker);
 
@@ -203,6 +220,9 @@ public class WorkerManager : MonoBehaviour
 		workers.Clear();
 		monthlyCost = 0;
 		nextWorkerID = 0;
+		trafficBlockedCount = 0;
+
+		ResetWorkerStatusCounts();
 
 		foreach (TaskType type in System.Enum.GetValues(typeof(TaskType)))
 		{
@@ -215,5 +235,161 @@ public class WorkerManager : MonoBehaviour
 	public void SetNextWorkerId(uint nextWorkerId)
 	{
 		nextWorkerID = nextWorkerId > nextWorkerID ? nextWorkerId : nextWorkerID;
+	}
+
+	public int GetTaskWorkerStatusCount(TaskType taskType, WorkerStatusAction statusAction)
+	{
+		if (statusAction == WorkerStatusAction.TrafficBlock)
+			return trafficBlockedCountsPerTaskType.TryGetValue(taskType, out int trafficCount) ? trafficCount : 0;
+
+		if (workerStatusCountsPerTaskType.TryGetValue(taskType, out var statusCounts) == false)
+			return 0;
+
+		return statusCounts.TryGetValue(statusAction, out int count) ? count : 0;
+	}
+
+	public int GetWorkerStatusCount(WorkerStatusAction statusAction)
+	{
+		if (statusAction == WorkerStatusAction.TrafficBlock)
+			return trafficBlockedCount;
+
+		return workerStatusCounts.TryGetValue(statusAction, out int count) ? count : 0;
+	}
+
+	public void RebuildWorkerStatusCaches()
+	{
+		ResetWorkerStatusCounts();
+
+		for (int i = 0; i < workers.Count; ++i)
+		{
+			RegisterWorkerStatus(workers[i]);
+		}
+	}
+
+	private void SubscribeWorker(AIWorker worker)
+	{
+		worker.OnStatusChanged += OnWorkerStatusChanged;
+		worker.OnTaskTypeChanged += OnWorkerTaskTypeChanged;
+		worker.OnTrafficBlockChanged += OnWorkerTrafficBlockChanged;
+	}
+
+	private void UnsubscribeWorker(AIWorker worker)
+	{
+		worker.OnStatusChanged -= OnWorkerStatusChanged;
+		worker.OnTaskTypeChanged -= OnWorkerTaskTypeChanged;
+		worker.OnTrafficBlockChanged -= OnWorkerTrafficBlockChanged;
+	}
+
+	private void OnWorkerStatusChanged(AIWorker worker, WorkerStatusAction oldStatus, WorkerStatusAction newStatus)
+	{
+		if (worker == null || oldStatus == newStatus)
+			return;
+
+		MoveStatusCount(worker.TaskType, oldStatus, newStatus);
+	}
+
+	private void OnWorkerTaskTypeChanged(AIWorker worker, TaskType oldTaskType, TaskType newTaskType)
+	{
+		if (worker == null || oldTaskType == newTaskType)
+			return;
+
+		WorkerStatusAction currentStatus = worker.EffectiveStatusAction;
+		AdjustStatusCount(oldTaskType, currentStatus, -1);
+		AdjustStatusCount(newTaskType, currentStatus, 1);
+
+		if (worker.IsTrafficBlocked)
+		{
+			AdjustTrafficBlockedCount(oldTaskType, -1);
+			AdjustTrafficBlockedCount(newTaskType, 1);
+		}
+	}
+
+	private void OnWorkerTrafficBlockChanged(AIWorker worker, bool isBlocked)
+	{
+		if (worker == null)
+			return;
+
+		AdjustTrafficBlockedCount(worker.TaskType, isBlocked ? 1 : -1);
+	}
+
+	private void RegisterWorkerStatus(AIWorker worker)
+	{
+		if (worker == null)
+			return;
+
+		AdjustStatusCount(worker.TaskType, worker.EffectiveStatusAction, 1);
+
+		if (worker.IsTrafficBlocked)
+			AdjustTrafficBlockedCount(worker.TaskType, 1);
+	}
+
+	private void UnregisterWorkerStatus(AIWorker worker)
+	{
+		if (worker == null)
+			return;
+
+		AdjustStatusCount(worker.TaskType, worker.EffectiveStatusAction, -1);
+
+		if (worker.IsTrafficBlocked)
+			AdjustTrafficBlockedCount(worker.TaskType, -1);
+	}
+
+	private void MoveStatusCount(TaskType taskType, WorkerStatusAction oldStatus, WorkerStatusAction newStatus)
+	{
+		AdjustStatusCount(taskType, oldStatus, -1);
+		AdjustStatusCount(taskType, newStatus, 1);
+	}
+
+	private void AdjustStatusCount(TaskType taskType, WorkerStatusAction statusAction, int delta)
+	{
+		if (statusAction == WorkerStatusAction.TrafficBlock)
+			return;
+
+		workerStatusCountsPerTaskType[taskType][statusAction] = Mathf.Max(0, workerStatusCountsPerTaskType[taskType][statusAction] + delta);
+		workerStatusCounts[statusAction] = Mathf.Max(0, workerStatusCounts[statusAction] + delta);
+	}
+
+	private void AdjustTrafficBlockedCount(TaskType taskType, int delta)
+	{
+		trafficBlockedCountsPerTaskType[taskType] = Mathf.Max(0, trafficBlockedCountsPerTaskType[taskType] + delta);
+		trafficBlockedCount = Mathf.Max(0, trafficBlockedCount + delta);
+	}
+
+	private void InitializeWorkerStatusCounts()
+	{
+		foreach (WorkerStatusAction statusAction in Enum.GetValues(typeof(WorkerStatusAction)))
+		{
+			workerStatusCounts[statusAction] = 0;
+		}
+
+		foreach (TaskType taskType in Enum.GetValues(typeof(TaskType)))
+		{
+			Dictionary<WorkerStatusAction, int> statusCounts = new();
+			foreach (WorkerStatusAction statusAction in Enum.GetValues(typeof(WorkerStatusAction)))
+			{
+				statusCounts[statusAction] = 0;
+			}
+
+			workerStatusCountsPerTaskType[taskType] = statusCounts;
+			trafficBlockedCountsPerTaskType[taskType] = 0;
+		}
+	}
+
+	private void ResetWorkerStatusCounts()
+	{
+		foreach (WorkerStatusAction statusAction in Enum.GetValues(typeof(WorkerStatusAction)))
+		{
+			workerStatusCounts[statusAction] = 0;
+		}
+
+		foreach (TaskType taskType in Enum.GetValues(typeof(TaskType)))
+		{
+			foreach (WorkerStatusAction statusAction in Enum.GetValues(typeof(WorkerStatusAction)))
+			{
+				workerStatusCountsPerTaskType[taskType][statusAction] = 0;
+			}
+
+			trafficBlockedCountsPerTaskType[taskType] = 0;
+		}
 	}
 }

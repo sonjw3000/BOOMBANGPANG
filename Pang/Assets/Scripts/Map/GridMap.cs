@@ -35,20 +35,28 @@ public class GridCell
 {
 	private int tile = 0;
 	private GridFlags flags = GridFlags.None;
+	private int regionId = 0;
 	private readonly Dictionary<GameObject, GridFlags> flagsByObject = new();
 
 	private GameObject objectRef = null;
+	private GameObject occupancyObjectRef = null;
+	private GridOccupancyCategory occupancyCategory = GridOccupancyCategory.None;
 
 	private FindRoute reservedBy = null;
 	private readonly HashSet<FindRoute> plannedRoutes = new();
 
 	public int Tile => tile;
 	public GridFlags Flags => flags;
+	public int RegionId => regionId;
+	public GridOccupancyCategory OccupancyCategory => occupancyCategory;
 
 	public bool IsPassable => Flags.HasFlag(GridFlags.BlockMovement | GridFlags.DynamicObstacle);
 	public bool IsBlocked => Flags.HasFlag(GridFlags.BlockMovement);
+	public bool IsIndoor => regionId == 2;
+	public bool SealsSpace => (flags & GridFlags.SealsSpace) != 0;
 	public bool CanPlaceObject => IsBlocked == false && reservedBy == null;
 	public GameObject ObjectOnGrid => objectRef;
+	public GameObject OccupancyObjectOnGrid => occupancyObjectRef;
 
 	public FindRoute ReservedRoute => reservedBy;
 	public int PlannedPathCount => plannedRoutes.Count;
@@ -64,6 +72,8 @@ public class GridCell
 	public void Set(in FootprintCell cellFootprint, GameObject obj)
 	{
 		flags |= cellFootprint.flags;
+		occupancyCategory = cellFootprint.occupancyCategory;
+		occupancyObjectRef = obj;
 		if (obj != null)
 		{
 			flagsByObject.TryGetValue(obj, out GridFlags objectFlags);
@@ -77,14 +87,24 @@ public class GridCell
 	public void Clear()
 	{
 		flags = GridFlags.None;
+		regionId = 0;
 		flagsByObject.Clear();
 		objectRef = null;
+		occupancyObjectRef = null;
+		occupancyCategory = GridOccupancyCategory.None;
 	}
 
 	public void Remove(in FootprintCell cellFootprint, GameObject obj)
 	{
 		if (objectRef == obj)
 			objectRef = null;
+
+		if (occupancyObjectRef == obj)
+		{
+			occupancyObjectRef = null;
+			occupancyCategory = GridOccupancyCategory.None;
+		}
+
 
 		if (obj != null && flagsByObject.TryGetValue(obj, out GridFlags objectFlags))
 		{
@@ -99,6 +119,11 @@ public class GridCell
 		}
 
 		flags &= ~cellFootprint.flags;
+	}
+
+	public void SetRegionId(int value)
+	{
+		regionId = value < 0 ? 0 : value;
 	}
 
 	private void RebuildFlags()

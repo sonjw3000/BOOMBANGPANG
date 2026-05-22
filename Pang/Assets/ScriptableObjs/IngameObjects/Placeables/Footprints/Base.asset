@@ -16,5 +16,7 @@ MonoBehaviour:
   height: 1
   pivot: {x: 0, y: 0}
   footprintCells:
-  - flags: 3
+  - flags: 19
     interactionKind: 0
+    occupancyCategory: 1
+    overrideTargets: 0

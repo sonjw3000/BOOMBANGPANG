@@ -236,6 +236,8 @@ public sealed class GameSaveService : MonoBehaviour
 				Ctx.TaskMgr.EnqueueTask(task);
 			}
 		}
+
+		Ctx.WorkerMgr.RebuildWorkerStatusCaches();
 	}
 
 	private PlaceableSaveData CapturePlaceable(GameObject obj, PlacementContext ctx)

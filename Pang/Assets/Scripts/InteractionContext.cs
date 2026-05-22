@@ -173,7 +173,6 @@ public class InteractionContext
 					def: toBePlaced
 				);
 				GridService.OnInstall(ctx);
-				ExitPlacementMode();
 				break;
 
 			case InteractionMode.ZonePlacement:

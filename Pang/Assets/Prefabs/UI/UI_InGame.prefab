@@ -3676,6 +3676,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6901851434643414991}
   - component: {fileID: 4078164640579252978}
+  - component: {fileID: 7714475366775286390}
   m_Layer: 0
   m_Name: UI_InGame
   m_TagString: Untagged
@@ -3729,6 +3730,23 @@ MonoBehaviour:
   backFromSettingsButton: {fileID: 7220428139763864896}
   confirmTitleButton: {fileID: 74951576780055743}
   cancelTitleButton: {fileID: 1572444879556008225}
+--- !u!114 &7714475366775286390
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3570038266190241319}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0a366066213a460586cd6a415fbcd6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.UI.EventNoticeService
+  eventNoticeWindowPrefab: {fileID: 1727248438672667693, guid: a71e83e031dbd43b78d07f5c9b673760, type: 3}
+  windowParent: {fileID: 9168031254211916281}
+  initialPoolSize: 1
+  initialWindowPosition: {x: 0, y: 0}
+  stackedWindowOffset: {x: 32, y: -32}
 --- !u!1 &3816298065006803977
 GameObject:
   m_ObjectHideFlags: 0
@@ -11028,6 +11046,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: ContractMarketWindow
       objectReference: {fileID: 0}
+    - target: {fileID: 7424631645820559811, guid: 8bf35268baefd244dbe4bb2a50e32bb6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7429642364288084737, guid: 8bf35268baefd244dbe4bb2a50e32bb6, type: 3}
       propertyPath: m_AnchorMax.y
       value: 1
@@ -12474,7 +12496,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6727698451403023750, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
       propertyPath: m_AnchorMax.y

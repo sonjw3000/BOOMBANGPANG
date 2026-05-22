@@ -25,6 +25,7 @@ public class LaunchStation
 	public int3 GridPosition => gridPosition;
 	public FacingDirection Direction => facingDirection;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.LaunchStation;
+	public IReadOnlyList<InteractionPoint> InteractionPoints => interactionPoints;
 	
 	private LaunchStationService LaunchStations => GameContext.Instance.OBWorkflowMgr.LaunchStations;
 
