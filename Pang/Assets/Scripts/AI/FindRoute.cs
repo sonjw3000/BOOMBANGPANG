@@ -396,13 +396,20 @@ public class FindRoute : MonoBehaviour
 	{
 		ClearWait();
 		movementState = MovementState.Blocked;
+		worker?.BeginTrafficBlock();
 		enabled = false;
 	}
 
 	public void ResumeFromTraffic()
 	{
 		ClearWait();
+		worker?.EndTrafficBlock();
 		enabled = true;
+	}
+
+	public void ClearTrafficBlockState()
+	{
+		worker?.EndTrafficBlock();
 	}
 	private void OnWaitTimeout()
 	{

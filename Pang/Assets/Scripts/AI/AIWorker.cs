@@ -44,6 +44,7 @@ public enum WorkerStatusAction
 	Resting,
 	Charging,
 	Working,
+	TrafficBlock,
 }
 
 public enum WorkerStatusTarget
@@ -107,6 +108,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private BehaviorTree behaviorTree;
 	private readonly BlackBoard localBlackBoard = new();
 	private WorkerStatusInfo workerState = WorkerStatusInfo.None;
+	private WorkerStatusAction preTrafficAction = WorkerStatusAction.None;
 	private GameObject currentVisualInstance;
 	private WorkerVisualDefinition currentVisualDefinition;
 	private CarryBoxAbility carryingAbility;
@@ -116,9 +118,13 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	private IInteractionPoint currentWorkingPoint = null;
 	private bool isRegistered = false;
+	private bool isTrafficBlocked = false;
 
 	// event
 	public event System.Action<WorkerStatusAction> OnActionChanged;
+	public event System.Action<AIWorker, WorkerStatusAction, WorkerStatusAction> OnStatusChanged;
+	public event System.Action<AIWorker, WorkerTask.TaskType, WorkerTask.TaskType> OnTaskTypeChanged;
+	public event System.Action<AIWorker, bool> OnTrafficBlockChanged;
 
 	// worker identity
 	public string Name
@@ -164,7 +170,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	// worker show stat
 	public WorkerStatusInfo WorkerState => workerState;
+	public WorkerStatusAction EffectiveStatusAction => isTrafficBlocked ? preTrafficAction : workerState.Action;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.None;
+	public bool IsTrafficBlocked => isTrafficBlocked;
 	public FindRoute RouteFinder => routeFinder;
 
 	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
@@ -174,11 +182,50 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	// worker show stat setting
 	public void SetWorkerAction(WorkerStatusAction action) 
 	{
-		if (workerState.Action == action) return;
+		if (isTrafficBlocked)
+		{
+			if (preTrafficAction == action)
+				return;
+
+			WorkerStatusAction previousAction = preTrafficAction;
+			preTrafficAction = action;
+			OnStatusChanged?.Invoke(this, previousAction, action);
+			return;
+		}
+
+		if (workerState.Action == action)
+			return;
+
+		WorkerStatusAction oldAction = workerState.Action;
 		workerState.Action = action;
+		preTrafficAction = action;
 		OnActionChanged?.Invoke(action);
+		OnStatusChanged?.Invoke(this, oldAction, action);
 	}
 	public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = target;
+
+	public void BeginTrafficBlock()
+	{
+		if (isTrafficBlocked)
+			return;
+
+		isTrafficBlocked = true;
+		preTrafficAction = workerState.Action;
+		workerState.Action = WorkerStatusAction.TrafficBlock;
+		OnActionChanged?.Invoke(workerState.Action);
+		OnTrafficBlockChanged?.Invoke(this, true);
+	}
+
+	public void EndTrafficBlock()
+	{
+		if (isTrafficBlocked == false)
+			return;
+
+		isTrafficBlocked = false;
+		workerState.Action = preTrafficAction;
+		OnActionChanged?.Invoke(workerState.Action);
+		OnTrafficBlockChanged?.Invoke(this, false);
+	}
 
 	// should build BT here
 	private void BuildBehaviorTree()
@@ -329,7 +376,12 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public void ChangeWorkerType(WorkerTask.TaskType taskType)
 	{
+		if (workerMainTaskType == taskType)
+			return;
+
+		WorkerTask.TaskType previousTaskType = workerMainTaskType;
 		workerMainTaskType = taskType;
+		OnTaskTypeChanged?.Invoke(this, previousTaskType, taskType);
 	}
 
 	public void SetTask(WorkerTask task)
@@ -624,6 +676,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		minimumWorkSpeedMultiplier = data.MinimumWorkSpeedMultiplier;
 		workerMainTaskType = data.MainTaskType;
 		workerState = new WorkerStatusInfo(data.StatusAction, data.StatusTarget);
+		preTrafficAction = workerState.Action;
+		isTrafficBlocked = false;
 		tick = 0;
 
 		if (string.IsNullOrWhiteSpace(data.VisualId) == false)

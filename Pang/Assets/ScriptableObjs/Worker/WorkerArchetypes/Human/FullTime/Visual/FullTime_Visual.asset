@@ -12,5 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51d80e577b235904d95f599b26aa4bac, type: 3}
   m_Name: FullTime_Visual
   m_EditorClassIdentifier: Assembly-CSharp::WorkerVisualDefinition
-  Prefab: {fileID: 1846314387945317029, guid: 46faedb62fda05b4aad09b932a9c5db1, type: 3}
+  visualId: 
+  Prefab: {fileID: 7331134585344668008, guid: 698171ac80eb54541a87a4a5e61dd97b, type: 3}
   icon: {fileID: 0}

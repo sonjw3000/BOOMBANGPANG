@@ -241,6 +241,7 @@ public class TrafficCoordinator : MonoBehaviour
 		if (route == null || waitingRoutes.Remove(route) == false)
 			return;
 
+		route.ClearTrafficBlockState();
 		CleanupUnusedWaitCellSubscriptions();
 	}
 
