@@ -1,12 +1,25 @@
 ﻿using TMPro;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using static OrderTotalStatus;
 using static WorkerTask.TaskType;
 
 public class StatusTrackingUI : MonoBehaviour
 {
+	private static readonly WorkerStatusAction[] trackedWorkerStatuses =
+	{
+		WorkerStatusAction.Idle,
+		WorkerStatusAction.MovingTo,
+		WorkerStatusAction.Working,
+		WorkerStatusAction.WaitingForItems,
+		WorkerStatusAction.WaitingForTargetBuilding,
+		WorkerStatusAction.TrafficBlock,
+		WorkerStatusAction.Resting,
+		WorkerStatusAction.Charging,
+		WorkerStatusAction.HandlingMistake,
+		WorkerStatusAction.Collapse,
+	};
+
 	[Header("Task Tracking")]
 	[SerializeField] private TMP_Text taskUnload;
 	[SerializeField] private TMP_Text taskStore;
@@ -49,42 +62,50 @@ public class StatusTrackingUI : MonoBehaviour
 
 	private string BuildTaskTrackingText(WorkerTask.TaskType taskType, string label)
 	{
-		string trackingText = $"{label}	| Queue: {Metrics.GetQueueLength(taskType)} | Working: {Metrics.GetOnProgressLength(taskType)}";
-		List<string> detailParts = new();
-
-		AddDetailPart(detailParts, "WaitInput", Metrics.GetTaskWorkerStatusCount(taskType, WorkerStatusAction.WaitingForItems));
-		AddDetailPart(detailParts, "Traffic", Metrics.GetTaskWorkerStatusCount(taskType, WorkerStatusAction.TrafficBlock));
-		AddDetailPart(detailParts, "WaitTarget", Metrics.GetTaskWorkerStatusCount(taskType, WorkerStatusAction.WaitingForTargetBuilding));
+		string trackingText = $"{label} | Queue: {Metrics.GetQueueLength(taskType)} | Working: {Metrics.GetOnProgressLength(taskType)}";
+		List<string> detailParts = BuildStatusParts(status => Metrics.GetTaskWorkerStatusCount(taskType, status));
 
 		if (detailParts.Count == 0)
 			return trackingText;
 
-		return $"{trackingText}\n  {string.Join(" | ", detailParts)}";
+		return $"{trackingText}\n     {string.Join(" | ", detailParts)}";
 	}
 
 	private string BuildWorkerSummaryText()
 	{
-		List<string> summaryParts = new();
-		AddDetailPart(summaryParts, "Idle", Metrics.GetWorkerStatusCount(WorkerStatusAction.Idle));
-		AddDetailPart(summaryParts, "Moving", Metrics.GetWorkerStatusCount(WorkerStatusAction.MovingTo));
-		AddDetailPart(summaryParts, "WaitInput", Metrics.GetWorkerStatusCount(WorkerStatusAction.WaitingForItems));
-		AddDetailPart(summaryParts, "Traffic", Metrics.GetWorkerStatusCount(WorkerStatusAction.TrafficBlock));
-		AddDetailPart(summaryParts, "WaitTarget", Metrics.GetWorkerStatusCount(WorkerStatusAction.WaitingForTargetBuilding));
-		AddDetailPart(summaryParts, "Resting", Metrics.GetWorkerStatusCount(WorkerStatusAction.Resting));
-		AddDetailPart(summaryParts, "Charging", Metrics.GetWorkerStatusCount(WorkerStatusAction.Charging));
-		AddDetailPart(summaryParts, "HandlingMistake", Metrics.GetWorkerStatusCount(WorkerStatusAction.HandlingMistake));
-		AddDetailPart(summaryParts, "Collapse", Metrics.GetWorkerStatusCount(WorkerStatusAction.Collapse));
+		List<string> summaryParts = BuildStatusParts(Metrics.GetWorkerStatusCount);
 
 		return summaryParts.Count > 0
-			? $"Workers | {string.Join(" | ", summaryParts)}"
-			: "Workers | No active status";
+			? $"Worker Status | {string.Join(" | ", summaryParts)}"
+			: "Worker Status | None";
 	}
 
-	private static void AddDetailPart(List<string> parts, string label, int value)
+	private static List<string> BuildStatusParts(System.Func<WorkerStatusAction, int> countProvider)
 	{
-		if (value > 0)
+		List<string> parts = new();
+
+		for (int i = 0; i < trackedWorkerStatuses.Length; ++i)
 		{
-			parts.Add($"{label} {value}");
+			WorkerStatusAction status = trackedWorkerStatuses[i];
+			int value = countProvider(status);
+
+			if (value <= 0)
+				continue;
+
+			parts.Add($"{GetStatusLabel(status)}: {value}");
 		}
+
+		return parts;
+	}
+
+	private static string GetStatusLabel(WorkerStatusAction status)
+	{
+		return status switch
+		{
+			WorkerStatusAction.WaitingForItems => "WaitingFor",
+			WorkerStatusAction.WaitingForTargetBuilding => "WaitTarget",
+			WorkerStatusAction.TrafficBlock => "Blocked",
+			_ => status.ToString(),
+		};
 	}
 }
