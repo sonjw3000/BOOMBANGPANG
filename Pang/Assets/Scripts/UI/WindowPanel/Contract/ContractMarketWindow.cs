@@ -34,6 +34,7 @@ namespace Assets.Scripts.UI
 
 		public void Open()
 		{
+			gameObject.SetActive(true);
 			EnsureInitialized();
 			if (window == null)
 				return;
@@ -53,6 +54,7 @@ namespace Assets.Scripts.UI
 				return;
 
 			window.Close();
+			gameObject.SetActive(false);
 		}
 
 		private void RefreshList()
