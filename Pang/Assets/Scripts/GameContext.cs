@@ -80,6 +80,7 @@ public class GameContext : MonoBehaviour
 
 	private DeliveryService deliveryService = new();
 	private GameSaveService saveService;
+	private DemoGoalService demoGoalService;
 
 	private InteractionContext interactionCtx;
 
@@ -180,6 +181,7 @@ public class GameContext : MonoBehaviour
 	public DeliveryService DeliveryService => deliveryService;
 	public InteractionContext InteractionCtx => interactionCtx;
 	public GameSaveService SaveService => saveService;
+	public DemoGoalService DemoGoalService => demoGoalService;
 
 	private void Awake()
 	{
@@ -198,6 +200,10 @@ public class GameContext : MonoBehaviour
 		saveService = GetComponent<GameSaveService>();
 		if (saveService == null)
 			saveService = gameObject.AddComponent<GameSaveService>();
+
+		demoGoalService = GetComponent<DemoGoalService>();
+		if (demoGoalService == null)
+			demoGoalService = gameObject.AddComponent<DemoGoalService>();
 		//DontDestroyOnLoad(gameObject);
 	}
 

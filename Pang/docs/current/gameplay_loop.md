@@ -109,6 +109,13 @@ The player is expected to analyze the results and improve the logistics system a
 
 ---
 
+## Demo Goal
+
+The current demo clear condition is reaching the configured reputation target.
+The demo goal system reads reputation from the economy owner, announces the target at game start, and announces game clear once the target is reached.
+
+---
+
 ## Continuous Optimization
 
 The gameplay loop is designed around continuous operational optimization.

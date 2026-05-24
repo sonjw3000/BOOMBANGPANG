@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -26,6 +27,8 @@ public class EconomyService : MonoBehaviour
 
 	private readonly List<EconomyTransaction> history = new();
 
+	public event Action<float> OnReputationChanged;
+
 	public int Money => money;
 	public float Reputation => reputation;
 
@@ -37,10 +40,14 @@ public class EconomyService : MonoBehaviour
 	}
 	public void ApplyTransaction(EconomyTransaction transaction)
 	{
+		float previousReputation = reputation;
 		money += transaction.moneyDelta;
 		reputation += transaction.reputationDelta;
 
 		history.Add(transaction);
+
+		if (Mathf.Approximately(previousReputation, reputation) == false)
+			OnReputationChanged?.Invoke(reputation);
 	}
 
 	public void OnPlacement(PlacementContext context)
@@ -97,9 +104,13 @@ public class EconomyService : MonoBehaviour
 		if (data == null)
 			return;
 
+		float previousReputation = reputation;
 		money = data.Money;
 		reputation = data.Reputation;
 		history.Clear();
+
+		if (Mathf.Approximately(previousReputation, reputation) == false)
+			OnReputationChanged?.Invoke(reputation);
 	}
 
 }
