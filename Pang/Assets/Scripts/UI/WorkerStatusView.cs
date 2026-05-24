@@ -114,8 +114,10 @@ public class WorkerStatusView : MonoBehaviour
 	{
 		if (worker != null)
 		{
-			// Update position to be above worker
-			transform.position = worker.transform.position + Vector3.up * heightOffset;
+			Transform statusSlot = worker.StatusSlot;
+			transform.position = statusSlot != null
+				? statusSlot.position
+				: worker.transform.position + Vector3.up * heightOffset;
 
 			// Billboarding
 			if (Camera.main != null)

@@ -13,7 +13,7 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 
 	protected override void OnInit()
 	{
-		boxSlot = Worker.transform.Find("SlotRoot");
+		boxSlot = Worker != null ? Worker.CarrySlot : transform.Find("SlotRoot");
 
 		if (boxSlot == null)
 		{
@@ -32,10 +32,10 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 		// 뭐 있는지 확인 해야함
 		if (boxSlot == null)
 		{
-			boxSlot = transform.Find("SlotRoot");
+			boxSlot = Worker != null ? Worker.CarrySlot : null;
 
 			if (boxSlot == null)
-				boxSlot = Worker != null ? Worker.transform.Find("SlotRoot") : null;
+				boxSlot = transform.Find("SlotRoot");
 		}
 
 		if (boxSlot == null)

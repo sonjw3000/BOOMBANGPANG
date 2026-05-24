@@ -112,6 +112,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private GameObject currentVisualInstance;
 	private WorkerVisualDefinition currentVisualDefinition;
 	private CarryBoxAbility carryingAbility;
+	private Transform currentVisualCarrySlot;
+	private Transform currentVisualStatusSlot;
+	private Transform defaultCarrySlot;
 
 	private int3 position;
 	private FacingDirection facingDirection;
@@ -174,6 +177,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.None;
 	public bool IsTrafficBlocked => isTrafficBlocked;
 	public FindRoute RouteFinder => routeFinder;
+	public Transform CarrySlot => ResolveCarrySlot();
+	public Transform StatusSlot => currentVisualStatusSlot;
 
 	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 	static private GridService GridService => GameContext.Instance.GridService;
@@ -283,6 +288,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		}
 
 		currentVisualDefinition = visualDefinition;
+		currentVisualCarrySlot = null;
+		currentVisualStatusSlot = null;
 
 		if (visualDefinition == null || visualDefinition.Prefab == null)
 			return;
@@ -292,9 +299,36 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		currentVisualInstance.transform.localPosition = Vector3.zero;
 		currentVisualInstance.transform.localRotation = Quaternion.identity;
 		currentVisualInstance.transform.localScale = Vector3.one;
+		currentVisualCarrySlot = FindVisualSlot(currentVisualInstance.transform, "CarrySlot");
+		currentVisualStatusSlot = FindVisualSlot(currentVisualInstance.transform, "StatusSlot");
 
 		// Keep presentation under VisualRoot so animation/presenter components can be added later
 		// without mixing visual-only hierarchy concerns into gameplay/root components.
+	}
+
+	private Transform ResolveCarrySlot()
+	{
+		if (currentVisualCarrySlot != null)
+			return currentVisualCarrySlot;
+
+		if (defaultCarrySlot == null)
+			defaultCarrySlot = transform.Find("SlotRoot");
+
+		return defaultCarrySlot;
+	}
+
+	private static Transform FindVisualSlot(Transform root, string slotName)
+	{
+		if (root == null)
+			return null;
+
+		foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+		{
+			if (child.name == slotName)
+				return child;
+		}
+
+		return null;
 	}
 
 	private void Start()
