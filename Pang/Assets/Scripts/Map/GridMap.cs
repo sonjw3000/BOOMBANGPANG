@@ -71,17 +71,26 @@ public class GridCell
 
 	public void Set(in FootprintCell cellFootprint, GameObject obj)
 	{
-		flags |= cellFootprint.flags;
+		GridFlags flagsToSet = GetGridFlagsForPlacement(cellFootprint.flags);
+		flags |= flagsToSet;
 		occupancyCategory = cellFootprint.occupancyCategory;
 		occupancyObjectRef = obj;
 		if (obj != null)
 		{
 			flagsByObject.TryGetValue(obj, out GridFlags objectFlags);
-			flagsByObject[obj] = objectFlags | cellFootprint.flags;
+			flagsByObject[obj] = objectFlags | flagsToSet;
 		}
 
 		if (cellFootprint.flags.HasFlag(GridFlags.Interaction) == false)
 			objectRef = obj;
+	}
+
+	private static GridFlags GetGridFlagsForPlacement(GridFlags source)
+	{
+		if ((source & GridFlags.Interaction) == 0)
+			return source;
+
+		return source & ~(GridFlags.BlockMovement | GridFlags.DynamicObstacle | GridFlags.SealsSpace);
 	}
 
 	public void Clear()

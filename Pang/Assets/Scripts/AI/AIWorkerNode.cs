@@ -130,7 +130,18 @@ public abstract partial class AIWorker
 
 			if (nextPool != null)
 			{
-				int3 goalPos = nextPool.GetClosestInteractionPoint(InteractionKind.Pick, in context.Worker.position);
+				if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+					nextPool,
+					InteractionKind.Pick,
+					context.Worker.position,
+					GridService,
+					out int3 goalPos,
+					out _) == false)
+				{
+					context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+					return MoveToStandbyWhileWaiting(context);
+				}
+
 				context.Worker.SetWorkerTarget(WorkerStatusTarget.BoxPool);
 				context.Worker.SetWorkerAction(WorkerStatusAction.MovingTo);
 				context.Worker.routeFinder.enabled = true;
@@ -259,7 +270,18 @@ public abstract partial class AIWorker
 			}
 
 			var interaction = building as IInteractionPoint;
-			int3 goalPos = interaction.GetClosestInteractionPoint(kind, in ctx.Worker.position);
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				interaction,
+				kind,
+				ctx.Worker.position,
+				GridService,
+				out int3 goalPos,
+				out _) == false)
+			{
+				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+				ctx.LocalBlackBoard.RemoveTargetBuilding();
+				return MoveToStandbyWhileWaiting(ctx);
+			}
 
 			ctx.Worker.routeFinder.enabled = true;
 			ctx.Worker.routeFinder.SetGoalPosition(goalPos);
