@@ -39,11 +39,14 @@ public sealed class NearestCollectingPolicy<TRequestLine> : ICollectingPolicy<TR
 			if (source == null)
 				continue;
 
-			int3 interactionPos = source.GetClosestInteractionPoint(InteractionKind.Pick, workerPos);
-			int dist =
-				math.abs(workerPos.x - interactionPos.x) +
-				math.abs(workerPos.y - interactionPos.y) +
-				math.abs(workerPos.z - interactionPos.z);
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				source,
+				InteractionKind.Pick,
+				workerPos,
+				GameContext.Instance.GridService,
+				out _,
+				out int dist) == false)
+				continue;
 
 			if (dist < bestDist)
 			{
@@ -79,11 +82,14 @@ public sealed class LargestQuantityNearestCollectingPolicy<TRequestLine> : IColl
 				continue;
 
 			int quantity = candidates[i].Quantity;
-			int3 interactionPos = source.GetClosestInteractionPoint(InteractionKind.Pick, workerPos);
-			int dist =
-				math.abs(workerPos.x - interactionPos.x) +
-				math.abs(workerPos.y - interactionPos.y) +
-				math.abs(workerPos.z - interactionPos.z);
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				source,
+				InteractionKind.Pick,
+				workerPos,
+				GameContext.Instance.GridService,
+				out _,
+				out int dist) == false)
+				continue;
 
 			if (quantity > bestQuantity || (quantity == bestQuantity && dist < bestDist))
 			{

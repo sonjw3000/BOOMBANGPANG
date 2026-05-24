@@ -52,13 +52,15 @@ public class CargoPortService : GridPlaceableManager<CargoPort>, ICollectSupplyS
 				CanAcceptAllStacks(candidate, box) == false)
 				continue;
 
-			int3 boxPos = candidate.GridPosition;
-			int3 posDelta = new int3(pos.x - boxPos.x, 0, pos.z - boxPos.z);
-			posDelta.x *= posDelta.x;
-			posDelta.y *= posDelta.y;
-			posDelta.z *= posDelta.z;
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				candidate,
+				interactionKind,
+				pos,
+				GameContext.Instance.GridService,
+				out _,
+				out int sum) == false)
+				continue;
 
-			int sum = posDelta.x + posDelta.y + posDelta.z;
 			if (posPowMin > sum)
 			{
 				posPowMin = sum;

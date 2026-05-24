@@ -41,11 +41,14 @@ public class NearestPlacingPolicy : IPlacingPolicy
 				continue;
 			}
 
-			int3 shelfInteraction = shelf.GetClosestInteractionPoint(InteractionKind.Put, workerPos);
-			int dist =
-				math.abs(workerPos.x - shelfInteraction.x) +
-				math.abs(workerPos.y - shelfInteraction.y) +
-				math.abs(workerPos.z - shelfInteraction.z);
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				shelf,
+				InteractionKind.Put,
+				workerPos,
+				GameContext.Instance.GridService,
+				out _,
+				out int dist) == false)
+				continue;
 
 			if (dist < bestDist)
 			{
@@ -93,6 +96,15 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 				continue;
 			}
 
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				shelf,
+				InteractionKind.Put,
+				workerPos,
+				GameContext.Instance.GridService,
+				out _,
+				out _) == false)
+				continue;
+
 			candidates.Add(shelf);
 			filledPercentSum += shelf.FilledPercent;
 		}
@@ -115,11 +127,14 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 				continue;
 			}
 
-			int3 shelfInteraction = shelf.GetClosestInteractionPoint(InteractionKind.Put, workerPos);
-			int dist =
-				math.abs(workerPos.x - shelfInteraction.x) +
-				math.abs(workerPos.y - shelfInteraction.y) +
-				math.abs(workerPos.z - shelfInteraction.z);
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				shelf,
+				InteractionKind.Put,
+				workerPos,
+				GameContext.Instance.GridService,
+				out _,
+				out int dist) == false)
+				continue;
 
 			if (dist < bestDist)
 			{
@@ -140,4 +155,3 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 		return true;
 	}
 }
-

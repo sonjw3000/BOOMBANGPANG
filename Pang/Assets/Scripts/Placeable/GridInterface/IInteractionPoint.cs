@@ -25,3 +25,51 @@ public interface IInteractionPoint
 
 	public bool IsInteractionAvailable(InteractionKind interactionKind);
 }
+
+public static class InteractionPointSelector
+{
+	public static bool TryGetClosestSameRegionInteractionPoint(
+		IInteractionPoint target,
+		InteractionKind interactionKind,
+		in int3 from,
+		GridService gridService,
+		out int3 point,
+		out int distance)
+	{
+		point = default;
+		distance = int.MaxValue;
+
+		if (target == null || gridService == null)
+			return false;
+
+		IReadOnlyList<InteractionPoint> interactionPoints = target.InteractionPoints;
+		if (interactionPoints == null || interactionPoints.Count <= 0)
+			return false;
+
+		bool found = false;
+		for (int i = 0; i < interactionPoints.Count; ++i)
+		{
+			InteractionPoint interactionPoint = interactionPoints[i];
+			if ((interactionPoint.InteractionKind & interactionKind) == 0)
+				continue;
+
+			int3 candidate = interactionPoint.Point;
+			if (gridService.IsSameRegion(from, candidate) == false)
+				continue;
+
+			int candidateDistance =
+				math.abs(from.x - candidate.x) +
+				math.abs(from.y - candidate.y) +
+				math.abs(from.z - candidate.z);
+
+			if (candidateDistance >= distance)
+				continue;
+
+			point = candidate;
+			distance = candidateDistance;
+			found = true;
+		}
+
+		return found;
+	}
+}

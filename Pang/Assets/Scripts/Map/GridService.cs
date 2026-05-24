@@ -86,6 +86,11 @@ public class GridService : MonoBehaviour
 		return gridMap.Map[pos.x, pos.y, pos.z].RegionId;
 	}
 
+	public bool IsSameRegion(in int3 from, in int3 to)
+	{
+		return GetRegionId(from) == GetRegionId(to);
+	}
+
 	public IEnumerable<KeyValuePair<GameObject, PlacementContext>> GetPlacedObjectsSnapshot() => placedObjects;
 
 
