@@ -17,6 +17,7 @@ public class Rocket : ShelfBase
 	[SerializeField] private float launchSpeed = 10.0f;
 	[SerializeField] private float launchHeight = 100.0f;
 	[SerializeField] private int3 landingPoint;
+	[SerializeField] private RocketLandingOutcome landingOutcome;
 	private Vector3 forwardVector = new Vector3(0, 1, 0);
 	private RocketState state = RocketState.Landing;
 
@@ -27,6 +28,7 @@ public class Rocket : ShelfBase
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 	public int3 LandingPos => landingPoint;
 	public RocketState State => state;
+	public RocketLandingOutcome LandingOutcome => landingOutcome;
 
 
 	public void Update()
@@ -83,8 +85,33 @@ public class Rocket : ShelfBase
 		this.forwardVector = forwardVector.normalized;
 		this.fallingSpeed = fallingSpeed;
 		this.state = RocketState.Landing;
+		landingOutcome = default;
 	}
 
+	public void SetLandingOutcome(in RocketLandingOutcome outcome)
+	{
+		landingOutcome = outcome;
+	}
+
+	public void ApplyLandingOutcome()
+	{
+		if (landingOutcome.HasOverride)
+			OnLandingOverrideApplied();
+
+		if (landingOutcome.Severity == RocketLandingSeverity.Hard)
+			OnHardLandingApplied();
+		else
+			OnSoftLandingApplied();
+	}
+
+	// Hook for future cargo-quality changes on normal landings.
+	private void OnSoftLandingApplied() { }
+
+	// Hook for future cargo-quality changes on hard landings.
+	private void OnHardLandingApplied() { }
+
+	// Hook for future extra effects when the landing rocket overrides other objects.
+	private void OnLandingOverrideApplied() { }
 
 	public void SetupPayloadByDelivery()
 	{
@@ -130,6 +157,22 @@ public class Rocket : ShelfBase
 	{
 		return stacks;
 	}
+
+	protected override void OnDestroyedByCore(in DestroyContext ctx)
+	{
+		if (ctx.IsOverride &&
+			ctx.overriddenByObject != null &&
+			ctx.overriddenByObject.TryGetComponent<Rocket>(out var overridingRocket))
+		{
+			OnOverriddenByRocket(overridingRocket, in ctx);
+			return;
+		}
+
+		base.OnDestroyedByCore(in ctx);
+	}
+
+	// Hook for future cargo-quality changes on the overridden rocket.
+	private void OnOverriddenByRocket(Rocket overridingRocket, in DestroyContext ctx) { }
 
 	public RocketSaveData CaptureState()
 	{

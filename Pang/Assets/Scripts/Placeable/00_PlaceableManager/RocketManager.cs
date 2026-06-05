@@ -13,6 +13,7 @@ public class RocketManager : GridPlaceableManager<Rocket>
 
 	[SerializeField] private Vector2 fallingTimeRange = new(3.0f, 7.0f);
 	[SerializeField] private Vector2 fallingSpeedRange = new(3.0f, 7.0f);
+	[SerializeField] [Range(0.0f, 1.0f)] private float hardLandingChance = 0.35f;
 
 	[SerializeField] private float timeSinceLastSpawn = 0.0f;
 	[SerializeField] private float spawnInterval = 10.0f;
@@ -21,6 +22,7 @@ public class RocketManager : GridPlaceableManager<Rocket>
 
 	[SerializeField] private List<Rocket> activeRockets = new();
 	private readonly Queue<Rocket> rocketPool = new();
+	private readonly List<GameObject> overridePreviewTargets = new();
 
 	public IReadOnlyList<ShelfBase> Rockets => activeRockets;
 
@@ -243,19 +245,65 @@ public class RocketManager : GridPlaceableManager<Rocket>
 	{
 		activeRockets.Add(rocket);
 
+		RocketLandingOutcome landingOutcome = BuildLandingOutcome(rocket.LandingPos);
+		rocket.SetLandingOutcome(in landingOutcome);
+
 		PlacementContext ctx = new(
 			rocket.LandingPos,
 			landingFacingDirection,
 			rocketPD,
-			PlacementEvent.RocketCrashLanding,
+			GetPlacementEvent(in landingOutcome),
 			rocket.gameObject
 		);
 
 		rocket.transform.position = Vector3.zero;
-		GridService.OnInstall(ctx);
+		if (GridService.OnInstall(ctx) == false)
+		{
+			Debug.LogError($"[RocketManager] Failed to install landed rocket at {rocket.LandingPos}.");
+			return;
+		}
+
 		rocket.enabled = false;
+		rocket.ApplyLandingOutcome();
 
 		IBWorkflowMgr.BuildTaskByPayload(rocket);
+	}
+
+	private RocketLandingOutcome BuildLandingOutcome(in int3 landingPoint)
+	{
+		RocketLandingSeverity severity = UnityEngine.Random.value < hardLandingChance
+			? RocketLandingSeverity.Hard
+			: RocketLandingSeverity.Soft;
+
+		PlacementContext previewContext = new(
+			landingPoint,
+			landingFacingDirection,
+			rocketPD,
+			PlacementEvent.RocketCrashLanding
+		);
+
+		GridService.GetOverrideTargets(previewContext, overridePreviewTargets);
+
+		int overriddenRocketCount = 0;
+		for (int i = 0; i < overridePreviewTargets.Count; ++i)
+		{
+			GameObject target = overridePreviewTargets[i];
+			if (target != null && target.TryGetComponent<Rocket>(out _))
+				overriddenRocketCount++;
+		}
+
+		return new RocketLandingOutcome(
+			severity,
+			overridePreviewTargets.Count,
+			overriddenRocketCount
+		);
+	}
+
+	private static PlacementEvent GetPlacementEvent(in RocketLandingOutcome landingOutcome)
+	{
+		return landingOutcome.Severity == RocketLandingSeverity.Hard || landingOutcome.HasOverride
+			? PlacementEvent.RocketCrashLanding
+			: PlacementEvent.RocketLanding;
 	}
 
 	public RocketManagerSaveData CaptureState()

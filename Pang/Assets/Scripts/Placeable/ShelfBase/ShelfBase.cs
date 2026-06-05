@@ -283,8 +283,10 @@ public abstract class ShelfBase :
 
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
-
+		OnDestroyedByCore(in ctx);
 	}
+
+	protected virtual void OnDestroyedByCore(in DestroyContext ctx) { }
 
 	public int ReservePicking(uint itemId, int quantity)
 	{

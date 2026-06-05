@@ -246,6 +246,24 @@ public class GridService : MonoBehaviour
 		return EvaluatePlacement(in ctx, possibleCell, blocked);
 	}
 
+	public void GetOverrideTargets(in PlacementContext ctx, List<GameObject> targetsBuffer)
+	{
+		if (targetsBuffer == null)
+			return;
+
+		targetsBuffer.Clear();
+
+		if (ctx.placeableDefinition == null || ctx.placeableDefinition.gridFootprint == null)
+			return;
+
+		CollectOverrideTargets(ctx, out var targets);
+		foreach (GameObject target in targets)
+		{
+			if (target != null)
+				targetsBuffer.Add(target);
+		}
+	}
+
 	// gridPlaceable이 install이 되었을 때
 	public bool OnInstall(in PlacementContext ctx)
 	{
