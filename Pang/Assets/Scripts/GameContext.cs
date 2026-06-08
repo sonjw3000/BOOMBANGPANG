@@ -54,6 +54,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ContractService contractService;
 	[SerializeField] private PathFindingService pathFindingService;
 	[SerializeField] private ZoneManager zoneManager;
+	[SerializeField] private BuildingManager buildingManager;
 	[SerializeField] private WorkerStandbyService workerStandbyService;
 	[SerializeField] private TrafficCoordinator trafficCoordinator;
 
@@ -131,6 +132,22 @@ public class GameContext : MonoBehaviour
 				zoneManager = FindFirstObjectByType<ZoneManager>();
 
 			return zoneManager;
+		}
+	}
+	public BuildingManager BuildingMgr
+	{
+		get
+		{
+			if (buildingManager == null)
+				buildingManager = GetComponent<BuildingManager>();
+
+			if (buildingManager == null)
+				buildingManager = FindFirstObjectByType<BuildingManager>();
+
+			if (buildingManager == null)
+				buildingManager = gameObject.AddComponent<BuildingManager>();
+
+			return buildingManager;
 		}
 	}
 	public WorkerStandbyService WorkerStandbyService
