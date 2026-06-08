@@ -13,13 +13,15 @@ public sealed class Building : MonoBehaviour
 {
 	[SerializeField] private string displayName = string.Empty;
 	[SerializeField] private BuildingType buildingType = BuildingType.Generic;
-	[SerializeField] [HideInInspector] private uint runtimeBuildingId;
+	[SerializeField] private uint runtimeBuildingId;
 
 	private bool isRegistered;
 
 	public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? gameObject.name : displayName;
 	public BuildingType Type => buildingType;
 	public uint RuntimeBuildingId => runtimeBuildingId;
+
+	private BuildingManager BuildingMgr => GameContext.Instance.BuildingMgr;
 
 	private void OnEnable()
 	{
@@ -36,7 +38,7 @@ public sealed class Building : MonoBehaviour
 		if (isRegistered == false || GameContext.HasInstance == false)
 			return;
 
-		GameContext.Instance.BuildingMgr.Unregister(this);
+		BuildingMgr.Unregister(this);
 	}
 
 	internal void AssignRuntimeBuildingId(uint id)
@@ -54,6 +56,6 @@ public sealed class Building : MonoBehaviour
 		if (isRegistered || GameContext.HasInstance == false)
 			return;
 
-		GameContext.Instance.BuildingMgr.Register(this);
+		BuildingMgr.Register(this);
 	}
 }

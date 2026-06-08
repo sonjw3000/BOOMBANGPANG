@@ -8,6 +8,7 @@ public class InteractionContext
 		Select,
 		Placement,
 		ZonePlacement,
+		BuildingPlacement,
 	}
 
 	public readonly struct ZonePlacementPreview
@@ -21,6 +22,22 @@ public class InteractionContext
 		public ZonePlacementPreview(ZoneType zoneType, int floor, in int3 start, in int3 end, bool hasStart)
 		{
 			ZoneType = zoneType;
+			Floor = floor;
+			Start = start;
+			End = end;
+			HasStart = hasStart;
+		}
+	}
+
+	public readonly struct BuildingPlacementPreview
+	{
+		public readonly int Floor;
+		public readonly int3 Start;
+		public readonly int3 End;
+		public readonly bool HasStart;
+
+		public BuildingPlacementPreview(int floor, in int3 start, in int3 end, bool hasStart)
+		{
 			Floor = floor;
 			Start = start;
 			End = end;
@@ -45,6 +62,11 @@ public class InteractionContext
 	private int zonePlacementFloor;
 	private int3 zonePlacementStart;
 
+	// building placement
+	private bool hasBuildingPlacementStart;
+	private int buildingPlacementFloor;
+	private int3 buildingPlacementStart;
+
 	// placement mouse move event
 	public event System.Action<int3> OnMouseChangedOnPlacement;
 	public event System.Action<PlaceableDefinition> OnPlacementChanged;
@@ -57,6 +79,9 @@ public class InteractionContext
 	public event System.Action<ZonePlacementPreview> OnZonePlacementPreviewChanged;
 	public event System.Action<ZoneType> OnZonePlacementChanged;
 	public event System.Action<ZoneType, RectInt, int> OnZonePlacementConfirmed;
+	public event System.Action<BuildingPlacementPreview> OnBuildingPlacementPreviewChanged;
+	public event System.Action<int> OnBuildingPlacementChanged;
+	public event System.Action<RectInt, int> OnBuildingPlacementConfirmed;
 
 	public PlaceableDefinition ToBePlaced => toBePlaced;
 	public InteractionMode Mode => interactionMode;
@@ -80,12 +105,23 @@ public class InteractionContext
 		));
 	}
 
+	private void RaiseBuildingPlacementPreview(in int3 currentPos)
+	{
+		OnBuildingPlacementPreviewChanged?.Invoke(new BuildingPlacementPreview(
+			buildingPlacementFloor,
+			buildingPlacementStart,
+			currentPos,
+			hasBuildingPlacementStart
+		));
+	}
+
 	public void EnterPlacementMode(PlaceableDefinition pd)
 	{
 		interactionMode = InteractionMode.Placement;
 		toBePlaced = pd;
 		selectedObject = null;
 		hasZonePlacementStart = false;
+		hasBuildingPlacementStart = false;
 
 		OnPlacementChanged?.Invoke(toBePlaced);
 	}
@@ -93,9 +129,11 @@ public class InteractionContext
 	public void EnterZonePlacementMode(ZoneType zoneType, int floor)
 	{
 		interactionMode = InteractionMode.ZonePlacement;
+		toBePlaced = null;
 		zoneToBePlaced = zoneType;
 		zonePlacementFloor = floor;
 		hasZonePlacementStart = false;
+		hasBuildingPlacementStart = false;
 		selectedObject = null;
 
 		OnItemSelected?.Invoke(null);
@@ -103,10 +141,26 @@ public class InteractionContext
 		RaiseZonePlacementPreview(mousePos);
 	}
 
+	public void EnterBuildingPlacementMode(int floor)
+	{
+		interactionMode = InteractionMode.BuildingPlacement;
+		toBePlaced = null;
+		buildingPlacementFloor = floor;
+		hasZonePlacementStart = false;
+		hasBuildingPlacementStart = false;
+		selectedObject = null;
+
+		OnItemSelected?.Invoke(null);
+		OnBuildingPlacementChanged?.Invoke(floor);
+		RaiseBuildingPlacementPreview(mousePos);
+	}
+
 	public void ExitPlacementMode()
 	{
 		interactionMode = InteractionMode.Select;
 		toBePlaced = null;
+		hasZonePlacementStart = false;
+		hasBuildingPlacementStart = false;
 
 		OnPlacementChanged?.Invoke(null);
 	}
@@ -121,6 +175,20 @@ public class InteractionContext
 			zoneToBePlaced,
 			zonePlacementFloor,
 			zonePlacementStart,
+			mousePos,
+			false
+		));
+	}
+
+	public void ExitBuildingPlacementMode()
+	{
+		interactionMode = InteractionMode.Select;
+		hasBuildingPlacementStart = false;
+
+		OnBuildingPlacementChanged?.Invoke(buildingPlacementFloor);
+		OnBuildingPlacementPreviewChanged?.Invoke(new BuildingPlacementPreview(
+			buildingPlacementFloor,
+			buildingPlacementStart,
 			mousePos,
 			false
 		));
@@ -143,6 +211,10 @@ public class InteractionContext
 
 			case InteractionMode.ZonePlacement:
 				RaiseZonePlacementPreview(mousePos);
+				break;
+
+			case InteractionMode.BuildingPlacement:
+				RaiseBuildingPlacementPreview(mousePos);
 				break;
 		}
 	}
@@ -192,6 +264,24 @@ public class InteractionContext
 
 				OnZonePlacementConfirmed?.Invoke(zoneToBePlaced, bound, zonePlacementFloor);
 				break;
+
+			case InteractionMode.BuildingPlacement:
+				if (hasBuildingPlacementStart == false)
+				{
+					hasBuildingPlacementStart = true;
+					buildingPlacementStart = pos;
+					RaiseBuildingPlacementPreview(pos);
+					break;
+				}
+
+				int buildingMinX = Mathf.Min(buildingPlacementStart.x, pos.x);
+				int buildingMinZ = Mathf.Min(buildingPlacementStart.z, pos.z);
+				int buildingMaxX = Mathf.Max(buildingPlacementStart.x, pos.x);
+				int buildingMaxZ = Mathf.Max(buildingPlacementStart.z, pos.z);
+				var buildingBound = new RectInt(buildingMinX, buildingMinZ, (buildingMaxX - buildingMinX) + 1, (buildingMaxZ - buildingMinZ) + 1);
+
+				OnBuildingPlacementConfirmed?.Invoke(buildingBound, buildingPlacementFloor);
+				break;
 		}
 	}
 
@@ -208,6 +298,10 @@ public class InteractionContext
 
 			case InteractionMode.ZonePlacement:
 				ExitZonePlacementMode();
+				break;
+
+			case InteractionMode.BuildingPlacement:
+				ExitBuildingPlacementMode();
 				break;
 		}
 	}
