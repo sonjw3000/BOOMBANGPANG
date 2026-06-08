@@ -3,7 +3,7 @@
 
 ## 1 GridService & GridMap
 
-The warehouse simulation is built around a multi-layered spatial grid system.
+The logistics hub simulation is built around a multi-layered spatial grid system.
 
 `GridService` manages:
 - occupancy
@@ -26,6 +26,8 @@ The footprint system supports:
 - multi-tile placement
 - rotation
 - interaction areas
+- specialized building footprints
+- interior facility placement within buildings
 
 Interaction points define where workers can:
 - pick
@@ -50,6 +52,24 @@ This provides a consistent interface for:
 - item queries
 - logistics interaction
 - workflow integration
+
+Cargo ports should increasingly be treated as logistics interfaces between:
+- external inbound/outbound transport
+- building-to-building transfer flow
+- storage and packing side workflow handoffs
+
+---
+
+## 4 Building / Facility / Zone Interpretation
+
+Spatial logic should not treat every operational concept as the same kind of placeable.
+
+Current direction:
+- `Building` = physical hub space and footprint
+- `Facility` = installed logistics or support function inside a building
+- `Zone` = policy or handling rule applied to an area or workflow
+
+This distinction should guide future placement, interaction, and refactoring work.
 
 ---
 

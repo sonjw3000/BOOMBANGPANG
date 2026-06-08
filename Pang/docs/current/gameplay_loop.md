@@ -4,6 +4,8 @@
 
 The current gameplay loop is structured around the flow of cargo through a logistics hub.
 
+That flow can now span multiple specialized buildings instead of only one large warehouse interior.
+
 Inbound
 -> Storage
 -> Order
@@ -14,11 +16,18 @@ Inbound
 
 The player is responsible for stabilizing and optimizing this logistics flow under increasing operational pressure.
 
+At the hub level, this includes:
+- placing specialized buildings such as storage, packing, and launch buildings
+- connecting those buildings through cargo interfaces
+- deciding how cargo moves both inside buildings and between buildings
+
 ---
 
 ## Inbound
 
-Cargo spacecraft arrive and unload goods into the logistics hub.
+Cargo spacecraft arrive and unload goods into the logistics hub through inbound cargo interfaces.
+
+Inbound flow may enter a dedicated storage building directly or pass through transfer cargo ports first.
 
 Inbound logistics may introduce:
 - congestion
@@ -32,7 +41,9 @@ The player must maintain stable unloading flow and storage access.
 
 ## Storage
 
-Items are transported into storage areas and organized throughout the facility.
+Items are transported into storage areas and organized throughout the storage side of the hub.
+
+Storage may live inside dedicated storage buildings rather than being treated as one shared warehouse floor.
 
 Storage layout directly affects:
 - travel distance
@@ -76,6 +87,8 @@ Picking is one of the primary bottleneck sources in the logistics flow.
 
 Retrieved items are packed and prepared for shipment.
 
+Packing may happen in dedicated packing facilities or buildings that receive cargo from storage through transfer logistics.
+
 Packing introduces additional:
 - worker load
 - queue pressure
@@ -88,6 +101,8 @@ Inefficient packing flow may delay outbound logistics.
 ## Outbound
 
 Packed cargo is transferred to outbound logistics infrastructure and launched toward off-world destinations.
+
+Outbound flow may pass through launch buildings and outbound cargo ports rather than leaving directly from the original storage area.
 
 Outbound flow may be affected by:
 - launch delays
@@ -121,6 +136,8 @@ The demo goal system reads reputation from the economy owner, announces the targ
 The gameplay loop is designed around continuous operational optimization.
 
 As the logistics hub expands, the player must:
+- choose where each major building should be placed
+- decide how buildings should connect to one another
 - reorganize layouts
 - expand infrastructure
 - improve worker flow

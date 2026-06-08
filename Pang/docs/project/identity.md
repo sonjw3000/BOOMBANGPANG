@@ -7,6 +7,9 @@ Remote colonies depend heavily on unstable logistics infrastructure, long-distan
 
 The player operates a logistics hub responsible for receiving, storing, processing, and shipping cargo across planetary settlements from the moon.
 
+The intended fantasy is no longer only managing shelves inside a single warehouse.
+The player should increasingly feel like the operator of a lunar logistics hub made up of multiple specialized buildings and the cargo links between them.
+
 The setting combines industrial logistics gameplay with near-future sci-fi elements such as:
 - cargo spacecraft
 - hazardous landings
