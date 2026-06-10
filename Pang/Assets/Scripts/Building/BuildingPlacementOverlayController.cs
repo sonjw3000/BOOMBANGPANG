@@ -1,6 +1,7 @@
 using TMPro;
 using Unity.Mathematics;
 using UnityEngine;
+using System.Collections.Generic;
 
 public sealed class BuildingPlacementOverlayController : MonoBehaviour
 {
@@ -15,9 +16,13 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 	private GameObject previewRoot;
 	private GameObject previewQuad;
 	private GameObject previewLabel;
+	private GameObject proxyRoot;
+	private readonly Dictionary<Building, BuildingSelectionProxy> proxies = new();
 	private bool isVisible;
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
+	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
+	private GridService GridService => GameContext.Instance.GridService;
 	private BuildingFootprintService FootprintService
 	{
 		get
@@ -32,9 +37,13 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 	private void Awake()
 	{
 		previewRoot = new GameObject("BuildingPreviewRoot");
+		proxyRoot = new GameObject("BuildingProxyRoot");
 		Transform worldParent = GameContext.HasInstance ? GameContext.Instance.transform : null;
 		previewRoot.transform.SetParent(worldParent, false);
+		proxyRoot.transform.SetParent(worldParent, false);
 		previewRoot.transform.localScale = Vector3.one;
+		proxyRoot.transform.localScale = Vector3.one;
+		proxyRoot.hideFlags = HideFlags.HideInHierarchy;
 
 		previewQuad = CreateQuad("BuildingPreviewQuad", previewRoot.transform);
 		previewLabel = CreateLabel("BuildingPreviewLabel", previewRoot.transform);
@@ -44,6 +53,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 		Interaction.OnBuildingPlacementPreviewChanged += HandleBuildingPlacementPreviewChanged;
 		Interaction.OnBuildingPlacementConfirmed += HandleBuildingPlacementConfirmed;
+		Interaction.OnResolveSelectionFallback += ResolveBuildingSelection;
 	}
 
 	private void OnDestroy()
@@ -53,6 +63,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 		Interaction.OnBuildingPlacementPreviewChanged -= HandleBuildingPlacementPreviewChanged;
 		Interaction.OnBuildingPlacementConfirmed -= HandleBuildingPlacementConfirmed;
+		Interaction.OnResolveSelectionFallback -= ResolveBuildingSelection;
 	}
 
 	public void SetOverlayVisible(bool visible)
@@ -66,6 +77,9 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 			HidePreview();
 			if (Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement)
 				Interaction.ExitBuildingPlacementMode();
+
+			if (Interaction.SelectedObject != null && Interaction.SelectedObject.TryGetComponent<BuildingSelectionProxy>(out _))
+				Interaction.ClearSelection();
 		}
 	}
 
@@ -117,6 +131,39 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 		if (previewLabel != null)
 			previewLabel.SetActive(false);
+	}
+
+	private GameObject ResolveBuildingSelection(int3 pos)
+	{
+		if (isVisible == false || pos.y != currentFloor || GridService == null || BuildingManager == null)
+			return null;
+
+		GridCell cell = GridService.GetCell(pos);
+		if (cell == null || cell.BuildingId == 0)
+			return null;
+
+		if (BuildingManager.TryGetBuilding(cell.BuildingId, out var building) == false || building == null)
+			return null;
+
+		return GetOrCreateProxy(building).gameObject;
+	}
+
+	private BuildingSelectionProxy GetOrCreateProxy(Building building)
+	{
+		if (proxies.TryGetValue(building, out var proxy) && proxy != null)
+		{
+			proxy.Bind(BuildingManager, building);
+			return proxy;
+		}
+
+		GameObject proxyObject = new($"BuildingSelection_{building.DisplayName}");
+		proxyObject.transform.SetParent(proxyRoot.transform, false);
+		proxyObject.hideFlags = HideFlags.HideInHierarchy;
+
+		proxy = proxyObject.AddComponent<BuildingSelectionProxy>();
+		proxy.Bind(BuildingManager, building);
+		proxies[building] = proxy;
+		return proxy;
 	}
 
 	private GameObject CreateQuad(string objectName, Transform parent)

@@ -109,6 +109,15 @@ public sealed class BuildingManager : MonoBehaviour
 		return building.UnregisterFacility(facility);
 	}
 
+	public bool SetBuildingState(Building building, BuildingState newState)
+	{
+		if (building == null || registeredBuildings.Contains(building) == false)
+			return false;
+
+		building.SetState(newState);
+		return true;
+	}
+
 	public void RebuildLookup()
 	{
 		buildingsById.Clear();

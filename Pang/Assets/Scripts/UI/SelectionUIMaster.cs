@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
 
@@ -45,6 +46,9 @@ public class SelectionUIMaster : MonoBehaviour
 		providers[typeof(RobotWorker)] = new RobotWorkerUIProvider();
 		providers[typeof(HumanWorker)] = new HumanWorkerUIProvider();
 		providers[typeof(ZoneSelectionProxy)] = new ZoneUIProvider();
+		providers[typeof(BuildingSelectionProxy)] = new BuildingUIProvider();
+
+		EnsureRuntimeBuildingDetailContent();
 
 		GameContext.Instance.InteractionCtx.OnItemSelected += OnSelected;
 
@@ -223,6 +227,34 @@ public class SelectionUIMaster : MonoBehaviour
 		if (interactionTilePrefab != null)
 			interactionHighlightPool = new GameObjectPool(interactionHighlightPoolSize, () => CreateHighlight("InteractionHighlight", interactionTilePrefab));
 		interactionLabelPool = new GameObjectPool(interactionHighlightPoolSize, CreateInteractionLabel);
+	}
+
+	private void EnsureRuntimeBuildingDetailContent()
+	{
+		if (detailUI == null)
+			return;
+
+		foreach (DetailContentBase detailContent in detailContents)
+		{
+			if (detailContent is BuildingDetailContent)
+				return;
+		}
+
+		UIWindow detailWindow = detailUI.GetComponentInChildren<UIWindow>(true);
+		Transform parent = detailWindow != null && detailWindow.ContentRoot != null
+			? detailWindow.ContentRoot
+			: detailUI.transform;
+
+		GameObject detailRoot = new("RuntimeBuildingDetailContent", typeof(RectTransform), typeof(BuildingDetailContent));
+		detailRoot.transform.SetParent(parent, false);
+		detailRoot.SetActive(false);
+
+		BuildingDetailContent buildingDetail = detailRoot.GetComponent<BuildingDetailContent>();
+		var contents = new List<DetailContentBase>(detailContents ?? System.Array.Empty<DetailContentBase>())
+		{
+			buildingDetail
+		};
+		detailContents = contents.ToArray();
 	}
 
 	private void RefreshWorldHighlights()
