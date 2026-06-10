@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using static WorkerTask.TaskType;
 
 // inbound 작업 흐름을 관리
@@ -9,13 +10,15 @@ using static WorkerTask.TaskType;
 // labeling
 // storing
 
-public class InboundWorkflowManager : MonoBehaviour, IBoundManager
+public class InboundWorkflowService : MonoBehaviour, IBoundService
 {
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 	private const PlacingPolicyType DefaultPlacingPolicyType = PlacingPolicyType.BelowAverageFilledNearest;
 
-	[SerializeField] private CargoPortService cargoPortService;
-	[SerializeField] private InboundRequestManager requestManager;
+	[FormerlySerializedAs("cargoPortService")]
+	[SerializeField] private CargoPortManager cargoPortManager;
+	[FormerlySerializedAs("requestManager")]
+	[SerializeField] private InboundRequestService requestService;
 	[SerializeField] private int maxStoreTasksPerUpdate = 64;
 	[SerializeField] [Range(1f, 100f)] private float storingBoxFillLimitPercent = 80.0f;
 	[SerializeField] private CollectingPolicyType defaultStoringCollectingPolicyType = DefaultCollectingPolicyType;
@@ -23,12 +26,12 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	private StoringPlanner storingPlanner;
 
-	public CargoPortService CargoPorts => cargoPortService;
-	public InboundRequestManager RequestManager => requestManager;
+	public CargoPortManager CargoPorts => cargoPortManager;
+	public InboundRequestService RequestService => requestService;
 	public StoringPlanner StoringPlanner => storingPlanner;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
-	private BoxPoolService BoxPoolMgr => GameContext.Instance.WMSys.BoxPoolMgr;
+	private BoxPoolManager BoxPoolManager => GameContext.Instance.WMSys.BoxPoolManager;
 	public CollectingPolicyType StoringCollectingPolicyType => storingPlanner != null ? storingPlanner.CollectingPolicyType : defaultStoringCollectingPolicyType;
 	public PlacingPolicyType StoringPlacingPolicyType => storingPlanner != null ? storingPlanner.PlacingPolicyType : defaultStoringPlacingPolicyType;
 
@@ -91,16 +94,16 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	private void Start()
 	{
-		cargoPortService.OnItemPresentChanged += OnPortItemPresentChanged;
-		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
-		cargoPortService.OnReserveQuantityChanged += OnPortItemReserved;
+		cargoPortManager.OnItemPresentChanged += OnPortItemPresentChanged;
+		cargoPortManager.OnItemQuantityChanged += OnPortItemQuantityChanged;
+		cargoPortManager.OnReserveQuantityChanged += OnPortItemReserved;
 	}
 
 	private void OnDestroy()
 	{
-		cargoPortService.OnItemPresentChanged -= OnPortItemPresentChanged;
-		cargoPortService.OnItemQuantityChanged -= OnPortItemQuantityChanged;
-		cargoPortService.OnReserveQuantityChanged -= OnPortItemReserved;
+		cargoPortManager.OnItemPresentChanged -= OnPortItemPresentChanged;
+		cargoPortManager.OnItemQuantityChanged -= OnPortItemQuantityChanged;
+		cargoPortManager.OnReserveQuantityChanged -= OnPortItemReserved;
 	}
 
 	private void Update()
@@ -110,7 +113,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	public void ResetRuntimeState()
 	{
-		requestManager?.ResetRuntimeState();
+		requestService?.ResetRuntimeState();
 		RebuildPlanner();
 	}
 
@@ -137,24 +140,24 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	private void OnPortItemPresentChanged(ShelfBase port, uint itemId, bool present)
 	{
-		requestManager.OnPortItemPresentChanged(port, itemId, present);
+		requestService.OnPortItemPresentChanged(port, itemId, present);
 	}
 
 	private void OnPortItemReserved(ShelfBase port, uint itemId, int quantity)
 	{
-		requestManager.OnPortItemReservedChanged(port, itemId, quantity);
+		requestService.OnPortItemReservedChanged(port, itemId, quantity);
 	}
 
 	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
 	{
-		requestManager.OnPortItemQuantityChanged(port, itemId, quantityDelta);
+		requestService.OnPortItemQuantityChanged(port, itemId, quantityDelta);
 	}
 
 	private void RebuildPlanner()
 	{
 		storingPlanner = new StoringPlanner(
-			cargoPortService,
-			requestManager,
+			cargoPortManager,
+			requestService,
 			defaultStoringCollectingPolicyType,
 			defaultStoringPlacingPolicyType);
 	}
@@ -170,7 +173,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 		if (effectiveBoxCapacity <= 0.0f)
 			return 0;
 
-		float totalOutstandingSize = requestManager != null ? requestManager.GetOutstandingTotalSize(ItemDB) : 0.0f;
+		float totalOutstandingSize = requestService != null ? requestService.GetOutstandingTotalSize(ItemDB) : 0.0f;
 		if (totalOutstandingSize <= 0.0f)
 			return 0;
 
@@ -179,7 +182,7 @@ public class InboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	private float GetEffectiveStoringBoxCapacity()
 	{
-		float toteCapacity = BoxPoolMgr != null ? BoxPoolMgr.ToteCapacity : 0.0f;
+		float toteCapacity = BoxPoolManager != null ? BoxPoolManager.ToteCapacity : 0.0f;
 		if (toteCapacity <= 0.0f)
 			return 0.0f;
 

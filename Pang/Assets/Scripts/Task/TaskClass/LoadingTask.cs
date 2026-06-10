@@ -9,7 +9,7 @@ public class LoadingTask : WorkerTask
 
 	private CargoPort targetPort = null;
 
-	static private LaunchStationService LaunchStations => GameContext.Instance.OBWorkflowMgr.LaunchStations;
+	static private LaunchStationManager LaunchStations => GameContext.Instance.OBWorkflowSvc.LaunchStations;
 	static private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 
 	public LoadingTask(CargoPort cargoPort) : base(TaskType.Loading)

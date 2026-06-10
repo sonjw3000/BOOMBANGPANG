@@ -2,7 +2,7 @@
 using Unity.Mathematics;
 using UnityEngine;
 
-public class LaunchStationService : GridPlaceableManager<LaunchStation>
+public class LaunchStationManager : GridPlaceableManager<LaunchStation>
 {
 
 }

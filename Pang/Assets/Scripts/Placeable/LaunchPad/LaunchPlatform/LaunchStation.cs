@@ -27,7 +27,7 @@ public class LaunchStation
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.LaunchStation;
 	public IReadOnlyList<InteractionPoint> InteractionPoints => interactionPoints;
 	
-	private LaunchStationService LaunchStations => GameContext.Instance.OBWorkflowMgr.LaunchStations;
+	private LaunchStationManager LaunchStations => GameContext.Instance.OBWorkflowSvc.LaunchStations;
 
 	private void Awake()
 	{

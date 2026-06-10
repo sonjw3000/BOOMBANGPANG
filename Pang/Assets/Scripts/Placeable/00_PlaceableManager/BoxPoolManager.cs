@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class BoxPoolService : GridPlaceableManager<BoxPool>
+public class BoxPoolManager : GridPlaceableManager<BoxPool>
 {
 	[SerializeField] private BoxBase palletPrefab;
 	[SerializeField] private BoxBase boxPrefab;
@@ -52,7 +52,7 @@ public class BoxPoolService : GridPlaceableManager<BoxPool>
 			boxes.Add(box);
 	}
 
-	public void UnRegisterBox(BoxBase box)
+	public void UnregisterBox(BoxBase box)
 	{
 		if (box != null &&
 			box.BoxId > 0 &&

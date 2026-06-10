@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Serialization;
 
 
 // 인게임 매니저들의 허브
@@ -7,12 +8,13 @@
 public class WMSystem : MonoBehaviour
 {
 	[SerializeField] private ItemLedger itemLedger;
-	[SerializeField] private BoxPoolService boxPoolRegistry;
+	[FormerlySerializedAs("boxPoolRegistry")]
+	[SerializeField] private BoxPoolManager boxPoolManager;
 
 	[Header("Policy")]
 	[SerializeField] private WorkPolicyService workPolicyService;
 
-	public BoxPoolService BoxPoolMgr => boxPoolRegistry;
+	public BoxPoolManager BoxPoolManager => boxPoolManager;
 	public ItemLedger ItemLedger => itemLedger;
 
 	public WorkPolicyService WorkPolicyService => workPolicyService;

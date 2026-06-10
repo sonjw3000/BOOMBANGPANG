@@ -96,7 +96,7 @@ public abstract partial class AIWorker
 
 	private static NodeState SetGoalClosestBoxPoolPick(in BTContext context)
 	{
-		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Pick);
+		BoxPool pool = WMSys.BoxPoolManager.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Pick);
 		context.LocalBlackBoard.SetTargetBuilding(pool);
 
 		return Success;
@@ -104,7 +104,7 @@ public abstract partial class AIWorker
 
 	private static NodeState SetGoalClosestBoxPoolPut(in BTContext context)
 	{
-		BoxPool pool = WMSys.BoxPoolMgr.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Put);
+		BoxPool pool = WMSys.BoxPoolManager.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Put);
 		context.LocalBlackBoard.SetTargetBuilding(pool);
 
 		return Success;
@@ -125,7 +125,7 @@ public abstract partial class AIWorker
 
 		if (box == null)
 		{
-			BoxPool nextPool = WMSys.BoxPoolMgr.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Pick);
+			BoxPool nextPool = WMSys.BoxPoolManager.GetClosestAvailableTarget(context.Worker.GridPosition, InteractionKind.Pick);
 			context.LocalBlackBoard.SetTargetBuilding(nextPool);
 
 			if (nextPool != null)

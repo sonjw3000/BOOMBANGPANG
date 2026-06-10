@@ -1,16 +1,20 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using static WorkerTask;
 
 // outbound 작업 흐름 관리
 // 주문을 까서 picking -> packaging -> loading 작업을 관리
 
-public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
+public class OutboundWorkflowService : MonoBehaviour, IBoundService
 {
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 
-	[SerializeField] private PackingStationService packingStationService;
-	[SerializeField] private CargoPortService cargoPortService;
-	[SerializeField] private LaunchStationService launchStationService;
+	[FormerlySerializedAs("packingStationService")]
+	[SerializeField] private PackingStationManager packingStationManager;
+	[FormerlySerializedAs("cargoPortService")]
+	[SerializeField] private CargoPortManager cargoPortManager;
+	[FormerlySerializedAs("launchStationService")]
+	[SerializeField] private LaunchStationManager launchStationManager;
 	[SerializeField] private float orderInterval = 10.0f;
 	[SerializeField] private float cargoPortThresholdPercent = 80.0f;
 	[SerializeField] [Range(1f, 100f)] private float pickingBoxFillLimitPercent = 80.0f;
@@ -20,15 +24,15 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 	private float timeSinceLastOrder = 0.0f;
 	private PickingPlanner pickingPlanner;
 
-	public PackingStationService PackingStations => packingStationService;
-	public CargoPortService CargoPorts => cargoPortService;
-	public LaunchStationService LaunchStations => launchStationService;
+	public PackingStationManager PackingStations => packingStationManager;
+	public CargoPortManager CargoPorts => cargoPortManager;
+	public LaunchStationManager LaunchStations => launchStationManager;
 	public PickingPlanner PickingPlanner => pickingPlanner;
 	public CollectingPolicyType PickingCollectingPolicyType => pickingPlanner != null ? pickingPlanner.CollectingPolicyType : defaultPickingCollectingPolicyType;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
-	private BoxPoolService BoxPoolMgr => GameContext.Instance.WMSys.BoxPoolMgr;
+	private BoxPoolManager BoxPoolManager => GameContext.Instance.WMSys.BoxPoolManager;
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
@@ -38,7 +42,7 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 				break;
 			case TaskType.Packing:
 				if (task is PackingTask packingTask)
-					PackingStations.OnPackingTaskCompleted(packingTask.TargetStation);
+						PackingStations.OnPackingTaskCompleted(packingTask.TargetStation);
 				break;
 			case TaskType.Loading:
 				break;
@@ -87,13 +91,13 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	private void Awake()
 	{
-		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
+		cargoPortManager.OnItemQuantityChanged += OnPortItemQuantityChanged;
 		RebuildPlanner();
 	}
 
 	private void OnDestroy()
 	{
-		cargoPortService.OnItemQuantityChanged -= OnPortItemQuantityChanged;
+		cargoPortManager.OnItemQuantityChanged -= OnPortItemQuantityChanged;
 	}
 
 	private void Update()
@@ -174,7 +178,7 @@ public class OutboundWorkflowManager : MonoBehaviour, IBoundManager
 
 	private float GetEffectivePickingBoxCapacity()
 	{
-		float toteCapacity = BoxPoolMgr != null ? BoxPoolMgr.ToteCapacity : 0.0f;
+		float toteCapacity = BoxPoolManager != null ? BoxPoolManager.ToteCapacity : 0.0f;
 		if (toteCapacity <= 0.0f)
 			return 0.0f;
 

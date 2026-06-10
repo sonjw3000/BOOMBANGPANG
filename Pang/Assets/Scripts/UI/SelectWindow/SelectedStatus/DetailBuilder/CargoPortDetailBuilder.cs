@@ -7,7 +7,7 @@ public class CargoPortDetailBuilder : ShelfBaseDetailContent<CargoPort>
 	[SerializeField] private Button forceLoadButton;
 	private TextMeshProUGUI inputReadyValue;
 
-	static private OutboundWorkflowManager OBManager => GameContext.Instance.OBWorkflowMgr;
+	static private OutboundWorkflowService OBService => GameContext.Instance.OBWorkflowSvc;
 
 	protected override void LinkData()
 	{
@@ -34,7 +34,7 @@ public class CargoPortDetailBuilder : ShelfBaseDetailContent<CargoPort>
 		{
 			AddActionButton("Force Load", () =>
 			{
-				OBManager.BuildLoadingTask(prov.Target);
+				OBService.BuildLoadingTask(prov.Target);
 			});
 		}
 	}

@@ -11,8 +11,8 @@ public class TaskManager : MonoBehaviour
 
 	private ProcessStatsCollector Stats => GameContext.Instance.ProcessStats;
 
-	private InboundWorkflowManager IBMgr => GameContext.Instance.IBWorkflowMgr;
-	private OutboundWorkflowManager OBMgr => GameContext.Instance.OBWorkflowMgr;
+	private InboundWorkflowService IBService => GameContext.Instance.IBWorkflowSvc;
+	private OutboundWorkflowService OBService => GameContext.Instance.OBWorkflowSvc;
 
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue => taskQueue;
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskOnProgress => taskOnProgress;
@@ -73,7 +73,7 @@ public class TaskManager : MonoBehaviour
 			//case TaskType.Receive:
 			//case TaskType.Label:
 			case TaskType.Storing:
-				IBMgr.OnTaskCompleted(task);
+				IBService.OnTaskCompleted(task);
 				break;
 
 			// OB
@@ -82,7 +82,7 @@ public class TaskManager : MonoBehaviour
 			//case TaskType.Sorting:
 			//case TaskType.Packaging:
 			case TaskType.Loading:
-				OBMgr.OnTaskCompleted(task);
+				OBService.OnTaskCompleted(task);
 				break;
 
 			case TaskType.Water:

@@ -5,7 +5,7 @@ using static IBaseNode.NodeState;
 
 public class PackingTask : WorkerTask
 {
-	private static PackingStationService PackingService => GameContext.Instance.OBWorkflowMgr.PackingStations;
+	private static PackingStationManager PackingStationManager => GameContext.Instance.OBWorkflowSvc.PackingStations;
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 
 	private readonly PackingStation targetStation;
@@ -40,7 +40,7 @@ public class PackingTask : WorkerTask
 		if (targetStation.CurrentPackingWorker == null)
 			targetStation.CurrentPackingWorker = OccupyWorker;
 
-		PackingService.OnPackingTaskAssigned(targetStation);
+		PackingStationManager.OnPackingTaskAssigned(targetStation);
 	}
 
 	public override bool TryGetPreferredWorker(out AIWorker worker)

@@ -63,7 +63,7 @@ public class PackingStation :
 		return stack is ItemPackage && packedItems.Count < maxStacks;
 	}
 
-	private PackingStationService PackingStations => GameContext.Instance.OBWorkflowMgr.PackingStations;
+	private PackingStationManager PackingStations => GameContext.Instance.OBWorkflowSvc.PackingStations;
 
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.PackingStation;
 
@@ -114,7 +114,7 @@ public class PackingStation :
 	{
 		if (isRegistered)
 		{
-			PackingStations.UnRegister(this);
+			PackingStations.Unregister(this);
 			isRegistered = false;
 		}
 	}

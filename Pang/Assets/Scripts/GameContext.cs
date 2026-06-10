@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Serialization;
 
 [DefaultExecutionOrder(-100)]
 public class GameContext : MonoBehaviour
@@ -49,7 +50,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ShelfStorageIndex itemInventory;
 	[SerializeField] private RocketManager rocketManager;
 	[SerializeField] private OrderManager orderManager;
-	[SerializeField] private OrderDeliveryManager orderDelivery;
+	[SerializeField] private OrderDeliveryService orderDelivery;
 	[SerializeField] private WMSystem warehouseManagement;
 	[SerializeField] private ContractService contractService;
 	[SerializeField] private PathFindingService pathFindingService;
@@ -61,8 +62,10 @@ public class GameContext : MonoBehaviour
 
 	[Header("Workflow Managers")]
 	// workflow managers
-	[SerializeField] private InboundWorkflowManager inboundWorkFlowManager;
-	[SerializeField] private OutboundWorkflowManager outboundWorkFlowManager;
+	[FormerlySerializedAs("inboundWorkFlowManager")]
+	[SerializeField] private InboundWorkflowService inboundWorkflowService;
+	[FormerlySerializedAs("outboundWorkFlowManager")]
+	[SerializeField] private OutboundWorkflowService outboundWorkflowService;
 
 	// go to resource
 	[Header("InGame Objects")]
@@ -108,7 +111,7 @@ public class GameContext : MonoBehaviour
 	public ShelfStorageIndex StorageIndex => itemInventory;
 	public RocketManager RocketMgr => rocketManager;
 	public OrderManager OrderMgr => orderManager;
-	public OrderDeliveryManager OrderDelivery => orderDelivery;
+	public OrderDeliveryService OrderDelivery => orderDelivery;
 	public WMSystem WMSys => warehouseManagement;
 	public ContractService ContractMgr => contractService;
 	public PathFindingService PathFinding => pathFindingService;
@@ -181,8 +184,8 @@ public class GameContext : MonoBehaviour
 		}
 	}
 
-	public InboundWorkflowManager IBWorkflowMgr => inboundWorkFlowManager;
-	public OutboundWorkflowManager OBWorkflowMgr => outboundWorkFlowManager;
+	public InboundWorkflowService IBWorkflowSvc => inboundWorkflowService;
+	public OutboundWorkflowService OBWorkflowSvc => outboundWorkflowService;
 
 	public PlaceableCatalog PlaceableCatalog => catalog;
 	public PlaceableCatalog PlaceableDefinitionRegistry => catalog;

@@ -27,7 +27,7 @@ public class RocketManager : GridPlaceableManager<Rocket>
 	public IReadOnlyList<ShelfBase> Rockets => activeRockets;
 
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
-	private InboundWorkflowManager IBWorkflowMgr => GameContext.Instance.IBWorkflowMgr;
+	private InboundWorkflowService IBWorkflowService => GameContext.Instance.IBWorkflowSvc;
 	private GridService GridService => GameContext.Instance.GridService;
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 	private ZoneManager ZoneManager
@@ -266,7 +266,7 @@ public class RocketManager : GridPlaceableManager<Rocket>
 		rocket.enabled = false;
 		rocket.ApplyLandingOutcome();
 
-		IBWorkflowMgr.BuildTaskByPayload(rocket);
+		IBWorkflowService.BuildTaskByPayload(rocket);
 	}
 
 	private RocketLandingOutcome BuildLandingOutcome(in int3 landingPoint)

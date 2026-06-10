@@ -53,8 +53,8 @@ namespace Assets.Scripts.UI
 		private bool initialized;
 
 		private WorkPolicyService WorkPolicyService => GameContext.HasInstance ? GameContext.Instance.WMSys?.WorkPolicyService : null;
-		private InboundWorkflowManager InboundWorkflowManager => GameContext.HasInstance ? GameContext.Instance.IBWorkflowMgr : null;
-		private OutboundWorkflowManager OutboundWorkflowManager => GameContext.HasInstance ? GameContext.Instance.OBWorkflowMgr : null;
+		private InboundWorkflowService InboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;
+		private OutboundWorkflowService OutboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
 
 		private void Awake()
 		{
@@ -217,21 +217,21 @@ namespace Assets.Scripts.UI
 			if (initialized == false)
 				return;
 
-			if (InboundWorkflowManager != null && placingPolicyDropdown != null)
+			if (InboundWorkflowService != null && placingPolicyDropdown != null)
 			{
 				if (storingCollectingPolicyDropdown != null)
 				{
-					int collectingDropdownIndex = Array.IndexOf(CollectingPolicyOptions, InboundWorkflowManager.StoringCollectingPolicyType);
+					int collectingDropdownIndex = Array.IndexOf(CollectingPolicyOptions, InboundWorkflowService.StoringCollectingPolicyType);
 					storingCollectingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, collectingDropdownIndex));
 				}
 
-				int dropdownIndex = Array.IndexOf(PlacingPolicyOptions, InboundWorkflowManager.StoringPlacingPolicyType);
+				int dropdownIndex = Array.IndexOf(PlacingPolicyOptions, InboundWorkflowService.StoringPlacingPolicyType);
 				placingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, dropdownIndex));
 			}
 
-			if (OutboundWorkflowManager != null && pickingCollectingPolicyDropdown != null)
+			if (OutboundWorkflowService != null && pickingCollectingPolicyDropdown != null)
 			{
-				int dropdownIndex = Array.IndexOf(CollectingPolicyOptions, OutboundWorkflowManager.PickingCollectingPolicyType);
+				int dropdownIndex = Array.IndexOf(CollectingPolicyOptions, OutboundWorkflowService.PickingCollectingPolicyType);
 				pickingCollectingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, dropdownIndex));
 			}
 
@@ -251,32 +251,32 @@ namespace Assets.Scripts.UI
 
 		private void HandlePlacingPolicyChanged(int optionIndex)
 		{
-			if (InboundWorkflowManager == null)
+			if (InboundWorkflowService == null)
 				return;
 			if (optionIndex < 0 || optionIndex >= PlacingPolicyOptions.Length)
 				return;
 
-			InboundWorkflowManager.SetStoringPlacingPolicy(PlacingPolicyOptions[optionIndex]);
+			InboundWorkflowService.SetStoringPlacingPolicy(PlacingPolicyOptions[optionIndex]);
 		}
 
 		private void HandleStoringCollectingPolicyChanged(int optionIndex)
 		{
-			if (InboundWorkflowManager == null)
+			if (InboundWorkflowService == null)
 				return;
 			if (optionIndex < 0 || optionIndex >= CollectingPolicyOptions.Length)
 				return;
 
-			InboundWorkflowManager.SetStoringCollectingPolicy(CollectingPolicyOptions[optionIndex]);
+			InboundWorkflowService.SetStoringCollectingPolicy(CollectingPolicyOptions[optionIndex]);
 		}
 
 		private void HandlePickingCollectingPolicyChanged(int optionIndex)
 		{
-			if (OutboundWorkflowManager == null)
+			if (OutboundWorkflowService == null)
 				return;
 			if (optionIndex < 0 || optionIndex >= CollectingPolicyOptions.Length)
 				return;
 
-			OutboundWorkflowManager.SetPickingCollectingPolicy(CollectingPolicyOptions[optionIndex]);
+			OutboundWorkflowService.SetPickingCollectingPolicy(CollectingPolicyOptions[optionIndex]);
 		}
 
 		private void EnsureHostActive()

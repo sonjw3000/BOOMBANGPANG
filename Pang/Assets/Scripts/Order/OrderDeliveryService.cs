@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 
-public class OrderDeliveryManager : MonoBehaviour
+public class OrderDeliveryService : MonoBehaviour
 {
 	private class DeliveryProgress
 	{
@@ -43,7 +43,7 @@ public class OrderDeliveryManager : MonoBehaviour
 
 			Debug.Log("Cargo Delivered!");
 
-			GameContext.Instance.WMSys.BoxPoolMgr.ReturnToPool(progress.Cargo);
+			GameContext.Instance.WMSys.BoxPoolManager.ReturnToPool(progress.Cargo);
 			deliveryProgresses.RemoveAt(i);
 		}
 	}

@@ -124,8 +124,8 @@ public sealed class GameSaveService : MonoBehaviour
 		GameSaveData data = new();
 		data.SavedAtUtc = DateTime.UtcNow.ToString("O");
 		data.Policy.WorkSpeed = Ctx.WMSys.WorkPolicyService.CaptureState();
-		data.Policy.WorkApproach = Ctx.IBWorkflowMgr.CapturePolicyState();
-		data.Policy.OutboundWorkApproach = Ctx.OBWorkflowMgr.CapturePolicyState();
+		data.Policy.WorkApproach = Ctx.IBWorkflowSvc.CapturePolicyState();
+		data.Policy.OutboundWorkApproach = Ctx.OBWorkflowSvc.CapturePolicyState();
 		data.Time = Ctx.GameTime.CaptureState();
 		data.Economy = Ctx.EconomyService.CaptureState();
 		data.ItemLedger = Ctx.WMSys.ItemLedger.CaptureState();
@@ -136,7 +136,7 @@ public sealed class GameSaveService : MonoBehaviour
 		data.DeliveryQueue = Ctx.DeliveryService.CaptureState();
 		data.OrderDelivery = Ctx.OrderDelivery.CaptureState(RegisterBox);
 		data.RocketManager = Ctx.RocketMgr.CaptureState();
-		data.BoxRegistry = Ctx.WMSys.BoxPoolMgr.CaptureSaveData(RegisterOrderLine);
+		data.BoxRegistry = Ctx.WMSys.BoxPoolManager.CaptureSaveData(RegisterOrderLine);
 		data.WorkerManager.NextWorkerId = Ctx.WorkerMgr.NextWorkerId;
 		data.WorkJobCounters.NextPickingJobId = PickingPlanner.GetNextJobId();
 		data.WorkJobCounters.NextStoringJobId = StoringPlanner.GetNextJobId();
@@ -163,28 +163,28 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.ContractMgr.ResetRuntimeState();
 		Ctx.OrderMgr.ResetRuntimeState();
 		Ctx.DeliveryService.ResetRuntimeState();
-		Ctx.IBWorkflowMgr.ResetRuntimeState();
-		Ctx.OBWorkflowMgr.ResetRuntimeState();
+		Ctx.IBWorkflowSvc.ResetRuntimeState();
+		Ctx.OBWorkflowSvc.ResetRuntimeState();
 		Ctx.WorkerMgr.ResetRuntimeState();
 		Ctx.ZoneMgr.ResetRuntimeState();
 		Ctx.WMSys.WorkPolicyService.ResetRuntimeState();
 		Ctx.WMSys.ItemLedger.ResetRuntimeState();
-		Ctx.WMSys.BoxPoolMgr.ResetRuntimeState();
-		Ctx.WMSys.BoxPoolMgr.DestroyAllBoxes();
+		Ctx.WMSys.BoxPoolManager.ResetRuntimeState();
+		Ctx.WMSys.BoxPoolManager.DestroyAllBoxes();
 		Ctx.GridService.ResetRuntimeState();
 		Ctx.RocketMgr.ResetRuntimeState();
-		Ctx.OBWorkflowMgr.PackingStations.ResetRuntimeState();
+		Ctx.OBWorkflowSvc.PackingStations.ResetRuntimeState();
 
 		Ctx.GridService.RestoreState(data.Grid);
 		Ctx.ZoneMgr.RestoreState(data.Zones);
 		Ctx.WMSys.WorkPolicyService.RestoreState(data.Policy != null ? data.Policy.WorkSpeed : null);
-		Ctx.IBWorkflowMgr.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);
-		Ctx.OBWorkflowMgr.RestorePolicyState(data.Policy != null ? data.Policy.OutboundWorkApproach : null);
+		Ctx.IBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);
+		Ctx.OBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.OutboundWorkApproach : null);
 		Ctx.GameTime.RestoreState(data.Time);
 		Ctx.EconomyService.RestoreState(data.Economy);
 		Ctx.ContractMgr.RestoreState(data.Contracts);
 		Ctx.OrderMgr.RestoreState(data.Orders, Ctx.ContractMgr, restoredOrderLines);
-		Ctx.WMSys.BoxPoolMgr.RestoreSaveData(data.BoxRegistry, restoredBoxes, restoredOrderLines);
+		Ctx.WMSys.BoxPoolManager.RestoreSaveData(data.BoxRegistry, restoredBoxes, restoredOrderLines);
 
 		foreach (PlaceableSaveData placeableData in data.Placeables.Where(p => p.IsWorker == false))
 			InstantiatePlaceable(placeableData, restoredPlaceables, restoredBoxes, workersById, restoredOrderLines);
@@ -426,7 +426,7 @@ public sealed class GameSaveService : MonoBehaviour
 
 	private uint RegisterBox(BoxBase box)
 	{
-		return Ctx.WMSys.BoxPoolMgr.GetOrCreateBoxId(box);
+		return Ctx.WMSys.BoxPoolManager.GetOrCreateBoxId(box);
 	}
 
 	private int RegisterOrderLine(OrderLine line)

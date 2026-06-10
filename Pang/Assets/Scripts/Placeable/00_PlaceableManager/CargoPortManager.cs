@@ -2,7 +2,7 @@
 using Unity.Mathematics;
 using UnityEngine;
 
-public class CargoPortService : GridPlaceableManager<CargoPort>, ICollectSupplySource
+public class CargoPortManager : GridPlaceableManager<CargoPort>, ICollectSupplySource
 {
 	//private List<CargoPort> cargoPorts = new();
 

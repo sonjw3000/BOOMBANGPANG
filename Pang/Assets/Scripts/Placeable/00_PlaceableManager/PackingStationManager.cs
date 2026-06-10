@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PackingStationService : MonoBehaviour
+public class PackingStationManager : MonoBehaviour
 {
-	static private CargoPortService CargoService => GameContext.Instance.OBWorkflowMgr.CargoPorts;
+	static private CargoPortManager CargoManager => GameContext.Instance.OBWorkflowSvc.CargoPorts;
 	static private TaskManager TaskManager => GameContext.Instance.TaskMgr;
 
 	private readonly List<PackingStation> packingStations = new();
@@ -119,7 +119,7 @@ public class PackingStationService : MonoBehaviour
 		RefreshWaitingStation(packingStation);
 	}
 
-	public void UnRegister(PackingStation packingStation)
+	public void Unregister(PackingStation packingStation)
 	{
 		packingStations.Remove(packingStation);
 		RemoveWaitingStation(packingStation);
@@ -163,7 +163,7 @@ public class PackingStationService : MonoBehaviour
 
 	public void OnPackingComplete(PackingStation packingStation)
 	{
-		var port = CargoService.GetClosestAvailableTarget(packingStation.GridPosition, InteractionKind.Put);
+		var port = CargoManager.GetClosestAvailableTarget(packingStation.GridPosition, InteractionKind.Put);
 
 		TransferContext from = new TransferContext(packingStation, TransferObjectType.Box);
 		TransferContext to = new TransferContext(port, TransferObjectType.Item);

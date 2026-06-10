@@ -61,12 +61,12 @@ public class BoxPool :
 		enabled = true;
 		this.position = position;
 
-		WMSys.BoxPoolMgr.Register(this);
+		WMSys.BoxPoolManager.Register(this);
 	}
 
 	public override void OnRemoved()
 	{
-		WMSys.BoxPoolMgr.Unregister(this);
+		WMSys.BoxPoolManager.Unregister(this);
 	}
 
 	public override void OnDestroyedBy(in DestroyContext ctx)

@@ -30,7 +30,7 @@ public class StoringTask : WorkerTask
 
 
 	public WorkLine CurrentLine => storeJob?.CurrentLine;
-	private static StoringPlanner Planner => GameContext.Instance.IBWorkflowMgr.StoringPlanner;
+	private static StoringPlanner Planner => GameContext.Instance.IBWorkflowSvc.StoringPlanner;
 
 	public StoringTask(WorkJob job) : base(TaskType.Storing)
 	{

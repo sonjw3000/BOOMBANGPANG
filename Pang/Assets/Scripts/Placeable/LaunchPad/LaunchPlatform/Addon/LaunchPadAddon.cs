@@ -6,7 +6,7 @@ public class LaunchPadAddon : PlatformAddon
 	private Rocket rocket = null;
 
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
-	private static OrderDeliveryManager OrderDelivery => GameContext.Instance.OrderDelivery;
+	private static OrderDeliveryService OrderDelivery => GameContext.Instance.OrderDelivery;
 	private static GameTime GameTime => GameContext.Instance.GameTime;
 
 	private bool readyToLaunch = false;
@@ -82,4 +82,3 @@ public class LaunchPadAddon : PlatformAddon
 	}
 
 }
-

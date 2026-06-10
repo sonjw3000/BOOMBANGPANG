@@ -9,7 +9,7 @@ public class InboundLine
 	public int Quantity;
 }
 
-public class InboundRequestManager : MonoBehaviour, ICollectRequestSource<InboundLine>
+public class InboundRequestService : MonoBehaviour, ICollectRequestSource<InboundLine>
 {
 	private readonly List<InboundLine> inboundRequests = new();
 	private readonly Dictionary<uint, List<InboundLine>> itemPerReqLine = new();
@@ -175,4 +175,3 @@ public class InboundRequestManager : MonoBehaviour, ICollectRequestSource<Inboun
 		itemPerReqLine.Clear();
 	}
 }
-
