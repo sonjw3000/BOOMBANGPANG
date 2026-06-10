@@ -63,7 +63,56 @@ TrafficCoordinator does not complete tasks. Worker task flow remains owned by wo
 
 ---
 
-## 5 UI
+## 5 Building
+
+Building-related ownership should stay explicit.
+
+Building systems should own:
+- building identity
+- building type and process role
+- building-owned interior space
+- building-level logistics purpose
+- the list or registry of zones that belong to the building
+
+Buildings define `what` the player built into the logistics network.
+
+Examples:
+- storage
+- packing
+- staging
+
+Region classification such as indoor / outdoor should support placement and spatial reasoning, but should not replace building ownership as the source of truth for space identity.
+
+---
+
+## 6 Zone
+
+Zones are subordinate to buildings.
+
+Zone systems should own:
+- zone rule data
+- zone-local filters
+- worker eligibility rules
+- item handling restrictions
+- internal operating policies for part of a building
+
+Zones define `how` a part of a building should operate.
+
+Zone ownership rules:
+- every zone must belong to exactly one building
+- zones should exist only inside building-owned space
+- one building may contain multiple zones
+- zone logic should not define a standalone logistics process role outside of a building
+
+Examples:
+- fragile-only handling
+- hazard restrictions
+- temperature handling
+- worker-type-only rules
+
+---
+
+## 7 UI
 
 UI does not own gameplay state.
 
@@ -72,5 +121,9 @@ UI should not:
 - directly assign tasks
 - directly modify grid occupancy
 - directly mutate logistics state
+
+UI should request:
+- building creation and building edits through the owning building system
+- zone creation and zone edits through the owning building or zone system
 
 ---

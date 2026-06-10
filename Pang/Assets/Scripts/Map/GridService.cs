@@ -62,6 +62,13 @@ public class GridService : MonoBehaviour
 		return gridMap.Map[pos.x, pos.y, pos.z];
 	}
 
+	public GridCell GetCell(int x, int y, int z)
+	{
+		if (gridMap.IsInBound(x, y, z) == false)
+			return null;
+		return gridMap.Map[x, y, z];
+	}
+
 	public bool IsPassable(in int3 pos)
 	{
 		if (gridMap.IsInBound(pos) == false)

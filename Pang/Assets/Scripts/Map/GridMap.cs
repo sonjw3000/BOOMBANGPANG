@@ -230,6 +230,14 @@ public class GridMap
 			0 <= pos.z && pos.z < mapSize.z;
 	}
 
+	public bool IsInBound(int x, int y, int z)
+	{
+		return
+			0 <= x && x < mapSize.x &&
+			0 <= y && y < mapSize.y &&
+			0 <= z && z < mapSize.z;
+	}
+
 	public GameObject GetObjectOnGrid(in int3 position)
 	{
 		if (IsInBound(position) == false)
