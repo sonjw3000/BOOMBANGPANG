@@ -36,6 +36,7 @@ public class GridCell
 	private int tile = 0;
 	private GridFlags flags = GridFlags.None;
 	private int regionId = 0;
+	private uint buildingId = 0;
 	private readonly Dictionary<GameObject, GridFlags> flagsByObject = new();
 
 	private GameObject objectRef = null;
@@ -48,6 +49,7 @@ public class GridCell
 	public int Tile => tile;
 	public GridFlags Flags => flags;
 	public int RegionId => regionId;
+	public uint BuildingId => buildingId;
 	public GridOccupancyCategory OccupancyCategory => occupancyCategory;
 
 	public bool IsPassable => Flags.HasFlag(GridFlags.BlockMovement | GridFlags.DynamicObstacle);
@@ -97,6 +99,7 @@ public class GridCell
 	{
 		flags = GridFlags.None;
 		regionId = 0;
+		buildingId = 0;
 		flagsByObject.Clear();
 		objectRef = null;
 		occupancyObjectRef = null;
@@ -133,6 +136,11 @@ public class GridCell
 	public void SetRegionId(int value)
 	{
 		regionId = value < 0 ? 0 : value;
+	}
+
+	public void SetBuildingId(uint value)
+	{
+		buildingId = value;
 	}
 
 	private void RebuildFlags()

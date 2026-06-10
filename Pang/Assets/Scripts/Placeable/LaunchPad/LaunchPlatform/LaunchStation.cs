@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 
 public class LaunchStation
 	: MonoBehaviour
-	, IGridPlaceable
+	, IFacility
 	, IGridPlacementEffect
 	, IInteractionPoint
 {

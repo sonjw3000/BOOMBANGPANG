@@ -34,6 +34,31 @@ public sealed class BuildingManager : MonoBehaviour
 		building.SetRegistered(true);
 	}
 
+	public Building CreateBuilding(List<GridCell> ownedCells, BuildingType buildingType = BuildingType.Generic, string displayName = null)
+	{
+		if (ownedCells == null || ownedCells.Count <= 0)
+			return null;
+
+		for (int i = 0; i < ownedCells.Count; ++i)
+		{
+			GridCell cell = ownedCells[i];
+			if (cell == null || cell.BuildingId != 0)
+				return null;
+		}
+
+		string resolvedName = string.IsNullOrWhiteSpace(displayName)
+			? BuildDefaultBuildingName(buildingType)
+			: displayName;
+
+		Building building = new(resolvedName, ownedCells, buildingType);
+		Register(building);
+
+		for (int i = 0; i < ownedCells.Count; ++i)
+			ownedCells[i].SetBuildingId(building.RuntimeBuildingId);
+
+		return building;
+	}
+
 	public void Unregister(Building building)
 	{
 		if (building == null)
@@ -55,6 +80,33 @@ public sealed class BuildingManager : MonoBehaviour
 		}
 
 		return buildingsById.TryGetValue(runtimeBuildingId, out building) && building != null;
+	}
+
+	public bool TryGetBuilding(GridCell cell, out Building building)
+	{
+		if (cell == null)
+		{
+			building = null;
+			return false;
+		}
+
+		return TryGetBuilding(cell.BuildingId, out building);
+	}
+
+	public bool TryRegisterFacility(uint runtimeBuildingId, IFacility facility)
+	{
+		if (facility == null || TryGetBuilding(runtimeBuildingId, out var building) == false)
+			return false;
+
+		return building.RegisterFacility(facility);
+	}
+
+	public bool TryUnregisterFacility(uint runtimeBuildingId, IFacility facility)
+	{
+		if (facility == null || TryGetBuilding(runtimeBuildingId, out var building) == false)
+			return false;
+
+		return building.UnregisterFacility(facility);
 	}
 
 	public void RebuildLookup()
@@ -79,6 +131,13 @@ public sealed class BuildingManager : MonoBehaviour
 		}
 	}
 
+	public void ResetRuntimeState()
+	{
+		registeredBuildings.Clear();
+		buildingsById.Clear();
+		nextRuntimeBuildingId = 1;
+	}
+
 	private bool IsRuntimeIdInUse(uint runtimeId, Building currentBuilding)
 	{
 		return buildingsById.TryGetValue(runtimeId, out var existing) && existing != null && existing != currentBuilding;
@@ -95,5 +154,20 @@ public sealed class BuildingManager : MonoBehaviour
 		uint allocatedId = nextRuntimeBuildingId;
 		nextRuntimeBuildingId += 1;
 		return allocatedId;
+	}
+
+	private string BuildDefaultBuildingName(BuildingType buildingType)
+	{
+		string baseName = buildingType == BuildingType.Generic ? "Building" : $"{buildingType} Building";
+		int suffix = 1;
+		string candidate = baseName;
+
+		while (registeredBuildings.Exists(building => building != null && building.DisplayName == candidate))
+		{
+			suffix += 1;
+			candidate = $"{baseName} {suffix}";
+		}
+
+		return candidate;
 	}
 }

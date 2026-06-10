@@ -109,6 +109,7 @@ public class GridService : MonoBehaviour
 	public bool IsPlacedObject(GameObject targetObj) => targetObj != null && placedObjects.ContainsKey(targetObj);
 
 	private EconomyService Economy => GameContext.Instance.EconomyService;
+	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
 	private WorkerSpawnManager WorkerSpawnMgr => GameContext.Instance.WorkerSpawnMgr;
 
 	public void OnGameStart()
@@ -362,6 +363,13 @@ public class GridService : MonoBehaviour
 			gridPlaceable.OnPositionSet(ctx.center, ctx.facingDirection);
 		}
 
+		if (obj.TryGetComponent<IFacility>(out var facility))
+		{
+			uint owningBuildingId = ResolveOwningBuildingId(in ctx);
+			if (owningBuildingId != 0)
+				BuildingManager.TryRegisterFacility(owningBuildingId, facility);
+		}
+
 		if (ctx.placeableDefinition.gridFootprint.IsNeedToRefresh)
 			RecalculateSpaceRegions();
 
@@ -400,6 +408,11 @@ public class GridService : MonoBehaviour
 			return false;
 		}
 
+		IFacility facility = null;
+		uint owningBuildingId = 0;
+		if (targetObj.TryGetComponent<IFacility>(out facility))
+			owningBuildingId = ResolveOwningBuildingId(in context);
+
 		GridFootprint footprint = context.placeableDefinition.gridFootprint;
 		Vector2Int pivot = footprint.Pivot;
 		for (int z = 0; z < footprint.height; ++z)
@@ -426,6 +439,9 @@ public class GridService : MonoBehaviour
 
 		if (targetObj.TryGetComponent<IInteractionPoint>(out var interactable))
 			interactable.ClearInteractionPoints();
+
+		if (facility != null && owningBuildingId != 0)
+			BuildingManager.TryUnregisterFacility(owningBuildingId, facility);
 
 		if (destroyObject)
 			Destroy(targetObj);
@@ -725,7 +741,8 @@ public class GridService : MonoBehaviour
 		bool installable = true;
 		GridFootprint footprint = ctx.placeableDefinition.gridFootprint;
 		Vector2Int pivot = footprint.Pivot;
-		PlacementEnvironmentRequirement requirement = ctx.placeableDefinition.placementEnvironment;
+		bool hasResolvedBuildingId = false;
+		uint resolvedBuildingId = 0;
 
 		for (int z = 0; z < footprint.height; ++z)
 		{
@@ -747,7 +764,11 @@ public class GridService : MonoBehaviour
 
 				GridCell targetCell = Map[target.x, target.y, target.z];
 				bool canPlace = targetCell.CanPlaceObject || CanOverride(footprintCell, targetCell);
-				bool meetsEnvironment = DoesFootprintCellMeetPlacementRequirement(footprintCell, target, requirement);
+				bool meetsEnvironment = DoesFootprintCellMeetPlacementRequirement(
+					footprintCell,
+					targetCell,
+					ref hasResolvedBuildingId,
+					ref resolvedBuildingId);
 
 				if (canPlace && meetsEnvironment)
 				{
@@ -763,29 +784,66 @@ public class GridService : MonoBehaviour
 		return installable;
 	}
 
-	private bool DoesFootprintCellMeetPlacementRequirement(in FootprintCell footprintCell, in int3 target, PlacementEnvironmentRequirement requirement)
+	private bool DoesFootprintCellMeetPlacementRequirement(
+		in FootprintCell footprintCell,
+		GridCell targetCell,
+		ref bool hasResolvedBuildingId,
+		ref uint resolvedBuildingId)
 	{
-		if (requirement == PlacementEnvironmentRequirement.None)
+		if (targetCell == null)
+			return false;
+
+		uint targetBuildingId = targetCell.BuildingId;
+		if (DoesCellEnvironmentRequirementMatch(targetBuildingId, footprintCell.environmentRequirement) == false)
 			return false;
 
 		if ((footprintCell.flags & GridFlags.Interaction) != 0)
 			return true;
 
-		return DoesCellMeetPlacementRequirement(target, requirement);
+		if (hasResolvedBuildingId == false)
+		{
+			hasResolvedBuildingId = true;
+			resolvedBuildingId = targetBuildingId;
+			return true;
+		}
+
+		return resolvedBuildingId == targetBuildingId;
 	}
 
-	private bool DoesCellMeetPlacementRequirement(in int3 target, PlacementEnvironmentRequirement requirement)
+	private static bool DoesCellEnvironmentRequirementMatch(uint buildingId, FootprintCellEnvironmentRequirement requirement)
 	{
-		if (requirement == PlacementEnvironmentRequirement.None)
-			return false;
+		return requirement switch
+		{
+			FootprintCellEnvironmentRequirement.Any => true,
+			FootprintCellEnvironmentRequirement.Indoor => buildingId != 0,
+			FootprintCellEnvironmentRequirement.Outdoor => buildingId == 0,
+			_ => true,
+		};
+	}
 
-		bool allowIndoor = (requirement & PlacementEnvironmentRequirement.Indoor) != 0;
-		bool allowOutdoor = (requirement & PlacementEnvironmentRequirement.Outdoor) != 0;
+	private uint ResolveOwningBuildingId(in PlacementContext ctx)
+	{
+		GridFootprint footprint = ctx.placeableDefinition.gridFootprint;
+		Vector2Int pivot = footprint.Pivot;
 
-		if (allowIndoor == false && allowOutdoor == false)
-			return false;
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				FootprintCell footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell) || (footprintCell.flags & GridFlags.Interaction) != 0)
+					continue;
 
-		return IsIndoor(target) ? allowIndoor : allowOutdoor;
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, ctx.facingDirection);
+				int3 target = ctx.center + rotatedOffset;
+				GridCell targetCell = GetCell(target);
+				if (targetCell != null)
+					return targetCell.BuildingId;
+			}
+		}
+
+		return 0;
 	}
 
 	private void RecalculateSpaceRegions()

@@ -139,6 +139,13 @@ public enum InteractionKind : byte
 	Charge = 1 << 3,
 }
 
+public enum FootprintCellEnvironmentRequirement : byte
+{
+	Any = 0,
+	Indoor = 1,
+	Outdoor = 2,
+}
+
 public enum CargoPortType : byte
 {
 	None = 0,

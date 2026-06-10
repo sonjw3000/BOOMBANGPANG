@@ -5,7 +5,7 @@ using UnityEngine;
 
 public abstract class BoxInteraction :
 	MonoBehaviour,
-	IGridPlaceable,
+	IFacility,
 	IGridPlacementEffect,
 	IInteractionPoint,
 	IBoxHandleable

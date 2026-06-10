@@ -5,6 +5,7 @@ using UnityEngine;
 [System.Serializable]
 public sealed class BuildingFootprintRecord
 {
+	public uint RuntimeBuildingId;
 	public int Floor;
 	public RectInt Bounds;
 }
@@ -17,6 +18,7 @@ public sealed class BuildingFootprintService : MonoBehaviour
 
 	public IReadOnlyList<BuildingFootprintRecord> RegisteredFootprints => registeredFootprints;
 
+	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
 	private GridService GridService => GameContext.Instance.GridService;
 	private PlaceableCatalog PlaceableCatalog => GameContext.Instance.PlaceableCatalog;
 
@@ -27,6 +29,12 @@ public sealed class BuildingFootprintService : MonoBehaviour
 		if (bounds.width <= 0 || bounds.height <= 0)
 		{
 			reason = "Building area must have positive size.";
+			return false;
+		}
+
+		if (bounds.width < 3 || bounds.height < 3)
+		{
+			reason = "Building area must include at least one interior cell.";
 			return false;
 		}
 
@@ -115,8 +123,18 @@ public sealed class BuildingFootprintService : MonoBehaviour
 			createdWalls.Add(wallObject);
 		}
 
+		List<GridCell> ownedCells = BuildOwnedCells(bounds, floor);
+		Building createdBuilding = BuildingManager.CreateBuilding(ownedCells);
+		if (createdBuilding == null)
+		{
+			RollbackCreatedWalls(createdWalls);
+			reason = "Failed to create runtime building data for the selected footprint.";
+			return false;
+		}
+
 		registeredFootprints.Add(new BuildingFootprintRecord
 		{
+			RuntimeBuildingId = createdBuilding.RuntimeBuildingId,
 			Floor = floor,
 			Bounds = bounds,
 		});
@@ -164,6 +182,23 @@ public sealed class BuildingFootprintService : MonoBehaviour
 		{
 			AddCell(bounds.xMin, z);
 			AddCell(bounds.xMax - 1, z);
+		}
+
+		return result;
+	}
+
+	private List<GridCell> BuildOwnedCells(in RectInt bounds, int floor)
+	{
+		List<GridCell> result = new(bounds.width * bounds.height);
+
+		for (int z = bounds.yMin; z < bounds.yMax; ++z)
+		{
+			for (int x = bounds.xMin; x < bounds.xMax; ++x)
+			{
+				GridCell cell = GridService.GetCell(x, floor, z);
+				if (cell != null)
+					result.Add(cell);
+			}
 		}
 
 		return result;

@@ -20,7 +20,9 @@ MonoBehaviour:
     interactionKind: 3
     occupancyCategory: 0
     overrideTargets: 0
+    environmentRequirement: 0
   - flags: 3
     interactionKind: 0
     occupancyCategory: 2
     overrideTargets: 0
+    environmentRequirement: 1

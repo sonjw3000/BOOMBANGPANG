@@ -9,6 +9,7 @@ public struct FootprintCell
 	public InteractionKind interactionKind;
 	public GridOccupancyCategory occupancyCategory;
 	public GridOccupancyCategory overrideTargets;
+	public FootprintCellEnvironmentRequirement environmentRequirement;
 }
 
 

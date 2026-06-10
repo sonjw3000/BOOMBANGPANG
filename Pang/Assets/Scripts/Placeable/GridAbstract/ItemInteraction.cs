@@ -5,7 +5,7 @@ using UnityEngine;
 
 public abstract class ItemInteraction :
 	MonoBehaviour,
-	IGridPlaceable,
+	IFacility,
 	IGridPlacementEffect,
 	IInteractionPoint
 {

@@ -20,11 +20,14 @@ MonoBehaviour:
     interactionKind: 2
     occupancyCategory: 0
     overrideTargets: 0
+    environmentRequirement: 2
   - flags: 19
     interactionKind: 0
     occupancyCategory: 4
     overrideTargets: 5
+    environmentRequirement: 0
   - flags: 21
     interactionKind: 1
     occupancyCategory: 0
     overrideTargets: 0
+    environmentRequirement: 1

@@ -1,14 +1,14 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(OutboundWorkflowManager))]
+[CustomEditor(typeof(OutboundWorkflowService))]
 class WorkFlowManagerEditor : Editor
 {
 	//public override void OnInspectorGUI()
 	//{
 	//	DrawDefaultInspector();
 
-	//	OutboundWorkflowManager manager = (OutboundWorkflowManager)target;
+	//	OutboundWorkflowService manager = (OutboundWorkflowService)target;
 
 	//}
 }

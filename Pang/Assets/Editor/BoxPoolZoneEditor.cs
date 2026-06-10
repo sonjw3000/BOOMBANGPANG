@@ -2,7 +2,7 @@
 using UnityEngine;
 using Unity.Mathematics;
 
-[CustomEditor(typeof(BoxPoolService))]
+[CustomEditor(typeof(BoxPoolManager))]
 class BoxPoolZoneEditor : Editor
 {
 	public static int Index;
@@ -11,7 +11,7 @@ class BoxPoolZoneEditor : Editor
 	{
 		DrawDefaultInspector();
 
-		BoxPoolService sys = (BoxPoolService)target;
+		BoxPoolManager sys = (BoxPoolManager)target;
 
 		Index = (int)EditorGUILayout.IntField("Target Index", Index);
 		if (GUILayout.Button("Give Tote Box"))
