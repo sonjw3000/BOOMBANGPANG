@@ -58,6 +58,32 @@ CargoPort
 
 This is the immediate precursor to full building-to-building logistics.
 
+### Building-Local Dispatch Notes
+
+Local building logistics will likely need dispatch-time requirement resolution rather than only static ownership data.
+
+Current note direction:
+- worker standby should use building-local `Zone` queries
+- worker charging and resting should use building-local `Facility` queries
+- `Building` does not necessarily need to own worker state directly
+- dispatch still needs building-scoped worker queries through the appropriate worker or task system
+
+A likely future requirement model:
+- `PickSource`
+- `PutSource`
+- `BuildingId`
+- `WorkerTask`
+
+The intent is:
+- dispatch a task only to workers that satisfy the building requirement
+- dispatch a task only to workers that satisfy the task type requirement
+- dispatch a task only to workers that satisfy both pick-side and put-side zone rules when those rules exist
+
+Important note:
+- zone ownership and final rule lookup should stay with `ZoneManager`
+- source facilities may expose enough information for lookup, but should not become the long-term source of truth for zone ownership
+- if no eligible worker exists, the task should remain waiting and surface readable UI feedback rather than silently rerouting to a less appropriate zone
+
 ### Airlock Note
 
 `Airlock` should be tracked as a required future building facility.
