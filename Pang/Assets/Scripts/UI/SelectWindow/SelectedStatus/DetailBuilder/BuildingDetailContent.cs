@@ -89,7 +89,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 
 	protected override void UpdateData()
 	{
-		RefreshAll();
+		RefreshSummaryValues();
 	}
 
 	private void EnsureUi()
@@ -244,6 +244,13 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 
 	private void RefreshAll()
 	{
+		RefreshSummaryValues();
+		RefreshFacilitiesSection();
+		RefreshZoneSection();
+	}
+
+	private void RefreshSummaryValues()
+	{
 		if (provider is not BuildingUIProvider buildingProvider)
 			return;
 
@@ -255,8 +262,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		cargoPortCountValue.text = buildingProvider.CargoPortCount.ToString();
 		zoneCountValue.text = buildingProvider.ZoneCount.ToString();
 		actionStateValue.text = buildingProvider.StateDisplay;
-		RefreshFacilitiesSection();
-		RefreshZoneSection();
 	}
 
 	private void RefreshFacilitiesSection()
