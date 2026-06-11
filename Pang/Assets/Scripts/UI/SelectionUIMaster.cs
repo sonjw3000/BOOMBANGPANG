@@ -58,6 +58,7 @@ public class SelectionUIMaster : MonoBehaviour
 		providers[typeof(ZoneSelectionProxy)] = new ZoneUIProvider();
 		providers[typeof(BuildingSelectionProxy)] = new BuildingUIProvider();
 
+		EnsureRuntimeZoneDetailContent();
 		EnsureRuntimeBuildingDetailContent();
 		EnsureHighlightRoot();
 		EnsureModeHud();
@@ -182,13 +183,6 @@ public class SelectionUIMaster : MonoBehaviour
 		provider.LinkObject(targetObj);
 		provider.BuildInfoBlocks();
 
-		if (provider is ZoneUIProvider zoneProvider)
-		{
-			detailUI.SetZoneDetail(zoneProvider);
-			detailUI.gameObject.SetActive(true);
-			return;
-		}
-
 		currentDetailContent?.gameObject.SetActive(false);
 		currentDetailContent = GetBestDetailContent(targetObj);
 		currentDetailContent?.SetProvider(provider);
@@ -299,6 +293,34 @@ public class SelectionUIMaster : MonoBehaviour
 		var contents = new List<DetailContentBase>(detailContents ?? System.Array.Empty<DetailContentBase>())
 		{
 			buildingDetail
+		};
+		detailContents = contents.ToArray();
+	}
+
+	private void EnsureRuntimeZoneDetailContent()
+	{
+		if (detailUI == null)
+			return;
+
+		foreach (DetailContentBase detailContent in detailContents)
+		{
+			if (detailContent is ZoneDetailContent)
+				return;
+		}
+
+		UIWindow detailWindow = detailUI.GetComponentInChildren<UIWindow>(true);
+		Transform parent = detailWindow != null && detailWindow.ContentRoot != null
+			? detailWindow.ContentRoot
+			: detailUI.transform;
+
+		GameObject detailRoot = new("RuntimeZoneDetailContent", typeof(RectTransform), typeof(ZoneDetailContent));
+		detailRoot.transform.SetParent(parent, false);
+		detailRoot.SetActive(false);
+
+		ZoneDetailContent zoneDetail = detailRoot.GetComponent<ZoneDetailContent>();
+		var contents = new List<DetailContentBase>(detailContents ?? System.Array.Empty<DetailContentBase>())
+		{
+			zoneDetail
 		};
 		detailContents = contents.ToArray();
 	}
