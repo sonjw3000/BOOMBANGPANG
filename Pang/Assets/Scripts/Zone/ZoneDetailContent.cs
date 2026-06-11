@@ -1,4 +1,5 @@
 using TMPro;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -49,7 +50,7 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 			facilitiesHeaderText.text = "Facilities";
 
 		if (facilitiesPlaceholderText != null)
-			facilitiesPlaceholderText.text = "TODO: Facilities contained in this zone will be listed here.";
+			facilitiesPlaceholderText.text = BuildFacilityListText(zone);
 	}
 
 	private void EnsureRuntimeFields()
@@ -97,5 +98,27 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 		text.textWrappingMode = TextWrappingModes.Normal;
 		text.color = Color.white;
 		return text;
+	}
+
+	private static string BuildFacilityListText(ZoneArea zone)
+	{
+		if (zone == null || zone.OccupiedFacilities.Count <= 0)
+			return "No facilities in this zone.";
+
+		StringBuilder builder = new();
+		for (int i = 0; i < zone.OccupiedFacilities.Count; ++i)
+		{
+			IFacility facility = zone.OccupiedFacilities[i];
+			if (facility is not Component component || component == null)
+				continue;
+
+			if (builder.Length > 0)
+				builder.Append('\n');
+
+			builder.Append("- ");
+			builder.Append(component.name);
+		}
+
+		return builder.Length > 0 ? builder.ToString() : "No facilities in this zone.";
 	}
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -10,12 +11,14 @@ public class ZoneArea
 	[SerializeField] private RectInt bound;
 	[SerializeField] private int floor;
 	[SerializeField] private uint runtimeBuildingId;
+	private List<IFacility> occupiedFacilities = new();
 
 	public string DisplayName => displayName;
 	public ZoneType Type => type;
 	public RectInt Bounds => bound;
 	public int Floor => floor;
 	public uint RuntimeBuildingId => runtimeBuildingId;
+	public IReadOnlyList<IFacility> OccupiedFacilities => EnsureFacilityList();
 
 	public ZoneArea(string name, ZoneType type, RectInt bound, int floor, uint runtimeBuildingId)
 	{
@@ -28,6 +31,30 @@ public class ZoneArea
 
 	public void Resize(in RectInt bound) => this.bound = bound;
 	public void Rename(string newDisplayName) => displayName = newDisplayName;
+
+	public bool RegisterFacility(IFacility facility)
+	{
+		List<IFacility> facilities = EnsureFacilityList();
+		if (facility == null || facilities.Contains(facility))
+			return false;
+
+		facilities.Add(facility);
+		return true;
+	}
+
+	public bool UnregisterFacility(IFacility facility)
+	{
+		List<IFacility> facilities = EnsureFacilityList();
+		if (facility == null)
+			return false;
+
+		return facilities.Remove(facility);
+	}
+
+	public void ClearFacilities()
+	{
+		EnsureFacilityList().Clear();
+	}
 
 	public bool Contains(in int3 pos)
 	{
@@ -44,5 +71,11 @@ public class ZoneArea
 			floor,
 			UnityEngine.Random.Range(bound.min.y, bound.max.y)
 		);
+	}
+
+	private List<IFacility> EnsureFacilityList()
+	{
+		occupiedFacilities ??= new List<IFacility>();
+		return occupiedFacilities;
 	}
 }

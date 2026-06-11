@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AYellowpaper.SerializedCollections;
+using Unity.Mathematics;
 using UnityEngine;
 
 public enum ZoneType
@@ -117,6 +118,7 @@ public class ZoneManager : MonoBehaviour
 		foreach (var zone in registeredZones)
 		{
 			RegisterZone(zone);
+			PopulateFacilitiesForZone(zone);
 		}
 
 		OnZonesRebuilt?.Invoke();
@@ -210,6 +212,7 @@ public class ZoneManager : MonoBehaviour
 		ZoneArea res = new(name, type, bound, floor, ownerBuilding.RuntimeBuildingId);
 		registeredZones.Add(res);
 		RegisterZone(res);
+		PopulateFacilitiesForZone(res);
 		OnZoneAdded?.Invoke(res);
 
 		return res;
@@ -235,6 +238,7 @@ public class ZoneManager : MonoBehaviour
 			if (buildingZones.Count <= 0)
 				zonesByBuildingId.Remove(zone.RuntimeBuildingId);
 		}
+		zone.ClearFacilities();
 
 		OnZoneRemoved?.Invoke(zone);
 		return true;
@@ -255,6 +259,7 @@ public class ZoneManager : MonoBehaviour
 		}
 
 		zone.Resize(newBound);
+		PopulateFacilitiesForZone(zone);
 		OnZoneChanged?.Invoke(zone);
 		return true;
 	}
@@ -324,6 +329,42 @@ public class ZoneManager : MonoBehaviour
 		return false;
 	}
 
+	public bool TryRegisterFacility(IFacility facility)
+	{
+		if (facility == null)
+			return false;
+
+		TryUnregisterFacility(facility);
+
+		if (TryGetZoneAt(facility.GridPosition, out ZoneArea zone) == false || zone == null)
+			return false;
+
+		if (zone.RegisterFacility(facility) == false)
+			return false;
+
+		OnZoneChanged?.Invoke(zone);
+		return true;
+	}
+
+	public bool TryUnregisterFacility(IFacility facility)
+	{
+		if (facility == null)
+			return false;
+
+		bool removed = false;
+		for (int i = 0; i < registeredZones.Count; ++i)
+		{
+			ZoneArea zone = registeredZones[i];
+			if (zone == null || zone.UnregisterFacility(facility) == false)
+				continue;
+
+			removed = true;
+			OnZoneChanged?.Invoke(zone);
+		}
+
+		return removed;
+	}
+
 	public bool TryGetAvailableZone(out ZoneArea result, int floor, ZoneType zoneType, Predicate<ZoneArea> pred = null)
 	{
 		result = null;
@@ -364,6 +405,36 @@ public class ZoneManager : MonoBehaviour
 		}
 
 		return candidate;
+	}
+
+	private void PopulateFacilitiesForZone(ZoneArea zone)
+	{
+		if (zone == null)
+			return;
+
+		zone.ClearFacilities();
+		if (GridService == null)
+			return;
+
+		HashSet<IFacility> uniqueFacilities = new();
+		RectInt bounds = zone.Bounds;
+
+		for (int z = bounds.yMin; z < bounds.yMax; ++z)
+		{
+			for (int x = bounds.xMin; x < bounds.xMax; ++x)
+			{
+				int3 pos = new(x, zone.Floor, z);
+				GameObject obj = GridService.GetObjectOnGrid(pos);
+				if (obj == null || obj.TryGetComponent<IFacility>(out IFacility facility) == false)
+					continue;
+
+				if (facility.GridPosition.Equals(pos) == false)
+					continue;
+
+				if (uniqueFacilities.Add(facility))
+					zone.RegisterFacility(facility);
+			}
+		}
 	}
 
 	public ZoneManagerSaveData CaptureState()
