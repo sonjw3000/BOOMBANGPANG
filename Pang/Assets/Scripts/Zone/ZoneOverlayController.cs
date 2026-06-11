@@ -183,6 +183,14 @@ public class ZoneOverlayController : MonoBehaviour
 		Interaction.EnterZonePlacementMode(zoneType, currentFloor);
 	}
 
+	public ZoneSelectionProxy GetSelectionProxy(ZoneArea zone)
+	{
+		if (zone == null)
+			return null;
+
+		return GetOrCreateProxy(zone);
+	}
+
 	private bool HandleBuildingModeSelection(int3 pos)
 	{
 		if (buildingModeActive == false || GridService == null || BuildingManager == null)

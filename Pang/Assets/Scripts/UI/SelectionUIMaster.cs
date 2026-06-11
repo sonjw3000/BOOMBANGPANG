@@ -161,6 +161,30 @@ public class SelectionUIMaster : MonoBehaviour
 		ShowDetailForObject(currentObj);
 	}
 
+	public void SelectAndShowDetail(GameObject targetObj)
+	{
+		if (targetObj == null)
+		{
+			detailUI.gameObject.SetActive(false);
+			return;
+		}
+
+		if (Interaction != null)
+		{
+			Interaction.SelectObject(targetObj);
+		}
+		else
+		{
+			currentObj = targetObj;
+			GetProvider();
+			SelectionChange();
+			RefreshWorldHighlights();
+			RefreshModeHud();
+		}
+
+		ShowDetailForObject(targetObj);
+	}
+
 	public void OnFocusBtnClicked()
 	{
 	}

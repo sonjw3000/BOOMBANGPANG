@@ -20,6 +20,8 @@ public class ZoneControlWindow : MonoBehaviour
 	private Button createButton;
 	private TMP_Text createButtonText;
 	private ZoneType selectedZoneType;
+	private Building contextBuilding;
+	private bool ownsBuildingMode;
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
 
@@ -75,6 +77,40 @@ public class ZoneControlWindow : MonoBehaviour
 		window.Open();
 	}
 
+	public void OpenForBuilding(Building building)
+	{
+		EnsureInitialized();
+		EnsureHostActive();
+		if (window == null)
+			return;
+
+		contextBuilding = building;
+		if (overlayController != null)
+		{
+			if (building != null)
+			{
+				if (overlayController.BuildingModeActive == false)
+				{
+					overlayController.SetBuildingModeActive(true);
+					ownsBuildingMode = true;
+				}
+				else
+				{
+					ownsBuildingMode = false;
+				}
+
+				overlayController.SetOverlayVisible(true, building);
+			}
+			else
+			{
+				ownsBuildingMode = false;
+				overlayController.SetOverlayVisible(true);
+			}
+		}
+
+		window.Open();
+	}
+
 	public void Close()
 	{
 		EnsureInitialized();
@@ -86,13 +122,23 @@ public class ZoneControlWindow : MonoBehaviour
 
 	private void HandleWindowOpened()
 	{
-		overlayController?.SetOverlayVisible(true);
+		if (contextBuilding == null && overlayController != null)
+			contextBuilding = overlayController.CurrentBuilding;
+
+		overlayController?.SetOverlayVisible(true, contextBuilding);
 		UpdateStatus();
 	}
 
 	private void HandleWindowClosed()
 	{
 		overlayController?.SetOverlayVisible(false);
+		if (ownsBuildingMode && overlayController != null)
+		{
+			overlayController.SetBuildingModeActive(false);
+			ownsBuildingMode = false;
+		}
+
+		contextBuilding = null;
 		UpdateStatus();
 	}
 
@@ -116,7 +162,7 @@ public class ZoneControlWindow : MonoBehaviour
 		}
 
 		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingZoneEdit;
-		createButton.interactable = isCreating == false;
+		createButton.interactable = isCreating == false && contextBuilding != null;
 		createButtonText.text = isCreating ? "Creating..." : "Create Zone";
 
 		if (window.IsOpen == false)
@@ -125,9 +171,16 @@ public class ZoneControlWindow : MonoBehaviour
 			return;
 		}
 
+		if (contextBuilding == null)
+		{
+			statusText.text = "Open this window from a building to create building-owned zones.";
+			return;
+		}
+
+		string buildingLabel = contextBuilding != null ? contextBuilding.DisplayName : "current building";
 		statusText.text = isCreating
-			? "Left click start/end cells. Right click to cancel."
-			: "Select a zone or create a new zone.";
+			? $"Left click start/end cells inside {buildingLabel}. Right click to cancel."
+			: $"Select a zone type and create a new zone in {buildingLabel}.";
 	}
 
 	private void BuildContent()

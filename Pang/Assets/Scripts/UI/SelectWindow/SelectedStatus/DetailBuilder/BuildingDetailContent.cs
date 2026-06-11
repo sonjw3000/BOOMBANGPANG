@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
@@ -23,7 +22,8 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	private RectTransform bodyRoot;
 	private readonly List<GameObject> tabRoots = new();
 	private readonly List<Button> actionButtons = new();
-	private readonly Dictionary<ZoneType, Toggle> zoneTypeToggles = new();
+	private readonly List<GameObject> zoneListRows = new();
+	private readonly List<GameObject> facilitySummaryRows = new();
 
 	private TextMeshProUGUI nameValue;
 	private TextMeshProUGUI typeValue;
@@ -33,22 +33,24 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	private TextMeshProUGUI cargoPortCountValue;
 	private TextMeshProUGUI zoneCountValue;
 
-	private TextMeshProUGUI facilitiesTodoText;
+	private TextMeshProUGUI facilitiesSummaryText;
+	private RectTransform facilitiesSummaryRoot;
 	private TextMeshProUGUI portsTodoText;
 	private TextMeshProUGUI zoneStatusText;
-	private TextMeshProUGUI zoneListText;
-	private Button zoneCreateButton;
-	private TextMeshProUGUI zoneCreateButtonText;
+	private Button zoneOpenControlsButton;
+	private RectTransform zoneListRoot;
+	private TextMeshProUGUI zoneEmptyText;
 
 	private TextMeshProUGUI actionStateValue;
 	private TextMeshProUGUI demolitionNoteText;
 	private RectTransform actionRoot;
 
 	private ZoneOverlayController zoneOverlayController;
+	private ZoneControlWindow zoneControlWindow;
+	private SelectionUIMaster selectionUIMaster;
 	private bool listenersBound;
 	private bool uiBuilt;
 	private int currentTabIndex;
-	private ZoneType selectedZoneType = ZoneType.Storage;
 
 	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
 	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
@@ -68,8 +70,11 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 				actionButton.onClick.RemoveAllListeners();
 		}
 
-		if (zoneCreateButton != null)
-			zoneCreateButton.onClick.RemoveListener(HandleZoneCreateButtonClicked);
+		if (zoneOpenControlsButton != null)
+			zoneOpenControlsButton.onClick.RemoveListener(HandleZoneControlsButtonClicked);
+
+		ClearZoneListRows();
+		ClearFacilitySummaryRows();
 	}
 
 	protected override void LinkData()
@@ -118,8 +123,14 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		tabRoots.Add(overviewTab);
 
 		GameObject facilitiesTab = CreateRuntimeVerticalContainer("FacilitiesTab", bodyRoot, 6f).gameObject;
-		facilitiesTodoText = CreateRuntimeBodyText("FacilitiesTodoText", facilitiesTab.transform);
-		facilitiesTodoText.text = "TODO: Building-owned facilities list.";
+		TextMeshProUGUI facilitiesHeaderText = CreateRuntimeBodyText("FacilitiesHeaderText", facilitiesTab.transform);
+		facilitiesHeaderText.text = "Building Facility Summary";
+		facilitiesHeaderText.fontStyle = FontStyles.Bold;
+
+		facilitiesSummaryText = CreateRuntimeBodyText("FacilitiesSummaryText", facilitiesTab.transform);
+		facilitiesSummaryText.fontSize = 20f;
+
+		facilitiesSummaryRoot = CreateRuntimeVerticalContainer("FacilitiesSummaryRoot", facilitiesTab.transform, 6f);
 		tabRoots.Add(facilitiesTab);
 
 		GameObject portsTab = CreateRuntimeVerticalContainer("PortsTab", bodyRoot, 6f).gameObject;
@@ -130,40 +141,18 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		GameObject zonesTab = CreateRuntimeVerticalContainer("ZonesTab", bodyRoot, 8f).gameObject;
 		zoneStatusText = CreateRuntimeBodyText("ZoneStatusText", zonesTab.transform);
 		zoneStatusText.fontSize = 20f;
-		zoneStatusText.text = "Select a zone type to create a building-owned zone.";
+		zoneStatusText.text = "Use Zone Controls to create and inspect building-owned zones.";
 
-		zoneCreateButton = CreateRuntimeActionButton(zonesTab.transform, "Create Zone", HandleZoneCreateButtonClicked);
-		zoneCreateButtonText = zoneCreateButton.GetComponentInChildren<TextMeshProUGUI>();
-
-		TextMeshProUGUI zoneTypeHeader = CreateRuntimeBodyText("ZoneTypeHeader", zonesTab.transform);
-		zoneTypeHeader.text = "Zone Type";
-		zoneTypeHeader.fontStyle = FontStyles.Bold;
-
-		GameObject toggleRoot = new("ZoneTypeToggleRoot", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ToggleGroup));
-		toggleRoot.transform.SetParent(zonesTab.transform, false);
-
-		VerticalLayoutGroup toggleLayout = toggleRoot.GetComponent<VerticalLayoutGroup>();
-		toggleLayout.spacing = 6f;
-		toggleLayout.childForceExpandHeight = false;
-		toggleLayout.childForceExpandWidth = true;
-		toggleLayout.childControlHeight = true;
-		toggleLayout.childControlWidth = true;
-
-		ToggleGroup toggleGroup = toggleRoot.GetComponent<ToggleGroup>();
-		foreach (ZoneType zoneType in Enum.GetValues(typeof(ZoneType)))
-		{
-			Toggle toggle = CreateZoneTypeToggle(zoneType, toggleRoot.transform, toggleGroup);
-			zoneTypeToggles[zoneType] = toggle;
-			toggle.isOn = zoneType == selectedZoneType;
-		}
+		zoneOpenControlsButton = CreateRuntimeActionButton(zonesTab.transform, "Open Zone Controls", HandleZoneControlsButtonClicked);
 
 		TextMeshProUGUI zoneListHeader = CreateRuntimeBodyText("ZoneListHeader", zonesTab.transform);
 		zoneListHeader.text = "Zones In Building";
 		zoneListHeader.fontStyle = FontStyles.Bold;
 
-		zoneListText = CreateRuntimeBodyText("ZoneListText", zonesTab.transform);
-		zoneListText.fontSize = 20f;
-		zoneListText.textWrappingMode = TextWrappingModes.Normal;
+		zoneListRoot = CreateRuntimeVerticalContainer("ZoneListRoot", zonesTab.transform, 6f);
+		zoneEmptyText = CreateRuntimeBodyText("ZoneEmptyText", zoneListRoot);
+		zoneEmptyText.fontSize = 20f;
+		zoneEmptyText.text = "No zones in this building yet.";
 		tabRoots.Add(zonesTab);
 
 		GameObject actionTab = CreateRuntimeVerticalContainer("ActionTab", bodyRoot, 8f).gameObject;
@@ -178,10 +167,10 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 
 	private void BindListeners()
 	{
-		if (zoneCreateButton != null)
+		if (zoneOpenControlsButton != null)
 		{
-			zoneCreateButton.onClick.RemoveListener(HandleZoneCreateButtonClicked);
-			zoneCreateButton.onClick.AddListener(HandleZoneCreateButtonClicked);
+			zoneOpenControlsButton.onClick.RemoveListener(HandleZoneControlsButtonClicked);
+			zoneOpenControlsButton.onClick.AddListener(HandleZoneControlsButtonClicked);
 		}
 
 		if (listenersBound)
@@ -249,6 +238,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 			tabRoots[i].SetActive(i == tabIndex);
 
 		window?.UpdateTabVisuals(tabIndex);
+		RefreshFacilitiesSection();
 		RefreshZoneSection();
 	}
 
@@ -265,21 +255,65 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		cargoPortCountValue.text = buildingProvider.CargoPortCount.ToString();
 		zoneCountValue.text = buildingProvider.ZoneCount.ToString();
 		actionStateValue.text = buildingProvider.StateDisplay;
+		RefreshFacilitiesSection();
 		RefreshZoneSection();
+	}
+
+	private void RefreshFacilitiesSection()
+	{
+		if (facilitiesSummaryText == null || facilitiesSummaryRoot == null)
+			return;
+
+		ClearFacilitySummaryRows();
+
+		if (provider is not BuildingUIProvider buildingProvider || buildingProvider.Target?.Building == null)
+		{
+			facilitiesSummaryText.text = "Building context is unavailable.";
+			return;
+		}
+
+		Building building = buildingProvider.Target.Building;
+		IReadOnlyList<IFacility> facilities = building.OccupiedFacilities;
+		facilitiesSummaryText.text = $"Total Facilities: {facilities.Count}";
+
+		if (facilities.Count <= 0)
+		{
+			AddFacilitySummaryRow("No facilities in this building yet.");
+			return;
+		}
+
+		SortedDictionary<string, int> counts = new(StringComparer.Ordinal);
+		for (int i = 0; i < facilities.Count; ++i)
+		{
+			IFacility facility = facilities[i];
+			if (facility == null)
+				continue;
+
+			string key = facility.GetType().Name;
+			if (counts.TryGetValue(key, out int currentCount) == false)
+				currentCount = 0;
+
+			counts[key] = currentCount + 1;
+		}
+
+		foreach (KeyValuePair<string, int> pair in counts)
+			AddFacilitySummaryRow($"{pair.Key}: {pair.Value}");
 	}
 
 	private void RefreshZoneSection()
 	{
-		if (zoneStatusText == null || zoneListText == null || zoneCreateButton == null)
+		if (zoneStatusText == null || zoneOpenControlsButton == null || zoneListRoot == null || zoneEmptyText == null)
 			return;
+
+		EnsureZoneOverlayController();
+		ClearZoneListRows();
 
 		if (provider is not BuildingUIProvider buildingProvider || buildingProvider.Target?.Building == null)
 		{
-			zoneCreateButton.interactable = false;
-			if (zoneCreateButtonText != null)
-				zoneCreateButtonText.text = "Create Zone";
+			zoneOpenControlsButton.interactable = false;
 			zoneStatusText.text = "Building context is unavailable.";
-			zoneListText.text = string.Empty;
+			zoneEmptyText.gameObject.SetActive(true);
+			zoneEmptyText.text = "No zones available.";
 			return;
 		}
 
@@ -287,58 +321,32 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		IReadOnlyList<ZoneArea> buildingZones = ZoneManager != null
 			? ZoneManager.GetZonesForBuilding(building.RuntimeBuildingId)
 			: Array.Empty<ZoneArea>();
-		bool isZoneTab = currentTabIndex == (int)BuildingDetailTab.Zones;
 		bool isCreating = Interaction != null
 			&& Interaction.Mode == InteractionContext.InteractionMode.BuildingZoneEdit
 			&& zoneOverlayController != null
 			&& zoneOverlayController.CurrentBuilding == building;
 
-		zoneCreateButton.interactable = isZoneTab && isCreating == false;
-		if (zoneCreateButtonText != null)
-			zoneCreateButtonText.text = isCreating ? "Creating..." : "Create Zone";
-
-		if (isZoneTab == false)
-		{
-			zoneStatusText.text = "Open the Zones tab to inspect or create zones in this building.";
-		}
-		else if (isCreating)
-		{
-			zoneStatusText.text = "Left click start/end cells inside this building. Right click to cancel.";
-		}
-		else
-		{
-			zoneStatusText.text = "Select a zone type and create a zone inside the building interior.";
-		}
+		zoneOpenControlsButton.interactable = true;
+		zoneStatusText.text = isCreating
+			? "Zone creation is active in Zone Controls. Left click start/end cells inside this building. Right click to cancel."
+			: "Use Zone Controls to create and manage zones for this building.";
 
 		if (buildingZones.Count <= 0)
 		{
-			zoneListText.text = "No zones in this building yet.";
+			zoneEmptyText.gameObject.SetActive(true);
+			zoneEmptyText.text = "No zones in this building yet.";
 			return;
 		}
 
-		StringBuilder builder = new();
+		zoneEmptyText.gameObject.SetActive(false);
 		for (int i = 0; i < buildingZones.Count; ++i)
 		{
 			ZoneArea zone = buildingZones[i];
 			if (zone == null)
 				continue;
 
-			RectInt bounds = zone.Bounds;
-			builder.Append(zone.DisplayName);
-			builder.Append(" (");
-			builder.Append(zone.Type);
-			builder.Append(")  ");
-			builder.Append(bounds.width);
-			builder.Append("x");
-			builder.Append(bounds.height);
-			builder.Append(" @ ");
-			builder.Append(bounds.xMin);
-			builder.Append(", ");
-			builder.Append(bounds.yMin);
-			builder.AppendLine();
+			CreateZoneListRow(zone);
 		}
-
-		zoneListText.text = builder.ToString().TrimEnd();
 	}
 
 	private void BuildActionTab()
@@ -366,14 +374,29 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		actionButtons.Add(restoreActiveButton);
 	}
 
-	private void HandleZoneCreateButtonClicked()
+	private void HandleZoneControlsButtonClicked()
 	{
 		if (provider is not BuildingUIProvider buildingProvider || buildingProvider.Target?.Building == null)
 			return;
 
-		EnsureZoneOverlayController();
-		zoneOverlayController?.BeginCreate(selectedZoneType, buildingProvider.Target.Building);
+		EnsureZoneControlWindow();
+		zoneControlWindow?.OpenForBuilding(buildingProvider.Target.Building);
 		RefreshZoneSection();
+	}
+
+	private void HandleViewZoneDetailsClicked(ZoneArea zone)
+	{
+		if (zone == null)
+			return;
+
+		EnsureZoneOverlayController();
+		EnsureSelectionUIMaster();
+
+		ZoneSelectionProxy proxy = zoneOverlayController?.GetSelectionProxy(zone);
+		if (proxy == null)
+			return;
+
+		selectionUIMaster?.SelectAndShowDetail(proxy.gameObject);
 	}
 
 	private void HandleZonePlacementChanged(ZoneType zoneType)
@@ -406,35 +429,71 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 			zoneOverlayController = FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
 	}
 
-	private Toggle CreateZoneTypeToggle(ZoneType zoneType, Transform parent, ToggleGroup group)
+	private void EnsureZoneControlWindow()
 	{
-		GameObject root = new(zoneType.ToString(), typeof(RectTransform), typeof(Image), typeof(Toggle), typeof(LayoutElement));
-		root.transform.SetParent(parent, false);
+		if (zoneControlWindow == null)
+			zoneControlWindow = FindFirstObjectByType<ZoneControlWindow>(FindObjectsInactive.Include);
+	}
 
-		LayoutElement layout = root.GetComponent<LayoutElement>();
-		layout.preferredHeight = 34f;
+	private void EnsureSelectionUIMaster()
+	{
+		if (selectionUIMaster == null)
+			selectionUIMaster = GetComponentInParent<SelectionUIMaster>(true);
 
-		Image background = root.GetComponent<Image>();
-		background.color = new Color(0.22f, 0.22f, 0.22f, 0.95f);
+		if (selectionUIMaster == null)
+			selectionUIMaster = FindFirstObjectByType<SelectionUIMaster>(FindObjectsInactive.Include);
+	}
 
-		Toggle toggle = root.GetComponent<Toggle>();
-		toggle.group = group;
-		toggle.targetGraphic = background;
+	private void CreateZoneListRow(ZoneArea zone)
+	{
+		RectTransform row = CreateRuntimeHorizontalContainer(zone.DisplayName + "Row", zoneListRoot, 8f);
+		zoneListRows.Add(row.gameObject);
 
-		TextMeshProUGUI label = CreateRuntimeBodyText("Label", root.transform);
-		label.text = zoneType.ToString();
-		label.alignment = TextAlignmentOptions.MidlineLeft;
-		label.margin = new Vector4(12f, 0f, 0f, 0f);
-		label.fontSize = 18f;
+		TextMeshProUGUI label = CreateRuntimeBodyText(zone.DisplayName + "Label", row);
+		label.fontSize = 20f;
 
-		toggle.onValueChanged.AddListener(isOn =>
+		RectInt bounds = zone.Bounds;
+		label.text = $"{zone.DisplayName} ({zone.Type})  {bounds.width}x{bounds.height} @ {bounds.xMin}, {bounds.yMin}";
+
+		Button button = CreateCompactActionButton(row, "View Details", () => HandleViewZoneDetailsClicked(zone));
+	}
+
+	private void ClearZoneListRows()
+	{
+		for (int i = 0; i < zoneListRows.Count; ++i)
 		{
-			background.color = isOn ? new Color(0.26f, 0.45f, 0.72f, 1f) : new Color(0.22f, 0.22f, 0.22f, 0.95f);
-			if (isOn)
-				selectedZoneType = zoneType;
-		});
+			GameObject row = zoneListRows[i];
+			if (row != null)
+			{
+				row.SetActive(false);
+				Destroy(row);
+			}
+		}
 
-		return toggle;
+		zoneListRows.Clear();
+	}
+
+	private void AddFacilitySummaryRow(string text)
+	{
+		TextMeshProUGUI rowText = CreateRuntimeBodyText("FacilitySummaryRow", facilitiesSummaryRoot);
+		rowText.fontSize = 20f;
+		rowText.text = text;
+		facilitySummaryRows.Add(rowText.gameObject);
+	}
+
+	private void ClearFacilitySummaryRows()
+	{
+		for (int i = 0; i < facilitySummaryRows.Count; ++i)
+		{
+			GameObject row = facilitySummaryRows[i];
+			if (row != null)
+			{
+				row.SetActive(false);
+				Destroy(row);
+			}
+		}
+
+		facilitySummaryRows.Clear();
 	}
 
 	private static RectTransform CreateRuntimeVerticalContainer(string name, Transform parent, float spacing)
@@ -518,5 +577,55 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 
 		TextMeshProUGUI valueText = CreateRuntimeBodyText(label + "Value", row);
 		return valueText;
+	}
+
+	private static Button CreateCompactActionButton(Transform parent, string label, UnityEngine.Events.UnityAction onClick)
+	{
+		GameObject buttonRoot = new(label.Replace(" ", string.Empty) + "Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+		buttonRoot.transform.SetParent(parent, false);
+
+		LayoutElement layout = buttonRoot.GetComponent<LayoutElement>();
+		layout.preferredHeight = 34f;
+		layout.minHeight = 34f;
+		layout.preferredWidth = 130f;
+		layout.minWidth = 130f;
+		layout.flexibleWidth = 0f;
+
+		Image image = buttonRoot.GetComponent<Image>();
+		image.color = new Color(0.18f, 0.18f, 0.18f, 0.9f);
+
+		Button button = buttonRoot.GetComponent<Button>();
+		button.onClick.AddListener(onClick);
+
+		GameObject textRoot = new("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+		textRoot.transform.SetParent(buttonRoot.transform, false);
+
+		TextMeshProUGUI text = textRoot.GetComponent<TextMeshProUGUI>();
+		text.text = label;
+		text.fontSize = 18f;
+		text.alignment = TextAlignmentOptions.Center;
+		text.color = Color.white;
+		text.textWrappingMode = TextWrappingModes.NoWrap;
+		text.overflowMode = TextOverflowModes.Ellipsis;
+
+		RectTransform textRect = text.rectTransform;
+		textRect.anchorMin = Vector2.zero;
+		textRect.anchorMax = Vector2.one;
+		textRect.offsetMin = Vector2.zero;
+		textRect.offsetMax = Vector2.zero;
+
+		return button;
+	}
+
+	private static void SetTopStretch(RectTransform rect, float left, float right, float top)
+	{
+		if (rect == null)
+			return;
+
+		rect.anchorMin = new Vector2(0f, 1f);
+		rect.anchorMax = new Vector2(1f, 1f);
+		rect.pivot = new Vector2(0.5f, 1f);
+		rect.offsetMin = new Vector2(left, 0f);
+		rect.offsetMax = new Vector2(-right, -top);
 	}
 }
