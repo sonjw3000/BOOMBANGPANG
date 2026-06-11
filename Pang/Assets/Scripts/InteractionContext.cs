@@ -3,12 +3,26 @@ using UnityEngine;
 
 public class InteractionContext
 {
-	public enum InteractionMode
+	public enum InteractionDomain
+	{
+		Facility,
+		Building,
+	}
+
+	public enum InteractionAction
 	{
 		Select,
-		Placement,
-		ZonePlacement,
+		Install,
+		ZoneEdit,
+	}
+
+	public enum InteractionMode
+	{
+		FacilitySelect,
+		FacilityPlacement,
+		BuildingSelect,
 		BuildingPlacement,
+		BuildingZoneEdit,
 	}
 
 	public readonly struct ZonePlacementPreview
@@ -45,7 +59,8 @@ public class InteractionContext
 		}
 	}
 
-	private InteractionMode interactionMode = InteractionMode.Select;
+	private InteractionDomain interactionDomain = InteractionDomain.Facility;
+	private InteractionAction interactionAction = InteractionAction.Select;
 	private int3 mousePos;
 
 	// select
@@ -74,6 +89,7 @@ public class InteractionContext
 	// select event
 	public event System.Action<GameObject> OnItemSelected;
 	public event System.Func<int3, GameObject> OnResolveSelectionFallback;
+	public event System.Func<int3, bool> OnHandleBuildingSelection;
 
 	// zone placement event
 	public event System.Action<ZonePlacementPreview> OnZonePlacementPreviewChanged;
@@ -82,16 +98,60 @@ public class InteractionContext
 	public event System.Action<BuildingPlacementPreview> OnBuildingPlacementPreviewChanged;
 	public event System.Action<int> OnBuildingPlacementChanged;
 	public event System.Action<RectInt, int> OnBuildingPlacementConfirmed;
+	public event System.Action<InteractionDomain, InteractionAction> OnModeChanged;
 
 	public PlaceableDefinition ToBePlaced => toBePlaced;
-	public InteractionMode Mode => interactionMode;
+	public InteractionMode Mode => ResolveMode(interactionDomain, interactionAction);
+	public InteractionDomain Domain => interactionDomain;
+	public InteractionAction Action => interactionAction;
 	public FacingDirection Direction => direction;
 	private GridService GridService => GameContext.Instance.GridService;
+
+	private static InteractionMode ResolveMode(InteractionDomain domain, InteractionAction action)
+	{
+		return (domain, action) switch
+		{
+			(InteractionDomain.Facility, InteractionAction.Select) => InteractionMode.FacilitySelect,
+			(InteractionDomain.Facility, InteractionAction.Install) => InteractionMode.FacilityPlacement,
+			(InteractionDomain.Building, InteractionAction.Select) => InteractionMode.BuildingSelect,
+			(InteractionDomain.Building, InteractionAction.Install) => InteractionMode.BuildingPlacement,
+			(InteractionDomain.Building, InteractionAction.ZoneEdit) => InteractionMode.BuildingZoneEdit,
+			_ => InteractionMode.FacilitySelect,
+		};
+	}
+
+	private void SetMode(InteractionDomain domain, InteractionAction action)
+	{
+		if (interactionDomain == domain && interactionAction == action)
+			return;
+
+		interactionDomain = domain;
+		interactionAction = action;
+		OnModeChanged?.Invoke(interactionDomain, interactionAction);
+	}
 
 	private void OnSelectionChange(GameObject gridObj)
 	{
 		selectedObject = gridObj;
 		OnItemSelected?.Invoke(gridObj);
+	}
+
+	private void CancelActivePlacementMode()
+	{
+		switch (Mode)
+		{
+			case InteractionMode.FacilityPlacement:
+				ExitPlacementMode();
+				break;
+
+			case InteractionMode.BuildingPlacement:
+				ExitBuildingPlacementMode();
+				break;
+
+			case InteractionMode.BuildingZoneEdit:
+				ExitZonePlacementMode();
+				break;
+		}
 	}
 
 	private void RaiseZonePlacementPreview(in int3 currentPos)
@@ -117,18 +177,29 @@ public class InteractionContext
 
 	public void EnterPlacementMode(PlaceableDefinition pd)
 	{
-		interactionMode = InteractionMode.Placement;
+		CancelActivePlacementMode();
+		SetMode(InteractionDomain.Facility, InteractionAction.Install);
 		toBePlaced = pd;
 		selectedObject = null;
 		hasZonePlacementStart = false;
 		hasBuildingPlacementStart = false;
 
+		OnItemSelected?.Invoke(null);
 		OnPlacementChanged?.Invoke(toBePlaced);
+	}
+
+	public void EnterBuildingSelectMode()
+	{
+		CancelActivePlacementMode();
+		SetMode(InteractionDomain.Building, InteractionAction.Select);
+		selectedObject = null;
+		OnItemSelected?.Invoke(null);
 	}
 
 	public void EnterZonePlacementMode(ZoneType zoneType, int floor)
 	{
-		interactionMode = InteractionMode.ZonePlacement;
+		CancelActivePlacementMode();
+		SetMode(InteractionDomain.Building, InteractionAction.ZoneEdit);
 		toBePlaced = null;
 		zoneToBePlaced = zoneType;
 		zonePlacementFloor = floor;
@@ -143,7 +214,8 @@ public class InteractionContext
 
 	public void EnterBuildingPlacementMode(int floor)
 	{
-		interactionMode = InteractionMode.BuildingPlacement;
+		CancelActivePlacementMode();
+		SetMode(InteractionDomain.Building, InteractionAction.Install);
 		toBePlaced = null;
 		buildingPlacementFloor = floor;
 		hasZonePlacementStart = false;
@@ -157,7 +229,7 @@ public class InteractionContext
 
 	public void ExitPlacementMode()
 	{
-		interactionMode = InteractionMode.Select;
+		SetMode(InteractionDomain.Facility, InteractionAction.Select);
 		toBePlaced = null;
 		hasZonePlacementStart = false;
 		hasBuildingPlacementStart = false;
@@ -167,7 +239,7 @@ public class InteractionContext
 
 	public void ExitZonePlacementMode()
 	{
-		interactionMode = InteractionMode.Select;
+		SetMode(InteractionDomain.Building, InteractionAction.Select);
 		hasZonePlacementStart = false;
 
 		OnZonePlacementChanged?.Invoke(zoneToBePlaced);
@@ -182,7 +254,7 @@ public class InteractionContext
 
 	public void ExitBuildingPlacementMode()
 	{
-		interactionMode = InteractionMode.Select;
+		SetMode(InteractionDomain.Building, InteractionAction.Select);
 		hasBuildingPlacementStart = false;
 
 		OnBuildingPlacementChanged?.Invoke(buildingPlacementFloor);
@@ -199,17 +271,30 @@ public class InteractionContext
 		OnSelectionChange(null);
 	}
 
+	public void SelectObject(GameObject gridObj)
+	{
+		OnSelectionChange(gridObj);
+	}
+
+	public void ExitBuildingMode()
+	{
+		CancelActivePlacementMode();
+		SetMode(InteractionDomain.Facility, InteractionAction.Select);
+		selectedObject = null;
+		OnItemSelected?.Invoke(null);
+	}
+
 	public void OnMouseMove(int3 pos)
 	{
 		mousePos = pos;
 
 		switch (Mode)
 		{
-			case InteractionMode.Placement:
+			case InteractionMode.FacilityPlacement:
 				OnMouseChangedOnPlacement?.Invoke(mousePos);
 				break;
 
-			case InteractionMode.ZonePlacement:
+			case InteractionMode.BuildingZoneEdit:
 				RaiseZonePlacementPreview(mousePos);
 				break;
 
@@ -223,7 +308,7 @@ public class InteractionContext
 	{
 		switch (Mode)
 		{
-			case InteractionMode.Select:
+			case InteractionMode.FacilitySelect:
 				var obj = GameContext.Instance.GridService.GetObjectOnGrid(pos);
 				if (obj == null && OnResolveSelectionFallback != null)
 				{
@@ -238,7 +323,23 @@ public class InteractionContext
 				OnSelectionChange(obj);
 				break;
 
-			case InteractionMode.Placement:
+			case InteractionMode.BuildingSelect:
+				bool handled = false;
+				if (OnHandleBuildingSelection != null)
+				{
+					foreach (System.Func<int3, bool> handler in OnHandleBuildingSelection.GetInvocationList())
+					{
+						handled = handler(pos);
+						if (handled)
+							break;
+					}
+				}
+
+				if (handled == false)
+					OnSelectionChange(null);
+				break;
+
+			case InteractionMode.FacilityPlacement:
 				PlacementContext ctx = new(
 					center: mousePos,
 					dir: direction,
@@ -247,7 +348,7 @@ public class InteractionContext
 				GridService.OnInstall(ctx);
 				break;
 
-			case InteractionMode.ZonePlacement:
+			case InteractionMode.BuildingZoneEdit:
 				if (hasZonePlacementStart == false)
 				{
 					hasZonePlacementStart = true;
@@ -289,14 +390,15 @@ public class InteractionContext
 	{
 		switch (Mode)
 		{
-			case InteractionMode.Select:
+			case InteractionMode.FacilitySelect:
+			case InteractionMode.BuildingSelect:
 				break;
 
-			case InteractionMode.Placement:
+			case InteractionMode.FacilityPlacement:
 				ExitPlacementMode();
 				break;
 
-			case InteractionMode.ZonePlacement:
+			case InteractionMode.BuildingZoneEdit:
 				ExitZonePlacementMode();
 				break;
 
@@ -308,7 +410,7 @@ public class InteractionContext
 
 	public void RotatePlacement()
 	{
-		if (Mode != InteractionMode.Placement)
+		if (Mode != InteractionMode.FacilityPlacement)
 			return;
 
 		direction = direction.Rotate90CW();

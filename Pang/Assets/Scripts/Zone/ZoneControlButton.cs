@@ -11,6 +11,12 @@ public class ZoneControlButton : MonoBehaviour
 
 	private void Awake()
 	{
+		if (gameObject.activeSelf)
+		{
+			gameObject.SetActive(false);
+			return;
+		}
+
 		if (button == null)
 			button = GetComponent<Button>();
 

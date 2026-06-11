@@ -24,7 +24,6 @@ public sealed class Building
 	private bool isRegistered;
 
 	private readonly List<GridCell> occupiedCells;
-	private readonly List<ZoneArea> occupiedZones = new();
 
 	private readonly List<IFacility> occupiedFacilities = new();
 	private readonly List<CargoPort> occupiedCargoPorts = new();
@@ -36,7 +35,6 @@ public sealed class Building
 	public uint RuntimeBuildingId => runtimeBuildingId;
 	public BuildingState State => state;
 	public IReadOnlyList<GridCell> OccupiedCells => occupiedCells;
-	public IReadOnlyList<ZoneArea> OccupiedZones => occupiedZones;
 	public IReadOnlyList<IFacility> OccupiedFacilities => occupiedFacilities;
 	public IReadOnlyList<CargoPort> OccupiedCargoPorts => occupiedCargoPorts;
 

@@ -3,6 +3,7 @@ using System.Text;
 using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class SelectionUIMaster : MonoBehaviour
 {
@@ -35,6 +36,15 @@ public class SelectionUIMaster : MonoBehaviour
 	private GameObject selectedHighlight = null;
 	private GameObjectPool interactionHighlightPool = null;
 	private GameObjectPool interactionLabelPool = null;
+	private RectTransform modeHudRoot = null;
+	private TextMeshProUGUI modeDomainText = null;
+	private TextMeshProUGUI modeActionText = null;
+	private Button buildingDetailsButton = null;
+	private TextMeshProUGUI buildingDetailsButtonText = null;
+	private ZoneOverlayController zoneOverlayController = null;
+	private BuildingPlacementOverlayController buildingPlacementOverlayController = null;
+
+	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
 
 	private void Awake()
 	{
@@ -49,22 +59,42 @@ public class SelectionUIMaster : MonoBehaviour
 		providers[typeof(BuildingSelectionProxy)] = new BuildingUIProvider();
 
 		EnsureRuntimeBuildingDetailContent();
+		EnsureHighlightRoot();
+		EnsureModeHud();
+		EnsureModeDependencies();
 
-		GameContext.Instance.InteractionCtx.OnItemSelected += OnSelected;
+		if (Interaction != null)
+		{
+			Interaction.OnItemSelected += OnSelected;
+			Interaction.OnModeChanged += HandleInteractionModeChanged;
+		}
 
 		cardUI.FocusButton.onClick.AddListener(OnFocusBtnClicked);
 		cardUI.DetailsButton.onClick.AddListener(OnDetailClicked);
+		if (buildingDetailsButton != null)
+			buildingDetailsButton.onClick.AddListener(HandleBuildingDetailsClicked);
 
-		EnsureHighlightRoot();
+		RefreshModeHud();
 	}
 
 	private void OnDisable()
 	{
 		cardUI.DetailsButton.onClick.RemoveListener(OnDetailClicked);
 		cardUI.FocusButton.onClick.RemoveListener(OnFocusBtnClicked);
+		if (buildingDetailsButton != null)
+			buildingDetailsButton.onClick.RemoveListener(HandleBuildingDetailsClicked);
 
-		if (GameContext.HasInstance && GameContext.Instance.InteractionCtx != null)
-			GameContext.Instance.InteractionCtx.OnItemSelected -= OnSelected;
+		if (Interaction != null)
+		{
+			Interaction.OnItemSelected -= OnSelected;
+			Interaction.OnModeChanged -= HandleInteractionModeChanged;
+		}
+
+		if (zoneOverlayController != null)
+		{
+			zoneOverlayController.ActiveBuildingChanged -= HandleActiveBuildingChanged;
+			zoneOverlayController.BuildingModeChanged -= HandleBuildingModeChanged;
+		}
 
 		HideWorldHighlights();
 	}
@@ -72,28 +102,25 @@ public class SelectionUIMaster : MonoBehaviour
 	private void Update()
 	{
 		if (currentProvider != null)
-		{
 			currentProvider.OnUpdate();
-		}
 	}
 
 	private void OnSelected(GameObject gridObj)
 	{
 		currentObj = gridObj;
-
 		GetProvider();
 		SelectionChange();
 		RefreshWorldHighlights();
+		RefreshModeHud();
 	}
 
 	private bool GetProvider()
 	{
 		currentProvider = null;
-
 		if (currentObj == null)
 			return false;
 
-		currentProvider = GetBestProvider();
+		currentProvider = GetBestProvider(currentObj);
 		if (currentProvider != null)
 			return true;
 
@@ -106,7 +133,12 @@ public class SelectionUIMaster : MonoBehaviour
 		if (currentProvider == null || currentObj == null)
 		{
 			DisableCard();
-			detailUI.gameObject.SetActive(false);
+			bool keepBuildingDetailOpen = Interaction != null
+				&& Interaction.Domain == InteractionContext.InteractionDomain.Building
+				&& currentDetailContent is BuildingDetailContent
+				&& detailUI.gameObject.activeSelf;
+			if (keepBuildingDetailOpen == false)
+				detailUI.gameObject.SetActive(false);
 			return;
 		}
 
@@ -125,13 +157,32 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnDetailClicked()
 	{
-		if (currentObj == null || currentProvider == null)
+		ShowDetailForObject(currentObj);
+	}
+
+	public void OnFocusBtnClicked()
+	{
+	}
+
+	public void ShowDetailForObject(GameObject targetObj)
+	{
+		if (targetObj == null)
 		{
 			detailUI.gameObject.SetActive(false);
 			return;
 		}
 
-		if (currentProvider is ZoneUIProvider zoneProvider)
+		UIProviderBase provider = GetBestProvider(targetObj);
+		if (provider == null)
+		{
+			detailUI.gameObject.SetActive(false);
+			return;
+		}
+
+		provider.LinkObject(targetObj);
+		provider.BuildInfoBlocks();
+
+		if (provider is ZoneUIProvider zoneProvider)
 		{
 			detailUI.SetZoneDetail(zoneProvider);
 			detailUI.gameObject.SetActive(true);
@@ -139,8 +190,8 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 
 		currentDetailContent?.gameObject.SetActive(false);
-		currentDetailContent = GetBestDetailContent();
-		currentDetailContent?.SetProvider(currentProvider);
+		currentDetailContent = GetBestDetailContent(targetObj);
+		currentDetailContent?.SetProvider(provider);
 
 		if (currentDetailContent != null)
 		{
@@ -149,23 +200,18 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 		else
 		{
-			string targetName = currentObj != null ? currentObj.name : "None";
-			Debug.LogWarning($"No suitable UI DetailBuilder found for the selected object, Target: {targetName}");
+			Debug.LogWarning($"No suitable UI DetailBuilder found for the selected object, Target: {targetObj.name}");
 		}
 	}
 
-	public void OnFocusBtnClicked()
-	{
-	}
-
-	private UIProviderBase GetBestProvider()
+	private UIProviderBase GetBestProvider(GameObject targetObj)
 	{
 		UIProviderBase bestProvider = null;
 		int bestDistance = int.MaxValue;
 
 		foreach (UIProviderBase provider in providers.Values)
 		{
-			int distance = GetMatchDistance(provider.TargetType);
+			int distance = GetMatchDistance(targetObj, provider.TargetType);
 			if (distance < bestDistance)
 			{
 				bestDistance = distance;
@@ -176,14 +222,14 @@ public class SelectionUIMaster : MonoBehaviour
 		return bestProvider;
 	}
 
-	private DetailContentBase GetBestDetailContent()
+	private DetailContentBase GetBestDetailContent(GameObject targetObj)
 	{
 		DetailContentBase bestContent = null;
 		int bestDistance = int.MaxValue;
 
 		foreach (DetailContentBase content in detailContents)
 		{
-			int distance = GetMatchDistance(content.TargetType);
+			int distance = GetMatchDistance(targetObj, content.TargetType);
 			if (distance < bestDistance)
 			{
 				bestDistance = distance;
@@ -194,12 +240,12 @@ public class SelectionUIMaster : MonoBehaviour
 		return bestContent;
 	}
 
-	private int GetMatchDistance(System.Type candidateType)
+	private int GetMatchDistance(GameObject targetObj, System.Type candidateType)
 	{
-		if (currentObj == null || candidateType == null)
+		if (targetObj == null || candidateType == null)
 			return int.MaxValue;
 
-		Component matchedComponent = currentObj.GetComponent(candidateType);
+		Component matchedComponent = targetObj.GetComponent(candidateType);
 		if (matchedComponent == null)
 			return int.MaxValue;
 
@@ -255,6 +301,166 @@ public class SelectionUIMaster : MonoBehaviour
 			buildingDetail
 		};
 		detailContents = contents.ToArray();
+	}
+
+	private void EnsureModeDependencies()
+	{
+		if (zoneOverlayController == null)
+		{
+			zoneOverlayController = FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
+			if (zoneOverlayController != null)
+			{
+				zoneOverlayController.ActiveBuildingChanged -= HandleActiveBuildingChanged;
+				zoneOverlayController.ActiveBuildingChanged += HandleActiveBuildingChanged;
+				zoneOverlayController.BuildingModeChanged -= HandleBuildingModeChanged;
+				zoneOverlayController.BuildingModeChanged += HandleBuildingModeChanged;
+			}
+		}
+
+		if (buildingPlacementOverlayController == null)
+			buildingPlacementOverlayController = FindFirstObjectByType<BuildingPlacementOverlayController>(FindObjectsInactive.Include);
+	}
+
+	private void EnsureModeHud()
+	{
+		if (modeHudRoot != null)
+			return;
+
+		Canvas canvas = GetComponentInParent<Canvas>();
+		if (canvas == null)
+			canvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+
+		if (canvas == null)
+			return;
+
+		GameObject rootObject = new("InteractionModeHud", typeof(RectTransform));
+		modeHudRoot = rootObject.GetComponent<RectTransform>();
+		modeHudRoot.SetParent(canvas.transform, false);
+		modeHudRoot.anchorMin = new Vector2(0.5f, 1f);
+		modeHudRoot.anchorMax = new Vector2(0.5f, 1f);
+		modeHudRoot.pivot = new Vector2(0.5f, 1f);
+		modeHudRoot.anchoredPosition = new Vector2(0f, -20f);
+		modeHudRoot.sizeDelta = new Vector2(320f, 96f);
+
+		GameObject domainObject = new("ModeDomain", typeof(RectTransform), typeof(TextMeshProUGUI));
+		domainObject.transform.SetParent(modeHudRoot, false);
+		modeDomainText = domainObject.GetComponent<TextMeshProUGUI>();
+		modeDomainText.alignment = TextAlignmentOptions.Center;
+		modeDomainText.fontSize = 28f;
+		modeDomainText.color = Color.white;
+		modeDomainText.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+		modeDomainText.rectTransform.anchorMax = new Vector2(1f, 1f);
+		modeDomainText.rectTransform.offsetMin = Vector2.zero;
+		modeDomainText.rectTransform.offsetMax = Vector2.zero;
+
+		GameObject actionObject = new("ModeAction", typeof(RectTransform), typeof(TextMeshProUGUI));
+		actionObject.transform.SetParent(modeHudRoot, false);
+		modeActionText = actionObject.GetComponent<TextMeshProUGUI>();
+		modeActionText.alignment = TextAlignmentOptions.Center;
+		modeActionText.fontSize = 18f;
+		modeActionText.color = new Color(0.82f, 0.88f, 0.95f, 1f);
+		modeActionText.rectTransform.anchorMin = new Vector2(0f, 0f);
+		modeActionText.rectTransform.anchorMax = new Vector2(1f, 0.5f);
+		modeActionText.rectTransform.offsetMin = Vector2.zero;
+		modeActionText.rectTransform.offsetMax = Vector2.zero;
+
+		GameObject buttonObject = new("BuildingModeDetailsButton", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+		buttonObject.transform.SetParent(canvas.transform, false);
+		RectTransform buttonRect = buttonObject.GetComponent<RectTransform>();
+		buttonRect.anchorMin = new Vector2(0.5f, 0f);
+		buttonRect.anchorMax = new Vector2(0.5f, 0f);
+		buttonRect.pivot = new Vector2(0.5f, 0f);
+		buttonRect.anchoredPosition = new Vector2(0f, 40f);
+		buttonRect.sizeDelta = new Vector2(180f, 42f);
+
+		Image buttonImage = buttonObject.GetComponent<Image>();
+		buttonImage.color = new Color(0.18f, 0.42f, 0.7f, 0.92f);
+
+		buildingDetailsButton = buttonObject.GetComponent<Button>();
+		ColorBlock colors = buildingDetailsButton.colors;
+		colors.disabledColor = new Color(0.26f, 0.26f, 0.26f, 0.85f);
+		buildingDetailsButton.colors = colors;
+
+		GameObject buttonTextObject = new("Text (TMP)", typeof(RectTransform), typeof(TextMeshProUGUI));
+		buttonTextObject.transform.SetParent(buttonObject.transform, false);
+		buildingDetailsButtonText = buttonTextObject.GetComponent<TextMeshProUGUI>();
+		buildingDetailsButtonText.text = "Details";
+		buildingDetailsButtonText.alignment = TextAlignmentOptions.Center;
+		buildingDetailsButtonText.fontSize = 22f;
+		buildingDetailsButtonText.color = Color.white;
+		buildingDetailsButtonText.rectTransform.anchorMin = Vector2.zero;
+		buildingDetailsButtonText.rectTransform.anchorMax = Vector2.one;
+		buildingDetailsButtonText.rectTransform.offsetMin = Vector2.zero;
+		buildingDetailsButtonText.rectTransform.offsetMax = Vector2.zero;
+	}
+
+	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
+	{
+		RefreshModeHud();
+		if (domain == InteractionContext.InteractionDomain.Facility)
+			detailUI.gameObject.SetActive(false);
+	}
+
+	private void HandleActiveBuildingChanged(Building building)
+	{
+		RefreshModeHud();
+	}
+
+	private void HandleBuildingModeChanged(bool active)
+	{
+		RefreshModeHud();
+		if (active == false)
+			detailUI.gameObject.SetActive(false);
+	}
+
+	private void HandleBuildingDetailsClicked()
+	{
+		EnsureModeDependencies();
+		if (zoneOverlayController == null || buildingPlacementOverlayController == null)
+			return;
+
+		Building activeBuilding = zoneOverlayController.CurrentBuilding;
+		if (activeBuilding == null)
+			return;
+
+		BuildingSelectionProxy proxy = buildingPlacementOverlayController.GetSelectionProxy(activeBuilding);
+		if (proxy == null)
+			return;
+
+		ShowDetailForObject(proxy.gameObject);
+	}
+
+	private void RefreshModeHud()
+	{
+		if (Interaction == null)
+			return;
+
+		EnsureModeDependencies();
+
+		if (modeDomainText != null)
+		{
+			modeDomainText.text = Interaction.Domain == InteractionContext.InteractionDomain.Building
+				? "Building Mode"
+				: "Facility Mode";
+		}
+
+		if (modeActionText != null)
+		{
+			modeActionText.text = Interaction.Action switch
+			{
+				InteractionContext.InteractionAction.Install => "Install",
+				InteractionContext.InteractionAction.ZoneEdit => "Zone Edit",
+				_ => "Select",
+			};
+		}
+
+		if (buildingDetailsButton != null)
+		{
+			bool isBuildingMode = Interaction.Domain == InteractionContext.InteractionDomain.Building;
+			bool hasActiveBuilding = zoneOverlayController != null && zoneOverlayController.CurrentBuilding != null;
+			buildingDetailsButton.interactable = isBuildingMode && hasActiveBuilding;
+			buildingDetailsButton.gameObject.SetActive(true);
+		}
 	}
 
 	private void RefreshWorldHighlights()

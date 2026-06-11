@@ -38,8 +38,43 @@ public class ZoneManager : MonoBehaviour
 	[SerializeField] private SerializedDictionary<ZoneType, Color> zoneColors = new();
 
 	private readonly Dictionary<int, Dictionary<ZoneType, List<ZoneArea>>> zones = new();
+	private readonly Dictionary<uint, List<ZoneArea>> zonesByBuildingId = new();
+	private static readonly IReadOnlyList<ZoneArea> EmptyZones = Array.Empty<ZoneArea>();
 
 	public IReadOnlyList<ZoneArea> RegisteredZones => registeredZones;
+
+	private BuildingManager BuildingManager
+	{
+		get
+		{
+			if (GameContext.HasInstance)
+				return GameContext.Instance.BuildingMgr;
+
+			return FindFirstObjectByType<BuildingManager>();
+		}
+	}
+
+	private BuildingFootprintService BuildingFootprintService
+	{
+		get
+		{
+			if (GameContext.HasInstance)
+				return GameContext.Instance.BuildingFootprintService;
+
+			return FindFirstObjectByType<BuildingFootprintService>();
+		}
+	}
+
+	private GridService GridService
+	{
+		get
+		{
+			if (GameContext.HasInstance)
+				return GameContext.Instance.GridService;
+
+			return FindFirstObjectByType<GridService>();
+		}
+	}
 
 	public event Action<ZoneArea> OnZoneAdded;
 	public event Action<ZoneArea> OnZoneRemoved;
@@ -77,6 +112,7 @@ public class ZoneManager : MonoBehaviour
 	public void RebuildZoneLookup()
 	{
 		zones.Clear();
+		zonesByBuildingId.Clear();
 
 		foreach (var zone in registeredZones)
 		{
@@ -99,6 +135,18 @@ public class ZoneManager : MonoBehaviour
 
 		if (zones[zone.Floor][zone.Type].Contains(zone) == false)
 			zones[zone.Floor][zone.Type].Add(zone);
+
+		if (zone.RuntimeBuildingId != 0)
+		{
+			if (zonesByBuildingId.TryGetValue(zone.RuntimeBuildingId, out List<ZoneArea> buildingZones) == false)
+			{
+				buildingZones = new List<ZoneArea>();
+				zonesByBuildingId[zone.RuntimeBuildingId] = buildingZones;
+			}
+
+			if (buildingZones.Contains(zone) == false)
+				buildingZones.Add(zone);
+		}
 	}
 
 	private bool HasOverlap(int floor, in RectInt bound, ZoneArea ignore = null)
@@ -121,23 +169,45 @@ public class ZoneManager : MonoBehaviour
 		return false;
 	}
 
-	public bool CanPlaceZone(int floor, in RectInt bound, ZoneArea ignore = null)
+	public bool CanPlaceZone(Building ownerBuilding, int floor, in RectInt bound, ZoneArea ignore = null)
 	{
+		if (ownerBuilding == null || ownerBuilding.RuntimeBuildingId == 0)
+			return false;
+
 		if (bound.width <= 0 || bound.height <= 0)
 			return false;
+
+		if (BuildingFootprintService == null || BuildingFootprintService.TryGetInteriorBounds(ownerBuilding.RuntimeBuildingId, out RectInt interiorBounds, out int buildingFloor) == false)
+			return false;
+
+		if (buildingFloor != floor || ContainsRect(interiorBounds, bound) == false)
+			return false;
+
+		if (GridService == null)
+			return false;
+
+		for (int z = bound.yMin; z < bound.yMax; ++z)
+		{
+			for (int x = bound.xMin; x < bound.xMax; ++x)
+			{
+				GridCell cell = GridService.GetCell(x, floor, z);
+				if (cell == null || cell.BuildingId != ownerBuilding.RuntimeBuildingId)
+					return false;
+			}
+		}
 
 		return HasOverlap(floor, bound, ignore) == false;
 	}
 
-	public ZoneArea AddZone(string name, ZoneType type, in RectInt bound, int floor)
+	public ZoneArea AddZone(Building ownerBuilding, string name, ZoneType type, in RectInt bound, int floor)
 	{
-		if (CanPlaceZone(floor, bound) == false)
+		if (CanPlaceZone(ownerBuilding, floor, bound) == false)
 		{
 			Debug.Log($"Zone {name} is overlapped by another zone");
 			return null;
 		}
 
-		ZoneArea res = new(name, type, bound, floor);
+		ZoneArea res = new(name, type, bound, floor, ownerBuilding.RuntimeBuildingId);
 		registeredZones.Add(res);
 		RegisterZone(res);
 		OnZoneAdded?.Invoke(res);
@@ -145,9 +215,9 @@ public class ZoneManager : MonoBehaviour
 		return res;
 	}
 
-	public ZoneArea AddZone(ZoneType type, in RectInt bound, int floor)
+	public ZoneArea AddZone(Building ownerBuilding, ZoneType type, in RectInt bound, int floor)
 	{
-		return AddZone(BuildDefaultZoneName(type), type, bound, floor);
+		return AddZone(ownerBuilding, BuildDefaultZoneName(type), type, bound, floor);
 	}
 
 	public bool RemoveZone(ZoneArea zone)
@@ -159,6 +229,13 @@ public class ZoneManager : MonoBehaviour
 
 		targetZones.Remove(zone);
 		registeredZones.Remove(zone);
+		if (zone.RuntimeBuildingId != 0 && zonesByBuildingId.TryGetValue(zone.RuntimeBuildingId, out List<ZoneArea> buildingZones))
+		{
+			buildingZones.Remove(zone);
+			if (buildingZones.Count <= 0)
+				zonesByBuildingId.Remove(zone.RuntimeBuildingId);
+		}
+
 		OnZoneRemoved?.Invoke(zone);
 		return true;
 	}
@@ -168,7 +245,10 @@ public class ZoneManager : MonoBehaviour
 		if (CheckHavingZone(zone) == false)
 			return false;
 
-		if (CanPlaceZone(zone.Floor, newBound, zone) == false)
+		if (BuildingManager == null || BuildingManager.TryGetBuilding(zone.RuntimeBuildingId, out Building ownerBuilding) == false)
+			return false;
+
+		if (CanPlaceZone(ownerBuilding, zone.Floor, newBound, zone) == false)
 		{
 			Debug.Log("Zone Resize Failed!, Out of bound!");
 			return false;
@@ -198,6 +278,28 @@ public class ZoneManager : MonoBehaviour
 
 		result = zones[floor][zoneType];
 		return result.Count > 0;
+	}
+
+	public IReadOnlyList<ZoneArea> GetZonesForBuilding(uint runtimeBuildingId)
+	{
+		if (runtimeBuildingId == 0)
+			return EmptyZones;
+
+		if (zonesByBuildingId.TryGetValue(runtimeBuildingId, out List<ZoneArea> buildingZones) == false)
+			return EmptyZones;
+
+		return buildingZones;
+	}
+
+	public bool TryGetZonesForBuilding(uint runtimeBuildingId, out IReadOnlyList<ZoneArea> result)
+	{
+		result = GetZonesForBuilding(runtimeBuildingId);
+		return result.Count > 0;
+	}
+
+	public int GetZoneCountForBuilding(uint runtimeBuildingId)
+	{
+		return GetZonesForBuilding(runtimeBuildingId).Count;
 	}
 
 	public bool TryGetZoneAt(in Unity.Mathematics.int3 pos, out ZoneArea result)
@@ -276,6 +378,7 @@ public class ZoneManager : MonoBehaviour
 			{
 				Name = zone.DisplayName,
 				Type = zone.Type,
+				RuntimeBuildingId = zone.RuntimeBuildingId,
 				Floor = zone.Floor,
 				Bounds = new RectIntSaveData(zone.Bounds.x, zone.Bounds.y, zone.Bounds.width, zone.Bounds.height),
 			});
@@ -292,7 +395,13 @@ public class ZoneManager : MonoBehaviour
 
 		foreach (var zoneData in data.Zones)
 		{
-			AddZone(zoneData.Name, zoneData.Type, new RectInt(zoneData.Bounds.X, zoneData.Bounds.Y, zoneData.Bounds.Width, zoneData.Bounds.Height), zoneData.Floor);
+			if (BuildingManager == null || BuildingManager.TryGetBuilding(zoneData.RuntimeBuildingId, out Building ownerBuilding) == false)
+			{
+				Debug.LogWarning($"[Save] Skipping zone restore {zoneData.Name}: missing building {zoneData.RuntimeBuildingId}.");
+				continue;
+			}
+
+			AddZone(ownerBuilding, zoneData.Name, zoneData.Type, new RectInt(zoneData.Bounds.X, zoneData.Bounds.Y, zoneData.Bounds.Width, zoneData.Bounds.Height), zoneData.Floor);
 		}
 	}
 
@@ -300,5 +409,13 @@ public class ZoneManager : MonoBehaviour
 	{
 		registeredZones.Clear();
 		RebuildZoneLookup();
+	}
+
+	private static bool ContainsRect(in RectInt outer, in RectInt inner)
+	{
+		return inner.xMin >= outer.xMin
+			&& inner.yMin >= outer.yMin
+			&& inner.xMax <= outer.xMax
+			&& inner.yMax <= outer.yMax;
 	}
 }

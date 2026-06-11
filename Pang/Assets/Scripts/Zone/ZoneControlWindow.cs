@@ -25,6 +25,12 @@ public class ZoneControlWindow : MonoBehaviour
 
 	private void Awake()
 	{
+		if (gameObject.activeSelf)
+		{
+			gameObject.SetActive(false);
+			return;
+		}
+
 		EnsureInitialized();
 	}
 
@@ -109,7 +115,7 @@ public class ZoneControlWindow : MonoBehaviour
 			return;
 		}
 
-		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.ZonePlacement;
+		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingZoneEdit;
 		createButton.interactable = isCreating == false;
 		createButtonText.text = isCreating ? "Creating..." : "Create Zone";
 

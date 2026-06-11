@@ -129,6 +129,8 @@ public sealed class GameSaveService : MonoBehaviour
 		data.Time = Ctx.GameTime.CaptureState();
 		data.Economy = Ctx.EconomyService.CaptureState();
 		data.ItemLedger = Ctx.WMSys.ItemLedger.CaptureState();
+		data.Buildings = Ctx.BuildingMgr.CaptureState();
+		data.BuildingFootprints = Ctx.BuildingFootprintService.CaptureState();
 		data.Zones = Ctx.ZoneMgr.CaptureState();
 		data.Grid = Ctx.GridService.CaptureState();
 		data.Contracts = Ctx.ContractMgr.CaptureState();
@@ -178,6 +180,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.OBWorkflowSvc.PackingStations.ResetRuntimeState();
 
 		Ctx.GridService.RestoreState(data.Grid);
+		Ctx.BuildingFootprintService.RestoreState(data.Buildings, data.BuildingFootprints);
 		Ctx.ZoneMgr.RestoreState(data.Zones);
 		Ctx.WMSys.WorkPolicyService.RestoreState(data.Policy != null ? data.Policy.WorkSpeed : null);
 		Ctx.IBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);

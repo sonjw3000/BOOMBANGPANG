@@ -147,6 +147,47 @@ public sealed class BuildingManager : MonoBehaviour
 		nextRuntimeBuildingId = 1;
 	}
 
+	public BuildingManagerSaveData CaptureState()
+	{
+		BuildingManagerSaveData data = new();
+		foreach (Building building in registeredBuildings)
+		{
+			if (building == null)
+				continue;
+
+			data.Buildings.Add(new BuildingSaveData
+			{
+				RuntimeBuildingId = building.RuntimeBuildingId,
+				Name = building.DisplayName,
+				Type = building.Type,
+				State = building.State,
+			});
+		}
+
+		return data;
+	}
+
+	public Building RestoreBuilding(
+		List<GridCell> ownedCells,
+		uint runtimeBuildingId,
+		BuildingType buildingType,
+		string displayName,
+		BuildingState state)
+	{
+		if (ownedCells == null || ownedCells.Count <= 0)
+			return null;
+
+		Building building = new(displayName, ownedCells, buildingType);
+		building.AssignRuntimeBuildingId(runtimeBuildingId);
+		building.SetState(state);
+		Register(building);
+
+		for (int i = 0; i < ownedCells.Count; ++i)
+			ownedCells[i]?.SetBuildingId(building.RuntimeBuildingId);
+
+		return building;
+	}
+
 	private bool IsRuntimeIdInUse(uint runtimeId, Building currentBuilding)
 	{
 		return buildingsById.TryGetValue(runtimeId, out var existing) && existing != null && existing != currentBuilding;

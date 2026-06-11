@@ -89,6 +89,14 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		Interaction.EnterBuildingPlacementMode(currentFloor);
 	}
 
+	public BuildingSelectionProxy GetSelectionProxy(Building building)
+	{
+		if (building == null)
+			return null;
+
+		return GetOrCreateProxy(building);
+	}
+
 	private void HandleBuildingPlacementPreviewChanged(InteractionContext.BuildingPlacementPreview preview)
 	{
 		if (isVisible == false || Interaction.Mode != InteractionContext.InteractionMode.BuildingPlacement || preview.HasStart == false)

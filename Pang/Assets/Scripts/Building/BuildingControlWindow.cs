@@ -7,6 +7,7 @@ public class BuildingControlWindow : MonoBehaviour
 {
 	[SerializeField] private UIWindow window;
 	[SerializeField] private BuildingPlacementOverlayController overlayController;
+	[SerializeField] private ZoneOverlayController zoneOverlayController;
 	[SerializeField] private string windowTitle = "Building Control";
 
 	private bool initialized;
@@ -75,6 +76,7 @@ public class BuildingControlWindow : MonoBehaviour
 		overlayController ??= GetComponent<BuildingPlacementOverlayController>();
 		if (overlayController == null)
 			overlayController = gameObject.AddComponent<BuildingPlacementOverlayController>();
+		zoneOverlayController ??= FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
 
 		if (window == null)
 			return;
@@ -134,13 +136,17 @@ public class BuildingControlWindow : MonoBehaviour
 
 	private void HandleWindowOpened()
 	{
-		overlayController?.SetOverlayVisible(true);
+		Interaction.EnterBuildingSelectMode();
+		overlayController?.SetOverlayVisible(false);
+		zoneOverlayController?.SetBuildingModeActive(true);
 		UpdateStatus();
 	}
 
 	private void HandleWindowClosed()
 	{
 		overlayController?.SetOverlayVisible(false);
+		zoneOverlayController?.SetBuildingModeActive(false);
+		Interaction.ExitBuildingMode();
 		UpdateStatus();
 	}
 

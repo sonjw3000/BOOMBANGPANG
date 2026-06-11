@@ -9,18 +9,21 @@ public class ZoneArea
 	[SerializeField] private ZoneType type;
 	[SerializeField] private RectInt bound;
 	[SerializeField] private int floor;
+	[SerializeField] private uint runtimeBuildingId;
 
 	public string DisplayName => displayName;
 	public ZoneType Type => type;
 	public RectInt Bounds => bound;
 	public int Floor => floor;
+	public uint RuntimeBuildingId => runtimeBuildingId;
 
-	public ZoneArea(string name, ZoneType type, RectInt bound, int floor)
+	public ZoneArea(string name, ZoneType type, RectInt bound, int floor, uint runtimeBuildingId)
 	{
 		displayName = name;
 		this.type = type;
 		this.bound = bound;
 		this.floor = floor;
+		this.runtimeBuildingId = runtimeBuildingId;
 	}
 
 	public void Resize(in RectInt bound) => this.bound = bound;

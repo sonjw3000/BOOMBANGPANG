@@ -3,6 +3,7 @@ using UnityEngine;
 public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>
 {
 	private Building Building => currentTarget != null ? currentTarget.Building : null;
+	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
 
 	public override string Name => Building != null ? Building.DisplayName : "Unknown Building";
 	public override string Subtitle => Building != null ? Building.Type.ToString() : "Unknown Building";
@@ -12,7 +13,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>
 	public int CellCount => Building != null ? Building.OccupiedCells.Count : 0;
 	public int FacilityCount => Building != null ? Building.OccupiedFacilities.Count : 0;
 	public int CargoPortCount => Building != null ? Building.OccupiedCargoPorts.Count : 0;
-	public int ZoneCount => Building != null ? Building.OccupiedZones.Count : 0;
+	public int ZoneCount => Building != null && ZoneManager != null ? ZoneManager.GetZoneCountForBuilding(Building.RuntimeBuildingId) : 0;
 
 	public override void BuildInfoBlocks()
 	{

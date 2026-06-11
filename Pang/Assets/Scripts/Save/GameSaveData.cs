@@ -47,13 +47,15 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 1;
+	public int Version = 2;
 	public string SavedAtUtc;
 
 	public PolicyStateSaveData Policy = new();
 	public TimeSaveData Time = new();
 	public EconomySaveData Economy = new();
 	public ItemLedgerSaveData ItemLedger = new();
+	public BuildingManagerSaveData Buildings = new();
+	public BuildingFootprintServiceSaveData BuildingFootprints = new();
 	public ZoneManagerSaveData Zones = new();
 	public GridMapSaveData Grid = new();
 	public ContractServiceSaveData Contracts = new();
@@ -128,6 +130,35 @@ public sealed class ItemLedgerSaveData
 }
 
 [Serializable]
+public sealed class BuildingManagerSaveData
+{
+	public List<BuildingSaveData> Buildings = new();
+}
+
+[Serializable]
+public sealed class BuildingSaveData
+{
+	public uint RuntimeBuildingId;
+	public string Name;
+	public BuildingType Type;
+	public BuildingState State;
+}
+
+[Serializable]
+public sealed class BuildingFootprintServiceSaveData
+{
+	public List<BuildingFootprintSaveData> Footprints = new();
+}
+
+[Serializable]
+public sealed class BuildingFootprintSaveData
+{
+	public uint RuntimeBuildingId;
+	public int Floor;
+	public RectIntSaveData Bounds = new();
+}
+
+[Serializable]
 public sealed class ZoneManagerSaveData
 {
 	public List<ZoneSaveData> Zones = new();
@@ -138,6 +169,7 @@ public sealed class ZoneSaveData
 {
 	public string Name;
 	public ZoneType Type;
+	public uint RuntimeBuildingId;
 	public int Floor;
 	public RectIntSaveData Bounds = new();
 }
