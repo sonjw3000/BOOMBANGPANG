@@ -45,6 +45,9 @@ public class ZoneOverlayController : MonoBehaviour
 	private BuildingFootprintService BuildingFootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+	private bool IsFacilityPlacementActive => GameContext.HasInstance
+		&& GameContext.Instance.InteractionCtx != null
+		&& Interaction.Mode == InteractionContext.InteractionMode.FacilityPlacement;
 
 	private void Awake()
 	{
@@ -81,6 +84,7 @@ public class ZoneOverlayController : MonoBehaviour
 
 		Interaction.OnResolveSelectionFallback += ResolveZoneSelection;
 		Interaction.OnHandleBuildingSelection += HandleBuildingModeSelection;
+		Interaction.OnModeChanged += HandleInteractionModeChanged;
 		Interaction.OnZonePlacementPreviewChanged += HandleZonePlacementPreviewChanged;
 		Interaction.OnZonePlacementConfirmed += HandleZonePlacementConfirmed;
 	}
@@ -99,6 +103,7 @@ public class ZoneOverlayController : MonoBehaviour
 		{
 			Interaction.OnResolveSelectionFallback -= ResolveZoneSelection;
 			Interaction.OnHandleBuildingSelection -= HandleBuildingModeSelection;
+			Interaction.OnModeChanged -= HandleInteractionModeChanged;
 			Interaction.OnZonePlacementPreviewChanged -= HandleZonePlacementPreviewChanged;
 			Interaction.OnZonePlacementConfirmed -= HandleZonePlacementConfirmed;
 		}
@@ -227,8 +232,13 @@ public class ZoneOverlayController : MonoBehaviour
 
 	private void HandleZoneListChanged(ZoneArea zone)
 	{
-		if (isVisible)
+		if (IsOverlayActive)
 			RefreshVisibleZones();
+	}
+
+	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
+	{
+		RefreshOverlayState();
 	}
 
 	private void HandleZoneRemoved(ZoneArea zone)
@@ -242,7 +252,7 @@ public class ZoneOverlayController : MonoBehaviour
 			proxies.Remove(zone);
 		}
 
-		if (isVisible)
+		if (IsOverlayActive)
 			RefreshVisibleZones();
 	}
 
@@ -307,14 +317,26 @@ public class ZoneOverlayController : MonoBehaviour
 	private void RefreshVisibleZones()
 	{
 		HideAllVisuals();
-		if (IsOverlayActive == false || zoneManager == null || currentBuilding == null)
+		if (IsOverlayActive == false || zoneManager == null)
 			return;
 
-		IReadOnlyList<ZoneArea> buildingZones = zoneManager.GetZonesForBuilding(currentBuilding.RuntimeBuildingId);
-		for (int i = 0; i < buildingZones.Count; ++i)
+		bool showAllZones = IsFacilityPlacementActive;
+		IReadOnlyList<ZoneArea> zonesToRender = showAllZones
+			? zoneManager.RegisteredZones
+			: currentBuilding != null
+				? zoneManager.GetZonesForBuilding(currentBuilding.RuntimeBuildingId)
+				: null;
+
+		if (zonesToRender == null)
+			return;
+
+		for (int i = 0; i < zonesToRender.Count; ++i)
 		{
-			ZoneArea zone = buildingZones[i];
-			if (zone == null || zone.Floor != currentFloor || zone.RuntimeBuildingId != currentBuilding.RuntimeBuildingId)
+			ZoneArea zone = zonesToRender[i];
+			if (zone == null || zone.Floor != currentFloor)
+				continue;
+
+			if (showAllZones == false && (currentBuilding == null || zone.RuntimeBuildingId != currentBuilding.RuntimeBuildingId))
 				continue;
 
 			GameObject quad = quadPool.Get();
@@ -368,7 +390,7 @@ public class ZoneOverlayController : MonoBehaviour
 		RefreshOverlayState();
 	}
 
-	private bool IsOverlayActive => isVisible || (buildingModeActive && currentBuilding != null);
+	private bool IsOverlayActive => isVisible || (buildingModeActive && currentBuilding != null) || IsFacilityPlacementActive;
 
 	private void RefreshOverlayState()
 	{

@@ -128,7 +128,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   window: {fileID: 7750292123926684671}
   workerContent: {fileID: 8269246441612258892}
-  title: Build Menu
+  title: Facility Control
   icon: {fileID: -4636115958458729934, guid: 55b1b7c646982a049b43cadc6fe191fa, type: 3}
   buttonPrefab: {fileID: 3522387273111608815}
 --- !u!1 &6852016455921258898

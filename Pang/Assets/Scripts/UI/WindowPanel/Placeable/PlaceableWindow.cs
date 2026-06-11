@@ -8,7 +8,7 @@ public class PlaceableWindow : MonoBehaviour
 	[SerializeField] private RectTransform workerContent;
 
 	[Header("Window MetaData")]
-	[SerializeField] private string title = "Placeable Controller";
+	[SerializeField] private string title = "Facility Control";
 	[SerializeField] private Sprite icon;
 
 	[Header("Button UI")]
