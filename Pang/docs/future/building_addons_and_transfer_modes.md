@@ -17,6 +17,60 @@ This document covers the next layer beyond that baseline.
 
 ---
 
+## Near-Term Integration Path
+
+Before full inter-building logistics, the next implementation step should be to make `Zone` membership affect actual gameplay decisions rather than only acting as presentation or debug data.
+
+Recommended order:
+
+1. promote `ZoneManager` facility lookup into safe runtime API such as `GetFacilitiesForZone`
+2. start validating facility-to-zone fit
+3. enrich Building / Zone detail views with zone-based counts and grouped facility lists
+4. build building-local logistics flow before inter-building transfer
+
+The key intent is:
+- `Zone` should become the basis for facility placement judgment
+- `Zone` should become the basis for local logistics routing
+- `Zone` should stop being only a visual or inspection layer
+
+### Facility-to-Zone Validation
+
+Expected near-term examples:
+- `Shelf` inside `Storage` zone
+- `PackingStation` inside `Packing` zone
+
+This does not need to hard-block all placement immediately.
+
+Acceptable first versions:
+- validation API only
+- warning state in detail UI
+- editor/runtime warning log for mismatched placement
+
+### Building-Local Logistics Step
+
+The intended step after zone-aware validation and query cleanup is:
+
+```text
+CargoPort
+-> building local service
+-> zone / facility distribution
+```
+
+This is the immediate precursor to full building-to-building logistics.
+
+### Airlock Note
+
+`Airlock` should be tracked as a required future building facility.
+
+Reason:
+- workers will need a readable path between exterior and interior building space
+- outdoor and indoor logistics should not blur together invisibly
+- later transfer rules may need to distinguish which routes can pass through airlocks
+
+`Airlock` should be treated as part of the building logistics structure, not only as visual flavor.
+
+---
+
 ## Building Addons
 
 Addons are building-level modifiers that express an operating philosophy rather than only adding raw content.
