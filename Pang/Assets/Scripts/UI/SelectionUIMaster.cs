@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Assets.Scripts.UI;
@@ -10,6 +11,7 @@ public class SelectionUIMaster : MonoBehaviour
 	[Header("Select UIs")]
 	[SerializeField] private SelectCardUI cardUI = null;
 	[SerializeField] private SelectDetailUI detailUI = null;
+	[SerializeField] private DetailWindowManager detailWindowManager = null;
 
 	[Header("Detail Contents")]
 	[SerializeField] private DetailContentBase[] detailContents;
@@ -27,10 +29,9 @@ public class SelectionUIMaster : MonoBehaviour
 	[SerializeField] private Color interactionLabelColor = Color.white;
 	[SerializeField] private int interactionHighlightPoolSize = 8;
 
-	private readonly Dictionary<System.Type, UIProviderBase> providers = new();
+	private readonly List<Type> providerTypes = new();
 
 	private UIProviderBase currentProvider = null;
-	private DetailContentBase currentDetailContent = null;
 	private GameObject currentObj = null;
 	private GameObject selectionHighlightRoot = null;
 	private GameObject selectedHighlight = null;
@@ -48,18 +49,19 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void Awake()
 	{
-		providers[typeof(CargoPort)] = new CargoPortUIProvider();
-		providers[typeof(PackingStation)] = new PackingStationUIProvider();
-		providers[typeof(Rocket)] = new RocketUIProvider();
-		providers[typeof(ShelfBase)] = new ShelfUIProvider();
-		providers[typeof(BoxPool)] = new BoxPoolUIProvider();
-		providers[typeof(RobotWorker)] = new RobotWorkerUIProvider();
-		providers[typeof(HumanWorker)] = new HumanWorkerUIProvider();
-		providers[typeof(ZoneSelectionProxy)] = new ZoneUIProvider();
-		providers[typeof(BuildingSelectionProxy)] = new BuildingUIProvider();
+		providerTypes.Add(typeof(CargoPortUIProvider));
+		providerTypes.Add(typeof(PackingStationUIProvider));
+		providerTypes.Add(typeof(RocketUIProvider));
+		providerTypes.Add(typeof(ShelfUIProvider));
+		providerTypes.Add(typeof(BoxPoolUIProvider));
+		providerTypes.Add(typeof(RobotWorkerUIProvider));
+		providerTypes.Add(typeof(HumanWorkerUIProvider));
+		providerTypes.Add(typeof(ZoneUIProvider));
+		providerTypes.Add(typeof(BuildingUIProvider));
 
 		EnsureRuntimeZoneDetailContent();
 		EnsureRuntimeBuildingDetailContent();
+		EnsureDetailWindowManager();
 		EnsureHighlightRoot();
 		EnsureModeHud();
 		EnsureModeDependencies();
@@ -121,7 +123,7 @@ public class SelectionUIMaster : MonoBehaviour
 		if (currentObj == null)
 			return false;
 
-		currentProvider = GetBestProvider(currentObj);
+		currentProvider = CreateBestProvider(currentObj);
 		if (currentProvider != null)
 			return true;
 
@@ -134,12 +136,6 @@ public class SelectionUIMaster : MonoBehaviour
 		if (currentProvider == null || currentObj == null)
 		{
 			DisableCard();
-			bool keepBuildingDetailOpen = Interaction != null
-				&& Interaction.Domain == InteractionContext.InteractionDomain.Building
-				&& currentDetailContent is BuildingDetailContent
-				&& detailUI.gameObject.activeSelf;
-			if (keepBuildingDetailOpen == false)
-				detailUI.gameObject.SetActive(false);
 			return;
 		}
 
@@ -158,14 +154,13 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnDetailClicked()
 	{
-		ShowDetailForObject(currentObj);
+		OpenDetailWindow(currentObj);
 	}
 
 	public void SelectAndShowDetail(GameObject targetObj)
 	{
 		if (targetObj == null)
 		{
-			detailUI.gameObject.SetActive(false);
 			return;
 		}
 
@@ -182,7 +177,7 @@ public class SelectionUIMaster : MonoBehaviour
 			RefreshModeHud();
 		}
 
-		ShowDetailForObject(targetObj);
+		OpenDetailWindow(targetObj);
 	}
 
 	public void OnFocusBtnClicked()
@@ -192,70 +187,56 @@ public class SelectionUIMaster : MonoBehaviour
 	public void ShowDetailForObject(GameObject targetObj)
 	{
 		if (targetObj == null)
-		{
-			detailUI.gameObject.SetActive(false);
 			return;
-		}
 
-		UIProviderBase provider = GetBestProvider(targetObj);
+		OpenDetailWindow(targetObj);
+	}
+
+	public SelectDetailUI OpenDetailWindow(GameObject targetObj)
+	{
+		if (targetObj == null)
+			return null;
+
+		UIProviderBase provider = CreateBestProvider(targetObj);
 		if (provider == null)
-		{
-			detailUI.gameObject.SetActive(false);
-			return;
-		}
+			return null;
 
 		provider.LinkObject(targetObj);
 		provider.BuildInfoBlocks();
-
-		currentDetailContent?.gameObject.SetActive(false);
-		currentDetailContent = GetBestDetailContent(targetObj);
-		currentDetailContent?.SetProvider(provider);
-
-		if (currentDetailContent != null)
-		{
-			detailUI.SetDetailContent(currentDetailContent);
-			detailUI.gameObject.SetActive(true);
-		}
-		else
-		{
-			Debug.LogWarning($"No suitable UI DetailBuilder found for the selected object, Target: {targetObj.name}");
-		}
+		return detailWindowManager != null ? detailWindowManager.OpenDetail(targetObj, provider) : null;
 	}
 
-	private UIProviderBase GetBestProvider(GameObject targetObj)
+	private UIProviderBase CreateBestProvider(GameObject targetObj)
 	{
-		UIProviderBase bestProvider = null;
+		Type bestProviderType = null;
 		int bestDistance = int.MaxValue;
 
-		foreach (UIProviderBase provider in providers.Values)
+		for (int i = 0; i < providerTypes.Count; ++i)
 		{
+			UIProviderBase provider = CreateProvider(providerTypes[i]);
+			if (provider == null)
+				continue;
+
 			int distance = GetMatchDistance(targetObj, provider.TargetType);
 			if (distance < bestDistance)
 			{
 				bestDistance = distance;
-				bestProvider = provider;
+				bestProviderType = providerTypes[i];
 			}
 		}
 
-		return bestProvider;
+		return CreateProvider(bestProviderType);
 	}
 
-	private DetailContentBase GetBestDetailContent(GameObject targetObj)
+	private static UIProviderBase CreateProvider(Type providerType)
 	{
-		DetailContentBase bestContent = null;
-		int bestDistance = int.MaxValue;
+		if (providerType == null)
+			return null;
 
-		foreach (DetailContentBase content in detailContents)
-		{
-			int distance = GetMatchDistance(targetObj, content.TargetType);
-			if (distance < bestDistance)
-			{
-				bestDistance = distance;
-				bestContent = content;
-			}
-		}
+		if (Activator.CreateInstance(providerType) is UIProviderBase provider)
+			return provider;
 
-		return bestContent;
+		return null;
 	}
 
 	private int GetMatchDistance(GameObject targetObj, System.Type candidateType)
@@ -291,6 +272,17 @@ public class SelectionUIMaster : MonoBehaviour
 		if (interactionTilePrefab != null)
 			interactionHighlightPool = new GameObjectPool(interactionHighlightPoolSize, () => CreateHighlight("InteractionHighlight", interactionTilePrefab));
 		interactionLabelPool = new GameObjectPool(interactionHighlightPoolSize, CreateInteractionLabel);
+	}
+
+	private void EnsureDetailWindowManager()
+	{
+		if (detailWindowManager == null)
+			detailWindowManager = GetComponent<DetailWindowManager>();
+
+		if (detailWindowManager == null)
+			detailWindowManager = gameObject.AddComponent<DetailWindowManager>();
+
+		detailWindowManager.Initialize(detailUI);
 	}
 
 	private void EnsureRuntimeBuildingDetailContent()
@@ -443,8 +435,6 @@ public class SelectionUIMaster : MonoBehaviour
 	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
 	{
 		RefreshModeHud();
-		if (domain == InteractionContext.InteractionDomain.Facility)
-			detailUI.gameObject.SetActive(false);
 	}
 
 	private void HandleActiveBuildingChanged(Building building)
@@ -455,8 +445,6 @@ public class SelectionUIMaster : MonoBehaviour
 	private void HandleBuildingModeChanged(bool active)
 	{
 		RefreshModeHud();
-		if (active == false)
-			detailUI.gameObject.SetActive(false);
 	}
 
 	private void HandleBuildingDetailsClicked()
