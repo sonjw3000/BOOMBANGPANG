@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Serialization;
 using static WorkerTask;
 
 // outbound 작업 흐름 관리
@@ -9,11 +8,8 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 {
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 
-	[FormerlySerializedAs("packingStationService")]
 	[SerializeField] private PackingStationService packingStationService;
-	[FormerlySerializedAs("cargoPortService")]
 	[SerializeField] private CargoPortService cargoPortService;
-	[FormerlySerializedAs("launchStationService")]
 	[SerializeField] private LaunchStationService launchStationService;
 	[SerializeField] private float orderInterval = 10.0f;
 	[SerializeField] private float cargoPortThresholdPercent = 80.0f;

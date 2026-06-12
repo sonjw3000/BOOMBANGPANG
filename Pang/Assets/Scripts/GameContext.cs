@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.Serialization;
 
 [DefaultExecutionOrder(-100)]
 public class GameContext : MonoBehaviour
@@ -63,9 +62,7 @@ public class GameContext : MonoBehaviour
 
 	[Header("Workflow Managers")]
 	// workflow managers
-	[FormerlySerializedAs("inboundWorkFlowManager")]
 	[SerializeField] private InboundWorkflowService inboundWorkflowService;
-	[FormerlySerializedAs("outboundWorkFlowManager")]
 	[SerializeField] private OutboundWorkflowService outboundWorkflowService;
 
 	// go to resource

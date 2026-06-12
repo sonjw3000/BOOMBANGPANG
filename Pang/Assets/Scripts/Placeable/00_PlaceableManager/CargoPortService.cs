@@ -1,9 +1,8 @@
+using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Scripting.APIUpdating;
 
-[MovedFrom(true, sourceClassName: "CargoPortManager")]
 public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 {
 	public event System.Action<ShelfBase, uint, bool> OnItemPresentChanged;
@@ -47,42 +46,91 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 
 	public CargoPort GetClosestAvailableTarget(in int3 pos, InteractionKind interactionKind)
 	{
-		if (TryGetBuildingId(pos, out uint buildingId))
+		FacilityDistanceResolver distanceResolver = (CargoPort candidate, in int3 origin, out int score) =>
+			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				candidate,
+				interactionKind,
+				origin,
+				GameContext.Instance.GridService,
+				out _,
+				out score);
+
+		Predicate<CargoPort> predicate = candidate => candidate.IsInteractionAvailable(interactionKind);
+
+		if (TryGetBuildingId(pos, out uint buildingId) &&
+			TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort target, predicate))
 		{
-			CargoPort target = GetClosestAvailableTarget(buildingId, pos, interactionKind);
-			if (target != null)
-				return target;
+			return target;
 		}
 
-		return GetClosestAvailableTarget(GetAllFacilities(), pos, interactionKind);
+		if (TryFindClosestFacility(pos, distanceResolver, out CargoPort globalTarget, predicate))
+			return globalTarget;
+
+		return null;
 	}
 
 	public CargoPort GetClosestAvailableTarget(uint buildingId, in int3 pos, InteractionKind interactionKind)
 	{
-		if (TryGetBuildingFacilities(buildingId, out var facilities) == false)
-			return null;
+		FacilityDistanceResolver distanceResolver = (CargoPort candidate, in int3 origin, out int score) =>
+			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				candidate,
+				interactionKind,
+				origin,
+				GameContext.Instance.GridService,
+				out _,
+				out score);
 
-		return GetClosestAvailableTarget(facilities, pos, interactionKind);
+		Predicate<CargoPort> predicate = candidate => candidate.IsInteractionAvailable(interactionKind);
+		return TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort target, predicate)
+			? target
+			: null;
 	}
 
 	public CargoPort GetClosestAvailableTargetForBox(in int3 pos, InteractionKind interactionKind, BoxBase box)
 	{
-		if (TryGetBuildingId(pos, out uint buildingId))
+		FacilityDistanceResolver distanceResolver = (CargoPort candidate, in int3 origin, out int score) =>
+			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				candidate,
+				interactionKind,
+				origin,
+				GameContext.Instance.GridService,
+				out _,
+				out score);
+
+		Predicate<CargoPort> predicate = candidate =>
+			candidate.IsInteractionAvailable(interactionKind) &&
+			CanAcceptAllStacks(candidate, box);
+
+		if (TryGetBuildingId(pos, out uint buildingId) &&
+			TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort target, predicate))
 		{
-			CargoPort target = GetClosestAvailableTargetForBox(buildingId, pos, interactionKind, box);
-			if (target != null)
-				return target;
+			return target;
 		}
 
-		return GetClosestAvailableTargetForBox(GetAllFacilities(), pos, interactionKind, box);
+		if (TryFindClosestFacility(pos, distanceResolver, out CargoPort globalTarget, predicate))
+			return globalTarget;
+
+		return null;
 	}
 
 	public CargoPort GetClosestAvailableTargetForBox(uint buildingId, in int3 pos, InteractionKind interactionKind, BoxBase box)
 	{
-		if (TryGetBuildingFacilities(buildingId, out var facilities) == false)
-			return null;
+		FacilityDistanceResolver distanceResolver = (CargoPort candidate, in int3 origin, out int score) =>
+			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				candidate,
+				interactionKind,
+				origin,
+				GameContext.Instance.GridService,
+				out _,
+				out score);
 
-		return GetClosestAvailableTargetForBox(facilities, pos, interactionKind, box);
+		Predicate<CargoPort> predicate = candidate =>
+			candidate.IsInteractionAvailable(interactionKind) &&
+			CanAcceptAllStacks(candidate, box);
+
+		return TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort target, predicate)
+			? target
+			: null;
 	}
 
 	public IEnumerable<ShelfBase> GetSources(uint itemId)
@@ -106,94 +154,6 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 			if (port != null && port.GetPickableQuantity(itemId) > 0)
 				yield return port;
 		}
-	}
-
-	private IReadOnlyList<CargoPort> GetAllFacilities()
-	{
-		List<CargoPort> facilities = new();
-		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
-		for (int i = 0; i < buildingIds.Count; ++i)
-		{
-			if (TryGetBuildingFacilities(buildingIds[i], out var buildingFacilities) == false)
-				continue;
-
-			for (int facilityIndex = 0; facilityIndex < buildingFacilities.Count; ++facilityIndex)
-				facilities.Add(buildingFacilities[facilityIndex]);
-		}
-
-		return facilities;
-	}
-
-	private static CargoPort GetClosestAvailableTarget(IReadOnlyList<CargoPort> facilities, in int3 pos, InteractionKind interactionKind)
-	{
-		CargoPort target = null;
-		int posPowMin = int.MaxValue;
-
-		for (int i = 0; i < facilities.Count; ++i)
-		{
-			CargoPort candidate = facilities[i];
-			if (candidate == null || candidate.IsInteractionAvailable(interactionKind) == false)
-				continue;
-
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-				candidate,
-				interactionKind,
-				pos,
-				GameContext.Instance.GridService,
-				out _,
-				out int sum) == false)
-			{
-				continue;
-			}
-
-			if (posPowMin > sum)
-			{
-				posPowMin = sum;
-				target = candidate;
-			}
-		}
-
-		return target;
-	}
-
-	private static CargoPort GetClosestAvailableTargetForBox(
-		IReadOnlyList<CargoPort> facilities,
-		in int3 pos,
-		InteractionKind interactionKind,
-		BoxBase box)
-	{
-		CargoPort target = null;
-		int posPowMin = int.MaxValue;
-
-		for (int i = 0; i < facilities.Count; ++i)
-		{
-			CargoPort candidate = facilities[i];
-			if (candidate == null ||
-				candidate.IsInteractionAvailable(interactionKind) == false ||
-				CanAcceptAllStacks(candidate, box) == false)
-			{
-				continue;
-			}
-
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-				candidate,
-				interactionKind,
-				pos,
-				GameContext.Instance.GridService,
-				out _,
-				out int sum) == false)
-			{
-				continue;
-			}
-
-			if (posPowMin > sum)
-			{
-				posPowMin = sum;
-				target = candidate;
-			}
-		}
-
-		return target;
 	}
 
 	private static bool CanAcceptAllStacks(CargoPort port, BoxBase box)

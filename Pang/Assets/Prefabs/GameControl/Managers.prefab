@@ -658,8 +658,8 @@ MonoBehaviour:
   zoneManager: {fileID: 3365747867954475864}
   workerStandbyService: {fileID: 0}
   trafficCoordinator: {fileID: 9128034459082980668}
-  inboundWorkFlowManager: {fileID: 2554155626171990247}
-  outboundWorkFlowManager: {fileID: 5775960916622381912}
+  inboundWorkflowService: {fileID: 2554155626171990247}
+  outboundWorkflowService: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
   buildCatalog: {fileID: 11400000, guid: 5d0343acafd94d92b6576be9c3396768, type: 2}
   baseTiles: {fileID: 0}
@@ -1236,7 +1236,7 @@ GameObject:
   - component: {fileID: 3141209299861845252}
   - component: {fileID: 5775960916622381912}
   m_Layer: 0
-  m_Name: OutboundWorkflowManager
+  m_Name: OutboundWorkflowService
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1291,7 +1291,7 @@ GameObject:
   - component: {fileID: 344618052840468862}
   - component: {fileID: 2554155626171990247}
   m_Layer: 0
-  m_Name: InboutWorkflowManager
+  m_Name: InboundWorkflowService
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1327,7 +1327,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cargoPortService: {fileID: 4830617511745632944}
-  requestManager: {fileID: 206211745931544088}
+  requestService: {fileID: 206211745931544088}
   maxStoreTasksPerUpdate: 64
   storingBoxFillLimitPercent: 80
   defaultStoringCollectingPolicyType: 0
@@ -1375,7 +1375,7 @@ GameObject:
   - component: {fileID: 174564500910293884}
   - component: {fileID: 206211745931544088}
   m_Layer: 0
-  m_Name: IBRequestManager
+  m_Name: IBRequestService
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

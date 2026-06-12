@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Serialization;
 using static WorkerTask.TaskType;
 
 // inbound 작업 흐름을 관리
@@ -15,9 +14,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 	private const PlacingPolicyType DefaultPlacingPolicyType = PlacingPolicyType.BelowAverageFilledNearest;
 
-	[FormerlySerializedAs("cargoPortService")]
 	[SerializeField] private CargoPortService cargoPortService;
-	[FormerlySerializedAs("requestManager")]
 	[SerializeField] private InboundRequestService requestService;
 	[SerializeField] private int maxStoreTasksPerUpdate = 64;
 	[SerializeField] [Range(1f, 100f)] private float storingBoxFillLimitPercent = 80.0f;

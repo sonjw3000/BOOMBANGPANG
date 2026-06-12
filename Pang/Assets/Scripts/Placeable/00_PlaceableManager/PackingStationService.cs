@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Scripting.APIUpdating;
 
-[MovedFrom(true, sourceClassName: "PackingStationManager")]
 public class PackingStationService : FacilityService<PackingStation>
 {
 	private sealed class BuildingPackingState
