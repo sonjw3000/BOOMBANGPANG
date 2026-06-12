@@ -11,7 +11,7 @@ public class UnloadingTask : WorkerTask
 
 	private bool IsUnloadEnd = false;
 
-	static private CargoPortManager PortManager => GameContext.Instance.IBWorkflowSvc.CargoPorts;
+	static private CargoPortService CargoPortService => GameContext.Instance.IBWorkflowSvc.CargoPortService;
 
 	public UnloadingTask(Rocket rocket) : base(TaskType.Unloading)
 	{
@@ -139,7 +139,7 @@ public class UnloadingTask : WorkerTask
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 		BoxBase box = task.WorkerCarryBox?.CarryingBox;
-		task.cargoPort = PortManager.GetClosestAvailableTargetForBox(ctx.Worker.GridPosition, InteractionKind.Put, box);
+		task.cargoPort = CargoPortService.GetClosestAvailableTargetForBox(ctx.Worker.GridPosition, InteractionKind.Put, box);
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.cargoPort);
 		if (task.cargoPort != null)

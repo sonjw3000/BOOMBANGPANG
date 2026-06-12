@@ -11,29 +11,11 @@ public class CargoPort :
 
 	public bool InputReady => inputReady;
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.CargoPort;
-	static private CargoPortManager IBCargoPorts => GameContext.Instance.IBWorkflowSvc.CargoPorts;
-	static private CargoPortManager OBCargoPorts => GameContext.Instance.OBWorkflowSvc.CargoPorts;
 	public bool IsInbound => isInbound;
 
 	public void SetInputReady(bool ready)
 	{
 		inputReady = ready;
-	}
-
-	private void OnEnable()
-	{
-		if (isInbound)
-			IBCargoPorts.Register(this);
-		else
-			OBCargoPorts.Register(this);
-	}
-
-	private void OnDisable()
-	{
-		if (isInbound)
-			IBCargoPorts.Unregister(this);
-		else
-			OBCargoPorts.Unregister(this);
 	}
 
 	public CargoPortSaveData CaptureState()

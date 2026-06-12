@@ -1,7 +1,7 @@
 ﻿
 public interface IBoundService
 {
-	public CargoPortManager CargoPorts { get; }
+	public CargoPortService CargoPortService { get; }
 
 	public void OnTaskCompleted(WorkerTask task);
 }

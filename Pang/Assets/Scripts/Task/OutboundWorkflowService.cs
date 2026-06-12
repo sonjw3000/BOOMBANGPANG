@@ -10,11 +10,11 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 
 	[FormerlySerializedAs("packingStationService")]
-	[SerializeField] private PackingStationManager packingStationManager;
+	[SerializeField] private PackingStationService packingStationService;
 	[FormerlySerializedAs("cargoPortService")]
-	[SerializeField] private CargoPortManager cargoPortManager;
+	[SerializeField] private CargoPortService cargoPortService;
 	[FormerlySerializedAs("launchStationService")]
-	[SerializeField] private LaunchStationManager launchStationManager;
+	[SerializeField] private LaunchStationService launchStationService;
 	[SerializeField] private float orderInterval = 10.0f;
 	[SerializeField] private float cargoPortThresholdPercent = 80.0f;
 	[SerializeField] [Range(1f, 100f)] private float pickingBoxFillLimitPercent = 80.0f;
@@ -24,9 +24,9 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private float timeSinceLastOrder = 0.0f;
 	private PickingPlanner pickingPlanner;
 
-	public PackingStationManager PackingStations => packingStationManager;
-	public CargoPortManager CargoPorts => cargoPortManager;
-	public LaunchStationManager LaunchStations => launchStationManager;
+	public PackingStationService PackingStationService => packingStationService;
+	public CargoPortService CargoPortService => cargoPortService;
+	public LaunchStationService LaunchStationService => launchStationService;
 	public PickingPlanner PickingPlanner => pickingPlanner;
 	public CollectingPolicyType PickingCollectingPolicyType => pickingPlanner != null ? pickingPlanner.CollectingPolicyType : defaultPickingCollectingPolicyType;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
@@ -42,7 +42,7 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 				break;
 			case TaskType.Packing:
 				if (task is PackingTask packingTask)
-						PackingStations.OnPackingTaskCompleted(packingTask.TargetStation);
+					PackingStationService.OnPackingTaskCompleted(packingTask.TargetStation);
 				break;
 			case TaskType.Loading:
 				break;
@@ -91,13 +91,13 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void Awake()
 	{
-		cargoPortManager.OnItemQuantityChanged += OnPortItemQuantityChanged;
+		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
 		RebuildPlanner();
 	}
 
 	private void OnDestroy()
 	{
-		cargoPortManager.OnItemQuantityChanged -= OnPortItemQuantityChanged;
+		cargoPortService.OnItemQuantityChanged -= OnPortItemQuantityChanged;
 	}
 
 	private void Update()

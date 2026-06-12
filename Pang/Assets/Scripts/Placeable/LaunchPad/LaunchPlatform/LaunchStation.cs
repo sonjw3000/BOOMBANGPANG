@@ -20,15 +20,12 @@ public class LaunchStation
 
 	private List<InteractionPoint> interactionPoints = new();
 	private Dictionary<InteractionKind, List<int3>> interactionPointMap = new();
-	private bool isRegistered = false;
 
 	public int3 GridPosition => gridPosition;
 	public FacingDirection Direction => facingDirection;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.LaunchStation;
 	public IReadOnlyList<InteractionPoint> InteractionPoints => interactionPoints;
 	
-	private LaunchStationManager LaunchStations => GameContext.Instance.OBWorkflowSvc.LaunchStations;
-
 	private void Awake()
 	{
 		foreach (var addon in addons)
@@ -40,15 +37,6 @@ public class LaunchStation
 	private void Start()
 	{
 		InitializeForSaveLoad();
-	}
-
-	private void OnDestroy()
-	{
-		if (isRegistered)
-		{
-			LaunchStations.Unregister(this);
-			isRegistered = false;
-		}
 	}
 
 	public bool TryGetAddon<T>(out T addon) where T : PlatformAddon
@@ -135,11 +123,7 @@ public class LaunchStation
 
 	public void InitializeForSaveLoad()
 	{
-		if (isRegistered)
-			return;
-
-		LaunchStations.Register(this);
-		isRegistered = true;
+		// Facility registration is now owned by GridService -> FacilityManager.
 	}
 
 	public LaunchStationSaveData CaptureState()

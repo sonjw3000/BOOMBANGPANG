@@ -32,7 +32,6 @@ public class PackingStation :
 	private AIWorker currentPackingWorker = null;
 	private AIWorker incomingPickingWorker = null;
 	private bool incomingRequestSuspended = false;
-	private bool isRegistered = false;
 
 	private BoxWithOrder waitStackBox = null;
 	private BoxWithOrder currentPackingBox = null;
@@ -63,7 +62,7 @@ public class PackingStation :
 		return stack is ItemPackage && packedItems.Count < maxStacks;
 	}
 
-	private PackingStationManager PackingStations => GameContext.Instance.OBWorkflowSvc.PackingStations;
+	private PackingStationService PackingStationService => GameContext.Instance.OBWorkflowSvc.PackingStationService;
 
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.PackingStation;
 
@@ -108,15 +107,6 @@ public class PackingStation :
 	private void Start()
 	{
 		InitializeForSaveLoad();
-	}
-
-	private void OnDestroy()
-	{
-		if (isRegistered)
-		{
-			PackingStations.Unregister(this);
-			isRegistered = false;
-		}
 	}
 
 	public override void OnPositionSet(in int3 pos, FacingDirection direction)
@@ -179,7 +169,7 @@ public class PackingStation :
 		if (GameContext.HasInstance == false)
 			return;
 
-		PackingStations.RefreshWaitingStation(this);
+		PackingStationService.RefreshWaitingStation(this);
 	}
 
 	public bool PrepareBox()
@@ -211,7 +201,7 @@ public class PackingStation :
 		SetEndStackBox(currentPackingBox);
 		SetCurrentPackingBox(null);
 
-		PackingStations.OnPackingComplete(this);
+		PackingStationService.OnPackingComplete(this);
 		return true;
 	}
 
@@ -241,7 +231,7 @@ public class PackingStation :
 		boxToPack.Job.ResetForPacking();
 		ClearIncomingBoxReservation();
 		SetWaitStackBox(boxToPack);
-		PackingStations.RequestPackingTaskIfNeeded(this);
+		PackingStationService.RequestPackingTaskIfNeeded(this);
 		return true;
 	}
 
@@ -340,11 +330,8 @@ public class PackingStation :
 
 	public void InitializeForSaveLoad()
 	{
-		if (isRegistered)
-			return;
-
-		PackingStations.Register(this);
-		isRegistered = true;
+		// Facility registration is now owned by GridService -> FacilityManager.
+		RefreshWaitingState();
 	}
 
 	public PackingStationSaveData CaptureState(Func<OrderLine, int> registerOrderLine, Func<GameObject, int> getPlaceableId)

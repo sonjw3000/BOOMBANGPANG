@@ -22,8 +22,8 @@ public sealed class PickingTask : WorkerTask
 		}
 	}
 
-	private static CargoPortManager CargoPorts => GameContext.Instance.OBWorkflowSvc.CargoPorts;
-	private static PackingStationManager PackingStationManager => GameContext.Instance.OBWorkflowSvc.PackingStations;
+	private static CargoPortService CargoPortService => GameContext.Instance.OBWorkflowSvc.CargoPortService;
+	private static PackingStationService PackingStationService => GameContext.Instance.OBWorkflowSvc.PackingStationService;
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private static PickingPlanner Planner => GameContext.Instance.OBWorkflowSvc.PickingPlanner;
 
@@ -157,7 +157,7 @@ public sealed class PickingTask : WorkerTask
 
 	public static NodeState GetAvailableOBCargoPort(in BTContext ctx)
 	{
-		ShelfBase targetPos = CargoPorts.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
+		ShelfBase targetPos = CargoPortService.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
 
 		if (targetPos == null)
 		{
@@ -173,7 +173,7 @@ public sealed class PickingTask : WorkerTask
 
 	public static NodeState GetAvailablePackingStation(in BTContext ctx)
 	{
-		PackingStationManager.TryReserveWaitingStation(ctx.Worker, out var targetStation);
+		PackingStationService.TryReserveWaitingStation(ctx.Worker, out var targetStation);
 
 		ctx.LocalBlackBoard.SetTargetBuilding(targetStation);
 		if (targetStation != null)

@@ -170,6 +170,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.WorkerMgr.ResetRuntimeState();
 		Ctx.ZoneMgr.ResetRuntimeState();
 		Ctx.BuildingMgr.ResetRuntimeState();
+		Ctx.FacilityMgr.ResetRuntimeState();
 		Ctx.BuildingFootprintService.ResetRuntimeState();
 		Ctx.WMSys.WorkPolicyService.ResetRuntimeState();
 		Ctx.WMSys.ItemLedger.ResetRuntimeState();
@@ -177,7 +178,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.WMSys.BoxPoolManager.DestroyAllBoxes();
 		Ctx.GridService.ResetRuntimeState();
 		Ctx.RocketMgr.ResetRuntimeState();
-		Ctx.OBWorkflowSvc.PackingStations.ResetRuntimeState();
+		Ctx.OBWorkflowSvc.PackingStationService.ResetRuntimeState();
 
 		Ctx.GridService.RestoreState(data.Grid);
 		Ctx.BuildingFootprintService.RestoreState(data.Buildings, data.BuildingFootprints);

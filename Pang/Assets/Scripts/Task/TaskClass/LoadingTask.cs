@@ -9,8 +9,9 @@ public class LoadingTask : WorkerTask
 
 	private CargoPort targetPort = null;
 
-	static private LaunchStationManager LaunchStations => GameContext.Instance.OBWorkflowSvc.LaunchStations;
+	static private LaunchStationService LaunchStationService => GameContext.Instance.OBWorkflowSvc.LaunchStationService;
 	static private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
+	static private GridService GridService => GameContext.Instance.GridService;
 
 	public LoadingTask(CargoPort cargoPort) : base(TaskType.Loading)
 	{
@@ -123,7 +124,7 @@ public class LoadingTask : WorkerTask
 
 		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
-		// Future: replace this polling standby with a box/cargo-port manager wake-up when a suitable carrier is available.
+		// Future: replace this polling standby with a box/cargo-port service wake-up when a suitable carrier is available.
 		return AIWorker.MoveToStandbyWhileWaiting(ctx);
 	}
 
@@ -141,7 +142,7 @@ public class LoadingTask : WorkerTask
 	static private NodeState SetLaunchStation(in BTContext ctx)
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
-		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
+		var launchStation = GetLaunchStationForTask(task, ctx.Worker.GridPosition, InteractionKind.Put);
 
 		ctx.LocalBlackBoard.SetTargetBuilding(launchStation);
 		return Success;
@@ -152,10 +153,10 @@ public class LoadingTask : WorkerTask
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
 		var carryAbility = ctx.Worker.CarryingAbility;
 				
-		var launchStation = LaunchStations.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Pick);
+		var launchStation = GetLaunchStationForTask(task, ctx.Worker.GridPosition, InteractionKind.Pick);
 		if (launchStation == null)
 		{
-			// Future: launch station manager should wake this worker when storage has room.
+			// Future: launch station service should wake this worker when storage has room.
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 			Debug.LogError("No available launch station found!");
@@ -176,7 +177,7 @@ public class LoadingTask : WorkerTask
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
-			// Future: cargo storage/launch station manager should disable and re-enable this worker when capacity opens.
+			// Future: cargo storage/launch station service should disable and re-enable this worker when capacity opens.
 			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
@@ -190,5 +191,21 @@ public class LoadingTask : WorkerTask
 
 		task.isLoadEnd = true;
 		return Success;
+	}
+
+	private static LaunchStation GetLaunchStationForTask(LoadingTask task, in Unity.Mathematics.int3 from, InteractionKind interactionKind)
+	{
+		if (task?.targetPort != null)
+		{
+			GridCell targetCell = GridService?.GetCell(task.targetPort.GridPosition);
+			if (targetCell != null && targetCell.BuildingId != 0)
+			{
+				LaunchStation localStation = LaunchStationService.GetClosestAvailableTarget(targetCell.BuildingId, from, interactionKind);
+				if (localStation != null)
+					return localStation;
+			}
+		}
+
+		return LaunchStationService.GetClosestAvailableTarget(from, interactionKind);
 	}
 }

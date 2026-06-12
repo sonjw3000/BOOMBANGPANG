@@ -16,7 +16,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	private const PlacingPolicyType DefaultPlacingPolicyType = PlacingPolicyType.BelowAverageFilledNearest;
 
 	[FormerlySerializedAs("cargoPortService")]
-	[SerializeField] private CargoPortManager cargoPortManager;
+	[SerializeField] private CargoPortService cargoPortService;
 	[FormerlySerializedAs("requestManager")]
 	[SerializeField] private InboundRequestService requestService;
 	[SerializeField] private int maxStoreTasksPerUpdate = 64;
@@ -26,7 +26,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private StoringPlanner storingPlanner;
 
-	public CargoPortManager CargoPorts => cargoPortManager;
+	public CargoPortService CargoPortService => cargoPortService;
 	public InboundRequestService RequestService => requestService;
 	public StoringPlanner StoringPlanner => storingPlanner;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
@@ -94,16 +94,16 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void Start()
 	{
-		cargoPortManager.OnItemPresentChanged += OnPortItemPresentChanged;
-		cargoPortManager.OnItemQuantityChanged += OnPortItemQuantityChanged;
-		cargoPortManager.OnReserveQuantityChanged += OnPortItemReserved;
+		cargoPortService.OnItemPresentChanged += OnPortItemPresentChanged;
+		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
+		cargoPortService.OnReserveQuantityChanged += OnPortItemReserved;
 	}
 
 	private void OnDestroy()
 	{
-		cargoPortManager.OnItemPresentChanged -= OnPortItemPresentChanged;
-		cargoPortManager.OnItemQuantityChanged -= OnPortItemQuantityChanged;
-		cargoPortManager.OnReserveQuantityChanged -= OnPortItemReserved;
+		cargoPortService.OnItemPresentChanged -= OnPortItemPresentChanged;
+		cargoPortService.OnItemQuantityChanged -= OnPortItemQuantityChanged;
+		cargoPortService.OnReserveQuantityChanged -= OnPortItemReserved;
 	}
 
 	private void Update()
@@ -156,7 +156,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	private void RebuildPlanner()
 	{
 		storingPlanner = new StoringPlanner(
-			cargoPortManager,
+			cargoPortService,
 			requestService,
 			defaultStoringCollectingPolicyType,
 			defaultStoringPlacingPolicyType);
