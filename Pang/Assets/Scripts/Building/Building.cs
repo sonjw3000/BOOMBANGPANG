@@ -15,12 +15,36 @@ public enum BuildingState
 	Destroyed,
 }
 
+public enum BuildingWorkScope
+{
+	HomeOnly,
+	HomeAndOutdoor,
+	CrossBuilding,
+	Global,
+}
+
+public static class BuildingWorkScopeUtility
+{
+	public static string ToDisplayString(BuildingWorkScope scope)
+	{
+		return scope switch
+		{
+			BuildingWorkScope.HomeOnly => "Home Only",
+			BuildingWorkScope.HomeAndOutdoor => "Home + Outdoor",
+			BuildingWorkScope.CrossBuilding => "Cross Building",
+			BuildingWorkScope.Global => "Global",
+			_ => scope.ToString(),
+		};
+	}
+}
+
 public sealed class Building
 {
 	private string displayName = string.Empty;
 	private BuildingType buildingType = BuildingType.Generic;
 	private uint runtimeBuildingId;
 	private BuildingState state = BuildingState.Active;
+	private BuildingWorkScope workScope = BuildingWorkScope.HomeOnly;
 	private bool isRegistered;
 
 	private readonly List<GridCell> occupiedCells;
@@ -34,6 +58,7 @@ public sealed class Building
 	public BuildingType Type => buildingType;
 	public uint RuntimeBuildingId => runtimeBuildingId;
 	public BuildingState State => state;
+	public BuildingWorkScope WorkScope => workScope;
 	public IReadOnlyList<GridCell> OccupiedCells => occupiedCells;
 	public IReadOnlyList<IFacility> OccupiedFacilities => occupiedFacilities;
 	public IReadOnlyList<CargoPort> OccupiedCargoPorts => occupiedCargoPorts;
@@ -63,6 +88,11 @@ public sealed class Building
 	public void SetState(BuildingState newState)
 	{
 		state = newState;
+	}
+
+	public void SetWorkScope(BuildingWorkScope newWorkScope)
+	{
+		workScope = newWorkScope;
 	}
 
 	internal bool RegisterFacility(IFacility facility)

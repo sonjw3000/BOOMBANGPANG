@@ -10,6 +10,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>
 	public override Sprite Icon => null;
 
 	public string StateDisplay => Building != null ? Building.State.ToString() : "Unknown";
+	public string WorkScopeDisplay => Building != null ? BuildingWorkScopeUtility.ToDisplayString(Building.WorkScope) : "Unknown";
 	public int CellCount => Building != null ? Building.OccupiedCells.Count : 0;
 	public int FacilityCount => Building != null ? Building.OccupiedFacilities.Count : 0;
 	public int CargoPortCount => Building != null ? Building.OccupiedCargoPorts.Count : 0;
@@ -19,17 +20,19 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>
 	{
 		infoBlocks.Clear();
 		infoBlocks.Add(new KeyValueBlock("State", StateDisplay));
+		infoBlocks.Add(new KeyValueBlock("WorkScope", WorkScopeDisplay));
 		infoBlocks.Add(new KeyValueBlock("Facilities", FacilityCount.ToString()));
 		infoBlocks.Add(new KeyValueBlock("Zones", ZoneCount.ToString()));
 	}
 
 	public override void OnUpdate()
 	{
-		if (infoBlocks.Count < 3)
+		if (infoBlocks.Count < 4)
 			return;
 
 		(infoBlocks[0] as KeyValueBlock)?.UpdateValue(StateDisplay);
-		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(FacilityCount.ToString());
-		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(ZoneCount.ToString());
+		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(WorkScopeDisplay);
+		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(FacilityCount.ToString());
+		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(ZoneCount.ToString());
 	}
 }

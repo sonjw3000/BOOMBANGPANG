@@ -242,7 +242,8 @@ public sealed class BuildingFootprintService : MonoBehaviour
 				savedFootprint.RuntimeBuildingId,
 				savedBuilding != null ? savedBuilding.Type : BuildingType.Generic,
 				string.IsNullOrWhiteSpace(savedBuilding?.Name) ? $"Building {savedFootprint.RuntimeBuildingId}" : savedBuilding.Name,
-				savedBuilding != null ? savedBuilding.State : BuildingState.Active);
+				savedBuilding != null ? savedBuilding.State : BuildingState.Active,
+				savedBuilding != null ? savedBuilding.WorkScope : BuildingWorkScope.HomeOnly);
 
 			if (restoredBuilding == null)
 			{

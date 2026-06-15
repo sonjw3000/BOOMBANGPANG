@@ -102,6 +102,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private int tick = 0;
 	[SerializeField] private WorkerTask currentTask = null;
 	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
+	[SerializeField] private uint primaryBuildingId = 0;
 
 	[Header("Visual")]
 	[SerializeField] private Transform visualRoot;
@@ -160,6 +161,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	// task
 	public WorkerTask CurrentTask => currentTask;
 	public WorkerTask.TaskType TaskType => workerMainTaskType;
+	public uint PrimaryBuildingId => primaryBuildingId;
 	public IInteractionPoint CurrentWorkingBuilding => currentWorkingPoint;
 	public bool IsAssignedToPackingStation => currentWorkingPoint is PackingStation;
 	public CarryBoxAbility CarryingAbility
@@ -420,6 +422,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		OnTaskTypeChanged?.Invoke(this, previousTaskType, taskType);
 	}
 
+	public void SetPrimaryBuildingId(uint buildingId)
+	{
+		primaryBuildingId = buildingId;
+	}
+
 	public void SetTask(WorkerTask task)
 	{
 		if (GameContext.HasInstance && task != null)
@@ -668,6 +675,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		WorkerSaveData data = new()
 		{
 			WorkerId = workerID,
+			PrimaryBuildingId = primaryBuildingId,
 			FirstName = workerFirstName,
 			LastName = workerLastName,
 			WorkerType = workerType,
@@ -704,6 +712,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		workerFirstName = data.FirstName;
 		workerLastName = data.LastName;
 		workerID = data.WorkerId;
+		primaryBuildingId = data.PrimaryBuildingId;
 		workerType = data.WorkerType;
 		abilities = data.Abilities;
 		monthlyCost = data.MonthlyCost;

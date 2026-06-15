@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
@@ -5,21 +6,49 @@ using UnityEngine.UI;
 
 public class BuildingControlWindow : MonoBehaviour
 {
+	private enum BuildingControlTab
+	{
+		Overview,
+		Operations,
+		Action,
+	}
+
 	[SerializeField] private UIWindow window;
 	[SerializeField] private BuildingPlacementOverlayController overlayController;
 	[SerializeField] private ZoneOverlayController zoneOverlayController;
 	[SerializeField] private string windowTitle = "Building Control";
 
 	private bool initialized;
-	private TMP_Text statusText;
+	private int currentTabIndex;
+	private RectTransform bodyRoot;
+	private readonly List<GameObject> tabRoots = new();
+	private readonly List<GameObject> buildingRows = new();
+	private SelectionUIMaster selectionUIMaster;
+
+	private TMP_Text overviewStatusText;
+	private TMP_Text overviewSummaryText;
+	private TMP_Text operationsStatusText;
+	private RectTransform buildingListRoot;
+	private TMP_Text buildingListEmptyText;
+	private TMP_Text actionStatusText;
 	private Button createButton;
 	private TMP_Text createButtonText;
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
+	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 
 	private void Awake()
 	{
 		EnsureInitialized();
+	}
+
+	private void Update()
+	{
+		if (initialized == false || gameObject.activeInHierarchy == false || window == null || window.IsOpen == false)
+			return;
+
+		if (Time.frameCount % 30 == 0)
+			RefreshAll();
 	}
 
 	private void OnDestroy()
@@ -83,6 +112,7 @@ public class BuildingControlWindow : MonoBehaviour
 
 		window.SetTitle(windowTitle);
 		BuildContent();
+		SetupTabs();
 		window.Opened -= HandleWindowOpened;
 		window.Closed -= HandleWindowClosed;
 		window.Opened += HandleWindowOpened;
@@ -95,7 +125,7 @@ public class BuildingControlWindow : MonoBehaviour
 		}
 
 		window.Close();
-		UpdateStatus();
+		RefreshAll();
 		initialized = true;
 	}
 
@@ -112,26 +142,48 @@ public class BuildingControlWindow : MonoBehaviour
 			return;
 
 		contentRoot.DetachChildren();
+		tabRoots.Clear();
 
-		GameObject container = new("BuildingControlContent", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-		container.transform.SetParent(contentRoot, false);
+		bodyRoot = CreateVerticalContainer("BuildingControlBody", contentRoot, 8f);
 
-		var layout = container.GetComponent<VerticalLayoutGroup>();
-		layout.spacing = 10f;
-		layout.childForceExpandHeight = false;
-		layout.childForceExpandWidth = true;
-		layout.childControlHeight = true;
-		layout.childControlWidth = true;
+		GameObject overviewTab = CreateVerticalContainer("OverviewTab", bodyRoot, 8f).gameObject;
+		overviewStatusText = CreateText("OverviewStatusText", overviewTab.transform, 20f);
+		overviewSummaryText = CreateText("OverviewSummaryText", overviewTab.transform, 20f);
+		tabRoots.Add(overviewTab);
 
-		var fitter = container.GetComponent<ContentSizeFitter>();
-		fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-		fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+		GameObject operationsTab = CreateVerticalContainer("OperationsTab", bodyRoot, 8f).gameObject;
+		operationsStatusText = CreateText("OperationsStatusText", operationsTab.transform, 20f);
+		buildingListRoot = CreateVerticalContainer("BuildingListRoot", operationsTab.transform, 6f);
+		buildingListEmptyText = CreateText("BuildingListEmptyText", buildingListRoot, 20f);
+		buildingListEmptyText.text = "No buildings created yet.";
+		tabRoots.Add(operationsTab);
 
-		statusText = CreateText("StatusText", container.transform, "Create a rectangular building footprint.");
-		statusText.textWrappingMode = TextWrappingModes.Normal;
-		statusText.fontSize = 20f;
+		GameObject actionTab = CreateVerticalContainer("ActionTab", bodyRoot, 8f).gameObject;
+		actionStatusText = CreateText("ActionStatusText", actionTab.transform, 20f);
+		createButton = CreateButton("CreateButton", actionTab.transform, "Create Building", HandleCreateButtonClicked, out createButtonText);
+		tabRoots.Add(actionTab);
+	}
 
-		createButton = CreateButton("CreateButton", container.transform, "Create Building", HandleCreateButtonClicked, out createButtonText);
+	private void SetupTabs()
+	{
+		if (window == null)
+			return;
+
+		window.ClearTabs();
+		window.AddTab("Overview", SetTab);
+		window.AddTab("Operations", SetTab);
+		window.AddTab("Action", SetTab);
+		window.UpdateTabVisuals(currentTabIndex);
+	}
+
+	private void SetTab(int tabIndex)
+	{
+		currentTabIndex = tabIndex;
+		for (int i = 0; i < tabRoots.Count; ++i)
+			tabRoots[i].SetActive(i == tabIndex);
+
+		window?.UpdateTabVisuals(tabIndex);
+		RefreshAll();
 	}
 
 	private void HandleWindowOpened()
@@ -139,7 +191,7 @@ public class BuildingControlWindow : MonoBehaviour
 		Interaction.EnterBuildingSelectMode();
 		overlayController?.SetOverlayVisible(false);
 		zoneOverlayController?.SetBuildingModeActive(true);
-		UpdateStatus();
+		RefreshAll();
 	}
 
 	private void HandleWindowClosed()
@@ -147,23 +199,100 @@ public class BuildingControlWindow : MonoBehaviour
 		overlayController?.SetOverlayVisible(false);
 		zoneOverlayController?.SetBuildingModeActive(false);
 		Interaction.ExitBuildingMode();
-		UpdateStatus();
+		RefreshAll();
 	}
 
 	private void HandleBuildingPlacementChanged(int floor)
 	{
-		UpdateStatus();
+		RefreshAll();
 	}
 
 	private void HandleCreateButtonClicked()
 	{
 		overlayController?.BeginCreate();
-		UpdateStatus();
+		RefreshAll();
 	}
 
-	private void UpdateStatus()
+	private void HandleCycleBuildingScopeClicked(Building building)
 	{
-		if (statusText == null || createButton == null)
+		if (building == null || BuildingManager == null)
+			return;
+
+		BuildingManager.SetBuildingWorkScope(building, GetNextWorkScope(building.WorkScope));
+		RefreshAll();
+	}
+
+	private void HandleOpenBuildingDetailsClicked(Building building)
+	{
+		if (building == null)
+			return;
+
+		EnsureSelectionUIMaster();
+		overlayController ??= FindFirstObjectByType<BuildingPlacementOverlayController>(FindObjectsInactive.Include);
+		BuildingSelectionProxy proxy = overlayController?.GetSelectionProxy(building);
+		if (proxy == null)
+			return;
+
+		selectionUIMaster?.ShowDetailForObject(proxy.gameObject);
+	}
+
+	private void RefreshAll()
+	{
+		RefreshOverview();
+		RefreshOperations();
+		RefreshAction();
+	}
+
+	private void RefreshOverview()
+	{
+		if (overviewStatusText == null || overviewSummaryText == null)
+			return;
+
+		if (GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null)
+		{
+			overviewStatusText.text = "Interaction context is unavailable.";
+			overviewSummaryText.text = "Building systems are not ready.";
+			return;
+		}
+
+		int buildingCount = BuildingManager != null ? BuildingManager.RegisteredBuildings.Count : 0;
+		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement;
+
+		overviewStatusText.text = isCreating
+			? "Building placement is active. Left click start/end cells, right click to cancel."
+			: "Use this window to create buildings and manage each building's worker scope.";
+		overviewSummaryText.text = $"Registered Buildings: {buildingCount}";
+	}
+
+	private void RefreshOperations()
+	{
+		if (operationsStatusText == null || buildingListRoot == null || buildingListEmptyText == null)
+			return;
+
+		ClearBuildingRows();
+		operationsStatusText.text = "Adjust building work scope and open a building detail window from the list below.";
+
+		if (BuildingManager == null || BuildingManager.RegisteredBuildings.Count <= 0)
+		{
+			buildingListEmptyText.gameObject.SetActive(true);
+			buildingListEmptyText.text = "No buildings created yet.";
+			return;
+		}
+
+		buildingListEmptyText.gameObject.SetActive(false);
+		for (int i = 0; i < BuildingManager.RegisteredBuildings.Count; ++i)
+		{
+			Building building = BuildingManager.RegisteredBuildings[i];
+			if (building == null)
+				continue;
+
+			CreateBuildingRow(building);
+		}
+	}
+
+	private void RefreshAction()
+	{
+		if (actionStatusText == null || createButton == null)
 			return;
 
 		if (GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null)
@@ -171,7 +300,7 @@ public class BuildingControlWindow : MonoBehaviour
 			createButton.interactable = false;
 			if (createButtonText != null)
 				createButtonText.text = "Create Building";
-			statusText.text = "Interaction context is unavailable.";
+			actionStatusText.text = "Interaction context is unavailable.";
 			return;
 		}
 
@@ -180,33 +309,120 @@ public class BuildingControlWindow : MonoBehaviour
 		if (createButtonText != null)
 			createButtonText.text = isCreating ? "Creating..." : "Create Building";
 
-		if (window.IsOpen == false)
-		{
-			statusText.text = "Open the window to create building walls.";
-			return;
-		}
-
-		statusText.text = isCreating
-			? "Left click start/end cells. Right click to cancel."
-			: "Drag a rectangle to create walls on the inside border.";
+		actionStatusText.text = isCreating
+			? "Drag a rectangle to create building walls on the inside border."
+			: "Start a new building footprint creation.";
 	}
 
-	private static TMP_Text CreateText(string objectName, Transform parent, string value)
+	private void CreateBuildingRow(Building building)
 	{
-		GameObject textObject = new(objectName, typeof(RectTransform), typeof(TextMeshProUGUI));
+		RectTransform row = CreateHorizontalContainer(building.DisplayName + "Row", buildingListRoot, 8f);
+		buildingRows.Add(row.gameObject);
+
+		TMP_Text label = CreateText(building.DisplayName + "Label", row, 20f);
+		label.text = $"{building.DisplayName} ({building.Type})";
+
+		LayoutElement labelLayout = label.GetComponent<LayoutElement>();
+		if (labelLayout != null)
+		{
+			labelLayout.flexibleWidth = 1f;
+			labelLayout.minWidth = 0f;
+		}
+
+		CreateCompactButton("ScopeButton", row, BuildingWorkScopeUtility.ToDisplayString(building.WorkScope), () => HandleCycleBuildingScopeClicked(building), out _);
+		CreateCompactButton("DetailsButton", row, "Details", () => HandleOpenBuildingDetailsClicked(building), out _);
+	}
+
+	private void ClearBuildingRows()
+	{
+		for (int i = 0; i < buildingRows.Count; ++i)
+		{
+			GameObject row = buildingRows[i];
+			if (row == null)
+				continue;
+
+			row.SetActive(false);
+			Destroy(row);
+		}
+
+		buildingRows.Clear();
+	}
+
+	private void EnsureSelectionUIMaster()
+	{
+		if (selectionUIMaster == null)
+			selectionUIMaster = FindFirstObjectByType<SelectionUIMaster>(FindObjectsInactive.Include);
+	}
+
+	private static BuildingWorkScope GetNextWorkScope(BuildingWorkScope currentScope)
+	{
+		int enumCount = System.Enum.GetValues(typeof(BuildingWorkScope)).Length;
+		int nextIndex = (((int)currentScope) + 1) % enumCount;
+		return (BuildingWorkScope)nextIndex;
+	}
+
+	private static RectTransform CreateVerticalContainer(string name, Transform parent, float spacing)
+	{
+		GameObject root = new(name, typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement), typeof(ContentSizeFitter));
+		root.transform.SetParent(parent, false);
+
+		VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
+		layout.spacing = spacing;
+		layout.childForceExpandHeight = false;
+		layout.childForceExpandWidth = true;
+		layout.childControlHeight = true;
+		layout.childControlWidth = true;
+		layout.childAlignment = TextAnchor.UpperLeft;
+
+		LayoutElement layoutElement = root.GetComponent<LayoutElement>();
+		layoutElement.flexibleWidth = 1f;
+		layoutElement.minWidth = 0f;
+
+		ContentSizeFitter fitter = root.GetComponent<ContentSizeFitter>();
+		fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+		fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+		return root.GetComponent<RectTransform>();
+	}
+
+	private static RectTransform CreateHorizontalContainer(string name, Transform parent, float spacing)
+	{
+		GameObject root = new(name, typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement), typeof(ContentSizeFitter));
+		root.transform.SetParent(parent, false);
+
+		HorizontalLayoutGroup layout = root.GetComponent<HorizontalLayoutGroup>();
+		layout.spacing = spacing;
+		layout.childForceExpandHeight = false;
+		layout.childForceExpandWidth = true;
+		layout.childControlHeight = true;
+		layout.childControlWidth = true;
+		layout.childAlignment = TextAnchor.MiddleLeft;
+
+		LayoutElement layoutElement = root.GetComponent<LayoutElement>();
+		layoutElement.flexibleWidth = 1f;
+		layoutElement.minWidth = 0f;
+
+		ContentSizeFitter fitter = root.GetComponent<ContentSizeFitter>();
+		fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+		fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+		return root.GetComponent<RectTransform>();
+	}
+
+	private static TMP_Text CreateText(string objectName, Transform parent, float fontSize)
+	{
+		GameObject textObject = new(objectName, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
 		textObject.transform.SetParent(parent, false);
 
-		var text = textObject.GetComponent<TextMeshProUGUI>();
-		text.text = value;
-		text.fontSize = 18f;
+		TMP_Text text = textObject.GetComponent<TextMeshProUGUI>();
+		text.fontSize = fontSize;
 		text.color = Color.white;
 		text.alignment = TextAlignmentOptions.MidlineLeft;
+		text.textWrappingMode = TextWrappingModes.Normal;
 
-		var rect = text.rectTransform;
-		rect.anchorMin = Vector2.zero;
-		rect.anchorMax = Vector2.one;
-		rect.offsetMin = Vector2.zero;
-		rect.offsetMax = Vector2.zero;
+		LayoutElement layout = textObject.GetComponent<LayoutElement>();
+		layout.flexibleWidth = 1f;
+		layout.minWidth = 0f;
 
 		return text;
 	}
@@ -216,17 +432,50 @@ public class BuildingControlWindow : MonoBehaviour
 		GameObject buttonObject = new(objectName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
 		buttonObject.transform.SetParent(parent, false);
 
-		var layout = buttonObject.GetComponent<LayoutElement>();
+		LayoutElement layout = buttonObject.GetComponent<LayoutElement>();
 		layout.preferredHeight = 38f;
+		layout.minHeight = 38f;
 
-		var image = buttonObject.GetComponent<Image>();
+		Image image = buttonObject.GetComponent<Image>();
 		image.color = new Color(0.2f, 0.5f, 0.82f, 1f);
 
-		var button = buttonObject.GetComponent<Button>();
+		Button button = buttonObject.GetComponent<Button>();
 		button.onClick.AddListener(onClick);
 
-		labelText = CreateText("Label", buttonObject.transform, label);
+		labelText = CreateText("Label", buttonObject.transform, 18f);
 		labelText.alignment = TextAlignmentOptions.Center;
+		labelText.text = label;
+
+		return button;
+	}
+
+	private static Button CreateCompactButton(string objectName, Transform parent, string label, UnityEngine.Events.UnityAction onClick, out TMP_Text labelText)
+	{
+		GameObject buttonObject = new(objectName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+		buttonObject.transform.SetParent(parent, false);
+
+		LayoutElement layout = buttonObject.GetComponent<LayoutElement>();
+		layout.preferredHeight = 34f;
+		layout.minHeight = 34f;
+		layout.preferredWidth = 140f;
+		layout.minWidth = 140f;
+		layout.flexibleWidth = 0f;
+
+		Image image = buttonObject.GetComponent<Image>();
+		image.color = new Color(0.18f, 0.18f, 0.18f, 0.9f);
+
+		Button button = buttonObject.GetComponent<Button>();
+		button.onClick.AddListener(onClick);
+
+		labelText = CreateText("Label", buttonObject.transform, 16f);
+		labelText.alignment = TextAlignmentOptions.Center;
+		labelText.text = label;
+
+		RectTransform textRect = labelText.rectTransform;
+		textRect.anchorMin = Vector2.zero;
+		textRect.anchorMax = Vector2.one;
+		textRect.offsetMin = Vector2.zero;
+		textRect.offsetMax = Vector2.zero;
 
 		return button;
 	}

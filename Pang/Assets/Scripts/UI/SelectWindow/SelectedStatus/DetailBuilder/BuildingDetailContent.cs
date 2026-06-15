@@ -13,7 +13,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	{
 		Overview,
 		Facilities,
-		Ports,
+		Policy,
 		Zones,
 		Action,
 	}
@@ -28,6 +28,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	private TextMeshProUGUI nameValue;
 	private TextMeshProUGUI typeValue;
 	private TextMeshProUGUI stateValue;
+	private TextMeshProUGUI workScopeValue;
 	private TextMeshProUGUI cellCountValue;
 	private TextMeshProUGUI facilityCountValue;
 	private TextMeshProUGUI cargoPortCountValue;
@@ -35,7 +36,9 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 
 	private TextMeshProUGUI facilitiesSummaryText;
 	private RectTransform facilitiesSummaryRoot;
-	private TextMeshProUGUI portsTodoText;
+	private TextMeshProUGUI policyHelpText;
+	private Button workScopeButton;
+	private TextMeshProUGUI workScopeButtonLabel;
 	private TextMeshProUGUI zoneStatusText;
 	private Button zoneOpenControlsButton;
 	private RectTransform zoneListRoot;
@@ -116,6 +119,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		nameValue = CreateInfoLine(overviewTab.transform, "Name");
 		typeValue = CreateInfoLine(overviewTab.transform, "Type");
 		stateValue = CreateInfoLine(overviewTab.transform, "State");
+		workScopeValue = CreateInfoLine(overviewTab.transform, "Work Scope");
 		cellCountValue = CreateInfoLine(overviewTab.transform, "Cells");
 		facilityCountValue = CreateInfoLine(overviewTab.transform, "Facilities");
 		cargoPortCountValue = CreateInfoLine(overviewTab.transform, "Cargo Ports");
@@ -133,10 +137,17 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		facilitiesSummaryRoot = CreateRuntimeVerticalContainer("FacilitiesSummaryRoot", facilitiesTab.transform, 6f);
 		tabRoots.Add(facilitiesTab);
 
-		GameObject portsTab = CreateRuntimeVerticalContainer("PortsTab", bodyRoot, 6f).gameObject;
-		portsTodoText = CreateRuntimeBodyText("PortsTodoText", portsTab.transform);
-		portsTodoText.text = "TODO: Building-owned cargo ports list.";
-		tabRoots.Add(portsTab);
+		GameObject policyTab = CreateRuntimeVerticalContainer("PolicyTab", bodyRoot, 6f).gameObject;
+		TextMeshProUGUI policyHeaderText = CreateRuntimeBodyText("PolicyHeaderText", policyTab.transform);
+		policyHeaderText.text = "Work Scope";
+		policyHeaderText.fontStyle = FontStyles.Bold;
+
+		policyHelpText = CreateRuntimeBodyText("PolicyHelpText", policyTab.transform);
+		policyHelpText.fontSize = 20f;
+		policyHelpText.text = "Change how far workers assigned to this building are allowed to operate.";
+
+		workScopeButton = CreateRuntimeActionButton(policyTab.transform, "Cycle Work Scope", HandleWorkScopeButtonClicked, out workScopeButtonLabel);
+		tabRoots.Add(policyTab);
 
 		GameObject zonesTab = CreateRuntimeVerticalContainer("ZonesTab", bodyRoot, 8f).gameObject;
 		zoneStatusText = CreateRuntimeBodyText("ZoneStatusText", zonesTab.transform);
@@ -224,7 +235,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		window.ClearTabs();
 		window.AddTab("Overview", SetTab);
 		window.AddTab("Facilities", SetTab);
-		window.AddTab("Ports", SetTab);
+		window.AddTab("Policy", SetTab);
 		window.AddTab("Zones", SetTab);
 		window.AddTab("Action", SetTab);
 		window.UpdateTabVisuals(currentTabIndex);
@@ -257,11 +268,16 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		nameValue.text = buildingProvider.Name;
 		typeValue.text = buildingProvider.Subtitle;
 		stateValue.text = buildingProvider.StateDisplay;
+		workScopeValue.text = buildingProvider.WorkScopeDisplay;
 		cellCountValue.text = buildingProvider.CellCount.ToString();
 		facilityCountValue.text = buildingProvider.FacilityCount.ToString();
 		cargoPortCountValue.text = buildingProvider.CargoPortCount.ToString();
 		zoneCountValue.text = buildingProvider.ZoneCount.ToString();
 		actionStateValue.text = buildingProvider.StateDisplay;
+		if (workScopeButtonLabel != null)
+			workScopeButtonLabel.text = buildingProvider.WorkScopeDisplay;
+		if (workScopeButton != null)
+			workScopeButton.interactable = buildingProvider.Target?.Building != null;
 	}
 
 	private void RefreshFacilitiesSection()
@@ -387,6 +403,17 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		EnsureZoneControlWindow();
 		zoneControlWindow?.OpenForBuilding(buildingProvider.Target.Building);
 		RefreshZoneSection();
+	}
+
+	private void HandleWorkScopeButtonClicked()
+	{
+		if (provider is not BuildingUIProvider buildingProvider || buildingProvider.Target?.Building == null)
+			return;
+
+		Building building = buildingProvider.Target.Building;
+		BuildingWorkScope nextScope = GetNextWorkScope(building.WorkScope);
+		buildingProvider.Target.BuildingManager?.SetBuildingWorkScope(building, nextScope);
+		RefreshSummaryValues();
 	}
 
 	private void HandleViewZoneDetailsClicked(ZoneArea zone)
@@ -620,6 +647,20 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		textRect.offsetMax = Vector2.zero;
 
 		return button;
+	}
+
+	private static Button CreateRuntimeActionButton(Transform parent, string label, UnityEngine.Events.UnityAction onClick, out TextMeshProUGUI labelText)
+	{
+		Button button = CreateCompactActionButton(parent, label, onClick);
+		labelText = button != null ? button.GetComponentInChildren<TextMeshProUGUI>() : null;
+		return button;
+	}
+
+	private static BuildingWorkScope GetNextWorkScope(BuildingWorkScope currentScope)
+	{
+		int enumCount = Enum.GetValues(typeof(BuildingWorkScope)).Length;
+		int nextIndex = (((int)currentScope) + 1) % enumCount;
+		return (BuildingWorkScope)nextIndex;
 	}
 
 	private static void SetTopStretch(RectTransform rect, float left, float right, float top)

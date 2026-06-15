@@ -143,6 +143,7 @@ public sealed class BuildingSaveData
 	public string Name;
 	public BuildingType Type;
 	public BuildingState State;
+	public BuildingWorkScope WorkScope;
 }
 
 [Serializable]
@@ -311,6 +312,7 @@ public sealed class PlaceableSaveData
 public sealed class WorkerSaveData
 {
 	public uint WorkerId;
+	public uint PrimaryBuildingId;
 	public string FirstName;
 	public string LastName;
 	public string VisualId;

@@ -118,6 +118,15 @@ public sealed class BuildingManager : MonoBehaviour
 		return true;
 	}
 
+	public bool SetBuildingWorkScope(Building building, BuildingWorkScope newWorkScope)
+	{
+		if (building == null || registeredBuildings.Contains(building) == false)
+			return false;
+
+		building.SetWorkScope(newWorkScope);
+		return true;
+	}
+
 	public void RebuildLookup()
 	{
 		buildingsById.Clear();
@@ -161,6 +170,7 @@ public sealed class BuildingManager : MonoBehaviour
 				Name = building.DisplayName,
 				Type = building.Type,
 				State = building.State,
+				WorkScope = building.WorkScope,
 			});
 		}
 
@@ -172,7 +182,8 @@ public sealed class BuildingManager : MonoBehaviour
 		uint runtimeBuildingId,
 		BuildingType buildingType,
 		string displayName,
-		BuildingState state)
+		BuildingState state,
+		BuildingWorkScope workScope)
 	{
 		if (ownedCells == null || ownedCells.Count <= 0)
 			return null;
@@ -180,6 +191,7 @@ public sealed class BuildingManager : MonoBehaviour
 		Building building = new(displayName, ownedCells, buildingType);
 		building.AssignRuntimeBuildingId(runtimeBuildingId);
 		building.SetState(state);
+		building.SetWorkScope(workScope);
 		Register(building);
 
 		for (int i = 0; i < ownedCells.Count; ++i)
