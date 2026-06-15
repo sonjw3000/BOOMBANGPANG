@@ -8,13 +8,14 @@ using UnityEngine.Serialization;
 public class WMSystem : MonoBehaviour
 {
 	[SerializeField] private ItemLedger itemLedger;
+	[FormerlySerializedAs("boxPoolManager")]
 	[FormerlySerializedAs("boxPoolRegistry")]
-	[SerializeField] private BoxPoolManager boxPoolManager;
+	[SerializeField] private BoxPoolService boxPoolService;
 
 	[Header("Policy")]
 	[SerializeField] private WorkPolicyService workPolicyService;
 
-	public BoxPoolManager BoxPoolManager => boxPoolManager;
+	public BoxPoolService BoxPoolService => boxPoolService;
 	public ItemLedger ItemLedger => itemLedger;
 
 	public WorkPolicyService WorkPolicyService => workPolicyService;

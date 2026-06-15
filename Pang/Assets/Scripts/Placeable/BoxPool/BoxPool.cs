@@ -15,8 +15,6 @@ public class BoxPool :
 	//private int3 position;
 	private Stack<BoxBase> boxes = new();
 
-	static private WMSystem WMSys => GameContext.Instance.WMSys;
-
 	public int CurrentBoxCount => boxes.Count;
 	public int MaxStackCount => maxStack;
 	public IEnumerable<BoxBase> Boxes => boxes;
@@ -60,13 +58,11 @@ public class BoxPool :
 	{
 		enabled = true;
 		this.position = position;
-
-		WMSys.BoxPoolManager.Register(this);
+		this.facingDirection = direction;
 	}
 
 	public override void OnRemoved()
 	{
-		WMSys.BoxPoolManager.Unregister(this);
 	}
 
 	public override void OnDestroyedBy(in DestroyContext ctx)

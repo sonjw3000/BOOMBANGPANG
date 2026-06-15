@@ -14,7 +14,7 @@ using UnityEngine;
 // itemstack 실제 아이템의 데이터
 
 [System.Serializable]
-public class ShelfStorageIndex : MonoBehaviour, ICollectSupplySource
+public class ShelfStorageService : FacilityService<ShelfBase>, ICollectSupplySource
 {
 	// shelf, bin 등 아이템 컨테이너 리스트
 	[SerializeField] private List<ShelfBase> containers = new();
@@ -47,7 +47,8 @@ public class ShelfStorageIndex : MonoBehaviour, ICollectSupplySource
 			shelvesByItem.Add(itemId, list);
 		}
 
-		list.Add(shelf);
+		if (list.Contains(shelf) == false)
+			list.Add(shelf);
 	}
 
 	private void OnItemUnregistered(ShelfBase shelf, uint itemId)
@@ -59,6 +60,8 @@ public class ShelfStorageIndex : MonoBehaviour, ICollectSupplySource
 		}
 
 		shelvesByItem[itemId].Remove(shelf);
+		if (shelvesByItem[itemId].Count == 0)
+			shelvesByItem.Remove(itemId);
 	}
 
 	private void OnQuantityDelta(ShelfBase shelf, uint itemId, int qtyDelta)
@@ -69,22 +72,67 @@ public class ShelfStorageIndex : MonoBehaviour, ICollectSupplySource
 
 	}
 
+	protected override void OnRegisterFacility(uint buildingId, ShelfBase facility)
+	{
+		RegisterContainer(facility);
+	}
+
+	protected override void OnUnregisterFacility(uint buildingId, ShelfBase facility)
+	{
+		UnregisterContainer(facility);
+	}
+
+	public void ResetRuntimeState()
+	{
+		for (int i = 0; i < containers.Count; ++i)
+			UnsubscribeContainer(containers[i]);
+
+		containers.Clear();
+		shelvesByItem.Clear();
+	}
+
 	// ---------------------------
 	// 컨테이너 관련
 	// ---------------------------
-	// 컨테이너에 저장될 아이템의 종류를 업데이트한다
-	public void OnContainerAdded(ShelfBase container)
+	private void RegisterContainer(ShelfBase container)
 	{
+		if (container == null || containers.Contains(container))
+			return;
+
 		container.OnItemPresentChanged += OnItemPresentChanged;
 		container.OnItemQuantityChanged += OnQuantityDelta;
 		containers.Add(container);
+
+		foreach (var item in container.ItemTotals)
+		{
+			if (item.Value > 0)
+				OnItemRegistered(container, item.Key);
+		}
 	}
 
-	public void OnContainerRemoved(ShelfBase container)
+	private void UnregisterContainer(ShelfBase container)
 	{
+		if (container == null)
+			return;
+
+		UnsubscribeContainer(container);
+		containers.Remove(container);
+		RemoveContainerFromIndex(container);
+	}
+
+	private void UnsubscribeContainer(ShelfBase container)
+	{
+		if (container == null)
+			return;
+
 		container.OnItemPresentChanged -= OnItemPresentChanged;
 		container.OnItemQuantityChanged -= OnQuantityDelta;
-		containers.Remove(container);
+	}
+
+	private void RemoveContainerFromIndex(ShelfBase container)
+	{
+		foreach (var item in container.ItemTotals)
+			OnItemUnregistered(container, item.Key);
 	}
 
 	// ---------------------------

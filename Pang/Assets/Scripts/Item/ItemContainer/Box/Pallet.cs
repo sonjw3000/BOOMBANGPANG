@@ -19,8 +19,8 @@ public class Pallet : BoxBase
 		{
 			var box = boxes.Pop();
 			// We should return these nested boxes to the pool as well if they are being cleared
-			if (BoxManager != null)
-				BoxManager.ReturnToPool(box);
+			if (BoxService != null)
+				BoxService.ReturnToPool(box);
 			else
 				Destroy(box.gameObject);
 		}

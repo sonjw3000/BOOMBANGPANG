@@ -119,7 +119,7 @@ public class UnloadingTask : WorkerTask
 		
 		// disable rocket
 		if (result == TransferResultKind.Complete)
-			GameContext.Instance.RocketMgr.DisableRocket(task.targetRocket);
+			GameContext.Instance.RocketSvc.DisableRocket(task.targetRocket);
 		else if (result == TransferResultKind.Partial)
 		{
 			// todo

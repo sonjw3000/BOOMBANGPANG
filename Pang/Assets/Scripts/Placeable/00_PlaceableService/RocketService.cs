@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-public class RocketManager : GridPlaceableManager<Rocket>
+public class RocketService : FacilityService<Rocket>
 {
 	[SerializeField] private int initialPoolSize = 5;
 	[SerializeField] private ZoneManager zoneManager;
@@ -28,7 +28,6 @@ public class RocketManager : GridPlaceableManager<Rocket>
 
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private InboundWorkflowService IBWorkflowService => GameContext.Instance.IBWorkflowSvc;
-	private GridService GridService => GameContext.Instance.GridService;
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 	private ZoneManager ZoneManager
 	{
@@ -44,8 +43,10 @@ public class RocketManager : GridPlaceableManager<Rocket>
 	private GameObject rocketPoolParent = null;
 	private PlaceableDefinition rocketPD;
 
-	private void Start()
+	protected override void Start()
 	{
+		base.Start();
+
 		rocketPD = GameContext.Instance.PlaceableCatalog.FindById("TestRocket");
 
 		if (rocketPD == null)
@@ -87,7 +88,7 @@ public class RocketManager : GridPlaceableManager<Rocket>
 
 		if (rocket == null)
 		{
-			Debug.LogError("RocketManager: Failed to dequeue rocket from pool.");
+			Debug.LogError("RocketService: Failed to dequeue rocket from pool.");
 			return;
 		}
 
@@ -259,7 +260,7 @@ public class RocketManager : GridPlaceableManager<Rocket>
 		rocket.transform.position = Vector3.zero;
 		if (GridService.OnInstall(ctx) == false)
 		{
-			Debug.LogError($"[RocketManager] Failed to install landed rocket at {rocket.LandingPos}.");
+			Debug.LogError($"[RocketService] Failed to install landed rocket at {rocket.LandingPos}.");
 			return;
 		}
 
@@ -306,15 +307,15 @@ public class RocketManager : GridPlaceableManager<Rocket>
 			: PlacementEvent.RocketLanding;
 	}
 
-	public RocketManagerSaveData CaptureState()
+	public RocketServiceSaveData CaptureState()
 	{
-		return new RocketManagerSaveData
+		return new RocketServiceSaveData
 		{
 			TimeSinceLastSpawn = timeSinceLastSpawn,
 		};
 	}
 
-	public void RestoreState(RocketManagerSaveData data)
+	public void RestoreState(RocketServiceSaveData data)
 	{
 		if (data == null)
 			return;

@@ -811,6 +811,9 @@ public class GridService : MonoBehaviour
 		if ((footprintCell.flags & GridFlags.Interaction) != 0)
 			return true;
 
+		if (footprintCell.environmentRequirement != FootprintCellEnvironmentRequirement.Any)
+			return true;
+
 		if (hasResolvedBuildingId == false)
 		{
 			hasResolvedBuildingId = true;

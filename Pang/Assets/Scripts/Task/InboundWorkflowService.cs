@@ -28,7 +28,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	public StoringPlanner StoringPlanner => storingPlanner;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
-	private BoxPoolManager BoxPoolManager => GameContext.Instance.WMSys.BoxPoolManager;
+	private BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolService;
 	public CollectingPolicyType StoringCollectingPolicyType => storingPlanner != null ? storingPlanner.CollectingPolicyType : defaultStoringCollectingPolicyType;
 	public PlacingPolicyType StoringPlacingPolicyType => storingPlanner != null ? storingPlanner.PlacingPolicyType : defaultStoringPlacingPolicyType;
 
@@ -179,7 +179,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private float GetEffectiveStoringBoxCapacity()
 	{
-		float toteCapacity = BoxPoolManager != null ? BoxPoolManager.ToteCapacity : 0.0f;
+		float toteCapacity = BoxPoolService != null ? BoxPoolService.ToteCapacity : 0.0f;
 		if (toteCapacity <= 0.0f)
 			return 0.0f;
 

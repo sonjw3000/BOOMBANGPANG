@@ -43,7 +43,7 @@ public class OrderDeliveryService : MonoBehaviour
 
 			Debug.Log("Cargo Delivered!");
 
-			GameContext.Instance.WMSys.BoxPoolManager.ReturnToPool(progress.Cargo);
+			GameContext.Instance.WMSys.BoxPoolService.ReturnToPool(progress.Cargo);
 			deliveryProgresses.RemoveAt(i);
 		}
 	}

@@ -23,7 +23,7 @@ public class Rocket : ShelfBase
 
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.Rocket;
 
-	private RocketManager RocketMgr => GameContext.Instance.RocketMgr;
+	private RocketService RocketSvc => GameContext.Instance.RocketSvc;
 
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 	public int3 LandingPos => landingPoint;
@@ -57,7 +57,7 @@ public class Rocket : ShelfBase
 				LandingPos.z
 				);
 			state = RocketState.OnPad;
-			RocketMgr.OnRocketLanding(this);
+			RocketSvc.OnRocketLanding(this);
 			//gameObject.SetActive(false);
 		}
 	}
@@ -69,7 +69,7 @@ public class Rocket : ShelfBase
 		if (transform.position.y >= launchHeight)
 		{
 			state = RocketState.Deactivated;
-			RocketMgr.DisableRocket(this);
+			RocketSvc.DisableRocket(this);
 		}
 	}
 

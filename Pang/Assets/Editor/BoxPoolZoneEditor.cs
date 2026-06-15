@@ -2,7 +2,7 @@
 using UnityEngine;
 using Unity.Mathematics;
 
-[CustomEditor(typeof(BoxPoolManager))]
+[CustomEditor(typeof(BoxPoolService))]
 class BoxPoolZoneEditor : Editor
 {
 	public static int Index;
@@ -11,18 +11,19 @@ class BoxPoolZoneEditor : Editor
 	{
 		DrawDefaultInspector();
 
-		BoxPoolManager sys = (BoxPoolManager)target;
+		BoxPoolService sys = (BoxPoolService)target;
+		var registeredBoxPools = sys.RegisteredBoxPools;
 
 		Index = (int)EditorGUILayout.IntField("Target Index", Index);
 		if (GUILayout.Button("Give Tote Box"))
 		{
-			if (Index >= sys.PlaceableTargets.Count)
+			if (Index < 0 || Index >= registeredBoxPools.Count)
 			{
 				Debug.Log("Out Of Index!");
 				return;
 			}
 
-			sys.GiveNewBox(sys.PlaceableTargets[Index], BoxType.Personal);
+			sys.GiveNewBox(registeredBoxPools[Index], BoxType.Personal);
 		}
 
 		// box tracing

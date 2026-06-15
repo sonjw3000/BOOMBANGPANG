@@ -50,6 +50,7 @@ public class SelectionUIMaster : MonoBehaviour
 	private void Awake()
 	{
 		providerTypes.Add(typeof(CargoPortUIProvider));
+		providerTypes.Add(typeof(AirlockUIProvider));
 		providerTypes.Add(typeof(PackingStationUIProvider));
 		providerTypes.Add(typeof(RocketUIProvider));
 		providerTypes.Add(typeof(ShelfUIProvider));
@@ -61,6 +62,7 @@ public class SelectionUIMaster : MonoBehaviour
 
 		EnsureRuntimeZoneDetailContent();
 		EnsureRuntimeBuildingDetailContent();
+		EnsureRuntimeAirlockDetailContent();
 		EnsureDetailWindowManager();
 		EnsureHighlightRoot();
 		EnsureModeHud();
@@ -597,7 +599,36 @@ public class SelectionUIMaster : MonoBehaviour
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Put, "PUT");
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Work, "WORK");
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Charge, "CHARGE");
+		AppendInteractionLabel(builder, interactionKind, InteractionKind.Enter, "ENTER");
 		return builder.ToString();
+	}
+
+	private void EnsureRuntimeAirlockDetailContent()
+	{
+		if (detailUI == null)
+			return;
+
+		foreach (DetailContentBase detailContent in detailContents)
+		{
+			if (detailContent is AirlockDetailContent)
+				return;
+		}
+
+		UIWindow detailWindow = detailUI.GetComponentInChildren<UIWindow>(true);
+		Transform parent = detailWindow != null && detailWindow.ContentRoot != null
+			? detailWindow.ContentRoot
+			: detailUI.transform;
+
+		GameObject detailRoot = new("RuntimeAirlockDetailContent", typeof(RectTransform), typeof(AirlockDetailContent));
+		detailRoot.transform.SetParent(parent, false);
+		detailRoot.SetActive(false);
+
+		AirlockDetailContent airlockDetail = detailRoot.GetComponent<AirlockDetailContent>();
+		var contents = new List<DetailContentBase>(detailContents ?? System.Array.Empty<DetailContentBase>())
+		{
+			airlockDetail
+		};
+		detailContents = contents.ToArray();
 	}
 
 	private static void AppendInteractionLabel(StringBuilder builder, InteractionKind source, InteractionKind target, string label)

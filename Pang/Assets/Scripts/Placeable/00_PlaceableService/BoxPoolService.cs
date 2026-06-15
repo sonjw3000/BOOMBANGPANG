@@ -1,18 +1,18 @@
+using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
-public class BoxPoolManager : GridPlaceableManager<BoxPool>
+public class BoxPoolService : FacilityService<BoxPool>
 {
 	[SerializeField] private BoxBase palletPrefab;
 	[SerializeField] private BoxBase boxPrefab;
 
 	[SerializeField] private float toteCapacity = 150.0f;
 
-	// 실제 박스들
-	private List<BoxBase> boxes = new();
-	private Dictionary<uint, BoxBase> boxesByBoxId = new();
-
-	private Dictionary<BoxType, Stack<BoxBase>> pool = new();
+	private readonly List<BoxBase> boxes = new();
+	private readonly Dictionary<uint, BoxBase> boxesByBoxId = new();
+	private readonly Dictionary<BoxType, Stack<BoxBase>> pool = new();
 	private uint nextBoxId = 1;
 
 	private GameObject poolContainer;
@@ -20,18 +20,20 @@ public class BoxPoolManager : GridPlaceableManager<BoxPool>
 	private void Awake()
 	{
 		poolContainer = new GameObject("BoxPool_Inactive");
-		poolContainer.transform.SetParent(this.transform);
+		poolContainer.transform.SetParent(transform);
 		poolContainer.SetActive(false);
 
-		foreach (BoxType type in System.Enum.GetValues(typeof(BoxType)))
+		foreach (BoxType type in Enum.GetValues(typeof(BoxType)))
 		{
-			if (type == BoxType.None || type == BoxType.Any) continue;
+			if (type == BoxType.None || type == BoxType.Any)
+				continue;
+
 			pool[type] = new Stack<BoxBase>();
 		}
 	}
 
 	public IReadOnlyList<BoxBase> Boxes => boxes;
-	//public IReadOnlyList<BoxPool> BoxPoolZones => boxPoolZones;
+	public IReadOnlyList<BoxPool> RegisteredBoxPools => CollectRegisteredBoxPools();
 
 	public float ToteCapacity => toteCapacity;
 	public uint NextBoxId => nextBoxId;
@@ -48,7 +50,7 @@ public class BoxPoolManager : GridPlaceableManager<BoxPool>
 
 		boxesByBoxId[box.BoxId] = box;
 
-		if (!boxes.Contains(box))
+		if (boxes.Contains(box) == false)
 			boxes.Add(box);
 	}
 
@@ -84,19 +86,35 @@ public class BoxPoolManager : GridPlaceableManager<BoxPool>
 		return boxesByBoxId.TryGetValue(boxId, out box);
 	}
 
+	public BoxPool GetClosestAvailableTarget(in int3 pos, InteractionKind interactionKind)
+	{
+		FacilityDistanceResolver distanceResolver = (BoxPool candidate, in int3 origin, out int score) =>
+			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				candidate,
+				interactionKind,
+				origin,
+				GridService,
+				out _,
+				out score);
+
+		Predicate<BoxPool> predicate = candidate => candidate.IsInteractionAvailable(interactionKind);
+		return TryFindClosestFacility(pos, distanceResolver, out BoxPool target, predicate)
+			? target
+			: null;
+	}
+
 	public void ReturnToPool(BoxBase box)
 	{
-		if (box == null) return;
+		if (box == null)
+			return;
 
 		box.ResetContainer();
 		box.gameObject.SetActive(false);
 		box.transform.SetParent(poolContainer.transform);
 
-		if (!pool.ContainsKey(box.Type))
-		{
+		if (pool.ContainsKey(box.Type) == false)
 			pool[box.Type] = new Stack<BoxBase>();
-		}
-		
+
 		pool[box.Type].Push(box);
 	}
 
@@ -144,7 +162,7 @@ public class BoxPoolManager : GridPlaceableManager<BoxPool>
 		return box;
 	}
 
-	public BoxRegistrySaveData CaptureSaveData(System.Func<OrderLine, int> registerOrderLine)
+	public BoxRegistrySaveData CaptureSaveData(Func<OrderLine, int> registerOrderLine)
 	{
 		BoxRegistrySaveData data = new()
 		{
@@ -218,5 +236,25 @@ public class BoxPoolManager : GridPlaceableManager<BoxPool>
 		boxesByBoxId.Clear();
 		foreach (var stack in pool.Values)
 			stack.Clear();
+	}
+
+	private IReadOnlyList<BoxPool> CollectRegisteredBoxPools()
+	{
+		List<BoxPool> result = new();
+		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
+		for (int i = 0; i < buildingIds.Count; ++i)
+		{
+			if (TryGetBuildingFacilities(buildingIds[i], out IReadOnlyList<BoxPool> facilities) == false)
+				continue;
+
+			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
+			{
+				BoxPool poolFacility = facilities[facilityIndex];
+				if (poolFacility != null)
+					result.Add(poolFacility);
+			}
+		}
+
+		return result;
 	}
 }

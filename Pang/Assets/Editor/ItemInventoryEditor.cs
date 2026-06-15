@@ -1,14 +1,14 @@
 ﻿using System.Collections.Generic;
 using UnityEditor;
 
-[CustomEditor(typeof(ShelfStorageIndex))]
+[CustomEditor(typeof(ShelfStorageService))]
 class ItemInventoryEditor : Editor
 {
 	public override void OnInspectorGUI()
 	{
 		DrawDefaultInspector();
 
-		ShelfStorageIndex invData = (ShelfStorageIndex)target;
+		ShelfStorageService invData = (ShelfStorageService)target;
 
 		if (UnityEngine.GUILayout.Button("테스트용 랙에 아이템 배치"))
 		{

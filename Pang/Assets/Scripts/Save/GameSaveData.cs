@@ -62,7 +62,8 @@ public sealed class GameSaveData
 	public OrderManagerSaveData Orders = new();
 	public DeliveryQueueSaveData DeliveryQueue = new();
 	public OrderDeliverySaveData OrderDelivery = new();
-	public RocketManagerSaveData RocketManager = new();
+	[UnityEngine.Serialization.FormerlySerializedAs("RocketManager")]
+	public RocketServiceSaveData RocketService = new();
 	public BoxRegistrySaveData BoxRegistry = new();
 	public WorkerManagerSaveData WorkerManager = new();
 	public WorkJobCounterSaveData WorkJobCounters = new();
@@ -262,7 +263,7 @@ public sealed class DeliveryProgressSaveData
 }
 
 [Serializable]
-public sealed class RocketManagerSaveData
+public sealed class RocketServiceSaveData
 {
 	public float TimeSinceLastSpawn;
 }

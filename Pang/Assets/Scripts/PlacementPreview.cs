@@ -257,6 +257,7 @@ public class PlacementPreview : MonoBehaviour
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Put, "PUT");
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Work, "WORK");
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Charge, "CHARGE");
+		AppendInteractionLabel(builder, interactionKind, InteractionKind.Enter, "ENTER");
 		return builder.ToString();
 	}
 

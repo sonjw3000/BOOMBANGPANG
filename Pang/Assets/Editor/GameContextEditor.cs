@@ -12,7 +12,7 @@ class GameContextEditor : Editor
 	private void OnEnable()
 	{
 		itemsDB = serializedObject.FindProperty("itemDB");
-		inventory = serializedObject.FindProperty("itemInventoryData");
+		inventory = serializedObject.FindProperty("shelfStorageService");
 	}
 
 	public override void OnInspectorGUI()

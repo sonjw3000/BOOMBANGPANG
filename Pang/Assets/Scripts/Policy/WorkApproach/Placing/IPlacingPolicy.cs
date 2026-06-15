@@ -17,7 +17,7 @@ public interface IPlacingPolicy
 
 public class NearestPlacingPolicy : IPlacingPolicy
 {
-	private ShelfStorageIndex StorageIndex => GameContext.Instance.StorageIndex;
+	private ShelfStorageService StorageService => GameContext.Instance.StorageService;
 
 	public bool TryDecide(in int3 workerPos, BoxBase box, Predicate<ShelfBase> pred, out PlaceDecision decision)
 	{
@@ -34,7 +34,7 @@ public class NearestPlacingPolicy : IPlacingPolicy
 		ItemStack bestStack = box.Stacks[0];
 		int quantity = 0;
 
-		foreach (var shelf in StorageIndex.QueryPlaceCandidate(bestStack.ItemID, bestStack.Quantity))
+		foreach (var shelf in StorageService.QueryPlaceCandidate(bestStack.ItemID, bestStack.Quantity))
 		{
 			if (pred != null && pred(shelf) == false)
 			{
@@ -73,7 +73,7 @@ public class NearestPlacingPolicy : IPlacingPolicy
 
 public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 {
-	private ShelfStorageIndex StorageIndex => GameContext.Instance.StorageIndex;
+	private ShelfStorageService StorageService => GameContext.Instance.StorageService;
 
 	public bool TryDecide(in int3 workerPos, BoxBase box, Predicate<ShelfBase> pred, out PlaceDecision decision)
 	{
@@ -89,7 +89,7 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 		List<ShelfBase> candidates = new();
 		float filledPercentSum = 0.0f;
 
-		foreach (var shelf in StorageIndex.QueryPlaceCandidate(bestStack.ItemID, bestStack.Quantity))
+		foreach (var shelf in StorageService.QueryPlaceCandidate(bestStack.ItemID, bestStack.Quantity))
 		{
 			if (pred != null && pred(shelf) == false)
 			{

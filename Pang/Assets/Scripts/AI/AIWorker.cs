@@ -60,7 +60,8 @@ public enum WorkerStatusTarget
 	LaunchStation,
 	Charger,
 	StandbyZone,
-	WorkTarget
+	WorkTarget,
+	Airlock
 }
 
 public struct WorkerStatusInfo
@@ -599,6 +600,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		{
 			WorkerStatusTarget.StandbyZone => "Standby Zone",
 			WorkerStatusTarget.Charger => "Charger",
+			WorkerStatusTarget.Airlock => "Airlock",
 			_ when workerState.Action == WorkerStatusAction.Resting || workerState.Action == WorkerStatusAction.Charging => "Recovery Point",
 			_ => workerState.Target != WorkerStatusTarget.None ? workerState.Target.ToString() : "Destination",
 		};

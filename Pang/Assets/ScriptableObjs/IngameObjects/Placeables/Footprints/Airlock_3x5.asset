@@ -1,0 +1,94 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59dc407d06914e24ea682e07f6ff53a3, type: 3}
+  m_Name: Airlock_3x5
+  m_EditorClassIdentifier: 
+  width: 3
+  height: 5
+  pivot: {x: 1, y: 1}
+  footprintCells:
+  - flags: 0
+    interactionKind: 0
+    occupancyCategory: 0
+    overrideTargets: 0
+    environmentRequirement: 0
+  - flags: 4
+    interactionKind: 16
+    occupancyCategory: 2048
+    overrideTargets: 0
+    environmentRequirement: 1
+  - flags: 0
+    interactionKind: 0
+    occupancyCategory: 0
+    overrideTargets: 0
+    environmentRequirement: 0
+  - flags: 19
+    interactionKind: 0
+    occupancyCategory: 2048
+    overrideTargets: 1
+    environmentRequirement: 1
+  - flags: 19
+    interactionKind: 0
+    occupancyCategory: 2048
+    overrideTargets: 1
+    environmentRequirement: 1
+  - flags: 19
+    interactionKind: 0
+    occupancyCategory: 2048
+    overrideTargets: 1
+    environmentRequirement: 1
+  - flags: 19
+    interactionKind: 0
+    occupancyCategory: 2048
+    overrideTargets: 0
+    environmentRequirement: 2
+  - flags: 1
+    interactionKind: 0
+    occupancyCategory: 2048
+    overrideTargets: 0
+    environmentRequirement: 2
+  - flags: 19
+    interactionKind: 0
+    occupancyCategory: 2048
+    overrideTargets: 0
+    environmentRequirement: 2
+  - flags: 19
+    interactionKind: 0
+    occupancyCategory: 2048
+    overrideTargets: 0
+    environmentRequirement: 2
+  - flags: 19
+    interactionKind: 0
+    occupancyCategory: 2048
+    overrideTargets: 0
+    environmentRequirement: 2
+  - flags: 19
+    interactionKind: 0
+    occupancyCategory: 2048
+    overrideTargets: 0
+    environmentRequirement: 2
+  - flags: 0
+    interactionKind: 0
+    occupancyCategory: 0
+    overrideTargets: 0
+    environmentRequirement: 0
+  - flags: 4
+    interactionKind: 16
+    occupancyCategory: 2048
+    overrideTargets: 0
+    environmentRequirement: 2
+  - flags: 0
+    interactionKind: 0
+    occupancyCategory: 0
+    overrideTargets: 0
+    environmentRequirement: 0
+  isBlockingOutside: 1

@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 
+using UnityEngine.Serialization;
+
 [DefaultExecutionOrder(-100)]
 public class GameContext : MonoBehaviour
 {
@@ -46,8 +48,10 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private WorkerManager workerManager;
 	[SerializeField] private WorkerSpawnManager workerSpawnManager;
 	[SerializeField] private TaskManager taskManager;
-	[SerializeField] private ShelfStorageIndex itemInventory;
-	[SerializeField] private RocketManager rocketManager;
+	[FormerlySerializedAs("itemInventory")]
+	[SerializeField] private ShelfStorageService shelfStorageService;
+	[FormerlySerializedAs("rocketManager")]
+	[SerializeField] private RocketService rocketService;
 	[SerializeField] private OrderManager orderManager;
 	[SerializeField] private OrderDeliveryService orderDelivery;
 	[SerializeField] private WMSystem warehouseManagement;
@@ -55,6 +59,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private PathFindingService pathFindingService;
 	[SerializeField] private ZoneManager zoneManager;
 	[SerializeField] private FacilityManager facilityManager;
+	[SerializeField] private AirlockService airlockService;
 	[SerializeField] private BuildingManager buildingManager;
 	[SerializeField] private BuildingFootprintService buildingFootprintService;
 	[SerializeField] private WorkerStandbyService workerStandbyService;
@@ -106,8 +111,8 @@ public class GameContext : MonoBehaviour
 		}
 	}
 	public TaskManager TaskMgr => taskManager;
-	public ShelfStorageIndex StorageIndex => itemInventory;
-	public RocketManager RocketMgr => rocketManager;
+	public ShelfStorageService StorageService => shelfStorageService;
+	public RocketService RocketSvc => rocketService;
 	public OrderManager OrderMgr => orderManager;
 	public OrderDeliveryService OrderDelivery => orderDelivery;
 	public WMSystem WMSys => warehouseManagement;
@@ -136,6 +141,24 @@ public class GameContext : MonoBehaviour
 			return zoneManager;
 		}
 	}
+
+	public AirlockService AirlockSvc
+	{
+		get
+		{
+			if (airlockService == null)
+				airlockService = GetComponent<AirlockService>();
+
+			if (airlockService == null)
+				airlockService = FindFirstObjectByType<AirlockService>();
+
+			if (airlockService == null)
+				airlockService = gameObject.AddComponent<AirlockService>();
+
+			return airlockService;
+		}
+	}
+
 	public BuildingManager BuildingMgr
 	{
 		get

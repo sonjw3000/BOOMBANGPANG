@@ -106,13 +106,13 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		return found;
 	}
 
-	private void Start()
+	protected virtual void Start()
 	{
 		FacilityManager.SubscribeFacilityRegister<T>(HandleFacilityRegistered, HandleFacilityUnregistered);
 		RebuildRegisteredFacilities();
 	}
 
-	private void OnDestroy()
+	protected virtual void OnDestroy()
 	{
 		FacilityManager.UnsubscribeFacilityRegister<T>(HandleFacilityRegistered, HandleFacilityUnregistered);
 	}

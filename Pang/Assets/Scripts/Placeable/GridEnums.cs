@@ -127,6 +127,7 @@ public enum GridOccupancyCategory
 	Rocket = 1 << 8,
 	Machine = 1 << 9,
 	Other = 1 << 10,
+	Airlock = 1 << 11,
 }
 
 [System.Flags]
@@ -137,6 +138,7 @@ public enum InteractionKind : byte
 	Put = 1 << 1,
 	Work = 1 << 2,
 	Charge = 1 << 3,
+	Enter = 1 << 4,
 }
 
 public enum FootprintCellEnvironmentRequirement : byte

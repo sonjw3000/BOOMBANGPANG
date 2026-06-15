@@ -38,7 +38,7 @@ public class LaunchPadAddon : PlatformAddon
 			return;
 
 		// Spawn and launch visual rocket
-		var visualRocket = GameContext.Instance.RocketMgr.GetRocketForLaunch(transform.position);
+		var visualRocket = GameContext.Instance.RocketSvc.GetRocketForLaunch(transform.position);
 		if (visualRocket != null)
 		{
 			// Attach cargo to rocket for visual effect
