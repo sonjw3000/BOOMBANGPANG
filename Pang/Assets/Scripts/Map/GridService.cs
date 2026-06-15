@@ -471,9 +471,87 @@ public class GridService : MonoBehaviour
 		return GetCell(pos).TryReserve(findRoute);
 	}
 
+	public bool CanRelocateWorkerForTransit(AIWorker worker, in int3 newCenter)
+	{
+		if (worker == null || placedObjects.TryGetValue(worker.gameObject, out PlacementContext context) == false)
+			return false;
+
+		return CanRelocatePlacedObject(worker.gameObject, context, newCenter);
+	}
+
 	public bool TryUnreserve(FindRoute findRoute, in int3 pos)
 	{
 		return gridMap.Map[pos.x, pos.y, pos.z].TryUnreserve(findRoute);
+	}
+
+	public bool TryRelocateWorkerForTransit(AIWorker worker, in int3 newCenter, FacingDirection direction)
+	{
+		if (worker == null || placedObjects.TryGetValue(worker.gameObject, out PlacementContext context) == false)
+			return false;
+
+		if (CanRelocatePlacedObject(worker.gameObject, context, newCenter) == false)
+			return false;
+
+		FindRoute route = worker.RouteFinder;
+		int3 previousCenter = context.center;
+		GridFootprint footprint = context.placeableDefinition.gridFootprint;
+		Vector2Int pivot = footprint.Pivot;
+
+		if (route != null)
+			TryUnreserve(route, previousCenter);
+
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				FootprintCell footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
+				int3 target = previousCenter + rotatedOffset;
+				if (gridMap.IsInBound(target) == false)
+					return false;
+
+				Map[target.x, target.y, target.z].Remove(footprintCell, worker.gameObject);
+			}
+		}
+
+		context.center = newCenter;
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				FootprintCell footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
+				int3 target = newCenter + rotatedOffset;
+				if (gridMap.IsInBound(target) == false)
+					return false;
+
+				Map[target.x, target.y, target.z].Set(footprintCell, worker.gameObject);
+			}
+		}
+
+		worker.transform.position = new Vector3(newCenter.x, newCenter.y, newCenter.z);
+		worker.transform.rotation = GetRotation(direction);
+		worker.SetPosition(newCenter);
+		worker.SetDirection(direction);
+
+		if (route != null && TryReserve(route, newCenter) == false)
+		{
+			Debug.LogWarning($"[GridService] Failed to reserve relocated worker cell at {newCenter}.");
+			return false;
+		}
+
+		if (context.placeableDefinition.gridFootprint.IsNeedToRefresh)
+			RecalculateSpaceRegions();
+
+		return true;
 	}
 
 	public bool RegisterPlannedPath(FindRoute findRoute, in int3 pos)
@@ -678,6 +756,39 @@ public class GridService : MonoBehaviour
 			return false;
 
 		return (footprintCell.overrideTargets & targetCategory) != 0;
+	}
+
+	private bool CanRelocatePlacedObject(GameObject placedObject, PlacementContext context, in int3 newCenter)
+	{
+		if (placedObject == null || context == null || context.placeableDefinition == null || context.placeableDefinition.gridFootprint == null)
+			return false;
+
+		GridFootprint footprint = context.placeableDefinition.gridFootprint;
+		Vector2Int pivot = footprint.Pivot;
+
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				FootprintCell footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
+				int3 target = newCenter + rotatedOffset;
+				GridCell targetCell = GetCell(target);
+				if (targetCell == null)
+					return false;
+
+				if (targetCell.CanPlaceObject || targetCell.OccupancyObjectOnGrid == placedObject)
+					continue;
+
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private void CollectOverrideTargets(in PlacementContext ctx, out HashSet<GameObject> targets)

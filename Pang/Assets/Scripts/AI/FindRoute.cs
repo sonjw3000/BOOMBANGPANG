@@ -553,6 +553,28 @@ public class FindRoute : MonoBehaviour
 		StopCurrentPathAtCurrentTile();
 	}
 
+	public void PauseForExternalTransit()
+	{
+		ClearWait();
+		stopAfterCurrentStep = false;
+		hasPendingGoal = false;
+		hasCurrentGoal = false;
+		isYieldMove = false;
+		ResetCurrentPathPlan(true);
+		movementState = MovementState.Idle;
+		enabled = false;
+	}
+
+	public void ConsumeArrivedGoal()
+	{
+		if (movementState != MovementState.Arrived)
+			return;
+
+		hasCurrentGoal = false;
+		hasPendingGoal = false;
+		movementState = MovementState.Idle;
+	}
+
 	public void SetAIMaster(AIWorker worker)
 	{
 		this.worker = worker;

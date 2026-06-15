@@ -1,5 +1,6 @@
 ﻿using Unity.Mathematics;
 using UnityEngine;
+using Assets.Scripts.AI.BT;
 using static ActionNode;
 using static IBaseNode;
 using static IBaseNode.NodeState;
@@ -10,8 +11,12 @@ public abstract partial class AIWorker
 	static private WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
 	static private HumanIncidentService HumanIncident => GameContext.Instance.HumanIncident;
 	static private WorkerStandbyService StandbyService => GameContext.Instance.WorkerStandbyService;
+	static private AirlockService AirlockService => GameContext.Instance.AirlockSvc;
 	private static readonly string RecoveryGoalKey = "RecoveryGoalPos";
 	private static readonly string StandbyGoalKey = "StandbyGoalPos";
+	private static readonly string TransitAirlockKey = "TransitAirlock";
+	private static readonly string TransitDirectionKey = "TransitDirection";
+	private static readonly string TransitStartedKey = "TransitStarted";
 
 	protected virtual IBaseNode BuildWorkerBaseNode() { return null; }
 	protected static SequenceNode BuildRecoveryNode()
@@ -48,6 +53,7 @@ public abstract partial class AIWorker
 		{
 			//Debug.Log("Goal Hit!");
 			context.Worker.routeFinder.enabled = false;
+			context.Worker.routeFinder.ConsumeArrivedGoal();
 			return Success;
 		}
 		context.Worker.enabled = false;
@@ -130,23 +136,7 @@ public abstract partial class AIWorker
 
 			if (nextPool != null)
 			{
-				if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-					nextPool,
-					InteractionKind.Pick,
-					context.Worker.position,
-					GridService,
-					out int3 goalPos,
-					out _) == false)
-				{
-					context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-					return MoveToStandbyWhileWaiting(context);
-				}
-
-				context.Worker.SetWorkerTarget(WorkerStatusTarget.BoxPool);
-				context.Worker.SetWorkerAction(WorkerStatusAction.MovingTo);
-				context.Worker.routeFinder.enabled = true;
-				context.Worker.routeFinder.SetGoalPosition(goalPos);
-				return Running;
+				return TryRouteTowardLogicalTarget(context, nextPool, WorkerStatusTarget.BoxPool, InteractionKind.Pick);
 			}
 
 			// todo
@@ -256,7 +246,10 @@ public abstract partial class AIWorker
 			{
 				if (settingTargetBuilding != null)
 				{
-					settingTargetBuilding(ctx);
+					NodeState targetResult = settingTargetBuilding(ctx);
+					if (targetResult == Running || targetResult == Failure || targetResult == Abort)
+						return targetResult;
+
 					ctx.LocalBlackBoard.TryGetTargetBuilding(out building);
 				}
 			}
@@ -269,29 +262,248 @@ public abstract partial class AIWorker
 				return MoveToStandbyWhileWaiting(ctx);
 			}
 
-			var interaction = building as IInteractionPoint;
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-				interaction,
-				kind,
-				ctx.Worker.position,
-				GridService,
-				out int3 goalPos,
-				out _) == false)
+			bool hasTransit = ctx.LocalBlackBoard.TryGet(TransitAirlockKey, out Airlock airlock) && airlock != null;
+
+			if (ctx.Worker.routeFinder.HasActiveGoal)
 			{
+				if (ctx.Worker.routeFinder.IsGoal)
+				{
+					ctx.Worker.routeFinder.enabled = false;
+					ctx.Worker.routeFinder.ConsumeArrivedGoal();
+
+					if (hasTransit == false)
+						return Success;
+
+					NodeState transitResult = TryUseTransitAirlockIfNeeded(ctx);
+					if (transitResult == Running || transitResult == Failure || transitResult == Abort)
+						return transitResult;
+
+					NodeState rerouteResult = TryRouteTowardLogicalTarget(ctx, building, target, kind);
+					if (rerouteResult != Success)
+						return rerouteResult;
+
+					return Running;
+				}
+
+				ctx.Worker.enabled = false;
+				ctx.Worker.SetWorkerAction(WorkerStatusAction.MovingTo);
+				return Running;
+			}
+
+			if (hasTransit)
+			{
+				NodeState transitResult = TryUseTransitAirlockIfNeeded(ctx);
+				if (transitResult == Running || transitResult == Failure || transitResult == Abort)
+					return transitResult;
+
+				NodeState rerouteResult = TryRouteTowardLogicalTarget(ctx, building, target, kind);
+				if (rerouteResult != Success)
+					return rerouteResult;
+
+				return Running;
+			}
+
+			NodeState routeResult = TryRouteTowardLogicalTarget(ctx, building, target, kind);
+			if (routeResult != Success)
+				return routeResult;
+
+			return Running;
+		}));
+
+		return node;
+	}
+
+	private static NodeState TryRouteTowardLogicalTarget(
+		in BTContext ctx,
+		IGridPlaceable targetPlaceable,
+		WorkerStatusTarget finalTarget,
+		InteractionKind interactionKind)
+	{
+		if (targetPlaceable == null)
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			return MoveToStandbyWhileWaiting(ctx);
+		}
+
+		if (TryGetBuildingId(ctx.Worker.GridPosition, out uint currentBuildingId) == false)
+			currentBuildingId = 0;
+
+		if (TryGetBuildingId(targetPlaceable.GridPosition, out uint targetBuildingId) == false)
+			targetBuildingId = 0;
+
+		if (currentBuildingId == targetBuildingId)
+		{
+			if (TryRouteToInteractionPoint(ctx, targetPlaceable, finalTarget, interactionKind))
+			{
+				ClearTransitState(ctx.LocalBlackBoard);
+				return Success;
+			}
+
+			if (currentBuildingId != 0 && TryRouteToAirlock(ctx, currentBuildingId, AirlockDirection.InsideToOutside))
+				return Success;
+		}
+		else
+		{
+			if (currentBuildingId != 0)
+			{
+				if (TryRouteToAirlock(ctx, currentBuildingId, AirlockDirection.InsideToOutside))
+					return Success;
+			}
+			else
+			{
+				if (TryRouteToInteractionPoint(ctx, targetPlaceable, finalTarget, interactionKind))
+				{
+					ClearTransitState(ctx.LocalBlackBoard);
+					return Success;
+				}
+
+				if (targetBuildingId != 0 && TryRouteToAirlock(ctx, targetBuildingId, AirlockDirection.OutsideToInside))
+					return Success;
+			}
+		}
+
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+		return MoveToStandbyWhileWaiting(ctx);
+	}
+
+	private static bool TryRouteToInteractionPoint(
+		in BTContext ctx,
+		IGridPlaceable targetPlaceable,
+		WorkerStatusTarget finalTarget,
+		InteractionKind interactionKind)
+	{
+		if (targetPlaceable is not IInteractionPoint interaction)
+			return false;
+
+		if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+			interaction,
+			interactionKind,
+			ctx.Worker.position,
+			GridService,
+			out int3 goalPos,
+			out _) == false)
+		{
+			return false;
+		}
+
+		ctx.Worker.SetWorkerTarget(finalTarget);
+		ctx.Worker.routeFinder.enabled = true;
+		ctx.Worker.routeFinder.SetGoalPosition(goalPos);
+		return true;
+	}
+
+	private static bool TryRouteToAirlock(
+		in BTContext ctx,
+		uint buildingId,
+		AirlockDirection direction)
+	{
+		if (AirlockService == null || buildingId == 0)
+			return false;
+
+		if (AirlockService.TryFindClosestAvailable(ctx.Worker, buildingId, out Airlock airlock) == false || airlock == null)
+			return false;
+
+		if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+			airlock,
+			InteractionKind.Enter,
+			ctx.Worker.position,
+			GridService,
+			out int3 goalPos,
+			out _) == false)
+		{
+			return false;
+		}
+
+		ctx.LocalBlackBoard.Set(TransitAirlockKey, airlock);
+		ctx.LocalBlackBoard.Set(TransitDirectionKey, direction);
+		ctx.LocalBlackBoard.Set(TransitStartedKey, false);
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Airlock);
+		ctx.Worker.routeFinder.enabled = true;
+		ctx.Worker.routeFinder.SetGoalPosition(goalPos);
+		return true;
+	}
+
+	private static NodeState TryUseTransitAirlockIfNeeded(in BTContext ctx)
+	{
+		if (ctx.LocalBlackBoard.TryGet(TransitAirlockKey, out Airlock airlock) == false || airlock == null)
+			return Success;
+
+		if (ctx.LocalBlackBoard.TryGet(TransitDirectionKey, out AirlockDirection direction) == false)
+		{
+			ClearTransitState(ctx.LocalBlackBoard);
+			return Failure;
+		}
+
+		bool started = ctx.LocalBlackBoard.TryGet(TransitStartedKey, out bool transitStarted) && transitStarted;
+		if (started)
+		{
+			if (HasCompletedTransit(ctx.Worker, airlock, direction))
+			{
+				ClearTransitState(ctx.LocalBlackBoard);
+				return Success;
+			}
+
+			if (airlock.IsAvailable)
+			{
+				ClearTransitState(ctx.LocalBlackBoard);
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-				ctx.LocalBlackBoard.RemoveTargetBuilding();
 				return MoveToStandbyWhileWaiting(ctx);
 			}
 
-			ctx.Worker.routeFinder.enabled = true;
-			ctx.Worker.routeFinder.SetGoalPosition(goalPos);
+			return Running;
+		}
 
-			return Success;
+		if (AirlockService.TryReserve(airlock, ctx.Worker, direction) == false)
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			return MoveToStandbyWhileWaiting(ctx);
+		}
 
-		}));
-		node.Add(new ActionNode(MoveTo));
+		if (AirlockService.TryBeginEntry(airlock, ctx.Worker) == false)
+		{
+			AirlockService.Release(airlock, ctx.Worker);
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			return MoveToStandbyWhileWaiting(ctx);
+		}
 
-		return node;
+		ctx.LocalBlackBoard.Set(TransitStartedKey, true);
+		return Running;
+	}
+
+	private static bool HasCompletedTransit(AIWorker worker, Airlock airlock, AirlockDirection direction)
+	{
+		if (worker == null || airlock == null)
+			return false;
+
+		if (TryGetBuildingId(airlock.GridPosition, out uint airlockBuildingId) == false)
+			airlockBuildingId = 0;
+
+		if (TryGetBuildingId(worker.GridPosition, out uint workerBuildingId) == false)
+			workerBuildingId = 0;
+
+		return direction switch
+		{
+			AirlockDirection.InsideToOutside => workerBuildingId == 0,
+			AirlockDirection.OutsideToInside => airlockBuildingId != 0 && workerBuildingId == airlockBuildingId,
+			_ => false,
+		};
+	}
+
+	private static bool TryGetBuildingId(in int3 position, out uint buildingId)
+	{
+		GridCell cell = GridService?.GetCell(position);
+		buildingId = cell != null ? cell.BuildingId : 0;
+		return cell != null;
+	}
+
+	private static void ClearTransitState(BlackBoard blackBoard)
+	{
+		if (blackBoard == null)
+			return;
+
+		blackBoard.Remove<Airlock>(TransitAirlockKey);
+		blackBoard.Remove<AirlockDirection>(TransitDirectionKey);
+		blackBoard.Remove<bool>(TransitStartedKey);
 	}
 
 	public static NodeState MoveToStandbyWhileWaiting(in BTContext ctx)

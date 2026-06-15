@@ -19,11 +19,15 @@ public enum AirlockState
 public sealed class Airlock : ItemInteraction
 {
 	[SerializeField] private float entryDelaySeconds = 3.0f;
+	[SerializeField] private float transitMoveSpeed = 2.5f;
+	[SerializeField] private float exitRetrySeconds = 0.1f;
 
 	private Coroutine entryRoutine;
 	private AIWorker reservedWorker;
 	private AirlockDirection reservedDirection;
 	private AirlockState state = AirlockState.Idle;
+
+	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.Airlock;
 	public float EntryDelaySeconds => entryDelaySeconds;
@@ -48,6 +52,9 @@ public sealed class Airlock : ItemInteraction
 		if (worker == null || worker != reservedWorker || state != AirlockState.Reserved)
 			return false;
 
+		if (TryResolveTransitPoints(direction: reservedDirection, out _, out _, out _) == false)
+			return false;
+
 		if (entryRoutine != null)
 			StopCoroutine(entryRoutine);
 
@@ -59,6 +66,8 @@ public sealed class Airlock : ItemInteraction
 	{
 		if (worker != null && reservedWorker != null && worker != reservedWorker)
 			return;
+
+		RestoreInterruptedWorker();
 
 		if (entryRoutine != null)
 		{
@@ -88,12 +97,184 @@ public sealed class Airlock : ItemInteraction
 
 	private IEnumerator EntryRoutine(AIWorker worker)
 	{
+		if (TryResolveTransitPoints(reservedDirection, out int3 entryPoint, out int3 chamberPoint, out int3 exitPoint) == false)
+		{
+			Release(worker);
+			yield break;
+		}
+
+		worker.RouteFinder?.PauseForExternalTransit();
+		worker.SetWorkerTarget(WorkerStatusTarget.Airlock);
+		worker.SetWorkerAction(WorkerStatusAction.UsingAirlock);
+		worker.enabled = false;
 		state = AirlockState.Occupied;
+
+		yield return MoveWorkerTo(worker, ToWorld(entryPoint));
+		yield return MoveWorkerTo(worker, ToWorld(chamberPoint));
 		yield return new WaitForSeconds(entryDelaySeconds);
 
-		if (reservedWorker == worker)
+		while (reservedWorker == worker && GridService != null && GridService.CanRelocateWorkerForTransit(worker, exitPoint) == false)
+		{
+			state = AirlockState.Blocked;
+			yield return new WaitForSeconds(exitRetrySeconds);
+		}
+
+		if (reservedWorker != worker)
+		{
+			entryRoutine = null;
+			yield break;
+		}
+
+		state = AirlockState.Occupied;
+		yield return MoveWorkerTo(worker, ToWorld(exitPoint));
+
+		if (GridService == null || GridService.TryRelocateWorkerForTransit(worker, exitPoint, ResolveExitFacing(entryPoint, exitPoint)) == false)
+		{
 			Release(worker);
+			entryRoutine = null;
+			yield break;
+		}
+
+		worker.enabled = true;
+		Release(worker);
 
 		entryRoutine = null;
+	}
+
+	private IEnumerator MoveWorkerTo(AIWorker worker, Vector3 destination)
+	{
+		if (worker == null)
+			yield break;
+
+		while (Vector3.Distance(worker.transform.position, destination) > 0.01f)
+		{
+			worker.transform.position = Vector3.MoveTowards(
+				worker.transform.position,
+				destination,
+				transitMoveSpeed * Time.deltaTime);
+			yield return null;
+		}
+
+		worker.transform.position = destination;
+	}
+
+	private void RestoreInterruptedWorker()
+	{
+		if (reservedWorker == null)
+			return;
+
+		reservedWorker.transform.position = ToWorld(reservedWorker.GridPosition);
+		reservedWorker.transform.rotation = Quaternion.Euler(0f, FacingToYaw(reservedWorker.Direction), 0f);
+		reservedWorker.enabled = true;
+	}
+
+	private bool TryResolveTransitPoints(
+		AirlockDirection direction,
+		out int3 entryPoint,
+		out int3 chamberPoint,
+		out int3 exitPoint)
+	{
+		entryPoint = default;
+		chamberPoint = default;
+		exitPoint = default;
+
+		if (TryResolveIndoorOutdoorPoints(out int3 indoorPoint, out int3 outdoorPoint) == false)
+			return false;
+
+		if (direction == AirlockDirection.OutsideToInside)
+		{
+			entryPoint = outdoorPoint;
+			exitPoint = indoorPoint;
+		}
+		else
+		{
+			entryPoint = indoorPoint;
+			exitPoint = outdoorPoint;
+		}
+
+		chamberPoint = new int3(
+			(entryPoint.x + exitPoint.x) / 2,
+			position.y,
+			(entryPoint.z + exitPoint.z) / 2);
+
+		return true;
+	}
+
+	private bool TryResolveIndoorOutdoorPoints(out int3 indoorPoint, out int3 outdoorPoint)
+	{
+		indoorPoint = default;
+		outdoorPoint = default;
+
+		uint buildingId = ResolveOwningBuildingId();
+		bool hasIndoor = false;
+		bool hasOutdoor = false;
+
+		for (int i = 0; i < interactionPoints.Count; ++i)
+		{
+			InteractionPoint interactionPoint = interactionPoints[i];
+			if ((interactionPoint.InteractionKind & InteractionKind.Enter) == 0)
+				continue;
+
+			GridCell cell = GridService?.GetCell(interactionPoint.Point);
+			if (cell == null)
+				continue;
+
+			if (cell.BuildingId == 0 && hasOutdoor == false)
+			{
+				outdoorPoint = interactionPoint.Point;
+				hasOutdoor = true;
+				continue;
+			}
+
+			if (buildingId != 0 && cell.BuildingId == buildingId && hasIndoor == false)
+			{
+				indoorPoint = interactionPoint.Point;
+				hasIndoor = true;
+			}
+		}
+
+		return hasIndoor && hasOutdoor;
+	}
+
+	private uint ResolveOwningBuildingId()
+	{
+		GridCell centerCell = GridService?.GetCell(position);
+		if (centerCell != null && centerCell.BuildingId != 0)
+			return centerCell.BuildingId;
+
+		for (int i = 0; i < interactionPoints.Count; ++i)
+		{
+			GridCell cell = GridService?.GetCell(interactionPoints[i].Point);
+			if (cell != null && cell.BuildingId != 0)
+				return cell.BuildingId;
+		}
+
+		return 0;
+	}
+
+	private static FacingDirection ResolveExitFacing(in int3 entryPoint, in int3 exitPoint)
+	{
+		int3 delta = exitPoint - entryPoint;
+		if (math.abs(delta.x) >= math.abs(delta.z))
+			return delta.x >= 0 ? FacingDirection.East : FacingDirection.West;
+
+		return delta.z >= 0 ? FacingDirection.North : FacingDirection.South;
+	}
+
+	private static Vector3 ToWorld(in int3 point)
+	{
+		return new Vector3(point.x, point.y, point.z);
+	}
+
+	private static float FacingToYaw(FacingDirection direction)
+	{
+		return direction switch
+		{
+			FacingDirection.North => 0f,
+			FacingDirection.East => 90f,
+			FacingDirection.South => 180f,
+			FacingDirection.West => 270f,
+			_ => 0f
+		};
 	}
 }

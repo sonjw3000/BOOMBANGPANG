@@ -349,7 +349,7 @@ GameObject:
   - component: {fileID: 4806521446369576182}
   - component: {fileID: 7695482510107257463}
   m_Layer: 0
-  m_Name: Cube
+  m_Name: Door_Indoor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -461,7 +461,7 @@ GameObject:
   - component: {fileID: 6744994841394606953}
   - component: {fileID: 583047585929624324}
   m_Layer: 0
-  m_Name: Cube (5)
+  m_Name: Door_Outdoor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -927,9 +927,9 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8931364746602807432}
+  - {fileID: 6493746849284871374}
   - {fileID: 758690044470694172}
   - {fileID: 3006602765081727495}
-  - {fileID: 6493746849284871374}
   - {fileID: 5703137464596538794}
   - {fileID: 8954406565007447229}
   - {fileID: 3074954688909871856}

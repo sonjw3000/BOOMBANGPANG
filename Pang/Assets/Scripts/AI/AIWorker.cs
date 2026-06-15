@@ -41,6 +41,7 @@ public enum WorkerStatusAction
 	// 선택
 	Idle,
 	MovingTo,
+	UsingAirlock,
 	Resting,
 	Charging,
 	Working,

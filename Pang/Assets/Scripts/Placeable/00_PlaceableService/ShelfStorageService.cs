@@ -6,7 +6,7 @@ using UnityEngine;
 // 아이템ID별로 아이템의 위치를 가진 딕셔너리가 존재함
 // 
 
-// 실제 아이템의 저장은 ShelfBase의 ItemStack이다
+// 실제 아이템의 저장은 Shelf의 ItemStack이다
 // 하지만 이를 ItemID로 편하게 검색하기 위해 ItemLocation을 만들어 참조할 수 있게 하였다
 // itemlocation이 데이터를 가지고 있는것처럼 보여도 실제론 itemlocation도 itemstack을 참조중이다.
 
@@ -14,7 +14,7 @@ using UnityEngine;
 // itemstack 실제 아이템의 데이터
 
 [System.Serializable]
-public class ShelfStorageService : FacilityService<ShelfBase>, ICollectSupplySource
+public class ShelfStorageService : FacilityService<Shelf>, ICollectSupplySource
 {
 	// shelf, bin 등 아이템 컨테이너 리스트
 	[SerializeField] private List<ShelfBase> containers = new();
@@ -72,12 +72,12 @@ public class ShelfStorageService : FacilityService<ShelfBase>, ICollectSupplySou
 
 	}
 
-	protected override void OnRegisterFacility(uint buildingId, ShelfBase facility)
+	protected override void OnRegisterFacility(uint buildingId, Shelf facility)
 	{
 		RegisterContainer(facility);
 	}
 
-	protected override void OnUnregisterFacility(uint buildingId, ShelfBase facility)
+	protected override void OnUnregisterFacility(uint buildingId, Shelf facility)
 	{
 		UnregisterContainer(facility);
 	}
@@ -138,37 +138,6 @@ public class ShelfStorageService : FacilityService<ShelfBase>, ICollectSupplySou
 	// ---------------------------
 	// 아이템 관련
 	// ---------------------------
-	public bool GetItemLocations(uint itemID, out List<ShelfBase> locations)
-	{
-		return shelvesByItem.TryGetValue(itemID, out locations);
-	}
-
-	public bool GetClosestItemLocation(uint itemID, int3 from, out ShelfBase shelf)
-	{
-		shelf = null;
-		if (shelvesByItem.ContainsKey(itemID) == false) return false;
-
-		var locations = shelvesByItem[itemID];
-
-		//float minDist = float.MaxValue;
-		//float3 floatFrom = (float3)from;
-		//foreach (var loc in locations)
-		//{
-		//	var containerPos = loc.Container.PickingPosition;
-		//	float distPow = 
-		//	if (dist < minDist)
-		//	{
-		//		minDist = dist;
-		//		location = loc;
-		//	}
-		//}
-
-		// 임시로 그냥 첫번째 위치 반환
-		shelf = locations[0];
-
-		return true;
-	}
-
 	public IEnumerable<ShelfBase> GetSources(uint itemId)
 	{
 		if (shelvesByItem.TryGetValue(itemId, out var locations) == false)

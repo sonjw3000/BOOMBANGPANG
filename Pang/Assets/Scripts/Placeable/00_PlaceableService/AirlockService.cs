@@ -2,6 +2,23 @@ using Unity.Mathematics;
 
 public sealed class AirlockService : FacilityService<Airlock>
 {
+	public bool TryFindClosestAvailable(
+		AIWorker worker,
+		uint buildingId,
+		out Airlock airlock)
+	{
+		airlock = null;
+		if (worker == null || buildingId == 0)
+			return false;
+
+		return TryFindClosestFacility(
+			buildingId,
+			worker.GridPosition,
+			ResolveEnterDistance,
+			out airlock,
+			facility => facility != null && facility.IsAvailable);
+	}
+
 	public bool TryReserveClosest(
 		AIWorker worker,
 		uint buildingId,
