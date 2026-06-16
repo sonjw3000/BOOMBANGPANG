@@ -3,12 +3,12 @@ using UnityEngine.UI;
 
 public class UpdateStatusUI : MonoBehaviour
 {
-    GameObject Robot;
-    GameObject Shelf;
-    public GameObject MousePicking;
-    private MousePicking mPicking;
-    private GameObject mLastPickedObject;
-    private Status mStatus;
+	GameObject Robot;
+	GameObject Shelf;
+	public GameObject MousePicking;
+	private MousePicking mPicking;
+	private GameObject mLastPickedObject;
+	private Status mStatus;
 	public GameObject InventoryPrefab;
 	Transform[] Viewport;
 	GameObject orderedItems;
@@ -16,30 +16,30 @@ public class UpdateStatusUI : MonoBehaviour
 	int orderedItemsSlotCnt;
 	// Start is called once before the first execution of Update after the MonoBehaviour is created
 	void Start()
-    {
-        Robot = transform.GetChild(0).gameObject;
-        Shelf = transform.GetChild(1).gameObject;
+	{
+		Robot = transform.GetChild(0).gameObject;
+		Shelf = transform.GetChild(1).gameObject;
 		Viewport = new Transform[3];
 		Viewport[0] = Shelf.transform.GetChild(0).GetChild(0);
 		Viewport[1] = Robot.transform.GetChild(0);
 		orderedItems = Shelf.transform.GetChild(2).gameObject;
 		Viewport[2] = orderedItems.transform.GetChild(0);
 		if (MousePicking)
-        {
-            mPicking = MousePicking.GetComponent<MousePicking>();
-        }
+		{
+			mPicking = MousePicking.GetComponent<MousePicking>();
+		}
 		orderedItemsSlotCnt = 0;
 	}
 
-    // Update is called once per frame
-    void Update()
-    {
+	// Update is called once per frame
+	void Update()
+	{
 		SyncCanvasState();
-        UpdateCanvasInfo();
-    }
+		UpdateCanvasInfo();
+	}
 
 	void SyncCanvasState()
-    {
+	{
 		if (mLastPickedObject != mPicking.SelectedObject)
 		{
 			mLastPickedObject = mPicking.SelectedObject;

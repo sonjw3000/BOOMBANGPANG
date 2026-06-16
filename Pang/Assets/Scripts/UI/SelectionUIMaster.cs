@@ -486,6 +486,7 @@ public class SelectionUIMaster : MonoBehaviour
 			{
 				InteractionContext.InteractionAction.Install => "Install",
 				InteractionContext.InteractionAction.ZoneEdit => "Zone Edit",
+				InteractionContext.InteractionAction.LinkEdit => "Link Edit",
 				_ => "Select",
 			};
 		}

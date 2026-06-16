@@ -14,6 +14,7 @@ public class InteractionContext
 		Select,
 		Install,
 		ZoneEdit,
+		LinkEdit,
 	}
 
 	public enum InteractionMode
@@ -23,6 +24,7 @@ public class InteractionContext
 		BuildingSelect,
 		BuildingPlacement,
 		BuildingZoneEdit,
+		BuildingLinkEdit,
 	}
 
 	public readonly struct ZonePlacementPreview
@@ -90,6 +92,7 @@ public class InteractionContext
 	public event System.Action<GameObject> OnItemSelected;
 	public event System.Func<int3, GameObject> OnResolveSelectionFallback;
 	public event System.Func<int3, bool> OnHandleBuildingSelection;
+	public event System.Func<int3, bool> OnHandleBuildingLinkSelection;
 
 	// zone placement event
 	public event System.Action<ZonePlacementPreview> OnZonePlacementPreviewChanged;
@@ -116,6 +119,7 @@ public class InteractionContext
 			(InteractionDomain.Building, InteractionAction.Select) => InteractionMode.BuildingSelect,
 			(InteractionDomain.Building, InteractionAction.Install) => InteractionMode.BuildingPlacement,
 			(InteractionDomain.Building, InteractionAction.ZoneEdit) => InteractionMode.BuildingZoneEdit,
+			(InteractionDomain.Building, InteractionAction.LinkEdit) => InteractionMode.BuildingLinkEdit,
 			_ => InteractionMode.FacilitySelect,
 		};
 	}
@@ -150,6 +154,10 @@ public class InteractionContext
 
 			case InteractionMode.BuildingZoneEdit:
 				ExitZonePlacementMode();
+				break;
+
+			case InteractionMode.BuildingLinkEdit:
+				ExitBuildingLinkMode();
 				break;
 		}
 	}
@@ -227,6 +235,18 @@ public class InteractionContext
 		RaiseBuildingPlacementPreview(mousePos);
 	}
 
+	public void EnterBuildingLinkMode()
+	{
+		CancelActivePlacementMode();
+		SetMode(InteractionDomain.Building, InteractionAction.LinkEdit);
+		toBePlaced = null;
+		hasZonePlacementStart = false;
+		hasBuildingPlacementStart = false;
+		selectedObject = null;
+
+		OnItemSelected?.Invoke(null);
+	}
+
 	public void ExitPlacementMode()
 	{
 		SetMode(InteractionDomain.Facility, InteractionAction.Select);
@@ -264,6 +284,13 @@ public class InteractionContext
 			mousePos,
 			false
 		));
+	}
+
+	public void ExitBuildingLinkMode()
+	{
+		SetMode(InteractionDomain.Building, InteractionAction.Select);
+		selectedObject = null;
+		OnItemSelected?.Invoke(null);
 	}
 
 	public void ClearSelection()
@@ -339,6 +366,22 @@ public class InteractionContext
 					OnSelectionChange(null);
 				break;
 
+			case InteractionMode.BuildingLinkEdit:
+				bool linkHandled = false;
+				if (OnHandleBuildingLinkSelection != null)
+				{
+					foreach (System.Func<int3, bool> handler in OnHandleBuildingLinkSelection.GetInvocationList())
+					{
+						linkHandled = handler(pos);
+						if (linkHandled)
+							break;
+					}
+				}
+
+				if (linkHandled == false)
+					OnSelectionChange(null);
+				break;
+
 			case InteractionMode.FacilityPlacement:
 				PlacementContext ctx = new(
 					center: mousePos,
@@ -404,6 +447,10 @@ public class InteractionContext
 
 			case InteractionMode.BuildingPlacement:
 				ExitBuildingPlacementMode();
+				break;
+
+			case InteractionMode.BuildingLinkEdit:
+				ExitBuildingLinkMode();
 				break;
 		}
 	}

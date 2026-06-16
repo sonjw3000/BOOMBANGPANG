@@ -27,6 +27,8 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		facility.OnItemPresentChanged -= HandlePresentChange;
 		facility.OnItemQuantityChanged -= HandleItemQuantityChanged;
 		facility.OnItemReservedPickChanged -= HandleReserveQuantityChanged;
+		RemoveLinkedPortReferences(facility);
+		facility.ClearLinkedPorts();
 	}
 
 	private void HandlePresentChange(ShelfBase port, uint itemId, bool present)
@@ -156,6 +158,18 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		}
 	}
 
+	public IReadOnlyList<CargoPort> GetCargoPorts(uint buildingId)
+	{
+		return TryGetBuildingFacilities(buildingId, out var facilities)
+			? facilities
+			: Array.Empty<CargoPort>();
+	}
+
+	public bool TryQueryPorts(uint buildingId, List<CargoPort> results, Predicate<CargoPort> predicate = null)
+	{
+		return TryQueryFacilities(buildingId, results, predicate);
+	}
+
 	private static bool CanAcceptAllStacks(CargoPort port, BoxBase box)
 	{
 		if (port == null || box == null)
@@ -171,5 +185,21 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		}
 
 		return true;
+	}
+
+	private void RemoveLinkedPortReferences(CargoPort targetPort)
+	{
+		if (targetPort == null)
+			return;
+
+		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
+		for (int i = 0; i < buildingIds.Count; ++i)
+		{
+			if (TryGetBuildingFacilities(buildingIds[i], out var facilities) == false)
+				continue;
+
+			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
+				facilities[facilityIndex]?.RemoveLinkedPort(targetPort);
+		}
 	}
 }

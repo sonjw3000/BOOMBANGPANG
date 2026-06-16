@@ -16,6 +16,7 @@ public class BuildingControlWindow : MonoBehaviour
 	[SerializeField] private UIWindow window;
 	[SerializeField] private BuildingPlacementOverlayController overlayController;
 	[SerializeField] private ZoneOverlayController zoneOverlayController;
+	[SerializeField] private CargoPortLinkModeController cargoPortLinkModeController;
 	[SerializeField] private string windowTitle = "Building Control";
 
 	private bool initialized;
@@ -33,6 +34,8 @@ public class BuildingControlWindow : MonoBehaviour
 	private TMP_Text actionStatusText;
 	private Button createButton;
 	private TMP_Text createButtonText;
+	private Button linkCargoPortButton;
+	private TMP_Text linkCargoPortButtonText;
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
@@ -105,6 +108,9 @@ public class BuildingControlWindow : MonoBehaviour
 		overlayController ??= GetComponent<BuildingPlacementOverlayController>();
 		if (overlayController == null)
 			overlayController = gameObject.AddComponent<BuildingPlacementOverlayController>();
+		cargoPortLinkModeController ??= GetComponent<CargoPortLinkModeController>();
+		if (cargoPortLinkModeController == null)
+			cargoPortLinkModeController = gameObject.AddComponent<CargoPortLinkModeController>();
 		zoneOverlayController ??= FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
 
 		if (window == null)
@@ -161,6 +167,7 @@ public class BuildingControlWindow : MonoBehaviour
 		GameObject actionTab = CreateVerticalContainer("ActionTab", bodyRoot, 8f).gameObject;
 		actionStatusText = CreateText("ActionStatusText", actionTab.transform, 20f);
 		createButton = CreateButton("CreateButton", actionTab.transform, "Create Building", HandleCreateButtonClicked, out createButtonText);
+		linkCargoPortButton = CreateButton("LinkCargoPortsButton", actionTab.transform, "Link Cargo Ports", HandleLinkCargoPortsButtonClicked, out linkCargoPortButtonText);
 		tabRoots.Add(actionTab);
 	}
 
@@ -197,6 +204,7 @@ public class BuildingControlWindow : MonoBehaviour
 	private void HandleWindowClosed()
 	{
 		overlayController?.SetOverlayVisible(false);
+		cargoPortLinkModeController?.EndLinkEdit();
 		zoneOverlayController?.SetBuildingModeActive(false);
 		Interaction.ExitBuildingMode();
 		RefreshAll();
@@ -209,7 +217,26 @@ public class BuildingControlWindow : MonoBehaviour
 
 	private void HandleCreateButtonClicked()
 	{
+		cargoPortLinkModeController?.EndLinkEdit();
 		overlayController?.BeginCreate();
+		RefreshAll();
+	}
+
+	private void HandleLinkCargoPortsButtonClicked()
+	{
+		if (cargoPortLinkModeController == null)
+			return;
+
+		if (cargoPortLinkModeController.IsEditing)
+		{
+			cargoPortLinkModeController.EndLinkEdit();
+			RefreshAll();
+			return;
+		}
+
+		EnsureZoneOverlayController();
+		Building activeBuilding = zoneOverlayController != null ? zoneOverlayController.CurrentBuilding : null;
+		cargoPortLinkModeController.BeginLinkEdit(activeBuilding);
 		RefreshAll();
 	}
 
@@ -292,26 +319,49 @@ public class BuildingControlWindow : MonoBehaviour
 
 	private void RefreshAction()
 	{
-		if (actionStatusText == null || createButton == null)
+		if (actionStatusText == null || createButton == null || linkCargoPortButton == null)
 			return;
 
 		if (GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null)
 		{
 			createButton.interactable = false;
+			linkCargoPortButton.interactable = false;
 			if (createButtonText != null)
 				createButtonText.text = "Create Building";
+			if (linkCargoPortButtonText != null)
+				linkCargoPortButtonText.text = "Link Cargo Ports";
 			actionStatusText.text = "Interaction context is unavailable.";
 			return;
 		}
 
 		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement;
-		createButton.interactable = isCreating == false;
+		bool isLinkEditing = cargoPortLinkModeController != null && cargoPortLinkModeController.IsEditing;
+		EnsureZoneOverlayController();
+		Building activeBuilding = zoneOverlayController != null ? zoneOverlayController.CurrentBuilding : null;
+
+		createButton.interactable = isCreating == false && isLinkEditing == false;
 		if (createButtonText != null)
 			createButtonText.text = isCreating ? "Creating..." : "Create Building";
 
-		actionStatusText.text = isCreating
-			? "Drag a rectangle to create building walls on the inside border."
-			: "Start a new building footprint creation.";
+		linkCargoPortButton.interactable = isCreating == false && (isLinkEditing || activeBuilding != null);
+		if (linkCargoPortButtonText != null)
+			linkCargoPortButtonText.text = isLinkEditing ? "Cancel Linking" : "Link Cargo Ports";
+
+		if (isCreating)
+		{
+			actionStatusText.text = "Drag a rectangle to create building walls on the inside border.";
+			return;
+		}
+
+		if (isLinkEditing)
+		{
+			actionStatusText.text = cargoPortLinkModeController.StatusText;
+			return;
+		}
+
+		actionStatusText.text = activeBuilding != null
+			? "Create a building or start linking outbound cargo ports to inbound cargo ports."
+			: "Start a new building footprint creation, or select a building to link cargo ports.";
 	}
 
 	private void CreateBuildingRow(Building building)
@@ -352,6 +402,12 @@ public class BuildingControlWindow : MonoBehaviour
 	{
 		if (selectionUIMaster == null)
 			selectionUIMaster = FindFirstObjectByType<SelectionUIMaster>(FindObjectsInactive.Include);
+	}
+
+	private void EnsureZoneOverlayController()
+	{
+		if (zoneOverlayController == null)
+			zoneOverlayController = FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
 	}
 
 	private static BuildingWorkScope GetNextWorkScope(BuildingWorkScope currentScope)

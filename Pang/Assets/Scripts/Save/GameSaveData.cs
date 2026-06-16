@@ -344,6 +344,7 @@ public sealed class ShelfContainerSaveData
 public sealed class CargoPortSaveData
 {
 	public bool InputReady;
+	public List<int> LinkedPortIds = new();
 }
 
 [Serializable]
