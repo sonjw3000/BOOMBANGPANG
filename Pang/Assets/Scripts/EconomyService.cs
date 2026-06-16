@@ -63,6 +63,14 @@ public class EconomyService : MonoBehaviour
 		};
 
 		ApplyTransaction(transaction);
+
+		if (context.placedObj == null)
+		{
+			GameContext.Instance.FloatingTextManager?.ShowScreen(
+				FloatingTextPreset.MoneyLoss,
+				$"-${context.placeableDefinition.Cost}",
+				Input.mousePosition);
+		}
 	}
 
 	// todo

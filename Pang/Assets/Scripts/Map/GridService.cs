@@ -284,11 +284,15 @@ public class GridService : MonoBehaviour
 		}
 
 		if (EvaluatePlacement(in ctx, null, null) == false)
+		{
+			ShowPlacementErrorIfNeeded(ctx, "Cannot place here");
 			return false;
+		}
 
 		if (ctx.placementEvent == PlacementEvent.Normal && Economy.CanAfford(ctx.placeableDefinition.Cost) == false)
 		{
 			Debug.Log("Can't afford that money!");
+			ShowPlacementErrorIfNeeded(ctx, "Not enough money");
 			return false;
 		}
 
@@ -381,6 +385,17 @@ public class GridService : MonoBehaviour
 		OnPlaceableInstalled?.Invoke(ctx);
 
 		return true;
+	}
+
+	private void ShowPlacementErrorIfNeeded(in PlacementContext ctx, string message)
+	{
+		if (ctx.placementEvent != PlacementEvent.Normal || ctx.placedObj != null || string.IsNullOrWhiteSpace(message))
+			return;
+
+		GameContext.Instance.FloatingTextManager?.ShowScreen(
+			FloatingTextPreset.Error,
+			message,
+			Input.mousePosition);
 	}
 
 	private void NormalizePlacedObjectParent(GameObject obj)

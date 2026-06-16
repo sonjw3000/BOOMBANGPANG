@@ -124,7 +124,14 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		if (FootprintService.TryCreateFootprint(floor, bounds, out string reason) == false)
 		{
 			if (string.IsNullOrWhiteSpace(reason) == false)
+			{
+				GameContext.Instance.FloatingTextManager?.ShowScreen(
+					FloatingTextPreset.Error,
+					reason,
+					Input.mousePosition,
+					1.3f);
 				Debug.LogWarning(reason);
+			}
 			return;
 		}
 

@@ -85,6 +85,7 @@ public class GameContext : MonoBehaviour
 	[Header("UI's Game Tracking")]
 	[SerializeField] private ProcessStatsCollector processStats;
 	[SerializeField] private MetricsService metrics;
+	[SerializeField] private FloatingTextManager floatingTextManager;
 
 	private DeliveryService deliveryService = new();
 	private GameSaveService saveService;
@@ -254,6 +255,19 @@ public class GameContext : MonoBehaviour
 
 	public ProcessStatsCollector ProcessStats => processStats;
 	public MetricsService Metrics => metrics;
+	public FloatingTextManager FloatingTextManager
+	{
+		get
+		{
+			if (floatingTextManager == null)
+				floatingTextManager = GetComponent<FloatingTextManager>();
+
+			if (floatingTextManager == null)
+				floatingTextManager = gameObject.AddComponent<FloatingTextManager>();
+
+			return floatingTextManager;
+		}
+	}
 	public DeliveryService DeliveryService => deliveryService;
 	public InteractionContext InteractionCtx => interactionCtx;
 	public GameSaveService SaveService => saveService;
@@ -273,6 +287,7 @@ public class GameContext : MonoBehaviour
 
 		instance = this;
 		interactionCtx = new InteractionContext();
+		_ = FloatingTextManager;
 		saveService = GetComponent<GameSaveService>();
 		if (saveService == null)
 			saveService = gameObject.AddComponent<GameSaveService>();
