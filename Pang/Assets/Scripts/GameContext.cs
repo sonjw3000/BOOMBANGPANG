@@ -123,13 +123,7 @@ public class GameContext : MonoBehaviour
 	{
 		get
 		{
-			if (trafficCoordinator == null)
-				trafficCoordinator = GetComponent<TrafficCoordinator>();
-
-			if (trafficCoordinator == null)
-				trafficCoordinator = gameObject.AddComponent<TrafficCoordinator>();
-
-			return trafficCoordinator;
+			return ResolveManager(ref trafficCoordinator, nameof(TrafficCoordinator));
 		}
 	}
 	public ZoneManager ZoneMgr
@@ -147,16 +141,7 @@ public class GameContext : MonoBehaviour
 	{
 		get
 		{
-			if (airlockService == null)
-				airlockService = GetComponent<AirlockService>();
-
-			if (airlockService == null)
-				airlockService = FindFirstObjectByType<AirlockService>();
-
-			if (airlockService == null)
-				airlockService = gameObject.AddComponent<AirlockService>();
-
-			return airlockService;
+			return ResolveManager(ref airlockService, nameof(AirlockService));
 		}
 	}
 
@@ -164,16 +149,7 @@ public class GameContext : MonoBehaviour
 	{
 		get
 		{
-			if (buildingManager == null)
-				buildingManager = GetComponent<BuildingManager>();
-
-			if (buildingManager == null)
-				buildingManager = FindFirstObjectByType<BuildingManager>();
-
-			if (buildingManager == null)
-				buildingManager = gameObject.AddComponent<BuildingManager>();
-
-			return buildingManager;
+			return ResolveManager(ref buildingManager, nameof(BuildingManager));
 		}
 	}
 
@@ -181,16 +157,7 @@ public class GameContext : MonoBehaviour
 	{
 		get
 		{
-			if (facilityManager == null)
-				facilityManager = GetComponent<FacilityManager>();
-
-			if (facilityManager == null)
-				facilityManager = FindFirstObjectByType<FacilityManager>();
-
-			if (facilityManager == null)
-				facilityManager = gameObject.AddComponent<FacilityManager>();
-
-			return facilityManager;
+			return ResolveManager(ref facilityManager, nameof(FacilityManager));
 		}
 	}
 
@@ -198,29 +165,14 @@ public class GameContext : MonoBehaviour
 	{
 		get
 		{
-			if (buildingFootprintService == null)
-				buildingFootprintService = GetComponent<BuildingFootprintService>();
-
-			if (buildingFootprintService == null)
-				buildingFootprintService = FindFirstObjectByType<BuildingFootprintService>();
-
-			if (buildingFootprintService == null)
-				buildingFootprintService = gameObject.AddComponent<BuildingFootprintService>();
-
-			return buildingFootprintService;
+			return ResolveManager(ref buildingFootprintService, nameof(BuildingFootprintService));
 		}
 	}
 	public WorkerStandbyService WorkerStandbyService
 	{
 		get
 		{
-			if (workerStandbyService == null)
-				workerStandbyService = GetComponent<WorkerStandbyService>();
-
-			if (workerStandbyService == null)
-				workerStandbyService = gameObject.AddComponent<WorkerStandbyService>();
-
-			return workerStandbyService;
+			return ResolveManager(ref workerStandbyService, nameof(WorkerStandbyService));
 		}
 	}
 
@@ -259,19 +211,25 @@ public class GameContext : MonoBehaviour
 	{
 		get
 		{
-			if (floatingTextManager == null)
-				floatingTextManager = GetComponent<FloatingTextManager>();
-
-			if (floatingTextManager == null)
-				floatingTextManager = gameObject.AddComponent<FloatingTextManager>();
-
-			return floatingTextManager;
+			return ResolveManager(ref floatingTextManager, nameof(FloatingTextManager));
 		}
 	}
 	public DeliveryService DeliveryService => deliveryService;
 	public InteractionContext InteractionCtx => interactionCtx;
-	public GameSaveService SaveService => saveService;
-	public DemoGoalService DemoGoalService => demoGoalService;
+	public GameSaveService SaveService => ResolveManager(ref saveService, nameof(GameSaveService));
+	public DemoGoalService DemoGoalService => ResolveManager(ref demoGoalService, nameof(DemoGoalService));
+
+	private T ResolveManager<T>(ref T field, string componentName) where T : Component
+	{
+		if (field != null)
+			return field;
+
+		field = GetComponentInChildren<T>(true);
+		if (field == null)
+			Debug.LogError($"[GameContext] {componentName} is missing under Managers.");
+
+		return field;
+	}
 
 	private void Awake()
 	{
@@ -288,13 +246,8 @@ public class GameContext : MonoBehaviour
 		instance = this;
 		interactionCtx = new InteractionContext();
 		_ = FloatingTextManager;
-		saveService = GetComponent<GameSaveService>();
-		if (saveService == null)
-			saveService = gameObject.AddComponent<GameSaveService>();
-
-		demoGoalService = GetComponent<DemoGoalService>();
-		if (demoGoalService == null)
-			demoGoalService = gameObject.AddComponent<DemoGoalService>();
+		_ = SaveService;
+		_ = DemoGoalService;
 		//DontDestroyOnLoad(gameObject);
 	}
 

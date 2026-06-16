@@ -1,9 +1,10 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 public sealed class AirlockDetailContent : DetailContent<Airlock>
 {
+	[SerializeField] private DetailInfoRowView infoRowPrefab = null;
+
 	private TextMeshProUGUI nameValue;
 	private TextMeshProUGUI typeValue;
 	private TextMeshProUGUI stateValue;
@@ -66,56 +67,15 @@ public sealed class AirlockDetailContent : DetailContent<Airlock>
 
 	private TextMeshProUGUI CreateInfoLine(string label)
 	{
-		GameObject rowObject = new(label.Replace(" ", string.Empty) + "Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-		rowObject.transform.SetParent(InfoTabRoot, false);
+		if (infoRowPrefab == null)
+		{
+			Debug.LogError("[AirlockDetailContent] Info row prefab is missing.", this);
+			return null;
+		}
 
-		HorizontalLayoutGroup layout = rowObject.GetComponent<HorizontalLayoutGroup>();
-		layout.spacing = 10f;
-		layout.childAlignment = TextAnchor.MiddleLeft;
-		layout.childControlWidth = true;
-		layout.childControlHeight = true;
-		layout.childForceExpandWidth = false;
-		layout.childForceExpandHeight = false;
-
-		LayoutElement rowLayout = rowObject.GetComponent<LayoutElement>();
-		rowLayout.minHeight = 26f;
-		rowLayout.preferredHeight = 30f;
-		rowLayout.flexibleWidth = 1f;
-
-		CreateLabelText(rowObject.transform, label);
-		return CreateValueText(rowObject.transform);
-	}
-
-	private static TextMeshProUGUI CreateLabelText(Transform parent, string label)
-	{
-		GameObject textObject = new(label.Replace(" ", string.Empty) + "Label", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
-		textObject.transform.SetParent(parent, false);
-
-		LayoutElement layout = textObject.GetComponent<LayoutElement>();
-		layout.minWidth = 140f;
-		layout.preferredWidth = 140f;
-
-		TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
-		text.text = label;
-		text.fontSize = 22f;
-		text.color = Color.white;
-		text.alignment = TextAlignmentOptions.Left;
-		return text;
-	}
-
-	private static TextMeshProUGUI CreateValueText(Transform parent)
-	{
-		GameObject textObject = new("Value", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
-		textObject.transform.SetParent(parent, false);
-
-		LayoutElement layout = textObject.GetComponent<LayoutElement>();
-		layout.flexibleWidth = 1f;
-
-		TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
-		text.text = "-";
-		text.fontSize = 22f;
-		text.color = new Color(0.86f, 0.9f, 0.96f, 1f);
-		text.alignment = TextAlignmentOptions.Left;
-		return text;
+		DetailInfoRowView row = Instantiate(infoRowPrefab, InfoTabRoot);
+		row.name = label.Replace(" ", string.Empty) + "Row";
+		row.SetLabel(label);
+		return row.ValueText;
 	}
 }

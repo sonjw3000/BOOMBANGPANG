@@ -17,6 +17,8 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 	[SerializeField] private Color sourcePortColor = new(0.9f, 0.42f, 0.2f, 0.8f);
 	[SerializeField] private Color targetBuildingColor = new(0.2f, 0.62f, 0.95f, 0.28f);
 	[SerializeField] private Color targetPortColor = new(0.2f, 0.82f, 0.5f, 0.85f);
+	[SerializeField] private GameObject overlayQuadPrefab;
+	[SerializeField] private GameObject overlayLabelPrefab;
 
 	private readonly List<GameObject> overlayObjects = new();
 	private GameObject overlayRoot;
@@ -443,44 +445,36 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 	private GameObject CreateQuadObject(string objectName)
 	{
 		EnsureOverlayRoot();
-		GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+		if (overlayQuadPrefab == null)
+		{
+			Debug.LogError("[CargoPortLinkModeController] Overlay quad prefab is missing.", this);
+			return null;
+		}
+
+		GameObject quad = Instantiate(overlayQuadPrefab, overlayRoot.transform);
 		quad.name = objectName;
-		quad.transform.SetParent(overlayRoot.transform, false);
-
-		if (quad.TryGetComponent(out Collider collider))
-			Destroy(collider);
-
-		MeshRenderer renderer = quad.GetComponent<MeshRenderer>();
-		renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-		renderer.receiveShadows = false;
-		renderer.material = CreateOverlayMaterial();
 		return quad;
 	}
 
 	private GameObject CreateLabelObject(string objectName, string labelText, Color color)
 	{
 		EnsureOverlayRoot();
-		GameObject label = new(objectName);
-		label.transform.SetParent(overlayRoot.transform, false);
+		if (overlayLabelPrefab == null)
+		{
+			Debug.LogError("[CargoPortLinkModeController] Overlay label prefab is missing.", this);
+			return null;
+		}
 
-		TextMeshPro text = label.AddComponent<TextMeshPro>();
+		GameObject label = Instantiate(overlayLabelPrefab, overlayRoot.transform);
+		label.name = objectName;
+		if (label == null)
+			return null;
+
+		TextMeshPro text = label.GetComponent<TextMeshPro>();
 		text.text = labelText;
-		text.alignment = TextAlignmentOptions.Center;
 		text.fontSize = 4.2f;
-		text.textWrappingMode = TextWrappingModes.NoWrap;
 		text.color = color;
 		return label;
-	}
-
-	private static Material CreateOverlayMaterial()
-	{
-		Shader shader = Shader.Find("Sprites/Default");
-		if (shader == null)
-			shader = Shader.Find("Unlit/Color");
-
-		Material material = new(shader);
-		material.renderQueue = 3000;
-		return material;
 	}
 
 	private static Vector3 BuildWorldPosition(Unity.Mathematics.int3 gridPos, float y)

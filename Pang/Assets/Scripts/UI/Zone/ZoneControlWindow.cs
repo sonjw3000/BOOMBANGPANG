@@ -11,14 +11,14 @@ public class ZoneControlWindow : MonoBehaviour
 	[SerializeField] private ZoneOverlayController overlayController;
 	[SerializeField] private string windowTitle = "Zone Control";
 	[SerializeField] private ZoneType defaultZoneType = ZoneType.Storage;
+	[SerializeField] private ZoneControlWindowContentView contentPrefab;
+	[SerializeField] private ToggleRowView toggleRowPrefab;
 
-	private readonly Dictionary<ZoneType, Toggle> toggles = new();
+	private readonly Dictionary<ZoneType, ToggleRowView> toggles = new();
 	private bool initialized;
-
-	private RectTransform contentRoot;
-	private TMP_Text statusText;
-	private Button createButton;
-	private TMP_Text createButtonText;
+	private TextMeshProUGUI statusText;
+	private TextButtonView createButton;
+	private RectTransform toggleRoot;
 	private ZoneType selectedZoneType;
 	private Building contextBuilding;
 	private bool ownsBuildingMode;
@@ -51,7 +51,6 @@ public class ZoneControlWindow : MonoBehaviour
 	public void ToggleWindow()
 	{
 		EnsureInitialized();
-
 		if (window == null)
 			return;
 
@@ -71,10 +70,7 @@ public class ZoneControlWindow : MonoBehaviour
 	{
 		EnsureInitialized();
 		EnsureHostActive();
-		if (window == null)
-			return;
-
-		window.Open();
+		window?.Open();
 	}
 
 	public void OpenForBuilding(Building building)
@@ -114,10 +110,7 @@ public class ZoneControlWindow : MonoBehaviour
 	public void Close()
 	{
 		EnsureInitialized();
-		if (window == null)
-			return;
-
-		window.Close();
+		window?.Close();
 	}
 
 	private void HandleWindowOpened()
@@ -154,16 +147,19 @@ public class ZoneControlWindow : MonoBehaviour
 
 		if (GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null)
 		{
-			createButton.interactable = false;
-			if (createButtonText != null)
-				createButtonText.text = "Create Zone";
+			if (createButton.Button != null)
+				createButton.Button.interactable = false;
+			if (createButton.LabelText != null)
+				createButton.LabelText.text = "Create Zone";
 			statusText.text = "Interaction context is unavailable.";
 			return;
 		}
 
 		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingZoneEdit;
-		createButton.interactable = isCreating == false && contextBuilding != null;
-		createButtonText.text = isCreating ? "Creating..." : "Create Zone";
+		if (createButton.Button != null)
+			createButton.Button.interactable = isCreating == false && contextBuilding != null;
+		if (createButton.LabelText != null)
+			createButton.LabelText.text = isCreating ? "Creating..." : "Create Zone";
 
 		if (window.IsOpen == false)
 		{
@@ -177,7 +173,7 @@ public class ZoneControlWindow : MonoBehaviour
 			return;
 		}
 
-		string buildingLabel = contextBuilding != null ? contextBuilding.DisplayName : "current building";
+		string buildingLabel = contextBuilding.DisplayName;
 		statusText.text = isCreating
 			? $"Left click start/end cells inside {buildingLabel}. Right click to cancel."
 			: $"Select a zone type and create a new zone in {buildingLabel}.";
@@ -188,48 +184,30 @@ public class ZoneControlWindow : MonoBehaviour
 		if (window == null)
 			return;
 
-		contentRoot = window.ContentRoot;
+		RectTransform contentRoot = window.ContentRoot;
 		contentRoot.DetachChildren();
+		toggles.Clear();
 
-		GameObject container = new("ZoneControlContent", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-		container.transform.SetParent(contentRoot, false);
+		if (contentPrefab == null)
+		{
+			Debug.LogError("[ZoneControlWindow] Content prefab is missing.", this);
+			return;
+		}
 
-		var layout = container.GetComponent<VerticalLayoutGroup>();
-		layout.spacing = 10f;
-		layout.childForceExpandHeight = false;
-		layout.childForceExpandWidth = true;
-		layout.childControlHeight = true;
-		layout.childControlWidth = true;
+		ZoneControlWindowContentView contentView = Instantiate(contentPrefab, contentRoot);
+		contentView.name = "ZoneControlContent";
+		statusText = contentView.StatusText;
+		createButton = contentView.CreateButton;
+		toggleRoot = contentView.ToggleRoot;
+		createButton?.Configure("Create Zone", HandleCreateButtonClicked);
 
-		var fitter = container.GetComponent<ContentSizeFitter>();
-		fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-		fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-
-		statusText = CreateText("StatusText", container.transform, "Select a zone or create a new zone.");
-		statusText.textWrappingMode = TextWrappingModes.Normal;
-		statusText.fontSize = 20f;
-
-		createButton = CreateButton("CreateButton", container.transform, "Create Zone", HandleCreateButtonClicked, out createButtonText);
-
-		CreateText("ToggleHeader", container.transform, "Zone Type").fontSize = 22f;
-
-		GameObject toggleRoot = new("ZoneTypeToggleRoot", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ToggleGroup));
-		toggleRoot.transform.SetParent(container.transform, false);
-
-		var toggleLayout = toggleRoot.GetComponent<VerticalLayoutGroup>();
-		toggleLayout.spacing = 6f;
-		toggleLayout.childForceExpandHeight = false;
-		toggleLayout.childForceExpandWidth = true;
-		toggleLayout.childControlHeight = true;
-		toggleLayout.childControlWidth = true;
-
-		var toggleGroup = toggleRoot.GetComponent<ToggleGroup>();
-
+		ToggleGroup toggleGroup = toggleRoot != null ? toggleRoot.GetComponent<ToggleGroup>() : null;
 		foreach (ZoneType zoneType in Enum.GetValues(typeof(ZoneType)))
 		{
-			Toggle toggle = CreateToggle(zoneType, toggleRoot.transform, toggleGroup);
-			toggles[zoneType] = toggle;
-			toggle.isOn = zoneType == selectedZoneType;
+			ToggleRowView toggleRow = CreateToggle(zoneType, toggleRoot, toggleGroup);
+			toggles[zoneType] = toggleRow;
+			if (toggleRow != null && toggleRow.Toggle != null)
+				toggleRow.Toggle.isOn = zoneType == selectedZoneType;
 		}
 	}
 
@@ -276,72 +254,35 @@ public class ZoneControlWindow : MonoBehaviour
 		UpdateStatus();
 	}
 
-	private Toggle CreateToggle(ZoneType zoneType, Transform parent, ToggleGroup group)
+	private ToggleRowView CreateToggle(ZoneType zoneType, Transform parent, ToggleGroup group)
 	{
-		GameObject root = new(zoneType.ToString(), typeof(RectTransform), typeof(Image), typeof(Toggle), typeof(LayoutElement));
-		root.transform.SetParent(parent, false);
-
-		var layout = root.GetComponent<LayoutElement>();
-		layout.preferredHeight = 34f;
-
-		var background = root.GetComponent<Image>();
-		background.color = new Color(0.22f, 0.22f, 0.22f, 0.95f);
-
-		var toggle = root.GetComponent<Toggle>();
-		toggle.group = group;
-		toggle.targetGraphic = background;
-
-		TMP_Text label = CreateText("Label", root.transform, zoneType.ToString());
-		label.alignment = TextAlignmentOptions.MidlineLeft;
-		label.margin = new Vector4(12f, 0f, 0f, 0f);
-
-		toggle.onValueChanged.AddListener(isOn =>
+		if (toggleRowPrefab == null)
 		{
-			background.color = isOn ? new Color(0.26f, 0.45f, 0.72f, 1f) : new Color(0.22f, 0.22f, 0.22f, 0.95f);
+			Debug.LogError("[ZoneControlWindow] Toggle row prefab is missing.", this);
+			return null;
+		}
+
+		ToggleRowView toggleRow = Instantiate(toggleRowPrefab, parent);
+		toggleRow.name = zoneType + "Toggle";
+		if (toggleRow.LabelText != null)
+			toggleRow.LabelText.text = zoneType.ToString();
+
+		if (toggleRow.Toggle == null)
+			return toggleRow;
+
+		toggleRow.Toggle.group = group;
+		toggleRow.Toggle.targetGraphic = toggleRow.Background;
+		if (toggleRow.LabelText != null)
+			toggleRow.LabelText.margin = new Vector4(12f, 0f, 0f, 0f);
+
+		toggleRow.Toggle.onValueChanged.AddListener(isOn =>
+		{
+			if (toggleRow.Background != null)
+				toggleRow.Background.color = isOn ? new Color(0.26f, 0.45f, 0.72f, 1f) : new Color(0.22f, 0.22f, 0.22f, 0.95f);
 			if (isOn)
 				selectedZoneType = zoneType;
 		});
 
-		return toggle;
-	}
-
-	private static Button CreateButton(string objectName, Transform parent, string label, UnityEngine.Events.UnityAction onClick, out TMP_Text labelText)
-	{
-		GameObject buttonObject = new(objectName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-		buttonObject.transform.SetParent(parent, false);
-
-		var layout = buttonObject.GetComponent<LayoutElement>();
-		layout.preferredHeight = 38f;
-
-		var image = buttonObject.GetComponent<Image>();
-		image.color = new Color(0.2f, 0.5f, 0.82f, 1f);
-
-		var button = buttonObject.GetComponent<Button>();
-		button.onClick.AddListener(onClick);
-
-		labelText = CreateText("Label", buttonObject.transform, label);
-		labelText.alignment = TextAlignmentOptions.Center;
-
-		return button;
-	}
-
-	private static TMP_Text CreateText(string objectName, Transform parent, string value)
-	{
-		GameObject textObject = new(objectName, typeof(RectTransform), typeof(TextMeshProUGUI));
-		textObject.transform.SetParent(parent, false);
-
-		var text = textObject.GetComponent<TextMeshProUGUI>();
-		text.text = value;
-		text.fontSize = 18f;
-		text.color = Color.white;
-		text.alignment = TextAlignmentOptions.MidlineLeft;
-
-		var rect = text.rectTransform;
-		rect.anchorMin = Vector2.zero;
-		rect.anchorMax = Vector2.one;
-		rect.offsetMin = Vector2.zero;
-		rect.offsetMax = Vector2.zero;
-
-		return text;
+		return toggleRow;
 	}
 }

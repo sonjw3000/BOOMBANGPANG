@@ -12,6 +12,9 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 	[SerializeField] private Color previewColor = new(0.2f, 0.7f, 0.85f, 0.4f);
 	[SerializeField] private Color invalidPreviewColor = new(1f, 0.25f, 0.25f, 0.4f);
 	[SerializeField] private int currentFloor = 0;
+	[SerializeField] private BuildingSelectionProxy selectionProxyPrefab;
+	[SerializeField] private GameObject overlayQuadPrefab;
+	[SerializeField] private GameObject overlayLabelPrefab;
 
 	private GameObject previewRoot;
 	private GameObject previewQuad;
@@ -171,11 +174,18 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 			return proxy;
 		}
 
-		GameObject proxyObject = new($"BuildingSelection_{building.DisplayName}");
-		proxyObject.transform.SetParent(proxyRoot.transform, false);
-		proxyObject.hideFlags = HideFlags.HideInHierarchy;
+		if (selectionProxyPrefab == null)
+		{
+			Debug.LogError("[BuildingPlacementOverlayController] BuildingSelectionProxy prefab is missing.", this);
+			return null;
+		}
 
-		proxy = proxyObject.AddComponent<BuildingSelectionProxy>();
+		proxy = Instantiate(selectionProxyPrefab, proxyRoot.transform);
+		proxy.name = $"BuildingSelection_{building.DisplayName}";
+		if (proxy == null)
+			return null;
+
+		proxy.gameObject.hideFlags = HideFlags.HideInHierarchy;
 		proxy.Bind(BuildingManager, building);
 		proxies[building] = proxy;
 		return proxy;
@@ -183,33 +193,33 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 	private GameObject CreateQuad(string objectName, Transform parent)
 	{
-		GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+		if (overlayQuadPrefab == null)
+		{
+			Debug.LogError("[BuildingPlacementOverlayController] Overlay quad prefab is missing.", this);
+			return null;
+		}
+
+		GameObject quad = Instantiate(overlayQuadPrefab, parent);
 		quad.name = objectName;
-		quad.transform.SetParent(parent, false);
-
-		var collider = quad.GetComponent<Collider>();
-		if (collider != null)
-			Destroy(collider);
-
-		var renderer = quad.GetComponent<MeshRenderer>();
-		renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-		renderer.receiveShadows = false;
-		renderer.material = CreateOverlayMaterial();
-
 		return quad;
 	}
 
 	private GameObject CreateLabel(string objectName, Transform parent)
 	{
-		GameObject label = new(objectName);
-		label.transform.SetParent(parent, false);
+		if (overlayLabelPrefab == null)
+		{
+			Debug.LogError("[BuildingPlacementOverlayController] Overlay label prefab is missing.", this);
+			return null;
+		}
 
-		var text = label.AddComponent<TextMeshPro>();
-		text.alignment = TextAlignmentOptions.Center;
+		GameObject label = Instantiate(overlayLabelPrefab, parent);
+		label.name = objectName;
+		if (label == null)
+			return null;
+
+		var text = label.GetComponent<TextMeshPro>();
 		text.fontSize = 5f;
-		text.textWrappingMode = TextWrappingModes.NoWrap;
 		text.color = Color.white;
-
 		return label;
 	}
 
@@ -242,17 +252,6 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 		float scale = Mathf.Clamp(Mathf.Min(bounds.width, bounds.height) / 3f, 0.35f, 1.5f);
 		label.transform.localScale = Vector3.one * scale;
-	}
-
-	private Material CreateOverlayMaterial()
-	{
-		Shader shader = Shader.Find("Sprites/Default");
-		if (shader == null)
-			shader = Shader.Find("Unlit/Color");
-
-		Material material = new(shader);
-		material.renderQueue = 3000;
-		return material;
 	}
 
 	private static RectInt BuildRect(in int3 start, in int3 end)

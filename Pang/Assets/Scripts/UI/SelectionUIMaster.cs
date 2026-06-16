@@ -15,10 +15,15 @@ public class SelectionUIMaster : MonoBehaviour
 
 	[Header("Detail Contents")]
 	[SerializeField] private DetailContentBase[] detailContents;
+	[SerializeField] private BuildingDetailContent buildingDetailContentPrefab;
+	[SerializeField] private ZoneDetailContent zoneDetailContentPrefab;
+	[SerializeField] private AirlockDetailContent airlockDetailContentPrefab;
 
 	[Header("World Highlight")]
 	[SerializeField] private GameObject selectedTilePrefab;
 	[SerializeField] private GameObject interactionTilePrefab;
+	[SerializeField] private GameObject interactionLabelPrefab;
+	[SerializeField] private RectTransform interactionModeHudPrefab;
 	[SerializeField] private float selectedTileHeight = 0.03f;
 	[SerializeField] private float interactionTileHeight = 0.035f;
 	[SerializeField] private float interactionLabelHeight = 0.04f;
@@ -42,8 +47,8 @@ public class SelectionUIMaster : MonoBehaviour
 	private TextMeshProUGUI modeActionText = null;
 	private Button buildingDetailsButton = null;
 	private TextMeshProUGUI buildingDetailsButtonText = null;
-	private ZoneOverlayController zoneOverlayController = null;
-	private BuildingPlacementOverlayController buildingPlacementOverlayController = null;
+	[SerializeField] private ZoneOverlayController zoneOverlayController = null;
+	[SerializeField] private BuildingPlacementOverlayController buildingPlacementOverlayController = null;
 
 	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
 
@@ -282,65 +287,22 @@ public class SelectionUIMaster : MonoBehaviour
 			detailWindowManager = GetComponent<DetailWindowManager>();
 
 		if (detailWindowManager == null)
-			detailWindowManager = gameObject.AddComponent<DetailWindowManager>();
+		{
+			Debug.LogError("[SelectionUIMaster] DetailWindowManager is missing.", this);
+			return;
+		}
 
 		detailWindowManager.Initialize(detailUI);
 	}
 
 	private void EnsureRuntimeBuildingDetailContent()
 	{
-		if (detailUI == null)
-			return;
-
-		foreach (DetailContentBase detailContent in detailContents)
-		{
-			if (detailContent is BuildingDetailContent)
-				return;
-		}
-
-		UIWindow detailWindow = detailUI.GetComponentInChildren<UIWindow>(true);
-		Transform parent = detailWindow != null && detailWindow.ContentRoot != null
-			? detailWindow.ContentRoot
-			: detailUI.transform;
-
-		GameObject detailRoot = new("RuntimeBuildingDetailContent", typeof(RectTransform), typeof(BuildingDetailContent));
-		detailRoot.transform.SetParent(parent, false);
-		detailRoot.SetActive(false);
-
-		BuildingDetailContent buildingDetail = detailRoot.GetComponent<BuildingDetailContent>();
-		var contents = new List<DetailContentBase>(detailContents ?? System.Array.Empty<DetailContentBase>())
-		{
-			buildingDetail
-		};
-		detailContents = contents.ToArray();
+		EnsureRuntimeDetailContent(buildingDetailContentPrefab, "RuntimeBuildingDetailContent");
 	}
 
 	private void EnsureRuntimeZoneDetailContent()
 	{
-		if (detailUI == null)
-			return;
-
-		foreach (DetailContentBase detailContent in detailContents)
-		{
-			if (detailContent is ZoneDetailContent)
-				return;
-		}
-
-		UIWindow detailWindow = detailUI.GetComponentInChildren<UIWindow>(true);
-		Transform parent = detailWindow != null && detailWindow.ContentRoot != null
-			? detailWindow.ContentRoot
-			: detailUI.transform;
-
-		GameObject detailRoot = new("RuntimeZoneDetailContent", typeof(RectTransform), typeof(ZoneDetailContent));
-		detailRoot.transform.SetParent(parent, false);
-		detailRoot.SetActive(false);
-
-		ZoneDetailContent zoneDetail = detailRoot.GetComponent<ZoneDetailContent>();
-		var contents = new List<DetailContentBase>(detailContents ?? System.Array.Empty<DetailContentBase>())
-		{
-			zoneDetail
-		};
-		detailContents = contents.ToArray();
+		EnsureRuntimeDetailContent(zoneDetailContentPrefab, "RuntimeZoneDetailContent");
 	}
 
 	private void EnsureModeDependencies()
@@ -356,9 +318,6 @@ public class SelectionUIMaster : MonoBehaviour
 				zoneOverlayController.BuildingModeChanged += HandleBuildingModeChanged;
 			}
 		}
-
-		if (buildingPlacementOverlayController == null)
-			buildingPlacementOverlayController = FindFirstObjectByType<BuildingPlacementOverlayController>(FindObjectsInactive.Include);
 	}
 
 	private void EnsureModeHud()
@@ -373,65 +332,23 @@ public class SelectionUIMaster : MonoBehaviour
 		if (canvas == null)
 			return;
 
-		GameObject rootObject = new("InteractionModeHud", typeof(RectTransform));
-		modeHudRoot = rootObject.GetComponent<RectTransform>();
-		modeHudRoot.SetParent(canvas.transform, false);
-		modeHudRoot.anchorMin = new Vector2(0.5f, 1f);
-		modeHudRoot.anchorMax = new Vector2(0.5f, 1f);
-		modeHudRoot.pivot = new Vector2(0.5f, 1f);
-		modeHudRoot.anchoredPosition = new Vector2(0f, -20f);
-		modeHudRoot.sizeDelta = new Vector2(320f, 96f);
+		if (interactionModeHudPrefab == null)
+		{
+			Debug.LogError("[SelectionUIMaster] InteractionModeHud prefab is missing.", this);
+			return;
+		}
 
-		GameObject domainObject = new("ModeDomain", typeof(RectTransform), typeof(TextMeshProUGUI));
-		domainObject.transform.SetParent(modeHudRoot, false);
-		modeDomainText = domainObject.GetComponent<TextMeshProUGUI>();
-		modeDomainText.alignment = TextAlignmentOptions.Center;
-		modeDomainText.fontSize = 28f;
-		modeDomainText.color = Color.white;
-		modeDomainText.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-		modeDomainText.rectTransform.anchorMax = new Vector2(1f, 1f);
-		modeDomainText.rectTransform.offsetMin = Vector2.zero;
-		modeDomainText.rectTransform.offsetMax = Vector2.zero;
+		modeHudRoot = Instantiate(interactionModeHudPrefab, canvas.transform);
+		modeHudRoot.name = "InteractionModeHud";
+		if (modeHudRoot == null)
+			return;
 
-		GameObject actionObject = new("ModeAction", typeof(RectTransform), typeof(TextMeshProUGUI));
-		actionObject.transform.SetParent(modeHudRoot, false);
-		modeActionText = actionObject.GetComponent<TextMeshProUGUI>();
-		modeActionText.alignment = TextAlignmentOptions.Center;
-		modeActionText.fontSize = 18f;
-		modeActionText.color = new Color(0.82f, 0.88f, 0.95f, 1f);
-		modeActionText.rectTransform.anchorMin = new Vector2(0f, 0f);
-		modeActionText.rectTransform.anchorMax = new Vector2(1f, 0.5f);
-		modeActionText.rectTransform.offsetMin = Vector2.zero;
-		modeActionText.rectTransform.offsetMax = Vector2.zero;
-
-		GameObject buttonObject = new("BuildingModeDetailsButton", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-		buttonObject.transform.SetParent(canvas.transform, false);
-		RectTransform buttonRect = buttonObject.GetComponent<RectTransform>();
-		buttonRect.anchorMin = new Vector2(0.5f, 0f);
-		buttonRect.anchorMax = new Vector2(0.5f, 0f);
-		buttonRect.pivot = new Vector2(0.5f, 0f);
-		buttonRect.anchoredPosition = new Vector2(0f, 40f);
-		buttonRect.sizeDelta = new Vector2(180f, 42f);
-
-		Image buttonImage = buttonObject.GetComponent<Image>();
-		buttonImage.color = new Color(0.18f, 0.42f, 0.7f, 0.92f);
-
-		buildingDetailsButton = buttonObject.GetComponent<Button>();
-		ColorBlock colors = buildingDetailsButton.colors;
-		colors.disabledColor = new Color(0.26f, 0.26f, 0.26f, 0.85f);
-		buildingDetailsButton.colors = colors;
-
-		GameObject buttonTextObject = new("Text (TMP)", typeof(RectTransform), typeof(TextMeshProUGUI));
-		buttonTextObject.transform.SetParent(buttonObject.transform, false);
-		buildingDetailsButtonText = buttonTextObject.GetComponent<TextMeshProUGUI>();
-		buildingDetailsButtonText.text = "Details";
-		buildingDetailsButtonText.alignment = TextAlignmentOptions.Center;
-		buildingDetailsButtonText.fontSize = 22f;
-		buildingDetailsButtonText.color = Color.white;
-		buildingDetailsButtonText.rectTransform.anchorMin = Vector2.zero;
-		buildingDetailsButtonText.rectTransform.anchorMax = Vector2.one;
-		buildingDetailsButtonText.rectTransform.offsetMin = Vector2.zero;
-		buildingDetailsButtonText.rectTransform.offsetMax = Vector2.zero;
+		modeDomainText = FindNamedComponent<TextMeshProUGUI>(modeHudRoot, "ModeDomain");
+		modeActionText = FindNamedComponent<TextMeshProUGUI>(modeHudRoot, "ModeAction");
+		buildingDetailsButton = FindNamedComponent<Button>(modeHudRoot, "BuildingModeDetailsButton");
+		buildingDetailsButtonText = buildingDetailsButton != null
+			? buildingDetailsButton.GetComponentInChildren<TextMeshProUGUI>(true)
+			: null;
 	}
 
 	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
@@ -563,15 +480,20 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private GameObject CreateInteractionLabel()
 	{
-		GameObject label = new("InteractionLabel");
-		label.transform.SetParent(selectionHighlightRoot.transform, false);
+		if (interactionLabelPrefab == null)
+		{
+			Debug.LogError("[SelectionUIMaster] InteractionLabel prefab is missing.", this);
+			return null;
+		}
 
-		var text = label.AddComponent<TextMeshPro>();
-		text.alignment = TextAlignmentOptions.Center;
+		GameObject label = Instantiate(interactionLabelPrefab, selectionHighlightRoot.transform);
+		label.name = "InteractionLabel";
+		if (label == null)
+			return null;
+
+		var text = label.GetComponent<TextMeshPro>();
 		text.fontSize = interactionLabelFontSize;
-		text.textWrappingMode = TextWrappingModes.NoWrap;
 		text.color = interactionLabelColor;
-
 		label.SetActive(false);
 		return label;
 	}
@@ -606,12 +528,18 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void EnsureRuntimeAirlockDetailContent()
 	{
+		EnsureRuntimeDetailContent(airlockDetailContentPrefab, "RuntimeAirlockDetailContent");
+	}
+
+	private void EnsureRuntimeDetailContent<T>(T prefab, string objectName)
+		where T : DetailContentBase
+	{
 		if (detailUI == null)
 			return;
 
 		foreach (DetailContentBase detailContent in detailContents)
 		{
-			if (detailContent is AirlockDetailContent)
+			if (detailContent is T)
 				return;
 		}
 
@@ -620,16 +548,32 @@ public class SelectionUIMaster : MonoBehaviour
 			? detailWindow.ContentRoot
 			: detailUI.transform;
 
-		GameObject detailRoot = new("RuntimeAirlockDetailContent", typeof(RectTransform), typeof(AirlockDetailContent));
-		detailRoot.transform.SetParent(parent, false);
+		if (prefab == null)
+		{
+			Debug.LogError($"[SelectionUIMaster] Missing detail content prefab for {objectName}", this);
+			return;
+		}
+
+		GameObject detailRoot = Instantiate(prefab.gameObject, parent);
+		detailRoot.name = objectName;
 		detailRoot.SetActive(false);
 
-		AirlockDetailContent airlockDetail = detailRoot.GetComponent<AirlockDetailContent>();
+		T runtimeDetailContent = detailRoot.GetComponent<T>();
 		var contents = new List<DetailContentBase>(detailContents ?? System.Array.Empty<DetailContentBase>())
 		{
-			airlockDetail
+			runtimeDetailContent
 		};
 		detailContents = contents.ToArray();
+	}
+
+	private static T FindNamedComponent<T>(Transform root, string childName)
+		where T : Component
+	{
+		if (root == null)
+			return null;
+
+		Transform child = root.Find(childName);
+		return child != null ? child.GetComponent<T>() : null;
 	}
 
 	private static void AppendInteractionLabel(StringBuilder builder, InteractionKind source, InteractionKind target, string label)

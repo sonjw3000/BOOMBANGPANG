@@ -294,6 +294,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CargoPortDetailBuilder
   deleteButton: {fileID: 3905483113260810839}
+  defaultTabsPrefab: {fileID: 1557969092189939020, guid: db2c549d6ef382e4dbd1c9f246231f0f, type: 3}
+  actionButtonPrefab: {fileID: 7582413638534039896, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
+  compactButtonPrefab: {fileID: 8956942254544208979, guid: 9a7c4e1c56e217d4f8d19dbc929e5862, type: 3}
   forceLoadButton: {fileID: 2765030707180732089}
 --- !u!1 &1156217968906320755
 GameObject:
@@ -847,6 +850,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoxPoolDetailContent
   deleteButton: {fileID: 5919299437116952114}
+  defaultTabsPrefab: {fileID: 1557969092189939020, guid: db2c549d6ef382e4dbd1c9f246231f0f, type: 3}
+  actionButtonPrefab: {fileID: 7582413638534039896, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
+  compactButtonPrefab: {fileID: 8956942254544208979, guid: 9a7c4e1c56e217d4f8d19dbc929e5862, type: 3}
   addBoxButton: {fileID: 3618886877536405185}
 --- !u!1 &1985901457078652147
 GameObject:
@@ -1974,6 +1980,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HumanWorkerDetailContent
   deleteButton: {fileID: 2183253135844537036}
+  defaultTabsPrefab: {fileID: 1557969092189939020, guid: db2c549d6ef382e4dbd1c9f246231f0f, type: 3}
+  actionButtonPrefab: {fileID: 7582413638534039896, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
+  compactButtonPrefab: {fileID: 8956942254544208979, guid: 9a7c4e1c56e217d4f8d19dbc929e5862, type: 3}
 --- !u!1 &3685875091896975439
 GameObject:
   m_ObjectHideFlags: 0
@@ -2132,6 +2141,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   deleteButton: {fileID: 3422630392750943564}
+  defaultTabsPrefab: {fileID: 1557969092189939020, guid: db2c549d6ef382e4dbd1c9f246231f0f, type: 3}
+  actionButtonPrefab: {fileID: 7582413638534039896, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
+  compactButtonPrefab: {fileID: 8956942254544208979, guid: 9a7c4e1c56e217d4f8d19dbc929e5862, type: 3}
 --- !u!1 &4191576969318634253
 GameObject:
   m_ObjectHideFlags: 0
@@ -5735,6 +5747,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PackingStationDetailContent
   deleteButton: {fileID: 0}
+  defaultTabsPrefab: {fileID: 1557969092189939020, guid: db2c549d6ef382e4dbd1c9f246231f0f, type: 3}
+  actionButtonPrefab: {fileID: 7582413638534039896, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
+  compactButtonPrefab: {fileID: 8956942254544208979, guid: 9a7c4e1c56e217d4f8d19dbc929e5862, type: 3}
 --- !u!1 &8212493411035498917
 GameObject:
   m_ObjectHideFlags: 0
@@ -5882,6 +5897,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5930746694595804354}
   - component: {fileID: 2896785708485914454}
+  - component: {fileID: 1399559845251109525}
   m_Layer: 0
   m_Name: SelectionUIMaster
   m_TagString: Untagged
@@ -5924,6 +5940,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cardUI: {fileID: 7428095147052673237}
   detailUI: {fileID: 6010633489577891207}
+  detailWindowManager: {fileID: 1399559845251109525}
   detailContents:
   - {fileID: 4322413545429953216}
   - {fileID: 5810542861524964389}
@@ -5931,8 +5948,13 @@ MonoBehaviour:
   - {fileID: 3506876284552818874}
   - {fileID: 2588224612901135007}
   - {fileID: 6301184221576649931}
+  buildingDetailContentPrefab: {fileID: 6696425890881901875, guid: acc85eab220a95c4290fcb467a187545, type: 3}
+  zoneDetailContentPrefab: {fileID: 1661096378977446707, guid: d5a0464e365ebc9458982c327c652ef6, type: 3}
+  airlockDetailContentPrefab: {fileID: 2417450474382095622, guid: b6ba0662e3716234e981019b290c24fd, type: 3}
   selectedTilePrefab: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
   interactionTilePrefab: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
+  interactionLabelPrefab: {fileID: 332711428261118799, guid: 34cb7ef3efcff6c4099dfb58d514ea84, type: 3}
+  interactionModeHudPrefab: {fileID: 5353290070793651210, guid: c02309a4a793c0c46bbc62087fcd287f, type: 3}
   selectedTileHeight: 0.03
   interactionTileHeight: 0.035
   interactionLabelHeight: 0.04
@@ -5942,6 +5964,23 @@ MonoBehaviour:
   interactionLabelScale: 0.2
   interactionLabelColor: {r: 1, g: 1, b: 1, a: 1}
   interactionHighlightPoolSize: 8
+  zoneOverlayController: {fileID: 0}
+  buildingPlacementOverlayController: {fileID: 0}
+--- !u!114 &1399559845251109525
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8857813012633133639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3caf6b5524f443f88b969a1bc6156cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DetailWindowManager
+  windowTemplate: {fileID: 0}
+  spawnOffset: {x: 28, y: -28}
+  cascadeCount: 6
 --- !u!1 &8971146188309141279
 GameObject:
   m_ObjectHideFlags: 0
@@ -6276,6 +6315,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RocketDetailContent
   deleteButton: {fileID: 0}
+  defaultTabsPrefab: {fileID: 1557969092189939020, guid: db2c549d6ef382e4dbd1c9f246231f0f, type: 3}
+  actionButtonPrefab: {fileID: 7582413638534039896, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
+  compactButtonPrefab: {fileID: 8956942254544208979, guid: 9a7c4e1c56e217d4f8d19dbc929e5862, type: 3}
 --- !u!1 &9096927382386200542
 GameObject:
   m_ObjectHideFlags: 0

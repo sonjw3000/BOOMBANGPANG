@@ -1138,6 +1138,7 @@ RectTransform:
   - {fileID: 4935355795064210833}
   - {fileID: 6787757656563483624}
   - {fileID: 4487778294532036740}
+  - {fileID: 9150000000000000108}
   m_Father: {fileID: 3508828877857067804}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
@@ -7376,6 +7377,7 @@ RectTransform:
   - {fileID: 4622698685985265279}
   - {fileID: 3039835864967803913}
   - {fileID: 2787437576059329305}
+  - {fileID: 6856649485692330140}
   m_Father: {fileID: 7703715616465562812}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -12343,6 +12345,10 @@ PrefabInstance:
       propertyPath: m_SizeDelta.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2896785708485914454, guid: fc35c73be19f9b449b3b7decec5f8462, type: 3}
+      propertyPath: buildingPlacementOverlayController
+      value: 
+      objectReference: {fileID: 1068863337969043755}
     - target: {fileID: 2990014593649398283, guid: fc35c73be19f9b449b3b7decec5f8462, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -13412,6 +13418,17 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 9170000000000000005}
   m_SourcePrefab: {fileID: 100100000, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
+--- !u!114 &456097316855778123 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8725161867437640522, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
+  m_PrefabInstance: {fileID: 9170000000000000001}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3000118764629553108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28d6d28b8e703b84289b23dc80a5c308, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &3000118764629553108 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
@@ -13429,10 +13446,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac64ab7247e8e634aaef70fcf8afe5af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ZoneControlWindow
-  window: {fileID: 0}
+  window: {fileID: 456097316855778123}
   overlayController: {fileID: 0}
   windowTitle: Zone Control
   defaultZoneType: 5
+  contentPrefab: {fileID: 490911659738468065, guid: 140e35a3b97b16f4db1c566176a121ad, type: 3}
+  toggleRowPrefab: {fileID: 5490472040542546100, guid: 7c0cae4103ebcc24b9623f4c36d733e8, type: 3}
+--- !u!224 &6845538881237770396 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 2324525076195074205, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
+  m_PrefabInstance: {fileID: 9170000000000000001}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &9180000000000000001
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -13512,8 +13536,25 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 9180000000000000005}
+    - targetCorrespondingSourceObject: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1068863337969043755}
+    - targetCorrespondingSourceObject: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2004176651332271185}
   m_SourcePrefab: {fileID: 100100000, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
---- !u!1 &3000118764629553110 stripped
+--- !u!114 &464971515204569931 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8725161867437640522, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
+  m_PrefabInstance: {fileID: 9180000000000000001}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2991827394424827860}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28d6d28b8e703b84289b23dc80a5c308, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!1 &2991827394424827860 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
   m_PrefabInstance: {fileID: 9180000000000000001}
@@ -13524,21 +13565,63 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3000118764629553110}
+  m_GameObject: {fileID: 2991827394424827860}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6f2796a7300a48cabf478ca4af9613fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuildingControlWindow
-  window: {fileID: 0}
+  window: {fileID: 464971515204569931}
+  overlayController: {fileID: 1068863337969043755}
+  zoneOverlayController: {fileID: 0}
+  cargoPortLinkModeController: {fileID: 2004176651332271185}
   windowTitle: Building Control
---- !u!224 &6845538881237770397 stripped
+  contentPrefab: {fileID: 2169137218510166385, guid: 2853181372414a04b8e516487c88d6aa, type: 3}
+  buildingRowPrefab: {fileID: 5997180376263287778, guid: df74abfdc04c8114d95b27de9ce7dec7, type: 3}
+--- !u!114 &1068863337969043755
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2991827394424827860}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90bfc2de8ae246f2a353a8a5217cdd24, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingPlacementOverlayController
+  footprintService: {fileID: 0}
+  previewHeight: 0.035
+  labelHeight: 0.04
+  overlayAlpha: 0.25
+  previewColor: {r: 0.2, g: 0.7, b: 0.85, a: 0.4}
+  invalidPreviewColor: {r: 1, g: 0.25, b: 0.25, a: 0.4}
+  currentFloor: 0
+  selectionProxyPrefab: {fileID: 3787967229008310781, guid: e2626915b1f7fd04a9dc58aef00bf227, type: 3}
+  overlayQuadPrefab: {fileID: 5193021133707544615, guid: e7663c41ad454444489fd24ab7df83f3, type: 3}
+  overlayLabelPrefab: {fileID: 332711428261118799, guid: 34cb7ef3efcff6c4099dfb58d514ea84, type: 3}
+--- !u!114 &2004176651332271185
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2991827394424827860}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c40bca390fd4749a4758f539fd06c5d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CargoPortLinkModeController
+  portMarkerHeight: 0.04
+  buildingMarkerHeight: 0.03
+  labelHeight: 0.045
+  sourcePortColor: {r: 0.9, g: 0.42, b: 0.2, a: 0.8}
+  targetBuildingColor: {r: 0.2, g: 0.62, b: 0.95, a: 0.28}
+  targetPortColor: {r: 0.2, g: 0.82, b: 0.5, a: 0.85}
+  overlayQuadPrefab: {fileID: 5193021133707544615, guid: e7663c41ad454444489fd24ab7df83f3, type: 3}
+  overlayLabelPrefab: {fileID: 332711428261118799, guid: 34cb7ef3efcff6c4099dfb58d514ea84, type: 3}
+--- !u!224 &6856649485692330140 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2324525076195074205, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
   m_PrefabInstance: {fileID: 9180000000000000001}
-  m_PrefabAsset: {fileID: 0}
---- !u!224 &6845538881237770396 stripped
-RectTransform:
-  m_CorrespondingSourceObject: {fileID: 2324525076195074205, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
-  m_PrefabInstance: {fileID: 9170000000000000001}
   m_PrefabAsset: {fileID: 0}

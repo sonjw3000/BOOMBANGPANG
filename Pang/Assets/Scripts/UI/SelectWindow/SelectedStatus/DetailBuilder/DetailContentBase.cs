@@ -1,4 +1,3 @@
-﻿using TMPro;
 using System.Collections.Generic;
 using Assets.Scripts.UI;
 using UnityEngine;
@@ -8,6 +7,10 @@ using UnityEngine.UI;
 public abstract class DetailContentBase : MonoBehaviour
 {
 	[SerializeField] protected Button deleteButton = null;
+	[SerializeField] protected DetailDefaultTabsView defaultTabsPrefab = null;
+	[SerializeField] protected TextButtonView actionButtonPrefab = null;
+	[SerializeField] protected TextButtonView compactButtonPrefab = null;
+
 	protected UIProviderBase provider = null;
 	private UIWindow window;
 	private RectTransform defaultBodyRoot;
@@ -31,17 +34,13 @@ public abstract class DetailContentBase : MonoBehaviour
 			return;
 
 		if (deleteButton == null)
-		{
 			Debug.LogError("Delete Button is not assigned!", this);
-		}
 	}
 
 	private void OnEnable()
 	{
 		if (UseDefaultTabs == false && deleteButton != null)
-		{
 			DeleteButtonEvent.AddListener(() => provider?.DeleteObject());
-		}
 
 		AddListener();
 	}
@@ -59,6 +58,7 @@ public abstract class DetailContentBase : MonoBehaviour
 	protected virtual void RemoveListeners() { }
 
 	public abstract bool IsTargetType(GameObject obj);
+
 	public void SetProvider(UIProviderBase provider)
 	{
 		this.provider = provider;
@@ -69,6 +69,7 @@ public abstract class DetailContentBase : MonoBehaviour
 			SetupDefaultTabs();
 			SetDefaultTab(0);
 		}
+
 		LinkData();
 		gameObject.SetActive(true);
 	}
@@ -78,9 +79,7 @@ public abstract class DetailContentBase : MonoBehaviour
 		DisableLegacyRootLayout();
 
 		foreach (Transform child in transform)
-		{
 			child.gameObject.SetActive(false);
-		}
 
 		if (deleteButton != null)
 			deleteButton.gameObject.SetActive(false);
@@ -89,63 +88,19 @@ public abstract class DetailContentBase : MonoBehaviour
 	protected void DisableLegacyRootLayout()
 	{
 		foreach (LayoutGroup layoutGroup in GetComponents<LayoutGroup>())
-		{
 			layoutGroup.enabled = false;
-		}
 
 		foreach (ContentSizeFitter fitter in GetComponents<ContentSizeFitter>())
-		{
 			fitter.enabled = false;
-		}
 
 		foreach (LayoutElement layoutElement in GetComponents<LayoutElement>())
-		{
 			layoutElement.enabled = false;
-		}
 	}
 
 	protected Button CreateRuntimeActionButton(Transform parent, string label, UnityAction onClick)
 	{
-		GameObject buttonRoot = new(label.Replace(" ", string.Empty) + "Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-		buttonRoot.transform.SetParent(parent, false);
-
-		LayoutElement layout = buttonRoot.GetComponent<LayoutElement>();
-		layout.preferredHeight = 40f;
-		layout.minHeight = 40f;
-		layout.minWidth = 220f;
-		layout.preferredWidth = 220f;
-		layout.flexibleWidth = 1f;
-
-		Image image = buttonRoot.GetComponent<Image>();
-		image.color = new Color(0.18f, 0.18f, 0.18f, 0.9f);
-
-		RectTransform buttonRect = buttonRoot.GetComponent<RectTransform>();
-		buttonRect.anchorMin = new Vector2(0f, 1f);
-		buttonRect.anchorMax = new Vector2(1f, 1f);
-		buttonRect.pivot = new Vector2(0.5f, 1f);
-		buttonRect.sizeDelta = new Vector2(0f, 40f);
-
-		Button button = buttonRoot.GetComponent<Button>();
-		button.onClick.AddListener(onClick);
-
-		GameObject textRoot = new("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
-		textRoot.transform.SetParent(buttonRoot.transform, false);
-
-		TextMeshProUGUI text = textRoot.GetComponent<TextMeshProUGUI>();
-		text.text = label;
-		text.fontSize = 20f;
-		text.alignment = TextAlignmentOptions.Center;
-		text.color = Color.white;
-		text.textWrappingMode = TextWrappingModes.NoWrap;
-		text.overflowMode = TextOverflowModes.Ellipsis;
-
-		RectTransform textRect = text.rectTransform;
-		textRect.anchorMin = Vector2.zero;
-		textRect.anchorMax = Vector2.one;
-		textRect.offsetMin = Vector2.zero;
-		textRect.offsetMax = Vector2.zero;
-
-		return button;
+		TextButtonView buttonView = CreateActionButtonView(parent, label, onClick);
+		return buttonView != null ? buttonView.Button : null;
 	}
 
 	protected Button CreateDeleteActionButton(Transform parent)
@@ -182,11 +137,19 @@ public abstract class DetailContentBase : MonoBehaviour
 			selfRect.pivot = new Vector2(0.5f, 0.5f);
 		}
 
-		defaultBodyRoot = CreateVerticalContainer("DefaultDetailTabs", transform, 4f);
+		if (defaultTabsPrefab == null)
+		{
+			Debug.LogError($"[{GetType().Name}] Default tabs prefab is missing.", this);
+			return;
+		}
+
+		DetailDefaultTabsView tabsView = Instantiate(defaultTabsPrefab, transform);
+		tabsView.name = "DefaultDetailTabs";
+		defaultBodyRoot = tabsView.GetComponent<RectTransform>();
 		SetTopStretch(defaultBodyRoot, 12f, 12f, 4f);
 
-		infoTabRoot = CreateVerticalContainer("InfoTab", defaultBodyRoot, 8f);
-		actionTabRoot = CreateVerticalContainer("ActionTab", defaultBodyRoot, 8f);
+		infoTabRoot = tabsView.InfoTabRoot;
+		actionTabRoot = tabsView.ActionTabRoot;
 		defaultTabRoots.Add(infoTabRoot.gameObject);
 		defaultTabRoots.Add(actionTabRoot.gameObject);
 
@@ -200,9 +163,7 @@ public abstract class DetailContentBase : MonoBehaviour
 		}
 
 		foreach (Transform child in childrenToMove)
-		{
 			child.SetParent(infoTabRoot, false);
-		}
 
 		if (deleteButton != null)
 			deleteButton.gameObject.SetActive(false);
@@ -227,9 +188,7 @@ public abstract class DetailContentBase : MonoBehaviour
 	private void SetDefaultTab(int tabIndex)
 	{
 		for (int i = 0; i < defaultTabRoots.Count; i++)
-		{
 			defaultTabRoots[i].SetActive(i == tabIndex);
-		}
 
 		window?.UpdateTabVisuals(tabIndex);
 	}
@@ -257,28 +216,28 @@ public abstract class DetailContentBase : MonoBehaviour
 		runtimeActionButtons.Clear();
 	}
 
-	private static RectTransform CreateVerticalContainer(string name, Transform parent, float spacing)
+	protected TextButtonView CreateActionButtonView(Transform parent, string label, UnityAction onClick)
 	{
-		GameObject root = new(name, typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement), typeof(ContentSizeFitter));
-		root.transform.SetParent(parent, false);
+		return CreateButtonView(actionButtonPrefab, parent, label.Replace(" ", string.Empty) + "Button", label, onClick);
+	}
 
-		VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
-		layout.spacing = spacing;
-		layout.childAlignment = TextAnchor.UpperLeft;
-		layout.childControlWidth = true;
-		layout.childControlHeight = true;
-		layout.childForceExpandWidth = true;
-		layout.childForceExpandHeight = false;
+	protected TextButtonView CreateCompactButtonView(Transform parent, string label, UnityAction onClick)
+	{
+		return CreateButtonView(compactButtonPrefab, parent, label.Replace(" ", string.Empty) + "Button", label, onClick);
+	}
 
-		LayoutElement layoutElement = root.GetComponent<LayoutElement>();
-		layoutElement.flexibleWidth = 1f;
-		layoutElement.minWidth = 0f;
+	private TextButtonView CreateButtonView(TextButtonView prefab, Transform parent, string objectName, string label, UnityAction onClick)
+	{
+		if (prefab == null)
+		{
+			Debug.LogError($"[{GetType().Name}] Missing button prefab for {objectName}", this);
+			return null;
+		}
 
-		ContentSizeFitter fitter = root.GetComponent<ContentSizeFitter>();
-		fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-		fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-
-		return root.GetComponent<RectTransform>();
+		TextButtonView instance = Instantiate(prefab, parent);
+		instance.name = objectName;
+		instance.Configure(label, onClick);
+		return instance;
 	}
 
 	protected static void SetStretch(RectTransform rect, float left, float right, float top, float bottom)
@@ -309,11 +268,9 @@ public abstract class DetailContent<T> : DetailContentBase
 {
 	public override System.Type TargetType => typeof(T);
 	public override bool IsTargetType(GameObject obj) => obj.TryGetComponent<T>(out _);
-	
+
 	private void Update()
 	{
 		UpdateData();
 	}
-
-
 }
