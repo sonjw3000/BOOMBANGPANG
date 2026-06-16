@@ -359,6 +359,12 @@ public class BuildingControlWindow : MonoBehaviour
 			return;
 		}
 
+		if (cargoPortLinkModeController != null && cargoPortLinkModeController.HasStatusMessage)
+		{
+			actionStatusText.text = cargoPortLinkModeController.StatusText;
+			return;
+		}
+
 		actionStatusText.text = activeBuilding != null
 			? "Create a building or start linking outbound cargo ports to inbound cargo ports."
 			: "Start a new building footprint creation, or select a building to link cargo ports.";

@@ -15,7 +15,6 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 	[SerializeField] private float buildingMarkerHeight = 0.03f;
 	[SerializeField] private float labelHeight = 0.045f;
 	[SerializeField] private Color sourcePortColor = new(0.9f, 0.42f, 0.2f, 0.8f);
-	[SerializeField] private Color selectedSourcePortColor = new(1f, 0.85f, 0.25f, 0.95f);
 	[SerializeField] private Color targetBuildingColor = new(0.2f, 0.62f, 0.95f, 0.28f);
 	[SerializeField] private Color targetPortColor = new(0.2f, 0.82f, 0.5f, 0.85f);
 
@@ -42,6 +41,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 	public bool IsEditing => isEditing;
 	public Building SourceBuilding => sourceBuilding;
 	public string StatusText => BuildStatusText();
+	public bool HasStatusMessage => string.IsNullOrWhiteSpace(lastStatusMessage) == false;
 
 	private void Awake()
 	{
@@ -159,6 +159,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 
 		sourcePort = cargoPort;
 		targetBuilding = null;
+		Interaction?.SelectObject(sourcePort.gameObject);
 		lastStatusMessage = $"Source selected: {GetPortDisplayName(sourcePort)}. Select a target building.";
 		RefreshOverlay();
 		return true;
@@ -193,7 +194,10 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			return false;
 
 		if (BuildingHasPort(targetBuilding, cargoPort) == false)
-			return false;
+		{
+			lastStatusMessage = $"Select an inbound cargo port in {targetBuilding?.DisplayName ?? "the target building"}.";
+			return true;
+		}
 
 		if (cargoPort.IsInbound == false)
 		{
@@ -211,6 +215,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 
 		sourcePort = null;
 		targetBuilding = null;
+		Interaction?.ClearSelection();
 		RefreshOverlay();
 		return true;
 	}
@@ -228,12 +233,12 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 				break;
 
 			case LinkPhase.SelectTargetBuilding:
-				CreateSelectedSourceMarker();
+				CreateSourcePortMarkers();
 				CreateTargetBuildingMarkers();
 				break;
 
 			case LinkPhase.SelectTargetPort:
-				CreateSelectedSourceMarker();
+				CreateSourcePortMarkers();
 				CreateSelectedTargetBuildingMarker();
 				CreateTargetPortMarkers();
 				break;
@@ -249,7 +254,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		for (int i = 0; i < ports.Count; ++i)
 		{
 			CargoPort port = ports[i];
-			if (port == null || port.IsInbound)
+			if (port == null || port.IsInbound || port == sourcePort)
 				continue;
 
 			CreatePortMarker(port, sourcePortColor, "OUT");
@@ -286,12 +291,6 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 
 			CreatePortMarker(port, targetPortColor, "IN");
 		}
-	}
-
-	private void CreateSelectedSourceMarker()
-	{
-		if (sourcePort != null)
-			CreatePortMarker(sourcePort, selectedSourcePortColor, "SOURCE");
 	}
 
 	private void CreateSelectedTargetBuildingMarker()

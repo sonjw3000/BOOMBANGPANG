@@ -377,9 +377,6 @@ public class InteractionContext
 							break;
 					}
 				}
-
-				if (linkHandled == false)
-					OnSelectionChange(null);
 				break;
 
 			case InteractionMode.FacilityPlacement:
