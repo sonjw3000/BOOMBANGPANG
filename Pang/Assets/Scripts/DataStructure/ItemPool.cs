@@ -15,6 +15,9 @@ public class GameObjectPool
 		for (int i = 0; i < preload; ++i)
 		{
 			var obj = factory();
+			if (obj == null)
+				continue;
+
 			obj.SetActive(false);
 			items.Add(obj);
 		}
@@ -36,6 +39,9 @@ public class GameObjectPool
 		if (item == null)
 		{
 			item = factory();
+			if (item == null)
+				return null;
+
 			items.Add(item);
 		}
 
@@ -45,6 +51,9 @@ public class GameObjectPool
 
 	public void Release(GameObject item)
 	{
+		if (item == null)
+			return;
+
 		item.SetActive(false);
 	}
 
@@ -52,6 +61,9 @@ public class GameObjectPool
 	{
 		foreach (var obj in items)
 		{
+			if (obj == null)
+				continue;
+
 			obj.SetActive(false);
 		}
 	}

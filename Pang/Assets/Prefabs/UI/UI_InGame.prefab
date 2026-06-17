@@ -12360,7 +12360,7 @@ PrefabInstance:
     - target: {fileID: 2896785708485914454, guid: fc35c73be19f9b449b3b7decec5f8462, type: 3}
       propertyPath: highlightVisuals._serializedList.Array.data[2].Value.Prefab
       value: 
-      objectReference: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
+      objectReference: {fileID: 332711428261118799, guid: 34cb7ef3efcff6c4099dfb58d514ea84, type: 3}
     - target: {fileID: 2990014593649398283, guid: fc35c73be19f9b449b3b7decec5f8462, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0

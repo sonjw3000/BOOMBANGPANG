@@ -1622,6 +1622,8 @@ MonoBehaviour:
   initialPoolSize: 12
   riseDistance: 56
   stackSpacing: 22
+  canvasRootPrefab: {fileID: 100000, guid: 5bf0b6cfc4db4b31b3e25b63ff8c4955, type: 3}
+  entryPrefab: {fileID: 100000, guid: c67c7b65ab5d48ce8f9b34fdff9f9b91, type: 3}
   presetStyles:
     _serializedList:
     - Key: 0

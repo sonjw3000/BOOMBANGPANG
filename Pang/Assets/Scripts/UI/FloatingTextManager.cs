@@ -65,6 +65,8 @@ public sealed class FloatingTextManager : MonoBehaviour
 	[SerializeField] private int initialPoolSize = 12;
 	[SerializeField] private float riseDistance = 56f;
 	[SerializeField] private float stackSpacing = 22f;
+	[SerializeField] private GameObject canvasRootPrefab;
+	[SerializeField] private GameObject entryPrefab;
 	[SerializedDictionary("Preset", "Style")]
 	[SerializeField] private SerializedDictionary<FloatingTextPreset, FloatingTextStyle> presetStyles = new();
 
@@ -75,8 +77,6 @@ public sealed class FloatingTextManager : MonoBehaviour
 	private RectTransform canvasRect;
 	private RectTransform textRoot;
 	private AIWorker selectedWorker;
-	private GameObject canvasRootPrefab;
-	private GameObject entryPrefab;
 
 	private sealed class Entry
 	{

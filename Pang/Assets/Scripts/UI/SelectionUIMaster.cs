@@ -511,18 +511,22 @@ public class SelectionUIMaster : MonoBehaviour
 	private GameObject CreateInteractionLabel()
 	{
 		WorldHighlightVisualConfig visual = GetHighlightVisual(WorldHighlightType.InteractionLabel);
-		if (visual.Prefab == null)
-		{
-			Debug.LogError("[SelectionUIMaster] InteractionLabel prefab is missing.", this);
-			return null;
-		}
-
-		GameObject label = Instantiate(visual.Prefab, selectionHighlightRoot.transform);
+		GameObject label = CreateInteractionLabelObject(visual.Prefab);
 		label.name = "InteractionLabel";
 		if (label == null)
 			return null;
 
 		var text = label.GetComponent<TextMeshPro>();
+		if (text == null)
+		{
+			Debug.LogError("[SelectionUIMaster] InteractionLabel prefab is missing a TextMeshPro component.", this);
+			Destroy(label);
+			return null;
+		}
+
+		text.alignment = TextAlignmentOptions.Center;
+		text.textWrappingMode = TextWrappingModes.NoWrap;
+		text.overflowMode = TextOverflowModes.Overflow;
 		text.fontSize = visual.FontSize;
 		text.color = visual.Color;
 		label.SetActive(false);
@@ -536,6 +540,9 @@ public class SelectionUIMaster : MonoBehaviour
 
 		WorldHighlightVisualConfig visual = GetHighlightVisual(WorldHighlightType.InteractionLabel);
 		var text = label.GetComponent<TextMeshPro>();
+		if (text == null)
+			return;
+
 		text.text = BuildInteractionLabel(point.InteractionKind);
 		text.color = visual.Color;
 
@@ -638,6 +645,29 @@ public class SelectionUIMaster : MonoBehaviour
 
 		if (interactionLabelPool == null)
 			interactionLabelPool = new GameObjectPool(interactionHighlightPoolSize, CreateInteractionLabel);
+	}
+
+	private GameObject CreateInteractionLabelObject(GameObject configuredPrefab)
+	{
+		if (configuredPrefab != null)
+		{
+			GameObject configuredLabel = Instantiate(configuredPrefab, selectionHighlightRoot.transform);
+			if (configuredLabel != null && configuredLabel.GetComponent<TextMeshPro>() != null)
+				return configuredLabel;
+
+			Debug.LogWarning("[SelectionUIMaster] InteractionLabel prefab is invalid. Falling back to a runtime TextMeshPro label.", this);
+			if (configuredLabel != null)
+				Destroy(configuredLabel);
+		}
+		else
+		{
+			Debug.LogWarning("[SelectionUIMaster] InteractionLabel prefab is missing. Falling back to a runtime TextMeshPro label.", this);
+		}
+
+		GameObject fallbackLabel = new("InteractionLabel");
+		fallbackLabel.transform.SetParent(selectionHighlightRoot.transform, false);
+		fallbackLabel.AddComponent<TextMeshPro>();
+		return fallbackLabel;
 	}
 
 	private WorldHighlightVisualConfig GetHighlightVisual(WorldHighlightType highlightType)
