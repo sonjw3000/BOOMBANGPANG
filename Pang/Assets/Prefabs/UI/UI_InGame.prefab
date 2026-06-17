@@ -12349,6 +12349,18 @@ PrefabInstance:
       propertyPath: buildingPlacementOverlayController
       value: 
       objectReference: {fileID: 1068863337969043755}
+    - target: {fileID: 2896785708485914454, guid: fc35c73be19f9b449b3b7decec5f8462, type: 3}
+      propertyPath: highlightVisuals._serializedList.Array.data[0].Value.Prefab
+      value: 
+      objectReference: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
+    - target: {fileID: 2896785708485914454, guid: fc35c73be19f9b449b3b7decec5f8462, type: 3}
+      propertyPath: highlightVisuals._serializedList.Array.data[1].Value.Prefab
+      value: 
+      objectReference: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
+    - target: {fileID: 2896785708485914454, guid: fc35c73be19f9b449b3b7decec5f8462, type: 3}
+      propertyPath: highlightVisuals._serializedList.Array.data[2].Value.Prefab
+      value: 
+      objectReference: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
     - target: {fileID: 2990014593649398283, guid: fc35c73be19f9b449b3b7decec5f8462, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -13612,12 +13624,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c40bca390fd4749a4758f539fd06c5d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CargoPortLinkModeController
-  portMarkerHeight: 0.04
-  buildingMarkerHeight: 0.03
-  labelHeight: 0.045
-  sourcePortColor: {r: 0.9, g: 0.42, b: 0.2, a: 0.8}
-  targetBuildingColor: {r: 0.2, g: 0.62, b: 0.95, a: 0.28}
-  targetPortColor: {r: 0.2, g: 0.82, b: 0.5, a: 0.85}
+  markerVisuals:
+    _serializedList:
+    - Key: 0
+      Value:
+        MarkerHeight: 0.04
+        LabelHeight: 0.045
+        LabelScale: 0.24
+        MarkerColor: {r: 0.9, g: 0.42, b: 0.2, a: 0.8}
+        LabelColor: {r: 1, g: 1, b: 1, a: 1}
+    - Key: 1
+      Value:
+        MarkerHeight: 0.03
+        LabelHeight: 0.045
+        LabelScale: 0.28
+        MarkerColor: {r: 0.2, g: 0.62, b: 0.95, a: 0.28}
+        LabelColor: {r: 1, g: 1, b: 1, a: 1}
+    - Key: 2
+      Value:
+        MarkerHeight: 0.04
+        LabelHeight: 0.045
+        LabelScale: 0.24
+        MarkerColor: {r: 0.2, g: 0.82, b: 0.5, a: 0.85}
+        LabelColor: {r: 1, g: 1, b: 1, a: 1}
   overlayQuadPrefab: {fileID: 5193021133707544615, guid: e7663c41ad454444489fd24ab7df83f3, type: 3}
   overlayLabelPrefab: {fileID: 332711428261118799, guid: 34cb7ef3efcff6c4099dfb58d514ea84, type: 3}
 --- !u!224 &6856649485692330140 stripped

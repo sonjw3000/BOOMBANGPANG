@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AYellowpaper.SerializedCollections;
 using TMPro;
 using UnityEngine;
 
@@ -11,12 +12,34 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		SelectTargetPort,
 	}
 
-	[SerializeField] private float portMarkerHeight = 0.04f;
-	[SerializeField] private float buildingMarkerHeight = 0.03f;
-	[SerializeField] private float labelHeight = 0.045f;
-	[SerializeField] private Color sourcePortColor = new(0.9f, 0.42f, 0.2f, 0.8f);
-	[SerializeField] private Color targetBuildingColor = new(0.2f, 0.62f, 0.95f, 0.28f);
-	[SerializeField] private Color targetPortColor = new(0.2f, 0.82f, 0.5f, 0.85f);
+	private enum LinkMarkerType
+	{
+		SourcePort,
+		TargetBuilding,
+		TargetPort,
+	}
+
+	[System.Serializable]
+	private struct LinkMarkerVisualConfig
+	{
+		public float MarkerHeight;
+		public float LabelHeight;
+		public float LabelScale;
+		public Color MarkerColor;
+		public Color LabelColor;
+
+		public LinkMarkerVisualConfig(float markerHeight, float labelHeight, float labelScale, Color markerColor, Color labelColor)
+		{
+			MarkerHeight = markerHeight;
+			LabelHeight = labelHeight;
+			LabelScale = labelScale;
+			MarkerColor = markerColor;
+			LabelColor = labelColor;
+		}
+	}
+
+	[SerializedDictionary("Marker", "Visual")]
+	[SerializeField] private SerializedDictionary<LinkMarkerType, LinkMarkerVisualConfig> markerVisuals = new();
 	[SerializeField] private GameObject overlayQuadPrefab;
 	[SerializeField] private GameObject overlayLabelPrefab;
 
@@ -47,6 +70,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 
 	private void Awake()
 	{
+		EnsureMarkerVisuals();
 		EnsureOverlayRoot();
 
 		if (Interaction != null)
@@ -67,6 +91,11 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		ClearOverlay();
 		if (overlayRoot != null)
 			Destroy(overlayRoot);
+	}
+
+	private void OnValidate()
+	{
+		EnsureMarkerVisuals();
 	}
 
 	public bool BeginLinkEdit(Building building)
@@ -252,6 +281,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		if (sourceBuilding == null || CargoPortService == null)
 			return;
 
+		LinkMarkerVisualConfig visual = GetMarkerVisual(LinkMarkerType.SourcePort);
 		IReadOnlyList<CargoPort> ports = CargoPortService.GetCargoPorts(sourceBuilding.RuntimeBuildingId);
 		for (int i = 0; i < ports.Count; ++i)
 		{
@@ -259,7 +289,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			if (port == null || port.IsInbound || port == sourcePort)
 				continue;
 
-			CreatePortMarker(port, sourcePortColor, "OUT");
+			CreatePortMarker(port, visual, "OUT");
 		}
 	}
 
@@ -268,6 +298,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		if (BuildingManager == null)
 			return;
 
+		LinkMarkerVisualConfig visual = GetMarkerVisual(LinkMarkerType.TargetBuilding);
 		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
 		for (int i = 0; i < buildings.Count; ++i)
 		{
@@ -275,7 +306,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			if (building == null || building == sourceBuilding || HasInboundPorts(building) == false)
 				continue;
 
-			CreateBuildingMarker(building, targetBuildingColor, building.DisplayName);
+			CreateBuildingMarker(building, visual, building.DisplayName);
 		}
 	}
 
@@ -284,6 +315,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		if (targetBuilding == null || CargoPortService == null)
 			return;
 
+		LinkMarkerVisualConfig visual = GetMarkerVisual(LinkMarkerType.TargetPort);
 		IReadOnlyList<CargoPort> ports = CargoPortService.GetCargoPorts(targetBuilding.RuntimeBuildingId);
 		for (int i = 0; i < ports.Count; ++i)
 		{
@@ -291,36 +323,42 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			if (port == null || port.IsInbound == false)
 				continue;
 
-			CreatePortMarker(port, targetPortColor, "IN");
+			CreatePortMarker(port, visual, "IN");
 		}
 	}
 
 	private void CreateSelectedTargetBuildingMarker()
 	{
 		if (targetBuilding != null)
-			CreateBuildingMarker(targetBuilding, targetBuildingColor, targetBuilding.DisplayName);
+			CreateBuildingMarker(targetBuilding, GetMarkerVisual(LinkMarkerType.TargetBuilding), targetBuilding.DisplayName);
 	}
 
-	private void CreatePortMarker(CargoPort port, Color color, string labelText)
+	private void CreatePortMarker(CargoPort port, LinkMarkerVisualConfig visual, string labelText)
 	{
 		if (port == null)
 			return;
 
 		GameObject marker = CreateQuadObject("CargoPortLinkMarker");
-		marker.transform.position = BuildWorldPosition(port.GridPosition, portMarkerHeight);
+		if (marker == null)
+			return;
+
+		marker.transform.position = BuildWorldPosition(port.GridPosition, visual.MarkerHeight);
 		marker.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
 		marker.transform.localScale = new Vector3(0.9f, 0.9f, 1f);
-		marker.GetComponent<MeshRenderer>().material.color = color;
+		marker.GetComponent<MeshRenderer>().material.color = visual.MarkerColor;
 		overlayObjects.Add(marker);
 
-		GameObject label = CreateLabelObject("CargoPortLinkLabel", labelText, color.a >= 0.6f ? Color.white : Color.black);
-		label.transform.position = BuildWorldPosition(port.GridPosition, labelHeight);
+		GameObject label = CreateLabelObject("CargoPortLinkLabel", labelText, visual.LabelColor);
+		if (label == null)
+			return;
+
+		label.transform.position = BuildWorldPosition(port.GridPosition, visual.LabelHeight);
 		label.transform.rotation = Quaternion.Euler(90f, 180f, 0f);
-		label.transform.localScale = Vector3.one * 0.24f;
+		label.transform.localScale = Vector3.one * visual.LabelScale;
 		overlayObjects.Add(label);
 	}
 
-	private void CreateBuildingMarker(Building building, Color color, string labelText)
+	private void CreateBuildingMarker(Building building, LinkMarkerVisualConfig visual, string labelText)
 	{
 		if (building == null || BuildingFootprintService == null)
 			return;
@@ -329,23 +367,77 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			return;
 
 		GameObject marker = CreateQuadObject("CargoPortTargetBuildingMarker");
+		if (marker == null)
+			return;
+
 		marker.transform.position = new Vector3(
 			bounds.xMin + (bounds.width * 0.5f) - 0.5f,
-			buildingMarkerHeight,
+			visual.MarkerHeight,
 			bounds.yMin + (bounds.height * 0.5f) - 0.5f);
 		marker.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
 		marker.transform.localScale = new Vector3(bounds.width, bounds.height, 1f);
-		marker.GetComponent<MeshRenderer>().material.color = color;
+		marker.GetComponent<MeshRenderer>().material.color = visual.MarkerColor;
 		overlayObjects.Add(marker);
 
-		GameObject label = CreateLabelObject("CargoPortTargetBuildingLabel", labelText, Color.white);
+		GameObject label = CreateLabelObject("CargoPortTargetBuildingLabel", labelText, visual.LabelColor);
+		if (label == null)
+			return;
+
 		label.transform.position = new Vector3(
 			bounds.xMin + (bounds.width * 0.5f) - 0.5f,
-			labelHeight,
+			visual.LabelHeight,
 			bounds.yMin + (bounds.height * 0.5f) - 0.5f);
 		label.transform.rotation = Quaternion.Euler(90f, 180f, 0f);
-		label.transform.localScale = Vector3.one * 0.28f;
+		label.transform.localScale = Vector3.one * visual.LabelScale;
 		overlayObjects.Add(label);
+	}
+
+	private void EnsureMarkerVisuals()
+	{
+		markerVisuals ??= new SerializedDictionary<LinkMarkerType, LinkMarkerVisualConfig>();
+
+		SetMissingMarkerVisual(
+			LinkMarkerType.SourcePort,
+			new LinkMarkerVisualConfig(
+				0.04f,
+				0.045f,
+				0.24f,
+				new Color(0.9f, 0.42f, 0.2f, 0.8f),
+				Color.white));
+
+		SetMissingMarkerVisual(
+			LinkMarkerType.TargetBuilding,
+			new LinkMarkerVisualConfig(
+				0.03f,
+				0.045f,
+				0.28f,
+				new Color(0.2f, 0.62f, 0.95f, 0.28f),
+				Color.white));
+
+		SetMissingMarkerVisual(
+			LinkMarkerType.TargetPort,
+			new LinkMarkerVisualConfig(
+				0.04f,
+				0.045f,
+				0.24f,
+				new Color(0.2f, 0.82f, 0.5f, 0.85f),
+				Color.white));
+	}
+
+	private LinkMarkerVisualConfig GetMarkerVisual(LinkMarkerType markerType)
+	{
+		EnsureMarkerVisuals();
+		return markerVisuals.TryGetValue(markerType, out LinkMarkerVisualConfig visual)
+			? visual
+			: default;
+	}
+
+	private void SetMissingMarkerVisual(LinkMarkerType markerType, LinkMarkerVisualConfig visual)
+	{
+		if (markerVisuals.ContainsKey(markerType))
+			return;
+
+		markerVisuals[markerType] = visual;
 	}
 
 	private bool TryGetCargoPortAt(Unity.Mathematics.int3 pos, out CargoPort cargoPort)

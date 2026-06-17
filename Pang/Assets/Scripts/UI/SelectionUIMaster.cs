@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using AYellowpaper.SerializedCollections;
 using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
@@ -8,6 +9,32 @@ using UnityEngine.UI;
 
 public class SelectionUIMaster : MonoBehaviour
 {
+	private enum WorldHighlightType
+	{
+		SelectedTile,
+		InteractionTile,
+		InteractionLabel,
+	}
+
+	[System.Serializable]
+	private struct WorldHighlightVisualConfig
+	{
+		public GameObject Prefab;
+		public float Height;
+		public Vector3 Scale;
+		public float FontSize;
+		public Color Color;
+
+		public WorldHighlightVisualConfig(GameObject prefab, float height, Vector3 scale, float fontSize, Color color)
+		{
+			Prefab = prefab;
+			Height = height;
+			Scale = scale;
+			FontSize = fontSize;
+			Color = color;
+		}
+	}
+
 	[Header("Select UIs")]
 	[SerializeField] private SelectCardUI cardUI = null;
 	[SerializeField] private SelectDetailUI detailUI = null;
@@ -20,18 +47,9 @@ public class SelectionUIMaster : MonoBehaviour
 	[SerializeField] private AirlockDetailContent airlockDetailContentPrefab;
 
 	[Header("World Highlight")]
-	[SerializeField] private GameObject selectedTilePrefab;
-	[SerializeField] private GameObject interactionTilePrefab;
-	[SerializeField] private GameObject interactionLabelPrefab;
+	[SerializedDictionary("Highlight", "Visual")]
+	[SerializeField] private SerializedDictionary<WorldHighlightType, WorldHighlightVisualConfig> highlightVisuals = new();
 	[SerializeField] private RectTransform interactionModeHudPrefab;
-	[SerializeField] private float selectedTileHeight = 0.03f;
-	[SerializeField] private float interactionTileHeight = 0.035f;
-	[SerializeField] private float interactionLabelHeight = 0.04f;
-	[SerializeField] private Vector3 selectedTileScale = new(1.08f, 1f, 1.08f);
-	[SerializeField] private Vector3 interactionTileScale = new(0.72f, 1f, 0.72f);
-	[SerializeField] private float interactionLabelFontSize = 3.6f;
-	[SerializeField] private float interactionLabelScale = 0.2f;
-	[SerializeField] private Color interactionLabelColor = Color.white;
 	[SerializeField] private int interactionHighlightPoolSize = 8;
 
 	private readonly List<Type> providerTypes = new();
@@ -54,6 +72,7 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void Awake()
 	{
+		EnsureHighlightVisuals();
 		providerTypes.Add(typeof(CargoPortUIProvider));
 		providerTypes.Add(typeof(AirlockUIProvider));
 		providerTypes.Add(typeof(PackingStationUIProvider));
@@ -85,6 +104,11 @@ public class SelectionUIMaster : MonoBehaviour
 			buildingDetailsButton.onClick.AddListener(HandleBuildingDetailsClicked);
 
 		RefreshModeHud();
+	}
+
+	private void OnValidate()
+	{
+		EnsureHighlightVisuals();
 	}
 
 	private void OnDisable()
@@ -272,13 +296,14 @@ public class SelectionUIMaster : MonoBehaviour
 	private void EnsureHighlightRoot()
 	{
 		if (selectionHighlightRoot != null)
+		{
+			EnsureHighlightPools();
 			return;
+		}
 
 		selectionHighlightRoot = new GameObject("SelectionHighlightRoot");
 		selectionHighlightRoot.transform.SetParent(transform, false);
-		if (interactionTilePrefab != null)
-			interactionHighlightPool = new GameObjectPool(interactionHighlightPoolSize, () => CreateHighlight("InteractionHighlight", interactionTilePrefab));
-		interactionLabelPool = new GameObjectPool(interactionHighlightPoolSize, CreateInteractionLabel);
+		EnsureHighlightPools();
 	}
 
 	private void EnsureDetailWindowManager()
@@ -425,13 +450,14 @@ public class SelectionUIMaster : MonoBehaviour
 		if (currentObj == null)
 			return;
 
+		WorldHighlightVisualConfig selectedVisual = GetHighlightVisual(WorldHighlightType.SelectedTile);
 		if (currentObj.TryGetComponent<IGridPlaceable>(out var placeable))
 		{
-			selectedHighlight ??= CreateHighlight("SelectedHighlight", selectedTilePrefab);
+			selectedHighlight ??= CreateHighlight("SelectedHighlight", selectedVisual.Prefab);
 			if (selectedHighlight != null)
 			{
-				selectedHighlight.transform.position = BuildHighlightPosition(placeable.GridPosition, selectedTileHeight);
-				selectedHighlight.transform.localScale = selectedTileScale;
+				selectedHighlight.transform.position = BuildHighlightPosition(placeable.GridPosition, selectedVisual.Height);
+				selectedHighlight.transform.localScale = selectedVisual.Scale;
 				selectedHighlight.SetActive(true);
 			}
 		}
@@ -439,14 +465,18 @@ public class SelectionUIMaster : MonoBehaviour
 		if (currentObj.TryGetComponent<IInteractionPoint>(out var interactable) == false)
 			return;
 
+		WorldHighlightVisualConfig interactionTileVisual = GetHighlightVisual(WorldHighlightType.InteractionTile);
 		var points = interactable.InteractionPoints;
 		for (int i = 0; i < points.Count; ++i)
 		{
 			if (interactionHighlightPool != null)
 			{
 				GameObject highlight = interactionHighlightPool.Get();
-				highlight.transform.position = BuildHighlightPosition(points[i].Point, interactionTileHeight);
-				highlight.transform.localScale = interactionTileScale;
+				if (highlight != null)
+				{
+					highlight.transform.position = BuildHighlightPosition(points[i].Point, interactionTileVisual.Height);
+					highlight.transform.localScale = interactionTileVisual.Scale;
+				}
 			}
 
 			GameObject label = interactionLabelPool.Get();
@@ -480,20 +510,21 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private GameObject CreateInteractionLabel()
 	{
-		if (interactionLabelPrefab == null)
+		WorldHighlightVisualConfig visual = GetHighlightVisual(WorldHighlightType.InteractionLabel);
+		if (visual.Prefab == null)
 		{
 			Debug.LogError("[SelectionUIMaster] InteractionLabel prefab is missing.", this);
 			return null;
 		}
 
-		GameObject label = Instantiate(interactionLabelPrefab, selectionHighlightRoot.transform);
+		GameObject label = Instantiate(visual.Prefab, selectionHighlightRoot.transform);
 		label.name = "InteractionLabel";
 		if (label == null)
 			return null;
 
 		var text = label.GetComponent<TextMeshPro>();
-		text.fontSize = interactionLabelFontSize;
-		text.color = interactionLabelColor;
+		text.fontSize = visual.FontSize;
+		text.color = visual.Color;
 		label.SetActive(false);
 		return label;
 	}
@@ -503,13 +534,14 @@ public class SelectionUIMaster : MonoBehaviour
 		if (label == null)
 			return;
 
+		WorldHighlightVisualConfig visual = GetHighlightVisual(WorldHighlightType.InteractionLabel);
 		var text = label.GetComponent<TextMeshPro>();
 		text.text = BuildInteractionLabel(point.InteractionKind);
-		text.color = interactionLabelColor;
+		text.color = visual.Color;
 
-		label.transform.position = BuildHighlightPosition(point.Point, interactionLabelHeight);
+		label.transform.position = BuildHighlightPosition(point.Point, visual.Height);
 		label.transform.rotation = Quaternion.Euler(90f, 180f, 0f);
-		label.transform.localScale = Vector3.one * interactionLabelScale;
+		label.transform.localScale = visual.Scale;
 	}
 
 	private static string BuildInteractionLabel(InteractionKind interactionKind)
@@ -564,6 +596,64 @@ public class SelectionUIMaster : MonoBehaviour
 			runtimeDetailContent
 		};
 		detailContents = contents.ToArray();
+	}
+
+	private void EnsureHighlightVisuals()
+	{
+		highlightVisuals ??= new SerializedDictionary<WorldHighlightType, WorldHighlightVisualConfig>();
+
+		SetMissingHighlightVisual(
+			WorldHighlightType.SelectedTile,
+			new WorldHighlightVisualConfig(
+				null,
+				0.03f,
+				new Vector3(1.08f, 1f, 1.08f),
+				0f,
+				Color.white));
+
+		SetMissingHighlightVisual(
+			WorldHighlightType.InteractionTile,
+			new WorldHighlightVisualConfig(
+				null,
+				0.035f,
+				new Vector3(0.72f, 1f, 0.72f),
+				0f,
+				Color.white));
+
+		SetMissingHighlightVisual(
+			WorldHighlightType.InteractionLabel,
+			new WorldHighlightVisualConfig(
+				null,
+				0.04f,
+				Vector3.one * 0.2f,
+				3.6f,
+				Color.white));
+	}
+
+	private void EnsureHighlightPools()
+	{
+		WorldHighlightVisualConfig interactionTileVisual = GetHighlightVisual(WorldHighlightType.InteractionTile);
+		if (interactionHighlightPool == null && interactionTileVisual.Prefab != null)
+			interactionHighlightPool = new GameObjectPool(interactionHighlightPoolSize, () => CreateHighlight("InteractionHighlight", interactionTileVisual.Prefab));
+
+		if (interactionLabelPool == null)
+			interactionLabelPool = new GameObjectPool(interactionHighlightPoolSize, CreateInteractionLabel);
+	}
+
+	private WorldHighlightVisualConfig GetHighlightVisual(WorldHighlightType highlightType)
+	{
+		EnsureHighlightVisuals();
+		return highlightVisuals.TryGetValue(highlightType, out WorldHighlightVisualConfig visual)
+			? visual
+			: default;
+	}
+
+	private void SetMissingHighlightVisual(WorldHighlightType highlightType, WorldHighlightVisualConfig visual)
+	{
+		if (highlightVisuals.ContainsKey(highlightType))
+			return;
+
+		highlightVisuals[highlightType] = visual;
 	}
 
 	private static T FindNamedComponent<T>(Transform root, string childName)
