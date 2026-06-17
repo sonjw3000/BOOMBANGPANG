@@ -8,21 +8,16 @@ namespace Assets.Scripts.UI
 {
 	public class PolicyControlWindow : MonoBehaviour
 	{
-		private const float MinSpeedMultiplier = 0.5f;
-		private const float MaxSpeedMultiplier = 2.0f;
-
 		private enum TabType
 		{
-			WorkApproach,
-			WorkSpeed,
+			Inbound,
+			Outbound,
 		}
 
-		private sealed class WorkerSpeedControls
+		private sealed class ActionButtonControls
 		{
-			public Slider MoveSlider;
-			public TMP_Text MoveValueText;
-			public Slider WorkSlider;
-			public TMP_Text WorkValueText;
+			public Button Button;
+			public TMP_Text LabelText;
 		}
 
 		private static readonly PlacingPolicyType[] PlacingPolicyOptions =
@@ -40,21 +35,33 @@ namespace Assets.Scripts.UI
 		private static Font defaultFont;
 
 		[SerializeField] private UIWindow window;
-		[SerializeField] private string windowTitle = "Policy Control";
-
-		private readonly Dictionary<WorkerType, WorkerSpeedControls> speedControlsByType = new();
+		[SerializeField] private string windowTitle = "Workflow Control";
 
 		private Dropdown storingCollectingPolicyDropdown;
 		private Dropdown placingPolicyDropdown;
-		private Dropdown pickingCollectingPolicyDropdown;
-		private GameObject workApproachTabRoot;
-		private GameObject workSpeedTabRoot;
+		private GameObject inboundTabRoot;
+		private GameObject outboundTabRoot;
+		private TMP_Text unloadingDestinationSummaryText;
+		private TMP_Text unloadingSelectionStatusText;
+		private TMP_Text outboundPlaceholderText;
+		private ActionButtonControls landingZoneButton;
+		private ActionButtonControls unloadingDestinationButton;
 		private TabType currentTab;
 		private bool initialized;
+		private bool isSelectingUnloadingDestination;
+		private string unloadingSelectionStatusMessage = string.Empty;
 
-		private WorkPolicyService WorkPolicyService => GameContext.HasInstance ? GameContext.Instance.WMSys?.WorkPolicyService : null;
+		private readonly List<GameObject> overlayObjects = new();
+		private GameObject overlayRoot;
+
+		private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
 		private InboundWorkflowService InboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;
 		private OutboundWorkflowService OutboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
+		private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+		private BuildingFootprintService BuildingFootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
+		private CargoPortService CargoPortService => InboundWorkflowService != null ? InboundWorkflowService.CargoPortService : null;
+
+		private ZoneControlWindow zoneControlWindow;
 
 		private void Awake()
 		{
@@ -64,13 +71,28 @@ namespace Assets.Scripts.UI
 		private void OnEnable()
 		{
 			EnsureInitialized();
+			EnsureInteractionSubscriptions();
 			RefreshFromState();
+		}
+
+		private void OnDestroy()
+		{
+			if (window != null)
+			{
+				window.Opened -= HandleWindowOpened;
+				window.Closed -= HandleWindowClosed;
+			}
+
+			ReleaseInteractionSubscriptions();
+
+			ClearOverlay();
+			if (overlayRoot != null)
+				Destroy(overlayRoot);
 		}
 
 		public void ToggleWindow()
 		{
 			EnsureInitialized();
-
 			if (window == null)
 				return;
 
@@ -114,16 +136,90 @@ namespace Assets.Scripts.UI
 			window.SetTitle(windowTitle);
 			BuildContent();
 			SetupTabs();
-			SetTab((int)TabType.WorkApproach);
+			SetTab((int)TabType.Inbound);
+			window.Opened -= HandleWindowOpened;
+			window.Closed -= HandleWindowClosed;
+			window.Opened += HandleWindowOpened;
+			window.Closed += HandleWindowClosed;
+			EnsureInteractionSubscriptions();
+
+			EnsureOverlayRoot();
 			window.Close();
 			initialized = true;
+		}
+
+		private void EnsureInteractionSubscriptions()
+		{
+			if (Interaction == null)
+				return;
+
+			Interaction.OnHandleBuildingLinkSelection -= HandleUnloadingDestinationSelection;
+			Interaction.OnHandleBuildingLinkSelection += HandleUnloadingDestinationSelection;
+			Interaction.OnModeChanged -= HandleInteractionModeChanged;
+			Interaction.OnModeChanged += HandleInteractionModeChanged;
+		}
+
+		private void ReleaseInteractionSubscriptions()
+		{
+			if (Interaction == null)
+				return;
+
+			Interaction.OnHandleBuildingLinkSelection -= HandleUnloadingDestinationSelection;
+			Interaction.OnModeChanged -= HandleInteractionModeChanged;
+		}
+
+		private void HandleWindowOpened()
+		{
+			RefreshFromState();
+		}
+
+		private void HandleWindowClosed()
+		{
+			EndUnloadingDestinationSelection(true);
+		}
+
+		private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
+		{
+			if (isSelectingUnloadingDestination == false)
+				return;
+
+			if (Interaction == null || Interaction.Mode != InteractionContext.InteractionMode.BuildingLinkEdit)
+			{
+				EndUnloadingDestinationSelection(false);
+				return;
+			}
+
+			RefreshOverlay();
+			UpdateInboundStatusText();
+		}
+
+		private bool HandleUnloadingDestinationSelection(Unity.Mathematics.int3 pos)
+		{
+			if (isSelectingUnloadingDestination == false || Interaction == null || Interaction.Mode != InteractionContext.InteractionMode.BuildingLinkEdit)
+				return false;
+
+			if (TryGetBuildingAt(pos, out Building building) == false || building == null)
+				return false;
+
+			if (HasInboundPorts(building) == false)
+			{
+				unloadingSelectionStatusMessage = $"{building.DisplayName} has no inbound cargo ports.";
+				UpdateInboundStatusText();
+				return true;
+			}
+
+			InboundWorkflowService?.SetUnloadingDestinationBuilding(building);
+			unloadingSelectionStatusMessage = $"Unloading destination set to {building.DisplayName}.";
+			EndUnloadingDestinationSelection(true);
+			RefreshFromState();
+			return true;
 		}
 
 		private void SetupTabs()
 		{
 			window.ClearTabs();
-			window.AddTab("WorkApproach", SetTab);
-			window.AddTab("WorkSpeed", SetTab);
+			window.AddTab("Inbound", SetTab);
+			window.AddTab("Outbound", SetTab);
 			window.UpdateTabVisuals((int)currentTab);
 		}
 
@@ -131,10 +227,10 @@ namespace Assets.Scripts.UI
 		{
 			currentTab = (TabType)tabIndex;
 
-			if (workApproachTabRoot != null)
-				workApproachTabRoot.SetActive(currentTab == TabType.WorkApproach);
-			if (workSpeedTabRoot != null)
-				workSpeedTabRoot.SetActive(currentTab == TabType.WorkSpeed);
+			if (inboundTabRoot != null)
+				inboundTabRoot.SetActive(currentTab == TabType.Inbound);
+			if (outboundTabRoot != null)
+				outboundTabRoot.SetActive(currentTab == TabType.Outbound);
 
 			window?.UpdateTabVisuals(tabIndex);
 		}
@@ -146,18 +242,25 @@ namespace Assets.Scripts.UI
 				return;
 
 			ClearChildren(contentRoot);
-			speedControlsByType.Clear();
 
-			GameObject container = CreateVerticalContainer("PolicyControlContent", contentRoot, 12f);
-			workApproachTabRoot = CreateVerticalContainer("WorkApproachTab", container.transform, 10f);
-			workSpeedTabRoot = CreateVerticalContainer("WorkSpeedTab", container.transform, 10f);
+			GameObject container = CreateVerticalContainer("WorkflowControlContent", contentRoot, 12f);
+			inboundTabRoot = CreateVerticalContainer("InboundTab", container.transform, 10f);
+			outboundTabRoot = CreateVerticalContainer("OutboundTab", container.transform, 10f);
 
-			BuildWorkApproachTab(workApproachTabRoot.transform);
-			BuildWorkSpeedTab(workSpeedTabRoot.transform);
+			BuildInboundTab(inboundTabRoot.transform);
+			BuildOutboundTab(outboundTabRoot.transform);
 		}
 
-		private void BuildWorkApproachTab(Transform parent)
+		private void BuildInboundTab(Transform parent)
 		{
+			CreateSectionHeader(parent, "Inbound Routing");
+			CreateHelpText(parent, "Configure rocket landing zones and which building receives inbound unloading.");
+
+			landingZoneButton = CreateButtonRow(parent, "Landing Zones", "Edit Landing Zones", HandleLandingZoneButtonClicked);
+			unloadingDestinationButton = CreateButtonRow(parent, "Unloading Destination", "Select Building", HandleUnloadingDestinationButtonClicked);
+			unloadingDestinationSummaryText = CreateBodyText("UnloadingDestinationSummary", parent, string.Empty);
+			unloadingSelectionStatusText = CreateBodyText("UnloadingSelectionStatus", parent, string.Empty);
+
 			CreateSectionHeader(parent, "Storing");
 			storingCollectingPolicyDropdown = CreateDropdownRow(parent, "Collecting Policy", HandleStoringCollectingPolicyChanged);
 			storingCollectingPolicyDropdown.ClearOptions();
@@ -174,42 +277,12 @@ namespace Assets.Scripts.UI
 				GetPlacingPolicyLabel(PlacingPolicyType.BelowAverageFilledNearest),
 				GetPlacingPolicyLabel(PlacingPolicyType.Nearest),
 			});
-
-			CreateSectionHeader(parent, "Picking");
-			pickingCollectingPolicyDropdown = CreateDropdownRow(parent, "Collecting Policy", HandlePickingCollectingPolicyChanged);
-			pickingCollectingPolicyDropdown.ClearOptions();
-			pickingCollectingPolicyDropdown.AddOptions(new List<string>
-			{
-				GetCollectingPolicyLabel(CollectingPolicyType.Nearest),
-				GetCollectingPolicyLabel(CollectingPolicyType.LargestQuantityNearest),
-			});
 		}
 
-		private void BuildWorkSpeedTab(Transform parent)
+		private void BuildOutboundTab(Transform parent)
 		{
-			CreateSectionHeader(parent, "Worker Speed Multipliers");
-
-			foreach (WorkerType workerType in Enum.GetValues(typeof(WorkerType)))
-			{
-				GameObject card = CreateCard($"{workerType}Card", parent);
-				CreateText("WorkerTypeLabel", card.transform, workerType.ToString()).fontSize = 22f;
-
-				WorkerSpeedControls controls = new();
-				controls.MoveSlider = CreateSliderRow(card.transform, "Move Speed", value =>
-				{
-					WorkPolicyService?.SetMoveSpeedMultiplier(workerType, value);
-					UpdateValueLabel(speedControlsByType[workerType], true, value);
-				}, out TMP_Text moveValueText);
-				controls.MoveValueText = moveValueText;
-				controls.WorkSlider = CreateSliderRow(card.transform, "Work Speed", value =>
-				{
-					WorkPolicyService?.SetWorkSpeedMultiplier(workerType, value);
-					UpdateValueLabel(speedControlsByType[workerType], false, value);
-				}, out TMP_Text workValueText);
-				controls.WorkValueText = workValueText;
-
-				speedControlsByType[workerType] = controls;
-			}
+			CreateSectionHeader(parent, "Outbound");
+			outboundPlaceholderText = CreateBodyText("OutboundPlaceholder", parent, "Outbound workflow settings will be added here.");
 		}
 
 		private void RefreshFromState()
@@ -217,43 +290,93 @@ namespace Assets.Scripts.UI
 			if (initialized == false)
 				return;
 
-			if (InboundWorkflowService != null && placingPolicyDropdown != null)
+			if (InboundWorkflowService != null)
 			{
 				if (storingCollectingPolicyDropdown != null)
 				{
-					int collectingDropdownIndex = Array.IndexOf(CollectingPolicyOptions, InboundWorkflowService.StoringCollectingPolicyType);
-					storingCollectingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, collectingDropdownIndex));
+					int collectingIndex = Array.IndexOf(CollectingPolicyOptions, InboundWorkflowService.StoringCollectingPolicyType);
+					storingCollectingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, collectingIndex));
 				}
 
-				int dropdownIndex = Array.IndexOf(PlacingPolicyOptions, InboundWorkflowService.StoringPlacingPolicyType);
-				placingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, dropdownIndex));
+				if (placingPolicyDropdown != null)
+				{
+					int placingIndex = Array.IndexOf(PlacingPolicyOptions, InboundWorkflowService.StoringPlacingPolicyType);
+					placingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, placingIndex));
+				}
 			}
 
-			if (OutboundWorkflowService != null && pickingCollectingPolicyDropdown != null)
+			if (unloadingDestinationSummaryText != null)
+				unloadingDestinationSummaryText.text = BuildUnloadingDestinationSummary();
+
+			UpdateInboundStatusText();
+
+			if (outboundPlaceholderText != null)
+				outboundPlaceholderText.text = "Outbound workflow settings will be added here.";
+		}
+
+		private void HandleLandingZoneButtonClicked()
+		{
+			EnsureZoneControlWindow();
+			zoneControlWindow?.OpenForGlobalZoneType(ZoneType.RocketLanding);
+		}
+
+		private void HandleUnloadingDestinationButtonClicked()
+		{
+			if (isSelectingUnloadingDestination)
 			{
-				int dropdownIndex = Array.IndexOf(CollectingPolicyOptions, OutboundWorkflowService.PickingCollectingPolicyType);
-				pickingCollectingPolicyDropdown.SetValueWithoutNotify(Mathf.Max(0, dropdownIndex));
+				EndUnloadingDestinationSelection(true);
+				return;
 			}
 
-			if (WorkPolicyService == null)
+			BeginUnloadingDestinationSelection();
+		}
+
+		private void BeginUnloadingDestinationSelection()
+		{
+			if (Interaction == null)
 				return;
 
-			foreach (KeyValuePair<WorkerType, WorkerSpeedControls> entry in speedControlsByType)
+			isSelectingUnloadingDestination = true;
+			unloadingSelectionStatusMessage = "Select a building with inbound cargo ports. Right click to cancel.";
+			Interaction.EnterBuildingLinkMode();
+			RefreshOverlay();
+			UpdateInboundStatusText();
+		}
+
+		private void EndUnloadingDestinationSelection(bool exitInteractionMode)
+		{
+			if (isSelectingUnloadingDestination == false)
+				return;
+
+			isSelectingUnloadingDestination = false;
+			ClearOverlay();
+			if (exitInteractionMode && Interaction != null && Interaction.Mode == InteractionContext.InteractionMode.BuildingLinkEdit)
+				Interaction.ExitBuildingLinkMode();
+
+			UpdateInboundStatusText();
+		}
+
+		private void UpdateInboundStatusText()
+		{
+			if (unloadingSelectionStatusText == null)
+				return;
+
+			if (isSelectingUnloadingDestination)
 			{
-				float moveValue = WorkPolicyService.GetMoveSpeedMultiplier(entry.Key);
-				float workValue = WorkPolicyService.GetWorkSpeedMultiplier(entry.Key);
-				entry.Value.MoveSlider.SetValueWithoutNotify(moveValue);
-				entry.Value.WorkSlider.SetValueWithoutNotify(workValue);
-				UpdateValueLabel(entry.Value, true, moveValue);
-				UpdateValueLabel(entry.Value, false, workValue);
+				unloadingSelectionStatusText.text = string.IsNullOrWhiteSpace(unloadingSelectionStatusMessage)
+					? "Select a building with inbound cargo ports. Right click to cancel."
+					: unloadingSelectionStatusMessage;
+				return;
 			}
+
+			unloadingSelectionStatusText.text = string.IsNullOrWhiteSpace(unloadingSelectionStatusMessage)
+				? "Choose which building should receive unloading from landed rockets."
+				: unloadingSelectionStatusMessage;
 		}
 
 		private void HandlePlacingPolicyChanged(int optionIndex)
 		{
-			if (InboundWorkflowService == null)
-				return;
-			if (optionIndex < 0 || optionIndex >= PlacingPolicyOptions.Length)
+			if (InboundWorkflowService == null || optionIndex < 0 || optionIndex >= PlacingPolicyOptions.Length)
 				return;
 
 			InboundWorkflowService.SetStoringPlacingPolicy(PlacingPolicyOptions[optionIndex]);
@@ -261,28 +384,141 @@ namespace Assets.Scripts.UI
 
 		private void HandleStoringCollectingPolicyChanged(int optionIndex)
 		{
-			if (InboundWorkflowService == null)
-				return;
-			if (optionIndex < 0 || optionIndex >= CollectingPolicyOptions.Length)
+			if (InboundWorkflowService == null || optionIndex < 0 || optionIndex >= CollectingPolicyOptions.Length)
 				return;
 
 			InboundWorkflowService.SetStoringCollectingPolicy(CollectingPolicyOptions[optionIndex]);
 		}
 
-		private void HandlePickingCollectingPolicyChanged(int optionIndex)
+		private string BuildUnloadingDestinationSummary()
 		{
-			if (OutboundWorkflowService == null)
-				return;
-			if (optionIndex < 0 || optionIndex >= CollectingPolicyOptions.Length)
-				return;
+			if (InboundWorkflowService == null)
+				return "Unloading destination building: unavailable.";
 
-			OutboundWorkflowService.SetPickingCollectingPolicy(CollectingPolicyOptions[optionIndex]);
+			if (InboundWorkflowService.TryGetUnloadingDestinationBuilding(out Building building) && building != null)
+				return $"Unloading destination building: {building.DisplayName}";
+
+			return "Unloading destination building: automatic (nearest valid inbound cargo port)";
+		}
+
+		private bool TryGetBuildingAt(Unity.Mathematics.int3 pos, out Building building)
+		{
+			building = null;
+			if (GameContext.HasInstance == false || GameContext.Instance.GridService == null || BuildingManager == null)
+				return false;
+
+			GridCell cell = GameContext.Instance.GridService.GetCell(pos);
+			if (cell == null || cell.BuildingId == 0)
+				return false;
+
+			return BuildingManager.TryGetBuilding(cell.BuildingId, out building) && building != null;
+		}
+
+		private bool HasInboundPorts(Building building)
+		{
+			if (building == null || CargoPortService == null)
+				return false;
+
+			List<CargoPort> ports = new();
+			return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port != null && port.IsInbound);
+		}
+
+		private void EnsureZoneControlWindow()
+		{
+			if (zoneControlWindow == null)
+				zoneControlWindow = FindFirstObjectByType<ZoneControlWindow>(FindObjectsInactive.Include);
 		}
 
 		private void EnsureHostActive()
 		{
 			if (gameObject.activeSelf == false)
 				gameObject.SetActive(true);
+		}
+
+		private void EnsureOverlayRoot()
+		{
+			if (overlayRoot != null)
+				return;
+
+			overlayRoot = new GameObject("WorkflowControlOverlayRoot");
+			Transform parent = GameContext.HasInstance ? GameContext.Instance.transform : transform;
+			overlayRoot.transform.SetParent(parent, false);
+			overlayRoot.hideFlags = HideFlags.HideInHierarchy;
+		}
+
+		private void RefreshOverlay()
+		{
+			ClearOverlay();
+			if (isSelectingUnloadingDestination == false || BuildingManager == null || BuildingFootprintService == null)
+				return;
+
+			IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+			uint selectedBuildingId = InboundWorkflowService != null ? InboundWorkflowService.UnloadingDestinationBuildingId : 0;
+			for (int i = 0; i < buildings.Count; ++i)
+			{
+				Building building = buildings[i];
+				if (building == null || HasInboundPorts(building) == false)
+					continue;
+
+				bool isSelected = selectedBuildingId != 0 && building.RuntimeBuildingId == selectedBuildingId;
+				CreateBuildingMarker(building, isSelected);
+			}
+		}
+
+		private void CreateBuildingMarker(Building building, bool isSelected)
+		{
+			if (building == null || BuildingFootprintService.TryGetInteriorBounds(building.RuntimeBuildingId, out RectInt bounds, out _) == false)
+				return;
+
+			GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+			quad.name = "WorkflowTargetBuildingMarker";
+			quad.transform.SetParent(overlayRoot.transform, false);
+			quad.transform.position = new Vector3(
+				bounds.xMin + (bounds.width * 0.5f) - 0.5f,
+				0.03f,
+				bounds.yMin + (bounds.height * 0.5f) - 0.5f);
+			quad.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+			quad.transform.localScale = new Vector3(bounds.width, bounds.height, 1f);
+			MeshRenderer renderer = quad.GetComponent<MeshRenderer>();
+			renderer.material.color = isSelected
+				? new Color(0.26f, 0.74f, 0.98f, 0.42f)
+				: new Color(0.22f, 0.85f, 0.48f, 0.28f);
+
+			Collider quadCollider = quad.GetComponent<Collider>();
+			if (quadCollider != null)
+				Destroy(quadCollider);
+
+			overlayObjects.Add(quad);
+
+			GameObject labelObject = new("WorkflowTargetBuildingLabel");
+			labelObject.transform.SetParent(overlayRoot.transform, false);
+			labelObject.transform.position = new Vector3(
+				bounds.xMin + (bounds.width * 0.5f) - 0.5f,
+				0.045f,
+				bounds.yMin + (bounds.height * 0.5f) - 0.5f);
+			labelObject.transform.rotation = Quaternion.Euler(90f, 180f, 0f);
+			labelObject.transform.localScale = Vector3.one * 0.32f;
+
+			TextMeshPro label = labelObject.AddComponent<TextMeshPro>();
+			label.fontSize = 5f;
+			label.alignment = TextAlignmentOptions.Center;
+			label.text = building.DisplayName;
+			label.color = Color.white;
+			if (TMP_Settings.defaultFontAsset != null)
+				label.font = TMP_Settings.defaultFontAsset;
+
+			overlayObjects.Add(labelObject);
+		}
+
+		private void ClearOverlay()
+		{
+			for (int i = 0; i < overlayObjects.Count; ++i)
+			{
+				if (overlayObjects[i] != null)
+					Destroy(overlayObjects[i]);
+			}
+
+			overlayObjects.Clear();
 		}
 
 		private static GameObject CreateVerticalContainer(string objectName, Transform parent, float spacing)
@@ -304,22 +540,28 @@ namespace Assets.Scripts.UI
 			return container;
 		}
 
-		private static GameObject CreateCard(string objectName, Transform parent)
-		{
-			GameObject card = CreateVerticalContainer(objectName, parent, 8f);
-			LayoutElement layout = card.AddComponent<LayoutElement>();
-			layout.minHeight = 120f;
-			layout.preferredHeight = 120f;
-
-			Image image = card.AddComponent<Image>();
-			image.color = new Color(0.12f, 0.12f, 0.12f, 0.82f);
-			return card;
-		}
-
 		private static TMP_Text CreateSectionHeader(Transform parent, string title)
 		{
 			TMP_Text text = CreateText($"{title}Header", parent, title);
 			text.fontSize = 24f;
+			return text;
+		}
+
+		private static TMP_Text CreateHelpText(Transform parent, string value)
+		{
+			TMP_Text text = CreateBodyText("HelpText", parent, value);
+			text.fontSize = 18f;
+			text.color = new Color(0.85f, 0.85f, 0.85f, 1f);
+			return text;
+		}
+
+		private static TMP_Text CreateBodyText(string objectName, Transform parent, string value)
+		{
+			TMP_Text text = CreateText(objectName, parent, value);
+			text.fontSize = 19f;
+			text.textWrappingMode = TextWrappingModes.Normal;
+			text.overflowMode = TextOverflowModes.Overflow;
+			text.GetComponent<LayoutElement>().preferredHeight = 46f;
 			return text;
 		}
 
@@ -478,7 +720,7 @@ namespace Assets.Scripts.UI
 			return dropdown;
 		}
 
-		private static Slider CreateSliderRow(Transform parent, string label, UnityEngine.Events.UnityAction<float> onChanged, out TMP_Text valueText)
+		private static ActionButtonControls CreateButtonRow(Transform parent, string label, string buttonLabel, UnityEngine.Events.UnityAction onClick)
 		{
 			GameObject row = new($"{label}Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
 			row.transform.SetParent(parent, false);
@@ -491,78 +733,36 @@ namespace Assets.Scripts.UI
 			rowLayout.childForceExpandWidth = false;
 			rowLayout.childForceExpandHeight = false;
 
-			row.GetComponent<LayoutElement>().preferredHeight = 36f;
+			row.GetComponent<LayoutElement>().preferredHeight = 42f;
 
 			TMP_Text labelText = CreateText("Label", row.transform, label);
-			labelText.fontSize = 18f;
-			labelText.GetComponent<LayoutElement>().preferredWidth = 140f;
+			labelText.fontSize = 19f;
+			labelText.GetComponent<LayoutElement>().preferredWidth = 180f;
 
-			GameObject sliderObject = new("Slider", typeof(RectTransform), typeof(Slider), typeof(LayoutElement));
-			sliderObject.transform.SetParent(row.transform, false);
-			LayoutElement sliderLayout = sliderObject.GetComponent<LayoutElement>();
-			sliderLayout.preferredWidth = 260f;
-			sliderLayout.preferredHeight = 28f;
+			GameObject buttonObject = new("Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+			buttonObject.transform.SetParent(row.transform, false);
 
-			Slider slider = sliderObject.GetComponent<Slider>();
-			slider.minValue = MinSpeedMultiplier;
-			slider.maxValue = MaxSpeedMultiplier;
-			slider.wholeNumbers = false;
-			slider.direction = Slider.Direction.LeftToRight;
+			Image buttonImage = buttonObject.GetComponent<Image>();
+			buttonImage.color = new Color(0.22f, 0.44f, 0.72f, 1f);
 
-			GameObject background = new("Background", typeof(RectTransform), typeof(Image));
-			background.transform.SetParent(sliderObject.transform, false);
-			RectTransform backgroundRect = background.GetComponent<RectTransform>();
-			backgroundRect.anchorMin = new Vector2(0f, 0.25f);
-			backgroundRect.anchorMax = new Vector2(1f, 0.75f);
-			backgroundRect.offsetMin = Vector2.zero;
-			backgroundRect.offsetMax = Vector2.zero;
-			background.GetComponent<Image>().color = new Color(0.18f, 0.18f, 0.18f, 1f);
+			LayoutElement buttonLayout = buttonObject.GetComponent<LayoutElement>();
+			buttonLayout.preferredHeight = 34f;
+			buttonLayout.preferredWidth = 220f;
 
-			GameObject fillArea = new("Fill Area", typeof(RectTransform));
-			fillArea.transform.SetParent(sliderObject.transform, false);
-			RectTransform fillAreaRect = fillArea.GetComponent<RectTransform>();
-			fillAreaRect.anchorMin = new Vector2(0f, 0.25f);
-			fillAreaRect.anchorMax = new Vector2(1f, 0.75f);
-			fillAreaRect.offsetMin = new Vector2(8f, 0f);
-			fillAreaRect.offsetMax = new Vector2(-8f, 0f);
+			Button button = buttonObject.GetComponent<Button>();
+			button.onClick.RemoveAllListeners();
+			if (onClick != null)
+				button.onClick.AddListener(onClick);
 
-			GameObject fill = new("Fill", typeof(RectTransform), typeof(Image));
-			fill.transform.SetParent(fillArea.transform, false);
-			RectTransform fillRect = fill.GetComponent<RectTransform>();
-			fillRect.anchorMin = new Vector2(0f, 0f);
-			fillRect.anchorMax = new Vector2(1f, 1f);
-			fillRect.offsetMin = Vector2.zero;
-			fillRect.offsetMax = Vector2.zero;
-			fill.GetComponent<Image>().color = new Color(0.2f, 0.55f, 0.85f, 1f);
+			TMP_Text buttonText = CreateText("ButtonLabel", buttonObject.transform, buttonLabel);
+			buttonText.fontSize = 18f;
+			buttonText.alignment = TextAlignmentOptions.Center;
 
-			GameObject handleArea = new("Handle Slide Area", typeof(RectTransform));
-			handleArea.transform.SetParent(sliderObject.transform, false);
-			RectTransform handleAreaRect = handleArea.GetComponent<RectTransform>();
-			handleAreaRect.anchorMin = Vector2.zero;
-			handleAreaRect.anchorMax = Vector2.one;
-			handleAreaRect.offsetMin = new Vector2(8f, 0f);
-			handleAreaRect.offsetMax = new Vector2(-8f, 0f);
-
-			GameObject handle = new("Handle", typeof(RectTransform), typeof(Image));
-			handle.transform.SetParent(handleArea.transform, false);
-			RectTransform handleRect = handle.GetComponent<RectTransform>();
-			handleRect.sizeDelta = new Vector2(18f, 18f);
-			handle.GetComponent<Image>().color = new Color(0.95f, 0.95f, 0.95f, 1f);
-
-			slider.fillRect = fillRect;
-			slider.handleRect = handleRect;
-			slider.targetGraphic = handle.GetComponent<Image>();
-
-			valueText = CreateText("Value", row.transform, FormatMultiplier(1.0f));
-			valueText.fontSize = 18f;
-			valueText.alignment = TextAlignmentOptions.MidlineRight;
-			valueText.GetComponent<LayoutElement>().preferredWidth = 56f;
-
-			slider.onValueChanged.RemoveAllListeners();
-			if (onChanged != null)
-				slider.onValueChanged.AddListener(onChanged);
-
-			return slider;
+			return new ActionButtonControls
+			{
+				Button = button,
+				LabelText = buttonText,
+			};
 		}
 
 		private static Text CreateLegacyText(string objectName, Transform parent, string value)
@@ -597,51 +797,28 @@ namespace Assets.Scripts.UI
 			return defaultFont;
 		}
 
-		private static void UpdateValueLabel(WorkerSpeedControls controls, bool isMoveSlider, float value)
-		{
-			if (controls == null)
-				return;
-
-			TMP_Text target = isMoveSlider ? controls.MoveValueText : controls.WorkValueText;
-			if (target != null)
-				target.text = FormatMultiplier(value);
-		}
-
-		private static string FormatMultiplier(float value) => value.ToString("0.00");
-
 		private static string GetPlacingPolicyLabel(PlacingPolicyType type)
 		{
-			switch (type)
+			return type switch
 			{
-				case PlacingPolicyType.Nearest:
-					return "Nearest";
-
-				case PlacingPolicyType.BelowAverageFilledNearest:
-				default:
-					return "Below Avg Filled + Nearest";
-			}
+				PlacingPolicyType.Nearest => "Nearest",
+				_ => "Below Avg Filled + Nearest",
+			};
 		}
 
 		private static string GetCollectingPolicyLabel(CollectingPolicyType type)
 		{
-			switch (type)
+			return type switch
 			{
-				case CollectingPolicyType.LargestQuantityNearest:
-					return "Largest Qty + Nearest";
-
-				case CollectingPolicyType.Nearest:
-				default:
-					return "Nearest";
-			}
+				CollectingPolicyType.LargestQuantityNearest => "Largest Qty + Nearest",
+				_ => "Nearest",
+			};
 		}
 
 		private static void ClearChildren(Transform parent)
 		{
 			for (int i = parent.childCount - 1; i >= 0; i--)
-			{
 				Destroy(parent.GetChild(i).gameObject);
-			}
 		}
 	}
-
 }

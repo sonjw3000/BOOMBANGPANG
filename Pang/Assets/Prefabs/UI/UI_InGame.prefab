@@ -2882,7 +2882,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: P
+  m_text: W
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 2e498d1c8094910479dc3e1b768306a4, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 2e498d1c8094910479dc3e1b768306a4, type: 2}
@@ -5966,7 +5966,7 @@ GameObject:
   - component: {fileID: 4581144733781041107}
   - component: {fileID: 4580580834488641321}
   m_Layer: 0
-  m_Name: UI_Button_Active_Policy
+  m_Name: UI_Button_Active_Workflow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -11245,7 +11245,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
       propertyPath: m_Name
-      value: PolicyControlWindow
+      value: WorkflowControlWindow
       objectReference: {fileID: 0}
     - target: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
       propertyPath: m_IsActive
@@ -11282,7 +11282,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.UI.PolicyControlWindow
   window: {fileID: 9221868956156457166}
-  windowTitle: Policy Control
+  windowTitle: Workflow Control
 --- !u!114 &9221868956156457166 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8725161867437640522, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}

@@ -201,6 +201,27 @@ public class ZoneManager : MonoBehaviour
 		return HasOverlap(floor, bound, ignore) == false;
 	}
 
+	public bool CanPlaceGlobalZone(ZoneType type, int floor, in RectInt bound, ZoneArea ignore = null)
+	{
+		if (type != ZoneType.RocketLanding)
+			return false;
+
+		if (bound.width <= 0 || bound.height <= 0 || GridService == null)
+			return false;
+
+		for (int z = bound.yMin; z < bound.yMax; ++z)
+		{
+			for (int x = bound.xMin; x < bound.xMax; ++x)
+			{
+				GridCell cell = GridService.GetCell(x, floor, z);
+				if (cell == null || cell.BuildingId != 0)
+					return false;
+			}
+		}
+
+		return HasOverlap(floor, bound, ignore) == false;
+	}
+
 	public ZoneArea AddZone(Building ownerBuilding, string name, ZoneType type, in RectInt bound, int floor)
 	{
 		if (CanPlaceZone(ownerBuilding, floor, bound) == false)
@@ -221,6 +242,27 @@ public class ZoneManager : MonoBehaviour
 	public ZoneArea AddZone(Building ownerBuilding, ZoneType type, in RectInt bound, int floor)
 	{
 		return AddZone(ownerBuilding, BuildDefaultZoneName(type), type, bound, floor);
+	}
+
+	public ZoneArea AddGlobalZone(string name, ZoneType type, in RectInt bound, int floor)
+	{
+		if (CanPlaceGlobalZone(type, floor, bound) == false)
+		{
+			Debug.Log($"Global zone {name} is overlapped or invalid.");
+			return null;
+		}
+
+		ZoneArea res = new(name, type, bound, floor, 0);
+		registeredZones.Add(res);
+		RegisterZone(res);
+		PopulateFacilitiesForZone(res);
+		OnZoneAdded?.Invoke(res);
+		return res;
+	}
+
+	public ZoneArea AddGlobalZone(ZoneType type, in RectInt bound, int floor)
+	{
+		return AddGlobalZone(BuildDefaultZoneName(type), type, bound, floor);
 	}
 
 	public bool RemoveZone(ZoneArea zone)

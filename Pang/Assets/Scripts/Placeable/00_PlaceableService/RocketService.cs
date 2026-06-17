@@ -5,18 +5,10 @@ using UnityEngine;
 public class RocketService : FacilityService<Rocket>
 {
 	[SerializeField] private int initialPoolSize = 5;
-	[SerializeField] private ZoneManager zoneManager;
-	[SerializeField] private ZoneType landingZoneType = ZoneType.RocketLanding;
-	[SerializeField] private int landingZoneFloor = 0;
-	[SerializeField] private int randomSearchCountPerZone = 12;
 	[SerializeField] private FacingDirection landingFacingDirection = FacingDirection.North;
-
+	[SerializeField] [Range(0.0f, 1.0f)] private float hardLandingChance = 0.35f;
 	[SerializeField] private Vector2 fallingTimeRange = new(3.0f, 7.0f);
 	[SerializeField] private Vector2 fallingSpeedRange = new(3.0f, 7.0f);
-	[SerializeField] [Range(0.0f, 1.0f)] private float hardLandingChance = 0.35f;
-
-	[SerializeField] private float timeSinceLastSpawn = 0.0f;
-	[SerializeField] private float spawnInterval = 10.0f;
 
 	[SerializeField] private float rocketPayloadSize = 1000.0f;
 
@@ -25,20 +17,9 @@ public class RocketService : FacilityService<Rocket>
 	private readonly List<GameObject> overridePreviewTargets = new();
 
 	public IReadOnlyList<ShelfBase> Rockets => activeRockets;
+	public event System.Action<Rocket> InboundRocketLanded;
 
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
-	private InboundWorkflowService IBWorkflowService => GameContext.Instance.IBWorkflowSvc;
-	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
-	private ZoneManager ZoneManager
-	{
-		get
-		{
-			if (zoneManager == null && GameContext.HasInstance)
-				zoneManager = GameContext.Instance.ZoneMgr;
-
-			return zoneManager;
-		}
-	}
 
 	private GameObject rocketPoolParent = null;
 	private PlaceableDefinition rocketPD;
@@ -62,25 +43,13 @@ public class RocketService : FacilityService<Rocket>
 			InstantiateNewRocket();
 	}
 
-	private void Update()
+	public bool CanLandAt(in int3 candidatePoint)
 	{
-		timeSinceLastSpawn += Time.deltaTime;
-
-		if (timeSinceLastSpawn >= spawnInterval)
-		{
-			if (DeliveryService.TryPeek(out var _) == false)
-				return;
-
-			timeSinceLastSpawn = 0.0f;
-			SpawnRocketOnRandom();
-		}
+		return CanLand(candidatePoint);
 	}
 
-	public void SpawnRocketOnRandom()
+	public bool TrySpawnInboundRocket(in int3 landingPoint)
 	{
-		if (TryGetLandingPoint(out _, out var landingPoint) == false)
-			return;
-
 		if (rocketPool.Count <= 0)
 			InstantiateNewRocket();
 
@@ -89,7 +58,7 @@ public class RocketService : FacilityService<Rocket>
 		if (rocket == null)
 		{
 			Debug.LogError("RocketService: Failed to dequeue rocket from pool.");
-			return;
+			return false;
 		}
 
 		float randomYRotation = UnityEngine.Random.Range(0.0f, 360.0f);
@@ -106,60 +75,8 @@ public class RocketService : FacilityService<Rocket>
 		rocket.SetupPayloadByDelivery();
 		rocket.enabled = true;
 		rocket.gameObject.SetActive(true);
-	}
 
-	private bool TryGetLandingPoint(out ZoneArea landingZone, out int3 landingPoint)
-	{
-		landingZone = null;
-		landingPoint = default;
-
-		if (ZoneManager == null || rocketPD == null)
-			return false;
-
-		if (ZoneManager.TryGetZones(out var zones, landingZoneFloor, landingZoneType) == false)
-			return false;
-
-		int startIndex = UnityEngine.Random.Range(0, zones.Count);
-		for (int i = 0; i < zones.Count; ++i)
-		{
-			var zone = zones[(startIndex + i) % zones.Count];
-			if (TryFindLandingPoint(zone, out landingPoint))
-			{
-				landingZone = zone;
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	private bool TryFindLandingPoint(ZoneArea zone, out int3 landingPoint)
-	{
-		for (int i = 0; i < Mathf.Max(1, randomSearchCountPerZone); ++i)
-		{
-			zone.GetRandomPoint(out var candidatePoint);
-			if (CanLand(candidatePoint))
-			{
-				landingPoint = candidatePoint;
-				return true;
-			}
-		}
-
-		for (int z = zone.Bounds.yMin; z < zone.Bounds.yMax; ++z)
-		{
-			for (int x = zone.Bounds.xMin; x < zone.Bounds.xMax; ++x)
-			{
-				var candidatePoint = new int3(x, zone.Floor, z);
-				if (CanLand(candidatePoint))
-				{
-					landingPoint = candidatePoint;
-					return true;
-				}
-			}
-		}
-
-		landingPoint = default;
-		return false;
+		return true;
 	}
 
 	private bool CanLand(in int3 candidatePoint)
@@ -266,8 +183,7 @@ public class RocketService : FacilityService<Rocket>
 
 		rocket.enabled = false;
 		rocket.ApplyLandingOutcome();
-
-		IBWorkflowService.BuildTaskByPayload(rocket);
+		InboundRocketLanded?.Invoke(rocket);
 	}
 
 	private RocketLandingOutcome BuildLandingOutcome(in int3 landingPoint)
@@ -309,23 +225,15 @@ public class RocketService : FacilityService<Rocket>
 
 	public RocketServiceSaveData CaptureState()
 	{
-		return new RocketServiceSaveData
-		{
-			TimeSinceLastSpawn = timeSinceLastSpawn,
-		};
+		return new RocketServiceSaveData();
 	}
 
 	public void RestoreState(RocketServiceSaveData data)
 	{
-		if (data == null)
-			return;
-
-		timeSinceLastSpawn = data.TimeSinceLastSpawn;
 	}
 
 	public void ResetRuntimeState()
 	{
-		timeSinceLastSpawn = 0.0f;
 		activeRockets.Clear();
 	}
 }

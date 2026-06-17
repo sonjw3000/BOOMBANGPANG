@@ -488,7 +488,7 @@ public static class TaskSaveDataExtensions
 		if (data.CargoPortId >= 0 && placeables.TryGetValue(data.CargoPortId, out var portObj))
 			portObj.TryGetComponent(out cargoPort);
 
-		UnloadingTask task = new(rocket);
+		UnloadingTask task = new(rocket, cargoPort);
 		task.RestoreState(cargoPort, data.IsUnloadEnd);
 		return task;
 	}

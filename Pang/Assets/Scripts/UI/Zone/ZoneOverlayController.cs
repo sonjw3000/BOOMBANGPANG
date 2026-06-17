@@ -37,6 +37,8 @@ public class ZoneOverlayController : MonoBehaviour
 	private Building currentBuilding;
 	private bool isVisible;
 	private bool buildingModeActive;
+	private bool globalZoneModeActive;
+	private ZoneType globalZoneType = ZoneType.RocketLanding;
 
 	public Building CurrentBuilding => currentBuilding;
 	public bool BuildingModeActive => buildingModeActive;
@@ -135,6 +137,27 @@ public class ZoneOverlayController : MonoBehaviour
 		RefreshOverlayState();
 	}
 
+	public void SetGlobalZoneModeActive(bool active, ZoneType zoneType, int floor = 0)
+	{
+		globalZoneModeActive = active;
+		globalZoneType = zoneType;
+		currentFloor = floor;
+		if (active)
+			currentBuilding = null;
+		if (active == false)
+		{
+			HideAllVisuals();
+			HidePreview();
+			if (Interaction.Mode == InteractionContext.InteractionMode.BuildingZoneEdit)
+				Interaction.ExitZonePlacementMode();
+
+			if (Interaction.SelectedObject != null && Interaction.SelectedObject.TryGetComponent<ZoneSelectionProxy>(out _))
+				Interaction.ClearSelection();
+		}
+
+		RefreshOverlayState();
+	}
+
 	public void SetOverlayVisible(bool visible, Building building = null)
 	{
 		bool buildingChanged = visible && building != null && currentBuilding != building;
@@ -183,6 +206,16 @@ public class ZoneOverlayController : MonoBehaviour
 		if (currentBuilding == null)
 			return;
 
+		Interaction.EnterZonePlacementMode(zoneType, currentFloor);
+	}
+
+	public void BeginCreateGlobal(ZoneType zoneType, int floor)
+	{
+		globalZoneType = zoneType;
+		currentFloor = floor;
+		globalZoneModeActive = true;
+		currentBuilding = null;
+		SetOverlayVisible(true, null);
 		Interaction.EnterZonePlacementMode(zoneType, currentFloor);
 	}
 
@@ -269,30 +302,56 @@ public class ZoneOverlayController : MonoBehaviour
 
 	private GameObject ResolveZoneSelection(int3 pos)
 	{
-		if (IsOverlayActive == false || zoneManager == null || currentBuilding == null || pos.y != currentFloor)
+		if (IsOverlayActive == false || zoneManager == null || pos.y != currentFloor)
 			return null;
 
 		if (zoneManager.TryGetZoneAt(pos, out ZoneArea zone) == false)
 			return null;
 
-		if (zone.RuntimeBuildingId != currentBuilding.RuntimeBuildingId)
-			return null;
+		if (globalZoneModeActive)
+		{
+			if (zone.RuntimeBuildingId != 0 || zone.Type != globalZoneType)
+				return null;
+		}
+		else
+		{
+			if (currentBuilding == null || zone.RuntimeBuildingId != currentBuilding.RuntimeBuildingId)
+				return null;
+		}
 
 		return GetOrCreateProxy(zone).gameObject;
 	}
 
 	private void HandleZonePlacementConfirmed(ZoneType zoneType, RectInt bound, int floor)
 	{
-		if (zoneManager == null || currentBuilding == null || floor != currentFloor)
+		if (zoneManager == null || floor != currentFloor)
 			return;
 
-		if (zoneManager.CanPlaceZone(currentBuilding, floor, bound) == false)
+		if (currentBuilding != null)
 		{
-			Debug.LogWarning($"Cannot create zone {zoneType}: invalid bounds {bound} for building {currentBuilding.DisplayName}");
+			if (zoneManager.CanPlaceZone(currentBuilding, floor, bound) == false)
+			{
+				Debug.LogWarning($"Cannot create zone {zoneType}: invalid bounds {bound} for building {currentBuilding.DisplayName}");
+				return;
+			}
+
+			ZoneArea zone = zoneManager.AddZone(currentBuilding, zoneType, bound, floor);
+			if (zone == null)
+				return;
+
+			RefreshVisibleZones();
+			Interaction.ExitZonePlacementMode();
+			Interaction.ClearSelection();
 			return;
 		}
 
-		ZoneArea createdZone = zoneManager.AddZone(currentBuilding, zoneType, bound, floor);
+		if (globalZoneModeActive == false || zoneType != globalZoneType || zoneManager.CanPlaceGlobalZone(zoneType, floor, bound) == false)
+		{
+			Debug.LogWarning($"Cannot create global zone {zoneType}: invalid bounds {bound}.");
+			return;
+		}
+
+		ZoneArea createdZone = zoneManager.AddGlobalZone(zoneType, bound, floor);
 		if (createdZone == null)
 			return;
 
@@ -303,14 +362,22 @@ public class ZoneOverlayController : MonoBehaviour
 
 	private void HandleZonePlacementPreviewChanged(InteractionContext.ZonePlacementPreview preview)
 	{
-		if (IsOverlayActive == false || currentBuilding == null || Interaction.Mode != InteractionContext.InteractionMode.BuildingZoneEdit || preview.HasStart == false)
+		if (IsOverlayActive == false || Interaction.Mode != InteractionContext.InteractionMode.BuildingZoneEdit || preview.HasStart == false)
 		{
 			HidePreview();
 			return;
 		}
 
 		RectInt bound = BuildRect(preview.Start, preview.End);
-		bool canPlace = zoneManager != null && zoneManager.CanPlaceZone(currentBuilding, preview.Floor, bound);
+		bool canPlace = false;
+		if (zoneManager != null)
+		{
+			if (currentBuilding != null)
+				canPlace = zoneManager.CanPlaceZone(currentBuilding, preview.Floor, bound);
+			else if (globalZoneModeActive && preview.ZoneType == globalZoneType)
+				canPlace = zoneManager.CanPlaceGlobalZone(preview.ZoneType, preview.Floor, bound);
+		}
+
 		Color color = canPlace ? zoneManager.GetZoneColor(preview.ZoneType) : invalidPreviewColor;
 		color.a = canPlace ? overlayAlpha : invalidPreviewColor.a;
 
@@ -332,7 +399,9 @@ public class ZoneOverlayController : MonoBehaviour
 			return;
 
 		bool showAllZones = IsFacilityPlacementActive;
-		IReadOnlyList<ZoneArea> zonesToRender = showAllZones
+		IReadOnlyList<ZoneArea> zonesToRender = globalZoneModeActive
+			? zoneManager.RegisteredZones
+			: showAllZones
 			? zoneManager.RegisteredZones
 			: currentBuilding != null
 				? zoneManager.GetZonesForBuilding(currentBuilding.RuntimeBuildingId)
@@ -347,7 +416,12 @@ public class ZoneOverlayController : MonoBehaviour
 			if (zone == null || zone.Floor != currentFloor)
 				continue;
 
-			if (showAllZones == false && (currentBuilding == null || zone.RuntimeBuildingId != currentBuilding.RuntimeBuildingId))
+			if (globalZoneModeActive)
+			{
+				if (zone.Type != globalZoneType || zone.RuntimeBuildingId != 0)
+					continue;
+			}
+			else if (showAllZones == false && (currentBuilding == null || zone.RuntimeBuildingId != currentBuilding.RuntimeBuildingId))
 				continue;
 
 			GameObject quad = quadPool.Get();
@@ -401,7 +475,7 @@ public class ZoneOverlayController : MonoBehaviour
 		RefreshOverlayState();
 	}
 
-	private bool IsOverlayActive => isVisible || (buildingModeActive && currentBuilding != null) || IsFacilityPlacementActive;
+	private bool IsOverlayActive => isVisible || (buildingModeActive && currentBuilding != null) || globalZoneModeActive || IsFacilityPlacementActive;
 
 	private void RefreshOverlayState()
 	{

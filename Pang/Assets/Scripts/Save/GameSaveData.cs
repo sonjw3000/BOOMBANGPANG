@@ -98,6 +98,7 @@ public sealed class InboundWorkflowPolicySaveData
 {
 	public CollectingPolicyType StoringCollectingPolicy = CollectingPolicyType.Nearest;
 	public PlacingPolicyType StoringPlacingPolicy = PlacingPolicyType.BelowAverageFilledNearest;
+	public uint UnloadingDestinationBuildingId;
 }
 
 [Serializable]

@@ -13,9 +13,10 @@ public class UnloadingTask : WorkerTask
 
 	static private CargoPortService CargoPortService => GameContext.Instance.IBWorkflowSvc.CargoPortService;
 
-	public UnloadingTask(Rocket rocket) : base(TaskType.Unloading)
+	public UnloadingTask(Rocket rocket, CargoPort cargoPort = null) : base(TaskType.Unloading)
 	{
 		targetRocket = rocket;
+		this.cargoPort = cargoPort;
 	}
 
 	public UnloadingTaskSaveData CaptureState(Func<GameObject, int> getPlaceableId)
@@ -124,7 +125,7 @@ public class UnloadingTask : WorkerTask
 		{
 			// todo
 			// add new task to unload remaining items
-			UnloadingTask newTask = new(task.targetRocket);
+			UnloadingTask newTask = new(task.targetRocket, task.cargoPort);
 			GameContext.Instance.TaskMgr.EnqueueTask(newTask);
 		}
 		else
@@ -139,7 +140,8 @@ public class UnloadingTask : WorkerTask
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 		BoxBase box = task.WorkerCarryBox?.CarryingBox;
-		task.cargoPort = CargoPortService.GetClosestAvailableTargetForBox(ctx.Worker.GridPosition, InteractionKind.Put, box);
+		if (task.cargoPort == null)
+			task.cargoPort = CargoPortService.GetClosestAvailableTargetForBox(ctx.Worker.GridPosition, InteractionKind.Put, box);
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.cargoPort);
 		if (task.cargoPort != null)

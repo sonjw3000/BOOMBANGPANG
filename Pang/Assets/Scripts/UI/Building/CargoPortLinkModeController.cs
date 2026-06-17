@@ -240,11 +240,10 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			return false;
 
 		if (sourcePort.TryAddLinkedPort(cargoPort))
-			lastStatusMessage = $"Linked {GetPortDisplayName(sourcePort)} -> {GetPortDisplayName(cargoPort)}.";
+			lastStatusMessage = $"Linked {GetPortDisplayName(sourcePort)} -> {GetPortDisplayName(cargoPort)}. Select another target building or right click to finish.";
 		else
 			lastStatusMessage = "Unable to create the cargo port link.";
 
-		sourcePort = null;
 		targetBuilding = null;
 		Interaction?.ClearSelection();
 		RefreshOverlay();

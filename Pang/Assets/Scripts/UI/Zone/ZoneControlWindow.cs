@@ -22,6 +22,9 @@ public class ZoneControlWindow : MonoBehaviour
 	private ZoneType selectedZoneType;
 	private Building contextBuilding;
 	private bool ownsBuildingMode;
+	private bool globalZoneMode;
+	private ZoneType globalZoneType = ZoneType.RocketLanding;
+	private int globalZoneFloor;
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
 
@@ -80,6 +83,7 @@ public class ZoneControlWindow : MonoBehaviour
 		if (window == null)
 			return;
 
+		globalZoneMode = false;
 		contextBuilding = building;
 		if (overlayController != null)
 		{
@@ -104,6 +108,26 @@ public class ZoneControlWindow : MonoBehaviour
 			}
 		}
 
+		RefreshToggleState();
+		window.Open();
+	}
+
+	public void OpenForGlobalZoneType(ZoneType zoneType, int floor = 0)
+	{
+		EnsureInitialized();
+		EnsureHostActive();
+		if (window == null)
+			return;
+
+		globalZoneMode = true;
+		globalZoneType = zoneType;
+		globalZoneFloor = floor;
+		selectedZoneType = zoneType;
+		contextBuilding = null;
+		ownsBuildingMode = false;
+		overlayController?.SetBuildingModeActive(false);
+		overlayController?.SetGlobalZoneModeActive(true, zoneType, floor);
+		RefreshToggleState();
 		window.Open();
 	}
 
@@ -115,23 +139,34 @@ public class ZoneControlWindow : MonoBehaviour
 
 	private void HandleWindowOpened()
 	{
-		if (contextBuilding == null && overlayController != null)
+		if (globalZoneMode == false && contextBuilding == null && overlayController != null)
 			contextBuilding = overlayController.CurrentBuilding;
 
-		overlayController?.SetOverlayVisible(true, contextBuilding);
+		if (globalZoneMode)
+			overlayController?.SetGlobalZoneModeActive(true, globalZoneType, globalZoneFloor);
+		else
+			overlayController?.SetOverlayVisible(true, contextBuilding);
+
+		RefreshToggleState();
 		UpdateStatus();
 	}
 
 	private void HandleWindowClosed()
 	{
-		overlayController?.SetOverlayVisible(false);
+		if (globalZoneMode)
+			overlayController?.SetGlobalZoneModeActive(false, globalZoneType, globalZoneFloor);
+		else
+			overlayController?.SetOverlayVisible(false);
+
 		if (ownsBuildingMode && overlayController != null)
 		{
 			overlayController.SetBuildingModeActive(false);
 			ownsBuildingMode = false;
 		}
 
+		globalZoneMode = false;
 		contextBuilding = null;
+		RefreshToggleState();
 		UpdateStatus();
 	}
 
@@ -157,7 +192,7 @@ public class ZoneControlWindow : MonoBehaviour
 
 		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingZoneEdit;
 		if (createButton.Button != null)
-			createButton.Button.interactable = isCreating == false && contextBuilding != null;
+			createButton.Button.interactable = isCreating == false && (contextBuilding != null || globalZoneMode);
 		if (createButton.LabelText != null)
 			createButton.LabelText.text = isCreating ? "Creating..." : "Create Zone";
 
@@ -169,6 +204,14 @@ public class ZoneControlWindow : MonoBehaviour
 
 		if (contextBuilding == null)
 		{
+			if (globalZoneMode)
+			{
+				statusText.text = isCreating
+					? "Left click start/end outdoor cells for the rocket landing zone. Right click to cancel."
+					: "Edit global rocket landing zones.";
+				return;
+			}
+
 			statusText.text = "Open this window from a building to create building-owned zones.";
 			return;
 		}
@@ -238,6 +281,7 @@ public class ZoneControlWindow : MonoBehaviour
 		}
 
 		window.Close();
+		RefreshToggleState();
 		UpdateStatus();
 		initialized = true;
 	}
@@ -250,7 +294,11 @@ public class ZoneControlWindow : MonoBehaviour
 
 	private void HandleCreateButtonClicked()
 	{
-		overlayController?.BeginCreate(selectedZoneType);
+		if (globalZoneMode)
+			overlayController?.BeginCreateGlobal(selectedZoneType, globalZoneFloor);
+		else
+			overlayController?.BeginCreate(selectedZoneType);
+
 		UpdateStatus();
 	}
 
@@ -280,9 +328,34 @@ public class ZoneControlWindow : MonoBehaviour
 			if (toggleRow.Background != null)
 				toggleRow.Background.color = isOn ? new Color(0.26f, 0.45f, 0.72f, 1f) : new Color(0.22f, 0.22f, 0.22f, 0.95f);
 			if (isOn)
+			{
+				if (globalZoneMode && zoneType != globalZoneType)
+				{
+					toggleRow.Toggle.SetIsOnWithoutNotify(false);
+					return;
+				}
+
 				selectedZoneType = zoneType;
+				RefreshToggleState();
+			}
 		});
 
 		return toggleRow;
+	}
+
+	private void RefreshToggleState()
+	{
+		foreach (KeyValuePair<ZoneType, ToggleRowView> entry in toggles)
+		{
+			ZoneType zoneType = entry.Key;
+			ToggleRowView toggleRow = entry.Value;
+			if (toggleRow == null || toggleRow.Toggle == null)
+				continue;
+
+			bool interactable = globalZoneMode == false || zoneType == globalZoneType;
+			toggleRow.Toggle.interactable = interactable;
+			if (globalZoneMode && zoneType == globalZoneType)
+				toggleRow.Toggle.SetIsOnWithoutNotify(true);
+		}
 	}
 }
