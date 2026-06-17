@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class BuildingControlWindow : MonoBehaviour
 {
@@ -20,6 +22,16 @@ public class BuildingControlWindow : MonoBehaviour
 	[SerializeField] private BuildingControlWindowContentView contentPrefab;
 	[SerializeField] private BuildingControlBuildingRowView buildingRowPrefab;
 
+	private static readonly BuildingType[] BuildingTypeOptions =
+	{
+		BuildingType.Generic,
+		BuildingType.Storage,
+		BuildingType.Packing,
+		BuildingType.Launch,
+	};
+
+	private static Font defaultFont;
+
 	private bool initialized;
 	private int currentTabIndex;
 	private readonly List<GameObject> tabRoots = new();
@@ -35,6 +47,7 @@ public class BuildingControlWindow : MonoBehaviour
 	private TextMeshProUGUI actionStatusText;
 	private TextButtonView createButton;
 	private TextButtonView linkCargoPortButton;
+	private Dropdown buildingTypeDropdown;
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
@@ -171,6 +184,8 @@ public class BuildingControlWindow : MonoBehaviour
 
 		if (linkCargoPortButton != null)
 			linkCargoPortButton.Configure("Link Cargo Ports", HandleLinkCargoPortsButtonClicked);
+
+		BuildActionTypeDropdown();
 	}
 
 	private void SetupTabs()
@@ -242,6 +257,15 @@ public class BuildingControlWindow : MonoBehaviour
 		RefreshAll();
 	}
 
+	private void HandleBuildingTypeChanged(int optionIndex)
+	{
+		if (optionIndex < 0 || optionIndex >= BuildingTypeOptions.Length)
+			return;
+
+		overlayController?.SetSelectedBuildingType(BuildingTypeOptions[optionIndex]);
+		RefreshAll();
+	}
+
 	private void HandleCycleBuildingScopeClicked(Building building)
 	{
 		if (building == null || BuildingManager == null)
@@ -285,11 +309,12 @@ public class BuildingControlWindow : MonoBehaviour
 
 		int buildingCount = BuildingManager != null ? BuildingManager.RegisteredBuildings.Count : 0;
 		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement;
+		BuildingType selectedType = overlayController != null ? overlayController.SelectedBuildingType : BuildingType.Generic;
 
 		overviewStatusText.text = isCreating
-			? "Building placement is active. Left click start/end cells, right click to cancel."
+			? $"{BuildingTypeUtility.ToDisplayString(selectedType)} building placement is active. Left click start/end cells, right click to cancel."
 			: "Use this window to create buildings and manage each building's worker scope.";
-		overviewSummaryText.text = $"Registered Buildings: {buildingCount}";
+		overviewSummaryText.text = $"Registered Buildings: {buildingCount}\nSelected Build Type: {BuildingTypeUtility.ToDisplayString(selectedType)}";
 	}
 
 	private void RefreshOperations()
@@ -341,6 +366,14 @@ public class BuildingControlWindow : MonoBehaviour
 		bool isLinkEditing = cargoPortLinkModeController != null && cargoPortLinkModeController.IsEditing;
 		EnsureZoneOverlayController();
 		Building activeBuilding = zoneOverlayController != null ? zoneOverlayController.CurrentBuilding : null;
+		BuildingType selectedType = overlayController != null ? overlayController.SelectedBuildingType : BuildingType.Generic;
+
+		if (buildingTypeDropdown != null)
+		{
+			int selectedIndex = Array.IndexOf(BuildingTypeOptions, selectedType);
+			buildingTypeDropdown.SetValueWithoutNotify(Mathf.Max(0, selectedIndex));
+			buildingTypeDropdown.interactable = isCreating == false && isLinkEditing == false;
+		}
 
 		if (createButton.Button != null)
 			createButton.Button.interactable = isCreating == false && isLinkEditing == false;
@@ -354,7 +387,7 @@ public class BuildingControlWindow : MonoBehaviour
 
 		if (isCreating)
 		{
-			actionStatusText.text = "Drag a rectangle to create building walls on the inside border.";
+			actionStatusText.text = $"Drag a rectangle to create a {BuildingTypeUtility.ToDisplayString(selectedType)} building footprint.";
 			return;
 		}
 
@@ -371,8 +404,8 @@ public class BuildingControlWindow : MonoBehaviour
 		}
 
 		actionStatusText.text = activeBuilding != null
-			? "Create a building or start linking outbound cargo ports to inbound cargo ports."
-			: "Start a new building footprint creation, or select a building to link cargo ports.";
+			? $"Selected build type: {BuildingTypeUtility.ToDisplayString(selectedType)}. Create a building or start linking outbound cargo ports to inbound cargo ports."
+			: $"Selected build type: {BuildingTypeUtility.ToDisplayString(selectedType)}. Start a new building footprint creation, or select a building to link cargo ports.";
 	}
 
 	private void CreateBuildingRow(Building building)
@@ -388,7 +421,7 @@ public class BuildingControlWindow : MonoBehaviour
 		buildingRows.Add(row.gameObject);
 
 		if (row.LabelText != null)
-			row.LabelText.text = $"{building.DisplayName} ({building.Type})";
+			row.LabelText.text = $"{building.DisplayName} ({BuildingTypeUtility.ToDisplayString(building.Type)})";
 
 		row.ScopeButton?.Configure(BuildingWorkScopeUtility.ToDisplayString(building.WorkScope), () => HandleCycleBuildingScopeClicked(building));
 		row.DetailsButton?.Configure("Details", () => HandleOpenBuildingDetailsClicked(building));
@@ -421,10 +454,219 @@ public class BuildingControlWindow : MonoBehaviour
 			zoneOverlayController = FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
 	}
 
+	private void BuildActionTypeDropdown()
+	{
+		if (contentView == null || contentView.ActionTab == null)
+			return;
+
+		buildingTypeDropdown = CreateDropdownRow(contentView.ActionTab.transform, "Building Type", HandleBuildingTypeChanged);
+		if (buildingTypeDropdown == null)
+			return;
+
+		buildingTypeDropdown.ClearOptions();
+		List<string> options = new();
+		for (int i = 0; i < BuildingTypeOptions.Length; ++i)
+			options.Add(BuildingTypeUtility.ToDisplayString(BuildingTypeOptions[i]));
+		buildingTypeDropdown.AddOptions(options);
+
+		if (actionStatusText != null && actionStatusText.transform.parent == contentView.ActionTab.transform)
+			buildingTypeDropdown.transform.SetSiblingIndex(actionStatusText.transform.GetSiblingIndex() + 1);
+
+		int selectedIndex = overlayController != null ? Array.IndexOf(BuildingTypeOptions, overlayController.SelectedBuildingType) : 0;
+		buildingTypeDropdown.SetValueWithoutNotify(Mathf.Max(0, selectedIndex));
+	}
+
 	private static BuildingWorkScope GetNextWorkScope(BuildingWorkScope currentScope)
 	{
 		int enumCount = System.Enum.GetValues(typeof(BuildingWorkScope)).Length;
 		int nextIndex = (((int)currentScope) + 1) % enumCount;
 		return (BuildingWorkScope)nextIndex;
+	}
+
+	private static Dropdown CreateDropdownRow(Transform parent, string label, UnityEngine.Events.UnityAction<int> onChanged)
+	{
+		GameObject row = new($"{label}Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+		row.transform.SetParent(parent, false);
+
+		HorizontalLayoutGroup rowLayout = row.GetComponent<HorizontalLayoutGroup>();
+		rowLayout.spacing = 12f;
+		rowLayout.childAlignment = TextAnchor.MiddleLeft;
+		rowLayout.childControlHeight = true;
+		rowLayout.childControlWidth = true;
+		rowLayout.childForceExpandWidth = false;
+		rowLayout.childForceExpandHeight = false;
+
+		row.GetComponent<LayoutElement>().preferredHeight = 42f;
+
+		TextMeshProUGUI labelText = CreateText("Label", row.transform, label);
+		labelText.fontSize = 19f;
+		labelText.GetComponent<LayoutElement>().preferredWidth = 180f;
+
+		GameObject dropdownObject = new("Dropdown", typeof(RectTransform), typeof(Image), typeof(Dropdown), typeof(LayoutElement));
+		dropdownObject.transform.SetParent(row.transform, false);
+
+		Image dropdownImage = dropdownObject.GetComponent<Image>();
+		dropdownImage.color = new Color(0.2f, 0.2f, 0.2f, 0.95f);
+
+		LayoutElement dropdownLayout = dropdownObject.GetComponent<LayoutElement>();
+		dropdownLayout.preferredHeight = 36f;
+		dropdownLayout.preferredWidth = 320f;
+
+		Dropdown dropdown = dropdownObject.GetComponent<Dropdown>();
+
+		Text captionText = CreateLegacyText("Label", dropdownObject.transform, "Option");
+		captionText.alignment = TextAnchor.MiddleLeft;
+		captionText.rectTransform.offsetMin = new Vector2(10f, 0f);
+		captionText.rectTransform.offsetMax = new Vector2(-30f, 0f);
+
+		Text arrowText = CreateLegacyText("Arrow", dropdownObject.transform, "v");
+		arrowText.alignment = TextAnchor.MiddleCenter;
+		arrowText.rectTransform.anchorMin = new Vector2(1f, 0f);
+		arrowText.rectTransform.anchorMax = new Vector2(1f, 1f);
+		arrowText.rectTransform.pivot = new Vector2(1f, 0.5f);
+		arrowText.rectTransform.sizeDelta = new Vector2(24f, 0f);
+		arrowText.rectTransform.anchoredPosition = new Vector2(-6f, 0f);
+
+		GameObject templateObject = new("Template", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+		templateObject.transform.SetParent(dropdownObject.transform, false);
+		templateObject.SetActive(false);
+
+		RectTransform templateRect = templateObject.GetComponent<RectTransform>();
+		templateRect.anchorMin = new Vector2(0f, 0f);
+		templateRect.anchorMax = new Vector2(1f, 0f);
+		templateRect.pivot = new Vector2(0.5f, 1f);
+		templateRect.anchoredPosition = new Vector2(0f, 2f);
+		templateRect.sizeDelta = new Vector2(0f, 150f);
+
+		Image templateImage = templateObject.GetComponent<Image>();
+		templateImage.color = new Color(0.18f, 0.18f, 0.18f, 1f);
+
+		ScrollRect scrollRect = templateObject.GetComponent<ScrollRect>();
+		scrollRect.horizontal = false;
+		scrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+		GameObject viewportObject = new("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+		viewportObject.transform.SetParent(templateObject.transform, false);
+
+		RectTransform viewportRect = viewportObject.GetComponent<RectTransform>();
+		viewportRect.anchorMin = Vector2.zero;
+		viewportRect.anchorMax = Vector2.one;
+		viewportRect.offsetMin = Vector2.zero;
+		viewportRect.offsetMax = Vector2.zero;
+
+		Image viewportImage = viewportObject.GetComponent<Image>();
+		viewportImage.color = new Color(1f, 1f, 1f, 0.02f);
+		Mask viewportMask = viewportObject.GetComponent<Mask>();
+		viewportMask.showMaskGraphic = false;
+
+		GameObject contentObject = new("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+		contentObject.transform.SetParent(viewportObject.transform, false);
+
+		RectTransform contentRect = contentObject.GetComponent<RectTransform>();
+		contentRect.anchorMin = new Vector2(0f, 1f);
+		contentRect.anchorMax = new Vector2(1f, 1f);
+		contentRect.pivot = new Vector2(0.5f, 1f);
+		contentRect.offsetMin = Vector2.zero;
+		contentRect.offsetMax = Vector2.zero;
+
+		VerticalLayoutGroup contentLayout = contentObject.GetComponent<VerticalLayoutGroup>();
+		contentLayout.childForceExpandHeight = false;
+		contentLayout.childForceExpandWidth = true;
+		contentLayout.childControlHeight = true;
+		contentLayout.childControlWidth = true;
+		contentLayout.spacing = 2f;
+
+		ContentSizeFitter contentFitter = contentObject.GetComponent<ContentSizeFitter>();
+		contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+		contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+		GameObject itemObject = new("Item", typeof(RectTransform), typeof(Toggle), typeof(Image), typeof(LayoutElement));
+		itemObject.transform.SetParent(contentObject.transform, false);
+
+		LayoutElement itemLayout = itemObject.GetComponent<LayoutElement>();
+		itemLayout.preferredHeight = 28f;
+
+		Image itemImage = itemObject.GetComponent<Image>();
+		itemImage.color = new Color(0.25f, 0.25f, 0.25f, 1f);
+
+		Toggle itemToggle = itemObject.GetComponent<Toggle>();
+		itemToggle.targetGraphic = itemImage;
+		itemToggle.isOn = true;
+
+		Text itemLabel = CreateLegacyText("Item Label", itemObject.transform, "Option");
+		itemLabel.alignment = TextAnchor.MiddleLeft;
+		itemLabel.rectTransform.offsetMin = new Vector2(10f, 0f);
+		itemLabel.rectTransform.offsetMax = new Vector2(-10f, 0f);
+
+		scrollRect.viewport = viewportRect;
+		scrollRect.content = contentRect;
+
+		dropdown.targetGraphic = dropdownImage;
+		dropdown.captionText = captionText;
+		dropdown.template = templateRect;
+		dropdown.itemText = itemLabel;
+
+		dropdown.onValueChanged.RemoveAllListeners();
+		if (onChanged != null)
+			dropdown.onValueChanged.AddListener(onChanged);
+
+		return dropdown;
+	}
+
+	private static TextMeshProUGUI CreateText(string objectName, Transform parent, string value)
+	{
+		GameObject textObject = new(objectName, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+		textObject.transform.SetParent(parent, false);
+
+		LayoutElement layout = textObject.GetComponent<LayoutElement>();
+		layout.preferredHeight = 28f;
+
+		TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+		text.text = value;
+		text.fontSize = 20f;
+		text.color = Color.white;
+		text.alignment = TextAlignmentOptions.MidlineLeft;
+		text.textWrappingMode = TextWrappingModes.NoWrap;
+		text.overflowMode = TextOverflowModes.Ellipsis;
+
+		RectTransform rect = text.rectTransform;
+		rect.anchorMin = Vector2.zero;
+		rect.anchorMax = Vector2.one;
+		rect.offsetMin = Vector2.zero;
+		rect.offsetMax = Vector2.zero;
+
+		return text;
+	}
+
+	private static Text CreateLegacyText(string objectName, Transform parent, string value)
+	{
+		GameObject textObject = new(objectName, typeof(RectTransform), typeof(Text));
+		textObject.transform.SetParent(parent, false);
+
+		Text text = textObject.GetComponent<Text>();
+		text.font = GetDefaultFont();
+		text.text = value;
+		text.color = Color.white;
+		text.alignment = TextAnchor.MiddleLeft;
+
+		RectTransform rect = text.rectTransform;
+		rect.anchorMin = Vector2.zero;
+		rect.anchorMax = Vector2.one;
+		rect.offsetMin = Vector2.zero;
+		rect.offsetMax = Vector2.zero;
+
+		return text;
+	}
+
+	private static Font GetDefaultFont()
+	{
+		if (defaultFont == null)
+		{
+			defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+			if (defaultFont == null)
+				defaultFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+		}
+
+		return defaultFont;
 	}
 }

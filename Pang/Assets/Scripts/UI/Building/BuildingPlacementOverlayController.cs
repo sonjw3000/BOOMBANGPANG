@@ -6,6 +6,7 @@ using System.Collections.Generic;
 public sealed class BuildingPlacementOverlayController : MonoBehaviour
 {
 	[SerializeField] private BuildingFootprintService footprintService;
+	[SerializeField] private BuildingType selectedBuildingType = BuildingType.Generic;
 	[SerializeField] private float previewHeight = 0.035f;
 	[SerializeField] private float labelHeight = 0.04f;
 	[SerializeField] private float overlayAlpha = 0.25f;
@@ -22,6 +23,8 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 	private GameObject proxyRoot;
 	private readonly Dictionary<Building, BuildingSelectionProxy> proxies = new();
 	private bool isVisible;
+
+	public BuildingType SelectedBuildingType => selectedBuildingType;
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
 	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
@@ -92,6 +95,11 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		Interaction.EnterBuildingPlacementMode(currentFloor);
 	}
 
+	public void SetSelectedBuildingType(BuildingType buildingType)
+	{
+		selectedBuildingType = buildingType;
+	}
+
 	public BuildingSelectionProxy GetSelectionProxy(Building building)
 	{
 		if (building == null)
@@ -116,7 +124,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		previewQuad.SetActive(true);
 		previewLabel.SetActive(true);
 		ConfigureQuad(previewQuad, bounds, color);
-		ConfigureLabel(previewLabel, bounds, $"{bounds.width} x {bounds.height}", color);
+		ConfigureLabel(previewLabel, bounds, $"{BuildingTypeUtility.ToDisplayString(selectedBuildingType)}\n{bounds.width} x {bounds.height}", color);
 	}
 
 	private void HandleBuildingPlacementConfirmed(RectInt bounds, int floor)
@@ -124,7 +132,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		if (FootprintService == null)
 			return;
 
-		if (FootprintService.TryCreateFootprint(floor, bounds, out string reason) == false)
+		if (FootprintService.TryCreateFootprint(floor, bounds, selectedBuildingType, out string reason) == false)
 		{
 			if (string.IsNullOrWhiteSpace(reason) == false)
 			{

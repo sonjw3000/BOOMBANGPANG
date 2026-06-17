@@ -97,6 +97,11 @@ public sealed class BuildingFootprintService : MonoBehaviour
 
 	public bool TryCreateFootprint(int floor, in RectInt bounds, out string reason)
 	{
+		return TryCreateFootprint(floor, bounds, BuildingType.Generic, out reason);
+	}
+
+	public bool TryCreateFootprint(int floor, in RectInt bounds, BuildingType buildingType, out string reason)
+	{
 		if (CanCreateFootprint(floor, bounds, out reason) == false)
 			return false;
 
@@ -124,7 +129,7 @@ public sealed class BuildingFootprintService : MonoBehaviour
 		}
 
 		List<GridCell> ownedCells = BuildOwnedCells(bounds, floor);
-		Building createdBuilding = BuildingManager.CreateBuilding(ownedCells);
+		Building createdBuilding = BuildingManager.CreateBuilding(ownedCells, buildingType);
 		if (createdBuilding == null)
 		{
 			RollbackCreatedWalls(createdWalls);

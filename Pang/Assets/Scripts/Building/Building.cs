@@ -8,6 +8,21 @@ public enum BuildingType
 	Launch,
 }
 
+public static class BuildingTypeUtility
+{
+	public static string ToDisplayString(BuildingType type)
+	{
+		return type switch
+		{
+			BuildingType.Generic => "Generic",
+			BuildingType.Storage => "Storage",
+			BuildingType.Packing => "Packing",
+			BuildingType.Launch => "Launch",
+			_ => type.ToString(),
+		};
+	}
+}
+
 public enum BuildingState
 {
 	Active,
