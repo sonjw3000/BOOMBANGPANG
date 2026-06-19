@@ -6,6 +6,8 @@ public class CargoPortDetailBuilder : ShelfBaseDetailContent<CargoPort>
 {
 	[SerializeField] private Button forceLoadButton;
 	private TextMeshProUGUI inputReadyValue;
+	private TextMeshProUGUI interiorAccessValue;
+	private TextMeshProUGUI exteriorAccessValue;
 
 	static private OutboundWorkflowService OBService => GameContext.Instance.OBWorkflowSvc;
 
@@ -22,7 +24,11 @@ public class CargoPortDetailBuilder : ShelfBaseDetailContent<CargoPort>
 			return;
 
 		inputReadyValue ??= AddInfoLine("Input Ready");
+		interiorAccessValue ??= AddInfoLine("Interior Access");
+		exteriorAccessValue ??= AddInfoLine("Exterior Access");
 		inputReadyValue.text = cargoPortProvider.Target.InputReady ? "Yes" : "No";
+		interiorAccessValue.text = cargoPortProvider.Target.CanUseFromInterior ? "Open" : "Closed";
+		exteriorAccessValue.text = cargoPortProvider.Target.CanUseFromExterior ? "Open" : "Closed";
 	}
 
 	protected override void BuildActionTab()
@@ -30,7 +36,7 @@ public class CargoPortDetailBuilder : ShelfBaseDetailContent<CargoPort>
 		base.BuildActionTab();
 
 		var prov = provider as CargoPortUIProvider;
-		if (prov?.Target != null && prov.Target.IsInbound == false)
+		if (prov?.Target != null && prov.Target.IsOutbound)
 		{
 			AddActionButton("Force Load", () =>
 			{

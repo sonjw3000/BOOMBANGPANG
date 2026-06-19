@@ -53,7 +53,7 @@ public class UnloadingTask : WorkerTask
 
 		SequenceNode root = new();
 
-		root.Add(AIWorker.CheckBoxAndGet(BoxType.Cargo));
+		root.Add(AIWorker.ReturnBox());
 		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.Rocket, InteractionKind.Pick, SetRocketTarget));
 		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, UnloadFromRocket));
 		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Put, SetZoneTarget));
@@ -103,35 +103,19 @@ public class UnloadingTask : WorkerTask
 			return Failure;
 		}
 
-		// items를 worker에게 건내줘야함
 		AIWorker worker = ctx.Worker;
+		if (worker.CarryingAbility == null || worker.CarryingAbility.CarryingBox != null)
+			return Failure;
 
-		BoxBase box = worker.CarryingAbility?.CarryingBox;
-		if (box == null)
+		if (rocket.GetBox(out BoxBase box) == false || worker.CarryingAbility.PutBox(box) == false)
 		{
-			Debug.Log("No Box OMG!!");
+			if (box != null)
+				rocket.PutBox(box);
 			return Failure;
 		}
-		
-		TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(rocket, box));
 
-		// todo
-		// 새로운 작업이 필요할것이다
-		
-		// disable rocket
-		if (result == TransferResultKind.Complete)
+		if (rocket.CanGetBox() == false)
 			GameContext.Instance.RocketSvc.DisableRocket(task.targetRocket);
-		else if (result == TransferResultKind.Partial)
-		{
-			// todo
-			// add new task to unload remaining items
-			UnloadingTask newTask = new(task.targetRocket, task.cargoPort);
-			GameContext.Instance.TaskMgr.EnqueueTask(newTask);
-		}
-		else
-		{
-			return Failure;
-		}
 
 		return Success;
 	}
@@ -141,7 +125,11 @@ public class UnloadingTask : WorkerTask
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 		BoxBase box = task.WorkerCarryBox?.CarryingBox;
 		if (task.cargoPort == null)
-			task.cargoPort = CargoPortService.GetClosestAvailableTargetForBox(ctx.Worker.GridPosition, InteractionKind.Put, box);
+			task.cargoPort = CargoPortService.FindClosestAvailablePortForBox(
+				ctx.Worker.GridPosition,
+				InteractionKind.Put,
+				box,
+				predicate: candidate => candidate is InboundCargoPort);
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.cargoPort);
 		if (task.cargoPort != null)
@@ -165,19 +153,17 @@ public class UnloadingTask : WorkerTask
 			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
-		// load on cargoport
+		if (task.WorkerCarryBox.GetBox(out BoxBase box) == false)
+			return Failure;
 
-		BoxBase box = task.WorkerCarryBox.CarryingBox;
-
-		TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(box, task.cargoPort));
-
-		if (result == TransferResultKind.Complete)
+		if (task.cargoPort.PutBox(box))
 		{
 			task.IsUnloadEnd = true;
 			return Success;
 		}
 
-		return result == TransferResultKind.Partial ? Running : Failure;
+		task.WorkerCarryBox.PutBox(box);
+		return Failure;
 	}
 
 }

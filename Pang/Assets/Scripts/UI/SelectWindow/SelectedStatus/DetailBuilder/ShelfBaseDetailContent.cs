@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 public abstract class ShelfBaseDetailContent<TShelf> : DetailContent<TShelf>
-	where TShelf : ShelfBase
+	where TShelf : Component
 {
 	protected override bool UseDefaultTabs => false;
 

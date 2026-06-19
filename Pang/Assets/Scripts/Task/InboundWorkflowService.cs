@@ -146,20 +146,12 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		if (RocketService != null)
 			RocketService.InboundRocketLanded += OnInboundRocketLanded;
-
-		cargoPortService.OnItemPresentChanged += OnPortItemPresentChanged;
-		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
-		cargoPortService.OnReserveQuantityChanged += OnPortItemReserved;
 	}
 
 	private void OnDestroy()
 	{
 		if (RocketService != null)
 			RocketService.InboundRocketLanded -= OnInboundRocketLanded;
-
-		cargoPortService.OnItemPresentChanged -= OnPortItemPresentChanged;
-		cargoPortService.OnItemQuantityChanged -= OnPortItemQuantityChanged;
-		cargoPortService.OnReserveQuantityChanged -= OnPortItemReserved;
 	}
 
 	private void Update()
@@ -212,21 +204,6 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 		}
 	}
 
-	private void OnPortItemPresentChanged(ShelfBase port, uint itemId, bool present)
-	{
-		requestService.OnPortItemPresentChanged(port, itemId, present);
-	}
-
-	private void OnPortItemReserved(ShelfBase port, uint itemId, int quantity)
-	{
-		requestService.OnPortItemReservedChanged(port, itemId, quantity);
-	}
-
-	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
-	{
-		requestService.OnPortItemQuantityChanged(port, itemId, quantityDelta);
-	}
-
 	private void RebuildPlanner()
 	{
 		storingPlanner = new StoringPlanner(
@@ -275,7 +252,10 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 			return configuredTarget;
 		}
 
-		return cargoPortService.GetClosestAvailableTarget(rocket.GridPosition, InteractionKind.Put);
+		return cargoPortService.FindClosestAvailablePort(
+			rocket.GridPosition,
+			InteractionKind.Put,
+			predicate: candidate => candidate is InboundCargoPort);
 	}
 
 	private bool TryResolveConfiguredUnloadingDestinationPort(in int3 from, out CargoPort targetPort)
@@ -285,7 +265,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 			return false;
 
 		List<CargoPort> ports = new();
-		if (cargoPortService.TryQueryPorts(unloadingDestinationBuildingId, ports, port => port != null && port.IsInbound) == false)
+		if (cargoPortService.TryQueryPorts(unloadingDestinationBuildingId, ports, port => port != null && port is InboundCargoPort) == false)
 			return false;
 
 		int bestScore = int.MaxValue;

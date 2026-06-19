@@ -7,6 +7,7 @@ public class BoxPoolService : FacilityService<BoxPool>
 {
 	[SerializeField] private BoxBase palletPrefab;
 	[SerializeField] private BoxBase boxPrefab;
+	[SerializeField] private CargoCapsule capsulePrefab;
 
 	[SerializeField] private float toteCapacity = 150.0f;
 
@@ -118,7 +119,7 @@ public class BoxPoolService : FacilityService<BoxPool>
 		pool[box.Type].Push(box);
 	}
 
-	public void GiveNewBox(BoxPool boxPool, BoxType type)
+	public BoxBase TakeBox(BoxType type, Transform parent = null)
 	{
 		BoxBase box = null;
 
@@ -129,36 +130,41 @@ public class BoxPoolService : FacilityService<BoxPool>
 		}
 		else
 		{
-			box = Instantiate(type == BoxType.Cargo ? palletPrefab : boxPrefab, boxPool.transform).GetComponent<BoxBase>();
+			BoxBase prefab = ResolvePrefab(type);
+			if (prefab == null)
+				return null;
+
+			box = Instantiate(prefab, parent != null ? parent : transform);
 			RegisterBox(box);
 		}
 
+		if (parent != null)
+			box.transform.SetParent(parent, false);
+
 		if (box is ToteBox tote)
 			tote.UpdateToteCapacity(toteCapacity);
+
+		box.ResetContainer();
+		return box;
+	}
+
+	public void GiveNewBox(BoxPool boxPool, BoxType type)
+	{
+		BoxBase box = TakeBox(type, boxPool.transform);
+		if (box == null)
+			return;
 
 		boxPool.PutBox(box);
 	}
 
 	public BoxBase CreateBoxForRestore(BoxType type, uint boxId)
 	{
-		BoxBase box = null;
-		if (pool.TryGetValue(type, out var stack) && stack.Count > 0)
-		{
-			box = stack.Pop();
-			box.gameObject.SetActive(true);
-		}
-		else
-		{
-			BoxBase prefab = type == BoxType.Cargo ? palletPrefab : boxPrefab;
-			box = Instantiate(prefab, transform);
-		}
-
-		if (box is ToteBox tote)
-			tote.UpdateToteCapacity(toteCapacity);
+		BoxBase box = TakeBox(type, transform);
+		if (box == null)
+			return null;
 
 		box.SetBoxId(boxId);
 		RegisterBox(box);
-		box.ResetContainer();
 		return box;
 	}
 
@@ -256,5 +262,15 @@ public class BoxPoolService : FacilityService<BoxPool>
 		}
 
 		return result;
+	}
+
+	private BoxBase ResolvePrefab(BoxType type)
+	{
+		return type switch
+		{
+			BoxType.Cargo => palletPrefab,
+			BoxType.Capsule => capsulePrefab,
+			_ => boxPrefab,
+		};
 	}
 }

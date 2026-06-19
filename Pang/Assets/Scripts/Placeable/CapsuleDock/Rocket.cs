@@ -3,7 +3,7 @@ using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public class Rocket : ShelfBase
+public class Rocket : CapsuleDock
 {
 	public enum RocketState
 	{
@@ -26,6 +26,7 @@ public class Rocket : ShelfBase
 	private RocketService RocketSvc => GameContext.Instance.RocketSvc;
 
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
+	private BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolService;
 	public int3 LandingPos => landingPoint;
 	public RocketState State => state;
 	public RocketLandingOutcome LandingOutcome => landingOutcome;
@@ -115,6 +116,19 @@ public class Rocket : ShelfBase
 
 	public void SetupPayloadByDelivery()
 	{
+		if (TryUndockCapsule(out CargoCapsule existingCapsule))
+			BoxPoolService.ReturnToPool(existingCapsule);
+
+		CargoCapsule capsule = BoxPoolService.TakeBox(BoxType.Capsule, transform) as CargoCapsule;
+		if (capsule == null || TryDockCapsule(capsule) == false)
+		{
+			if (capsule != null)
+				BoxPoolService.ReturnToPool(capsule);
+
+			Debug.LogError("[Rocket] Failed to prepare inbound cargo capsule.");
+			return;
+		}
+
 		int guard = 0;
 		const int maxIterations = 1024;
 		while (true)
@@ -128,7 +142,7 @@ public class Rocket : ShelfBase
 			if (DeliveryService.TryPeek(out var request) == false)
 				break;
 
-			int added = AddItem(request.TargetItem.ItemID, request.Quantity);
+			int added = capsule.AddItem(request.TargetItem.ItemID, request.Quantity);
 
 			if (added != request.Quantity)
 			{
@@ -144,21 +158,30 @@ public class Rocket : ShelfBase
 
 	public void SetupPayload(List<ItemStack> payload)
 	{
-		stacks.Clear();
-		itemTotals.Clear();
-		if (payload == null)
+		if (TryUndockCapsule(out CargoCapsule existingCapsule))
+			BoxPoolService.ReturnToPool(existingCapsule);
+
+		if (payload == null || payload.Count <= 0)
 			return;
 
+		CargoCapsule capsule = BoxPoolService.TakeBox(BoxType.Capsule, transform) as CargoCapsule;
+		if (capsule == null || TryDockCapsule(capsule) == false)
+		{
+			if (capsule != null)
+				BoxPoolService.ReturnToPool(capsule);
+			return;
+		}
+
 		for (int i = 0; i < payload.Count; ++i)
-			AddStack(payload[i]);
+			capsule.AddStack(payload[i]);
 	}
 
-	public List<ItemStack> GetPayload()
+	public IReadOnlyList<ItemStack> GetPayload()
 	{
-		return stacks;
+		return DockedCapsule != null ? DockedCapsule.Stacks : System.Array.Empty<ItemStack>();
 	}
 
-	protected override void OnDestroyedByCore(in DestroyContext ctx)
+	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
 		if (ctx.IsOverride &&
 			ctx.overriddenByObject != null &&
@@ -167,8 +190,6 @@ public class Rocket : ShelfBase
 			OnOverriddenByRocket(overridingRocket, in ctx);
 			return;
 		}
-
-		base.OnDestroyedByCore(in ctx);
 	}
 
 	// Hook for future cargo-quality changes on the overridden rocket.

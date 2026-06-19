@@ -5,18 +5,24 @@ using UnityEngine;
 
 public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 {
-	public event System.Action<ShelfBase, uint, bool> OnItemPresentChanged;
-	public event System.Action<ShelfBase, uint, int> OnItemQuantityChanged;
-	public event System.Action<ShelfBase, uint, int> OnReserveQuantityChanged;
+	public event Action<uint, CargoPort> OnCargoDocked;
+	public event Action<uint, CargoPort> OnCargoUndocked;
+	public event Action<uint, CargoPort> OnCargoQuantityZero;
+	public event Action<uint, CargoPort> OnCargoQuantityOverPercent;
+
+	public float CargoStandardPercent => 50.0f;
+	private readonly Dictionary<CargoPort, uint> registeredBuildingIds = new();
 
 	protected override void OnRegisterFacility(uint buildingId, CargoPort facility)
 	{
 		if (facility == null)
 			return;
 
-		facility.OnItemPresentChanged += HandlePresentChange;
-		facility.OnItemQuantityChanged += HandleItemQuantityChanged;
-		facility.OnItemReservedPickChanged += HandleReserveQuantityChanged;
+		registeredBuildingIds[facility] = buildingId;
+		facility.OnCargoDocked += HandleCargoDocked;
+		facility.OnCargoUndocked += HandleCargoUndocked;
+		facility.OnCargoQuantityZero += HandleCargoQuantityZero;
+		facility.OnCargoQuantityOverPercent += HandleCargoQuantityOverPercent;
 	}
 
 	protected override void OnUnregisterFacility(uint buildingId, CargoPort facility)
@@ -24,29 +30,46 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		if (facility == null)
 			return;
 
-		facility.OnItemPresentChanged -= HandlePresentChange;
-		facility.OnItemQuantityChanged -= HandleItemQuantityChanged;
-		facility.OnItemReservedPickChanged -= HandleReserveQuantityChanged;
+		registeredBuildingIds.Remove(facility);
+		facility.OnCargoDocked -= HandleCargoDocked;
+		facility.OnCargoUndocked -= HandleCargoUndocked;
+		facility.OnCargoQuantityZero -= HandleCargoQuantityZero;
+		facility.OnCargoQuantityOverPercent -= HandleCargoQuantityOverPercent;
 		RemoveLinkedPortReferences(facility);
 		facility.ClearLinkedPorts();
 	}
 
-	private void HandlePresentChange(ShelfBase port, uint itemId, bool present)
+	// cargoport event handlers
+	private void HandleCargoDocked(CargoPort port)
 	{
-		OnItemPresentChanged?.Invoke(port, itemId, present);
+		if (TryGetRegisteredBuildingId(port, out uint buildingId))
+			OnCargoDocked?.Invoke(buildingId, port);
 	}
 
-	private void HandleItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
+	private void HandleCargoUndocked(CargoPort port)
 	{
-		OnItemQuantityChanged?.Invoke(port, itemId, quantityDelta);
+		if (TryGetRegisteredBuildingId(port, out uint buildingId))
+			OnCargoUndocked?.Invoke(buildingId, port);
 	}
 
-	private void HandleReserveQuantityChanged(ShelfBase port, uint itemId, int reservedQuantityDelta)
+	private void HandleCargoQuantityZero(CargoPort port)
 	{
-		OnReserveQuantityChanged?.Invoke(port, itemId, reservedQuantityDelta);
+		if (TryGetRegisteredBuildingId(port, out uint buildingId))
+			OnCargoQuantityZero?.Invoke(buildingId, port);
 	}
 
-	public CargoPort GetClosestAvailableTarget(in int3 pos, InteractionKind interactionKind)
+	private void HandleCargoQuantityOverPercent(CargoPort port)
+	{
+		if (TryGetRegisteredBuildingId(port, out uint buildingId))
+			OnCargoQuantityOverPercent?.Invoke(buildingId, port);
+	}
+
+	// target finding
+	public CargoPort FindClosestAvailablePort(
+		in int3 pos,
+		InteractionKind interactionKind,
+		uint buildingId = 0,
+		Predicate<CargoPort> predicate = null)
 	{
 		FacilityDistanceResolver distanceResolver = (CargoPort candidate, in int3 origin, out int score) =>
 			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
@@ -57,105 +80,54 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 				out _,
 				out score);
 
-		Predicate<CargoPort> predicate = candidate => candidate.IsInteractionAvailable(interactionKind);
+		Predicate<CargoPort> combinedPredicate = candidate =>
+			candidate != null &&
+			candidate.IsInteractionAvailable(interactionKind) &&
+			(predicate == null || predicate(candidate));
 
-		if (TryGetBuildingId(pos, out uint buildingId) &&
-			TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort target, predicate))
+		if (buildingId != 0)
 		{
-			return target;
+			return TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort buildingTarget, combinedPredicate)
+				? buildingTarget
+				: null;
 		}
 
-		if (TryFindClosestFacility(pos, distanceResolver, out CargoPort globalTarget, predicate))
+		if (TryGetBuildingId(pos, out uint localBuildingId) &&
+			TryFindClosestFacility(localBuildingId, pos, distanceResolver, out CargoPort localTarget, combinedPredicate))
+		{
+			return localTarget;
+		}
+
+		if (TryFindClosestFacility(pos, distanceResolver, out CargoPort globalTarget, combinedPredicate))
 			return globalTarget;
 
 		return null;
 	}
 
-	public CargoPort GetClosestAvailableTarget(uint buildingId, in int3 pos, InteractionKind interactionKind)
+	public CargoPort FindClosestAvailablePortForBox(
+		in int3 pos,
+		InteractionKind interactionKind,
+		BoxBase box,
+		uint buildingId = 0,
+		Predicate<CargoPort> predicate = null)
 	{
-		FacilityDistanceResolver distanceResolver = (CargoPort candidate, in int3 origin, out int score) =>
-			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-				candidate,
-				interactionKind,
-				origin,
-				GameContext.Instance.GridService,
-				out _,
-				out score);
-
-		Predicate<CargoPort> predicate = candidate => candidate.IsInteractionAvailable(interactionKind);
-		return TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort target, predicate)
-			? target
-			: null;
-	}
-
-	public CargoPort GetClosestAvailableTargetForBox(in int3 pos, InteractionKind interactionKind, BoxBase box)
-	{
-		FacilityDistanceResolver distanceResolver = (CargoPort candidate, in int3 origin, out int score) =>
-			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-				candidate,
-				interactionKind,
-				origin,
-				GameContext.Instance.GridService,
-				out _,
-				out score);
-
-		Predicate<CargoPort> predicate = candidate =>
-			candidate.IsInteractionAvailable(interactionKind) &&
-			CanAcceptAllStacks(candidate, box);
-
-		if (TryGetBuildingId(pos, out uint buildingId) &&
-			TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort target, predicate))
-		{
-			return target;
-		}
-
-		if (TryFindClosestFacility(pos, distanceResolver, out CargoPort globalTarget, predicate))
-			return globalTarget;
-
-		return null;
-	}
-
-	public CargoPort GetClosestAvailableTargetForBox(uint buildingId, in int3 pos, InteractionKind interactionKind, BoxBase box)
-	{
-		FacilityDistanceResolver distanceResolver = (CargoPort candidate, in int3 origin, out int score) =>
-			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-				candidate,
-				interactionKind,
-				origin,
-				GameContext.Instance.GridService,
-				out _,
-				out score);
-
-		Predicate<CargoPort> predicate = candidate =>
-			candidate.IsInteractionAvailable(interactionKind) &&
-			CanAcceptAllStacks(candidate, box);
-
-		return TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort target, predicate)
-			? target
-			: null;
+		return FindClosestAvailablePort(
+			pos,
+			interactionKind,
+			buildingId,
+			candidate =>
+				CanAcceptBox(candidate, box, interactionKind) &&
+				(predicate == null || predicate(candidate)));
 	}
 
 	public IEnumerable<ShelfBase> GetSources(uint itemId)
 	{
-		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
-		for (int i = 0; i < buildingIds.Count; ++i)
-		{
-			foreach (ShelfBase source in GetSources(buildingIds[i], itemId))
-				yield return source;
-		}
+		yield break;
 	}
 
 	public IEnumerable<ShelfBase> GetSources(uint buildingId, uint itemId)
 	{
-		if (TryGetBuildingFacilities(buildingId, out var facilities) == false)
-			yield break;
-
-		for (int i = 0; i < facilities.Count; ++i)
-		{
-			CargoPort port = facilities[i];
-			if (port != null && port.GetPickableQuantity(itemId) > 0)
-				yield return port;
-		}
+		yield break;
 	}
 
 	public IReadOnlyList<CargoPort> GetCargoPorts(uint buildingId)
@@ -170,21 +142,12 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		return TryQueryFacilities(buildingId, results, predicate);
 	}
 
-	private static bool CanAcceptAllStacks(CargoPort port, BoxBase box)
+	private static bool CanAcceptBox(CargoPort port, BoxBase box, InteractionKind interactionKind)
 	{
-		if (port == null || box == null)
+		if (port == null || box is not CargoCapsule)
 			return false;
 
-		if (box.Stacks.Count > port.MaxStack - port.Stacks.Count)
-			return false;
-
-		for (int i = 0; i < box.Stacks.Count; ++i)
-		{
-			if (port.CanAcceptStack(box.Stacks[i]) == false)
-				return false;
-		}
-
-		return true;
+		return interactionKind == InteractionKind.Put ? port.CanPutBox() : port.CanGetBox();
 	}
 
 	private void RemoveLinkedPortReferences(CargoPort targetPort)
@@ -201,5 +164,14 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
 				facilities[facilityIndex]?.RemoveLinkedPort(targetPort);
 		}
+	}
+
+	private bool TryGetRegisteredBuildingId(CargoPort port, out uint buildingId)
+	{
+		if (port != null && registeredBuildingIds.TryGetValue(port, out buildingId))
+			return true;
+
+		buildingId = 0;
+		return false;
 	}
 }

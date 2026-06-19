@@ -75,25 +75,20 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	public void BuildLoadingTask(CargoPort cargoPort)
 	{
-		if (cargoPort.InputReady == false)
-		{
-			Debug.Log("cargo port input is not ready");
+		if (cargoPort == null || cargoPort.IsOutbound == false || cargoPort.CanReleaseToExterior() == false)
 			return;
-		}
-
-		cargoPort.SetInputReady(false);
 		TaskMgr.EnqueueTask(new LoadingTask(cargoPort));
 	}
 
 	private void Awake()
 	{
-		cargoPortService.OnItemQuantityChanged += OnPortItemQuantityChanged;
+		cargoPortService.OnPayloadAvailableToExterior += OnPayloadAvailableToExterior;
 		RebuildPlanner();
 	}
 
 	private void OnDestroy()
 	{
-		cargoPortService.OnItemQuantityChanged -= OnPortItemQuantityChanged;
+		cargoPortService.OnPayloadAvailableToExterior -= OnPayloadAvailableToExterior;
 	}
 
 	private void Update()
@@ -135,14 +130,15 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 		}
 	}
 
-	private void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
+	private void OnPayloadAvailableToExterior(uint buildingId, CargoPort cargoPort)
 	{
-		CargoPort cargoPort = (CargoPort)port;
-		if (cargoPort.InputReady && cargoPort.FilledPercent >= cargoPortThresholdPercent)
-		{
-			cargoPort.SetInputReady(false);
-			TaskMgr.EnqueueTask(new LoadingTask(cargoPort));
-		}
+		if (cargoPort == null || cargoPort.IsOutbound == false)
+			return;
+
+		if (cargoPort.FilledPercent < cargoPortThresholdPercent)
+			return;
+
+		TaskMgr.EnqueueTask(new LoadingTask(cargoPort));
 	}
 
 	private void RebuildPlanner()

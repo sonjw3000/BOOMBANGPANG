@@ -25,6 +25,7 @@ public class BuildingControlWindow : MonoBehaviour
 	private static readonly BuildingType[] BuildingTypeOptions =
 	{
 		BuildingType.Generic,
+		BuildingType.Staging,
 		BuildingType.Storage,
 		BuildingType.Packing,
 		BuildingType.Launch,

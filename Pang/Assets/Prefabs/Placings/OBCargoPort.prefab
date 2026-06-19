@@ -150,9 +150,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 7781608356336454641}
   m_Enabled: 0
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd2f7fc83a94180479fb54fd32747fe1, type: 3}
+  m_Script: {fileID: 11500000, guid: 80f5cde89b8ee420fa2258e6038cf77d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   maxStacks: 30
   sizePerStack: 100
-  isInbound: 0

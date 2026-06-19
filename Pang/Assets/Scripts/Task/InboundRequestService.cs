@@ -28,22 +28,18 @@ public class InboundRequestService : MonoBehaviour, ICollectRequestSource<Inboun
 
 	public void OnPortItemAdded(ShelfBase port, uint itemId)
 	{
-		SyncLine(port as CargoPort, itemId);
 	}
 
 	public void OnPortItemRemoved(ShelfBase port, uint itemId)
 	{
-		RemoveLine(port as CargoPort, itemId);
 	}
 
 	public void OnPortItemQuantityChanged(ShelfBase port, uint itemId, int quantityDelta)
 	{
-		SyncLine(port as CargoPort, itemId);
 	}
 
 	public void OnPortItemReservedChanged(ShelfBase port, uint itemId, int reservedQuantityDelta)
 	{
-		SyncLine(port as CargoPort, itemId);
 	}
 
 	public IEnumerable<uint> GetRequestedItemIds()
@@ -102,43 +98,15 @@ public class InboundRequestService : MonoBehaviour, ICollectRequestSource<Inboun
 
 	private void SyncLine(CargoPort port, uint itemId)
 	{
-		if (port == null)
+		if (port == null || port.IsInbound == false)
 			return;
 
-		int pickable = Mathf.Max(0, port.GetPickableQuantity(itemId));
-		InboundLine line = FindLine(port, itemId);
-		if (pickable <= 0)
-		{
-			RemoveLine(port, itemId);
-			return;
-		}
-
-		if (line == null)
-		{
-			line = new InboundLine
-			{
-				CargoPort = port,
-				ItemID = itemId,
-				Quantity = pickable,
-			};
-			inboundRequests.Add(line);
-
-			if (itemPerReqLine.TryGetValue(itemId, out var lines) == false)
-			{
-				lines = new List<InboundLine>();
-				itemPerReqLine[itemId] = lines;
-			}
-
-			lines.Add(line);
-			return;
-		}
-
-		line.Quantity = pickable;
+		RemoveLine(port, itemId);
 	}
 
 	private void RemoveLine(CargoPort port, uint itemId)
 	{
-		if (port == null)
+		if (port == null || port.IsInbound == false)
 			return;
 
 		InboundLine line = FindLine(port, itemId);

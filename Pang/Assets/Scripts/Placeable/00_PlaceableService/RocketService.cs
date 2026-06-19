@@ -16,7 +16,7 @@ public class RocketService : FacilityService<Rocket>
 	private readonly Queue<Rocket> rocketPool = new();
 	private readonly List<GameObject> overridePreviewTargets = new();
 
-	public IReadOnlyList<ShelfBase> Rockets => activeRockets;
+	public IReadOnlyList<Rocket> Rockets => activeRockets;
 	public event System.Action<Rocket> InboundRocketLanded;
 
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
@@ -129,6 +129,9 @@ public class RocketService : FacilityService<Rocket>
 
 	private static void DetachCargoChildren(Rocket rocket)
 	{
+		if (rocket != null && rocket.TryUndockCapsule(out CargoCapsule capsule))
+			capsule.transform.SetParent(null, true);
+
 		for (int i = rocket.transform.childCount - 1; i >= 0; --i)
 		{
 			Transform child = rocket.transform.GetChild(i);

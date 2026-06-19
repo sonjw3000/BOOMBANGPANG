@@ -3,6 +3,7 @@ using System.Collections.Generic;
 public enum BuildingType
 {
 	Generic,
+	Staging,
 	Storage,
 	Packing,
 	Launch,
@@ -15,6 +16,7 @@ public static class BuildingTypeUtility
 		return type switch
 		{
 			BuildingType.Generic => "Generic",
+			BuildingType.Staging => "Staging",
 			BuildingType.Storage => "Storage",
 			BuildingType.Packing => "Packing",
 			BuildingType.Launch => "Launch",

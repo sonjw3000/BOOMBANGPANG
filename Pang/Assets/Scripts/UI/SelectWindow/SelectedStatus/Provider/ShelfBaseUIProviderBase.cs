@@ -2,7 +2,7 @@ using UnityEngine;
 
 public interface IShelfBaseUIProvider
 {
-	ShelfBase Target { get; }
+	Component Target { get; }
 	string Name { get; }
 	string Subtitle { get; }
 	string CapacityDisplay { get; }
@@ -14,7 +14,7 @@ public interface IShelfBaseUIProvider
 public abstract class ShelfBaseUIProviderBase<TShelf> : UIProvider<TShelf>, IShelfBaseUIProvider
 	where TShelf : ShelfBase
 {
-	ShelfBase IShelfBaseUIProvider.Target => currentTarget;
+	Component IShelfBaseUIProvider.Target => currentTarget;
 
 	public override string Name => currentTarget != null ? currentTarget.name : "Unknown Shelf";
 	public override Sprite Icon => null;

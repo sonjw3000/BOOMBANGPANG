@@ -123,12 +123,16 @@ public class PackingStationService : FacilityService<PackingStation>
 		if (packingStation == null || TryGetBuildingId(packingStation, out uint buildingId) == false)
 			return;
 
-		CargoPort port = CargoPortService.GetClosestAvailableTarget(buildingId, packingStation.GridPosition, InteractionKind.Put);
+		CargoPort port = CargoPortService.FindClosestAvailablePort(
+			packingStation.GridPosition,
+			InteractionKind.Put,
+			buildingId,
+			candidate => candidate is OutboundCargoPort);
 		if (port == null)
 			return;
 
 		TransferContext from = new TransferContext(packingStation, TransferObjectType.Box);
-		TransferContext to = new TransferContext(port, TransferObjectType.Item);
+		TransferContext to = new TransferContext(port, TransferObjectType.Box);
 
 		TaskManager.EnqueueTask(new WaterTask(from, to));
 	}

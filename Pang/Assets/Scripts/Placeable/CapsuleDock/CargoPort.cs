@@ -1,41 +1,26 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class CargoPort :
-	ShelfBase
+public abstract class CargoPort : CapsuleDock
 {
-	// ib/ob 구분
-	// 런타임에 수정되면 안된다
-	[SerializeField] private bool isInbound = true;
 	[SerializeField] private List<CargoPort> linkedPorts = new();
 
-	private bool inputReady = true;
+	public event Action<CargoPort> OnCargoDocked;
+	public event Action<CargoPort> OnCargoUndocked;
+	public event Action<CargoPort> OnCargoQuantityZero;
+	public event Action<CargoPort> OnCargoQuantityOverPercent;
 
-	public bool InputReady => inputReady;
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.CargoPort;
-	public bool IsInbound => isInbound;
+	public bool HasPayload => DockedCapsule != null;
 	public IReadOnlyList<CargoPort> LinkedPorts => linkedPorts;
+	
+	protected CargoPortService CargoPortSvc => GameContext.Instance.CargoPortSvc;
 
-	public void SetInputReady(bool ready)
-	{
-		inputReady = ready;
-	}
+	public abstract string PortRoleLabel { get; }
 
-	public bool CanLinkTo(CargoPort target)
-	{
-		if (target == null || target == this)
-			return false;
-
-		if (IsInbound)
-			return false;
-
-		if (target.IsInbound == false)
-			return false;
-
-		return linkedPorts.Contains(target) == false;
-	}
-
+	// link
+	public abstract bool CanLinkTo(CargoPort target);
 	public bool TryAddLinkedPort(CargoPort target)
 	{
 		if (CanLinkTo(target) == false)
@@ -55,7 +40,7 @@ public class CargoPort :
 
 	public void RemoveInvalidLinks()
 	{
-		linkedPorts.RemoveAll(target => target == null || target == this || target.IsInbound == false);
+		linkedPorts.RemoveAll(target => target == null || target == this);
 	}
 
 	public void ClearLinkedPorts()
@@ -63,13 +48,14 @@ public class CargoPort :
 		linkedPorts.Clear();
 	}
 
+	// save load
 	public CargoPortSaveData CaptureState(Func<GameObject, int> getPlaceableId)
 	{
 		RemoveInvalidLinks();
 
 		return new CargoPortSaveData
 		{
-			InputReady = inputReady,
+			InputReady = HasPayload == false,
 			LinkedPortIds = CaptureLinkedPortIds(getPlaceableId),
 		};
 	}
@@ -79,7 +65,8 @@ public class CargoPort :
 		if (data == null)
 			return;
 
-		inputReady = data.InputReady;
+		// Current CargoPort runtime state is driven by the docked capsule itself.
+		// Keep the method for save compatibility even though InputReady is no longer stored here.
 	}
 
 	public void RestoreLinks(CargoPortSaveData data, IReadOnlyDictionary<int, GameObject> restoredPlaceables)
@@ -88,17 +75,20 @@ public class CargoPort :
 		if (data?.LinkedPortIds == null || restoredPlaceables == null)
 			return;
 
+		HashSet<CargoPort> restoredLinks = new();
 		for (int i = 0; i < data.LinkedPortIds.Count; ++i)
 		{
 			int linkedPortId = data.LinkedPortIds[i];
 			if (restoredPlaceables.TryGetValue(linkedPortId, out GameObject linkedObject) == false ||
 				linkedObject == null ||
-				linkedObject.TryGetComponent(out CargoPort linkedPort) == false)
+				linkedObject.TryGetComponent(out CargoPort linkedPort) == false ||
+				linkedPort == null ||
+				linkedPort == this)
 			{
 				continue;
 			}
 
-			if (CanLinkTo(linkedPort))
+			if (restoredLinks.Add(linkedPort))
 				linkedPorts.Add(linkedPort);
 		}
 	}
@@ -109,6 +99,7 @@ public class CargoPort :
 		if (getPlaceableId == null)
 			return linkedPortIds;
 
+		HashSet<int> capturedIds = new();
 		for (int i = 0; i < linkedPorts.Count; ++i)
 		{
 			CargoPort linkedPort = linkedPorts[i];
@@ -116,12 +107,34 @@ public class CargoPort :
 				continue;
 
 			int linkedPortId = getPlaceableId(linkedPort.gameObject);
-			if (linkedPortId <= 0 || linkedPortIds.Contains(linkedPortId))
+			if (linkedPortId <= 0 || capturedIds.Add(linkedPortId) == false)
 				continue;
 
 			linkedPortIds.Add(linkedPortId);
 		}
 
 		return linkedPortIds;
+	}
+
+
+
+	// cargo handling
+	protected override void OnDockedCapsuleChanged()
+	{
+		if (HasCapsule)
+			OnCargoDocked?.Invoke(this);
+		else
+			OnCargoUndocked?.Invoke(this);
+	}
+
+	protected override void OnCapsuleQuantityChanged()
+	{
+		if (DockedCapsule == null)
+			return;
+
+		if (FilledPercent <= 0)
+			OnCargoQuantityZero?.Invoke(this);
+		else if (FilledPercent >= CargoPortSvc.CargoStandardPercent)
+			OnCargoQuantityOverPercent?.Invoke(this);
 	}
 }

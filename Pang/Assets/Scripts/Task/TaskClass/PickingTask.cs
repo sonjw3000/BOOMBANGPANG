@@ -157,7 +157,10 @@ public sealed class PickingTask : WorkerTask
 
 	public static NodeState GetAvailableOBCargoPort(in BTContext ctx)
 	{
-		ShelfBase targetPos = CargoPortService.GetClosestAvailableTarget(ctx.Worker.GridPosition, InteractionKind.Put);
+		CargoPort targetPos = CargoPortService.FindClosestAvailablePort(
+			ctx.Worker.GridPosition,
+			InteractionKind.Put,
+			predicate: candidate => candidate is OutboundCargoPort);
 
 		if (targetPos == null)
 		{

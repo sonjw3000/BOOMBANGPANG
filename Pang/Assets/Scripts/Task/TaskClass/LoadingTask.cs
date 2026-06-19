@@ -45,7 +45,7 @@ public class LoadingTask : WorkerTask
 	{
 		SequenceNode root = new();
 
-		root.Add(AIWorker.CheckBoxAndGet(BoxType.Cargo));
+		root.Add(AIWorker.ReturnBox());
 		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetLoadTarget));
 		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCargo));
 
@@ -97,46 +97,20 @@ public class LoadingTask : WorkerTask
 			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
-		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
-
-		if (box == null)
+		if (ctx.Worker.CarryingAbility == null || ctx.Worker.CarryingAbility.CarryingBox != null)
 			return Failure;
 
-		if (task.targetPort.Stacks.Count <= 0)
+		if (task.targetPort.GetBox(out BoxBase box) == false || ctx.Worker.CarryingAbility.PutBox(box) == false)
 		{
-			task.targetPort.SetInputReady(true);
-			task.isLoadEnd = true;
-			return Success;
+			if (box != null)
+				task.targetPort.PutBox(box);
+
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
-		TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(task.targetPort, box, ReportWaitingForShipping));
-		if (result == TransferResultKind.Complete)
-		{
-			task.targetPort.SetInputReady(true);
-			return Success;
-		}
-
-		if (result == TransferResultKind.Partial)
-		{
-			TaskMgr.EnqueueTask(new LoadingTask(task.targetPort));
-			return Success;
-		}
-
-		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
-		// Future: replace this polling standby with a box/cargo-port service wake-up when a suitable carrier is available.
-		return AIWorker.MoveToStandbyWhileWaiting(ctx);
-	}
-
-	private static void ReportWaitingForShipping(ItemStack stack)
-	{
-		if (stack is ItemPackage pkg == false)
-		{
-			Debug.LogError("Not ItemStack In OB CargoPort!!!");
-			return;
-		}
-
-		pkg.ReportOutboundProgress(GameContext.Instance.OrderMgr, PackageOutboundStage.WaitingForShipping);
+		return Success;
 	}
 
 	static private NodeState SetLaunchStation(in BTContext ctx)
