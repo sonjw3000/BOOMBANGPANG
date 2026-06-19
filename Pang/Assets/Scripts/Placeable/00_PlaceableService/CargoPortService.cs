@@ -21,8 +21,10 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		registeredBuildingIds[facility] = buildingId;
 		facility.OnCargoDocked += HandleCargoDocked;
 		facility.OnCargoUndocked += HandleCargoUndocked;
-		facility.OnCargoQuantityZero += HandleCargoQuantityZero;
-		facility.OnCargoQuantityOverPercent += HandleCargoQuantityOverPercent;
+		if (facility is InboundCargoPort)
+			facility.OnCargoQuantityZero += HandleCargoQuantityZero;
+		else
+			facility.OnCargoQuantityOverPercent += HandleCargoQuantityOverPercent;
 	}
 
 	protected override void OnUnregisterFacility(uint buildingId, CargoPort facility)
@@ -33,8 +35,11 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		registeredBuildingIds.Remove(facility);
 		facility.OnCargoDocked -= HandleCargoDocked;
 		facility.OnCargoUndocked -= HandleCargoUndocked;
-		facility.OnCargoQuantityZero -= HandleCargoQuantityZero;
+		if (facility is InboundCargoPort)
+			facility.OnCargoQuantityZero -= HandleCargoQuantityZero;
+		else
 		facility.OnCargoQuantityOverPercent -= HandleCargoQuantityOverPercent;
+
 		RemoveLinkedPortReferences(facility);
 		facility.ClearLinkedPorts();
 	}

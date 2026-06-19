@@ -9,7 +9,6 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 
 	[SerializeField] private PackingStationService packingStationService;
-	[SerializeField] private CargoPortService cargoPortService;
 	[SerializeField] private LaunchStationService launchStationService;
 	[SerializeField] private float orderInterval = 10.0f;
 	[SerializeField] private float cargoPortThresholdPercent = 80.0f;
@@ -21,7 +20,6 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private PickingPlanner pickingPlanner;
 
 	public PackingStationService PackingStationService => packingStationService;
-	public CargoPortService CargoPortService => cargoPortService;
 	public LaunchStationService LaunchStationService => launchStationService;
 	public PickingPlanner PickingPlanner => pickingPlanner;
 	public CollectingPolicyType PickingCollectingPolicyType => pickingPlanner != null ? pickingPlanner.CollectingPolicyType : defaultPickingCollectingPolicyType;
@@ -29,6 +27,7 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolService;
+	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
@@ -75,20 +74,24 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	public void BuildLoadingTask(CargoPort cargoPort)
 	{
-		if (cargoPort == null || cargoPort.IsOutbound == false || cargoPort.CanReleaseToExterior() == false)
+		if (cargoPort is not OutboundCargoPort || cargoPort.CanGetBox() == false)
 			return;
+
 		TaskMgr.EnqueueTask(new LoadingTask(cargoPort));
 	}
 
 	private void Awake()
 	{
-		cargoPortService.OnPayloadAvailableToExterior += OnPayloadAvailableToExterior;
+		if (CargoPortService != null)
+			CargoPortService.OnCargoQuantityOverPercent += OnPayloadAvailableToExterior;
+
 		RebuildPlanner();
 	}
 
 	private void OnDestroy()
 	{
-		cargoPortService.OnPayloadAvailableToExterior -= OnPayloadAvailableToExterior;
+		if (CargoPortService != null)
+			CargoPortService.OnCargoQuantityOverPercent -= OnPayloadAvailableToExterior;
 	}
 
 	private void Update()
@@ -132,7 +135,7 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void OnPayloadAvailableToExterior(uint buildingId, CargoPort cargoPort)
 	{
-		if (cargoPort == null || cargoPort.IsOutbound == false)
+		if (cargoPort is not OutboundCargoPort)
 			return;
 
 		if (cargoPort.FilledPercent < cargoPortThresholdPercent)

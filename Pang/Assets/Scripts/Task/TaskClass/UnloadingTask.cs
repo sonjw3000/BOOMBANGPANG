@@ -11,7 +11,7 @@ public class UnloadingTask : WorkerTask
 
 	private bool IsUnloadEnd = false;
 
-	static private CargoPortService CargoPortService => GameContext.Instance.IBWorkflowSvc.CargoPortService;
+	static private CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
 
 	public UnloadingTask(Rocket rocket, CargoPort cargoPort = null) : base(TaskType.Unloading)
 	{

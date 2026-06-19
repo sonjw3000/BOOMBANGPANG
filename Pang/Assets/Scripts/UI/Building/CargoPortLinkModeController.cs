@@ -55,13 +55,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private BuildingFootprintService BuildingFootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
-	private CargoPortService CargoPortService => GameContext.HasInstance
-		? (GameContext.Instance.OBWorkflowSvc != null
-			? GameContext.Instance.OBWorkflowSvc.CargoPortService
-			: GameContext.Instance.IBWorkflowSvc != null
-				? GameContext.Instance.IBWorkflowSvc.CargoPortService
-				: null)
-		: null;
+	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 
 	public bool IsEditing => isEditing;
 	public Building SourceBuilding => sourceBuilding;
@@ -182,7 +176,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		if (BuildingHasPort(sourceBuilding, cargoPort) == false)
 			return false;
 
-		if (cargoPort.IsInbound)
+		if (cargoPort is InboundCargoPort)
 		{
 			lastStatusMessage = "Select an outbound cargo port as the source.";
 			return true;
@@ -230,7 +224,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			return true;
 		}
 
-		if (cargoPort.IsInbound == false)
+		if (cargoPort is not InboundCargoPort)
 		{
 			lastStatusMessage = "Select an inbound cargo port as the destination.";
 			return true;
@@ -285,7 +279,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		for (int i = 0; i < ports.Count; ++i)
 		{
 			CargoPort port = ports[i];
-			if (port == null || port.IsInbound || port == sourcePort)
+			if (port is not OutboundCargoPort || port == sourcePort)
 				continue;
 
 			CreatePortMarker(port, visual, "OUT");
@@ -319,7 +313,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		for (int i = 0; i < ports.Count; ++i)
 		{
 			CargoPort port = ports[i];
-			if (port == null || port.IsInbound == false)
+			if (port is not InboundCargoPort)
 				continue;
 
 			CreatePortMarker(port, visual, "IN");
@@ -465,7 +459,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			return false;
 
 		List<CargoPort> ports = new();
-		return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port != null && port.IsInbound == false);
+		return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port is OutboundCargoPort);
 	}
 
 	private bool HasInboundPorts(Building building)
@@ -474,7 +468,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			return false;
 
 		List<CargoPort> ports = new();
-		return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port != null && port.IsInbound);
+		return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port is InboundCargoPort);
 	}
 
 	private string BuildStatusText()

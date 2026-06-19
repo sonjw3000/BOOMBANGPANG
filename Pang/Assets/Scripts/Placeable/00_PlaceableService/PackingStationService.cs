@@ -11,7 +11,7 @@ public class PackingStationService : FacilityService<PackingStation>
 		public readonly HashSet<PackingStation> QueuedPackingTasks = new();
 	}
 
-	private static CargoPortService CargoPortService => GameContext.Instance.OBWorkflowSvc.CargoPortService;
+	private static CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
 	private static TaskManager TaskManager => GameContext.Instance.TaskMgr;
 
 	private readonly Dictionary<uint, BuildingPackingState> statesByBuildingId = new();

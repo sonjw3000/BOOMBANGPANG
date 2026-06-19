@@ -708,6 +708,7 @@ Transform:
   - {fileID: 7589102203726941440}
   - {fileID: 7908985302895797192}
   - {fileID: 2196652181193760353}
+  - {fileID: 849514715439252847}
   - {fileID: 8699264562190637247}
   - {fileID: 6463747608451329436}
   - {fileID: 6514783859517015416}
@@ -746,6 +747,7 @@ MonoBehaviour:
   taskManager: {fileID: 1465437493324087637}
   shelfStorageService: {fileID: 2053266420889563750}
   rocketService: {fileID: 3860246314756219679}
+  cargoPortService: {fileID: 4830617511745632944}
   orderManager: {fileID: 3271614016673267715}
   orderDelivery: {fileID: 8556695168460380719}
   warehouseManagement: {fileID: 4181363907245693410}
@@ -894,50 +896,6 @@ MonoBehaviour:
   startNoticeMessage: Your Goal Is To Reach 50 Rep
   clearNoticeTitle: Game Clear
   clearNoticeMessage: Goal Complete! You Reached 50 Rep
---- !u!1 &2910311652415540675
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 3846551216162867527}
-  - component: {fileID: 3883171392340020772}
-  m_Layer: 0
-  m_Name: OBCargoPortService
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &3846551216162867527
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2910311652415540675}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 3141209299861845252}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3883171392340020772
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2910311652415540675}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 966ad98827d9a434db7cc0f981fd2866, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &2974611487511482037
 GameObject:
   m_ObjectHideFlags: 0
@@ -1121,7 +1079,7 @@ GameObject:
   - component: {fileID: 849514715439252847}
   - component: {fileID: 4830617511745632944}
   m_Layer: 0
-  m_Name: IBCargoPortService
+  m_Name: CargoPortService
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1140,7 +1098,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 344618052840468862}
+  m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4830617511745632944
 MonoBehaviour:
@@ -1498,7 +1456,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3846551216162867527}
   - {fileID: 8206098720774184820}
   - {fileID: 7894025821799710457}
   m_Father: {fileID: 2196652181193760353}
@@ -1516,7 +1473,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   packingStationService: {fileID: 5715151367513189862}
-  cargoPortService: {fileID: 3883171392340020772}
   launchStationService: {fileID: 1844665561343146193}
   orderInterval: 10
   cargoPortThresholdPercent: 80
@@ -1553,7 +1509,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 849514715439252847}
   - {fileID: 174564500910293884}
   m_Father: {fileID: 2196652181193760353}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1569,7 +1524,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a33bf384063c14842ae80eb69fc41a47, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cargoPortService: {fileID: 4830617511745632944}
   requestService: {fileID: 206211745931544088}
   maxStoreTasksPerUpdate: 64
   storingBoxFillLimitPercent: 80

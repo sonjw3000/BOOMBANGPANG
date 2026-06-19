@@ -16,7 +16,6 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 	private const PlacingPolicyType DefaultPlacingPolicyType = PlacingPolicyType.BelowAverageFilledNearest;
 
-	[SerializeField] private CargoPortService cargoPortService;
 	[SerializeField] private InboundRequestService requestService;
 	[SerializeField] private ZoneManager zoneManager;
 	[SerializeField] private ZoneType landingZoneType = ZoneType.RocketLanding;
@@ -32,12 +31,12 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	private StoringPlanner storingPlanner;
 	private float timeSinceLastInboundRocketSpawn = 0.0f;
 
-	public CargoPortService CargoPortService => cargoPortService;
 	public InboundRequestService RequestService => requestService;
 	public StoringPlanner StoringPlanner => storingPlanner;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolService;
+	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 	private RocketService RocketService => GameContext.Instance.RocketSvc;
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 	private ZoneManager ZoneManager
@@ -207,7 +206,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	private void RebuildPlanner()
 	{
 		storingPlanner = new StoringPlanner(
-			cargoPortService,
+			CargoPortService,
 			requestService,
 			defaultStoringCollectingPolicyType,
 			defaultStoringPlacingPolicyType);
@@ -243,7 +242,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private CargoPort ResolveUnloadingDestinationPort(Rocket rocket)
 	{
-		if (rocket == null || cargoPortService == null)
+		if (rocket == null || CargoPortService == null)
 			return null;
 
 		if (unloadingDestinationBuildingId != 0)
@@ -252,7 +251,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 			return configuredTarget;
 		}
 
-		return cargoPortService.FindClosestAvailablePort(
+		return CargoPortService.FindClosestAvailablePort(
 			rocket.GridPosition,
 			InteractionKind.Put,
 			predicate: candidate => candidate is InboundCargoPort);
@@ -261,11 +260,11 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	private bool TryResolveConfiguredUnloadingDestinationPort(in int3 from, out CargoPort targetPort)
 	{
 		targetPort = null;
-		if (unloadingDestinationBuildingId == 0 || cargoPortService == null)
+		if (unloadingDestinationBuildingId == 0 || CargoPortService == null)
 			return false;
 
 		List<CargoPort> ports = new();
-		if (cargoPortService.TryQueryPorts(unloadingDestinationBuildingId, ports, port => port != null && port is InboundCargoPort) == false)
+		if (CargoPortService.TryQueryPorts(unloadingDestinationBuildingId, ports, port => port != null && port is InboundCargoPort) == false)
 			return false;
 
 		int bestScore = int.MaxValue;

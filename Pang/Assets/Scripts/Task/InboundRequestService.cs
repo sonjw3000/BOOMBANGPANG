@@ -98,7 +98,7 @@ public class InboundRequestService : MonoBehaviour, ICollectRequestSource<Inboun
 
 	private void SyncLine(CargoPort port, uint itemId)
 	{
-		if (port == null || port.IsInbound == false)
+		if (port == null || port is not InboundCargoPort)
 			return;
 
 		RemoveLine(port, itemId);
@@ -106,7 +106,7 @@ public class InboundRequestService : MonoBehaviour, ICollectRequestSource<Inboun
 
 	private void RemoveLine(CargoPort port, uint itemId)
 	{
-		if (port == null || port.IsInbound == false)
+		if (port == null || port is not InboundCargoPort)
 			return;
 
 		InboundLine line = FindLine(port, itemId);

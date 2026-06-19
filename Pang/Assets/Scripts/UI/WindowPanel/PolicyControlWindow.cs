@@ -59,7 +59,7 @@ namespace Assets.Scripts.UI
 		private OutboundWorkflowService OutboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
 		private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 		private BuildingFootprintService BuildingFootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
-		private CargoPortService CargoPortService => InboundWorkflowService != null ? InboundWorkflowService.CargoPortService : null;
+		private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 
 		private ZoneControlWindow zoneControlWindow;
 
@@ -420,7 +420,7 @@ namespace Assets.Scripts.UI
 				return false;
 
 			List<CargoPort> ports = new();
-			return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port != null && port.IsInbound);
+			return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port != null && port is InboundCargoPort);
 		}
 
 		private void EnsureZoneControlWindow()

@@ -22,7 +22,7 @@ public sealed class PickingTask : WorkerTask
 		}
 	}
 
-	private static CargoPortService CargoPortService => GameContext.Instance.OBWorkflowSvc.CargoPortService;
+	private static CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
 	private static PackingStationService PackingStationService => GameContext.Instance.OBWorkflowSvc.PackingStationService;
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private static PickingPlanner Planner => GameContext.Instance.OBWorkflowSvc.PickingPlanner;

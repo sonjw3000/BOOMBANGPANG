@@ -23,12 +23,13 @@ public class CargoPortDetailBuilder : ShelfBaseDetailContent<CargoPort>
 		if (provider is not CargoPortUIProvider cargoPortProvider || cargoPortProvider.Target == null)
 			return;
 
+		CargoPort cargoPort = cargoPortProvider.Target;
 		inputReadyValue ??= AddInfoLine("Input Ready");
 		interiorAccessValue ??= AddInfoLine("Interior Access");
 		exteriorAccessValue ??= AddInfoLine("Exterior Access");
-		inputReadyValue.text = cargoPortProvider.Target.InputReady ? "Yes" : "No";
-		interiorAccessValue.text = cargoPortProvider.Target.CanUseFromInterior ? "Open" : "Closed";
-		exteriorAccessValue.text = cargoPortProvider.Target.CanUseFromExterior ? "Open" : "Closed";
+		inputReadyValue.text = cargoPort.CanPutBox() ? "Yes" : "No";
+		interiorAccessValue.text = CanUseFromInterior(cargoPort) ? "Open" : "Closed";
+		exteriorAccessValue.text = CanUseFromExterior(cargoPort) ? "Open" : "Closed";
 	}
 
 	protected override void BuildActionTab()
@@ -36,12 +37,32 @@ public class CargoPortDetailBuilder : ShelfBaseDetailContent<CargoPort>
 		base.BuildActionTab();
 
 		var prov = provider as CargoPortUIProvider;
-		if (prov?.Target != null && prov.Target.IsOutbound)
+		if (prov?.Target is OutboundCargoPort)
 		{
 			AddActionButton("Force Load", () =>
 			{
 				OBService.BuildLoadingTask(prov.Target);
 			});
 		}
+	}
+
+	private static bool CanUseFromInterior(CargoPort cargoPort)
+	{
+		if (cargoPort == null)
+			return false;
+
+		return cargoPort is InboundCargoPort
+			? cargoPort.CanGetBox()
+			: cargoPort.CanPutBox();
+	}
+
+	private static bool CanUseFromExterior(CargoPort cargoPort)
+	{
+		if (cargoPort == null)
+			return false;
+
+		return cargoPort is InboundCargoPort
+			? cargoPort.CanPutBox()
+			: cargoPort.CanGetBox();
 	}
 }
