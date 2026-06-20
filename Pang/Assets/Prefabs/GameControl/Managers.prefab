@@ -137,6 +137,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   palletPrefab: {fileID: 6912054728724276864, guid: 6e1f5d0516dec1541a25a3899f32558b, type: 3}
   boxPrefab: {fileID: 8319817083396600759, guid: 4f47c92cb33ff7b4ea31b7d370158fda, type: 3}
+  capsulePrefab: {fileID: 2515549773256789060, guid: 9f0c9d0bdde74274abbfc726447ca386, type: 3}
   toteCapacity: 150
 --- !u!1 &581681973905174896
 GameObject:

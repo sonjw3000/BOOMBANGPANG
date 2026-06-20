@@ -144,8 +144,22 @@ public class RocketService : FacilityService<Rocket>
 
 	private void InstantiateNewRocket()
 	{
+		if (rocketPD == null || rocketPD.prefab == null)
+		{
+			Debug.LogError("[RocketService] Cannot instantiate rocket because the placeable definition or prefab is missing.");
+			return;
+		}
+
 		var rocketObj = Instantiate(rocketPD.prefab, rocketPoolParent.transform);
 		var rocketComp = rocketObj.GetComponent<Rocket>();
+
+		if (rocketComp == null)
+		{
+			Debug.LogError($"[RocketService] Rocket prefab '{rocketPD.prefab.name}' is missing the Rocket component.");
+			Destroy(rocketObj);
+			return;
+		}
+
 		rocketObj.SetActive(false);
 		rocketPool.Enqueue(rocketComp);
 	}

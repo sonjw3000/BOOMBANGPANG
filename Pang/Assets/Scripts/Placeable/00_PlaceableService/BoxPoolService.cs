@@ -104,6 +104,26 @@ public class BoxPoolService : FacilityService<BoxPool>
 			: null;
 	}
 
+	public BoxPool GetClosestAvailableTarget(uint buildingId, in int3 pos, InteractionKind interactionKind)
+	{
+		if (buildingId == 0)
+			return GetClosestAvailableTarget(pos, interactionKind);
+
+		FacilityDistanceResolver distanceResolver = (BoxPool candidate, in int3 origin, out int score) =>
+			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				candidate,
+				interactionKind,
+				origin,
+				GridService,
+				out _,
+				out score);
+
+		Predicate<BoxPool> predicate = candidate => candidate.IsInteractionAvailable(interactionKind);
+		return TryFindClosestFacility(buildingId, pos, distanceResolver, out BoxPool target, predicate)
+			? target
+			: null;
+	}
+
 	public void ReturnToPool(BoxBase box)
 	{
 		if (box == null)
@@ -132,7 +152,10 @@ public class BoxPoolService : FacilityService<BoxPool>
 		{
 			BoxBase prefab = ResolvePrefab(type);
 			if (prefab == null)
+			{
+				Debug.LogError($"[BoxPoolService] Missing prefab for box type '{type}'.");
 				return null;
+			}
 
 			box = Instantiate(prefab, parent != null ? parent : transform);
 			RegisterBox(box);
