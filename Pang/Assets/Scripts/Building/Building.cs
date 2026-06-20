@@ -55,7 +55,7 @@ public static class BuildingWorkScopeUtility
 	}
 }
 
-public sealed class Building
+public class Building
 {
 	private string displayName = string.Empty;
 	private BuildingType buildingType = BuildingType.Generic;
@@ -119,7 +119,10 @@ public sealed class Building
 
 		occupiedFacilities.Add(facility);
 		if (facility is CargoPort cargoPort && occupiedCargoPorts.Contains(cargoPort) == false)
+		{
 			occupiedCargoPorts.Add(cargoPort);
+			SubscribeCargoPort(cargoPort);
+		}
 
 		return true;
 	}
@@ -131,8 +134,83 @@ public sealed class Building
 
 		bool removed = occupiedFacilities.Remove(facility);
 		if (facility is CargoPort cargoPort)
+		{
+			UnsubscribeCargoPort(cargoPort);
 			occupiedCargoPorts.Remove(cargoPort);
+		}
 
 		return removed;
+	}
+
+	private void SubscribeCargoPort(CargoPort cargoPort)
+	{
+		if (cargoPort == null)
+			return;
+
+		cargoPort.OnCargoDocked += HandleCargoDocked;
+		cargoPort.OnCargoUndocked += HandleCargoUndocked;
+		if (cargoPort is InboundCargoPort)
+			cargoPort.OnCargoQuantityZero += HandleCargoQuantityZero;
+		else if (cargoPort is OutboundCargoPort)
+			cargoPort.OnCargoQuantityOverPercent += HandleCargoQuantityOverPercent;
+	}
+
+	private void UnsubscribeCargoPort(CargoPort cargoPort)
+	{
+		if (cargoPort == null)
+			return;
+
+		cargoPort.OnCargoDocked -= HandleCargoDocked;
+		cargoPort.OnCargoUndocked -= HandleCargoUndocked;
+		if (cargoPort is InboundCargoPort)
+			cargoPort.OnCargoQuantityZero -= HandleCargoQuantityZero;
+		else if (cargoPort is OutboundCargoPort)
+			cargoPort.OnCargoQuantityOverPercent -= HandleCargoQuantityOverPercent;
+	}
+
+	private void HandleCargoDocked(CargoPort cargoPort)
+	{
+		if (cargoPort is InboundCargoPort inboundCargoPort)
+			OnInboundCargoDocked(inboundCargoPort);
+	}
+
+	private void HandleCargoUndocked(CargoPort cargoPort)
+	{
+		if (cargoPort is InboundCargoPort inboundCargoPort)
+			OnInboundCargoUndocked(inboundCargoPort);
+		else if (cargoPort is OutboundCargoPort outboundCargoPort)
+			OnOutboundCargoUndocked(outboundCargoPort);
+	}
+
+	private void HandleCargoQuantityZero(CargoPort cargoPort)
+	{
+		if (cargoPort is InboundCargoPort inboundCargoPort)
+			OnInboundCargoQuantityZero(inboundCargoPort);
+	}
+
+	private void HandleCargoQuantityOverPercent(CargoPort cargoPort)
+	{
+		if (cargoPort is OutboundCargoPort outboundCargoPort)
+			OnOutboundCargoQuantityOverPercent(outboundCargoPort);
+	}
+
+	protected virtual void OnInboundCargoDocked(InboundCargoPort cargoPort)
+	{
+	}
+
+	protected virtual void OnInboundCargoUndocked(InboundCargoPort cargoPort)
+	{
+	}
+
+	protected virtual void OnInboundCargoQuantityZero(InboundCargoPort cargoPort)
+	{
+	}
+
+	protected virtual void OnOutboundCargoUndocked(OutboundCargoPort cargoPort)
+	{
+	}
+
+	protected virtual void OnOutboundCargoQuantityOverPercent(OutboundCargoPort cargoPort)
+	{
 	}
 }

@@ -50,7 +50,7 @@ public sealed class BuildingManager : MonoBehaviour
 			? BuildDefaultBuildingName(buildingType)
 			: displayName;
 
-		Building building = new(resolvedName, ownedCells, buildingType);
+		Building building = CreateBuildingInstance(resolvedName, ownedCells, buildingType);
 		Register(building);
 
 		for (int i = 0; i < ownedCells.Count; ++i)
@@ -188,7 +188,7 @@ public sealed class BuildingManager : MonoBehaviour
 		if (ownedCells == null || ownedCells.Count <= 0)
 			return null;
 
-		Building building = new(displayName, ownedCells, buildingType);
+		Building building = CreateBuildingInstance(displayName, ownedCells, buildingType);
 		building.AssignRuntimeBuildingId(runtimeBuildingId);
 		building.SetState(state);
 		building.SetWorkScope(workScope);
@@ -198,6 +198,15 @@ public sealed class BuildingManager : MonoBehaviour
 			ownedCells[i]?.SetBuildingId(building.RuntimeBuildingId);
 
 		return building;
+	}
+
+	private static Building CreateBuildingInstance(string displayName, List<GridCell> ownedCells, BuildingType buildingType)
+	{
+		return buildingType switch
+		{
+			BuildingType.Staging => new StagingBuilding(displayName, ownedCells),
+			_ => new Building(displayName, ownedCells, buildingType),
+		};
 	}
 
 	private bool IsRuntimeIdInUse(uint runtimeId, Building currentBuilding)

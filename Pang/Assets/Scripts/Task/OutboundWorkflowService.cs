@@ -27,7 +27,6 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolService;
-	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
@@ -82,13 +81,7 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void Awake()
 	{
-		SubscribeCargoPortEvents();
 		RebuildPlanner();
-	}
-
-	private void OnDestroy()
-	{
-		UnsubscribeCargoPortEvents();
 	}
 
 	private void Update()
@@ -128,41 +121,6 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 			if (task != null)
 				TaskMgr.EnqueueTask(task);
 		}
-	}
-
-	private void SubscribeCargoPortEvents()
-	{
-		if (CargoPortService == null)
-			return;
-
-		CargoPortService.OnCargoUndocked += HandleOutboundCargoUndocked;
-		CargoPortService.OnCargoQuantityOverPercent += HandleOutboundCargoQuantityOverPercent;
-	}
-
-	private void UnsubscribeCargoPortEvents()
-	{
-		if (CargoPortService == null)
-			return;
-
-		CargoPortService.OnCargoUndocked -= HandleOutboundCargoUndocked;
-		CargoPortService.OnCargoQuantityOverPercent -= HandleOutboundCargoQuantityOverPercent;
-	}
-
-	private void HandleOutboundCargoUndocked(uint buildingId, CargoPort cargoPort)
-	{
-		if (cargoPort is not OutboundCargoPort)
-			return;
-	}
-
-	private void HandleOutboundCargoQuantityOverPercent(uint buildingId, CargoPort cargoPort)
-	{
-		if (cargoPort is not OutboundCargoPort)
-			return;
-
-		if (cargoPort.FilledPercent < cargoPortThresholdPercent)
-			return;
-
-		TaskMgr.EnqueueTask(new LoadingTask(cargoPort));
 	}
 
 	private void RebuildPlanner()

@@ -138,7 +138,6 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void Awake()
 	{
-		SubscribeCargoPortEvents();
 		RebuildPlanner();
 	}
 
@@ -152,8 +151,6 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		if (RocketService != null)
 			RocketService.InboundRocketLanded -= OnInboundRocketLanded;
-
-		UnsubscribeCargoPortEvents();
 	}
 
 	private void Update()
@@ -204,44 +201,6 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 			if (task != null)
 				TaskMgr.EnqueueTask(task);
 		}
-	}
-
-	private void SubscribeCargoPortEvents()
-	{
-		if (CargoPortService == null)
-			return;
-
-		CargoPortService.OnCargoDocked += HandleInboundCargoDocked;
-		CargoPortService.OnCargoUndocked += HandleInboundCargoUndocked;
-		CargoPortService.OnCargoQuantityZero += HandleInboundCargoQuantityZero;
-	}
-
-	private void UnsubscribeCargoPortEvents()
-	{
-		if (CargoPortService == null)
-			return;
-
-		CargoPortService.OnCargoDocked -= HandleInboundCargoDocked;
-		CargoPortService.OnCargoUndocked -= HandleInboundCargoUndocked;
-		CargoPortService.OnCargoQuantityZero -= HandleInboundCargoQuantityZero;
-	}
-
-	private void HandleInboundCargoDocked(uint buildingId, CargoPort cargoPort)
-	{
-		if (cargoPort is not InboundCargoPort)
-			return;
-	}
-
-	private void HandleInboundCargoUndocked(uint buildingId, CargoPort cargoPort)
-	{
-		if (cargoPort is not InboundCargoPort)
-			return;
-	}
-
-	private void HandleInboundCargoQuantityZero(uint buildingId, CargoPort cargoPort)
-	{
-		if (cargoPort is not InboundCargoPort)
-			return;
 	}
 
 	private void RebuildPlanner()
