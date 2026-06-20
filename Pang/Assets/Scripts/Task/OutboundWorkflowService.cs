@@ -82,16 +82,13 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void Awake()
 	{
-		if (CargoPortService != null)
-			CargoPortService.OnCargoQuantityOverPercent += OnPayloadAvailableToExterior;
-
+		SubscribeCargoPortEvents();
 		RebuildPlanner();
 	}
 
 	private void OnDestroy()
 	{
-		if (CargoPortService != null)
-			CargoPortService.OnCargoQuantityOverPercent -= OnPayloadAvailableToExterior;
+		UnsubscribeCargoPortEvents();
 	}
 
 	private void Update()
@@ -133,7 +130,31 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 		}
 	}
 
-	private void OnPayloadAvailableToExterior(uint buildingId, CargoPort cargoPort)
+	private void SubscribeCargoPortEvents()
+	{
+		if (CargoPortService == null)
+			return;
+
+		CargoPortService.OnCargoUndocked += HandleOutboundCargoUndocked;
+		CargoPortService.OnCargoQuantityOverPercent += HandleOutboundCargoQuantityOverPercent;
+	}
+
+	private void UnsubscribeCargoPortEvents()
+	{
+		if (CargoPortService == null)
+			return;
+
+		CargoPortService.OnCargoUndocked -= HandleOutboundCargoUndocked;
+		CargoPortService.OnCargoQuantityOverPercent -= HandleOutboundCargoQuantityOverPercent;
+	}
+
+	private void HandleOutboundCargoUndocked(uint buildingId, CargoPort cargoPort)
+	{
+		if (cargoPort is not OutboundCargoPort)
+			return;
+	}
+
+	private void HandleOutboundCargoQuantityOverPercent(uint buildingId, CargoPort cargoPort)
 	{
 		if (cargoPort is not OutboundCargoPort)
 			return;
