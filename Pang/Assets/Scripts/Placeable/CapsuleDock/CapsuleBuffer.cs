@@ -4,11 +4,20 @@ using UnityEngine;
 
 // box base를 보관하는 타일 단 하나
 
+public enum CapsuleBufferState
+{
+	IBOnly,
+	OBOnly,
+	Shared,
+}
+
 public partial class CapsuleBuffer : 
 	CapsuleDock
 {
 	[SerializeField] private GameObject boxStackPos;
+	[SerializeField] private CapsuleBufferState bufferState = CapsuleBufferState.Shared;
 
+	public CapsuleBufferState BufferState => bufferState;
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.CapsuleBuffer;
 
 	public override void OnPositionSet(in int3 position, FacingDirection direction)
