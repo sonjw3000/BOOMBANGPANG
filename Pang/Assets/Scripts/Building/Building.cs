@@ -403,13 +403,30 @@ public class Building
 		if (cargoPort.IsCapsuleEmpty())
 			return;
 
-		CapsuleBuffer targetBuffer = ResolveInboundBufferTarget(cargoPort.GridPosition);
+		int3 sourcePoint = ResolveInteractionOrigin(cargoPort, InteractionKind.Pick);
+		CapsuleBuffer targetBuffer = ResolveInboundBufferTarget(sourcePoint);
 		if (targetBuffer == null)
 			return;
 
 		TaskManager.EnqueueTask(new IBTask(cargoPort, RuntimeBuildingId, targetBuffer));
 		queuedInboundPorts.Add(cargoPort);
 		queuedInboundTargets[cargoPort] = targetBuffer;
+	}
+
+	private static int3 ResolveInteractionOrigin(BoxInteraction interactionTarget, InteractionKind interactionKind)
+	{
+		if (interactionTarget == null)
+			return default;
+
+		if (interactionTarget.InteractionPointMap != null &&
+			interactionTarget.InteractionPointMap.ContainsKey(interactionKind) &&
+			interactionTarget.InteractionPointMap[interactionKind] != null &&
+			interactionTarget.InteractionPointMap[interactionKind].Count > 0)
+		{
+			return interactionTarget.GetClosestInteractionPoint(interactionKind, interactionTarget.GridPosition);
+		}
+
+		return interactionTarget.GridPosition;
 	}
 
 	private void TryEnqueuePendingInboundTasks()
