@@ -3,7 +3,7 @@ using System;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
-public class PackingTask : WorkerTask
+public partial class PackingTask : WorkerTask
 {
 	private static PackingStationService PackingStationService => GameContext.Instance.OBWorkflowSvc.PackingStationService;
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
@@ -16,20 +16,6 @@ public class PackingTask : WorkerTask
 	public PackingTask(PackingStation targetStation) : base(TaskType.Packing)
 	{
 		this.targetStation = targetStation;
-	}
-
-	public PackingTaskSaveData CaptureState(Func<GameObject, int> getPlaceableId)
-	{
-		return new PackingTaskSaveData
-		{
-			TargetStationId = targetStation != null && getPlaceableId != null ? getPlaceableId(targetStation.gameObject) : -1,
-			IsTaskEnd = isTaskEnd,
-		};
-	}
-
-	public void RestoreState(bool isTaskEnd)
-	{
-		this.isTaskEnd = isTaskEnd;
 	}
 
 	protected override void OnTaskAssigned()

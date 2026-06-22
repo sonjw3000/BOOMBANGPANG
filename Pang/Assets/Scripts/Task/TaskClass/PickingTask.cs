@@ -3,7 +3,7 @@ using System;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
-public sealed class PickingTask : WorkerTask
+public sealed partial class PickingTask : WorkerTask
 {
 	private WorkJob pickJob;
 	private bool isPickingPhaseEnd = false;
@@ -30,22 +30,6 @@ public sealed class PickingTask : WorkerTask
 	public PickingTask(WorkJob pickJob) : base(TaskType.Picking)
 	{
 		this.pickJob = pickJob;
-	}
-
-	public PickingTaskSaveData CaptureState(Func<GameObject, int> getPlaceableId, Func<OrderLine, int> registerOrderLine)
-	{
-		return new PickingTaskSaveData
-		{
-			Job = pickJob?.CaptureState(getPlaceableId, registerOrderLine),
-			IsPickingPhaseEnd = isPickingPhaseEnd,
-			IsTaskEnd = isTaskEnd,
-		};
-	}
-
-	public void RestoreState(bool isPickingPhaseEnd, bool isTaskEnd)
-	{
-		this.isPickingPhaseEnd = isPickingPhaseEnd;
-		this.isTaskEnd = isTaskEnd;
 	}
 
 	protected override void OnTaskAssigned()

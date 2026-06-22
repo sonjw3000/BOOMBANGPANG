@@ -12,7 +12,7 @@ namespace Assets.Scripts.Contract
 
 
 
-	public class ContractRuntime
+	public partial class ContractRuntime
 	{
 		private class ContractResult
 		{
@@ -88,25 +88,6 @@ namespace Assets.Scripts.Contract
 		public void AddResult(Status status, int cnt)
 		{
 			resultPerWeek.Last.Value.ContractHistoryPerWeek[status] += cnt;
-		}
-
-		public ContractRuntimeSaveData CaptureState()
-		{
-			return new ContractRuntimeSaveData
-			{
-				ContractId = Definition.ContractId,
-				Type = Type,
-				RemainingDuration = remainDuration,
-				DeliveryDelta = deliveryDelta,
-				AutoRenewal = AutoRenewal,
-			};
-		}
-
-		public void RestoreState(int remainingDuration, int deliveryDelta, bool autoRenewal)
-		{
-			remainDuration = remainingDuration;
-			this.deliveryDelta = deliveryDelta;
-			AutoRenewal = autoRenewal;
 		}
 
 		public void Restart(int durationMonths)

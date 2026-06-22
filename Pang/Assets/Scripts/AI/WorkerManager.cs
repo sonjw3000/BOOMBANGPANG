@@ -6,7 +6,7 @@ using static WorkerTask;
 //using static WorkerTask.TaskType;
 
 [DefaultExecutionOrder(-100)]
-public class WorkerManager : MonoBehaviour
+public partial class WorkerManager : MonoBehaviour
 {
 	// todo
 	// 자료형을 바꿔야 한다
@@ -212,23 +212,6 @@ public class WorkerManager : MonoBehaviour
 
 			if (worker.enabled)
 				worker.RunBT(globalBlackboard);
-		}
-	}
-
-	public void ResetRuntimeState()
-	{
-		workers.Clear();
-		monthlyCost = 0;
-		nextWorkerID = 0;
-		trafficBlockedCount = 0;
-
-		ResetWorkerStatusCounts();
-
-		foreach (TaskType type in System.Enum.GetValues(typeof(TaskType)))
-		{
-			workersPerTaskType[type].Clear();
-			idleWorkersQueue[type].Clear();
-			idleWorkersSet[type].Clear();
 		}
 	}
 

@@ -48,7 +48,7 @@ public class BuildingFacilityIndex
 }
 
 // facility를 보유
-public class FacilityManager : MonoBehaviour
+public partial class FacilityManager : MonoBehaviour
 {
 	// if uid == 0, outside of buildingß
 	private readonly Dictionary<uint, BuildingFacilityIndex> buildingFacilities = new();
@@ -180,8 +180,4 @@ public class FacilityManager : MonoBehaviour
 		return typedFacilities.Count > 0;
 	}
 
-	public void ResetRuntimeState()
-	{
-		buildingFacilities.Clear();
-	}
 }

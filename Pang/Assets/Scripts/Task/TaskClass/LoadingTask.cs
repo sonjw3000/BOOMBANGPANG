@@ -3,7 +3,7 @@ using System;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
-public class LoadingTask : WorkerTask
+public partial class LoadingTask : WorkerTask
 {
 	private bool isLoadEnd = false;
 
@@ -16,20 +16,6 @@ public class LoadingTask : WorkerTask
 	public LoadingTask(CargoPort cargoPort) : base(TaskType.Loading)
 	{
 		this.targetPort = cargoPort;
-	}
-
-	public LoadingTaskSaveData CaptureState(Func<GameObject, int> getPlaceableId)
-	{
-		return new LoadingTaskSaveData
-		{
-			TargetPortId = targetPort != null && getPlaceableId != null ? getPlaceableId(targetPort.gameObject) : -1,
-			IsLoadEnd = isLoadEnd,
-		};
-	}
-
-	public void RestoreState(bool isLoadEnd)
-	{
-		this.isLoadEnd = isLoadEnd;
 	}
 
 	protected override void OnTaskAssigned()

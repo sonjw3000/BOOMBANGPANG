@@ -1,6 +1,6 @@
 using Unity.Mathematics;
 
-public sealed class AirlockService : FacilityService<Airlock>
+public sealed partial class AirlockService : FacilityService<Airlock>
 {
 	public bool TryFindClosestAvailable(
 		AIWorker worker,
@@ -59,18 +59,6 @@ public sealed class AirlockService : FacilityService<Airlock>
 	public void Release(Airlock airlock, AIWorker worker)
 	{
 		airlock?.Release(worker);
-	}
-
-	public void ResetRuntimeState()
-	{
-		foreach (uint buildingId in FacilityManager.GetBuildingIds())
-		{
-			if (TryGetBuildingFacilities(buildingId, out var airlocks) == false)
-				continue;
-
-			for (int i = 0; i < airlocks.Count; ++i)
-				airlocks[i]?.Release(null);
-		}
 	}
 
 	private static bool ResolveEnterDistance(Airlock airlock, in int3 from, out int score)

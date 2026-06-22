@@ -11,7 +11,7 @@ using static WorkerTask.TaskType;
 // labeling
 // storing
 
-public class InboundWorkflowService : MonoBehaviour, IBoundService
+public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 {
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 	private const PlacingPolicyType DefaultPlacingPolicyType = PlacingPolicyType.BelowAverageFilledNearest;
@@ -96,25 +96,6 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 		storingPlanner.SetPlacingPolicy(policyType);
 	}
 
-	public InboundWorkflowPolicySaveData CapturePolicyState()
-	{
-		return new InboundWorkflowPolicySaveData
-		{
-			StoringCollectingPolicy = StoringCollectingPolicyType,
-			StoringPlacingPolicy = StoringPlacingPolicyType,
-			UnloadingDestinationBuildingId = unloadingDestinationBuildingId,
-		};
-	}
-
-	public void RestorePolicyState(InboundWorkflowPolicySaveData data)
-	{
-		CollectingPolicyType collectingPolicyType = data != null ? data.StoringCollectingPolicy : DefaultCollectingPolicyType;
-		PlacingPolicyType policyType = data != null ? data.StoringPlacingPolicy : DefaultPlacingPolicyType;
-		unloadingDestinationBuildingId = data != null ? data.UnloadingDestinationBuildingId : 0;
-		SetStoringCollectingPolicy(collectingPolicyType);
-		SetStoringPlacingPolicy(policyType);
-	}
-
 	public void OnTaskCompleted(WorkerTask task)
 	{
 		switch (task.Type)
@@ -157,13 +138,6 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		CheckInboundRocketSpawn();
 		CheckStoreTaskAvailable();
-	}
-
-	public void ResetRuntimeState()
-	{
-		timeSinceLastInboundRocketSpawn = 0.0f;
-		requestService?.ResetRuntimeState();
-		RebuildPlanner();
 	}
 
 	private void CheckInboundRocketSpawn()

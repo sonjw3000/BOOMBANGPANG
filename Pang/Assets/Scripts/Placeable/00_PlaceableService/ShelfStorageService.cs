@@ -14,7 +14,7 @@ using UnityEngine;
 // itemstack 실제 아이템의 데이터
 
 [System.Serializable]
-public class ShelfStorageService : FacilityService<Shelf>, ICollectSupplySource
+public partial class ShelfStorageService : FacilityService<Shelf>, ICollectSupplySource
 {
 	// shelf, bin 등 아이템 컨테이너 리스트
 	[SerializeField] private List<ShelfBase> containers = new();
@@ -80,15 +80,6 @@ public class ShelfStorageService : FacilityService<Shelf>, ICollectSupplySource
 	protected override void OnUnregisterFacility(uint buildingId, Shelf facility)
 	{
 		UnregisterContainer(facility);
-	}
-
-	public void ResetRuntimeState()
-	{
-		for (int i = 0; i < containers.Count; ++i)
-			UnsubscribeContainer(containers[i]);
-
-		containers.Clear();
-		shelvesByItem.Clear();
 	}
 
 	// ---------------------------

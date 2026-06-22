@@ -4,7 +4,7 @@ using static WorkerTask;
 // outbound 작업 흐름 관리
 // 주문을 까서 picking -> packaging -> loading 작업을 관리
 
-public class OutboundWorkflowService : MonoBehaviour, IBoundService
+public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 {
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 
@@ -57,20 +57,6 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 		pickingPlanner.SetCollectingPolicy(policyType);
 	}
 
-	public OutboundWorkflowPolicySaveData CapturePolicyState()
-	{
-		return new OutboundWorkflowPolicySaveData
-		{
-			PickingCollectingPolicy = PickingCollectingPolicyType,
-		};
-	}
-
-	public void RestorePolicyState(OutboundWorkflowPolicySaveData data)
-	{
-		CollectingPolicyType policyType = data != null ? data.PickingCollectingPolicy : DefaultCollectingPolicyType;
-		SetPickingCollectingPolicy(policyType);
-	}
-
 	public void BuildLoadingTask(CargoPort cargoPort)
 	{
 		if (cargoPort is not OutboundCargoPort || cargoPort.CanGetBox() == false)
@@ -94,12 +80,6 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 		}
 
 		CheckPickingTaskAvailable();
-	}
-
-	public void ResetRuntimeState()
-	{
-		timeSinceLastOrder = 0.0f;
-		RebuildPlanner();
 	}
 
 	private void CheckPickingTaskAvailable()

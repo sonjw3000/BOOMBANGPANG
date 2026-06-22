@@ -10,7 +10,7 @@ using System;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
-public class StoringTask : WorkerTask
+public partial class StoringTask : WorkerTask
 {
 	private WorkJob storeJob;
 
@@ -35,31 +35,6 @@ public class StoringTask : WorkerTask
 	public StoringTask(WorkJob job) : base(TaskType.Storing)
 	{
 		storeJob = job;
-	}
-
-	public StoringTaskSaveData CaptureState(Func<GameObject, int> getPlaceableId, Func<OrderLine, int> registerOrderLine)
-	{
-		return new StoringTaskSaveData
-		{
-			Job = storeJob?.CaptureState(getPlaceableId, registerOrderLine),
-			CurrentPhase = CurrentPhase,
-			IsJobEnd = IsJobEnd,
-			PlacingLine = placingLine == null ? null : new WorkLineSaveData
-			{
-				SourcePlaceableId = getPlaceableId != null ? getPlaceableId(placingLine.Source.gameObject) : -1,
-				ItemId = placingLine.ItemID,
-				Quantity = placingLine.Quantity,
-				CompleteQuantity = placingLine.CompleteQuantity,
-				RelatedOrderLineId = registerOrderLine != null && placingLine.RelatedOrderLine != null ? registerOrderLine(placingLine.RelatedOrderLine) : -1,
-			},
-		};
-	}
-
-	public void RestoreState(Phase currentPhase, bool isJobEnd, WorkLine placingLine)
-	{
-		CurrentPhase = currentPhase;
-		IsJobEnd = isJobEnd;
-		this.placingLine = placingLine;
 	}
 
 	protected override void OnTaskAssigned()

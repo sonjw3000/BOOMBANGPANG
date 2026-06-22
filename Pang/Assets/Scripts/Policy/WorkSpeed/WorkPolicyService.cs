@@ -3,7 +3,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using static WorkerTask;
 
-public class WorkPolicyService : MonoBehaviour
+public partial class WorkPolicyService : MonoBehaviour
 {
 	private const float DefaultSpeedMultiplier = 1.0f;
 	private const float MinimumSpeedMultiplier = 0.5f;
@@ -82,50 +82,6 @@ public class WorkPolicyService : MonoBehaviour
 	{
 		EnsureRuntimeMultipliers();
 		workSpeedMultipliers[workerType] = Mathf.Clamp(value, MinimumSpeedMultiplier, MaximumSpeedMultiplier);
-	}
-
-	public WorkPolicyRuntimeSaveData CaptureState()
-	{
-		EnsureRuntimeMultipliers();
-		WorkPolicyRuntimeSaveData data = new();
-
-		foreach (WorkerType workerType in System.Enum.GetValues(typeof(WorkerType)))
-		{
-			data.MoveSpeedMultipliers.Add(new WorkerTypeFloatSaveData
-			{
-				WorkerType = workerType,
-				Value = GetMoveSpeedMultiplier(workerType),
-			});
-			data.WorkSpeedMultipliers.Add(new WorkerTypeFloatSaveData
-			{
-				WorkerType = workerType,
-				Value = GetWorkSpeedMultiplier(workerType),
-			});
-		}
-
-		return data;
-	}
-
-	public void RestoreState(WorkPolicyRuntimeSaveData data)
-	{
-		ResetRuntimeState();
-
-		if (data == null)
-			return;
-
-		ApplyWorkerTypeValues(moveSpeedMultipliers, data.MoveSpeedMultipliers);
-		ApplyWorkerTypeValues(workSpeedMultipliers, data.WorkSpeedMultipliers);
-	}
-
-	public void ResetRuntimeState()
-	{
-		EnsureRuntimeMultipliers();
-
-		foreach (WorkerType workerType in System.Enum.GetValues(typeof(WorkerType)))
-		{
-			moveSpeedMultipliers[workerType] = DefaultSpeedMultiplier;
-			workSpeedMultipliers[workerType] = DefaultSpeedMultiplier;
-		}
 	}
 
 	public float WorkerRestFatigueThreshold => workerRestFatigue;
@@ -236,18 +192,4 @@ public class WorkPolicyService : MonoBehaviour
 		return 1.0f;
 	}
 
-	private static void ApplyWorkerTypeValues(SerializedDictionary<WorkerType, float> target, List<WorkerTypeFloatSaveData> values)
-	{
-		if (values == null)
-			return;
-
-		foreach (WorkerTypeFloatSaveData entry in values)
-		{
-			if (entry == null)
-				continue;
-
-			float value = entry.Value;
-			target[entry.WorkerType] = Mathf.Clamp(value <= 0.0f ? DefaultSpeedMultiplier : value, MinimumSpeedMultiplier, MaximumSpeedMultiplier);
-		}
-	}
 }

@@ -5,7 +5,7 @@ using UnityEngine;
 // item의 출입고 내역을 기록하는 장부
 // 추후에 통계자료로 활용 가능
 
-public class ItemLedger : MonoBehaviour
+public partial class ItemLedger : MonoBehaviour
 {
 	private readonly Dictionary<uint, int> itemTotals = new();
 	private readonly Dictionary<uint, int> reservedItems = new();
@@ -87,39 +87,4 @@ public class ItemLedger : MonoBehaviour
 		}
 	}
 
-	public ItemLedgerSaveData CaptureState()
-	{
-		ItemLedgerSaveData data = new();
-		foreach (var kv in itemTotals)
-			data.Totals.Add(new ItemQuantitySaveData { ItemId = kv.Key, Quantity = kv.Value });
-
-		foreach (var kv in reservedItems)
-			data.Reserved.Add(new ItemQuantitySaveData { ItemId = kv.Key, Quantity = kv.Value });
-
-		data.OrderableItems.AddRange(orderableItems);
-		return data;
-	}
-
-	public void RestoreState(ItemLedgerSaveData data)
-	{
-		ResetRuntimeState();
-		if (data == null)
-			return;
-
-		foreach (var entry in data.Totals)
-			itemTotals[entry.ItemId] = entry.Quantity;
-
-		foreach (var entry in data.Reserved)
-			reservedItems[entry.ItemId] = entry.Quantity;
-
-		orderableItems.AddRange(data.OrderableItems);
-	}
-
-	public void ResetRuntimeState()
-	{
-		itemTotals.Clear();
-		reservedItems.Clear();
-		orderableItems.Clear();
-	}
 }
-

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PackingStationService : FacilityService<PackingStation>
+public partial class PackingStationService : FacilityService<PackingStation>
 {
 	private sealed class BuildingPackingState
 	{
@@ -132,11 +132,6 @@ public class PackingStationService : FacilityService<PackingStation>
 		TransferContext to = new TransferContext(port, TransferObjectType.Box);
 
 		TaskManager.EnqueueTask(new WaterTask(from, to));
-	}
-
-	public void ResetRuntimeState()
-	{
-		statesByBuildingId.Clear();
 	}
 
 	private BuildingPackingState GetOrCreateState(uint buildingId)

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class BuildingManager : MonoBehaviour
+public sealed partial class BuildingManager : MonoBehaviour
 {
 	[SerializeField] private List<Building> registeredBuildings = new();
 	[SerializeField] [HideInInspector] private uint nextRuntimeBuildingId = 1;
@@ -147,34 +147,6 @@ public sealed class BuildingManager : MonoBehaviour
 			buildingsById[runtimeId] = building;
 			building.SetRegistered(true);
 		}
-	}
-
-	public void ResetRuntimeState()
-	{
-		registeredBuildings.Clear();
-		buildingsById.Clear();
-		nextRuntimeBuildingId = 1;
-	}
-
-	public BuildingManagerSaveData CaptureState()
-	{
-		BuildingManagerSaveData data = new();
-		foreach (Building building in registeredBuildings)
-		{
-			if (building == null)
-				continue;
-
-			data.Buildings.Add(new BuildingSaveData
-			{
-				RuntimeBuildingId = building.RuntimeBuildingId,
-				Name = building.DisplayName,
-				Type = building.Type,
-				State = building.State,
-				WorkScope = building.WorkScope,
-			});
-		}
-
-		return data;
 	}
 
 	public Building RestoreBuilding(

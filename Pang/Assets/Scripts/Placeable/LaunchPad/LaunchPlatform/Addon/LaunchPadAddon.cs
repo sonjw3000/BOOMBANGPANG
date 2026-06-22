@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class LaunchPadAddon : PlatformAddon
+public partial class LaunchPadAddon : PlatformAddon
 {
 	private BoxBase cargoToLaunch = null;
 	private Rocket rocket = null;
@@ -73,12 +73,6 @@ public class LaunchPadAddon : PlatformAddon
 		{
 			Launch();
 		}
-	}
-
-	public void RestoreState(BoxBase cargo, bool ready)
-	{
-		cargoToLaunch = cargo;
-		readyToLaunch = ready;
 	}
 
 }

@@ -12,7 +12,7 @@ public enum BoxType
 	Any = 3,
 }
 
-public abstract class BoxBase : MonoBehaviour, IItemContainer
+public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 {
 	[SerializeField] BoxType boxType;
 	[SerializeField] private float capacity = 10.0f;
@@ -220,61 +220,5 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 	// pallet같은 경우에는 소유한 pallet들의 capacity들을 합쳐야하기 때문에
 	protected abstract void UpdateSize();
-
-	public virtual BoxSaveData CaptureState(Func<OrderLine, int> registerOrderLine)
-	{
-		BoxSaveData data = new BoxSaveData
-		{
-			BoxId = boxId,
-			BoxType = boxType,
-			ConcreteType = GetType().Name,
-		};
-
-		foreach (var stack in stacks)
-		{
-			if (stack is ItemPackage pkg)
-			{
-				data.Stacks.Add(new ItemStackSaveData
-				{
-					ItemId = pkg.ItemID,
-					Quantity = pkg.Quantity,
-					IsPackage = true,
-					RelatedOrderLineId = registerOrderLine != null ? registerOrderLine(pkg.RelatedOrderLine) : -1,
-					OutboundStage = pkg.OutboundStage,
-				});
-			}
-			else
-			{
-				data.Stacks.Add(new ItemStackSaveData
-				{
-					ItemId = stack.ItemID,
-					Quantity = stack.Quantity,
-				});
-			}
-		}
-
-		return data;
-	}
-
-	public virtual void RestoreState(BoxSaveData data, IReadOnlyDictionary<int, OrderLine> orderLines)
-	{
-		ResetContainer();
-		if (data == null)
-			return;
-
-		foreach (var stackData in data.Stacks)
-		{
-			if (stackData.IsPackage &&
-				orderLines != null &&
-				orderLines.TryGetValue(stackData.RelatedOrderLineId, out var line))
-			{
-				AddStack(new ItemPackage(PackingType.Box, line, stackData.ItemId, stackData.Quantity, stackData.OutboundStage));
-			}
-			else
-			{
-				AddItem(stackData.ItemId, stackData.Quantity);
-			}
-		}
-	}
 
 }

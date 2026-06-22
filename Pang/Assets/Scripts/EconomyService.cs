@@ -20,7 +20,7 @@ public class EconomyTransaction
 
 
 // 돈, 평판, 기타등등
-public class EconomyService : MonoBehaviour
+public partial class EconomyService : MonoBehaviour
 {
 	private int money;
 	private float reputation;
@@ -96,29 +96,6 @@ public class EconomyService : MonoBehaviour
 		//	reason = EconomyTransaction.Reason.MontlyContract
 		//};
 
-	}
-
-	public EconomySaveData CaptureState()
-	{
-		return new EconomySaveData
-		{
-			Money = money,
-			Reputation = reputation,
-		};
-	}
-
-	public void RestoreState(EconomySaveData data)
-	{
-		if (data == null)
-			return;
-
-		float previousReputation = reputation;
-		money = data.Money;
-		reputation = data.Reputation;
-		history.Clear();
-
-		if (Mathf.Approximately(previousReputation, reputation) == false)
-			OnReputationChanged?.Invoke(reputation);
 	}
 
 }

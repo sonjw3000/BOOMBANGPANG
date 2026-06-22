@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-public class GameTime : MonoBehaviour
+public partial class GameTime : MonoBehaviour
 {
 	[Header("게임 시간 설정")]
 	[Tooltip("현실 시간 기준 1개월이 몇 초인가?")]
@@ -124,30 +124,6 @@ public class GameTime : MonoBehaviour
 	{
 		preservedPauseCount = 0;
 		ApplyTimeScale(value, true);
-	}
-
-	public TimeSaveData CaptureState()
-	{
-		return new TimeSaveData
-		{
-			TimeElapsed = timeElapsed,
-			ElapsedWeek = elapsedWeek,
-			ElapsedMonth = elapsedMonth,
-			TimeScale = preservedPauseCount > 0 ? preservedPauseTimeScale : timeScale,
-		};
-	}
-
-	public void RestoreState(TimeSaveData data)
-	{
-		if (data == null)
-			return;
-
-		timeElapsed = data.TimeElapsed;
-		elapsedWeek = data.ElapsedWeek;
-		elapsedMonth = data.ElapsedMonth;
-		preservedPauseCount = 0;
-		preservedPauseTimeScale = data.TimeScale;
-		ApplyTimeScale(data.TimeScale, true);
 	}
 
 	private void ApplyTimeScale(float value, bool notify)

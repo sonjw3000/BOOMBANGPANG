@@ -5,7 +5,7 @@ using UnityEngine;
 
 // box base를 보관하는 타일 단 하나
 
-public class BoxPool : 
+public partial class BoxPool : 
 	BoxInteraction
 {
 	[SerializeField] private int maxStack = 50;
@@ -70,35 +70,4 @@ public class BoxPool :
 
 	}
 
-	public BoxPoolSaveData CaptureState()
-	{
-		BoxPoolSaveData data = new();
-		foreach (var box in boxes)
-		{
-			if (box != null)
-			{
-				data.Boxes.Add(new BoxReferenceSaveData
-				{
-					BoxType = box.Type,
-					BoxId = box.BoxId,
-				});
-			}
-		}
-
-		return data;
-	}
-
-	public void RestoreState(BoxPoolSaveData data)
-	{
-		boxes.Clear();
-		if (data == null)
-			return;
-
-		for (int i = data.Boxes.Count - 1; i >= 0; i--)
-		{
-			BoxReferenceSaveData boxRef = data.Boxes[i];
-			if (boxRef != null && GameContext.Instance.BoxMgr.TryGetBox(boxRef.BoxType, boxRef.BoxId, out var box))
-				PutBox(box);
-		}
-	}
 }

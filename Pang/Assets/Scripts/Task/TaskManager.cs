@@ -4,7 +4,7 @@ using UnityEngine;
 using static WorkerTask;
 
 //[DefaultExecutionOrder(-100)]
-public class TaskManager : MonoBehaviour
+public partial class TaskManager : MonoBehaviour
 {
 	private Dictionary<TaskType, LinkedList<WorkerTask>> taskQueue = new();
 	private Dictionary<TaskType, LinkedList<WorkerTask>> taskOnProgress = new();
@@ -107,12 +107,4 @@ public class TaskManager : MonoBehaviour
 		taskOnProgress[task.Type].AddLast(task);
 	}
 
-	public void ResetRuntimeState()
-	{
-		foreach (TaskType type in Enum.GetValues(typeof(TaskType)))
-		{
-			taskQueue[type].Clear();
-			taskOnProgress[type].Clear();
-		}
-	}
 }

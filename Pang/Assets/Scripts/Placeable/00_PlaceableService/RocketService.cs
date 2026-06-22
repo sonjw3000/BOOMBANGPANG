@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-public class RocketService : FacilityService<Rocket>
+public partial class RocketService : FacilityService<Rocket>
 {
 	[SerializeField] private int initialPoolSize = 5;
 	[SerializeField] private FacingDirection landingFacingDirection = FacingDirection.North;
@@ -240,17 +240,4 @@ public class RocketService : FacilityService<Rocket>
 			: PlacementEvent.RocketLanding;
 	}
 
-	public RocketServiceSaveData CaptureState()
-	{
-		return new RocketServiceSaveData();
-	}
-
-	public void RestoreState(RocketServiceSaveData data)
-	{
-	}
-
-	public void ResetRuntimeState()
-	{
-		activeRockets.Clear();
-	}
 }

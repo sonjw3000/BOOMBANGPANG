@@ -21,7 +21,7 @@ public class TransferContext
 	}
 }
 
-public class WaterTask : WorkerTask
+public partial class WaterTask : WorkerTask
 {
 	private readonly TransferContext from;
 	private readonly TransferContext to;
@@ -33,23 +33,6 @@ public class WaterTask : WorkerTask
 	{
 		this.from = from;
 		this.to = to;
-	}
-
-	public WaterTaskSaveData CaptureState(Func<GameObject, int> getPlaceableId)
-	{
-		return new WaterTaskSaveData
-		{
-			From = CaptureTransferContext(from, getPlaceableId),
-			To = CaptureTransferContext(to, getPlaceableId),
-			WorkPhase = workPhase,
-			HasPicked = hasPicked,
-		};
-	}
-
-	public void RestoreState(bool workPhase, bool hasPicked)
-	{
-		this.workPhase = workPhase;
-		this.hasPicked = hasPicked;
 	}
 
 	protected override void OnTaskAssigned()
@@ -335,15 +318,4 @@ public class WaterTask : WorkerTask
 		return true;
 	}
 
-	private static TransferContextSaveData CaptureTransferContext(TransferContext context, Func<GameObject, int> getPlaceableId)
-	{
-		if (context?.target is not Component targetComponent)
-			return null;
-
-		return new TransferContextSaveData
-		{
-			TargetPlaceableId = getPlaceableId != null ? getPlaceableId(targetComponent.gameObject) : -1,
-			TransferType = context.transferType,
-		};
-	}
 }

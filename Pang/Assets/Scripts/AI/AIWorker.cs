@@ -340,28 +340,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		InitializeForSaveLoad();
 	}
 
-	public void InitializeForSaveLoad(bool preserveWorkerId = false)
-	{
-		if (isRegistered)
-			return;
-
-		routeFinder = transform.GetComponent<FindRoute>();
-
-		if (routeFinder == null)
-		{
-			Debug.Log($"FindRoute가 null이다 해당 객체가 프리뷰가 아니라면 큰일이다, 이름: {this.name}");
-
-			return;
-		}
-
-		// register AI's BT to AI Manager
-		WorkerMgr.RegisterWorker(this, preserveWorkerId);
-		isRegistered = true;
-
-		routeFinder.SetAIMaster(this);
-		BuildBehaviorTree();
-	}
-
 	private void OnDestroy()
 	{
 		// unregister AI
@@ -670,76 +648,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	// decreased chance by researches or some pieces of equipment
 	public virtual float GetIncidentMitigationMultiplier() { return 1.0f; }
 
-	public WorkerSaveData CaptureState()
-	{
-		WorkerSaveData data = new()
-		{
-			WorkerId = workerID,
-			PrimaryBuildingId = primaryBuildingId,
-			FirstName = workerFirstName,
-			LastName = workerLastName,
-			WorkerType = workerType,
-			Abilities = abilities,
-			MonthlyCost = monthlyCost,
-			VisualId = currentVisualDefinition != null ? currentVisualDefinition.VisualId : string.Empty,
-			BaseMoveSpeedMultiplier = baseMoveSpeedMultiplier,
-			MinimumMoveSpeedMultiplier = minimumMoveSpeedMultiplier,
-			BaseWorkSpeedMultiplier = baseWorkSpeedMultiplier,
-			MinimumWorkSpeedMultiplier = minimumWorkSpeedMultiplier,
-			MainTaskType = workerMainTaskType,
-			StatusAction = workerState.Action,
-			StatusTarget = workerState.Target,
-			CarryingBox = null,
-		};
-
-		var carryBoxAbility = CarryingAbility;
-		if (carryBoxAbility != null && carryBoxAbility.CarryingBox != null)
-		{
-			data.CarryingBox = new BoxReferenceSaveData
-			{
-				BoxType = carryBoxAbility.CarryingBox.Type,
-				BoxId = carryBoxAbility.CarryingBox.BoxId,
-			};
-		}
-
-		CaptureSubclassState(data);
-		return data;
-	}
-
-	public void RestoreState(WorkerSaveData data)
-	{
-		if (data == null)
-			return;
-
-		workerFirstName = data.FirstName;
-		workerLastName = data.LastName;
-		workerID = data.WorkerId;
-		primaryBuildingId = data.PrimaryBuildingId;
-		workerType = data.WorkerType;
-		abilities = data.Abilities;
-		monthlyCost = data.MonthlyCost;
-		baseMoveSpeedMultiplier = data.BaseMoveSpeedMultiplier;
-		minimumMoveSpeedMultiplier = data.MinimumMoveSpeedMultiplier;
-		baseWorkSpeedMultiplier = data.BaseWorkSpeedMultiplier;
-		minimumWorkSpeedMultiplier = data.MinimumWorkSpeedMultiplier;
-		workerMainTaskType = data.MainTaskType;
-		workerState = new WorkerStatusInfo(data.StatusAction, data.StatusTarget);
-		preTrafficAction = workerState.Action;
-		isTrafficBlocked = false;
-		tick = 0;
-
-		if (string.IsNullOrWhiteSpace(data.VisualId) == false)
-			ApplyVisual(GameContext.Instance.WorkerVisualCatalog?.FindById(data.VisualId));
-
-		EnsureAbilitiesConfigured();
-		RestoreSubclassState(data);
-
-		if (data.CarryingBox != null && GameContext.Instance.BoxMgr.TryGetBox(data.CarryingBox.BoxType, data.CarryingBox.BoxId, out var box))
-			TryAttachBox(box);
-	}
-
-	protected virtual void CaptureSubclassState(WorkerSaveData data) { }
-	protected virtual void RestoreSubclassState(WorkerSaveData data) { }
 
 	private void EnsureAbilitiesConfigured()
 	{

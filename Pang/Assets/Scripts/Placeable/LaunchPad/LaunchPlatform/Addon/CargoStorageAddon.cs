@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
-public class CargoStorageAddon 
+public partial class CargoStorageAddon 
 	: PlatformAddon
 {
 	[SerializeField] private Transform cargoStorageSlot;
@@ -76,16 +76,6 @@ public class CargoStorageAddon
 
 			it = next;
 		}
-	}
-
-	public void RestoreState(IEnumerable<BoxBase> cargos)
-	{
-		cargosToLaunch.Clear();
-		if (cargos == null)
-			return;
-
-		foreach (var cargo in cargos)
-			TryStoreCargo(cargo);
 	}
 
 }
