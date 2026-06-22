@@ -105,6 +105,7 @@ public partial class WorkerManager : MonoBehaviour
 		switch (type)
 		{
 			case TaskType.Unloading:
+			case TaskType.CargoTransfer:
 				if (worker.GetComponent<CargoHandlingAbility>() == false)
 				{
 					Debug.Log("No Unloading Ability");

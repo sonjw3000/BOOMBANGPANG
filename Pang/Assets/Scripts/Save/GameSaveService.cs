@@ -344,6 +344,9 @@ public sealed class GameSaveService : MonoBehaviour
 					case OBTask outboundTransfer:
 						taskData.CapsuleTransfer = outboundTransfer.CaptureState(GetPlaceableIdOrDefault);
 						break;
+					case CargoTransferTask cargoTransfer:
+						taskData.CargoTransfer = cargoTransfer.CaptureState(GetPlaceableIdOrDefault);
+						break;
 					case PackingTask packing:
 						taskData.Packing = packing.CaptureState(GetPlaceableIdOrDefault);
 						break;
@@ -435,6 +438,8 @@ public sealed class GameSaveService : MonoBehaviour
 			case WorkerTask.TaskType.IB:
 			case WorkerTask.TaskType.OB:
 				return taskData.CapsuleTransfer?.Restore(restoredPlaceables);
+			case WorkerTask.TaskType.CargoTransfer:
+				return taskData.CargoTransfer?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Loading:
 				return taskData.Loading?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Picking:
@@ -569,6 +574,22 @@ public static class TaskSaveDataExtensions
 		PackingTask task = new(station);
 		task.RestoreState(data.IsTaskEnd);
 		return task;
+	}
+
+	public static CargoTransferTask Restore(this CargoTransferTaskSaveData data, Dictionary<int, GameObject> placeables)
+	{
+		if (data == null || placeables.TryGetValue(data.SourcePortId, out var sourceObj) == false || sourceObj.TryGetComponent<OutboundCargoPort>(out var sourcePort) == false)
+			return null;
+
+		InboundCargoPort targetPort = null;
+		if (data.TargetPortId >= 0 &&
+			placeables.TryGetValue(data.TargetPortId, out var targetObj) &&
+			targetObj.TryGetComponent(out InboundCargoPort restoredTargetPort))
+		{
+			targetPort = restoredTargetPort;
+		}
+
+		return new CargoTransferTask(sourcePort, targetPort);
 	}
 
 	public static WaterTask Restore(this WaterTaskSaveData data, Dictionary<int, GameObject> placeables)

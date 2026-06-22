@@ -17,6 +17,9 @@ public partial class OutboundWorkflowService
 	public void ResetRuntimeState()
 	{
 		timeSinceLastOrder = 0.0f;
+		queuedCargoTransferPorts.Clear();
+		pendingCargoTransferPorts.Clear();
+		queuedCargoTransferTargets.Clear();
 		RebuildPlanner();
 	}
 }

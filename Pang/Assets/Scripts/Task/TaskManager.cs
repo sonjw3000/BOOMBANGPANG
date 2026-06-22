@@ -79,6 +79,7 @@ public partial class TaskManager : MonoBehaviour
 
 			// OB
 			case TaskType.OB:
+			case TaskType.CargoTransfer:
 			case TaskType.Picking:
 			case TaskType.Packing:
 			//case TaskType.Sorting:

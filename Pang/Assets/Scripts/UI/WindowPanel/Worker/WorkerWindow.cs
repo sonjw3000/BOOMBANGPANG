@@ -14,6 +14,7 @@ namespace Assets.Scripts.UI
 			Unloading,
 			IB,
 			OB,
+			CargoTransfer,
 			Loading,
 			Water
 		}
@@ -68,6 +69,7 @@ namespace Assets.Scripts.UI
 			window.AddTab("Unloading", SetTab);
 			window.AddTab("IB", SetTab);
 			window.AddTab("OB", SetTab);
+			window.AddTab("CargoTransfer", SetTab);
 			window.AddTab("Loading", SetTab);
 			window.AddTab("Water", SetTab);
 
@@ -151,6 +153,7 @@ namespace Assets.Scripts.UI
 				case TabType.Unloading: return worker.TaskType == WorkerTask.TaskType.Unloading;
 				case TabType.IB: return worker.TaskType == WorkerTask.TaskType.IB;
 				case TabType.OB: return worker.TaskType == WorkerTask.TaskType.OB;
+				case TabType.CargoTransfer: return worker.TaskType == WorkerTask.TaskType.CargoTransfer;
 				case TabType.Loading: return worker.TaskType == WorkerTask.TaskType.Loading;
 				case TabType.Water: return worker.TaskType == WorkerTask.TaskType.Water;
 			}

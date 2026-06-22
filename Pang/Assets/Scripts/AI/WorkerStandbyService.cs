@@ -70,6 +70,7 @@ public class WorkerStandbyService : MonoBehaviour
 				return true;
 
 			case WorkerTask.TaskType.OB:
+			case WorkerTask.TaskType.CargoTransfer:
 				zoneType = ZoneType.OutboundStandby;
 				return true;
 

@@ -9,6 +9,7 @@ public static class WorkerTaskTypeRequirement
 			WorkerTask.TaskType.Unloading => WorkerAbility.CargoHandling,
 			WorkerTask.TaskType.IB => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.OB => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.CargoTransfer => WorkerAbility.CargoHandling,
 			WorkerTask.TaskType.Storing => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Picking => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Packing => WorkerAbility.Packing,
@@ -27,25 +28,28 @@ public abstract class WorkerTask
 	public enum TaskType
 	{
 		// IB
-		Unloading,
-		IB,
+		Unloading = 0,
+		IB = 1,
 		//Receive,
 		//Label,
-		Storing,
+		Storing = 2,
 
 		// OB
-		OB,
-		Picking,
+		OB = 3,
+		Picking = 4,
 		//Sorting,
-		Packing,
+		Packing = 5,
 
-		Loading,
+		Loading = 6,
 
-		Water,
+		Water = 7,
 		// undef
-		Undefined,
+		Undefined = 8,
 
-		HandleMistake
+		HandleMistake = 9,
+
+		// cross-building
+		CargoTransfer = 10,
 	}
 
 	public enum Status

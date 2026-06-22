@@ -452,6 +452,7 @@ public sealed class TaskSaveData
 	public PickingTaskSaveData Picking;
 	public StoringTaskSaveData Storing;
 	public CapsuleTransferTaskSaveData CapsuleTransfer;
+	public CargoTransferTaskSaveData CargoTransfer;
 	public PackingTaskSaveData Packing;
 	public WaterTaskSaveData Water;
 }
@@ -494,6 +495,13 @@ public sealed class CapsuleTransferTaskSaveData
 	public bool IsInbound;
 	public uint BuildingId;
 	public int SourcePlaceableId = -1;
+}
+
+[Serializable]
+public sealed class CargoTransferTaskSaveData
+{
+	public int SourcePortId = -1;
+	public int TargetPortId = -1;
 }
 
 [Serializable]

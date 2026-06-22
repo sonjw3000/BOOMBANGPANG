@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 using static WorkerTask;
 
@@ -18,6 +20,9 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private float timeSinceLastOrder = 0.0f;
 	private PickingPlanner pickingPlanner;
+	private readonly HashSet<OutboundCargoPort> queuedCargoTransferPorts = new();
+	private readonly HashSet<OutboundCargoPort> pendingCargoTransferPorts = new();
+	private readonly Dictionary<OutboundCargoPort, InboundCargoPort> queuedCargoTransferTargets = new();
 
 	public PackingStationService PackingStationService => packingStationService;
 	public LaunchStationService LaunchStationService => launchStationService;
@@ -27,12 +32,18 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private BoxManager BoxMgr => GameContext.Instance.BoxMgr;
+	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
+	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
 		switch (task.Type)
 		{
 			case TaskType.OB:
+				break;
+			case TaskType.CargoTransfer:
+				if (task is CargoTransferTask cargoTransferTask)
+					OnCargoTransferTaskCompleted(cargoTransferTask);
 				break;
 			case TaskType.Picking:
 				break;
@@ -70,6 +81,21 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private void Awake()
 	{
 		RebuildPlanner();
+	}
+
+	private void Start()
+	{
+		SubscribeCargoPortEvents();
+	}
+
+	private void OnEnable()
+	{
+		SubscribeCargoPortEvents();
+	}
+
+	private void OnDisable()
+	{
+		UnsubscribeCargoPortEvents();
 	}
 
 	private void Update()
@@ -139,5 +165,153 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			return 0.0f;
 
 		return toteCapacity * Mathf.Clamp01(pickingBoxFillLimitPercent / 100.0f);
+	}
+
+	private void SubscribeCargoPortEvents()
+	{
+		CargoPortService cargoPortService = CargoPortService;
+		if (cargoPortService == null)
+			return;
+
+		cargoPortService.OnCargoDocked -= HandleCargoDocked;
+		cargoPortService.OnCargoUndocked -= HandleCargoUndocked;
+		cargoPortService.OnCargoDocked += HandleCargoDocked;
+		cargoPortService.OnCargoUndocked += HandleCargoUndocked;
+	}
+
+	private void UnsubscribeCargoPortEvents()
+	{
+		CargoPortService cargoPortService = CargoPortService;
+		if (cargoPortService == null)
+			return;
+
+		cargoPortService.OnCargoDocked -= HandleCargoDocked;
+		cargoPortService.OnCargoUndocked -= HandleCargoUndocked;
+	}
+
+	private void HandleCargoDocked(uint buildingId, CargoPort cargoPort)
+	{
+		if (cargoPort is not OutboundCargoPort outboundCargoPort)
+			return;
+
+		TryEnqueueCargoTransferTask(outboundCargoPort);
+	}
+
+	private void HandleCargoUndocked(uint buildingId, CargoPort cargoPort)
+	{
+		switch (cargoPort)
+		{
+			case OutboundCargoPort outboundCargoPort:
+				queuedCargoTransferPorts.Remove(outboundCargoPort);
+				pendingCargoTransferPorts.Remove(outboundCargoPort);
+				queuedCargoTransferTargets.Remove(outboundCargoPort);
+				break;
+
+			case InboundCargoPort inboundCargoPort:
+				RemoveQueuedCargoTransferTarget(inboundCargoPort);
+				TryEnqueuePendingCargoTransferTasks();
+				break;
+		}
+	}
+
+	private void OnCargoTransferTaskCompleted(CargoTransferTask task)
+	{
+		if (task?.SourcePort == null)
+			return;
+
+		queuedCargoTransferPorts.Remove(task.SourcePort);
+		pendingCargoTransferPorts.Remove(task.SourcePort);
+		queuedCargoTransferTargets.Remove(task.SourcePort);
+
+		if (task.TargetPort != null)
+			RemoveQueuedCargoTransferTarget(task.TargetPort);
+	}
+
+	private void TryEnqueueCargoTransferTask(OutboundCargoPort sourcePort)
+	{
+		if (sourcePort == null || queuedCargoTransferPorts.Contains(sourcePort) || TaskMgr == null || sourcePort.CanGetBox() == false)
+			return;
+
+		InboundCargoPort targetPort = ResolveLinkedInboundTarget(sourcePort);
+		if (targetPort == null)
+		{
+			pendingCargoTransferPorts.Add(sourcePort);
+			return;
+		}
+
+		TaskMgr.EnqueueTask(new CargoTransferTask(sourcePort, targetPort));
+		queuedCargoTransferPorts.Add(sourcePort);
+		queuedCargoTransferTargets[sourcePort] = targetPort;
+		pendingCargoTransferPorts.Remove(sourcePort);
+	}
+
+	private void TryEnqueuePendingCargoTransferTasks()
+	{
+		if (pendingCargoTransferPorts.Count <= 0)
+			return;
+
+		OutboundCargoPort[] pendingPorts = new OutboundCargoPort[pendingCargoTransferPorts.Count];
+		pendingCargoTransferPorts.CopyTo(pendingPorts);
+		for (int i = 0; i < pendingPorts.Length; ++i)
+			TryEnqueueCargoTransferTask(pendingPorts[i]);
+	}
+
+	private InboundCargoPort ResolveLinkedInboundTarget(OutboundCargoPort sourcePort)
+	{
+		if (sourcePort == null || GridService == null)
+			return null;
+
+		int3 sourcePoint = ResolveInteractionOrigin(sourcePort, InteractionKind.Pick);
+		InboundCargoPort bestCandidate = null;
+		int bestScore = int.MaxValue;
+		for (int i = 0; i < sourcePort.LinkedPorts.Count; ++i)
+		{
+			if (sourcePort.LinkedPorts[i] is not InboundCargoPort candidate || candidate.CanPutBox() == false)
+				continue;
+
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, InteractionKind.Put, sourcePoint, GridService, out _, out int score) == false)
+				continue;
+
+			if (score >= bestScore)
+				continue;
+
+			bestScore = score;
+			bestCandidate = candidate;
+		}
+
+		return bestCandidate;
+	}
+
+	private static int3 ResolveInteractionOrigin(BoxInteraction interactionTarget, InteractionKind interactionKind)
+	{
+		if (interactionTarget == null)
+			return default;
+
+		if (interactionTarget.InteractionPointMap != null &&
+			interactionTarget.InteractionPointMap.ContainsKey(interactionKind) &&
+			interactionTarget.InteractionPointMap[interactionKind] != null &&
+			interactionTarget.InteractionPointMap[interactionKind].Count > 0)
+		{
+			return interactionTarget.GetClosestInteractionPoint(interactionKind, interactionTarget.GridPosition);
+		}
+
+		return interactionTarget.GridPosition;
+	}
+
+	private void RemoveQueuedCargoTransferTarget(InboundCargoPort cargoPort)
+	{
+		if (cargoPort == null || queuedCargoTransferTargets.Count <= 0)
+			return;
+
+		OutboundCargoPort[] sourcePorts = new OutboundCargoPort[queuedCargoTransferTargets.Count];
+		queuedCargoTransferTargets.Keys.CopyTo(sourcePorts, 0);
+		for (int i = 0; i < sourcePorts.Length; ++i)
+		{
+			OutboundCargoPort sourcePort = sourcePorts[i];
+			if (sourcePort == null || queuedCargoTransferTargets.TryGetValue(sourcePort, out InboundCargoPort targetPort) == false || targetPort != cargoPort)
+				continue;
+
+			queuedCargoTransferTargets.Remove(sourcePort);
+		}
 	}
 }

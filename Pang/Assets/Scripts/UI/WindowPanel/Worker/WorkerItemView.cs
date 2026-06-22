@@ -12,6 +12,7 @@ namespace Assets.Scripts.UI
 			WorkerTask.TaskType.Unloading,
 			WorkerTask.TaskType.IB,
 			WorkerTask.TaskType.OB,
+			WorkerTask.TaskType.CargoTransfer,
 			WorkerTask.TaskType.Loading,
 			WorkerTask.TaskType.Water,
 		};
