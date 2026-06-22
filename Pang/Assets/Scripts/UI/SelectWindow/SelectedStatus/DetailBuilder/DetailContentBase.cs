@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Assets.Scripts.UI;
 using UnityEngine;
 using UnityEngine.Events;
@@ -34,7 +34,7 @@ public abstract class DetailContentBase : MonoBehaviour
 			return;
 
 		if (deleteButton == null)
-			Debug.LogError("Delete Button is not assigned!", this);
+			Debug.LogWarning("Delete Button is not assigned!", this);
 	}
 
 	private void OnEnable()

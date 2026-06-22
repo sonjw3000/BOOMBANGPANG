@@ -5,6 +5,8 @@ using Unity.Mathematics;
 
 public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 {
+	protected readonly Dictionary<uint, List<T>> registeredFacilities = new();
+
 	protected delegate bool FacilityDistanceResolver(T facility, in int3 from, out int score);
 
 	protected FacilityManager FacilityManager => GameContext.Instance.FacilityMgr;
@@ -145,20 +147,20 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 				continue;
 
 			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
-				OnRegisterFacility(buildingId, facilities[facilityIndex]);
+				RegisterFacility(buildingId, facilities[facilityIndex]);
 		}
 	}
 
 	private void HandleFacilityRegistered(uint buildingId, IFacility facility)
 	{
 		if (facility is T typedFacility)
-			OnRegisterFacility(buildingId, typedFacility);
+			RegisterFacility(buildingId, typedFacility);
 	}
 
 	private void HandleFacilityUnregistered(uint buildingId, IFacility facility)
 	{
 		if (facility is T typedFacility)
-			OnUnregisterFacility(buildingId, typedFacility);
+			UnregisterFacility(buildingId, typedFacility);
 	}
 
 	private static bool TryFindClosestFacility(
@@ -199,6 +201,33 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		Predicate<T> predicate)
 	{
 		return TryFindClosestFacility(facilities, from, distanceResolver, out facility, predicate, out _);
+	}
+	
+	private void RegisterFacility(uint buildingId, T facility)
+	{
+		if (facility == null)
+			return;
+
+		if (!registeredFacilities.ContainsKey(buildingId))
+		{
+			registeredFacilities[buildingId] = new List<T>();
+		}
+		registeredFacilities[buildingId].Add(facility);
+
+		OnRegisterFacility(buildingId, facility);
+	}
+
+	private void UnregisterFacility(uint buildingId, T facility)
+	{
+		if (facility == null)
+			return;
+
+		if (registeredFacilities.ContainsKey(buildingId))
+		{
+			registeredFacilities[buildingId].Remove(facility);
+		}
+
+		OnUnregisterFacility(buildingId, facility);
 	}
 
 	protected virtual void OnRegisterFacility(uint buildingId, T facility) { }

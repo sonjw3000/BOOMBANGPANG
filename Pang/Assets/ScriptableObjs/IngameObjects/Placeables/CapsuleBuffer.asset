@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9ea39cd9d2906294b915277300334413, type: 3}
-  m_Name: BoxPool
+  m_Name: CapsuleBuffer
   m_EditorClassIdentifier: 
-  placeableID: BoxPool_00
-  displayName: ToteBoxPool
-  icon: {fileID: 6674386295937086461, guid: 7abd59d488ec3484089d5f418816dbdb, type: 3}
-  prefab: {fileID: 4088784275203520354, guid: b63bb7292acd74b44aabf636dedd73f5, type: 3}
+  placeableID: CapsuleBuffer
+  displayName: CapsuleBuffer
+  icon: {fileID: -6347119455914417019, guid: 7ed692b56605d6a4489fb866afa88c2c, type: 3}
+  prefab: {fileID: 4088784275203520354, guid: 37a878824a05a4f8a906ca554e9fa6ac, type: 3}
   gridFootprint: {fileID: 11400000, guid: 0f1e2d3c4b5a69788796a5b4c3d2e1f0, type: 2}
   definitionType: 5
   placementEnvironment: -1

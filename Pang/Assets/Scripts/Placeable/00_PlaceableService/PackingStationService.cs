@@ -18,9 +18,6 @@ public class PackingStationService : FacilityService<PackingStation>
 
 	protected override void OnRegisterFacility(uint buildingId, PackingStation facility)
 	{
-		if (facility == null)
-			return;
-
 		BuildingPackingState state = GetOrCreateState(buildingId);
 		if (state.Stations.Contains(facility))
 			return;

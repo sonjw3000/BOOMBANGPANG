@@ -15,9 +15,6 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 
 	protected override void OnRegisterFacility(uint buildingId, CargoPort facility)
 	{
-		if (facility == null)
-			return;
-
 		registeredBuildingIds[facility] = buildingId;
 		facility.OnCargoDocked += HandleCargoDocked;
 		facility.OnCargoUndocked += HandleCargoUndocked;
@@ -29,9 +26,6 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 
 	protected override void OnUnregisterFacility(uint buildingId, CargoPort facility)
 	{
-		if (facility == null)
-			return;
-
 		registeredBuildingIds.Remove(facility);
 		facility.OnCargoDocked -= HandleCargoDocked;
 		facility.OnCargoUndocked -= HandleCargoUndocked;

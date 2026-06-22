@@ -354,6 +354,11 @@ public sealed class BoxPoolSaveData
 	public List<uint> BoxIds = new();
 }
 
+public sealed class CapsuleBufferSaveData
+{
+	public uint BoxId = 0;
+}
+
 [Serializable]
 public sealed class PackingStationSaveData
 {

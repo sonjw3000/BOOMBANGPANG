@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Assets.Scripts.AI.BT;
 using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
 
 [System.Flags]
@@ -62,7 +61,8 @@ public enum WorkerStatusTarget
 	Charger,
 	StandbyZone,
 	WorkTarget,
-	Airlock
+	Airlock,
+	CapsuleBuffer,
 }
 
 public struct WorkerStatusInfo
