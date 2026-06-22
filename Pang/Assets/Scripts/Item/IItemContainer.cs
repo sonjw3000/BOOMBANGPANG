@@ -37,6 +37,11 @@ public class ItemStack
 {
 	private uint itemID;
 	private int quantity = 0;
+	private byte freshness = 100;
+	private byte damage = 0;
+	private ItemStatus status = ItemStatus.None;
+	private OrderLine relatedOrderLine = null;
+	private PackageOutboundStage outboundStage = PackageOutboundStage.None;
 
 	// if <= 0 >>>>>> max
 	private float maxStackSize;
@@ -49,16 +54,92 @@ public class ItemStack
 
 	public uint ItemID => itemID;
 	public int Quantity => quantity;
+	public byte Freshness => freshness;
+	public byte Damage => damage;
+	public ItemStatus Status => status;
+	public OrderLine RelatedOrderLine => relatedOrderLine;
+	public int? RelatedOrderId => relatedOrderLine?.ParentOrder?.OrderID;
+	public PackageOutboundStage OutboundStage => outboundStage;
 	public float Size => Quantity * ItemDB.GetItemSize(ItemID);
 	public float StackSize => maxStackSize;
 
-	public ItemStack(uint itemID, float maxStackSize)
+	public ItemStack(
+		uint itemID,
+		float maxStackSize,
+		byte freshness = 100,
+		byte damage = 0,
+		ItemStatus status = ItemStatus.None,
+		OrderLine relatedOrderLine = null,
+		PackageOutboundStage outboundStage = PackageOutboundStage.None)
 	{
 		this.itemID = itemID;
 		this.maxStackSize = maxStackSize;
+		this.freshness = ClampPercent(freshness);
+		this.damage = ClampPercent(damage);
+		this.status = status;
+		this.relatedOrderLine = relatedOrderLine;
+		this.outboundStage = outboundStage;
 	}
 
+	private static byte ClampPercent(byte value) => (byte)Mathf.Clamp((int)value, 0, 100);
+
 	public bool CanAddItem(int quantity) => maxStackSize <= 0 || maxStackSize - (ItemSize * (this.quantity + quantity)) >= 0;
+	public bool HasStatus(ItemStatus target) => (status & target) == target;
+
+	public void SetFreshness(byte freshness)
+	{
+		this.freshness = ClampPercent(freshness);
+	}
+
+	public void SetDamage(byte damage)
+	{
+		this.damage = ClampPercent(damage);
+	}
+
+	public void SetStatus(ItemStatus status)
+	{
+		this.status = status;
+	}
+
+	public void AddStatus(ItemStatus status)
+	{
+		this.status |= status;
+	}
+
+	public void RemoveStatus(ItemStatus status)
+	{
+		this.status &= ~status;
+	}
+
+	public void AssignRelatedOrderLine(OrderLine relatedOrderLine)
+	{
+		this.relatedOrderLine = relatedOrderLine;
+	}
+
+	public void SetOutboundStage(PackageOutboundStage outboundStage)
+	{
+		this.outboundStage = outboundStage;
+	}
+
+	public bool HasMatchingIdentity(ItemStack other)
+	{
+		if (other == null)
+			return false;
+
+		return itemID == other.itemID &&
+			freshness == other.freshness &&
+			damage == other.damage &&
+			status == other.status &&
+			ReferenceEquals(relatedOrderLine, other.relatedOrderLine) &&
+			outboundStage == other.outboundStage;
+	}
+
+	public bool CanMergeWith(ItemStack other)
+	{
+		return other != null &&
+			HasMatchingIdentity(other) &&
+			CanAddItem(other.Quantity);
+	}
 
 	// returns actual added amount
 	public int AddItem(int amount)
@@ -88,16 +169,88 @@ public class ItemStack
 		return amount;
 	}
 
+	protected virtual ItemStack CreateEmptyLikeThis()
+	{
+		return new ItemStack(itemID, maxStackSize, freshness, damage, status, relatedOrderLine, outboundStage);
+	}
+
 	public virtual ItemStack CreateTransferStack(int amount)
 	{
 		if (amount <= 0)
 			return null;
 
-		ItemStack stack = new(itemID, maxStackSize);
+		ItemStack stack = CreateEmptyLikeThis();
 		stack.AddItem(amount);
 		return stack;
 	}
 
+	public ItemStack CloneWithQuantity(int quantity)
+	{
+		return CreateTransferStack(quantity);
+	}
+
+	public ItemStack Split(int amount)
+	{
+		if (amount <= 0)
+			return null;
+
+		int removed = RemoveItem(amount);
+		return removed > 0 ? CreateTransferStack(removed) : null;
+	}
+
+	public bool TryMergeFrom(ItemStack other)
+	{
+		if (CanMergeWith(other) == false)
+			return false;
+
+		int added = AddItem(other.Quantity);
+		if (added != other.Quantity)
+			return false;
+
+		other.RemoveItem(added);
+		return true;
+	}
+
+	public void ReportOutboundProgress(OrderManager orderManager, PackageOutboundStage targetStage)
+	{
+		if (orderManager == null || relatedOrderLine == null)
+			return;
+
+		if (targetStage <= outboundStage)
+			return;
+
+		for (PackageOutboundStage nextStage = outboundStage + 1; nextStage <= targetStage; ++nextStage)
+		{
+			switch (nextStage)
+			{
+				case PackageOutboundStage.WaitingForShipping:
+					orderManager.ReportWaitingForShipping(relatedOrderLine, Quantity);
+					break;
+
+				case PackageOutboundStage.Shipping:
+					orderManager.ReportShipping(relatedOrderLine, Quantity);
+					break;
+
+				case PackageOutboundStage.InDelivery:
+					orderManager.ReportInDelivery(relatedOrderLine, Quantity);
+					break;
+
+				case PackageOutboundStage.Completed:
+					orderManager.ReportCompleted(relatedOrderLine, Quantity);
+					break;
+			}
+		}
+
+		outboundStage = targetStage;
+	}
+}
+
+[System.Flags]
+public enum ItemStatus
+{
+	None = 0,
+	Labeled = 1 << 0,
+	Packed = 1 << 1,
 }
 
 public enum PackingType
@@ -133,65 +286,33 @@ public static class PackingTypeExt
 
 public class ItemPackage : ItemStack
 {
-	private OrderLine releatedOrder;
 	private PackingType packingType;
-	private PackageOutboundStage outboundStage;
-
-	public OrderLine RelatedOrderLine => releatedOrder;
-	public PackageOutboundStage OutboundStage => outboundStage;
+	public PackingType PackingType => packingType;
 
 	public ItemPackage(
 		PackingType type,
 		OrderLine order,
 		uint itemID,
 		int quantity,
-		PackageOutboundStage outboundStage = PackageOutboundStage.None) : base(itemID, type.GetPackageSize())
+		PackageOutboundStage outboundStage = PackageOutboundStage.None,
+		byte freshness = 100,
+		byte damage = 0,
+		ItemStatus status = ItemStatus.None) : base(
+			itemID,
+			type.GetPackageSize(),
+			freshness,
+			damage,
+			status | ItemStatus.Packed,
+			order,
+			outboundStage)
 	{
 		packingType = type;
-		releatedOrder = order;
-		this.outboundStage = outboundStage;
-
 		AddItem(quantity);
 	}
 
-	public void ReportOutboundProgress(OrderManager orderManager, PackageOutboundStage targetStage)
+	protected override ItemStack CreateEmptyLikeThis()
 	{
-		if (orderManager == null || releatedOrder == null)
-			return;
-
-		if (targetStage <= outboundStage)
-			return;
-
-		for (PackageOutboundStage nextStage = outboundStage + 1; nextStage <= targetStage; ++nextStage)
-		{
-			switch (nextStage)
-			{
-				case PackageOutboundStage.WaitingForShipping:
-					orderManager.ReportWaitingForShipping(releatedOrder, Quantity);
-					break;
-
-				case PackageOutboundStage.Shipping:
-					orderManager.ReportShipping(releatedOrder, Quantity);
-					break;
-
-				case PackageOutboundStage.InDelivery:
-					orderManager.ReportInDelivery(releatedOrder, Quantity);
-					break;
-
-				case PackageOutboundStage.Completed:
-					orderManager.ReportCompleted(releatedOrder, Quantity);
-					break;
-			}
-		}
-
-		outboundStage = targetStage;
-	}
-
-	public override ItemStack CreateTransferStack(int amount)
-	{
-		return amount <= 0 ?
-			null :
-			new ItemPackage(packingType, releatedOrder, ItemID, amount, outboundStage);
+		return new ItemPackage(packingType, RelatedOrderLine, ItemID, 0, OutboundStage, Freshness, Damage, Status);
 	}
 }
 
