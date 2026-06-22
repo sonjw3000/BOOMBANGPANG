@@ -317,6 +317,7 @@ public sealed class PlaceableSaveData
 	public ShelfContainerSaveData Shelf;
 	public CargoPortSaveData CargoPort;
 	public BoxPoolSaveData BoxPool;
+	public CapsuleBufferSaveData CapsuleBuffer;
 	public PackingStationSaveData PackingStation;
 	public RocketSaveData Rocket;
 	public LaunchStationSaveData LaunchStation;
@@ -371,6 +372,7 @@ public sealed class BoxPoolSaveData
 public sealed class CapsuleBufferSaveData
 {
 	public BoxReferenceSaveData Box;
+	public CapsuleBufferState BufferState;
 }
 
 [Serializable]
@@ -449,6 +451,7 @@ public sealed class TaskSaveData
 	public LoadingTaskSaveData Loading;
 	public PickingTaskSaveData Picking;
 	public StoringTaskSaveData Storing;
+	public CapsuleTransferTaskSaveData CapsuleTransfer;
 	public PackingTaskSaveData Packing;
 	public WaterTaskSaveData Water;
 }
@@ -483,6 +486,14 @@ public sealed class StoringTaskSaveData
 	public StoringTask.Phase CurrentPhase;
 	public bool IsJobEnd;
 	public WorkLineSaveData PlacingLine;
+}
+
+[Serializable]
+public sealed class CapsuleTransferTaskSaveData
+{
+	public bool IsInbound;
+	public uint BuildingId;
+	public int SourcePlaceableId = -1;
 }
 
 [Serializable]

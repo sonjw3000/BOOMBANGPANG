@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Mathematics;
 
 public enum BuildingType
 {
@@ -68,6 +69,13 @@ public class Building
 
 	private readonly List<IFacility> occupiedFacilities = new();
 	private readonly List<CargoPort> occupiedCargoPorts = new();
+	private readonly List<CapsuleBuffer> occupiedCapsuleBuffers = new();
+	private readonly HashSet<InboundCargoPort> pendingInboundPorts = new();
+	private readonly HashSet<InboundCargoPort> queuedInboundPorts = new();
+	private readonly HashSet<CapsuleBuffer> pendingOutboundBuffers = new();
+	private readonly HashSet<CapsuleBuffer> queuedOutboundBuffers = new();
+	private readonly Dictionary<InboundCargoPort, CapsuleBuffer> queuedInboundTargets = new();
+	private readonly Dictionary<CapsuleBuffer, OutboundCargoPort> queuedOutboundTargets = new();
 	// todo
 	// airlock 추가시에 적용
 	// private List<Airlock> airlocks = new List<Airlock>();
@@ -79,7 +87,11 @@ public class Building
 	public IReadOnlyList<GridCell> OccupiedCells => occupiedCells;
 	public IReadOnlyList<IFacility> OccupiedFacilities => occupiedFacilities;
 	public IReadOnlyList<CargoPort> OccupiedCargoPorts => occupiedCargoPorts;
+	public IReadOnlyCollection<InboundCargoPort> PendingInboundPorts => pendingInboundPorts;
+	public IReadOnlyList<CapsuleBuffer> OccupiedCapsuleBuffers => occupiedCapsuleBuffers;
 
+	private TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
+	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	public Building(string displayName, List<GridCell> occupiedCells, BuildingType buildingType = BuildingType.Generic)
 	{
 		this.displayName = displayName;
@@ -123,6 +135,11 @@ public class Building
 			occupiedCargoPorts.Add(cargoPort);
 			SubscribeCargoPort(cargoPort);
 		}
+		else if (facility is CapsuleBuffer capsuleBuffer && occupiedCapsuleBuffers.Contains(capsuleBuffer) == false)
+		{
+			occupiedCapsuleBuffers.Add(capsuleBuffer);
+			SubscribeCapsuleBuffer(capsuleBuffer);
+		}
 
 		return true;
 	}
@@ -137,6 +154,15 @@ public class Building
 		{
 			UnsubscribeCargoPort(cargoPort);
 			occupiedCargoPorts.Remove(cargoPort);
+		}
+		else if (facility is CapsuleBuffer capsuleBuffer)
+		{
+			UnsubscribeCapsuleBuffer(capsuleBuffer);
+			occupiedCapsuleBuffers.Remove(capsuleBuffer);
+			pendingOutboundBuffers.Remove(capsuleBuffer);
+			queuedOutboundBuffers.Remove(capsuleBuffer);
+			RemoveQueuedInboundTarget(capsuleBuffer);
+			queuedOutboundTargets.Remove(capsuleBuffer);
 		}
 
 		return removed;
@@ -168,10 +194,34 @@ public class Building
 			cargoPort.OnCargoQuantityOverPercent -= HandleCargoQuantityOverPercent;
 	}
 
+	private void SubscribeCapsuleBuffer(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer == null)
+			return;
+
+		capsuleBuffer.OnCapsuleDocked += HandleCapsuleBufferDocked;
+		capsuleBuffer.OnCapsuleUndocked += HandleCapsuleBufferUndocked;
+		capsuleBuffer.OnCapsuleContentChanged += HandleCapsuleBufferContentChanged;
+		capsuleBuffer.OnBufferStateChanged += HandleCapsuleBufferStateChanged;
+	}
+
+	private void UnsubscribeCapsuleBuffer(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer == null)
+			return;
+
+		capsuleBuffer.OnCapsuleDocked -= HandleCapsuleBufferDocked;
+		capsuleBuffer.OnCapsuleUndocked -= HandleCapsuleBufferUndocked;
+		capsuleBuffer.OnCapsuleContentChanged -= HandleCapsuleBufferContentChanged;
+		capsuleBuffer.OnBufferStateChanged -= HandleCapsuleBufferStateChanged;
+	}
+
 	private void HandleCargoDocked(CargoPort cargoPort)
 	{
 		if (cargoPort is InboundCargoPort inboundCargoPort)
 			OnInboundCargoDocked(inboundCargoPort);
+		else if (cargoPort is OutboundCargoPort outboundCargoPort)
+			OnOutboundCargoDocked(outboundCargoPort);
 	}
 
 	private void HandleCargoUndocked(CargoPort cargoPort)
@@ -194,23 +244,286 @@ public class Building
 			OnOutboundCargoQuantityOverPercent(outboundCargoPort);
 	}
 
+	private void HandleCapsuleBufferDocked(CapsuleBuffer capsuleBuffer)
+	{
+		OnCapsuleBufferDocked(capsuleBuffer);
+	}
+
+	private void HandleCapsuleBufferUndocked(CapsuleBuffer capsuleBuffer)
+	{
+		OnCapsuleBufferUndocked(capsuleBuffer);
+	}
+
+	private void HandleCapsuleBufferContentChanged(CapsuleBuffer capsuleBuffer)
+	{
+		OnCapsuleBufferContentChanged(capsuleBuffer);
+	}
+
+	private void HandleCapsuleBufferStateChanged(CapsuleBuffer capsuleBuffer)
+	{
+		OnCapsuleBufferStateChanged(capsuleBuffer);
+	}
+
 	protected virtual void OnInboundCargoDocked(InboundCargoPort cargoPort)
 	{
+		if (cargoPort == null || cargoPort.IsCapsuleEmpty())
+			return;
+
+		pendingInboundPorts.Add(cargoPort);
+		TryEnqueueInboundTask(cargoPort);
 	}
 
 	protected virtual void OnInboundCargoUndocked(InboundCargoPort cargoPort)
 	{
+		if (cargoPort == null)
+			return;
+
+		pendingInboundPorts.Remove(cargoPort);
+		queuedInboundPorts.Remove(cargoPort);
 	}
 
 	protected virtual void OnInboundCargoQuantityZero(InboundCargoPort cargoPort)
 	{
+		if (cargoPort == null)
+			return;
+
+		pendingInboundPorts.Remove(cargoPort);
+		queuedInboundPorts.Remove(cargoPort);
+		queuedInboundTargets.Remove(cargoPort);
 	}
 
 	protected virtual void OnOutboundCargoUndocked(OutboundCargoPort cargoPort)
 	{
+		RemoveQueuedOutboundTarget(cargoPort);
+		TryEvaluatePendingOutboundBuffers();
+	}
+
+	protected virtual void OnOutboundCargoDocked(OutboundCargoPort cargoPort)
+	{
+		RemoveQueuedOutboundTarget(cargoPort);
 	}
 
 	protected virtual void OnOutboundCargoQuantityOverPercent(OutboundCargoPort cargoPort)
 	{
+	}
+
+	protected virtual void OnCapsuleBufferDocked(CapsuleBuffer capsuleBuffer)
+	{
+		RemoveQueuedInboundTarget(capsuleBuffer);
+		TryEvaluateOutbound(capsuleBuffer);
+	}
+
+	protected virtual void OnCapsuleBufferUndocked(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer == null)
+			return;
+
+		pendingOutboundBuffers.Remove(capsuleBuffer);
+		queuedOutboundBuffers.Remove(capsuleBuffer);
+		TryEnqueuePendingInboundTasks();
+	}
+
+	protected virtual void OnCapsuleBufferContentChanged(CapsuleBuffer capsuleBuffer)
+	{
+		TryEvaluateOutbound(capsuleBuffer);
+	}
+
+	protected virtual void OnCapsuleBufferStateChanged(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer == null)
+			return;
+
+		if (capsuleBuffer.CanReceiveFromInbound())
+			TryEnqueuePendingInboundTasks();
+
+		TryEvaluateOutbound(capsuleBuffer);
+	}
+
+	protected virtual bool CanDispatchBufferToOutbound(CapsuleBuffer capsuleBuffer)
+	{
+		return false;
+	}
+
+	internal CapsuleBuffer ResolveInboundBufferTarget(in int3 from)
+	{
+		return FindClosestCapsuleBuffer(
+			from,
+			InteractionKind.Put,
+			candidate => candidate != null && candidate.CanReceiveFromInbound() && queuedInboundTargets.ContainsValue(candidate) == false);
+	}
+
+	internal OutboundCargoPort ResolveOutboundPortTarget(in int3 from)
+	{
+		return FindClosestOutboundPort(
+			from,
+			candidate => candidate != null && candidate.CanPutBox() && queuedOutboundTargets.ContainsValue(candidate) == false);
+	}
+
+	private void TryEnqueueInboundTask(InboundCargoPort cargoPort)
+	{
+		if (cargoPort == null || queuedInboundPorts.Contains(cargoPort) || TaskManager == null)
+			return;
+
+		if (cargoPort.IsCapsuleEmpty())
+			return;
+
+		CapsuleBuffer targetBuffer = ResolveInboundBufferTarget(cargoPort.GridPosition);
+		if (targetBuffer == null)
+			return;
+
+		TaskManager.EnqueueTask(new IBTask(cargoPort, RuntimeBuildingId, targetBuffer));
+		queuedInboundPorts.Add(cargoPort);
+		queuedInboundTargets[cargoPort] = targetBuffer;
+	}
+
+	private void TryEnqueuePendingInboundTasks()
+	{
+		if (pendingInboundPorts.Count <= 0)
+			return;
+
+		InboundCargoPort[] ports = new InboundCargoPort[pendingInboundPorts.Count];
+		pendingInboundPorts.CopyTo(ports);
+		for (int i = 0; i < ports.Length; ++i)
+			TryEnqueueInboundTask(ports[i]);
+	}
+
+	private void TryEvaluateOutbound(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer == null)
+			return;
+
+		if (capsuleBuffer.CanDispatchToOutbound() == false || queuedOutboundBuffers.Contains(capsuleBuffer))
+		{
+			pendingOutboundBuffers.Remove(capsuleBuffer);
+			return;
+		}
+
+		if (CanDispatchBufferToOutbound(capsuleBuffer) == false)
+		{
+			pendingOutboundBuffers.Remove(capsuleBuffer);
+			return;
+		}
+
+		if (TaskManager == null)
+			return;
+
+		OutboundCargoPort targetPort = ResolveOutboundPortTarget(capsuleBuffer.GridPosition);
+		if (targetPort == null)
+		{
+			pendingOutboundBuffers.Add(capsuleBuffer);
+			return;
+		}
+
+		TaskManager.EnqueueTask(new OBTask(capsuleBuffer, RuntimeBuildingId, targetPort));
+		queuedOutboundBuffers.Add(capsuleBuffer);
+		queuedOutboundTargets[capsuleBuffer] = targetPort;
+		pendingOutboundBuffers.Remove(capsuleBuffer);
+	}
+
+	private void TryEvaluatePendingOutboundBuffers()
+	{
+		if (pendingOutboundBuffers.Count <= 0)
+			return;
+
+		CapsuleBuffer[] buffers = new CapsuleBuffer[pendingOutboundBuffers.Count];
+		pendingOutboundBuffers.CopyTo(buffers);
+		for (int i = 0; i < buffers.Length; ++i)
+			TryEvaluateOutbound(buffers[i]);
+	}
+
+	private CapsuleBuffer FindClosestCapsuleBuffer(
+		in int3 from,
+		InteractionKind interactionKind,
+		System.Predicate<CapsuleBuffer> predicate)
+	{
+		if (GridService == null)
+			return null;
+
+		CapsuleBuffer bestCandidate = null;
+		int bestScore = int.MaxValue;
+
+		for (int i = 0; i < occupiedCapsuleBuffers.Count; ++i)
+		{
+			CapsuleBuffer candidate = occupiedCapsuleBuffers[i];
+			if (candidate == null)
+				continue;
+
+			if (predicate != null && predicate(candidate) == false)
+				continue;
+
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, interactionKind, from, GridService, out _, out int score) == false)
+				continue;
+
+			if (score >= bestScore)
+				continue;
+
+			bestScore = score;
+			bestCandidate = candidate;
+		}
+
+		return bestCandidate;
+	}
+
+	private OutboundCargoPort FindClosestOutboundPort(in int3 from, System.Predicate<OutboundCargoPort> predicate)
+	{
+		if (GridService == null)
+			return null;
+
+		OutboundCargoPort bestCandidate = null;
+		int bestScore = int.MaxValue;
+
+		for (int i = 0; i < occupiedCargoPorts.Count; ++i)
+		{
+			if (occupiedCargoPorts[i] is not OutboundCargoPort candidate)
+				continue;
+
+			if (predicate != null && predicate(candidate) == false)
+				continue;
+
+			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, InteractionKind.Put, from, GridService, out _, out int score) == false)
+				continue;
+
+			if (score >= bestScore)
+				continue;
+
+			bestScore = score;
+			bestCandidate = candidate;
+		}
+
+		return bestCandidate;
+	}
+
+	private void RemoveQueuedInboundTarget(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer == null || queuedInboundTargets.Count <= 0)
+			return;
+
+		InboundCargoPort[] ports = new InboundCargoPort[queuedInboundTargets.Count];
+		queuedInboundTargets.Keys.CopyTo(ports, 0);
+		for (int i = 0; i < ports.Length; ++i)
+		{
+			InboundCargoPort port = ports[i];
+			if (port == null || queuedInboundTargets.TryGetValue(port, out CapsuleBuffer targetBuffer) == false || targetBuffer != capsuleBuffer)
+				continue;
+
+			queuedInboundTargets.Remove(port);
+		}
+	}
+
+	private void RemoveQueuedOutboundTarget(OutboundCargoPort cargoPort)
+	{
+		if (cargoPort == null || queuedOutboundTargets.Count <= 0)
+			return;
+
+		CapsuleBuffer[] buffers = new CapsuleBuffer[queuedOutboundTargets.Count];
+		queuedOutboundTargets.Keys.CopyTo(buffers, 0);
+		for (int i = 0; i < buffers.Length; ++i)
+		{
+			CapsuleBuffer buffer = buffers[i];
+			if (buffer == null || queuedOutboundTargets.TryGetValue(buffer, out OutboundCargoPort targetPort) == false || targetPort != cargoPort)
+				continue;
+
+			queuedOutboundTargets.Remove(buffer);
+		}
 	}
 }

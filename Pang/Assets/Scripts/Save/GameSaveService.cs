@@ -290,6 +290,11 @@ public sealed class GameSaveService : MonoBehaviour
 			data.BoxPool = boxPool.CaptureState();
 		}
 
+		if (obj.TryGetComponent<CapsuleBuffer>(out var capsuleBuffer))
+		{
+			data.CapsuleBuffer = capsuleBuffer.CaptureState();
+		}
+
 		if (obj.TryGetComponent<PackingStation>(out var packingStation))
 		{
 			data.PackingStation = packingStation.CaptureState(RegisterOrderLine, GetPlaceableIdOrDefault);
@@ -332,6 +337,12 @@ public sealed class GameSaveService : MonoBehaviour
 						break;
 					case StoringTask storing:
 						taskData.Storing = storing.CaptureState(GetPlaceableIdOrDefault, RegisterOrderLine);
+						break;
+					case IBTask inboundTransfer:
+						taskData.CapsuleTransfer = inboundTransfer.CaptureState(GetPlaceableIdOrDefault);
+						break;
+					case OBTask outboundTransfer:
+						taskData.CapsuleTransfer = outboundTransfer.CaptureState(GetPlaceableIdOrDefault);
 						break;
 					case PackingTask packing:
 						taskData.Packing = packing.CaptureState(GetPlaceableIdOrDefault);
@@ -385,6 +396,11 @@ public sealed class GameSaveService : MonoBehaviour
 			boxPool.RestoreState(save.BoxPool);
 		}
 
+		if (obj.TryGetComponent<CapsuleBuffer>(out var capsuleBuffer) && save.CapsuleBuffer != null)
+		{
+			capsuleBuffer.RestoreState(save.CapsuleBuffer);
+		}
+
 		if (obj.TryGetComponent<PackingStation>(out var packingStation) && save.PackingStation != null)
 		{
 			packingStation.RestoreState(save.PackingStation, restoredOrderLines, restoredPlaceables);
@@ -421,7 +437,7 @@ public sealed class GameSaveService : MonoBehaviour
 			case WorkerTask.TaskType.Picking:
 				return taskData.Picking?.Restore(restoredPlaceables, restoredOrderLines);
 			case WorkerTask.TaskType.Storing:
-				return taskData.Storing?.Restore(restoredPlaceables, restoredOrderLines);
+				return taskData.CapsuleTransfer?.Restore(restoredPlaceables) ?? taskData.Storing?.Restore(restoredPlaceables, restoredOrderLines);
 			case WorkerTask.TaskType.Packing:
 				return taskData.Packing?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Water:
@@ -523,6 +539,23 @@ public static class TaskSaveDataExtensions
 		WorkLine placingLine = data.PlacingLine != null ? data.PlacingLine.Restore(placeables, orderLines) : null;
 		task.RestoreState(data.CurrentPhase, data.IsJobEnd, placingLine);
 		return task;
+	}
+
+	public static WorkerTask Restore(this CapsuleTransferTaskSaveData data, Dictionary<int, GameObject> placeables)
+	{
+		if (data == null || placeables.TryGetValue(data.SourcePlaceableId, out var sourceObj) == false)
+			return null;
+
+		if (data.IsInbound)
+		{
+			return sourceObj.TryGetComponent<InboundCargoPort>(out var inboundCargoPort)
+				? new IBTask(inboundCargoPort, data.BuildingId)
+				: null;
+		}
+
+		return sourceObj.TryGetComponent<CapsuleBuffer>(out var capsuleBuffer)
+			? new OBTask(capsuleBuffer, data.BuildingId)
+			: null;
 	}
 
 	public static PackingTask Restore(this PackingTaskSaveData data, Dictionary<int, GameObject> placeables)

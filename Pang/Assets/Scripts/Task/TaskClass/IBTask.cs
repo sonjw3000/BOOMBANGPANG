@@ -3,20 +3,24 @@ using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
-public sealed class StagingIBTask : WorkerTask
+public sealed class IBTask : WorkerTask
 {
 	private readonly InboundCargoPort sourcePort;
 	private readonly uint buildingId;
-	private BoxPool targetPool;
+	private CapsuleBuffer targetBuffer;
 	private bool isTaskEnd;
 
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
-	private static BoxPoolService CapsuleStorageService => GameContext.Instance.WMSys.BoxPoolService;
+	private static BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
 
-	public StagingIBTask(InboundCargoPort sourcePort, uint buildingId) : base(TaskType.Storing)
+	internal InboundCargoPort SourcePort => sourcePort;
+	internal uint BuildingId => buildingId;
+
+	public IBTask(InboundCargoPort sourcePort, uint buildingId, CapsuleBuffer targetBuffer = null) : base(TaskType.Storing)
 	{
 		this.sourcePort = sourcePort;
 		this.buildingId = buildingId;
+		this.targetBuffer = targetBuffer;
 	}
 
 	public override bool TryGetPreferredWorker(out AIWorker worker)
@@ -59,8 +63,8 @@ public sealed class StagingIBTask : WorkerTask
 		root.Add(AIWorker.ReturnBox());
 		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetSourceTarget));
 		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCapsule));
-		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.BoxPool, InteractionKind.Put, SetTargetPool));
-		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCapsule));
+		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CapsuleBuffer, InteractionKind.Put, SetTargetBuffer));
+		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCapsuleInBuffer));
 		return root;
 	}
 
@@ -73,33 +77,34 @@ public sealed class StagingIBTask : WorkerTask
 	public override string ShowStatus()
 	{
 		string sourceName = sourcePort != null ? sourcePort.name : "None";
-		string targetName = targetPool != null ? targetPool.name : "None";
-		return $"[StagingIBTask] {sourceName} -> {targetName}";
+		string targetName = targetBuffer != null ? targetBuffer.name : "None";
+		return $"[IBTask] {sourceName} -> {targetName}";
 	}
 #endif
 
 	public override string GetStatusSummary()
 	{
 		string sourceName = sourcePort != null ? sourcePort.name : "None";
-		string targetName = targetPool != null ? targetPool.name : "Pending BoxPool";
-		return $"Staging IB\nFrom: {sourceName}\nTo: {targetName}";
+		string targetName = targetBuffer != null ? targetBuffer.name : "Pending CapsuleBuffer";
+		return $"Inbound Transfer\nFrom: {sourceName}\nTo: {targetName}";
 	}
 
-	private BoxPool ResolveTargetPool(in int3 from)
+	private CapsuleBuffer ResolveTargetBuffer(in int3 from)
 	{
-		if (targetPool != null && targetPool.CanPutBox())
-			return targetPool;
+		if (targetBuffer != null && targetBuffer.CanReceiveFromInbound())
+			return targetBuffer;
 
-		targetPool = CapsuleStorageService != null
-			? CapsuleStorageService.GetClosestAvailableTarget(buildingId, from, InteractionKind.Put)
-			: null;
-		return targetPool;
+		if (buildingId == 0 || BuildingManager == null || BuildingManager.TryGetBuilding(buildingId, out Building building) == false)
+			return null;
+
+		targetBuffer = building.ResolveInboundBufferTarget(from);
+		return targetBuffer;
 	}
 
 	public static NodeState SetSourceTarget(in BTContext ctx)
 	{
-		StagingIBTask task = (StagingIBTask)ctx.Worker.CurrentTask;
-		if (task.sourcePort == null || task.sourcePort.CanGetBox() == false)
+		IBTask task = (IBTask)ctx.Worker.CurrentTask;
+		if (task.sourcePort == null || task.sourcePort.CanGetBox() == false || task.sourcePort.IsCapsuleEmpty())
 		{
 			task.isTaskEnd = true;
 			return Failure;
@@ -111,7 +116,7 @@ public sealed class StagingIBTask : WorkerTask
 
 	public static NodeState PickCapsule(in BTContext ctx)
 	{
-		StagingIBTask task = (StagingIBTask)ctx.Worker.CurrentTask;
+		IBTask task = (IBTask)ctx.Worker.CurrentTask;
 		if (task.sourcePort == null)
 		{
 			task.isTaskEnd = true;
@@ -132,38 +137,38 @@ public sealed class StagingIBTask : WorkerTask
 		return Success;
 	}
 
-	public static NodeState SetTargetPool(in BTContext ctx)
+	public static NodeState SetTargetBuffer(in BTContext ctx)
 	{
-		StagingIBTask task = (StagingIBTask)ctx.Worker.CurrentTask;
-		BoxPool targetPool = task.ResolveTargetPool(ctx.Worker.GridPosition);
-		if (targetPool == null)
+		IBTask task = (IBTask)ctx.Worker.CurrentTask;
+		CapsuleBuffer targetBuffer = task.ResolveTargetBuffer(ctx.Worker.GridPosition);
+		if (targetBuffer == null)
 		{
-			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.BoxPool);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CapsuleBuffer);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
-		ctx.LocalBlackBoard.SetTargetBuilding(targetPool);
+		ctx.LocalBlackBoard.SetTargetBuilding(targetBuffer);
 		return Success;
 	}
 
-	public static NodeState StoreCapsule(in BTContext ctx)
+	public static NodeState StoreCapsuleInBuffer(in BTContext ctx)
 	{
-		StagingIBTask task = (StagingIBTask)ctx.Worker.CurrentTask;
-		if (task.targetPool == null)
+		IBTask task = (IBTask)ctx.Worker.CurrentTask;
+		if (task.targetBuffer == null)
 			return Failure;
 
 		if (task.WorkerCarryBox.GetBox(out BoxBase box) == false)
 			return Failure;
 
-		if (task.targetPool.PutBox(box))
+		if (task.targetBuffer.PutBox(box))
 		{
 			task.isTaskEnd = true;
 			return Success;
 		}
 
 		task.WorkerCarryBox.PutBox(box);
-		task.targetPool = null;
+		task.targetBuffer = null;
 		return Failure;
 	}
 }
