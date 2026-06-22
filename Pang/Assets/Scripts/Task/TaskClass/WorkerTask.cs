@@ -7,6 +7,8 @@ public static class WorkerTaskTypeRequirement
 		return taskType switch
 		{
 			WorkerTask.TaskType.Unloading => WorkerAbility.CargoHandling,
+			WorkerTask.TaskType.IB => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.OB => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Storing => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Picking => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Packing => WorkerAbility.Packing,
@@ -26,11 +28,13 @@ public abstract class WorkerTask
 	{
 		// IB
 		Unloading,
+		IB,
 		//Receive,
 		//Label,
 		Storing,
 
 		// OB
+		OB,
 		Picking,
 		//Sorting,
 		Packing,

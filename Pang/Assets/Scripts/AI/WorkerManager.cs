@@ -92,6 +92,15 @@ public partial class WorkerManager : MonoBehaviour
 
 	public void ChangeWorkerTaskType(AIWorker worker, TaskType type)
 	{
+		if (worker == null)
+			return;
+
+		if (CanChangeType(worker, type) == false)
+		{
+			Debug.Log($"Worker {worker.name} cannot change to task type {type}.");
+			return;
+		}
+
 		// have to check ability
 		switch (type)
 		{
@@ -103,14 +112,9 @@ public partial class WorkerManager : MonoBehaviour
 				}
 				break;
 
+			case TaskType.IB:
+			case TaskType.OB:
 			case TaskType.Storing:
-				if (worker.GetComponent<CarryBoxAbility>() == false)
-				{
-					Debug.Log("No CarryboxAbility Ability");
-					return;
-				}
-				break;
-
 			case TaskType.Picking:
 				if (worker.GetComponent<CarryBoxAbility>() == false)
 				{

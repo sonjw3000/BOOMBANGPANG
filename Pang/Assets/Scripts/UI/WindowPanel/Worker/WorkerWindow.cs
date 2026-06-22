@@ -12,9 +12,8 @@ namespace Assets.Scripts.UI
 			Unassigned,
 			All,
 			Unloading,
-			Storing,
-			Picking,
-			Packing,
+			IB,
+			OB,
 			Loading,
 			Water
 		}
@@ -67,9 +66,8 @@ namespace Assets.Scripts.UI
 			window.AddTab("Unassigned", SetTab);
 			window.AddTab("All", SetTab);
 			window.AddTab("Unloading", SetTab);
-			window.AddTab("Storing", SetTab);
-			window.AddTab("Picking", SetTab);
-			window.AddTab("Packing", SetTab);
+			window.AddTab("IB", SetTab);
+			window.AddTab("OB", SetTab);
 			window.AddTab("Loading", SetTab);
 			window.AddTab("Water", SetTab);
 
@@ -151,9 +149,8 @@ namespace Assets.Scripts.UI
 			switch (currentTab)
 			{
 				case TabType.Unloading: return worker.TaskType == WorkerTask.TaskType.Unloading;
-				case TabType.Storing: return worker.TaskType == WorkerTask.TaskType.Storing;
-				case TabType.Picking: return worker.TaskType == WorkerTask.TaskType.Picking;
-				case TabType.Packing: return worker.TaskType == WorkerTask.TaskType.Packing;
+				case TabType.IB: return worker.TaskType == WorkerTask.TaskType.IB;
+				case TabType.OB: return worker.TaskType == WorkerTask.TaskType.OB;
 				case TabType.Loading: return worker.TaskType == WorkerTask.TaskType.Loading;
 				case TabType.Water: return worker.TaskType == WorkerTask.TaskType.Water;
 			}

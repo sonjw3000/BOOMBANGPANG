@@ -24,7 +24,6 @@ public class BuildingControlWindow : MonoBehaviour
 
 	private static readonly BuildingType[] BuildingTypeOptions =
 	{
-		BuildingType.Generic,
 		BuildingType.Staging,
 		BuildingType.Storage,
 		BuildingType.Packing,
@@ -310,7 +309,7 @@ public class BuildingControlWindow : MonoBehaviour
 
 		int buildingCount = BuildingManager != null ? BuildingManager.RegisteredBuildings.Count : 0;
 		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement;
-		BuildingType selectedType = overlayController != null ? overlayController.SelectedBuildingType : BuildingType.Generic;
+		BuildingType selectedType = overlayController != null ? overlayController.SelectedBuildingType : BuildingType.Staging;
 
 		overviewStatusText.text = isCreating
 			? $"{BuildingTypeUtility.ToDisplayString(selectedType)} building placement is active. Left click start/end cells, right click to cancel."
@@ -367,7 +366,7 @@ public class BuildingControlWindow : MonoBehaviour
 		bool isLinkEditing = cargoPortLinkModeController != null && cargoPortLinkModeController.IsEditing;
 		EnsureZoneOverlayController();
 		Building activeBuilding = zoneOverlayController != null ? zoneOverlayController.CurrentBuilding : null;
-		BuildingType selectedType = overlayController != null ? overlayController.SelectedBuildingType : BuildingType.Generic;
+		BuildingType selectedType = overlayController != null ? overlayController.SelectedBuildingType : BuildingType.Staging;
 
 		if (buildingTypeDropdown != null)
 		{
@@ -473,7 +472,9 @@ public class BuildingControlWindow : MonoBehaviour
 		if (actionStatusText != null && actionStatusText.transform.parent == contentView.ActionTab.transform)
 			buildingTypeDropdown.transform.SetSiblingIndex(actionStatusText.transform.GetSiblingIndex() + 1);
 
-		int selectedIndex = overlayController != null ? Array.IndexOf(BuildingTypeOptions, overlayController.SelectedBuildingType) : 0;
+		int selectedIndex = overlayController != null
+			? Array.IndexOf(BuildingTypeOptions, overlayController.SelectedBuildingType)
+			: Array.IndexOf(BuildingTypeOptions, BuildingType.Staging);
 		buildingTypeDropdown.SetValueWithoutNotify(Mathf.Max(0, selectedIndex));
 	}
 

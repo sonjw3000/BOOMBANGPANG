@@ -16,7 +16,7 @@ public sealed class IBTask : WorkerTask
 	internal InboundCargoPort SourcePort => sourcePort;
 	internal uint BuildingId => buildingId;
 
-	public IBTask(InboundCargoPort sourcePort, uint buildingId, CapsuleBuffer targetBuffer = null) : base(TaskType.Storing)
+	public IBTask(InboundCargoPort sourcePort, uint buildingId, CapsuleBuffer targetBuffer = null) : base(TaskType.IB)
 	{
 		this.sourcePort = sourcePort;
 		this.buildingId = buildingId;

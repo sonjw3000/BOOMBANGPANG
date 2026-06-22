@@ -134,11 +134,13 @@ public class Building
 		{
 			occupiedCargoPorts.Add(cargoPort);
 			SubscribeCargoPort(cargoPort);
+			EvaluateCargoPortState(cargoPort);
 		}
 		else if (facility is CapsuleBuffer capsuleBuffer && occupiedCapsuleBuffers.Contains(capsuleBuffer) == false)
 		{
 			occupiedCapsuleBuffers.Add(capsuleBuffer);
 			SubscribeCapsuleBuffer(capsuleBuffer);
+			EvaluateCapsuleBufferState(capsuleBuffer);
 		}
 
 		return true;
@@ -181,6 +183,27 @@ public class Building
 			cargoPort.OnCargoQuantityOverPercent += HandleCargoQuantityOverPercent;
 	}
 
+	private void EvaluateCargoPortState(CargoPort cargoPort)
+	{
+		if (cargoPort is InboundCargoPort inboundCargoPort)
+		{
+			if (inboundCargoPort.HasCapsule && inboundCargoPort.IsCapsuleEmpty() == false)
+				OnInboundCargoDocked(inboundCargoPort);
+			else
+				OnInboundCargoUndocked(inboundCargoPort);
+
+			return;
+		}
+
+		if (cargoPort is OutboundCargoPort outboundCargoPort)
+		{
+			if (outboundCargoPort.CanPutBox())
+				OnOutboundCargoUndocked(outboundCargoPort);
+			else
+				OnOutboundCargoDocked(outboundCargoPort);
+		}
+	}
+
 	private void UnsubscribeCargoPort(CargoPort cargoPort)
 	{
 		if (cargoPort == null)
@@ -203,6 +226,19 @@ public class Building
 		capsuleBuffer.OnCapsuleUndocked += HandleCapsuleBufferUndocked;
 		capsuleBuffer.OnCapsuleContentChanged += HandleCapsuleBufferContentChanged;
 		capsuleBuffer.OnBufferStateChanged += HandleCapsuleBufferStateChanged;
+	}
+
+	private void EvaluateCapsuleBufferState(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer == null)
+			return;
+
+		if (capsuleBuffer.HasCapsule)
+			OnCapsuleBufferDocked(capsuleBuffer);
+		else
+			OnCapsuleBufferUndocked(capsuleBuffer);
+
+		OnCapsuleBufferStateChanged(capsuleBuffer);
 	}
 
 	private void UnsubscribeCapsuleBuffer(CapsuleBuffer capsuleBuffer)

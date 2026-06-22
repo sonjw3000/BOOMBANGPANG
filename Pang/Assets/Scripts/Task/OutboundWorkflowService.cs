@@ -32,6 +32,8 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		switch (task.Type)
 		{
+			case TaskType.OB:
+				break;
 			case TaskType.Picking:
 				break;
 			case TaskType.Packing:

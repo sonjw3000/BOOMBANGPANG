@@ -6,7 +6,7 @@ using System.Collections.Generic;
 public sealed class BuildingPlacementOverlayController : MonoBehaviour
 {
 	[SerializeField] private BuildingFootprintService footprintService;
-	[SerializeField] private BuildingType selectedBuildingType = BuildingType.Generic;
+	[SerializeField] private BuildingType selectedBuildingType = BuildingType.Staging;
 	[SerializeField] private float previewHeight = 0.035f;
 	[SerializeField] private float labelHeight = 0.04f;
 	[SerializeField] private float overlayAlpha = 0.25f;
@@ -24,7 +24,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 	private readonly Dictionary<Building, BuildingSelectionProxy> proxies = new();
 	private bool isVisible;
 
-	public BuildingType SelectedBuildingType => selectedBuildingType;
+	public BuildingType SelectedBuildingType => NormalizeSelectableBuildingType(selectedBuildingType);
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
 	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
@@ -97,7 +97,12 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 	public void SetSelectedBuildingType(BuildingType buildingType)
 	{
-		selectedBuildingType = buildingType;
+		selectedBuildingType = NormalizeSelectableBuildingType(buildingType);
+	}
+
+	private static BuildingType NormalizeSelectableBuildingType(BuildingType buildingType)
+	{
+		return buildingType == BuildingType.Generic ? BuildingType.Staging : buildingType;
 	}
 
 	public BuildingSelectionProxy GetSelectionProxy(Building building)

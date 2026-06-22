@@ -16,7 +16,7 @@ public sealed class OBTask : WorkerTask
 	internal CapsuleBuffer SourceBuffer => sourceBuffer;
 	internal uint BuildingId => buildingId;
 
-	public OBTask(CapsuleBuffer sourceBuffer, uint buildingId, OutboundCargoPort targetPort = null) : base(TaskType.Storing)
+	public OBTask(CapsuleBuffer sourceBuffer, uint buildingId, OutboundCargoPort targetPort = null) : base(TaskType.OB)
 	{
 		this.sourceBuffer = sourceBuffer;
 		this.buildingId = buildingId;

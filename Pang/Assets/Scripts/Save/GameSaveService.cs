@@ -432,6 +432,9 @@ public sealed class GameSaveService : MonoBehaviour
 		{
 			case WorkerTask.TaskType.Unloading:
 				return taskData.Unloading?.Restore(restoredPlaceables);
+			case WorkerTask.TaskType.IB:
+			case WorkerTask.TaskType.OB:
+				return taskData.CapsuleTransfer?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Loading:
 				return taskData.Loading?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Picking:

@@ -70,6 +70,7 @@ public partial class TaskManager : MonoBehaviour
 		{
 			// IB
 			case TaskType.Unloading:
+			case TaskType.IB:
 			//case TaskType.Receive:
 			//case TaskType.Label:
 			case TaskType.Storing:
@@ -77,6 +78,7 @@ public partial class TaskManager : MonoBehaviour
 				break;
 
 			// OB
+			case TaskType.OB:
 			case TaskType.Picking:
 			case TaskType.Packing:
 			//case TaskType.Sorting:

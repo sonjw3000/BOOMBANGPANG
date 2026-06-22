@@ -6,6 +6,16 @@ namespace Assets.Scripts.UI
 {
 	public class WorkerItemView : MonoBehaviour
 	{
+		private static readonly WorkerTask.TaskType[] assignableTaskTypes =
+		{
+			WorkerTask.TaskType.Undefined,
+			WorkerTask.TaskType.Unloading,
+			WorkerTask.TaskType.IB,
+			WorkerTask.TaskType.OB,
+			WorkerTask.TaskType.Loading,
+			WorkerTask.TaskType.Water,
+		};
+
 		[SerializeField] private Image thumbnail;
 		[SerializeField] private TMP_Text nameText;
 		[SerializeField] private TMP_Text taskText;
@@ -75,10 +85,9 @@ namespace Assets.Scripts.UI
 			int selectedIndex = 0;
 			var options = new System.Collections.Generic.List<string>();
 
-			foreach (WorkerTask.TaskType type in System.Enum.GetValues(typeof(WorkerTask.TaskType)))
+			for (int i = 0; i < assignableTaskTypes.Length; ++i)
 			{
-				if (type == WorkerTask.TaskType.HandleMistake)
-					continue;
+				WorkerTask.TaskType type = assignableTaskTypes[i];
 
 				if (WorkerManager.CanChangeType(worker, type) == false)
 					continue;

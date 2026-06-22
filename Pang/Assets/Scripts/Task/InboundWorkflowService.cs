@@ -101,6 +101,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		switch (task.Type)
 		{
 			case Unloading:
+			case IB:
 				break;
 			case Storing:
 				break;

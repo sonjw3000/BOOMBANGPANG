@@ -65,6 +65,14 @@ public class WorkerStandbyService : MonoBehaviour
 	{
 		switch (taskType)
 		{
+			case WorkerTask.TaskType.IB:
+				zoneType = ZoneType.InboundStandby;
+				return true;
+
+			case WorkerTask.TaskType.OB:
+				zoneType = ZoneType.OutboundStandby;
+				return true;
+
 			case WorkerTask.TaskType.Picking:
 			case WorkerTask.TaskType.Storing:
 			case WorkerTask.TaskType.Water:
