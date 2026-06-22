@@ -17,6 +17,7 @@ public class OrderDeliveryService : MonoBehaviour
 	}
 
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
+	private static BoxManager BoxMgr => GameContext.Instance.BoxMgr;
 
 	private List<DeliveryProgress> deliveryProgresses = new();
 
@@ -43,7 +44,7 @@ public class OrderDeliveryService : MonoBehaviour
 
 			Debug.Log("Cargo Delivered!");
 
-			GameContext.Instance.WMSys.BoxPoolService.ReturnToPool(progress.Cargo);
+			BoxMgr.DisableBox(progress.Cargo);
 			deliveryProgresses.RemoveAt(i);
 		}
 	}
@@ -53,14 +54,20 @@ public class OrderDeliveryService : MonoBehaviour
 		deliveryProgresses.Add(new(box, duration));
 	}
 
-	public OrderDeliverySaveData CaptureState(Func<BoxBase, uint> registerBox)
+	public OrderDeliverySaveData CaptureState()
 	{
 		OrderDeliverySaveData data = new();
 		foreach (var progress in deliveryProgresses)
 		{
 			data.Progresses.Add(new DeliveryProgressSaveData
 			{
-				BoxId = registerBox != null ? registerBox(progress.Cargo) : 0,
+				Box = progress.Cargo == null
+					? null
+					: new BoxReferenceSaveData
+					{
+						BoxType = progress.Cargo.Type,
+						BoxId = progress.Cargo.BoxId,
+					},
 				TimeRemain = progress.TimeRemain,
 			});
 		}
@@ -68,15 +75,15 @@ public class OrderDeliveryService : MonoBehaviour
 		return data;
 	}
 
-	public void RestoreState(OrderDeliverySaveData data, IReadOnlyDictionary<uint, BoxBase> restoredBoxes)
+	public void RestoreState(OrderDeliverySaveData data)
 	{
 		ResetRuntimeState();
-		if (data == null || restoredBoxes == null)
+		if (data == null)
 			return;
 
 		foreach (var progress in data.Progresses)
 		{
-			if (restoredBoxes.TryGetValue(progress.BoxId, out var cargo) == false)
+			if (progress.Box == null || BoxMgr.TryGetBox(progress.Box.BoxType, progress.Box.BoxId, out var cargo) == false)
 				continue;
 
 			deliveryProgresses.Add(new DeliveryProgress(cargo, progress.TimeRemain));

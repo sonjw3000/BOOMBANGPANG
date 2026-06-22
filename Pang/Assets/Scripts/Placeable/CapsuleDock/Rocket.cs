@@ -26,7 +26,7 @@ public class Rocket : CapsuleDock
 	private RocketService RocketSvc => GameContext.Instance.RocketSvc;
 
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
-	private BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolService;
+	private BoxManager BoxMgr => GameContext.Instance.BoxMgr;
 	public int3 LandingPos => landingPoint;
 	public RocketState State => state;
 	public RocketLandingOutcome LandingOutcome => landingOutcome;
@@ -117,13 +117,15 @@ public class Rocket : CapsuleDock
 	public void SetupPayloadByDelivery()
 	{
 		if (TryUndockCapsule(out CargoCapsule existingCapsule))
-			BoxPoolService.ReturnToPool(existingCapsule);
+			BoxMgr.DisableBox(existingCapsule);
 
-		CargoCapsule capsule = BoxPoolService.TakeBox(BoxType.Capsule, transform) as CargoCapsule;
+		CargoCapsule capsule = null;
+		if (BoxMgr.GetNewBox(BoxType.Capsule, out BoxBase newBox))
+			capsule = newBox as CargoCapsule;
 		if (capsule == null || TryDockCapsule(capsule) == false)
 		{
 			if (capsule != null)
-				BoxPoolService.ReturnToPool(capsule);
+				BoxMgr.DisableBox(capsule);
 
 			Debug.LogError("[Rocket] Failed to prepare inbound cargo capsule.");
 			return;
@@ -159,16 +161,18 @@ public class Rocket : CapsuleDock
 	public void SetupPayload(List<ItemStack> payload)
 	{
 		if (TryUndockCapsule(out CargoCapsule existingCapsule))
-			BoxPoolService.ReturnToPool(existingCapsule);
+			BoxMgr.DisableBox(existingCapsule);
 
 		if (payload == null || payload.Count <= 0)
 			return;
 
-		CargoCapsule capsule = BoxPoolService.TakeBox(BoxType.Capsule, transform) as CargoCapsule;
+		CargoCapsule capsule = null;
+		if (BoxMgr.GetNewBox(BoxType.Capsule, out BoxBase newBox))
+			capsule = newBox as CargoCapsule;
 		if (capsule == null || TryDockCapsule(capsule) == false)
 		{
 			if (capsule != null)
-				BoxPoolService.ReturnToPool(capsule);
+				BoxMgr.DisableBox(capsule);
 			return;
 		}
 

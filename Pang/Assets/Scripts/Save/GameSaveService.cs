@@ -136,9 +136,9 @@ public sealed class GameSaveService : MonoBehaviour
 		data.Contracts = Ctx.ContractMgr.CaptureState();
 		data.Orders = Ctx.OrderMgr.CaptureState(RegisterOrderLine);
 		data.DeliveryQueue = Ctx.DeliveryService.CaptureState();
-		data.OrderDelivery = Ctx.OrderDelivery.CaptureState(RegisterBox);
+		data.OrderDelivery = Ctx.OrderDelivery.CaptureState();
 		data.RocketService = Ctx.RocketSvc.CaptureState();
-		data.BoxRegistry = Ctx.WMSys.BoxPoolService.CaptureSaveData(RegisterOrderLine);
+		data.BoxRegistry = Ctx.BoxMgr.CaptureSaveData(RegisterOrderLine);
 		data.WorkerManager.NextWorkerId = Ctx.WorkerMgr.NextWorkerId;
 		data.WorkJobCounters.NextPickingJobId = PickingPlanner.GetNextJobId();
 		data.WorkJobCounters.NextStoringJobId = StoringPlanner.GetNextJobId();
@@ -156,7 +156,6 @@ public sealed class GameSaveService : MonoBehaviour
 	private void Restore(GameSaveData data)
 	{
 		Dictionary<int, GameObject> restoredPlaceables = new();
-		Dictionary<uint, BoxBase> restoredBoxes = new();
 		Dictionary<int, OrderLine> restoredOrderLines = new();
 		Dictionary<uint, AIWorker> workersById = new();
 
@@ -176,8 +175,8 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.BuildingFootprintService.ResetRuntimeState();
 		Ctx.WMSys.WorkPolicyService.ResetRuntimeState();
 		Ctx.WMSys.ItemLedger.ResetRuntimeState();
-		Ctx.WMSys.BoxPoolService.ResetRuntimeState();
-		Ctx.WMSys.BoxPoolService.DestroyAllBoxes();
+		Ctx.BoxMgr.DestroyAllBoxes();
+		Ctx.BoxMgr.ResetRuntimeState();
 		Ctx.GridService.ResetRuntimeState();
 		Ctx.RocketSvc.ResetRuntimeState();
 		Ctx.OBWorkflowSvc.PackingStationService.ResetRuntimeState();
@@ -192,13 +191,13 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.EconomyService.RestoreState(data.Economy);
 		Ctx.ContractMgr.RestoreState(data.Contracts);
 		Ctx.OrderMgr.RestoreState(data.Orders, Ctx.ContractMgr, restoredOrderLines);
-		Ctx.WMSys.BoxPoolService.RestoreSaveData(data.BoxRegistry, restoredBoxes, restoredOrderLines);
+		Ctx.BoxMgr.RestoreSaveData(data.BoxRegistry, restoredOrderLines);
 
 		foreach (PlaceableSaveData placeableData in data.Placeables.Where(p => p.IsWorker == false))
-			InstantiatePlaceable(placeableData, restoredPlaceables, restoredBoxes, workersById, restoredOrderLines);
+			InstantiatePlaceable(placeableData, restoredPlaceables, workersById, restoredOrderLines);
 
 		foreach (PlaceableSaveData placeableData in data.Placeables.Where(p => p.IsWorker))
-			InstantiatePlaceable(placeableData, restoredPlaceables, restoredBoxes, workersById, restoredOrderLines);
+			InstantiatePlaceable(placeableData, restoredPlaceables, workersById, restoredOrderLines);
 
 		foreach (PlaceableSaveData placeableData in data.Placeables)
 		{
@@ -216,7 +215,7 @@ public sealed class GameSaveService : MonoBehaviour
 
 		Ctx.WMSys.ItemLedger.RestoreState(data.ItemLedger);
 		Ctx.DeliveryService.RestoreState(data.DeliveryQueue, Ctx.ItemDB);
-		Ctx.OrderDelivery.RestoreState(data.OrderDelivery, restoredBoxes);
+		Ctx.OrderDelivery.RestoreState(data.OrderDelivery);
 		Ctx.RocketSvc.RestoreState(data.RocketService);
 		Ctx.WorkerMgr.SetNextWorkerId(data.WorkerManager.NextWorkerId);
 		PickingPlanner.SetNextJobId(data.WorkJobCounters.NextPickingJobId);
@@ -273,7 +272,7 @@ public sealed class GameSaveService : MonoBehaviour
 		if (obj.TryGetComponent<AIWorker>(out var worker))
 		{
 			data.IsWorker = true;
-			data.Worker = worker.CaptureState(RegisterBox);
+			data.Worker = worker.CaptureState();
 		}
 
 		if (obj.TryGetComponent<ShelfBase>(out var shelf))
@@ -350,7 +349,6 @@ public sealed class GameSaveService : MonoBehaviour
 	private void InstantiatePlaceable(
 		PlaceableSaveData save,
 		Dictionary<int, GameObject> restoredPlaceables,
-		Dictionary<uint, BoxBase> restoredBoxes,
 		Dictionary<uint, AIWorker> workersById,
 		Dictionary<int, OrderLine> restoredOrderLines)
 	{
@@ -384,12 +382,12 @@ public sealed class GameSaveService : MonoBehaviour
 
 		if (obj.TryGetComponent<BoxPool>(out var boxPool) && save.BoxPool != null)
 		{
-			boxPool.RestoreState(save.BoxPool, restoredBoxes);
+			boxPool.RestoreState(save.BoxPool);
 		}
 
 		if (obj.TryGetComponent<PackingStation>(out var packingStation) && save.PackingStation != null)
 		{
-			packingStation.RestoreState(save.PackingStation, restoredBoxes, restoredOrderLines, restoredPlaceables);
+			packingStation.RestoreState(save.PackingStation, restoredOrderLines, restoredPlaceables);
 			packingStation.InitializeForSaveLoad();
 		}
 
@@ -400,13 +398,13 @@ public sealed class GameSaveService : MonoBehaviour
 
 		if (obj.TryGetComponent<LaunchStation>(out var launchStation) && save.LaunchStation != null)
 		{
-			launchStation.RestoreState(save.LaunchStation, restoredBoxes);
+			launchStation.RestoreState(save.LaunchStation);
 			launchStation.InitializeForSaveLoad();
 		}
 
 		if (obj.TryGetComponent<AIWorker>(out var worker) && save.Worker != null)
 		{
-			worker.RestoreState(save.Worker, restoredBoxes);
+			worker.RestoreState(save.Worker);
 			worker.InitializeForSaveLoad(preserveWorkerId: true);
 			workersById[worker.WorkerID] = worker;
 		}
@@ -444,11 +442,6 @@ public sealed class GameSaveService : MonoBehaviour
 		id = nextPlaceableId++;
 		placeableIds[obj] = id;
 		return id;
-	}
-
-	private uint RegisterBox(BoxBase box)
-	{
-		return Ctx.WMSys.BoxPoolService.GetOrCreateBoxId(box);
 	}
 
 	private int RegisterOrderLine(OrderLine line)

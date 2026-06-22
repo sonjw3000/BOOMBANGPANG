@@ -26,7 +26,7 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
-	private BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolService;
+	private BoxManager BoxMgr => GameContext.Instance.BoxMgr;
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
@@ -152,7 +152,7 @@ public class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private float GetEffectivePickingBoxCapacity()
 	{
-		float toteCapacity = BoxPoolService != null ? BoxPoolService.ToteCapacity : 0.0f;
+		float toteCapacity = BoxMgr != null ? BoxMgr.ToteCapacity : 0.0f;
 		if (toteCapacity <= 0.0f)
 			return 0.0f;
 

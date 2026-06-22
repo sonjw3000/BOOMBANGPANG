@@ -670,7 +670,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	// decreased chance by researches or some pieces of equipment
 	public virtual float GetIncidentMitigationMultiplier() { return 1.0f; }
 
-	public WorkerSaveData CaptureState(Func<BoxBase, uint> registerBox)
+	public WorkerSaveData CaptureState()
 	{
 		WorkerSaveData data = new()
 		{
@@ -689,22 +689,24 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			MainTaskType = workerMainTaskType,
 			StatusAction = workerState.Action,
 			StatusTarget = workerState.Target,
-			CarryingBoxId = 0,
+			CarryingBox = null,
 		};
 
 		var carryBoxAbility = CarryingAbility;
-		if (carryBoxAbility != null &&
-			carryBoxAbility.CarryingBox != null &&
-			registerBox != null)
+		if (carryBoxAbility != null && carryBoxAbility.CarryingBox != null)
 		{
-			data.CarryingBoxId = registerBox(carryBoxAbility.CarryingBox);
+			data.CarryingBox = new BoxReferenceSaveData
+			{
+				BoxType = carryBoxAbility.CarryingBox.Type,
+				BoxId = carryBoxAbility.CarryingBox.BoxId,
+			};
 		}
 
 		CaptureSubclassState(data);
 		return data;
 	}
 
-	public void RestoreState(WorkerSaveData data, Dictionary<uint, BoxBase> restoredBoxes)
+	public void RestoreState(WorkerSaveData data)
 	{
 		if (data == null)
 			return;
@@ -732,7 +734,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		EnsureAbilitiesConfigured();
 		RestoreSubclassState(data);
 
-		if (data.CarryingBoxId > 0 && restoredBoxes.TryGetValue(data.CarryingBoxId, out var box))
+		if (data.CarryingBox != null && GameContext.Instance.BoxMgr.TryGetBox(data.CarryingBox.BoxType, data.CarryingBox.BoxId, out var box))
 			TryAttachBox(box);
 	}
 

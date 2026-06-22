@@ -50,6 +50,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private TaskManager taskManager;
 	[FormerlySerializedAs("itemInventory")]
 	[SerializeField] private ShelfStorageService shelfStorageService;
+	[SerializeField] private BoxManager boxManager;
 	[FormerlySerializedAs("rocketManager")]
 	[SerializeField] private RocketService rocketService;
 	[SerializeField] private CargoPortService cargoPortService;
@@ -114,6 +115,7 @@ public class GameContext : MonoBehaviour
 	}
 	public TaskManager TaskMgr => taskManager;
 	public ShelfStorageService StorageService => shelfStorageService;
+	public BoxManager BoxMgr => boxManager;
 	public RocketService RocketSvc => rocketService;
 	public CargoPortService CargoPortSvc => cargoPortService;
 	public OrderManager OrderMgr => orderManager;

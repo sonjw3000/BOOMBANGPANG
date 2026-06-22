@@ -134,7 +134,13 @@ public class LaunchStation
 			foreach (var cargo in cargoStorage.CargosToLaunch)
 			{
 				if (cargo != null)
-					data.CargoQueueBoxIds.Add(cargo.BoxId);
+				{
+					data.CargoQueueBoxes.Add(new BoxReferenceSaveData
+					{
+						BoxType = cargo.Type,
+						BoxId = cargo.BoxId,
+					});
+				}
 			}
 		}
 
@@ -142,23 +148,29 @@ public class LaunchStation
 		{
 			data.ReadyToLaunch = launchPad.IsReady;
 			if (launchPad.CargoToLaunch != null)
-				data.LoadedCargoBoxId = launchPad.CargoToLaunch.BoxId;
+			{
+				data.LoadedCargoBox = new BoxReferenceSaveData
+				{
+					BoxType = launchPad.CargoToLaunch.Type,
+					BoxId = launchPad.CargoToLaunch.BoxId,
+				};
+			}
 		}
 
 		return data;
 	}
 
-	public void RestoreState(LaunchStationSaveData data, IReadOnlyDictionary<uint, BoxBase> restoredBoxes)
+	public void RestoreState(LaunchStationSaveData data)
 	{
-		if (data == null || restoredBoxes == null)
+		if (data == null)
 			return;
 
 		if (TryGetAddon<CargoStorageAddon>(out var cargoStorage))
 		{
 			List<BoxBase> cargos = new();
-			foreach (var cargoId in data.CargoQueueBoxIds)
+			foreach (var cargoRef in data.CargoQueueBoxes)
 			{
-				if (restoredBoxes.TryGetValue(cargoId, out var cargo))
+				if (cargoRef != null && GameContext.Instance.BoxMgr.TryGetBox(cargoRef.BoxType, cargoRef.BoxId, out var cargo))
 					cargos.Add(cargo);
 			}
 
@@ -167,7 +179,9 @@ public class LaunchStation
 
 		if (TryGetAddon<LaunchPadAddon>(out var launchPad))
 		{
-			restoredBoxes.TryGetValue(data.LoadedCargoBoxId, out var loadedCargo);
+			BoxBase loadedCargo = null;
+			if (data.LoadedCargoBox != null)
+				GameContext.Instance.BoxMgr.TryGetBox(data.LoadedCargoBox.BoxType, data.LoadedCargoBox.BoxId, out loadedCargo);
 			launchPad.RestoreState(loadedCargo, data.ReadyToLaunch);
 		}
 	}

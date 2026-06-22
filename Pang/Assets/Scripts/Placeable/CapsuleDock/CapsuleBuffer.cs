@@ -31,19 +31,25 @@ public class CapsuleBuffer :
 	{
 		CapsuleBufferSaveData data = new();
 		if (DockedCapsule != null)
-			data.BoxId = DockedCapsule.BoxId;
+		{
+			data.Box = new BoxReferenceSaveData
+			{
+				BoxType = DockedCapsule.Type,
+				BoxId = DockedCapsule.BoxId,
+			};
+		}
 
 		return data;
 	}
 
-	public void RestoreState(CapsuleBufferSaveData data, IReadOnlyDictionary<uint, BoxBase> restoredBoxes)
+	public void RestoreState(CapsuleBufferSaveData data)
 	{
-		if (data == null || restoredBoxes == null)
+		if (data == null)
 			return;
 
-		if (data.BoxId != 0)
+		if (data.Box != null)
 		{
-			if (restoredBoxes.TryGetValue(data.BoxId, out var box))
+			if (GameContext.Instance.BoxMgr.TryGetBox(data.Box.BoxType, data.Box.BoxId, out var box))
 				PutBox(box);
 		}
 	}

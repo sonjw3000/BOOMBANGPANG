@@ -35,7 +35,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 	public StoringPlanner StoringPlanner => storingPlanner;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
-	private BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolService;
+	private BoxManager BoxMgr => GameContext.Instance.BoxMgr;
 	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 	private RocketService RocketService => GameContext.Instance.RocketSvc;
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
@@ -232,7 +232,7 @@ public class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private float GetEffectiveStoringBoxCapacity()
 	{
-		float toteCapacity = BoxPoolService != null ? BoxPoolService.ToteCapacity : 0.0f;
+		float toteCapacity = BoxMgr != null ? BoxMgr.ToteCapacity : 0.0f;
 		if (toteCapacity <= 0.0f)
 			return 0.0f;
 

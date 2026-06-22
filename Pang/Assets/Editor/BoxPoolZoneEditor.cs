@@ -23,10 +23,11 @@ class BoxPoolZoneEditor : Editor
 				return;
 			}
 
-			sys.GiveNewBox(registeredBoxPools[Index], BoxType.Personal);
+			// sys.GiveNewBox(registeredBoxPools[Index], BoxType.Personal);
 		}
 
 		// box tracing
+		/*
 		foreach (BoxBase toteBox in sys.Boxes)
 		{
 			if (toteBox != null)
@@ -51,5 +52,6 @@ class BoxPoolZoneEditor : Editor
 			EditorGUI.indentLevel--;
 
 		}
+		*/
 	}
 }

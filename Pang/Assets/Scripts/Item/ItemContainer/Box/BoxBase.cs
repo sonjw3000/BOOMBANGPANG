@@ -23,7 +23,7 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	protected Dictionary<uint, int> itemTotals = new();
 
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
-	protected BoxPoolService BoxService => GameContext.Instance.WMSys.BoxPoolService;
+	protected BoxManager BoxMgr => GameContext.Instance.BoxMgr;
 
 	// totebox의 stacks는 많지 않을것으로 예상
 	public float TotalSize => size;
@@ -46,16 +46,6 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 	}
 
 	public void UpdateToteCapacity(float capacity) => this.capacity = capacity;
-
-	private void Start()
-	{
-		BoxService.RegisterBox(this);
-	}
-
-	private void OnDestroy()
-	{
-		BoxService.UnregisterBox(this);
-	}
 
 	public bool CanRegister() => true;
 
@@ -233,10 +223,9 @@ public abstract class BoxBase : MonoBehaviour, IItemContainer
 
 	public virtual BoxSaveData CaptureState(Func<OrderLine, int> registerOrderLine)
 	{
-		uint resolvedBoxId = boxId > 0 ? boxId : (GameContext.HasInstance ? BoxService.GetOrCreateBoxId(this) : 0);
 		BoxSaveData data = new BoxSaveData
 		{
-			BoxId = resolvedBoxId,
+			BoxId = boxId,
 			BoxType = boxType,
 			ConcreteType = GetType().Name,
 		};

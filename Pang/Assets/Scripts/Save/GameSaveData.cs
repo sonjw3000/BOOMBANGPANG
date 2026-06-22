@@ -260,7 +260,7 @@ public sealed class OrderDeliverySaveData
 [Serializable]
 public sealed class DeliveryProgressSaveData
 {
-	public uint BoxId;
+	public BoxReferenceSaveData Box;
 	public float TimeRemain;
 }
 
@@ -273,9 +273,22 @@ public sealed class RocketServiceSaveData
 [Serializable]
 public sealed class BoxRegistrySaveData
 {
-	public uint NextBoxId = 1;
+	public List<BoxIdCounterSaveData> NextBoxIds = new();
 	public List<BoxSaveData> Boxes = new();
-	public List<uint> InactivePoolBoxIds = new();
+}
+
+[Serializable]
+public sealed class BoxIdCounterSaveData
+{
+	public BoxType BoxType;
+	public uint NextBoxId = 1;
+}
+
+[Serializable]
+public sealed class BoxReferenceSaveData
+{
+	public BoxType BoxType = BoxType.None;
+	public uint BoxId = 0;
 }
 
 [Serializable]
@@ -331,7 +344,7 @@ public sealed class WorkerSaveData
 	public float Experience;
 	public float BatteryLevel;
 	public float BatteryEfficiency;
-	public uint CarryingBoxId;
+	public BoxReferenceSaveData CarryingBox;
 }
 
 [Serializable]
@@ -351,12 +364,13 @@ public sealed class CargoPortSaveData
 [Serializable]
 public sealed class BoxPoolSaveData
 {
-	public List<uint> BoxIds = new();
+	public List<BoxReferenceSaveData> Boxes = new();
 }
 
+[Serializable]
 public sealed class CapsuleBufferSaveData
 {
-	public uint BoxId = 0;
+	public BoxReferenceSaveData Box;
 }
 
 [Serializable]
@@ -386,8 +400,8 @@ public sealed class RocketSaveData
 [Serializable]
 public sealed class LaunchStationSaveData
 {
-	public List<uint> CargoQueueBoxIds = new();
-	public uint LoadedCargoBoxId = 0;
+	public List<BoxReferenceSaveData> CargoQueueBoxes = new();
+	public BoxReferenceSaveData LoadedCargoBox;
 	public bool ReadyToLaunch;
 }
 
@@ -403,7 +417,7 @@ public sealed class BoxSaveData
 [Serializable]
 public sealed class BoxWithOrderSaveData
 {
-	public uint BoxId = 0;
+	public BoxReferenceSaveData Box;
 	public WorkJobSaveData Job;
 }
 

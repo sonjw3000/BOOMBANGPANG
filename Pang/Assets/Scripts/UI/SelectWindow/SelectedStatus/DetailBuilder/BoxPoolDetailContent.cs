@@ -30,7 +30,7 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 	private RectTransform actionRoot;
 	private bool uiBuilt;
 
-	private static BoxPoolService BoxPoolService => GameContext.Instance.WMSys.BoxPoolService;
+	private static BoxManager BoxMgr => GameContext.Instance.BoxMgr;
 
 	protected override void RemoveListeners()
 	{
@@ -168,7 +168,11 @@ public class BoxPoolDetailContent : DetailContent<BoxPool>
 		actionButtons.Add(CreateDeleteActionButton(actionRoot));
 		actionButtons.Add(CreateRuntimeActionButton(actionRoot, "Add Personal Box", () =>
 		{
-			BoxPoolService.GiveNewBox(((BoxPoolUIProvider)provider).Target, BoxType.Personal);
+			if (BoxMgr.GetNewBox(BoxType.Personal, out BoxBase box))
+			{
+				if (((BoxPoolUIProvider)provider).Target.PutBox(box) == false)
+					BoxMgr.DisableBox(box);
+			}
 		}));
 	}
 

@@ -76,21 +76,28 @@ public class BoxPool :
 		foreach (var box in boxes)
 		{
 			if (box != null)
-				data.BoxIds.Add(box.BoxId);
+			{
+				data.Boxes.Add(new BoxReferenceSaveData
+				{
+					BoxType = box.Type,
+					BoxId = box.BoxId,
+				});
+			}
 		}
 
 		return data;
 	}
 
-	public void RestoreState(BoxPoolSaveData data, IReadOnlyDictionary<uint, BoxBase> restoredBoxes)
+	public void RestoreState(BoxPoolSaveData data)
 	{
 		boxes.Clear();
-		if (data == null || restoredBoxes == null)
+		if (data == null)
 			return;
 
-		for (int i = data.BoxIds.Count - 1; i >= 0; i--)
+		for (int i = data.Boxes.Count - 1; i >= 0; i--)
 		{
-			if (restoredBoxes.TryGetValue(data.BoxIds[i], out var box))
+			BoxReferenceSaveData boxRef = data.Boxes[i];
+			if (boxRef != null && GameContext.Instance.BoxMgr.TryGetBox(boxRef.BoxType, boxRef.BoxId, out var box))
 				PutBox(box);
 		}
 	}

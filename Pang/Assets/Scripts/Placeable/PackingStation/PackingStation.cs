@@ -357,7 +357,6 @@ public class PackingStation :
 
 	public void RestoreState(
 		PackingStationSaveData data,
-		Dictionary<uint, BoxBase> restoredBoxes,
 		Dictionary<int, OrderLine> restoredOrderLines,
 		Dictionary<int, GameObject> restoredPlaceables)
 	{
@@ -384,9 +383,9 @@ public class PackingStation :
 			itemTotals[pkgData.ItemId] = itemTotals.GetValueOrDefault(pkgData.ItemId) + pkgData.Quantity;
 		}
 
-		SetWaitStackBox(RestoreBoxWithOrder(data.WaitingBox, restoredBoxes, restoredOrderLines, restoredPlaceables));
-		SetCurrentPackingBox(RestoreBoxWithOrder(data.CurrentBox, restoredBoxes, restoredOrderLines, restoredPlaceables));
-		SetEndStackBox(RestoreBoxWithOrder(data.EndBox, restoredBoxes, restoredOrderLines, restoredPlaceables));
+		SetWaitStackBox(RestoreBoxWithOrder(data.WaitingBox, restoredOrderLines, restoredPlaceables));
+		SetCurrentPackingBox(RestoreBoxWithOrder(data.CurrentBox, restoredOrderLines, restoredPlaceables));
+		SetEndStackBox(RestoreBoxWithOrder(data.EndBox, restoredOrderLines, restoredPlaceables));
 	}
 
 	public void RestoreWorkerBindings(Dictionary<uint, AIWorker> workersById, PackingStationSaveData data)
@@ -410,21 +409,26 @@ public class PackingStation :
 
 		return new BoxWithOrderSaveData
 		{
-			BoxId = value.Box != null ? value.Box.BoxId : 0,
+			Box = value.Box == null
+				? null
+				: new BoxReferenceSaveData
+				{
+					BoxType = value.Box.Type,
+					BoxId = value.Box.BoxId,
+				},
 			Job = value.Job != null ? value.Job.CaptureState(getPlaceableId, registerOrderLine) : null,
 		};
 	}
 
 	private static BoxWithOrder RestoreBoxWithOrder(
 		BoxWithOrderSaveData data,
-		Dictionary<uint, BoxBase> restoredBoxes,
 		Dictionary<int, OrderLine> restoredOrderLines,
 		Dictionary<int, GameObject> restoredPlaceables)
 	{
 		if (data == null || data.Job == null)
 			return null;
 
-		if (restoredBoxes.TryGetValue(data.BoxId, out var box) == false)
+		if (data.Box == null || GameContext.Instance.BoxMgr.TryGetBox(data.Box.BoxType, data.Box.BoxId, out var box) == false)
 			return null;
 
 		WorkJob job = data.Job.Restore(restoredPlaceables, restoredOrderLines);
