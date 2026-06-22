@@ -8,25 +8,16 @@ public abstract partial class ShelfBase
 		ShelfContainerSaveData data = new();
 		foreach (var stack in stacks)
 		{
-			if (stack is ItemPackage pkg)
+			data.Stacks.Add(new ItemStackSaveData
 			{
-				data.Stacks.Add(new ItemStackSaveData
-				{
-					ItemId = pkg.ItemID,
-					Quantity = pkg.Quantity,
-					IsPackage = true,
-					RelatedOrderLineId = registerOrderLine != null ? registerOrderLine(pkg.RelatedOrderLine) : -1,
-					OutboundStage = pkg.OutboundStage,
-				});
-			}
-			else
-			{
-				data.Stacks.Add(new ItemStackSaveData
-				{
-					ItemId = stack.ItemID,
-					Quantity = stack.Quantity,
-				});
-			}
+				ItemId = stack.ItemID,
+				Quantity = stack.Quantity,
+				Freshness = stack.Freshness,
+				Damage = stack.Damage,
+				Status = stack.Status,
+				RelatedOrderLineId = registerOrderLine != null && stack.RelatedOrderLine != null ? registerOrderLine(stack.RelatedOrderLine) : -1,
+				OutboundStage = stack.OutboundStage,
+			});
 		}
 
 		foreach (var entry in itemsReservedPick)
@@ -54,16 +45,15 @@ public abstract partial class ShelfBase
 		{
 			foreach (var stackData in data.Stacks)
 			{
-				if (stackData.IsPackage &&
-					orderLines != null &&
-					orderLines.TryGetValue(stackData.RelatedOrderLineId, out var line))
-				{
-					AddStack(new ItemPackage(PackingType.Box, line, stackData.ItemId, stackData.Quantity, stackData.OutboundStage));
-				}
-				else
-				{
-					AddItem(stackData.ItemId, stackData.Quantity);
-				}
+				OrderLine line = null;
+				if (orderLines != null && stackData.RelatedOrderLineId >= 0)
+					orderLines.TryGetValue(stackData.RelatedOrderLineId, out line);
+
+				ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, line, stackData.OutboundStage);
+				stack.AddItem(stackData.Quantity);
+				AddStack(stack);
+				if (stack.Quantity <= 0)
+					stack.Recycle();
 			}
 
 			itemsReservedPick.Clear();

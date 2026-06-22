@@ -177,7 +177,12 @@ public partial class Rocket : CapsuleDock
 		}
 
 		for (int i = 0; i < payload.Count; ++i)
-			capsule.AddStack(payload[i]);
+		{
+			ItemStack stack = payload[i];
+			capsule.AddStack(stack);
+			if (stack != null && stack.Quantity <= 0)
+				stack.Recycle();
+		}
 	}
 
 	public IReadOnlyList<ItemStack> GetPayload()

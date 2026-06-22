@@ -303,12 +303,6 @@ public enum ItemStatus
 	Packed = 1 << 1,
 }
 
-public enum PackingType
-{
-	Box,
-	PlasticBag,
-}
-
 public enum PackageOutboundStage
 {
 	None,
@@ -316,53 +310,6 @@ public enum PackageOutboundStage
 	Shipping,
 	InDelivery,
 	Completed,
-}
-
-public static class PackingTypeExt
-{
-	public static float GetPackageSize(this PackingType type)
-	{
-		switch (type)
-		{
-			case PackingType.Box:
-				return 50;
-			case PackingType.PlasticBag:
-				return 50;
-			default:
-				return 50;
-		}
-	}
-}
-
-public class ItemPackage : ItemStack
-{
-	private PackingType packingType;
-	public PackingType PackingType => packingType;
-
-	public ItemPackage(
-		PackingType type,
-		OrderLine order,
-		uint itemID,
-		int quantity,
-		PackageOutboundStage outboundStage = PackageOutboundStage.None,
-		byte freshness = 100,
-		byte damage = 0,
-		ItemStatus status = ItemStatus.None) : base(
-			itemID,
-			freshness,
-			damage,
-			status | ItemStatus.Packed,
-			order,
-			outboundStage)
-	{
-		packingType = type;
-		AddItem(quantity);
-	}
-
-	protected override ItemStack CreateEmptyLikeThis()
-	{
-		return new ItemPackage(packingType, RelatedOrderLine, ItemID, 0, OutboundStage, Freshness, Damage, Status);
-	}
 }
 
 // 특정 item이 위치한 정보를 간편히 표현한 자료구조

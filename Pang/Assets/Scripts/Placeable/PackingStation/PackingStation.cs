@@ -37,7 +37,7 @@ public partial class PackingStation :
 	private BoxWithOrder currentPackingBox = null;
 	private BoxWithOrder endPackingBox = null;
 
-	private readonly List<ItemPackage> packedItems = new();
+	private readonly List<ItemStack> packedItems = new();
 	protected Dictionary<uint, int> itemTotals = new();
 	private float totalSize = 0.0f;
 
@@ -59,7 +59,7 @@ public partial class PackingStation :
 
 	public bool CanAcceptStack(ItemStack stack)
 	{
-		if (stack is not ItemPackage)
+		if (stack == null || stack.HasStatus(ItemStatus.Packed) == false)
 			return false;
 
 		if (stack.Quantity <= 0 || totalSize + stack.Size > MaxSize)
@@ -255,20 +255,20 @@ public partial class PackingStation :
 
 	public bool AddStack(ItemStack stack)
 	{
-		if (CanAcceptStack(stack) == false || stack is not ItemPackage pkg)
+		if (CanAcceptStack(stack) == false)
 			return false;
 
-		uint itemId = pkg.ItemID;
-		int quantity = pkg.Quantity;
-		ItemPackage mergeTarget = FindMergeTarget(pkg);
+		uint itemId = stack.ItemID;
+		int quantity = stack.Quantity;
+		ItemStack mergeTarget = FindMergeTarget(stack);
 		if (mergeTarget != null)
 		{
-			if (mergeTarget.TryMergeFrom(pkg) == false)
+			if (mergeTarget.TryMergeFrom(stack) == false)
 				return false;
 		}
 		else
 		{
-			packedItems.Add(pkg);
+			packedItems.Add(stack);
 		}
 
 		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) + quantity;
@@ -278,12 +278,12 @@ public partial class PackingStation :
 
 	public bool RemoveStack(ItemStack stack)
 	{
-		if (stack is not ItemPackage pkg || packedItems.Remove(pkg) == false)
+		if (stack == null || packedItems.Remove(stack) == false)
 			return false;
 
-		itemTotals[pkg.ItemID] = itemTotals.GetValueOrDefault(pkg.ItemID) - pkg.Quantity;
-		if (itemTotals[pkg.ItemID] <= 0)
-			itemTotals.Remove(pkg.ItemID);
+		itemTotals[stack.ItemID] = itemTotals.GetValueOrDefault(stack.ItemID) - stack.Quantity;
+		if (itemTotals[stack.ItemID] <= 0)
+			itemTotals.Remove(stack.ItemID);
 
 		UpdateSize();
 		return true;
@@ -296,14 +296,14 @@ public partial class PackingStation :
 			totalSize += packedItems[i].Size;
 	}
 
-	private ItemPackage FindMergeTarget(ItemStack incoming)
+	private ItemStack FindMergeTarget(ItemStack incoming)
 	{
 		if (incoming == null)
 			return null;
 
 		for (int i = 0; i < packedItems.Count; ++i)
 		{
-			ItemPackage existing = packedItems[i];
+			ItemStack existing = packedItems[i];
 			if (ReferenceEquals(existing, incoming))
 				continue;
 

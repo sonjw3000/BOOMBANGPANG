@@ -155,17 +155,27 @@ public partial class PackingTask : WorkerTask
 			return Failure;
 
 		int quantityToPack = Math.Min(line.CompleteQuantity, box.Box.GetQuantity(line.ItemID));
-		ItemPackage package = new(PackingType.Box, line.RelatedOrderLine, line.ItemID, quantityToPack);
+		ItemStack packedStack = ItemStack.Rent(
+			line.ItemID,
+			status: ItemStatus.Packed,
+			relatedOrderLine: line.RelatedOrderLine,
+			outboundStage: PackageOutboundStage.None);
+		packedStack.AddItem(quantityToPack);
 
-		if (quantityToPack <= 0 || station.CanAcceptStack(package) == false)
+		if (quantityToPack <= 0 || station.CanAcceptStack(packedStack) == false)
 		{
+			packedStack.Recycle();
 			Debug.Log("Station Stack Is Full");
 			return quantityToPack <= 0 ? Failure : Running;
 		}
 
-		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(box.Box, station, package);
+		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(box.Box, station, packedStack);
 		if (result.Kind != TransferResultKind.Complete)
+		{
+			if (packedStack.Quantity > 0)
+				packedStack.Recycle();
 			return Failure;
+		}
 
 		int packedQuantity = OrderMgr.ReportPackagingCompleted(line.RelatedOrderLine, result.Moved);
 		if (packedQuantity != result.Moved)

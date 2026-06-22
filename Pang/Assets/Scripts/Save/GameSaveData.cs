@@ -428,7 +428,9 @@ public sealed class ItemStackSaveData
 {
 	public uint ItemId;
 	public int Quantity;
-	public bool IsPackage;
+	public byte Freshness = 100;
+	public byte Damage;
+	public ItemStatus Status = ItemStatus.None;
 	public int RelatedOrderLineId = -1;
 	public PackageOutboundStage OutboundStage = PackageOutboundStage.None;
 }
