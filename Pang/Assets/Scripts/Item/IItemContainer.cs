@@ -35,22 +35,17 @@ public interface IItemContainer
 [System.Serializable]
 public class ItemStack
 {
+	private const byte DefaultFreshnessValue = 100;
+	private const byte DefaultDamageValue = 0;
+	private static readonly Stack<ItemStack> pool = new();
+
 	private uint itemID;
 	private int quantity = 0;
-	private byte freshness = 100;
-	private byte damage = 0;
+	private byte freshness = DefaultFreshnessValue;
+	private byte damage = DefaultDamageValue;
 	private ItemStatus status = ItemStatus.None;
 	private OrderLine relatedOrderLine = null;
 	private PackageOutboundStage outboundStage = PackageOutboundStage.None;
-
-	// if <= 0 >>>>>> max
-	private float maxStackSize;
-
-	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
-	private float ItemSize => ItemDB.GetItemSize(itemID);
-	public float AvailableSpace => (maxStackSize - (ItemSize * quantity));
-
-	public int AvailableAmount => (int)(AvailableSpace / ItemSize);
 
 	public uint ItemID => itemID;
 	public int Quantity => quantity;
@@ -60,30 +55,51 @@ public class ItemStack
 	public OrderLine RelatedOrderLine => relatedOrderLine;
 	public int? RelatedOrderId => relatedOrderLine?.ParentOrder?.OrderID;
 	public PackageOutboundStage OutboundStage => outboundStage;
-	public float Size => Quantity * ItemDB.GetItemSize(ItemID);
-	public float StackSize => maxStackSize;
+	public float Size => GameContext.Instance.ItemDB.GetItemSize(ItemID) * Quantity;
+	public bool IsDefaultIdentity =>
+		freshness == DefaultFreshnessValue &&
+		damage == DefaultDamageValue &&
+		status == ItemStatus.None &&
+		relatedOrderLine == null &&
+		outboundStage == PackageOutboundStage.None;
 
 	public ItemStack(
 		uint itemID,
-		float maxStackSize,
 		byte freshness = 100,
 		byte damage = 0,
 		ItemStatus status = ItemStatus.None,
 		OrderLine relatedOrderLine = null,
 		PackageOutboundStage outboundStage = PackageOutboundStage.None)
 	{
-		this.itemID = itemID;
-		this.maxStackSize = maxStackSize;
-		this.freshness = ClampPercent(freshness);
-		this.damage = ClampPercent(damage);
-		this.status = status;
-		this.relatedOrderLine = relatedOrderLine;
-		this.outboundStage = outboundStage;
+		Initialize(itemID, freshness, damage, status, relatedOrderLine, outboundStage);
 	}
 
 	private static byte ClampPercent(byte value) => (byte)Mathf.Clamp((int)value, 0, 100);
 
-	public bool CanAddItem(int quantity) => maxStackSize <= 0 || maxStackSize - (ItemSize * (this.quantity + quantity)) >= 0;
+	public static ItemStack Rent(
+		uint itemID,
+		byte freshness = 100,
+		byte damage = 0,
+		ItemStatus status = ItemStatus.None,
+		OrderLine relatedOrderLine = null,
+		PackageOutboundStage outboundStage = PackageOutboundStage.None)
+	{
+		if (pool.Count > 0)
+		{
+			ItemStack stack = pool.Pop();
+			stack.Initialize(itemID, freshness, damage, status, relatedOrderLine, outboundStage);
+			return stack;
+		}
+
+		return new ItemStack(itemID, freshness, damage, status, relatedOrderLine, outboundStage);
+	}
+
+	public static ItemStack RentDefault(uint itemID)
+	{
+		return Rent(itemID, DefaultFreshnessValue, DefaultDamageValue, ItemStatus.None, null, PackageOutboundStage.None);
+	}
+
+	public bool HasItemID(uint itemID) => this.itemID == itemID;
 	public bool HasStatus(ItemStatus target) => (status & target) == target;
 
 	public void SetFreshness(byte freshness)
@@ -136,16 +152,14 @@ public class ItemStack
 
 	public bool CanMergeWith(ItemStack other)
 	{
-		return other != null &&
-			HasMatchingIdentity(other) &&
-			CanAddItem(other.Quantity);
+		return other != null && HasMatchingIdentity(other);
 	}
 
 	// returns actual added amount
 	public int AddItem(int amount)
 	{
-		int maxAddMount = AvailableAmount;
-		amount = math.min(amount, maxAddMount);
+		if (amount <= 0)
+			return 0;
 
 		quantity += amount;
 
@@ -171,7 +185,7 @@ public class ItemStack
 
 	protected virtual ItemStack CreateEmptyLikeThis()
 	{
-		return new ItemStack(itemID, maxStackSize, freshness, damage, status, relatedOrderLine, outboundStage);
+		return Rent(itemID, freshness, damage, status, relatedOrderLine, outboundStage);
 	}
 
 	public virtual ItemStack CreateTransferStack(int amount)
@@ -211,6 +225,14 @@ public class ItemStack
 		return true;
 	}
 
+	public virtual void Recycle()
+	{
+		ResetState();
+
+		if (GetType() == typeof(ItemStack))
+			pool.Push(this);
+	}
+
 	public void ReportOutboundProgress(OrderManager orderManager, PackageOutboundStage targetStage)
 	{
 		if (orderManager == null || relatedOrderLine == null)
@@ -242,6 +264,34 @@ public class ItemStack
 		}
 
 		outboundStage = targetStage;
+	}
+
+	private void Initialize(
+		uint itemID,
+		byte freshness,
+		byte damage,
+		ItemStatus status,
+		OrderLine relatedOrderLine,
+		PackageOutboundStage outboundStage)
+	{
+		this.itemID = itemID;
+		quantity = 0;
+		this.freshness = ClampPercent(freshness);
+		this.damage = ClampPercent(damage);
+		this.status = status;
+		this.relatedOrderLine = relatedOrderLine;
+		this.outboundStage = outboundStage;
+	}
+
+	private void ResetState()
+	{
+		itemID = 0;
+		quantity = 0;
+		freshness = DefaultFreshnessValue;
+		damage = DefaultDamageValue;
+		status = ItemStatus.None;
+		relatedOrderLine = null;
+		outboundStage = PackageOutboundStage.None;
 	}
 }
 
@@ -299,7 +349,6 @@ public class ItemPackage : ItemStack
 		byte damage = 0,
 		ItemStatus status = ItemStatus.None) : base(
 			itemID,
-			type.GetPackageSize(),
 			freshness,
 			damage,
 			status | ItemStatus.Packed,

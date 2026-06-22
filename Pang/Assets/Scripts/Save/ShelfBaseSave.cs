@@ -43,6 +43,9 @@ public abstract partial class ShelfBase
 
 	public virtual void RestoreState(ShelfContainerSaveData data, IReadOnlyDictionary<int, OrderLine> orderLines)
 	{
+		for (int i = 0; i < stacks.Count; ++i)
+			stacks[i]?.Recycle();
+
 		stacks.Clear();
 		itemTotals.Clear();
 		itemsReservedPick.Clear();

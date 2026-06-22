@@ -36,6 +36,9 @@ public partial class PackingStation
 		Dictionary<int, OrderLine> restoredOrderLines,
 		Dictionary<int, GameObject> restoredPlaceables)
 	{
+		for (int i = 0; i < packedItems.Count; ++i)
+			packedItems[i]?.Recycle();
+
 		packedItems.Clear();
 		itemTotals.Clear();
 		totalSize = 0.0f;

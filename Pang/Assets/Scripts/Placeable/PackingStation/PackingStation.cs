@@ -59,7 +59,13 @@ public partial class PackingStation :
 
 	public bool CanAcceptStack(ItemStack stack)
 	{
-		return stack is ItemPackage && packedItems.Count < maxStacks;
+		if (stack is not ItemPackage)
+			return false;
+
+		if (stack.Quantity <= 0 || totalSize + stack.Size > MaxSize)
+			return false;
+
+		return FindMergeTarget(stack) != null || packedItems.Count < maxStacks;
 	}
 
 	private PackingStationService PackingStationService => GameContext.Instance.OBWorkflowSvc.PackingStationService;
@@ -252,8 +258,20 @@ public partial class PackingStation :
 		if (CanAcceptStack(stack) == false || stack is not ItemPackage pkg)
 			return false;
 
-		packedItems.Add(pkg);
-		itemTotals[pkg.ItemID] = itemTotals.GetValueOrDefault(pkg.ItemID) + pkg.Quantity;
+		uint itemId = pkg.ItemID;
+		int quantity = pkg.Quantity;
+		ItemPackage mergeTarget = FindMergeTarget(pkg);
+		if (mergeTarget != null)
+		{
+			if (mergeTarget.TryMergeFrom(pkg) == false)
+				return false;
+		}
+		else
+		{
+			packedItems.Add(pkg);
+		}
+
+		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) + quantity;
 		UpdateSize();
 		return true;
 	}
@@ -276,6 +294,24 @@ public partial class PackingStation :
 		totalSize = 0.0f;
 		for (int i = 0; i < packedItems.Count; ++i)
 			totalSize += packedItems[i].Size;
+	}
+
+	private ItemPackage FindMergeTarget(ItemStack incoming)
+	{
+		if (incoming == null)
+			return null;
+
+		for (int i = 0; i < packedItems.Count; ++i)
+		{
+			ItemPackage existing = packedItems[i];
+			if (ReferenceEquals(existing, incoming))
+				continue;
+
+			if (existing.CanMergeWith(incoming))
+				return existing;
+		}
+
+		return null;
 	}
 
 	private void SetCurrentPackingBox(BoxWithOrder value)
