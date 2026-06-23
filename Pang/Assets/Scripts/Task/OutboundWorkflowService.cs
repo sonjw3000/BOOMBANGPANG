@@ -28,6 +28,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public LaunchStationService LaunchStationService => launchStationService;
 	public PickingPlanner PickingPlanner => pickingPlanner;
 	public CollectingPolicyType PickingCollectingPolicyType => pickingPlanner != null ? pickingPlanner.CollectingPolicyType : defaultPickingCollectingPolicyType;
+	public float CargoPortThresholdPercent => cargoPortThresholdPercent;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
