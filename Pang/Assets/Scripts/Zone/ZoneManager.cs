@@ -179,10 +179,12 @@ public partial class ZoneManager : MonoBehaviour
 		if (bound.width <= 0 || bound.height <= 0)
 			return false;
 
-		if (BuildingFootprintService == null || BuildingFootprintService.TryGetInteriorBounds(ownerBuilding.RuntimeBuildingId, out RectInt interiorBounds, out int buildingFloor) == false)
+		if (BuildingFootprintService == null ||
+			BuildingFootprintService.TryGetFootprint(ownerBuilding.RuntimeBuildingId, out BuildingFootprintRecord footprint) == false ||
+			footprint == null)
 			return false;
 
-		if (buildingFloor != floor || ContainsRect(interiorBounds, bound) == false)
+		if (footprint.Floor != floor || ContainsRect(footprint.Bounds, bound) == false)
 			return false;
 
 		if (GridService == null)
