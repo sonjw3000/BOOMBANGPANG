@@ -110,6 +110,10 @@ public sealed class Airlock : ItemInteraction
 		state = AirlockState.Occupied;
 
 		yield return MoveWorkerTo(worker, ToWorld(entryPoint));
+		if (TryResolveFacing(entryPoint, chamberPoint, out FacingDirection entryFacing) && worker.Direction != entryFacing)
+		{
+			yield return RotateWorkerTo(worker, entryFacing);
+		}
 		yield return MoveWorkerTo(worker, ToWorld(chamberPoint));
 		yield return new WaitForSeconds(entryDelaySeconds);
 
@@ -156,6 +160,36 @@ public sealed class Airlock : ItemInteraction
 		}
 
 		worker.transform.position = destination;
+	}
+
+	private IEnumerator RotateWorkerTo(AIWorker worker, FacingDirection direction)
+	{
+		if (worker == null)
+			yield break;
+
+		Vector3 forward = direction.ForwardDirection().ToVector3().normalized;
+		if (forward == Vector3.zero)
+			yield break;
+
+		Quaternion targetRotation = Quaternion.LookRotation(forward);
+		float rotationSpeed = worker.RouteFinder != null ? worker.RouteFinder.GetRotationSpeed() : transitMoveSpeed;
+
+		while (true)
+		{
+			worker.transform.rotation = Quaternion.Slerp(
+				worker.transform.rotation,
+				targetRotation,
+				Time.deltaTime * rotationSpeed);
+
+			float dotProduct = math.dot(worker.transform.forward, forward);
+			if (dotProduct >= 0.9999f)
+				break;
+
+			yield return null;
+		}
+
+		worker.transform.rotation = targetRotation;
+		worker.SetDirection(direction);
 	}
 
 	private void RestoreInterruptedWorker()
@@ -259,6 +293,25 @@ public sealed class Airlock : ItemInteraction
 			return delta.x >= 0 ? FacingDirection.East : FacingDirection.West;
 
 		return delta.z >= 0 ? FacingDirection.North : FacingDirection.South;
+	}
+
+	private static bool TryResolveFacing(in int3 fromPoint, in int3 toPoint, out FacingDirection direction)
+	{
+		int3 delta = toPoint - fromPoint;
+		if (delta.x == 0 && delta.z == 0)
+		{
+			direction = FacingDirection.North;
+			return false;
+		}
+
+		if (math.abs(delta.x) >= math.abs(delta.z))
+		{
+			direction = delta.x >= 0 ? FacingDirection.East : FacingDirection.West;
+			return true;
+		}
+
+		direction = delta.z >= 0 ? FacingDirection.North : FacingDirection.South;
+		return true;
 	}
 
 	private static Vector3 ToWorld(in int3 point)
