@@ -54,6 +54,7 @@ public class GameContext : MonoBehaviour
 	[FormerlySerializedAs("rocketManager")]
 	[SerializeField] private RocketService rocketService;
 	[SerializeField] private CargoPortService cargoPortService;
+	[SerializeField] private CapsuleBufferService capsuleBufferService;
 	[SerializeField] private OrderManager orderManager;
 	[SerializeField] private OrderDeliveryService orderDelivery;
 	[SerializeField] private WMSystem warehouseManagement;
@@ -118,6 +119,13 @@ public class GameContext : MonoBehaviour
 	public BoxManager BoxMgr => boxManager;
 	public RocketService RocketSvc => rocketService;
 	public CargoPortService CargoPortSvc => cargoPortService;
+	public CapsuleBufferService CapsuleBufferSvc
+	{
+		get
+		{
+			return ResolveManager(ref capsuleBufferService, nameof(CapsuleBufferService));
+		}
+	}
 	public OrderManager OrderMgr => orderManager;
 	public OrderDeliveryService OrderDelivery => orderDelivery;
 	public WMSystem WMSys => warehouseManagement;

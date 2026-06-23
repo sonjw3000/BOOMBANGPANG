@@ -73,6 +73,7 @@ public class SelectionUIMaster : MonoBehaviour
 	private void Awake()
 	{
 		EnsureHighlightVisuals();
+		providerTypes.Add(typeof(CapsuleBufferUIProvider));
 		providerTypes.Add(typeof(CargoPortUIProvider));
 		providerTypes.Add(typeof(AirlockUIProvider));
 		providerTypes.Add(typeof(PackingStationUIProvider));
@@ -87,6 +88,7 @@ public class SelectionUIMaster : MonoBehaviour
 		EnsureRuntimeZoneDetailContent();
 		EnsureRuntimeBuildingDetailContent();
 		EnsureRuntimeAirlockDetailContent();
+		EnsureRuntimeCapsuleBufferDetailContent();
 		EnsureDetailWindowManager();
 		EnsureHighlightRoot();
 		EnsureModeHud();
@@ -568,6 +570,50 @@ public class SelectionUIMaster : MonoBehaviour
 	private void EnsureRuntimeAirlockDetailContent()
 	{
 		EnsureRuntimeDetailContent(airlockDetailContentPrefab, "RuntimeAirlockDetailContent");
+	}
+
+	private void EnsureRuntimeCapsuleBufferDetailContent()
+	{
+		foreach (DetailContentBase detailContent in detailContents)
+		{
+			if (detailContent is CapsuleBufferDetailBuilder)
+				return;
+		}
+
+		CargoPortDetailBuilder template = null;
+		foreach (DetailContentBase detailContent in detailContents)
+		{
+			if (detailContent is CargoPortDetailBuilder cargoPortDetailBuilder)
+			{
+				template = cargoPortDetailBuilder;
+				break;
+			}
+		}
+
+		if (detailUI == null || template == null)
+		{
+			Debug.LogError("[SelectionUIMaster] CapsuleBuffer detail content template is missing.", this);
+			return;
+		}
+
+		UIWindow detailWindow = detailUI.GetComponentInChildren<UIWindow>(true);
+		Transform parent = detailWindow != null && detailWindow.ContentRoot != null
+			? detailWindow.ContentRoot
+			: detailUI.transform;
+
+		GameObject detailRoot = new("RuntimeCapsuleBufferDetailContent", typeof(RectTransform), typeof(CapsuleBufferDetailBuilder));
+		detailRoot.transform.SetParent(parent, false);
+		detailRoot.SetActive(false);
+
+		CapsuleBufferDetailBuilder runtimeDetailContent = detailRoot.GetComponent<CapsuleBufferDetailBuilder>();
+		template.CopyRuntimeScaffoldingTo(runtimeDetailContent);
+
+		var contents = new List<DetailContentBase>(detailContents ?? Array.Empty<DetailContentBase>())
+		{
+			runtimeDetailContent
+		};
+		detailContents = contents.ToArray();
+		detailUI.RefreshDetailContentCache();
 	}
 
 	private void EnsureRuntimeDetailContent<T>(T prefab, string objectName)

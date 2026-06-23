@@ -121,6 +121,16 @@ public abstract class DetailContentBase : MonoBehaviour
 		RegisterActionButton(CreateDeleteActionButton(actionRoot));
 	}
 
+	public void CopyRuntimeScaffoldingTo(DetailContentBase target)
+	{
+		if (target == null)
+			return;
+
+		target.defaultTabsPrefab = defaultTabsPrefab;
+		target.actionButtonPrefab = actionButtonPrefab;
+		target.compactButtonPrefab = compactButtonPrefab;
+	}
+
 	private void EnsureDefaultTabs()
 	{
 		if (UseDefaultTabs == false || defaultTabsBuilt)
