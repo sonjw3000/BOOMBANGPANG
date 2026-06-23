@@ -6,7 +6,6 @@ public partial class RocketService : FacilityService<Rocket>
 {
 	[SerializeField] private int initialPoolSize = 5;
 	[SerializeField] private FacingDirection landingFacingDirection = FacingDirection.North;
-	[SerializeField] [Range(0.0f, 1.0f)] private float hardLandingChance = 0.35f;
 	[SerializeField] private Vector2 fallingTimeRange = new(3.0f, 7.0f);
 	[SerializeField] private Vector2 fallingSpeedRange = new(3.0f, 7.0f);
 
@@ -20,6 +19,7 @@ public partial class RocketService : FacilityService<Rocket>
 	public event System.Action<Rocket> InboundRocketLanded;
 
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
+	private InboundWorkflowService InboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;
 
 	private GameObject rocketPoolParent = null;
 	private PlaceableDefinition rocketPD;
@@ -169,7 +169,7 @@ public partial class RocketService : FacilityService<Rocket>
 		List<ItemStack> payload = new();
 
 		uint randomItemID = ItemDB.GetRandomItemID();
-		ItemStack newStack = new(randomItemID, rocketPayloadSize);
+		ItemStack newStack = ItemStack.RentDefault(randomItemID);
 		newStack.AddItem(10);
 
 		payload.Add(newStack);
@@ -205,7 +205,12 @@ public partial class RocketService : FacilityService<Rocket>
 
 	private RocketLandingOutcome BuildLandingOutcome(in int3 landingPoint)
 	{
-		RocketLandingSeverity severity = UnityEngine.Random.value < hardLandingChance
+		int hardLandingChange = Mathf.Clamp(
+			InboundWorkflowService != null ? InboundWorkflowService.HardLandingChange : 0,
+			0,
+			100);
+
+		RocketLandingSeverity severity = UnityEngine.Random.Range(0, 100) < hardLandingChange
 			? RocketLandingSeverity.Hard
 			: RocketLandingSeverity.Soft;
 

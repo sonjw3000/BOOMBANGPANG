@@ -57,23 +57,22 @@ public abstract partial class ShelfBase :
 		if (itemSize <= 0.0f)
 			return 0;
 
-		int capacity = 0;
-		for (int i = 0; i < stacks.Count; ++i)
-		{
-			ItemStack stack = stacks[i];
-			if (stack.ItemID == itemId)
-				capacity += stack.AvailableAmount;
-		}
+		if (FindDefaultStack(itemId) == null && CanCreateNewStack() == false)
+			return 0;
 
-		int freeSlots = maxStacks - stacks.Count;
-		capacity += freeSlots * Mathf.FloorToInt(sizePerStack / itemSize);
-
-		return Mathf.Clamp(capacity, 0, requested);
+		float availableSize = Mathf.Max(0.0f, MaxSize - totalSize);
+		return Mathf.Clamp(Mathf.FloorToInt(availableSize / itemSize), 0, requested);
 	}
 
 	public bool CanAcceptStack(ItemStack stack)
 	{
-		return stack != null && stack.StackSize <= sizePerStack && stacks.Count < maxStacks;
+		if (stack == null || stack.Quantity <= 0)
+			return false;
+
+		if (stack.Size > Mathf.Max(0.0f, MaxSize - totalSize))
+			return false;
+
+		return FindMergeTarget(stack) != null || CanCreateNewStack();
 	}
 
 	protected virtual void Awake()
@@ -98,35 +97,24 @@ public abstract partial class ShelfBase :
 		if (quantity <= 0)
 			return 0;
 
+		int acceptable = GetAcceptableQuantity(itemId, quantity);
+		if (acceptable <= 0)
+			return 0;
+
 		int befItemCounts = itemTotals.GetValueOrDefault(itemId);
 		int befItemStacks = stacks.Count;
-
-		// 기존 인덱스에 넣기
-		int remain = quantity;
-		for (int i = 0; i < stacks.Count; ++i) 
+		ItemStack stack = FindDefaultStack(itemId);
+		if (stack == null)
 		{
-			ItemStack stack = stacks[i];
+			if (CanCreateNewStack() == false)
+				return 0;
 
-			if (stack.ItemID != itemId)
-				continue;
-
-			int itemAdded = stack.AddItem(remain);
-			itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) + itemAdded;
-			remain -= itemAdded;
-
-			if (remain <= 0) break;
-		}
-
-		// 기존 인덱스가 없다면 새로 만들어 채우기
-		while (remain > 0 && stacks.Count < maxStacks)
-		{
-			ItemStack stack = new ItemStack(itemId, sizePerStack);
+			stack = ItemStack.RentDefault(itemId);
 			stacks.Add(stack);
-
-			int itemAdded = stack.AddItem(remain);
-			itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) + itemAdded;
-			remain -= itemAdded;
 		}
+
+		int itemAdded = stack.AddItem(acceptable);
+		itemTotals[itemId] = befItemCounts + itemAdded;
 
 		int curItemStacks = stacks.Count;
 
@@ -136,12 +124,11 @@ public abstract partial class ShelfBase :
 			OnItemPresentChanged?.Invoke(this, itemId, true);
 		}
 
-		int addedItem = quantity - remain;
-		OnItemQuantityChanged?.Invoke(this, itemId, addedItem);
+		OnItemQuantityChanged?.Invoke(this, itemId, itemAdded);
 
 		UpdateSize();
 
-		return addedItem;
+		return itemAdded;
 	}
 
 	public int RemoveItem(uint itemId, int quantity)
@@ -155,14 +142,17 @@ public abstract partial class ShelfBase :
 		{
 			ItemStack stack = stacks[i];
 
-			if (stack.ItemID != itemId)
+			if (stack.HasItemID(itemId) == false || stack.IsDefaultIdentity == false)
 				continue;
 			
 			int itemRemoved = stack.RemoveItem(remain);
 			itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) - itemRemoved;
 			remain -= itemRemoved;
 			if (stack.Quantity <= 0)
+			{
 				stacks.RemoveAt(i);
+				stack.Recycle();
+			}
 
 			if (remain == 0)
 				break;
@@ -189,14 +179,27 @@ public abstract partial class ShelfBase :
 		if (CanAcceptStack(stack) == false)
 			return false;
 
-		int befItemCounts = itemTotals.GetValueOrDefault(stack.ItemID);
-		stacks.Add(stack);
-		itemTotals[stack.ItemID] = befItemCounts + stack.Quantity;
+		uint itemId = stack.ItemID;
+		int quantity = stack.Quantity;
+		int befItemCounts = itemTotals.GetValueOrDefault(itemId);
+		ItemStack mergeTarget = FindMergeTarget(stack);
+		if (mergeTarget != null)
+		{
+			if (mergeTarget.TryMergeFrom(stack) == false)
+				return false;
+
+			itemTotals[itemId] = befItemCounts + quantity;
+		}
+		else
+		{
+			stacks.Add(stack);
+			itemTotals[itemId] = befItemCounts + quantity;
+		}
 
 		if (befItemCounts == 0)
-			OnItemPresentChanged?.Invoke(this, stack.ItemID, true);
+			OnItemPresentChanged?.Invoke(this, itemId, true);
 
-		OnItemQuantityChanged?.Invoke(this, stack.ItemID, stack.Quantity);
+		OnItemQuantityChanged?.Invoke(this, itemId, quantity);
 
 		UpdateSize();
 
@@ -226,20 +229,39 @@ public abstract partial class ShelfBase :
 	}
 	public bool CanAccept(uint itemId, int quantity)
 	{
-		int capacity = 0;
-		float itemSize = itemDB.GetItemSize(itemId);
+		return GetAcceptableQuantity(itemId, quantity) >= quantity;
+	}
+
+	private bool CanCreateNewStack() => stacks.Count < maxStacks;
+
+	private ItemStack FindDefaultStack(uint itemId)
+	{
+		for (int i = 0; i < stacks.Count; ++i)
+		{
+			ItemStack stack = stacks[i];
+			if (stack.HasItemID(itemId) && stack.IsDefaultIdentity)
+				return stack;
+		}
+
+		return null;
+	}
+
+	private ItemStack FindMergeTarget(ItemStack incoming)
+	{
+		if (incoming == null)
+			return null;
 
 		for (int i = 0; i < stacks.Count; ++i)
 		{
 			ItemStack stack = stacks[i];
-			if (stack.ItemID == itemId)
-				capacity += stack.AvailableAmount;
+			if (ReferenceEquals(stack, incoming))
+				continue;
+
+			if (stack.CanMergeWith(incoming))
+				return stack;
 		}
 
-		int freeslots = maxStacks - stacks.Count;
-		capacity += freeslots * (int)(sizePerStack / itemSize);
-
-		return capacity >= quantity;
+		return null;
 	}
 
 	public override void OnRemoved()

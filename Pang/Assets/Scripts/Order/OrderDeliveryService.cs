@@ -35,11 +35,10 @@ public partial class OrderDeliveryService : MonoBehaviour
 
 			foreach (var stack in progress.Cargo.Stacks)
 			{
-				ItemPackage pkg = stack as ItemPackage;
-				if (pkg == null)
+				if (stack == null || stack.HasStatus(ItemStatus.Packed) == false)
 					continue;
 
-				pkg.ReportOutboundProgress(OrderMgr, PackageOutboundStage.Completed);
+				stack.ReportOutboundProgress(OrderMgr, PackageOutboundStage.Completed);
 			}
 
 			Debug.Log("Cargo Delivered!");

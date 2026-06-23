@@ -14,13 +14,15 @@ public partial class PackingStation
 	{
 		return new PackingStationSaveData
 		{
-			PackedItems = packedItems.ConvertAll(pkg => new ItemStackSaveData
+			PackedItems = packedItems.ConvertAll(stack => new ItemStackSaveData
 			{
-				ItemId = pkg.ItemID,
-				Quantity = pkg.Quantity,
-				IsPackage = true,
-				RelatedOrderLineId = registerOrderLine != null ? registerOrderLine(pkg.RelatedOrderLine) : -1,
-				OutboundStage = pkg.OutboundStage,
+				ItemId = stack.ItemID,
+				Quantity = stack.Quantity,
+				Freshness = stack.Freshness,
+				Damage = stack.Damage,
+				Status = stack.Status,
+				RelatedOrderLineId = registerOrderLine != null && stack.RelatedOrderLine != null ? registerOrderLine(stack.RelatedOrderLine) : -1,
+				OutboundStage = stack.OutboundStage,
 			}),
 			WaitingBox = CaptureBoxWithOrder(waitStackBox, registerOrderLine, getPlaceableId),
 			CurrentBox = CaptureBoxWithOrder(currentPackingBox, registerOrderLine, getPlaceableId),
@@ -36,6 +38,9 @@ public partial class PackingStation
 		Dictionary<int, OrderLine> restoredOrderLines,
 		Dictionary<int, GameObject> restoredPlaceables)
 	{
+		for (int i = 0; i < packedItems.Count; ++i)
+			packedItems[i]?.Recycle();
+
 		packedItems.Clear();
 		itemTotals.Clear();
 		totalSize = 0.0f;
@@ -49,14 +54,17 @@ public partial class PackingStation
 		if (data == null)
 			return;
 
-		foreach (var pkgData in data.PackedItems)
+		foreach (var stackData in data.PackedItems)
 		{
-			if (restoredOrderLines.TryGetValue(pkgData.RelatedOrderLineId, out var line) == false)
-				continue;
+			OrderLine line = null;
+			if (restoredOrderLines != null && stackData.RelatedOrderLineId >= 0)
+				restoredOrderLines.TryGetValue(stackData.RelatedOrderLineId, out line);
 
-			ItemPackage package = new(PackingType.Box, line, pkgData.ItemId, pkgData.Quantity, pkgData.OutboundStage);
-			packedItems.Add(package);
-			itemTotals[pkgData.ItemId] = itemTotals.GetValueOrDefault(pkgData.ItemId) + pkgData.Quantity;
+			ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, line, stackData.OutboundStage);
+			stack.AddItem(stackData.Quantity);
+			AddStack(stack);
+			if (stack.Quantity <= 0)
+				stack.Recycle();
 		}
 
 		SetWaitStackBox(RestoreBoxWithOrder(data.WaitingBox, restoredOrderLines, restoredPlaceables));

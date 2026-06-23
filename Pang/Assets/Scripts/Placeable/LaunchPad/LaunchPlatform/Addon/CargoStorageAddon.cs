@@ -26,7 +26,7 @@ public partial class CargoStorageAddon
 
 		foreach (var stack in cargo.Stacks)
 		{
-			if (stack is not ItemPackage)
+			if (stack == null || stack.HasStatus(ItemStatus.Packed) == false)
 			{
 				Debug.LogError("CargoStorage: This Stack in box is not packed!!");
 				return false;
@@ -40,8 +40,7 @@ public partial class CargoStorageAddon
 
 		foreach (var stack in cargo.Stacks)
 		{
-			ItemPackage pkg = (ItemPackage)stack;
-			pkg.ReportOutboundProgress(OrderMgr, PackageOutboundStage.Shipping);
+			stack.ReportOutboundProgress(OrderMgr, PackageOutboundStage.Shipping);
 		}
 
 		return true;

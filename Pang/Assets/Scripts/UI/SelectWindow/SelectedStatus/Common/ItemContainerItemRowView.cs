@@ -6,6 +6,8 @@ public class ItemContainerItemRowView : MonoBehaviour
 {
 	[SerializeField] private TextMeshProUGUI itemNameText;
 	[SerializeField] private TextMeshProUGUI quantityText;
+	[SerializeField] private TextMeshProUGUI freshnessText;
+	[SerializeField] private TextMeshProUGUI damageText;
 	[SerializeField] private TextMeshProUGUI orderText;
 	private bool built;
 
@@ -15,10 +17,14 @@ public class ItemContainerItemRowView : MonoBehaviour
 
 		itemNameText.text = itemInfo?.ItemName ?? "Unknown Item";
 		quantityText.text = itemInfo != null ? itemInfo.Quantity.ToString() : "0";
+		freshnessText.text = itemInfo != null ? $"{itemInfo.Freshness}%" : "0%";
+		damageText.text = itemInfo != null ? $"{itemInfo.Damage}%" : "0%";
 		orderText.text = itemInfo?.RelatedOrderId is int orderId ? $"Order #{orderId}" : string.Empty;
 		orderText.gameObject.SetActive(true);
 		itemNameText.fontStyle = FontStyles.Normal;
 		quantityText.fontStyle = FontStyles.Normal;
+		freshnessText.fontStyle = FontStyles.Normal;
+		damageText.fontStyle = FontStyles.Normal;
 		orderText.fontStyle = FontStyles.Normal;
 	}
 
@@ -27,10 +33,14 @@ public class ItemContainerItemRowView : MonoBehaviour
 		EnsureBuilt();
 		itemNameText.text = "Item";
 		quantityText.text = "Quantity";
+		freshnessText.text = "Fresh";
+		damageText.text = "Damage";
 		orderText.text = "Related Order";
 		orderText.gameObject.SetActive(true);
 		itemNameText.fontStyle = FontStyles.Bold;
 		quantityText.fontStyle = FontStyles.Bold;
+		freshnessText.fontStyle = FontStyles.Bold;
+		damageText.fontStyle = FontStyles.Bold;
 		orderText.fontStyle = FontStyles.Bold;
 	}
 
@@ -40,12 +50,6 @@ public class ItemContainerItemRowView : MonoBehaviour
 			return;
 
 		TryBindFromExistingChildren();
-
-		if (itemNameText != null && quantityText != null && orderText != null)
-		{
-			built = true;
-			return;
-		}
 
 		RectTransform rect = gameObject.GetComponent<RectTransform>() ?? gameObject.AddComponent<RectTransform>();
 		rect.anchorMin = new Vector2(0f, 1f);
@@ -71,14 +75,23 @@ public class ItemContainerItemRowView : MonoBehaviour
 		layoutElement.minWidth = 0f;
 		layoutElement.minHeight = 34f;
 
-		itemNameText = CreateText("ItemName", transform, 18f, TextAlignmentOptions.Left);
-		SetTextLayout(itemNameText, 0f, 1f, 160f);
+		itemNameText ??= CreateText("ItemName", transform, 18f, TextAlignmentOptions.Left);
+		quantityText ??= CreateText("Quantity", transform, 18f, TextAlignmentOptions.Center);
+		freshnessText ??= CreateText("Freshness", transform, 18f, TextAlignmentOptions.Center);
+		damageText ??= CreateText("Damage", transform, 18f, TextAlignmentOptions.Center);
+		orderText ??= CreateText("Order", transform, 18f, TextAlignmentOptions.Right);
 
-		quantityText = CreateText("Quantity", transform, 18f, TextAlignmentOptions.Center);
+		itemNameText.transform.SetSiblingIndex(0);
+		quantityText.transform.SetSiblingIndex(1);
+		freshnessText.transform.SetSiblingIndex(2);
+		damageText.transform.SetSiblingIndex(3);
+		orderText.transform.SetSiblingIndex(4);
+
+		SetTextLayout(itemNameText, 0f, 1f, 140f);
 		SetTextLayout(quantityText, 84f, 0f, 84f);
-
-		orderText = CreateText("Order", transform, 18f, TextAlignmentOptions.Right);
-		SetTextLayout(orderText, 180f, 0f, 180f);
+		SetTextLayout(freshnessText, 72f, 0f, 72f);
+		SetTextLayout(damageText, 84f, 0f, 84f);
+		SetTextLayout(orderText, 150f, 0f, 150f);
 
 		built = true;
 	}
@@ -90,6 +103,12 @@ public class ItemContainerItemRowView : MonoBehaviour
 
 		if (quantityText == null)
 			quantityText = transform.Find("Quantity")?.GetComponent<TextMeshProUGUI>();
+
+		if (freshnessText == null)
+			freshnessText = transform.Find("Freshness")?.GetComponent<TextMeshProUGUI>();
+
+		if (damageText == null)
+			damageText = transform.Find("Damage")?.GetComponent<TextMeshProUGUI>();
 
 		if (orderText == null)
 			orderText = transform.Find("Order")?.GetComponent<TextMeshProUGUI>();

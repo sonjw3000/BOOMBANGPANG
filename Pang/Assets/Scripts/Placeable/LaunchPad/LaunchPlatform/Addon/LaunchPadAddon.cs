@@ -49,14 +49,14 @@ public partial class LaunchPadAddon : PlatformAddon
 		
 		foreach (var stack in cargoToLaunch.Stacks)
 		{
-			if (stack is ItemPackage pkg == false)
+			if (stack == null || stack.HasStatus(ItemStatus.Packed) == false || stack.RelatedOrderLine?.ParentOrder == null)
 			{
 				Debug.LogError("LaunchPad: This Stack in box is not packed!!");
 				return;
 			}
 
-			Debug.Log($"OrderID: {pkg.RelatedOrderLine.ParentOrder.OrderID} / item: {pkg.ItemID}, qty: {pkg.Quantity} Launched!!");
-			pkg.ReportOutboundProgress(OrderMgr, PackageOutboundStage.InDelivery);
+			Debug.Log($"OrderID: {stack.RelatedOrderLine.ParentOrder.OrderID} / item: {stack.ItemID}, qty: {stack.Quantity} Launched!!");
+			stack.ReportOutboundProgress(OrderMgr, PackageOutboundStage.InDelivery);
 		}
 
 		OrderDelivery.DeliverCargo(cargoToLaunch, GameTime.WeekToSeconds(4));

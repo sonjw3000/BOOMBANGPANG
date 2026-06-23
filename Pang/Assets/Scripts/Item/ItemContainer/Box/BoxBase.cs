@@ -40,6 +40,9 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 
 	public virtual void ResetContainer()
 	{
+		for (int i = 0; i < stacks.Count; ++i)
+			stacks[i]?.Recycle();
+
 		stacks.Clear();
 		itemTotals.Clear();
 		size = 0;
@@ -59,6 +62,9 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 		if (requested <= 0)
 			return 0;
 
+		if (FindDefaultStack(itemId) == null && CanCreateNewStack() == false)
+			return 0;
+
 		float availableSize = capacity - size;
 		float itemSize = itemDB.GetItemSize(itemId);
 		if (itemSize <= 0.0f)
@@ -69,7 +75,13 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 
 	public bool CanAcceptStack(ItemStack stack)
 	{
-		return stack != null && stack.Size + size <= MaxSize;
+		if (stack == null || stack.Quantity <= 0)
+			return false;
+
+		if (stack.Size + size > MaxSize)
+			return false;
+
+		return FindMergeTarget(stack) != null || CanCreateNewStack();
 	}
 
 	// return true when the payload fully moved
@@ -78,14 +90,18 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 		for (int i = payload.Count - 1; i >= 0; --i) 
 		{
 			ItemStack stack = payload[i];
-
-			int result = AddItem(stack.ItemID, stack.Quantity);
-			stack.RemoveItem(result);
-
-			if (stack.Quantity <= 0)
+			if (stack == null)
+			{
 				payload.RemoveAt(i);
+				continue;
+			}
 
-			itemTotals[stack.ItemID] = itemTotals.GetValueOrDefault(stack.ItemID, 0) + result;
+			if (AddStack(stack))
+			{
+				payload.RemoveAt(i);
+				if (stack.Quantity <= 0)
+					stack.Recycle();
+			}
 		}
 
 		return payload.Count <= 0;
@@ -93,46 +109,31 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 
 	public int AddItem(uint itemId, int quantity)
 	{
-		int requestedQuantity = quantity;
-		float availableSize = capacity - size;
-		float itemSize = itemDB.GetItemSize(itemId);
-
-		// quantity를 줄여야한다
-		if (availableSize < itemSize * quantity)
-			quantity = Mathf.FloorToInt(availableSize / itemSize);
-
-		if (quantity < 0)
-		{
-			Debug.LogError(
-				$"[BoxBase] Negative add quantity calculated. " +
-				$"BoxId={boxId}, BoxType={boxType}, ItemId={itemId}, " +
-				$"Requested={requestedQuantity}, Adjusted={quantity}, " +
-				$"Capacity={capacity}, CurrentSize={size}, AvailableSize={availableSize}, ItemSize={itemSize}, " +
-				$"Stacks={BuildStackDebugText()}");
-		}
-
-		// 0이면 불필요한 로직을 타지 않게
-		if (quantity == 0)
-		{
+		if (quantity <= 0)
 			return 0;
-		}
 
-		ItemStack stack = stacks.Find(id => id.ItemID == itemId);
+		int acceptable = GetAcceptableQuantity(itemId, quantity);
+		if (acceptable <= 0)
+			return 0;
 
+		ItemStack stack = FindDefaultStack(itemId);
 		if (stack == null)
 		{
-			stack = new ItemStack(itemId, this.capacity);
+			if (CanCreateNewStack() == false)
+				return 0;
+
+			stack = ItemStack.RentDefault(itemId);
 			stacks.Add(stack);
 		}
 
-		int res = stack.AddItem(quantity);
+		int res = stack.AddItem(acceptable);
 
 		if (stack.Quantity < 0)
 		{
 			Debug.LogError(
 				$"[BoxBase] Stack quantity is negative after AddItem. " +
 				$"BoxId={boxId}, BoxType={boxType}, ItemId={itemId}, " +
-				$"Requested={requestedQuantity}, Adjusted={quantity}, Added={res}, " +
+				$"Requested={quantity}, Adjusted={acceptable}, Added={res}, " +
 				$"Capacity={capacity}, CurrentSize={size}, StackQuantity={stack.Quantity}, " +
 				$"Stacks={BuildStackDebugText()}");
 		}
@@ -146,32 +147,37 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 
 	public int RemoveItem(uint itemId, int quantity)
 	{
-		ItemStack stack = stacks.Find(id => id.ItemID == itemId);
-
-		if (stack == null)
+		if (quantity <= 0)
 			return 0;
 
-		int res = stack.RemoveItem(quantity);
-
-		if (stack.Quantity < 0)
+		int remain = quantity;
+		int removed = 0;
+		for (int i = stacks.Count - 1; i >= 0; --i)
 		{
-			Debug.LogError(
-				$"[BoxBase] Stack quantity is negative after RemoveItem. " +
-				$"BoxId={boxId}, BoxType={boxType}, ItemId={itemId}, Requested={quantity}, Removed={res}, " +
-				$"Capacity={capacity}, CurrentSize={size}, StackQuantity={stack.Quantity}, " +
-				$"Stacks={BuildStackDebugText()}");
+			ItemStack stack = stacks[i];
+			if (stack.HasItemID(itemId) == false || stack.IsDefaultIdentity == false)
+				continue;
+
+			int res = stack.RemoveItem(remain);
+			removed += res;
+			remain -= res;
+			if (stack.Quantity <= 0)
+			{
+				stacks.RemoveAt(i);
+				stack.Recycle();
+			}
+
+			if (remain <= 0)
+				break;
 		}
 
-		if (stack.Quantity <= 0)
-		{
-			stacks.Remove(stack);
-		}
-
-		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId, 0) - res;
+		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId, 0) - removed;
+		if (itemTotals[itemId] <= 0)
+			itemTotals.Remove(itemId);
 
 		UpdateSize();
 
-		return res;
+		return removed;
 	}
 
 	private string BuildStackDebugText()
@@ -196,8 +202,21 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 		if (CanAcceptStack(stack) == false)
 			return false;
 
-		stacks.Add(stack);
-		itemTotals[stack.ItemID] = itemTotals.GetValueOrDefault(stack.ItemID) + stack.Quantity;
+		uint itemId = stack.ItemID;
+		int quantity = stack.Quantity;
+		ItemStack mergeTarget = FindMergeTarget(stack);
+		if (mergeTarget != null)
+		{
+			if (mergeTarget.TryMergeFrom(stack) == false)
+				return false;
+
+			itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) + quantity;
+		}
+		else
+		{
+			stacks.Add(stack);
+			itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) + quantity;
+		}
 
 		UpdateSize();
 
@@ -220,5 +239,37 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 
 	// pallet같은 경우에는 소유한 pallet들의 capacity들을 합쳐야하기 때문에
 	protected abstract void UpdateSize();
+
+	private bool CanCreateNewStack() => true;
+
+	private ItemStack FindDefaultStack(uint itemId)
+	{
+		for (int i = 0; i < stacks.Count; ++i)
+		{
+			ItemStack stack = stacks[i];
+			if (stack.HasItemID(itemId) && stack.IsDefaultIdentity)
+				return stack;
+		}
+
+		return null;
+	}
+
+	private ItemStack FindMergeTarget(ItemStack incoming)
+	{
+		if (incoming == null)
+			return null;
+
+		for (int i = 0; i < stacks.Count; ++i)
+		{
+			ItemStack stack = stacks[i];
+			if (ReferenceEquals(stack, incoming))
+				continue;
+
+			if (stack.CanMergeWith(incoming))
+				return stack;
+		}
+
+		return null;
+	}
 
 }

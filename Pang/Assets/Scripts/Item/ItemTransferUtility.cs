@@ -77,7 +77,7 @@ public static class ItemTransferUtility
 			return new(payload, 0);
 		}
 
-		int available = payload.From.GetQuantity(payload.ItemID);
+		int available = GetDefaultQuantity(payload.From, payload.ItemID);
 		int acceptable = payload.To.GetAcceptableQuantity(payload.ItemID, payload.Quantity);
 		int movable = Math.Min(payload.Quantity, Math.Min(available, acceptable));
 
@@ -100,24 +100,32 @@ public static class ItemTransferUtility
 			return new(new ItemTransferPayload(from, to, stack != null ? stack.ItemID : 0, 0), 0);
 
 		ItemTransferPayload payload = new(from, to, stack.ItemID, stack.Quantity);
-		if (from.GetQuantity(stack.ItemID) < stack.Quantity || to.CanAcceptStack(stack) == false)
+		if (GetDefaultQuantity(from, stack.ItemID) < stack.Quantity || to.CanAcceptStack(stack) == false)
 			return new(payload, 0);
 
+		int requestedQuantity = stack.Quantity;
 		int removed = from.RemoveItem(stack.ItemID, stack.Quantity);
 		ConsumeSourcePickReservation(from, stack.ItemID, removed, consumeSourcePickReservation);
 		if (removed != stack.Quantity)
 		{
 			Debug.LogError($"[ItemTransferUtility] MoveItemAsStack removed an unexpected amount. item={stack.ItemID}, requested={stack.Quantity}, removed={removed}");
+			if (removed > 0)
+				from.AddItem(stack.ItemID, removed);
+
 			return new(payload, removed);
 		}
 
 		if (to.AddStack(stack) == false)
 		{
 			Debug.LogError("[ItemTransferUtility] MoveItemAsStack failed after CanAcceptStack returned true.");
+			from.AddItem(stack.ItemID, removed);
 			return new(payload, 0);
 		}
 
-		return new(payload, stack.Quantity);
+		if (stack.Quantity <= 0)
+			stack.Recycle();
+
+		return new(payload, requestedQuantity);
 	}
 
 	public static TransferResultKind MoveAllStacks(in FullyTransferPayload payload)
@@ -141,6 +149,7 @@ public static class ItemTransferUtility
 					movedPartially = true;
 					++movedCount;
 					payload.OnStackMove?.Invoke(movedStack);
+					movedStack?.Recycle();
 					continue;
 				}
 
@@ -150,17 +159,24 @@ public static class ItemTransferUtility
 			if (payload.From.RemoveStack(stack) == false)
 				return movedCount == 0 ? TransferResultKind.None : TransferResultKind.Partial;
 
+			int movedQuantity = stack.Quantity;
+			ItemStack movedReportStack = stack.CloneWithQuantity(movedQuantity);
 			if (payload.To.AddStack(stack) == false)
 			{
 				Debug.LogError("[ItemTransferUtility] MoveAllStacks failed after CanAcceptStack returned true.");
 				payload.From.AddStack(stack);
+				movedReportStack?.Recycle();
 				return movedCount == 0 ? TransferResultKind.None : TransferResultKind.Partial;
 			}
 
-			ConsumeSourcePickReservation(payload.From, stack.ItemID, stack.Quantity, payload.ConsumeSourcePickReservation);
+			ConsumeSourcePickReservation(payload.From, stack.ItemID, movedQuantity, payload.ConsumeSourcePickReservation);
 
 			++movedCount;
-			payload.OnStackMove?.Invoke(stack);
+			payload.OnStackMove?.Invoke(movedReportStack);
+			movedReportStack?.Recycle();
+
+			if (stack.Quantity <= 0)
+				stack.Recycle();
 		}
 
 		return movedPartially ? TransferResultKind.Partial : TransferResultKind.Complete;
@@ -173,49 +189,67 @@ public static class ItemTransferUtility
 		if (stack == null)
 			return false;
 
-		int acceptable = payload.To.GetAcceptableQuantity(stack.ItemID, stack.Quantity);
+		int acceptable = GetAcceptableQuantityForStack(payload.To, stack);
 		if (acceptable <= 0)
 			return false;
 
-		if (stack is ItemPackage)
-			return TryMovePartialPackageStack(payload, stack, acceptable, out movedStack);
-
-		ItemTransferResult result = MoveItem(new(payload.From, payload.To, stack.ItemID, acceptable, payload.ConsumeSourcePickReservation));
-		if (result.Kind == TransferResultKind.None)
+		movedStack = stack.Split(acceptable);
+		if (movedStack == null)
 			return false;
 
-		movedStack = stack.CreateTransferStack(result.Moved);
-		return movedStack != null;
-	}
-
-	private static bool TryMovePartialPackageStack(in FullyTransferPayload payload, ItemStack stack, int acceptable, out ItemStack movedStack)
-	{
-		movedStack = stack.CreateTransferStack(acceptable);
-		if (movedStack == null || payload.To.CanAcceptStack(movedStack) == false)
-			return false;
-
-		int removed = payload.From.RemoveItem(stack.ItemID, acceptable);
-		if (removed != acceptable)
-		{
-			Debug.LogError($"[ItemTransferUtility] Partial package move removed an unexpected amount. item={stack.ItemID}, requested={acceptable}, removed={removed}");
-			if (removed > 0)
-				RestoreStack(payload.From, movedStack.CreateTransferStack(removed));
-
-			movedStack = null;
-			return false;
-		}
-
+		int movedQuantity = movedStack.Quantity;
 		if (payload.To.AddStack(movedStack) == false)
 		{
-			Debug.LogError("[ItemTransferUtility] Partial package move failed after size check passed.");
 			RestoreStack(payload.From, movedStack);
 			movedStack = null;
 			return false;
 		}
 
-		ConsumeSourcePickReservation(payload.From, stack.ItemID, removed, payload.ConsumeSourcePickReservation);
+		ItemStack movedReportStack = movedStack.CloneWithQuantity(movedQuantity);
+		if (movedStack.Quantity <= 0)
+			movedStack.Recycle();
+		movedStack = movedReportStack;
 
+		if (stack.Quantity <= 0)
+		{
+			if (payload.From.RemoveStack(stack) == false)
+				Debug.LogError("[ItemTransferUtility] Failed to detach emptied source stack after split move.");
+			else
+				stack.Recycle();
+		}
+
+		ConsumeSourcePickReservation(payload.From, movedStack.ItemID, movedStack.Quantity, payload.ConsumeSourcePickReservation);
 		return true;
+	}
+
+	private static int GetDefaultQuantity(IItemContainer container, uint itemId)
+	{
+		if (container?.Stacks == null)
+			return 0;
+
+		int quantity = 0;
+		for (int i = 0; i < container.Stacks.Count; ++i)
+		{
+			ItemStack stack = container.Stacks[i];
+			if (stack != null && stack.HasItemID(itemId) && stack.IsDefaultIdentity)
+				quantity += stack.Quantity;
+		}
+
+		return quantity;
+	}
+
+	private static int GetAcceptableQuantityForStack(IItemContainer container, ItemStack stack)
+	{
+		if (container == null || stack == null || stack.Quantity <= 0)
+			return 0;
+
+		float itemSize = GameContext.Instance.ItemDB.GetItemSize(stack.ItemID);
+		if (itemSize <= 0.0f)
+			return 0;
+
+		float availableSize = Math.Max(0.0f, container.MaxSize - container.TotalSize);
+		int acceptable = Math.Min(stack.Quantity, Mathf.FloorToInt(availableSize / itemSize));
+		return acceptable;
 	}
 
 	private static void RestoreStack(IItemContainer container, ItemStack stack)
@@ -224,13 +258,20 @@ public static class ItemTransferUtility
 			return;
 
 		if (container.AddStack(stack))
+		{
+			if (stack.Quantity <= 0)
+				stack.Recycle();
+
 			return;
+		}
 
 		int restored = container.AddItem(stack.ItemID, stack.Quantity);
 		if (restored != stack.Quantity)
 		{
 			Debug.LogError($"[ItemTransferUtility] Failed to restore moved stack. item={stack.ItemID}, requested={stack.Quantity}, restored={restored}");
 		}
+
+		stack.Recycle();
 	}
 
 	private static void ConsumeSourcePickReservation(IItemContainer source, uint itemId, int quantity, bool consume)
