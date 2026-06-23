@@ -22,6 +22,9 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	[SerializeField] private int landingZoneFloor = 0;
 	[SerializeField] private int randomSearchCountPerZone = 12;
 	[SerializeField] private float inboundRocketSpawnInterval = 10.0f;
+	[SerializeField] [Range(0, 100)] private int hardLandingChange = 30;
+	[SerializeField] [Range(0, 100)] private int damageRate = 30;
+	[SerializeField] [Range(10, 100)] private int damagePercent = 50;
 	[SerializeField] private uint unloadingDestinationBuildingId = 0;
 	[SerializeField] private int maxStoreTasksPerUpdate = 64;
 	[SerializeField] [Range(1f, 100f)] private float storingBoxFillLimitPercent = 80.0f;
@@ -51,6 +54,9 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	}
 	public CollectingPolicyType StoringCollectingPolicyType => storingPlanner != null ? storingPlanner.CollectingPolicyType : defaultStoringCollectingPolicyType;
 	public PlacingPolicyType StoringPlacingPolicyType => storingPlanner != null ? storingPlanner.PlacingPolicyType : defaultStoringPlacingPolicyType;
+	public int HardLandingChange => hardLandingChange;
+	public int DamageRate => damageRate;
+	public int DamagePercent => damagePercent;
 	public uint UnloadingDestinationBuildingId => unloadingDestinationBuildingId;
 
 	public bool TryGetUnloadingDestinationBuilding(out Building building)

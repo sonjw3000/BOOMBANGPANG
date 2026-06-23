@@ -24,6 +24,7 @@ public partial class Rocket : CapsuleDock
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.Rocket;
 
 	private RocketService RocketSvc => GameContext.Instance.RocketSvc;
+	private InboundWorkflowService InboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;
 
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 	private BoxManager BoxMgr => GameContext.Instance.BoxMgr;
@@ -109,7 +110,15 @@ public partial class Rocket : CapsuleDock
 	private void OnSoftLandingApplied() { }
 
 	// Hook for future cargo-quality changes on hard landings.
-	private void OnHardLandingApplied() { }
+	private void OnHardLandingApplied()
+	{
+		if (DockedCapsule == null || InboundWorkflowService == null)
+			return;
+
+		DockedCapsule.ApplyDamage(
+			InboundWorkflowService.DamageRate,
+			InboundWorkflowService.DamagePercent);
+	}
 
 	// Hook for future extra effects when the landing rocket overrides other objects.
 	private void OnLandingOverrideApplied() { }
