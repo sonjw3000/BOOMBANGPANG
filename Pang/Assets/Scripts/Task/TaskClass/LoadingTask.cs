@@ -160,12 +160,13 @@ public partial class LoadingTask : WorkerTask
 			GridCell targetCell = GridService?.GetCell(task.targetPort.GridPosition);
 			if (targetCell != null && targetCell.BuildingId != 0)
 			{
-				LaunchStation localStation = LaunchStationService.GetClosestAvailableTarget(targetCell.BuildingId, from, interactionKind);
+				LaunchStationService.TryFindDestination(targetCell.BuildingId, from, interactionKind, ZoneFilter.None, out LaunchStation localStation);
 				if (localStation != null)
 					return localStation;
 			}
 		}
 
-		return LaunchStationService.GetClosestAvailableTarget(from, interactionKind);
+		LaunchStationService.TryFindDestination(0, from, interactionKind, ZoneFilter.None, out LaunchStation globalStation);
+		return globalStation;
 	}
 }

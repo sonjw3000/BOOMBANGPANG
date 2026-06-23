@@ -87,8 +87,7 @@ public partial class WorkerManager : MonoBehaviour
 		monthlyCost -= worker.MonthlyCost;
 	}
 
-	static public bool CanChangeType(AIWorker worker, TaskType type) => 
-		worker.HasAbility(WorkerTaskTypeRequirement.GetRequiredAbilities(type));
+	static public bool CanChangeType(AIWorker worker, TaskType type) => WorkerTaskAssignmentPolicy.CanAssign(worker, type);
 
 	public void ChangeWorkerTaskType(AIWorker worker, TaskType type)
 	{
@@ -125,7 +124,14 @@ public partial class WorkerManager : MonoBehaviour
 				break;
 
 			case TaskType.Packing:
+				break;
 
+			case TaskType.Labeling:
+				if (worker.GetComponent<LabelingAbility>() == false)
+				{
+					Debug.Log("No LabelingAbility Ability");
+					return;
+				}
 				break;
 
 			case TaskType.Loading:

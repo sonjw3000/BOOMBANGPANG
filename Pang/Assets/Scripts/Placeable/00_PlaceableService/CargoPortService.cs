@@ -64,43 +64,42 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 	}
 
 	// target finding
+	protected override bool IsDestinationCandidate(
+		CargoPort facility,
+		uint buildingId,
+		InteractionKind interactionKind,
+		ZoneFilter zoneFilter)
+	{
+		return base.IsDestinationCandidate(facility, buildingId, interactionKind, zoneFilter)
+			&& facility.IsInteractionAvailable(interactionKind);
+	}
+
 	public CargoPort FindClosestAvailablePort(
 		in int3 pos,
 		InteractionKind interactionKind,
 		uint buildingId = 0,
 		Predicate<CargoPort> predicate = null)
 	{
-		FacilityDistanceResolver distanceResolver = (CargoPort candidate, in int3 origin, out int score) =>
-			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-				candidate,
-				interactionKind,
-				origin,
-				GameContext.Instance.GridService,
-				out _,
-				out score);
-
 		Predicate<CargoPort> combinedPredicate = candidate =>
 			candidate != null &&
-			candidate.IsInteractionAvailable(interactionKind) &&
 			(predicate == null || predicate(candidate));
 
 		if (buildingId != 0)
 		{
-			return TryFindClosestFacility(buildingId, pos, distanceResolver, out CargoPort buildingTarget, combinedPredicate)
+			return TryFindDestination(buildingId, pos, interactionKind, ZoneFilter.None, out CargoPort buildingTarget, combinedPredicate)
 				? buildingTarget
 				: null;
 		}
 
 		if (TryGetBuildingId(pos, out uint localBuildingId) &&
-			TryFindClosestFacility(localBuildingId, pos, distanceResolver, out CargoPort localTarget, combinedPredicate))
+			TryFindDestination(localBuildingId, pos, interactionKind, ZoneFilter.None, out CargoPort localTarget, combinedPredicate))
 		{
 			return localTarget;
 		}
 
-		if (TryFindClosestFacility(pos, distanceResolver, out CargoPort globalTarget, combinedPredicate))
-			return globalTarget;
-
-		return null;
+		return TryFindDestination(0, pos, interactionKind, ZoneFilter.None, out CargoPort globalTarget, combinedPredicate)
+			? globalTarget
+			: null;
 	}
 
 	public CargoPort FindClosestAvailablePortForBox(

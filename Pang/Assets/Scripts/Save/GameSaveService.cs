@@ -448,6 +448,8 @@ public sealed class GameSaveService : MonoBehaviour
 				return taskData.CapsuleTransfer?.Restore(restoredPlaceables) ?? taskData.Storing?.Restore(restoredPlaceables, restoredOrderLines);
 			case WorkerTask.TaskType.Packing:
 				return taskData.Packing?.Restore(restoredPlaceables);
+			case WorkerTask.TaskType.Labeling:
+				return null;
 			case WorkerTask.TaskType.Water:
 				return taskData.Water?.Restore(restoredPlaceables);
 			default:

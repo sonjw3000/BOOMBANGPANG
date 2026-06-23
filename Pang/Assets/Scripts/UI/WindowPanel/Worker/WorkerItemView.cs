@@ -6,17 +6,6 @@ namespace Assets.Scripts.UI
 {
 	public class WorkerItemView : MonoBehaviour
 	{
-		private static readonly WorkerTask.TaskType[] assignableTaskTypes =
-		{
-			WorkerTask.TaskType.Undefined,
-			WorkerTask.TaskType.Unloading,
-			WorkerTask.TaskType.IB,
-			WorkerTask.TaskType.OB,
-			WorkerTask.TaskType.CargoTransfer,
-			WorkerTask.TaskType.Loading,
-			WorkerTask.TaskType.Water,
-		};
-
 		[SerializeField] private Image thumbnail;
 		[SerializeField] private TMP_Text nameText;
 		[SerializeField] private TMP_Text taskText;
@@ -85,12 +74,20 @@ namespace Assets.Scripts.UI
 
 			int selectedIndex = 0;
 			var options = new System.Collections.Generic.List<string>();
+			var assignableTypes = new System.Collections.Generic.List<WorkerTask.TaskType>();
+			WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, assignableTypes);
+			bool currentTaskAvailable = WorkerManager.CanChangeType(worker, worker.TaskType);
 
-			for (int i = 0; i < assignableTaskTypes.Length; ++i)
+			if (currentTaskAvailable == false)
 			{
-				WorkerTask.TaskType type = assignableTaskTypes[i];
+				validTypes.Add(worker.TaskType);
+				options.Add($"{worker.TaskType} (Current Unavailable)");
+			}
 
-				if (WorkerManager.CanChangeType(worker, type) == false)
+			for (int i = 0; i < assignableTypes.Count; ++i)
+			{
+				WorkerTask.TaskType type = assignableTypes[i];
+				if (validTypes.Contains(type))
 					continue;
 
 				if (type == worker.TaskType)
@@ -220,6 +217,7 @@ namespace Assets.Scripts.UI
 				return;
 
 			currentWorker.SetPrimaryBuildingId(validBuildingIds[index]);
+			ConfigureTaskDropdown(currentWorker);
 		}
 
 		private Color GetFatigueColor(float fatigue)

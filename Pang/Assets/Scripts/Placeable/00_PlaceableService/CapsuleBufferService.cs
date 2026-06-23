@@ -7,6 +7,23 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 
 	private readonly Dictionary<uint, List<CapsuleBuffer>> registeredBuffers = new();
 
+	protected override bool IsDestinationCandidate(
+		CapsuleBuffer facility,
+		uint buildingId,
+		InteractionKind interactionKind,
+		ZoneFilter zoneFilter)
+	{
+		if (base.IsDestinationCandidate(facility, buildingId, interactionKind, zoneFilter) == false)
+			return false;
+
+		return interactionKind switch
+		{
+			InteractionKind.Put => facility.CanReceiveFromInbound(),
+			InteractionKind.Pick => facility.CanDispatchToOutbound(),
+			_ => false,
+		};
+	}
+
 	public bool SetBufferState(CapsuleBuffer facility, CapsuleBufferState newState)
 	{
 		if (facility == null)

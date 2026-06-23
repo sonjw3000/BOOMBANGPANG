@@ -7,42 +7,14 @@ public class BoxPoolService : FacilityService<BoxPool>
 {
 	public IReadOnlyList<BoxPool> RegisteredBoxPools => CollectRegisteredBoxPools();
 
-
-	public BoxPool GetClosestAvailableTarget(in int3 pos, InteractionKind interactionKind)
+	protected override bool IsDestinationCandidate(
+		BoxPool facility,
+		uint buildingId,
+		InteractionKind interactionKind,
+		ZoneFilter zoneFilter)
 	{
-		FacilityDistanceResolver distanceResolver = (BoxPool candidate, in int3 origin, out int score) =>
-			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-				candidate,
-				interactionKind,
-				origin,
-				GridService,
-				out _,
-				out score);
-
-		Predicate<BoxPool> predicate = candidate => candidate.IsInteractionAvailable(interactionKind);
-		return TryFindClosestFacility(pos, distanceResolver, out BoxPool target, predicate)
-			? target
-			: null;
-	}
-
-	public BoxPool GetClosestAvailableTarget(uint buildingId, in int3 pos, InteractionKind interactionKind)
-	{
-		if (buildingId == 0)
-			return GetClosestAvailableTarget(pos, interactionKind);
-
-		FacilityDistanceResolver distanceResolver = (BoxPool candidate, in int3 origin, out int score) =>
-			InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
-				candidate,
-				interactionKind,
-				origin,
-				GridService,
-				out _,
-				out score);
-
-		Predicate<BoxPool> predicate = candidate => candidate.IsInteractionAvailable(interactionKind);
-		return TryFindClosestFacility(buildingId, pos, distanceResolver, out BoxPool target, predicate)
-			? target
-			: null;
+		return base.IsDestinationCandidate(facility, buildingId, interactionKind, zoneFilter)
+			&& facility.IsInteractionAvailable(interactionKind);
 	}
 
 	private IReadOnlyList<BoxPool> CollectRegisteredBoxPools()

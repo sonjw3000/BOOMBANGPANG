@@ -71,6 +71,7 @@ public partial class TaskManager : MonoBehaviour
 			// IB
 			case TaskType.Unloading:
 			case TaskType.IB:
+			case TaskType.Labeling:
 			//case TaskType.Receive:
 			//case TaskType.Label:
 			case TaskType.Storing:

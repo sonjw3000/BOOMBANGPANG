@@ -81,6 +81,7 @@ public class WorkerStandbyService : MonoBehaviour
 				return true;
 
 			case WorkerTask.TaskType.Unloading:
+			case WorkerTask.TaskType.Labeling:
 				zoneType = ZoneType.InboundStandby;
 				return true;
 

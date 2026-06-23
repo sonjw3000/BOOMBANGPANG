@@ -15,6 +15,7 @@ public static class WorkerTaskTypeRequirement
 			WorkerTask.TaskType.Packing => WorkerAbility.Packing,
 			WorkerTask.TaskType.Loading => WorkerAbility.CargoHandling,
 			WorkerTask.TaskType.Water => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.Labeling => WorkerAbility.Labeling,
 			WorkerTask.TaskType.Undefined => WorkerAbility.None,
 			WorkerTask.TaskType.HandleMistake => WorkerAbility.None,
 
@@ -50,6 +51,7 @@ public abstract class WorkerTask
 
 		// cross-building
 		CargoTransfer = 10,
+		Labeling = 11,
 	}
 
 	public enum Status
