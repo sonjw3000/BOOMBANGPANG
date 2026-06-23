@@ -26,9 +26,9 @@ public static class WorkerSpawnZoneType
 		return zoneType == ZoneType.HumanSpawn || zoneType == ZoneType.RobotSpawn;
 	}
 
-	public static ZoneType ToSpawnZoneType(this WorkerType workerType)
+	public static ZoneType ToSpawnZoneType(this WorkerKind workerKind)
 	{
-		return workerType == WorkerType.Robot ? ZoneType.RobotSpawn : ZoneType.HumanSpawn;
+		return workerKind == WorkerKind.Robot ? ZoneType.RobotSpawn : ZoneType.HumanSpawn;
 	}
 }
 

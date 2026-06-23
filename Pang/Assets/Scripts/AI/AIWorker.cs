@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Assets.Scripts.AI.BT;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [System.Flags]
 public enum WorkerAbility
@@ -88,7 +89,12 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private uint workerID;
 
 	// worker ability def
-	[SerializeField] private WorkerType workerType;
+	[FormerlySerializedAs("workerType")]
+	[SerializeField] private LegacyWorkerIdentityType legacyWorkerIdentityType;
+	[SerializeField] private WorkerKind workerKind = WorkerKind.Human;
+	[SerializeField] private HumanType humanType = HumanType.FullTime;
+	[SerializeField] private RobotType robotType = RobotType.Transfer;
+	[SerializeField] private bool identityInitialized;
 	[SerializeField] private WorkerAbility abilities;
 	[SerializeField] private int monthlyCost;
 
@@ -144,7 +150,47 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public uint WorkerID => workerID;
 
 	// worker ability
-	public WorkerType WorkerType => workerType;
+	public WorkerKind WorkerKind
+	{
+		get
+		{
+			EnsureIdentityInitialized();
+			return workerKind;
+		}
+	}
+	public HumanType HumanType
+	{
+		get
+		{
+			EnsureIdentityInitialized();
+			return humanType;
+		}
+	}
+	public RobotType RobotType
+	{
+		get
+		{
+			EnsureIdentityInitialized();
+			return robotType;
+		}
+	}
+	public WorkerPolicyType WorkerPolicyType
+	{
+		get
+		{
+			EnsureIdentityInitialized();
+
+			if (workerKind == WorkerKind.Robot)
+				return WorkerPolicyType.RobotTransfer;
+
+			return humanType switch
+			{
+				HumanType.PartTime => WorkerPolicyType.HumanPartTime,
+				HumanType.Illegal => WorkerPolicyType.HumanIllegal,
+				_ => WorkerPolicyType.HumanFullTime,
+			};
+		}
+	}
 	public WorkerAbility Ability => abilities;
 	public int MonthlyCost => monthlyCost;
 
@@ -270,7 +316,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		workerLastName = archetype.WorkerNameDefinition.WorkerLastName;
 		gameObject.name = Name;
 
-		workerType = archetype.AbilityDefinition.workerType;
+		archetype.AbilityDefinition.EnsureIdentityInitialized();
+		if (archetype.AbilityDefinition.WorkerKind == WorkerKind.Robot)
+			SetRobotIdentity(archetype.AbilityDefinition.RobotType);
+		else
+			SetHumanIdentity(archetype.AbilityDefinition.HumanType);
 		abilities = archetype.AbilityDefinition.abilities;
 		monthlyCost = archetype.AbilityDefinition.monthlyCost;
 
@@ -405,6 +455,29 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		primaryBuildingId = buildingId;
 	}
 
+	public void SetHumanIdentity(HumanType humanType)
+	{
+		workerKind = WorkerKind.Human;
+		this.humanType = humanType;
+		robotType = RobotType.Transfer;
+		legacyWorkerIdentityType = humanType switch
+		{
+			HumanType.PartTime => LegacyWorkerIdentityType.PartTime,
+			HumanType.Illegal => LegacyWorkerIdentityType.Illegal,
+			_ => LegacyWorkerIdentityType.FullTime,
+		};
+		identityInitialized = true;
+	}
+
+	public void SetRobotIdentity(RobotType robotType)
+	{
+		workerKind = WorkerKind.Robot;
+		humanType = HumanType.FullTime;
+		this.robotType = robotType;
+		legacyWorkerIdentityType = LegacyWorkerIdentityType.Robot;
+		identityInitialized = true;
+	}
+
 	public void SetTask(WorkerTask task)
 	{
 		if (GameContext.HasInstance && task != null)
@@ -427,6 +500,32 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public void SetDirection(FacingDirection direction)
 	{
 		facingDirection = direction;
+	}
+
+	private void EnsureIdentityInitialized()
+	{
+		if (identityInitialized)
+			return;
+
+		switch (legacyWorkerIdentityType)
+		{
+			case LegacyWorkerIdentityType.PartTime:
+				SetHumanIdentity(HumanType.PartTime);
+				break;
+
+			case LegacyWorkerIdentityType.Illegal:
+				SetHumanIdentity(HumanType.Illegal);
+				break;
+
+			case LegacyWorkerIdentityType.Robot:
+				SetRobotIdentity(RobotType.Transfer);
+				break;
+
+			case LegacyWorkerIdentityType.FullTime:
+			default:
+				SetHumanIdentity(HumanType.FullTime);
+				break;
+		}
 	}
 
 	public void OnPositionSet(in int3 position, FacingDirection direction)

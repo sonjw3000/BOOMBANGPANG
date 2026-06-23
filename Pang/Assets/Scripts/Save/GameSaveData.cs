@@ -82,14 +82,14 @@ public sealed class PolicyStateSaveData
 [Serializable]
 public sealed class WorkPolicyRuntimeSaveData
 {
-	public List<WorkerTypeFloatSaveData> MoveSpeedMultipliers = new();
-	public List<WorkerTypeFloatSaveData> WorkSpeedMultipliers = new();
+	public List<WorkerPolicyTypeFloatSaveData> MoveSpeedMultipliers = new();
+	public List<WorkerPolicyTypeFloatSaveData> WorkSpeedMultipliers = new();
 }
 
 [Serializable]
-public sealed class WorkerTypeFloatSaveData
+public sealed class WorkerPolicyTypeFloatSaveData
 {
-	public WorkerType WorkerType;
+	public WorkerPolicyType WorkerPolicyType;
 	public float Value = 1.0f;
 }
 
@@ -332,7 +332,9 @@ public sealed class WorkerSaveData
 	public string FirstName;
 	public string LastName;
 	public string VisualId;
-	public WorkerType WorkerType;
+	public WorkerKind WorkerKind;
+	public HumanType HumanType;
+	public RobotType RobotType;
 	public WorkerAbility Abilities;
 	public int MonthlyCost;
 	public float BaseMoveSpeedMultiplier;

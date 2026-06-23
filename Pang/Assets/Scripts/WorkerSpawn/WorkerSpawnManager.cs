@@ -64,7 +64,8 @@ public class WorkerSpawnManager : MonoBehaviour
 			return false;
 		}
 
-		ZoneType zoneType = archetype.AbilityDefinition.workerType.ToSpawnZoneType();
+		archetype.AbilityDefinition.EnsureIdentityInitialized();
+		ZoneType zoneType = archetype.AbilityDefinition.WorkerKind.ToSpawnZoneType();
 		if (TryGetSpawnDefinition(zoneType, out var spawnDefinition) == false)
 		{
 			Debug.LogWarning($"Worker spawn definition is missing for {zoneType}");

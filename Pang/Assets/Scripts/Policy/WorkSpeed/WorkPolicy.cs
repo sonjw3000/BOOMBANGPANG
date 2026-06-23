@@ -14,8 +14,8 @@ public class WorkProfile
 [CreateAssetMenu(menuName = "Worker/WorkPolicy")]
 public class WorkPolicy : ScriptableObject
 {
-	[SerializedDictionary("WorkerType", "Speed")]
-	public SerializedDictionary<WorkerType, float> moveSpeed;
-	[SerializedDictionary("WorkerType", "WorkActionType/WorkerProfile")]
-	public SerializedDictionary<WorkerType, SerializedDictionary<WorkActionType, WorkProfile>> workerWorkTime;
+	[SerializedDictionary("WorkerPolicyType", "Speed")]
+	public SerializedDictionary<WorkerPolicyType, float> moveSpeed;
+	[SerializedDictionary("WorkerPolicyType", "WorkActionType/WorkerProfile")]
+	public SerializedDictionary<WorkerPolicyType, SerializedDictionary<WorkActionType, WorkProfile>> workerWorkTime;
 }

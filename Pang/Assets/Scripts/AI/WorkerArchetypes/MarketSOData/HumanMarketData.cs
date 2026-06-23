@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [CreateAssetMenu(menuName = "Worker/HumanMarket")]
 public class HumanMarketData : WorkforceMarketData_SO
@@ -10,7 +11,8 @@ public class HumanMarketData : WorkforceMarketData_SO
 
 	// ability range
 	[Header("Worker Ability")]
-	[SerializeField] private WorkerType workerType;
+	[FormerlySerializedAs("workerType")]
+	[SerializeField] private HumanType humanType;
 
 	[Header("Abilities that this worker insure this ability")]
 	[SerializeField] private WorkerAbility minimumAbility;
@@ -76,7 +78,7 @@ public class HumanMarketData : WorkforceMarketData_SO
 		target.WorkerVisualDefinition = workerVisuals[visualIdx];
 
 		// ability
-		target.AbilityDefinition.workerType = workerType;
+		target.AbilityDefinition.SetHumanIdentity(humanType);
 		target.AbilityDefinition.abilities = minimumAbility | additionalAbility;
 		target.AbilityDefinition.monthlyCost = monthlyCst;
 		target.AbilityDefinition.installCost = installCost;

@@ -9,17 +9,17 @@ public partial class WorkPolicyService
 		EnsureRuntimeMultipliers();
 		WorkPolicyRuntimeSaveData data = new();
 
-		foreach (WorkerType workerType in System.Enum.GetValues(typeof(WorkerType)))
+		foreach (WorkerPolicyType workerPolicyType in System.Enum.GetValues(typeof(WorkerPolicyType)))
 		{
-			data.MoveSpeedMultipliers.Add(new WorkerTypeFloatSaveData
+			data.MoveSpeedMultipliers.Add(new WorkerPolicyTypeFloatSaveData
 			{
-				WorkerType = workerType,
-				Value = GetMoveSpeedMultiplier(workerType),
+				WorkerPolicyType = workerPolicyType,
+				Value = GetMoveSpeedMultiplier(workerPolicyType),
 			});
-			data.WorkSpeedMultipliers.Add(new WorkerTypeFloatSaveData
+			data.WorkSpeedMultipliers.Add(new WorkerPolicyTypeFloatSaveData
 			{
-				WorkerType = workerType,
-				Value = GetWorkSpeedMultiplier(workerType),
+				WorkerPolicyType = workerPolicyType,
+				Value = GetWorkSpeedMultiplier(workerPolicyType),
 			});
 		}
 
@@ -33,33 +33,33 @@ public partial class WorkPolicyService
 		if (data == null)
 			return;
 
-		ApplyWorkerTypeValues(moveSpeedMultipliers, data.MoveSpeedMultipliers);
-		ApplyWorkerTypeValues(workSpeedMultipliers, data.WorkSpeedMultipliers);
+		ApplyWorkerPolicyTypeValues(moveSpeedMultipliers, data.MoveSpeedMultipliers);
+		ApplyWorkerPolicyTypeValues(workSpeedMultipliers, data.WorkSpeedMultipliers);
 	}
 
 	public void ResetRuntimeState()
 	{
 		EnsureRuntimeMultipliers();
 
-		foreach (WorkerType workerType in System.Enum.GetValues(typeof(WorkerType)))
+		foreach (WorkerPolicyType workerPolicyType in System.Enum.GetValues(typeof(WorkerPolicyType)))
 		{
-			moveSpeedMultipliers[workerType] = DefaultSpeedMultiplier;
-			workSpeedMultipliers[workerType] = DefaultSpeedMultiplier;
+			moveSpeedMultipliers[workerPolicyType] = DefaultSpeedMultiplier;
+			workSpeedMultipliers[workerPolicyType] = DefaultSpeedMultiplier;
 		}
 	}
 
-	private static void ApplyWorkerTypeValues(SerializedDictionary<WorkerType, float> target, List<WorkerTypeFloatSaveData> values)
+	private static void ApplyWorkerPolicyTypeValues(SerializedDictionary<WorkerPolicyType, float> target, List<WorkerPolicyTypeFloatSaveData> values)
 	{
 		if (values == null)
 			return;
 
-		foreach (WorkerTypeFloatSaveData entry in values)
+		foreach (WorkerPolicyTypeFloatSaveData entry in values)
 		{
 			if (entry == null)
 				continue;
 
 			float value = entry.Value;
-			target[entry.WorkerType] = Mathf.Clamp(value <= 0.0f ? DefaultSpeedMultiplier : value, MinimumSpeedMultiplier, MaximumSpeedMultiplier);
+			target[entry.WorkerPolicyType] = Mathf.Clamp(value <= 0.0f ? DefaultSpeedMultiplier : value, MinimumSpeedMultiplier, MaximumSpeedMultiplier);
 		}
 	}
 }

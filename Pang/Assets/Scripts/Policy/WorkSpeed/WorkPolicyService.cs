@@ -13,14 +13,14 @@ public partial class WorkPolicyService : MonoBehaviour
 	[SerializeField] private WorkPolicy workPolicy;
 
 	// worker boost
-	[SerializedDictionary("WorkerType", "Boost")]
-	[SerializeField] private SerializedDictionary<WorkerType, float> moveBoost;
-	[SerializedDictionary("WorkerType", "WorkActionType/Boost")]
-	[SerializeField] private SerializedDictionary<WorkerType, SerializedDictionary<WorkActionType, float>> workTimeBoost;
-	[SerializedDictionary("WorkerType", "Move Speed Multiplier")]
-	[SerializeField] private SerializedDictionary<WorkerType, float> moveSpeedMultipliers = new();
-	[SerializedDictionary("WorkerType", "Work Speed Multiplier")]
-	[SerializeField] private SerializedDictionary<WorkerType, float> workSpeedMultipliers = new();
+	[SerializedDictionary("WorkerPolicyType", "Boost")]
+	[SerializeField] private SerializedDictionary<WorkerPolicyType, float> moveBoost;
+	[SerializedDictionary("WorkerPolicyType", "WorkActionType/Boost")]
+	[SerializeField] private SerializedDictionary<WorkerPolicyType, SerializedDictionary<WorkActionType, float>> workTimeBoost;
+	[SerializedDictionary("WorkerPolicyType", "Move Speed Multiplier")]
+	[SerializeField] private SerializedDictionary<WorkerPolicyType, float> moveSpeedMultipliers = new();
+	[SerializedDictionary("WorkerPolicyType", "Work Speed Multiplier")]
+	[SerializeField] private SerializedDictionary<WorkerPolicyType, float> workSpeedMultipliers = new();
 
 	// worker rest/charge
 	[SerializeField] private float workerRestFatigue = 70.0f;
@@ -41,47 +41,47 @@ public partial class WorkPolicyService : MonoBehaviour
 	}
 
 	public float GetMoveSpeed(AIWorker targetWorker) 
-		=> workPolicy.moveSpeed[targetWorker.WorkerType]
-		* GetMoveBoost(targetWorker.WorkerType)
-		* GetMoveSpeedMultiplier(targetWorker.WorkerType)
+		=> workPolicy.moveSpeed[targetWorker.WorkerPolicyType]
+		* GetMoveBoost(targetWorker.WorkerPolicyType)
+		* GetMoveSpeedMultiplier(targetWorker.WorkerPolicyType)
 		* targetWorker.GetMoveSpeedMultiplier();
 
 	public float GetWorkTime(AIWorker targetWorker, WorkActionType actionType)
-		=> workPolicy.workerWorkTime[targetWorker.WorkerType][actionType].WorkDuration
-		/ GetWorkBoost(targetWorker.WorkerType, actionType)
-		/ GetWorkSpeedMultiplier(targetWorker.WorkerType)
+		=> workPolicy.workerWorkTime[targetWorker.WorkerPolicyType][actionType].WorkDuration
+		/ GetWorkBoost(targetWorker.WorkerPolicyType, actionType)
+		/ GetWorkSpeedMultiplier(targetWorker.WorkerPolicyType)
 		/ Mathf.Max(targetWorker.GetWorkSpeedMultiplier(), 0.01f);
 
 	public float GetWorkFatigue(AIWorker targetWorker, WorkActionType actionType)
-		=> workPolicy.workerWorkTime[targetWorker.WorkerType][actionType].FatiguePerTask
-		* GetWorkBoost(targetWorker.WorkerType, actionType)
-		* GetWorkSpeedMultiplier(targetWorker.WorkerType);
+		=> workPolicy.workerWorkTime[targetWorker.WorkerPolicyType][actionType].FatiguePerTask
+		* GetWorkBoost(targetWorker.WorkerPolicyType, actionType)
+		* GetWorkSpeedMultiplier(targetWorker.WorkerPolicyType);
 
 	public float GetBoost(AIWorker targetWorker, WorkActionType actionType)
-		=> GetWorkBoost(targetWorker.WorkerType, actionType) * GetWorkSpeedMultiplier(targetWorker.WorkerType);
+		=> GetWorkBoost(targetWorker.WorkerPolicyType, actionType) * GetWorkSpeedMultiplier(targetWorker.WorkerPolicyType);
 
-	public float GetMoveSpeedMultiplier(WorkerType workerType)
+	public float GetMoveSpeedMultiplier(WorkerPolicyType workerPolicyType)
 	{
 		EnsureRuntimeMultipliers();
-		return moveSpeedMultipliers.TryGetValue(workerType, out float value) ? value : DefaultSpeedMultiplier;
+		return moveSpeedMultipliers.TryGetValue(workerPolicyType, out float value) ? value : DefaultSpeedMultiplier;
 	}
 
-	public float GetWorkSpeedMultiplier(WorkerType workerType)
+	public float GetWorkSpeedMultiplier(WorkerPolicyType workerPolicyType)
 	{
 		EnsureRuntimeMultipliers();
-		return workSpeedMultipliers.TryGetValue(workerType, out float value) ? value : DefaultSpeedMultiplier;
+		return workSpeedMultipliers.TryGetValue(workerPolicyType, out float value) ? value : DefaultSpeedMultiplier;
 	}
 
-	public void SetMoveSpeedMultiplier(WorkerType workerType, float value)
+	public void SetMoveSpeedMultiplier(WorkerPolicyType workerPolicyType, float value)
 	{
 		EnsureRuntimeMultipliers();
-		moveSpeedMultipliers[workerType] = Mathf.Clamp(value, MinimumSpeedMultiplier, MaximumSpeedMultiplier);
+		moveSpeedMultipliers[workerPolicyType] = Mathf.Clamp(value, MinimumSpeedMultiplier, MaximumSpeedMultiplier);
 	}
 
-	public void SetWorkSpeedMultiplier(WorkerType workerType, float value)
+	public void SetWorkSpeedMultiplier(WorkerPolicyType workerPolicyType, float value)
 	{
 		EnsureRuntimeMultipliers();
-		workSpeedMultipliers[workerType] = Mathf.Clamp(value, MinimumSpeedMultiplier, MaximumSpeedMultiplier);
+		workSpeedMultipliers[workerPolicyType] = Mathf.Clamp(value, MinimumSpeedMultiplier, MaximumSpeedMultiplier);
 	}
 
 	public float WorkerRestFatigueThreshold => workerRestFatigue;
@@ -160,29 +160,29 @@ public partial class WorkPolicyService : MonoBehaviour
 
 	private void EnsureRuntimeMultipliers()
 	{
-		moveSpeedMultipliers ??= new SerializedDictionary<WorkerType, float>();
-		workSpeedMultipliers ??= new SerializedDictionary<WorkerType, float>();
+		moveSpeedMultipliers ??= new SerializedDictionary<WorkerPolicyType, float>();
+		workSpeedMultipliers ??= new SerializedDictionary<WorkerPolicyType, float>();
 
-		foreach (WorkerType workerType in System.Enum.GetValues(typeof(WorkerType)))
+		foreach (WorkerPolicyType workerPolicyType in System.Enum.GetValues(typeof(WorkerPolicyType)))
 		{
-			if (moveSpeedMultipliers.ContainsKey(workerType) == false)
-				moveSpeedMultipliers[workerType] = DefaultSpeedMultiplier;
-			if (workSpeedMultipliers.ContainsKey(workerType) == false)
-				workSpeedMultipliers[workerType] = DefaultSpeedMultiplier;
+			if (moveSpeedMultipliers.ContainsKey(workerPolicyType) == false)
+				moveSpeedMultipliers[workerPolicyType] = DefaultSpeedMultiplier;
+			if (workSpeedMultipliers.ContainsKey(workerPolicyType) == false)
+				workSpeedMultipliers[workerPolicyType] = DefaultSpeedMultiplier;
 		}
 	}
 
-	private float GetMoveBoost(WorkerType workerType)
+	private float GetMoveBoost(WorkerPolicyType workerPolicyType)
 	{
-		return moveBoost != null && moveBoost.TryGetValue(workerType, out float value)
+		return moveBoost != null && moveBoost.TryGetValue(workerPolicyType, out float value)
 			? value
 			: 1.0f;
 	}
 
-	private float GetWorkBoost(WorkerType workerType, WorkActionType actionType)
+	private float GetWorkBoost(WorkerPolicyType workerPolicyType, WorkActionType actionType)
 	{
 		if (workTimeBoost != null &&
-			workTimeBoost.TryGetValue(workerType, out SerializedDictionary<WorkActionType, float> actionBoosts) &&
+			workTimeBoost.TryGetValue(workerPolicyType, out SerializedDictionary<WorkActionType, float> actionBoosts) &&
 			actionBoosts != null &&
 			actionBoosts.TryGetValue(actionType, out float value))
 		{

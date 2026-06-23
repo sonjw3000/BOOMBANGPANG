@@ -12,8 +12,8 @@ public class HumanIncidentDefinition : ScriptableObject
 {
 	[Header("It's Percentage 0 ~ 1")]
 	[SerializedDictionary("HumanIncidentType", "IncidentType/BaseChance")]
-	[SerializeField] private SerializedDictionary<WorkerType, SerializedDictionary<HumanIncidentType, float>> incidenceChance;
+	[SerializeField] private SerializedDictionary<WorkerPolicyType, SerializedDictionary<HumanIncidentType, float>> incidenceChance;
 
 	public float GetBaseIncidenceChance(HumanIncidentType type, AIWorker worker)
-		=> incidenceChance[worker.WorkerType][type];
+		=> incidenceChance[worker.WorkerPolicyType][type];
 }

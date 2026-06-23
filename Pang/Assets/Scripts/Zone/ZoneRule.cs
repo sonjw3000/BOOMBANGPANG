@@ -13,13 +13,24 @@ public class ZoneRule
 	public List<ItemTag> requiredTags;
 	public List<ItemTag> forbiddenTags;
 
-	public List<WorkerType> requiredWorkerTypes;
-	public List<WorkerType> forbiddenWorkerTypes;
+	public List<WorkerKind> requiredWorkerKinds;
+	public List<WorkerKind> forbiddenWorkerKinds;
+	public List<HumanType> requiredHumanTypes;
+	public List<HumanType> forbiddenHumanTypes;
+	public List<RobotType> requiredRobotTypes;
+	public List<RobotType> forbiddenRobotTypes;
 
 	public List<WorkerAbility> requiredWorkerAbilities;
+	public List<WorkerAbility> forbiddenWorkerAbilities;
 
 	public bool IsItemCapable(ItemDefinition item)
 	{
+		if (item == null)
+			return false;
+
+		requiredTags ??= new List<ItemTag>();
+		forbiddenTags ??= new List<ItemTag>();
+
 		foreach (var tag in requiredTags)
 		{
 			if (item.Tag.HasFlag(tag) == false)
@@ -37,8 +48,70 @@ public class ZoneRule
 
 	public bool IsWorkerCapable(AIWorker worker)
 	{
-		// todo
-		// worker의 타입과 능력을 보고 판단하자
+		if (worker == null)
+			return false;
+
+		requiredWorkerKinds ??= new List<WorkerKind>();
+		forbiddenWorkerKinds ??= new List<WorkerKind>();
+		requiredHumanTypes ??= new List<HumanType>();
+		forbiddenHumanTypes ??= new List<HumanType>();
+		requiredRobotTypes ??= new List<RobotType>();
+		forbiddenRobotTypes ??= new List<RobotType>();
+		requiredWorkerAbilities ??= new List<WorkerAbility>();
+		forbiddenWorkerAbilities ??= new List<WorkerAbility>();
+
+		foreach (var workerKind in requiredWorkerKinds)
+		{
+			if (worker.WorkerKind != workerKind)
+				return false;
+		}
+
+		foreach (var workerKind in forbiddenWorkerKinds)
+		{
+			if (worker.WorkerKind == workerKind)
+				return false;
+		}
+
+		if (worker.WorkerKind == WorkerKind.Human)
+		{
+			foreach (var humanType in requiredHumanTypes)
+			{
+				if (worker.HumanType != humanType)
+					return false;
+			}
+
+			foreach (var humanType in forbiddenHumanTypes)
+			{
+				if (worker.HumanType == humanType)
+					return false;
+			}
+		}
+		else
+		{
+			foreach (var robotType in requiredRobotTypes)
+			{
+				if (worker.RobotType != robotType)
+					return false;
+			}
+
+			foreach (var robotType in forbiddenRobotTypes)
+			{
+				if (worker.RobotType == robotType)
+					return false;
+			}
+		}
+
+		foreach (var ability in requiredWorkerAbilities)
+		{
+			if (worker.HasAbility(ability) == false)
+				return false;
+		}
+
+		foreach (var ability in forbiddenWorkerAbilities)
+		{
+			if (worker.HasAbility(ability))
+				return false;
+		}
 
 		return true;
 	}

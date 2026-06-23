@@ -34,11 +34,11 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 	protected abstract float ResourceValue { get; }
 
 	public override string Name => currentTarget != null ? currentTarget.Name : "Unknown Worker";
-	public override string Subtitle => currentTarget != null ? GetWorkerTypeLabel(currentTarget.WorkerType) : "Unknown Worker";
+	public override string Subtitle => currentTarget != null ? GetWorkerTypeLabel(currentTarget) : "Unknown Worker";
 	public override Sprite Icon => null;
 	AIWorker IWorkerUIProvider.Target => currentTarget;
 
-	public string WorkerTypeLabel => currentTarget != null ? GetWorkerTypeLabel(currentTarget.WorkerType) : "Unknown";
+	public string WorkerTypeLabel => currentTarget != null ? GetWorkerTypeLabel(currentTarget) : "Unknown";
 	public string ResourceDisplay => $"{ResourceValue:0.0}%";
 	public string MoveSpeedDisplay => currentTarget != null ? $"x{currentTarget.GetMoveSpeedMultiplier():0.00}" : "x0.00";
 	public string WorkSpeedDisplay => currentTarget != null ? $"x{currentTarget.GetWorkSpeedMultiplier():0.00}" : "x0.00";
@@ -109,15 +109,26 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		(infoBlocks[5] as KeyValueBlock)?.UpdateValue(TargetDisplay);
 	}
 
-	public static string GetWorkerTypeLabel(WorkerType workerType)
+	public static string GetWorkerTypeLabel(AIWorker worker)
 	{
-		return workerType switch
+		if (worker == null)
+			return "Unknown";
+
+		if (worker.WorkerKind == WorkerKind.Robot)
 		{
-			WorkerType.FullTime => "FullTime",
-			WorkerType.PartTime => "PartTime",
-			WorkerType.Illegal => "Illegal",
-			WorkerType.Robot => "Robot",
-			_ => workerType.ToString(),
+			return worker.RobotType switch
+			{
+				RobotType.Transfer => "Robot / Transfer",
+				_ => $"Robot / {worker.RobotType}",
+			};
+		}
+
+		return worker.HumanType switch
+		{
+			HumanType.FullTime => "Human / FullTime",
+			HumanType.PartTime => "Human / PartTime",
+			HumanType.Illegal => "Human / Illegal",
+			_ => $"Human / {worker.HumanType}",
 		};
 	}
 

@@ -30,7 +30,9 @@ public abstract partial class AIWorker
 			PrimaryBuildingId = primaryBuildingId,
 			FirstName = workerFirstName,
 			LastName = workerLastName,
-			WorkerType = workerType,
+			WorkerKind = WorkerKind,
+			HumanType = HumanType,
+			RobotType = RobotType,
 			Abilities = abilities,
 			MonthlyCost = monthlyCost,
 			VisualId = currentVisualDefinition != null ? currentVisualDefinition.VisualId : string.Empty,
@@ -67,7 +69,10 @@ public abstract partial class AIWorker
 		workerLastName = data.LastName;
 		workerID = data.WorkerId;
 		primaryBuildingId = data.PrimaryBuildingId;
-		workerType = data.WorkerType;
+		if (data.WorkerKind == WorkerKind.Robot)
+			SetRobotIdentity(data.RobotType);
+		else
+			SetHumanIdentity(data.HumanType);
 		abilities = data.Abilities;
 		monthlyCost = data.MonthlyCost;
 		baseMoveSpeedMultiplier = data.BaseMoveSpeedMultiplier;
