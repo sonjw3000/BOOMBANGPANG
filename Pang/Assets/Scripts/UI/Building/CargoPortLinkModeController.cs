@@ -5,13 +5,6 @@ using UnityEngine;
 
 public sealed class CargoPortLinkModeController : MonoBehaviour
 {
-	private enum LinkPhase
-	{
-		SelectSourcePort,
-		SelectTargetBuilding,
-		SelectTargetPort,
-	}
-
 	private enum LinkMarkerType
 	{
 		SourcePort,
@@ -46,8 +39,6 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 	private readonly List<GameObject> overlayObjects = new();
 	private GameObject overlayRoot;
 	private Building sourceBuilding;
-	private CargoPort sourcePort;
-	private Building targetBuilding;
 	private string lastStatusMessage = string.Empty;
 	private bool isEditing;
 
@@ -55,7 +46,6 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private BuildingFootprintService BuildingFootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
-	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 
 	public bool IsEditing => isEditing;
 	public Building SourceBuilding => sourceBuilding;
@@ -96,19 +86,17 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 	{
 		if (building == null)
 		{
-			lastStatusMessage = "Select a building before linking cargo ports.";
+			lastStatusMessage = "Select a building before linking buildings.";
 			return false;
 		}
 
 		if (HasOutboundPorts(building) == false)
 		{
-			lastStatusMessage = $"{building.DisplayName} has no outbound cargo ports to link.";
+			lastStatusMessage = $"{building.DisplayName} has no outbound cargo ports.";
 			return false;
 		}
 
 		sourceBuilding = building;
-		sourcePort = null;
-		targetBuilding = null;
 		isEditing = true;
 		lastStatusMessage = string.Empty;
 		Interaction?.EnterBuildingLinkMode();
@@ -144,102 +132,46 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		if (isEditing == false || Interaction == null || Interaction.Mode != InteractionContext.InteractionMode.BuildingLinkEdit)
 			return false;
 
-		switch (GetPhase())
-		{
-			case LinkPhase.SelectSourcePort:
-				return TrySelectSourcePort(pos);
-			case LinkPhase.SelectTargetBuilding:
-				return TrySelectTargetBuilding(pos);
-			case LinkPhase.SelectTargetPort:
-				return TrySelectTargetPort(pos);
-			default:
-				return false;
-		}
-	}
-
-	private LinkPhase GetPhase()
-	{
-		if (sourcePort == null)
-			return LinkPhase.SelectSourcePort;
-
-		if (targetBuilding == null)
-			return LinkPhase.SelectTargetBuilding;
-
-		return LinkPhase.SelectTargetPort;
-	}
-
-	private bool TrySelectSourcePort(Unity.Mathematics.int3 pos)
-	{
-		if (TryGetCargoPortAt(pos, out CargoPort cargoPort) == false || cargoPort == null)
+		if (TryGetBuildingAt(pos, out Building targetBuilding) == false || targetBuilding == null)
 			return false;
 
-		if (BuildingHasPort(sourceBuilding, cargoPort) == false)
-			return false;
-
-		if (cargoPort is InboundCargoPort)
+		if (sourceBuilding == null)
 		{
-			lastStatusMessage = "Select an outbound cargo port as the source.";
+			lastStatusMessage = "Select a source building before linking.";
 			return true;
 		}
 
-		sourcePort = cargoPort;
-		targetBuilding = null;
-		Interaction?.SelectObject(sourcePort.gameObject);
-		lastStatusMessage = $"Source selected: {GetPortDisplayName(sourcePort)}. Select a target building.";
-		RefreshOverlay();
-		return true;
-	}
-
-	private bool TrySelectTargetBuilding(Unity.Mathematics.int3 pos)
-	{
-		if (TryGetBuildingAt(pos, out Building building) == false || building == null)
-			return false;
-
-		if (building == sourceBuilding)
+		if (targetBuilding == sourceBuilding)
 		{
 			lastStatusMessage = "Select a different building as the target.";
 			return true;
 		}
 
-		if (HasInboundPorts(building) == false)
+		if (HasInboundPorts(targetBuilding) == false)
 		{
-			lastStatusMessage = $"{building.DisplayName} has no inbound cargo ports.";
+			lastStatusMessage = $"{targetBuilding.DisplayName} has no inbound cargo ports.";
 			return true;
 		}
 
-		targetBuilding = building;
-		lastStatusMessage = $"Target building selected: {targetBuilding.DisplayName}. Select an inbound cargo port.";
-		RefreshOverlay();
-		return true;
-	}
-
-	private bool TrySelectTargetPort(Unity.Mathematics.int3 pos)
-	{
-		if (TryGetCargoPortAt(pos, out CargoPort cargoPort) == false || cargoPort == null)
+		if (BuildingManager == null)
 			return false;
 
-		if (BuildingHasPort(targetBuilding, cargoPort) == false)
+		if (BuildingManager.CanLinkBuildings(sourceBuilding, targetBuilding, out string reason) == false)
 		{
-			lastStatusMessage = $"Select an inbound cargo port in {targetBuilding?.DisplayName ?? "the target building"}.";
+			lastStatusMessage = reason;
 			return true;
 		}
 
-		if (cargoPort is not InboundCargoPort)
+		if (BuildingManager.TryLinkBuildings(sourceBuilding, targetBuilding))
 		{
-			lastStatusMessage = "Select an inbound cargo port as the destination.";
-			return true;
+			lastStatusMessage = $"Linked {sourceBuilding.DisplayName} -> {targetBuilding.DisplayName}. Select another target building or right click to finish.";
+			Interaction?.ClearSelection();
 		}
-
-		if (sourcePort == null)
-			return false;
-
-		if (sourcePort.TryAddLinkedPort(cargoPort))
-			lastStatusMessage = $"Linked {GetPortDisplayName(sourcePort)} -> {GetPortDisplayName(cargoPort)}. Select another target building or right click to finish.";
 		else
-			lastStatusMessage = "Unable to create the cargo port link.";
+		{
+			lastStatusMessage = "Unable to create the building link.";
+		}
 
-		targetBuilding = null;
-		Interaction?.ClearSelection();
 		RefreshOverlay();
 		return true;
 	}
@@ -250,45 +182,18 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		if (isEditing == false || sourceBuilding == null || Interaction == null || Interaction.Mode != InteractionContext.InteractionMode.BuildingLinkEdit)
 			return;
 
-		switch (GetPhase())
-		{
-			case LinkPhase.SelectSourcePort:
-				CreateSourcePortMarkers();
-				break;
-
-			case LinkPhase.SelectTargetBuilding:
-				CreateSourcePortMarkers();
-				CreateTargetBuildingMarkers();
-				break;
-
-			case LinkPhase.SelectTargetPort:
-				CreateSourcePortMarkers();
-				CreateSelectedTargetBuildingMarker();
-				CreateTargetPortMarkers();
-				break;
-		}
+		CreateSourceBuildingMarker();
+		CreateTargetBuildingMarkers();
 	}
 
-	private void CreateSourcePortMarkers()
+	private void CreateSourceBuildingMarker()
 	{
-		if (sourceBuilding == null || CargoPortService == null)
-			return;
-
-		LinkMarkerVisualConfig visual = GetMarkerVisual(LinkMarkerType.SourcePort);
-		IReadOnlyList<CargoPort> ports = CargoPortService.GetCargoPorts(sourceBuilding.RuntimeBuildingId);
-		for (int i = 0; i < ports.Count; ++i)
-		{
-			CargoPort port = ports[i];
-			if (port is not OutboundCargoPort || port == sourcePort)
-				continue;
-
-			CreatePortMarker(port, visual, "OUT");
-		}
+		CreateBuildingMarker(sourceBuilding, GetMarkerVisual(LinkMarkerType.SourcePort), sourceBuilding != null ? sourceBuilding.DisplayName : "Source");
 	}
 
 	private void CreateTargetBuildingMarkers()
 	{
-		if (BuildingManager == null)
+		if (BuildingManager == null || sourceBuilding == null)
 			return;
 
 		LinkMarkerVisualConfig visual = GetMarkerVisual(LinkMarkerType.TargetBuilding);
@@ -299,56 +204,11 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			if (building == null || building == sourceBuilding || HasInboundPorts(building) == false)
 				continue;
 
-			CreateBuildingMarker(building, visual, building.DisplayName);
-		}
-	}
-
-	private void CreateTargetPortMarkers()
-	{
-		if (targetBuilding == null || CargoPortService == null)
-			return;
-
-		LinkMarkerVisualConfig visual = GetMarkerVisual(LinkMarkerType.TargetPort);
-		IReadOnlyList<CargoPort> ports = CargoPortService.GetCargoPorts(targetBuilding.RuntimeBuildingId);
-		for (int i = 0; i < ports.Count; ++i)
-		{
-			CargoPort port = ports[i];
-			if (port is not InboundCargoPort)
+			if (BuildingManager.CanLinkBuildings(sourceBuilding, building, out _) == false)
 				continue;
 
-			CreatePortMarker(port, visual, "IN");
+			CreateBuildingMarker(building, visual, building.DisplayName);
 		}
-	}
-
-	private void CreateSelectedTargetBuildingMarker()
-	{
-		if (targetBuilding != null)
-			CreateBuildingMarker(targetBuilding, GetMarkerVisual(LinkMarkerType.TargetBuilding), targetBuilding.DisplayName);
-	}
-
-	private void CreatePortMarker(CargoPort port, LinkMarkerVisualConfig visual, string labelText)
-	{
-		if (port == null)
-			return;
-
-		GameObject marker = CreateQuadObject("CargoPortLinkMarker");
-		if (marker == null)
-			return;
-
-		marker.transform.position = BuildWorldPosition(port.GridPosition, visual.MarkerHeight);
-		marker.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-		marker.transform.localScale = new Vector3(0.9f, 0.9f, 1f);
-		marker.GetComponent<MeshRenderer>().material.color = visual.MarkerColor;
-		overlayObjects.Add(marker);
-
-		GameObject label = CreateLabelObject("CargoPortLinkLabel", labelText, visual.LabelColor);
-		if (label == null)
-			return;
-
-		label.transform.position = BuildWorldPosition(port.GridPosition, visual.LabelHeight);
-		label.transform.rotation = Quaternion.Euler(90f, 180f, 0f);
-		label.transform.localScale = Vector3.one * visual.LabelScale;
-		overlayObjects.Add(label);
 	}
 
 	private void CreateBuildingMarker(Building building, LinkMarkerVisualConfig visual, string labelText)
@@ -356,10 +216,12 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		if (building == null || BuildingFootprintService == null)
 			return;
 
-		if (BuildingFootprintService.TryGetInteriorBounds(building.RuntimeBuildingId, out RectInt bounds, out _) == false)
+		if (BuildingFootprintService.TryGetFootprint(building.RuntimeBuildingId, out BuildingFootprintRecord footprint) == false || footprint == null)
 			return;
 
-		GameObject marker = CreateQuadObject("CargoPortTargetBuildingMarker");
+		RectInt bounds = footprint.Bounds;
+
+		GameObject marker = CreateQuadObject("BuildingLinkMarker");
 		if (marker == null)
 			return;
 
@@ -372,7 +234,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		marker.GetComponent<MeshRenderer>().material.color = visual.MarkerColor;
 		overlayObjects.Add(marker);
 
-		GameObject label = CreateLabelObject("CargoPortTargetBuildingLabel", labelText, visual.LabelColor);
+		GameObject label = CreateLabelObject("BuildingLinkLabel", labelText, visual.LabelColor);
 		if (label == null)
 			return;
 
@@ -392,10 +254,10 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		SetMissingMarkerVisual(
 			LinkMarkerType.SourcePort,
 			new LinkMarkerVisualConfig(
-				0.04f,
+				0.03f,
 				0.045f,
-				0.24f,
-				new Color(0.9f, 0.42f, 0.2f, 0.8f),
+				0.28f,
+				new Color(0.9f, 0.42f, 0.2f, 0.35f),
 				Color.white));
 
 		SetMissingMarkerVisual(
@@ -433,16 +295,6 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		markerVisuals[markerType] = visual;
 	}
 
-	private bool TryGetCargoPortAt(Unity.Mathematics.int3 pos, out CargoPort cargoPort)
-	{
-		cargoPort = null;
-		GameObject targetObject = GridService?.GetObjectOnGrid(pos);
-		if (targetObject == null)
-			return false;
-
-		return targetObject.TryGetComponent(out cargoPort) && cargoPort != null;
-	}
-
 	private bool TryGetBuildingAt(Unity.Mathematics.int3 pos, out Building building)
 	{
 		building = null;
@@ -453,22 +305,29 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		return BuildingManager.TryGetBuilding(cell.BuildingId, out building) && building != null;
 	}
 
-	private bool HasOutboundPorts(Building building)
+	private static bool HasOutboundPorts(Building building)
 	{
-		if (building == null || CargoPortService == null)
-			return false;
-
-		List<CargoPort> ports = new();
-		return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port is OutboundCargoPort);
+		return HasPortType<OutboundCargoPort>(building);
 	}
 
-	private bool HasInboundPorts(Building building)
+	private static bool HasInboundPorts(Building building)
 	{
-		if (building == null || CargoPortService == null)
+		return HasPortType<InboundCargoPort>(building);
+	}
+
+	private static bool HasPortType<TPort>(Building building) where TPort : CargoPort
+	{
+		if (building == null)
 			return false;
 
-		List<CargoPort> ports = new();
-		return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port is InboundCargoPort);
+		IReadOnlyList<CargoPort> ports = building.OccupiedCargoPorts;
+		for (int i = 0; i < ports.Count; ++i)
+		{
+			if (ports[i] is TPort)
+				return true;
+		}
+
+		return false;
 	}
 
 	private string BuildStatusText()
@@ -477,26 +336,18 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			return lastStatusMessage;
 
 		if (isEditing == false)
-			return "Select a building, then start cargo port linking.";
+			return "Select a building, then start building linking.";
 
 		if (sourceBuilding == null)
-			return "Select a source building to begin linking cargo ports.";
+			return "Select a source building to begin linking buildings.";
 
-		return GetPhase() switch
-		{
-			LinkPhase.SelectSourcePort => $"Select an outbound cargo port in {sourceBuilding.DisplayName}.",
-			LinkPhase.SelectTargetBuilding => $"Select a target building for {GetPortDisplayName(sourcePort)}.",
-			LinkPhase.SelectTargetPort => $"Select an inbound cargo port in {targetBuilding?.DisplayName ?? "the target building"}.",
-			_ => "Select cargo ports to create a link.",
-		};
+		return $"Select an output target building for {sourceBuilding.DisplayName}.";
 	}
 
 	private void ResetLinkMode(bool exitInteractionMode)
 	{
 		isEditing = false;
 		sourceBuilding = null;
-		sourcePort = null;
-		targetBuilding = null;
 		lastStatusMessage = string.Empty;
 		ClearOverlay();
 
@@ -560,33 +411,5 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		text.fontSize = 4.2f;
 		text.color = color;
 		return label;
-	}
-
-	private static Vector3 BuildWorldPosition(Unity.Mathematics.int3 gridPos, float y)
-	{
-		return new Vector3(gridPos.x, y, gridPos.z);
-	}
-
-	private static string GetPortDisplayName(CargoPort port)
-	{
-		if (port == null)
-			return "CargoPort";
-
-		return string.IsNullOrWhiteSpace(port.name) ? "CargoPort" : port.name;
-	}
-
-	private static bool BuildingHasPort(Building building, CargoPort cargoPort)
-	{
-		if (building == null || cargoPort == null)
-			return false;
-
-		IReadOnlyList<CargoPort> ports = building.OccupiedCargoPorts;
-		for (int i = 0; i < ports.Count; ++i)
-		{
-			if (ports[i] == cargoPort)
-				return true;
-		}
-
-		return false;
 	}
 }

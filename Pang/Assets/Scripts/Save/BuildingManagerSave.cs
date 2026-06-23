@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 public sealed partial class BuildingManager
 {
 	public void ResetRuntimeState()
@@ -22,6 +24,7 @@ public sealed partial class BuildingManager
 				Type = building.Type,
 				State = building.State,
 				WorkScope = building.WorkScope,
+				OutputBuildingIds = new List<uint>(building.OutputBuildingIds),
 			});
 		}
 

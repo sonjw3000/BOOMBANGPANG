@@ -183,7 +183,7 @@ public class BuildingControlWindow : MonoBehaviour
 			createButton.Configure("Create Building", HandleCreateButtonClicked);
 
 		if (linkCargoPortButton != null)
-			linkCargoPortButton.Configure("Link Cargo Ports", HandleLinkCargoPortsButtonClicked);
+			linkCargoPortButton.Configure("Link Buildings", HandleLinkCargoPortsButtonClicked);
 
 		BuildActionTypeDropdown();
 	}
@@ -357,7 +357,7 @@ public class BuildingControlWindow : MonoBehaviour
 			if (createButton.LabelText != null)
 				createButton.LabelText.text = "Create Building";
 			if (linkCargoPortButton.LabelText != null)
-				linkCargoPortButton.LabelText.text = "Link Cargo Ports";
+				linkCargoPortButton.LabelText.text = "Link Buildings";
 			actionStatusText.text = "Interaction context is unavailable.";
 			return;
 		}
@@ -383,7 +383,7 @@ public class BuildingControlWindow : MonoBehaviour
 		if (linkCargoPortButton.Button != null)
 			linkCargoPortButton.Button.interactable = isCreating == false && (isLinkEditing || activeBuilding != null);
 		if (linkCargoPortButton.LabelText != null)
-			linkCargoPortButton.LabelText.text = isLinkEditing ? "Cancel Linking" : "Link Cargo Ports";
+			linkCargoPortButton.LabelText.text = isLinkEditing ? "Cancel Linking" : "Link Buildings";
 
 		if (isCreating)
 		{
@@ -404,8 +404,8 @@ public class BuildingControlWindow : MonoBehaviour
 		}
 
 		actionStatusText.text = activeBuilding != null
-			? $"Selected build type: {BuildingTypeUtility.ToDisplayString(selectedType)}. Create a building or start linking outbound cargo ports to inbound cargo ports."
-			: $"Selected build type: {BuildingTypeUtility.ToDisplayString(selectedType)}. Start a new building footprint creation, or select a building to link cargo ports.";
+			? $"Selected build type: {BuildingTypeUtility.ToDisplayString(selectedType)}. Create a building or link this building to another building."
+			: $"Selected build type: {BuildingTypeUtility.ToDisplayString(selectedType)}. Start a new building footprint creation, or select a building to link buildings.";
 	}
 
 	private void CreateBuildingRow(Building building)

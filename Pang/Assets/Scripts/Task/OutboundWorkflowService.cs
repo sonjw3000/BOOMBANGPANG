@@ -34,6 +34,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private BoxManager BoxMgr => GameContext.Instance.BoxMgr;
 	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
+	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
@@ -258,28 +259,11 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private InboundCargoPort ResolveLinkedInboundTarget(OutboundCargoPort sourcePort)
 	{
-		if (sourcePort == null || GridService == null)
+		if (sourcePort == null || ResolveSourceBuilding(sourcePort, out Building sourceBuilding) == false)
 			return null;
 
 		int3 sourcePoint = ResolveInteractionOrigin(sourcePort, InteractionKind.Pick);
-		InboundCargoPort bestCandidate = null;
-		int bestScore = int.MaxValue;
-		for (int i = 0; i < sourcePort.LinkedPorts.Count; ++i)
-		{
-			if (sourcePort.LinkedPorts[i] is not InboundCargoPort candidate || candidate.CanPutBox() == false)
-				continue;
-
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, InteractionKind.Put, sourcePoint, GridService, out _, out int score) == false)
-				continue;
-
-			if (score >= bestScore)
-				continue;
-
-			bestScore = score;
-			bestCandidate = candidate;
-		}
-
-		return bestCandidate;
+		return sourceBuilding.ResolveLinkedInboundPortTarget(sourcePoint);
 	}
 
 	private static int3 ResolveInteractionOrigin(BoxInteraction interactionTarget, InteractionKind interactionKind)
@@ -313,5 +297,18 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 			queuedCargoTransferTargets.Remove(sourcePort);
 		}
+	}
+
+	private bool ResolveSourceBuilding(OutboundCargoPort sourcePort, out Building building)
+	{
+		building = null;
+		if (sourcePort == null || GridService == null || BuildingManager == null)
+			return false;
+
+		GridCell cell = GridService.GetCell(sourcePort.GridPosition);
+		return cell != null &&
+			cell.BuildingId != 0 &&
+			BuildingManager.TryGetBuilding(cell.BuildingId, out building) &&
+			building != null;
 	}
 }

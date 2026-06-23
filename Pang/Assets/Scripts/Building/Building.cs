@@ -70,6 +70,8 @@ public class Building
 	private readonly List<IFacility> occupiedFacilities = new();
 	private readonly List<CargoPort> occupiedCargoPorts = new();
 	private readonly List<CapsuleBuffer> occupiedCapsuleBuffers = new();
+	private readonly HashSet<uint> inputBuildingIds = new();
+	private readonly HashSet<uint> outputBuildingIds = new();
 	private readonly HashSet<InboundCargoPort> pendingInboundPorts = new();
 	private readonly HashSet<InboundCargoPort> queuedInboundPorts = new();
 	private readonly HashSet<CapsuleBuffer> pendingOutboundBuffers = new();
@@ -89,9 +91,12 @@ public class Building
 	public IReadOnlyList<CargoPort> OccupiedCargoPorts => occupiedCargoPorts;
 	public IReadOnlyCollection<InboundCargoPort> PendingInboundPorts => pendingInboundPorts;
 	public IReadOnlyList<CapsuleBuffer> OccupiedCapsuleBuffers => occupiedCapsuleBuffers;
+	public IReadOnlyCollection<uint> InputBuildingIds => inputBuildingIds;
+	public IReadOnlyCollection<uint> OutputBuildingIds => outputBuildingIds;
 
 	private TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
+	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	public Building(string displayName, List<GridCell> occupiedCells, BuildingType buildingType = BuildingType.Generic)
 	{
 		this.displayName = displayName;
@@ -122,6 +127,35 @@ public class Building
 	public void SetWorkScope(BuildingWorkScope newWorkScope)
 	{
 		workScope = newWorkScope;
+	}
+
+	internal bool HasInputBuilding(uint buildingId) => buildingId != 0 && inputBuildingIds.Contains(buildingId);
+	internal bool HasOutputBuilding(uint buildingId) => buildingId != 0 && outputBuildingIds.Contains(buildingId);
+
+	internal bool AddInputBuilding(uint buildingId)
+	{
+		return buildingId != 0 && buildingId != runtimeBuildingId && inputBuildingIds.Add(buildingId);
+	}
+
+	internal bool AddOutputBuilding(uint buildingId)
+	{
+		return buildingId != 0 && buildingId != runtimeBuildingId && outputBuildingIds.Add(buildingId);
+	}
+
+	internal bool RemoveInputBuilding(uint buildingId)
+	{
+		return buildingId != 0 && inputBuildingIds.Remove(buildingId);
+	}
+
+	internal bool RemoveOutputBuilding(uint buildingId)
+	{
+		return buildingId != 0 && outputBuildingIds.Remove(buildingId);
+	}
+
+	internal void ClearBuildingLinks()
+	{
+		inputBuildingIds.Clear();
+		outputBuildingIds.Clear();
 	}
 
 	internal bool RegisterFacility(IFacility facility)
@@ -393,6 +427,37 @@ public class Building
 		return FindClosestOutboundPort(
 			from,
 			candidate => candidate != null && candidate.CanPutBox() && queuedOutboundTargets.ContainsValue(candidate) == false);
+	}
+
+	internal InboundCargoPort ResolveLinkedInboundPortTarget(in int3 from)
+	{
+		if (GridService == null || BuildingManager == null || outputBuildingIds.Count <= 0)
+			return null;
+
+		InboundCargoPort bestCandidate = null;
+		int bestScore = int.MaxValue;
+		foreach (uint targetBuildingId in outputBuildingIds)
+		{
+			if (BuildingManager.TryGetBuilding(targetBuildingId, out Building targetBuilding) == false || targetBuilding == null)
+				continue;
+
+			for (int i = 0; i < targetBuilding.occupiedCargoPorts.Count; ++i)
+			{
+				if (targetBuilding.occupiedCargoPorts[i] is not InboundCargoPort candidate || candidate.CanPutBox() == false)
+					continue;
+
+				if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, InteractionKind.Put, from, GridService, out _, out int score) == false)
+					continue;
+
+				if (score >= bestScore)
+					continue;
+
+				bestScore = score;
+				bestCandidate = candidate;
+			}
+		}
+
+		return bestCandidate;
 	}
 
 	private void TryEnqueueInboundTask(InboundCargoPort cargoPort)

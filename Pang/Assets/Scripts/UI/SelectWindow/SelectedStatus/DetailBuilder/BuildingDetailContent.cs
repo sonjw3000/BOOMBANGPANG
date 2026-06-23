@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy>
@@ -42,12 +43,14 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	private ZoneOverlayController zoneOverlayController;
 	private ZoneControlWindow zoneControlWindow;
 	private SelectionUIMaster selectionUIMaster;
+	private BuildingPlacementOverlayController buildingOverlayController;
 	private bool listenersBound;
 	private bool uiBuilt;
 	private int currentTabIndex;
 
 	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
 	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 
 	protected override void AddListener()
 	{
@@ -268,25 +271,31 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		if (facilities.Count <= 0)
 		{
 			AddFacilitySummaryRow("No facilities in this building yet.");
-			return;
 		}
-
-		SortedDictionary<string, int> counts = new(StringComparer.Ordinal);
-		for (int i = 0; i < facilities.Count; ++i)
+		else
 		{
-			IFacility facility = facilities[i];
-			if (facility == null)
-				continue;
+			SortedDictionary<string, int> counts = new(StringComparer.Ordinal);
+			for (int i = 0; i < facilities.Count; ++i)
+			{
+				IFacility facility = facilities[i];
+				if (facility == null)
+					continue;
 
-			string key = facility.GetType().Name;
-			if (counts.TryGetValue(key, out int currentCount) == false)
-				currentCount = 0;
+				string key = facility.GetType().Name;
+				if (counts.TryGetValue(key, out int currentCount) == false)
+					currentCount = 0;
 
-			counts[key] = currentCount + 1;
+				counts[key] = currentCount + 1;
+			}
+
+			foreach (KeyValuePair<string, int> pair in counts)
+				AddFacilitySummaryRow($"{pair.Key}: {pair.Value}");
 		}
 
-		foreach (KeyValuePair<string, int> pair in counts)
-			AddFacilitySummaryRow($"{pair.Key}: {pair.Value}");
+		AddFacilitySectionHeader("InputBuilding");
+		AddConnectedBuildingRows(building, isInputSection: true);
+		AddFacilitySectionHeader("OutputBuilding");
+		AddConnectedBuildingRows(building, isInputSection: false);
 	}
 
 	private void RefreshZoneSection()
@@ -432,6 +441,12 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 			selectionUIMaster = FindFirstObjectByType<SelectionUIMaster>(FindObjectsInactive.Include);
 	}
 
+	private void EnsureBuildingOverlayController()
+	{
+		if (buildingOverlayController == null)
+			buildingOverlayController = FindFirstObjectByType<BuildingPlacementOverlayController>(FindObjectsInactive.Include);
+	}
+
 	private void CreateZoneListRow(ZoneArea zone)
 	{
 		if (zoneRowPrefab == null || layoutView == null)
@@ -503,6 +518,114 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		facilitySummaryRows.Clear();
 	}
 
+	private void AddFacilitySectionHeader(string text)
+	{
+		if (summaryRowPrefab == null || layoutView == null)
+		{
+			Debug.LogError("[BuildingDetailContent] Summary row prefab is missing.", this);
+			return;
+		}
+
+		TextRowView row = Instantiate(summaryRowPrefab, layoutView.SummaryRoot);
+		row.name = text.Replace(" ", string.Empty) + "Header";
+		if (row.Text != null)
+		{
+			row.Text.fontSize = 21f;
+			row.Text.fontStyle = FontStyles.Bold;
+			row.Text.text = text;
+		}
+
+		facilitySummaryRows.Add(row.gameObject);
+	}
+
+	private void AddConnectedBuildingRows(Building currentBuilding, bool isInputSection)
+	{
+		if (currentBuilding == null)
+			return;
+
+		if (BuildingManager == null)
+		{
+			AddFacilitySummaryRow("Building manager is unavailable.");
+			return;
+		}
+
+		List<Building> linkedBuildings = new();
+		bool hasLinks = isInputSection
+			? BuildingManager.TryGetInputBuildings(currentBuilding, linkedBuildings)
+			: BuildingManager.TryGetOutputBuildings(currentBuilding, linkedBuildings);
+
+		if (hasLinks == false)
+		{
+			AddFacilitySummaryRow("None");
+			return;
+		}
+
+		for (int i = 0; i < linkedBuildings.Count; ++i)
+		{
+			Building linkedBuilding = linkedBuildings[i];
+			if (linkedBuilding == null)
+				continue;
+
+			CreateConnectedBuildingRow(currentBuilding, linkedBuilding, isInputSection);
+		}
+	}
+
+	private void CreateConnectedBuildingRow(Building currentBuilding, Building linkedBuilding, bool isInputSection)
+	{
+		if (layoutView == null || layoutView.SummaryRoot == null || linkedBuilding == null)
+			return;
+
+		GameObject rowObject = new($"{linkedBuilding.DisplayName}LinkRow", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+		rowObject.transform.SetParent(layoutView.SummaryRoot, false);
+		facilitySummaryRows.Add(rowObject);
+
+		HorizontalLayoutGroup rowLayout = rowObject.GetComponent<HorizontalLayoutGroup>();
+		rowLayout.spacing = 10f;
+		rowLayout.childAlignment = TextAnchor.MiddleLeft;
+		rowLayout.childControlWidth = false;
+		rowLayout.childControlHeight = true;
+		rowLayout.childForceExpandWidth = false;
+		rowLayout.childForceExpandHeight = false;
+
+		LayoutElement rowElement = rowObject.GetComponent<LayoutElement>();
+		rowElement.preferredHeight = 34f;
+
+		TextMeshProUGUI label = CreateInlineText("Label", rowObject.transform, linkedBuilding.DisplayName, 20f, TextAlignmentOptions.MidlineLeft);
+		LayoutElement labelLayout = label.gameObject.GetComponent<LayoutElement>();
+		labelLayout.flexibleWidth = 1f;
+		labelLayout.minWidth = 200f;
+
+		CreateInlineButton(rowObject.transform, "Details", () => HandleOpenLinkedBuildingDetailsClicked(linkedBuilding));
+		CreateInlineButton(rowObject.transform, "Disconnect", () => HandleDisconnectBuildingLinkClicked(currentBuilding, linkedBuilding, isInputSection));
+	}
+
+	private void HandleOpenLinkedBuildingDetailsClicked(Building building)
+	{
+		if (building == null)
+			return;
+
+		EnsureBuildingOverlayController();
+		EnsureSelectionUIMaster();
+		BuildingSelectionProxy proxy = buildingOverlayController?.GetSelectionProxy(building);
+		if (proxy == null)
+			return;
+
+		selectionUIMaster?.SelectAndShowDetail(proxy.gameObject);
+	}
+
+	private void HandleDisconnectBuildingLinkClicked(Building currentBuilding, Building linkedBuilding, bool isInputSection)
+	{
+		if (currentBuilding == null || linkedBuilding == null || BuildingManager == null)
+			return;
+
+		if (isInputSection)
+			BuildingManager.TryUnlinkBuildings(linkedBuilding, currentBuilding);
+		else
+			BuildingManager.TryUnlinkBuildings(currentBuilding, linkedBuilding);
+
+		RefreshAll();
+	}
+
 	private TextMeshProUGUI CreateInfoLine(Transform parent, string label)
 	{
 		if (infoRowPrefab == null)
@@ -528,5 +651,53 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		int enumCount = Enum.GetValues(typeof(BuildingWorkScope)).Length;
 		int nextIndex = (((int)currentScope) + 1) % enumCount;
 		return (BuildingWorkScope)nextIndex;
+	}
+
+	private static TextMeshProUGUI CreateInlineText(string objectName, Transform parent, string value, float fontSize, TextAlignmentOptions alignment)
+	{
+		GameObject textObject = new(objectName, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+		textObject.transform.SetParent(parent, false);
+
+		LayoutElement layout = textObject.GetComponent<LayoutElement>();
+		layout.preferredHeight = 28f;
+
+		TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+		text.text = value;
+		text.fontSize = fontSize;
+		text.color = Color.white;
+		text.alignment = alignment;
+		text.textWrappingMode = TextWrappingModes.NoWrap;
+		text.overflowMode = TextOverflowModes.Ellipsis;
+
+		RectTransform rect = text.rectTransform;
+		rect.anchorMin = Vector2.zero;
+		rect.anchorMax = Vector2.one;
+		rect.offsetMin = Vector2.zero;
+		rect.offsetMax = Vector2.zero;
+
+		return text;
+	}
+
+	private static Button CreateInlineButton(Transform parent, string label, UnityAction onClick)
+	{
+		GameObject buttonObject = new($"{label}Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+		buttonObject.transform.SetParent(parent, false);
+
+		Image image = buttonObject.GetComponent<Image>();
+		image.color = new Color(0.19f, 0.19f, 0.19f, 0.96f);
+
+		LayoutElement layout = buttonObject.GetComponent<LayoutElement>();
+		layout.preferredWidth = label == "Disconnect" ? 120f : 96f;
+		layout.preferredHeight = 30f;
+
+		Button button = buttonObject.GetComponent<Button>();
+		button.targetGraphic = image;
+		button.onClick.RemoveAllListeners();
+		if (onClick != null)
+			button.onClick.AddListener(onClick);
+
+		TextMeshProUGUI text = CreateInlineText("Label", buttonObject.transform, label, 18f, TextAlignmentOptions.Center);
+		text.margin = new Vector4(6f, 2f, 6f, 2f);
+		return button;
 	}
 }

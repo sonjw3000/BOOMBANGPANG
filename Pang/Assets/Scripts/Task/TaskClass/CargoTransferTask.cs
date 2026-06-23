@@ -10,6 +10,7 @@ public sealed partial class CargoTransferTask : WorkerTask
 	private bool isTaskEnd;
 
 	private static GridService GridService => GameContext.Instance.GridService;
+	private static BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 
 	internal OutboundCargoPort SourcePort => sourcePort;
 	internal InboundCargoPort TargetPort => targetPort;
@@ -69,27 +70,14 @@ public sealed partial class CargoTransferTask : WorkerTask
 
 	private static InboundCargoPort FindClosestLinkedInboundPort(OutboundCargoPort outboundCargoPort, in int3 from)
 	{
-		if (outboundCargoPort == null || GridService == null)
+		if (outboundCargoPort == null || GridService == null || BuildingManager == null)
 			return null;
 
-		InboundCargoPort bestCandidate = null;
-		int bestScore = int.MaxValue;
-		for (int i = 0; i < outboundCargoPort.LinkedPorts.Count; ++i)
-		{
-			if (outboundCargoPort.LinkedPorts[i] is not InboundCargoPort candidate || candidate.CanPutBox() == false)
-				continue;
+		GridCell cell = GridService.GetCell(outboundCargoPort.GridPosition);
+		if (cell == null || cell.BuildingId == 0 || BuildingManager.TryGetBuilding(cell.BuildingId, out Building sourceBuilding) == false || sourceBuilding == null)
+			return null;
 
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, InteractionKind.Put, from, GridService, out _, out int score) == false)
-				continue;
-
-			if (score >= bestScore)
-				continue;
-
-			bestScore = score;
-			bestCandidate = candidate;
-		}
-
-		return bestCandidate;
+		return sourceBuilding.ResolveLinkedInboundPortTarget(from);
 	}
 
 	public static NodeState SetSourceTarget(in BTContext ctx)

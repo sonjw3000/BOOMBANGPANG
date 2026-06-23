@@ -199,19 +199,7 @@ public sealed class GameSaveService : MonoBehaviour
 		foreach (PlaceableSaveData placeableData in data.Placeables.Where(p => p.IsWorker))
 			InstantiatePlaceable(placeableData, restoredPlaceables, workersById, restoredOrderLines);
 
-		foreach (PlaceableSaveData placeableData in data.Placeables)
-		{
-			if (placeableData.CargoPort == null)
-				continue;
-
-			if (restoredPlaceables.TryGetValue(placeableData.SaveId, out GameObject restoredPlaceable) == false)
-				continue;
-
-			if (restoredPlaceable.TryGetComponent(out CargoPort cargoPort) == false)
-				continue;
-
-			cargoPort.RestoreLinks(placeableData.CargoPort, restoredPlaceables);
-		}
+		Ctx.BuildingMgr.RestoreBuildingLinks(data.Buildings);
 
 		Ctx.WMSys.ItemLedger.RestoreState(data.ItemLedger);
 		Ctx.DeliveryService.RestoreState(data.DeliveryQueue, Ctx.ItemDB);

@@ -32,10 +32,7 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		if (facility is InboundCargoPort)
 			facility.OnCargoQuantityZero -= HandleCargoQuantityZero;
 		else
-		facility.OnCargoQuantityOverPercent -= HandleCargoQuantityOverPercent;
-
-		RemoveLinkedPortReferences(facility);
-		facility.ClearLinkedPorts();
+			facility.OnCargoQuantityOverPercent -= HandleCargoQuantityOverPercent;
 	}
 
 	// cargoport event handlers
@@ -146,22 +143,6 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 			return false;
 
 		return interactionKind == InteractionKind.Put ? port.CanPutBox() : port.CanGetBox();
-	}
-
-	private void RemoveLinkedPortReferences(CargoPort targetPort)
-	{
-		if (targetPort == null)
-			return;
-
-		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
-		for (int i = 0; i < buildingIds.Count; ++i)
-		{
-			if (TryGetBuildingFacilities(buildingIds[i], out var facilities) == false)
-				continue;
-
-			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
-				facilities[facilityIndex]?.RemoveLinkedPort(targetPort);
-		}
 	}
 
 	private bool TryGetRegisteredBuildingId(CargoPort port, out uint buildingId)

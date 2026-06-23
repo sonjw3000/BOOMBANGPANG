@@ -145,6 +145,7 @@ public sealed class BuildingSaveData
 	public BuildingType Type;
 	public BuildingState State;
 	public BuildingWorkScope WorkScope;
+	public List<uint> OutputBuildingIds = new();
 }
 
 [Serializable]
@@ -359,7 +360,6 @@ public sealed class ShelfContainerSaveData
 public sealed class CargoPortSaveData
 {
 	public bool InputReady;
-	public List<int> LinkedPortIds = new();
 }
 
 [Serializable]
