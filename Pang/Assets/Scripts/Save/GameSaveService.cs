@@ -531,8 +531,8 @@ public static class TaskSaveDataExtensions
 		if (job == null)
 			return null;
 
-		PickingTask task = new(job);
-		task.RestoreState(data.IsPickingPhaseEnd, data.IsTaskEnd);
+		PickingTask task = new(job, data.BuildingId);
+		task.RestoreState(data.BuildingId, data.IsPickingPhaseEnd, data.IsTaskEnd);
 		return task;
 	}
 

@@ -6,6 +6,7 @@ using static IBaseNode.NodeState;
 public sealed partial class PickingTask : WorkerTask
 {
 	private WorkJob pickJob;
+	private uint buildingId;
 	private bool isPickingPhaseEnd = false;
 	private bool isTaskEnd = false;
 	private BoxBase checkedPickingBox = null;
@@ -26,14 +27,49 @@ public sealed partial class PickingTask : WorkerTask
 	private static PackingStationService PackingStationService => GameContext.Instance.OBWorkflowSvc.PackingStationService;
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private static PickingPlanner Planner => GameContext.Instance.OBWorkflowSvc.PickingPlanner;
+	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
 
-	public PickingTask(WorkJob pickJob) : base(TaskType.Picking)
+	internal uint BuildingId => buildingId;
+
+	public PickingTask(WorkJob pickJob, uint buildingId = 0) : base(TaskType.Picking)
 	{
 		this.pickJob = pickJob;
+		this.buildingId = buildingId;
+	}
+
+	public override bool TryGetPreferredWorker(out AIWorker worker)
+	{
+		worker = null;
+		if (WorkerManager == null || Planner == null)
+			return true;
+
+		foreach (AIWorker candidate in WorkerManager.Workers)
+		{
+			if (candidate == null || candidate.PrimaryBuildingId == 0)
+				continue;
+
+			if (buildingId != 0 && candidate.PrimaryBuildingId != buildingId)
+				continue;
+
+			if (candidate.CanAcceptPreferredTask(this) == false)
+				continue;
+
+			if (Planner.HasPendingCollectWork(candidate.PrimaryBuildingId) == false)
+				continue;
+
+			worker = candidate;
+			if (buildingId != 0)
+				break;
+		}
+
+		return true;
 	}
 
 	protected override void OnTaskAssigned()
 	{
+		if (buildingId == 0 && OccupyWorker != null)
+			buildingId = OccupyWorker.PrimaryBuildingId;
+
 		if (WorkerCarryBox == null)
 			Debug.LogError("No carryBox ability but assigned to picking!!");
 	}
@@ -93,6 +129,13 @@ public sealed partial class PickingTask : WorkerTask
 
 		string sourceName = CurrentLine?.Source != null ? CurrentLine.Source.name : "None";
 		return $"Phase: Pick\nSource: {sourceName}";
+	}
+
+	public void RestoreState(uint buildingId, bool isPickingPhaseEnd, bool isTaskEnd)
+	{
+		this.buildingId = buildingId;
+		this.isPickingPhaseEnd = isPickingPhaseEnd;
+		this.isTaskEnd = isTaskEnd;
 	}
 
 	public static NodeState CheckPickingEnd(in BTContext ctx)
@@ -199,7 +242,7 @@ public sealed partial class PickingTask : WorkerTask
 
 		if (task.CurrentLine == null)
 		{
-			if (Planner != null && Planner.TryAllocateNextCollectLine(ctx.Worker, out var nextLine))
+			if (Planner != null && task.buildingId != 0 && Planner.TryAllocateNextCollectLine(ctx.Worker, task.buildingId, out var nextLine))
 			{
 				task.PickingData.Lines.Add(nextLine);
 			}

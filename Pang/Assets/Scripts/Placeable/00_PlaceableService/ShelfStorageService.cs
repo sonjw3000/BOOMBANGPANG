@@ -142,6 +142,32 @@ public partial class ShelfStorageService : FacilityService<Shelf>, ICollectSuppl
 		}
 	}
 
+	public IEnumerable<ShelfBase> GetSources(uint buildingId, uint itemId)
+	{
+		if (buildingId == 0)
+		{
+			foreach (ShelfBase source in GetSources(itemId))
+				yield return source;
+
+			yield break;
+		}
+
+		if (shelvesByItem.TryGetValue(itemId, out var locations) == false)
+			yield break;
+
+		for (int i = 0; i < locations.Count; ++i)
+		{
+			ShelfBase shelf = locations[i];
+			if (shelf == null || shelf.GetPickableQuantity(itemId) <= 0)
+				continue;
+
+			if (TryGetBuildingId(shelf, out uint shelfBuildingId) == false || shelfBuildingId != buildingId)
+				continue;
+
+			yield return shelf;
+		}
+	}
+
 	public IEnumerable<ShelfBase> QueryPlaceCandidate(uint itemID, int qty)
 	{
 		bool hasCandidate = false;

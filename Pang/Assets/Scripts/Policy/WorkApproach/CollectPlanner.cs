@@ -24,6 +24,11 @@ public sealed class CollectPlanner<TRequestLine>
 
 	public bool TryAllocateNextCollectLine(AIWorker worker, out WorkLine line)
 	{
+		return TryAllocateNextCollectLine(worker, 0, out line);
+	}
+
+	public bool TryAllocateNextCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
+	{
 		line = null;
 
 		if (worker == null)
@@ -36,7 +41,7 @@ public sealed class CollectPlanner<TRequestLine>
 			return false;
 		}
 
-		List<CollectCandidate<TRequestLine>> candidates = BuildCandidates(box);
+		List<CollectCandidate<TRequestLine>> candidates = BuildCandidates(box, buildingId);
 		while (candidates.Count > 0)
 		{
 			if (collectingPolicy.TryDecide(worker.GridPosition, candidates, out var decision) == false)
@@ -75,7 +80,7 @@ public sealed class CollectPlanner<TRequestLine>
 		return false;
 	}
 
-	private List<CollectCandidate<TRequestLine>> BuildCandidates(BoxBase box)
+	private List<CollectCandidate<TRequestLine>> BuildCandidates(BoxBase box, uint buildingId)
 	{
 		List<CollectCandidate<TRequestLine>> candidates = new();
 		foreach (uint itemId in collectRequestSource.GetRequestedItemIds())
@@ -90,7 +95,11 @@ public sealed class CollectPlanner<TRequestLine>
 				if (acceptable <= 0)
 					continue;
 
-				foreach (ShelfBase source in collectSupplySource.GetSources(itemId))
+				IEnumerable<ShelfBase> sources = buildingId != 0
+					? collectSupplySource.GetSources(buildingId, itemId)
+					: collectSupplySource.GetSources(itemId);
+
+				foreach (ShelfBase source in sources)
 				{
 					if (source == null)
 						continue;
