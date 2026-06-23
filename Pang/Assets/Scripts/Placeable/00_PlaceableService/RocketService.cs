@@ -4,6 +4,8 @@ using UnityEngine;
 
 public partial class RocketService : FacilityService<Rocket>
 {
+	private const string CrashLandingFloatingText = "Crash Landing!!";
+
 	[SerializeField] private int initialPoolSize = 5;
 	[SerializeField] private FacingDirection landingFacingDirection = FacingDirection.North;
 	[SerializeField] private Vector2 fallingTimeRange = new(3.0f, 7.0f);
@@ -182,12 +184,13 @@ public partial class RocketService : FacilityService<Rocket>
 
 		RocketLandingOutcome landingOutcome = BuildLandingOutcome(rocket.LandingPos);
 		rocket.SetLandingOutcome(in landingOutcome);
+		PlacementEvent placementEvent = GetPlacementEvent(in landingOutcome);
 
 		PlacementContext ctx = new(
 			rocket.LandingPos,
 			landingFacingDirection,
 			rocketPD,
-			GetPlacementEvent(in landingOutcome),
+			placementEvent,
 			rocket.gameObject
 		);
 
@@ -200,6 +203,7 @@ public partial class RocketService : FacilityService<Rocket>
 
 		rocket.enabled = false;
 		rocket.ApplyLandingOutcome();
+		ReportCrashLanding(rocket, placementEvent);
 		InboundRocketLanded?.Invoke(rocket);
 	}
 
@@ -243,6 +247,17 @@ public partial class RocketService : FacilityService<Rocket>
 		return landingOutcome.Severity == RocketLandingSeverity.Hard || landingOutcome.HasOverride
 			? PlacementEvent.RocketCrashLanding
 			: PlacementEvent.RocketLanding;
+	}
+
+	private static void ReportCrashLanding(Rocket rocket, PlacementEvent placementEvent)
+	{
+		if (rocket == null || placementEvent != PlacementEvent.RocketCrashLanding || GameContext.HasInstance == false)
+			return;
+
+		GameContext.Instance.FloatingTextManager?.ShowWorld(
+			FloatingTextPreset.Error,
+			CrashLandingFloatingText,
+			rocket.transform.position + Vector3.up * 2f);
 	}
 
 }
