@@ -40,11 +40,16 @@ public partial class PackingStation :
 	private readonly List<ItemStack> packedItems = new();
 	protected Dictionary<uint, int> itemTotals = new();
 	private float totalSize = 0.0f;
+	private ItemTag itemTags = ItemTag.None;
 
 	public IReadOnlyList<ItemStack> Stacks => packedItems;
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
 	public float TotalSize => totalSize;
 	public float MaxSize => sizePerStack * maxStacks;
+	public ItemTag ItemTags => itemTags;
+	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
+
+
 	public bool CanRegister() => maxStacks > Stacks.Count;
 
 	public int GetQuantity(uint itemId)
@@ -294,6 +299,23 @@ public partial class PackingStation :
 		totalSize = 0.0f;
 		for (int i = 0; i < packedItems.Count; ++i)
 			totalSize += packedItems[i].Size;
+
+		itemTags = ItemTag.None;
+
+		if (itemDB == null || packedItems == null)
+			return;
+
+		for (int i = 0; i < packedItems.Count; ++i)
+		{
+			ItemStack stack = packedItems[i];
+			if (stack == null || stack.Quantity <= 0)
+				continue;
+
+			if (itemDB.GetItemData(stack.ItemID, out ItemDefinition itemData) == false || itemData == null)
+				continue;
+
+			itemTags |= itemData.Tag;
+		}
 	}
 
 	private ItemStack FindMergeTarget(ItemStack incoming)
