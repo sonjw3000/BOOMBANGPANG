@@ -97,6 +97,16 @@ Examples:
 - Keep gameplay tuning values easy to modify.
 - Avoid storing runtime gameplay state inside ScriptableObjects unless explicitly intended.
 
+---
+
+## UI Prefab Rules
+
+- Prefer authoring UI structure in prefabs first.
+- For UI work, drive references through `[SerializeField]` instead of building widget trees in code.
+- Avoid runtime `Instantiate()` for ordinary DetailWindow, SelectionCard, row, tab, and form UI composition.
+- If UI content can be prepared ahead of time, create or modify the prefab directly and bind it in code.
+- Only use runtime `Instantiate()` for truly dynamic or pooled content where a fixed prefab-authored layout is not practical.
+
 Examples:
 ```csharp
 [SerializeField] private float moveSpeed;

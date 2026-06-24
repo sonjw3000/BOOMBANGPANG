@@ -157,6 +157,11 @@ Read:
 - docs/architecture/ui_interaction.md
 - docs/technical/coding_rules.md
 
+UI implementation rule:
+- Prefer prefab-first UI authoring.
+- For UI work, create or modify the prefab directly and control it through `[SerializeField]` references.
+- Do not default to runtime `Instantiate()` for normal UI assembly such as detail panels, tabs, rows, or form controls unless the content is genuinely dynamic.
+
 ## General Coding
 Read:
 - docs/technical/coding_rules.md
