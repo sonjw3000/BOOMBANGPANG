@@ -5,6 +5,7 @@ public enum WorkerKind
 {
 	Human,
 	Robot,
+	None,
 }
 
 public enum HumanType

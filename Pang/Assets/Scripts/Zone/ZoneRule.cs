@@ -1,8 +1,86 @@
 ﻿using System.Collections.Generic;
+using Unity.VisualScripting;
 
-// 현재는 그냥 아이디어가 떠올라서 개념만 잡아둔 상태임
-// todo
-// 이를 실제로 활용하여보자
+
+public class ZoneItemRule
+{
+	private ItemTag requiredItemTags;
+	private ItemTag forbiddenItemTags;
+
+	private HashSet<ItemDefinition> whiteList = new();
+	private HashSet<ItemDefinition> blackList = new();
+
+	public ItemTag RequiredItemTags => requiredItemTags;
+	public ItemTag ForbiddenItemTags => forbiddenItemTags;
+
+	public IReadOnlyCollection<ItemDefinition> WhiteList => whiteList;
+	public IReadOnlyCollection<ItemDefinition> BlackList => blackList;
+
+
+	public bool IsItemCapable(in ZoneItemFilter filter)
+	{
+		if (whiteList.Count != 0)
+		{
+			foreach (var item in filter.ItemSet)
+			{
+				if (whiteList.Contains(item) == false)
+					return false;
+			}
+		}
+
+		if (blackList.Count != 0)
+		{
+			foreach (var item in filter.ItemSet)
+			{
+				if (blackList.Contains(item))
+					return false;
+			}
+		}
+
+		if (filter.TagFilter.HasFlag(requiredItemTags) == false)
+			return false;
+
+		if (filter.TagFilter.HasFlag(forbiddenItemTags))
+			return false;
+
+		return true;
+	}
+}
+
+public class ZoneWorkerRule
+{
+	public WorkerKind requiredWorkerKinds = WorkerKind.None;
+
+	public HashSet<HumanType> requiredHumanTypes;
+	public HashSet<HumanType> forbiddenHumanTypes;
+	public HashSet<RobotType> requiredRobotTypes;
+	public HashSet<RobotType> forbiddenRobotTypes;
+
+	public WorkerAbility requiredWorkerAbility;
+
+	public bool IsWorkerCapable(in ZoneWorkerFilter filter)
+	{
+		if (requiredWorkerKinds != WorkerKind.None && filter.Worker.WorkerKind != requiredWorkerKinds)
+			return false;
+		
+		if (filter.Worker.WorkerKind == WorkerKind.Human)
+		{
+			if (requiredHumanTypes.Contains(filter.Worker.HumanType) == false)
+				return false;
+			if (forbiddenHumanTypes.Contains(filter.Worker.HumanType))
+				return false;
+		}
+		else
+		{
+			if (requiredRobotTypes.Contains(filter.Worker.RobotType) == false)
+				return false;
+			if (forbiddenRobotTypes.Contains(filter.Worker.RobotType))
+				return false;
+		}
+
+		return true;
+	}
+}
 
 public class ZoneRule
 {
@@ -10,108 +88,16 @@ public class ZoneRule
 	public int priority;
 
 	// 제약조건
-	public List<ItemTag> requiredTags;
-	public List<ItemTag> forbiddenTags;
+	public ZoneItemRule itemRule;
+	public ZoneWorkerRule workerRule;
 
-	public List<WorkerKind> requiredWorkerKinds;
-	public List<WorkerKind> forbiddenWorkerKinds;
-	public List<HumanType> requiredHumanTypes;
-	public List<HumanType> forbiddenHumanTypes;
-	public List<RobotType> requiredRobotTypes;
-	public List<RobotType> forbiddenRobotTypes;
-
-	public List<WorkerAbility> requiredWorkerAbilities;
-	public List<WorkerAbility> forbiddenWorkerAbilities;
-
-	public bool IsItemCapable(ItemDefinition item)
+	public bool IsFilterCapable(in ZoneFilter filter)
 	{
-		if (item == null)
+		if (itemRule.IsItemCapable(filter.ItemFilter) == false)
 			return false;
-
-		requiredTags ??= new List<ItemTag>();
-		forbiddenTags ??= new List<ItemTag>();
-
-		foreach (var tag in requiredTags)
-		{
-			if (item.Tag.HasFlag(tag) == false)
-				return false;
-		}
-
-		foreach (var tag in forbiddenTags)
-		{
-			if (item.Tag.HasFlag(tag))
-				return false;
-		}
-
-		return true;
-	}
-
-	public bool IsWorkerCapable(AIWorker worker)
-	{
-		if (worker == null)
+		
+		if (workerRule.IsWorkerCapable(filter.WorkerFilter) == false)
 			return false;
-
-		requiredWorkerKinds ??= new List<WorkerKind>();
-		forbiddenWorkerKinds ??= new List<WorkerKind>();
-		requiredHumanTypes ??= new List<HumanType>();
-		forbiddenHumanTypes ??= new List<HumanType>();
-		requiredRobotTypes ??= new List<RobotType>();
-		forbiddenRobotTypes ??= new List<RobotType>();
-		requiredWorkerAbilities ??= new List<WorkerAbility>();
-		forbiddenWorkerAbilities ??= new List<WorkerAbility>();
-
-		foreach (var workerKind in requiredWorkerKinds)
-		{
-			if (worker.WorkerKind != workerKind)
-				return false;
-		}
-
-		foreach (var workerKind in forbiddenWorkerKinds)
-		{
-			if (worker.WorkerKind == workerKind)
-				return false;
-		}
-
-		if (worker.WorkerKind == WorkerKind.Human)
-		{
-			foreach (var humanType in requiredHumanTypes)
-			{
-				if (worker.HumanType != humanType)
-					return false;
-			}
-
-			foreach (var humanType in forbiddenHumanTypes)
-			{
-				if (worker.HumanType == humanType)
-					return false;
-			}
-		}
-		else
-		{
-			foreach (var robotType in requiredRobotTypes)
-			{
-				if (worker.RobotType != robotType)
-					return false;
-			}
-
-			foreach (var robotType in forbiddenRobotTypes)
-			{
-				if (worker.RobotType == robotType)
-					return false;
-			}
-		}
-
-		foreach (var ability in requiredWorkerAbilities)
-		{
-			if (worker.HasAbility(ability) == false)
-				return false;
-		}
-
-		foreach (var ability in forbiddenWorkerAbilities)
-		{
-			if (worker.HasAbility(ability))
-				return false;
-		}
 
 		return true;
 	}
