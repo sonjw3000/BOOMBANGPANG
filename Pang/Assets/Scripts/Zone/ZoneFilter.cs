@@ -42,8 +42,55 @@ public readonly struct ZoneFilter
 		if (zoneManager == null || facility == null)
 			return false;
 
-		return zoneManager.TryGetZoneAt(facility.GridPosition, out ZoneArea zone)
-			&& zone != null
-			&& zone.IsFilterCapable(this);
+		if (zoneManager.TryGetZoneAt(facility.GridPosition, out ZoneArea zone) == false || zone == null)
+			return true;
+
+		return zone.IsFilterCapable(this);
+	}
+
+	public static ZoneFilter ForWorker(AIWorker worker)
+	{
+		return worker == null
+			? None
+			: new ZoneFilter(workerFilter: new ZoneWorkerFilter(worker));
+	}
+
+	public static ZoneFilter ForContainer(IItemContainer container, AIWorker worker = null)
+	{
+		ZoneItemFilter itemFilter = null;
+		if (TryBuildItemFilter(container, out ZoneItemFilter builtFilter))
+			itemFilter = builtFilter;
+
+		return new ZoneFilter(
+			itemFilter,
+			worker != null ? new ZoneWorkerFilter(worker) : null);
+	}
+
+	private static bool TryBuildItemFilter(IItemContainer container, out ZoneItemFilter itemFilter)
+	{
+		itemFilter = null;
+		if (container == null || GameContext.HasInstance == false || GameContext.Instance.ItemDB == null)
+			return false;
+
+		HashSet<ItemDefinition> itemSet = null;
+		bool hasItems = false;
+		foreach (var itemTotal in container.ItemTotals)
+		{
+			if (itemTotal.Value <= 0)
+				continue;
+
+			hasItems = true;
+			if (GameContext.Instance.ItemDB.GetItemData(itemTotal.Key, out ItemDefinition itemDefinition) == false || itemDefinition == null)
+				continue;
+
+			itemSet ??= new HashSet<ItemDefinition>();
+			itemSet.Add(itemDefinition);
+		}
+
+		if (hasItems == false)
+			return false;
+
+		itemFilter = new ZoneItemFilter(container.ItemTags, itemSet);
+		return true;
 	}
 }

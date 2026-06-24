@@ -68,6 +68,11 @@ public partial class PackingTask : WorkerTask
 		return isTaskEnd;
 	}
 
+	public override bool CanDispatchTo(AIWorker worker)
+	{
+		return CanDispatchToWorkerZones(worker, targetStation);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{

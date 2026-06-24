@@ -97,6 +97,7 @@ public class Building
 	private TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
 	public Building(string displayName, List<GridCell> occupiedCells, BuildingType buildingType = BuildingType.Generic)
 	{
 		this.displayName = displayName;
@@ -414,22 +415,30 @@ public class Building
 		return false;
 	}
 
-	internal CapsuleBuffer ResolveInboundBufferTarget(in int3 from)
+	internal CapsuleBuffer ResolveInboundBufferTarget(in int3 from, ZoneFilter zoneFilter = default)
 	{
 		return FindClosestCapsuleBuffer(
 			from,
 			InteractionKind.Put,
-			candidate => candidate != null && candidate.CanReceiveFromInbound() && queuedInboundTargets.ContainsValue(candidate) == false);
+			candidate =>
+				candidate != null &&
+				candidate.CanReceiveFromInbound() &&
+				queuedInboundTargets.ContainsValue(candidate) == false &&
+				zoneFilter.Matches(ZoneManager, candidate));
 	}
 
-	internal OutboundCargoPort ResolveOutboundPortTarget(in int3 from)
+	internal OutboundCargoPort ResolveOutboundPortTarget(in int3 from, ZoneFilter zoneFilter = default)
 	{
 		return FindClosestOutboundPort(
 			from,
-			candidate => candidate != null && candidate.CanPutBox() && queuedOutboundTargets.ContainsValue(candidate) == false);
+			candidate =>
+				candidate != null &&
+				candidate.CanPutBox() &&
+				queuedOutboundTargets.ContainsValue(candidate) == false &&
+				zoneFilter.Matches(ZoneManager, candidate));
 	}
 
-	internal InboundCargoPort ResolveLinkedInboundPortTarget(in int3 from)
+	internal InboundCargoPort ResolveLinkedInboundPortTarget(in int3 from, ZoneFilter zoneFilter = default)
 	{
 		if (GridService == null || BuildingManager == null || outputBuildingIds.Count <= 0)
 			return null;
@@ -443,7 +452,9 @@ public class Building
 
 			for (int i = 0; i < targetBuilding.occupiedCargoPorts.Count; ++i)
 			{
-				if (targetBuilding.occupiedCargoPorts[i] is not InboundCargoPort candidate || candidate.CanPutBox() == false)
+				if (targetBuilding.occupiedCargoPorts[i] is not InboundCargoPort candidate ||
+					candidate.CanPutBox() == false ||
+					zoneFilter.Matches(ZoneManager, candidate) == false)
 					continue;
 
 				if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, InteractionKind.Put, from, GridService, out _, out int score) == false)

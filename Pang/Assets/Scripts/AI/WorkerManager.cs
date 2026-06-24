@@ -154,7 +154,9 @@ public partial class WorkerManager : MonoBehaviour
 	{
 		if (taskData.TryGetPreferredWorker(out var preferredWorker))
 		{
-			if (preferredWorker != null && preferredWorker.CanAcceptPreferredTask(taskData))
+			if (preferredWorker != null &&
+				preferredWorker.CanAcceptPreferredTask(taskData) &&
+				taskData.CanDispatchTo(preferredWorker))
 			{
 				RemoveIdleWorker(preferredWorker);
 				return preferredWorker;
@@ -170,7 +172,7 @@ public partial class WorkerManager : MonoBehaviour
 			queue.RemoveFirst();
 			idleWorkersSet[taskData.Type].Remove(worker);
 
-			if (worker == null || worker.CanAcceptGeneralTask(taskData) == false)
+			if (worker == null || worker.CanAcceptGeneralTask(taskData) == false || taskData.CanDispatchTo(worker) == false)
 				continue;
 
 			return worker;

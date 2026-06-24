@@ -51,6 +51,11 @@ public partial class UnloadingTask : WorkerTask
 		return IsUnloadEnd;
 	}
 
+	public override bool CanDispatchTo(AIWorker worker)
+	{
+		return CanDispatchToWorkerZones(worker, targetRocket, cargoPort);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
@@ -108,12 +113,18 @@ public partial class UnloadingTask : WorkerTask
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
 		BoxBase box = task.WorkerCarryBox?.CarryingBox;
-		if (task.cargoPort == null)
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(box, ctx.Worker);
+		if (task.cargoPort == null ||
+			task.cargoPort.CanPutBox() == false ||
+			zoneFilter.Matches(GameContext.Instance.ZoneMgr, task.cargoPort) == false)
+		{
 			task.cargoPort = CargoPortService.FindClosestAvailablePortForBox(
 				ctx.Worker.GridPosition,
 				InteractionKind.Put,
 				box,
+				zoneFilter: zoneFilter,
 				predicate: candidate => candidate is InboundCargoPort);
+		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.cargoPort);
 		if (task.cargoPort != null)

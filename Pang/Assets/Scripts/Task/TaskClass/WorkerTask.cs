@@ -63,6 +63,7 @@ public abstract class WorkerTask
 	}
 
 	private IBaseNode baseNode = null;
+	private static ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
 
 	protected CarryBoxAbility WorkerCarryBox => OccupyWorker != null ? OccupyWorker.CarryingAbility : null;
 
@@ -115,6 +116,11 @@ public abstract class WorkerTask
 		return false;
 	}
 
+	public virtual bool CanDispatchTo(AIWorker worker)
+	{
+		return worker != null;
+	}
+
 	public abstract string GetStatusSummary();
 
 	protected abstract IBaseNode BuildWorkNode();
@@ -136,6 +142,41 @@ public abstract class WorkerTask
 		checkingFulfilled.Add(new ActionNode(AIWorker.TaskCompleted));
 
 		return checkingFulfilled;
+	}
+
+	protected static bool CanDispatchToWorkerZones(AIWorker worker, params IGridPlaceable[] endpoints)
+	{
+		if (worker == null)
+			return false;
+
+		if (endpoints == null || endpoints.Length == 0)
+			return true;
+
+		for (int i = 0; i < endpoints.Length; ++i)
+		{
+			if (CanDispatchToWorkerZone(worker, endpoints[i]) == false)
+				return false;
+		}
+
+		return true;
+	}
+
+	protected static bool CanDispatchToWorkerZone(AIWorker worker, IGridPlaceable endpoint)
+	{
+		if (worker == null)
+			return false;
+
+		if (endpoint == null || ZoneManager == null)
+			return true;
+
+		if (ZoneManager.TryGetZoneAt(endpoint.GridPosition, out ZoneArea zone) == false || zone == null)
+			return true;
+
+		ZoneWorkerRule workerRule = zone.Rule?.WorkerRule;
+		if (workerRule == null)
+			return true;
+
+		return workerRule.IsWorkerCapable(new ZoneWorkerFilter(worker));
 	}
 
 	//public static void SetTaskManager(TaskManager taskManager) { Manager = taskManager; }

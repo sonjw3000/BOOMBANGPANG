@@ -46,6 +46,11 @@ public partial class LoadingTask : WorkerTask
 		return isLoadEnd;
 	}
 
+	public override bool CanDispatchTo(AIWorker worker)
+	{
+		return CanDispatchToWorkerZones(worker, targetPort);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
@@ -102,7 +107,8 @@ public partial class LoadingTask : WorkerTask
 	static private NodeState SetLaunchStation(in BTContext ctx)
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
-		var launchStation = GetLaunchStationForTask(task, ctx.Worker.GridPosition, InteractionKind.Put);
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(ctx.Worker.CarryingAbility?.CarryingBox, ctx.Worker);
+		var launchStation = GetLaunchStationForTask(task, ctx.Worker.GridPosition, InteractionKind.Put, zoneFilter);
 
 		ctx.LocalBlackBoard.SetTargetBuilding(launchStation);
 		return Success;
@@ -112,8 +118,8 @@ public partial class LoadingTask : WorkerTask
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
 		var carryAbility = ctx.Worker.CarryingAbility;
-				
-		var launchStation = GetLaunchStationForTask(task, ctx.Worker.GridPosition, InteractionKind.Pick);
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(carryAbility?.CarryingBox, ctx.Worker);
+		var launchStation = GetLaunchStationForTask(task, ctx.Worker.GridPosition, InteractionKind.Pick, zoneFilter);
 		if (launchStation == null)
 		{
 			// Future: launch station service should wake this worker when storage has room.
@@ -153,20 +159,20 @@ public partial class LoadingTask : WorkerTask
 		return Success;
 	}
 
-	private static LaunchStation GetLaunchStationForTask(LoadingTask task, in Unity.Mathematics.int3 from, InteractionKind interactionKind)
+	private static LaunchStation GetLaunchStationForTask(LoadingTask task, in Unity.Mathematics.int3 from, InteractionKind interactionKind, ZoneFilter zoneFilter)
 	{
 		if (task?.targetPort != null)
 		{
 			GridCell targetCell = GridService?.GetCell(task.targetPort.GridPosition);
 			if (targetCell != null && targetCell.BuildingId != 0)
 			{
-				LaunchStationService.TryFindDestination(targetCell.BuildingId, from, interactionKind, ZoneFilter.None, out LaunchStation localStation);
+				LaunchStationService.TryFindDestination(targetCell.BuildingId, from, interactionKind, zoneFilter, out LaunchStation localStation);
 				if (localStation != null)
 					return localStation;
 			}
 		}
 
-		LaunchStationService.TryFindDestination(0, from, interactionKind, ZoneFilter.None, out LaunchStation globalStation);
+		LaunchStationService.TryFindDestination(0, from, interactionKind, zoneFilter, out LaunchStation globalStation);
 		return globalStation;
 	}
 }

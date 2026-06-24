@@ -77,24 +77,34 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		uint buildingId = 0,
 		Predicate<CargoPort> predicate = null)
 	{
+		return FindClosestAvailablePort(pos, interactionKind, buildingId, ZoneFilter.None, predicate);
+	}
+
+	public CargoPort FindClosestAvailablePort(
+		in int3 pos,
+		InteractionKind interactionKind,
+		uint buildingId,
+		ZoneFilter zoneFilter,
+		Predicate<CargoPort> predicate = null)
+	{
 		Predicate<CargoPort> combinedPredicate = candidate =>
 			candidate != null &&
 			(predicate == null || predicate(candidate));
 
 		if (buildingId != 0)
 		{
-			return TryFindDestination(buildingId, pos, interactionKind, ZoneFilter.None, out CargoPort buildingTarget, combinedPredicate)
+			return TryFindDestination(buildingId, pos, interactionKind, zoneFilter, out CargoPort buildingTarget, combinedPredicate)
 				? buildingTarget
 				: null;
 		}
 
 		if (TryGetBuildingId(pos, out uint localBuildingId) &&
-			TryFindDestination(localBuildingId, pos, interactionKind, ZoneFilter.None, out CargoPort localTarget, combinedPredicate))
+			TryFindDestination(localBuildingId, pos, interactionKind, zoneFilter, out CargoPort localTarget, combinedPredicate))
 		{
 			return localTarget;
 		}
 
-		return TryFindDestination(0, pos, interactionKind, ZoneFilter.None, out CargoPort globalTarget, combinedPredicate)
+		return TryFindDestination(0, pos, interactionKind, zoneFilter, out CargoPort globalTarget, combinedPredicate)
 			? globalTarget
 			: null;
 	}
@@ -106,10 +116,22 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		uint buildingId = 0,
 		Predicate<CargoPort> predicate = null)
 	{
+		return FindClosestAvailablePortForBox(pos, interactionKind, box, buildingId, ZoneFilter.None, predicate);
+	}
+
+	public CargoPort FindClosestAvailablePortForBox(
+		in int3 pos,
+		InteractionKind interactionKind,
+		BoxBase box,
+		uint buildingId,
+		ZoneFilter zoneFilter,
+		Predicate<CargoPort> predicate = null)
+	{
 		return FindClosestAvailablePort(
 			pos,
 			interactionKind,
 			buildingId,
+			zoneFilter,
 			candidate =>
 				CanAcceptBox(candidate, box, interactionKind) &&
 				(predicate == null || predicate(candidate)));

@@ -73,6 +73,11 @@ public sealed class IBTask : WorkerTask
 		return isTaskEnd;
 	}
 
+	public override bool CanDispatchTo(AIWorker worker)
+	{
+		return CanDispatchToWorkerZones(worker, sourcePort, targetBuffer);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
@@ -89,15 +94,15 @@ public sealed class IBTask : WorkerTask
 		return $"Inbound Transfer\nFrom: {sourceName}\nTo: {targetName}";
 	}
 
-	private CapsuleBuffer ResolveTargetBuffer(in int3 from)
+	private CapsuleBuffer ResolveTargetBuffer(in int3 from, ZoneFilter zoneFilter)
 	{
-		if (targetBuffer != null && targetBuffer.CanReceiveFromInbound())
+		if (targetBuffer != null && targetBuffer.CanReceiveFromInbound() && zoneFilter.Matches(GameContext.Instance.ZoneMgr, targetBuffer))
 			return targetBuffer;
 
 		if (buildingId == 0 || BuildingManager == null || BuildingManager.TryGetBuilding(buildingId, out Building building) == false)
 			return null;
 
-		targetBuffer = building.ResolveInboundBufferTarget(from);
+		targetBuffer = building.ResolveInboundBufferTarget(from, zoneFilter);
 		return targetBuffer;
 	}
 
@@ -140,7 +145,8 @@ public sealed class IBTask : WorkerTask
 	public static NodeState SetTargetBuffer(in BTContext ctx)
 	{
 		IBTask task = (IBTask)ctx.Worker.CurrentTask;
-		CapsuleBuffer targetBuffer = task.ResolveTargetBuffer(ctx.Worker.GridPosition);
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(ctx.Worker.CarryingAbility?.CarryingBox, ctx.Worker);
+		CapsuleBuffer targetBuffer = task.ResolveTargetBuffer(ctx.Worker.GridPosition, zoneFilter);
 		if (targetBuffer == null)
 		{
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CapsuleBuffer);

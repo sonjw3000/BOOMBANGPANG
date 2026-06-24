@@ -93,6 +93,14 @@ public partial class WaterTask : WorkerTask
 		return false;
 	}
 
+	public override bool CanDispatchTo(AIWorker worker)
+	{
+		return CanDispatchToWorkerZones(
+			worker,
+			from?.target as IGridPlaceable,
+			to?.target as IGridPlaceable);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{

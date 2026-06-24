@@ -43,6 +43,11 @@ public sealed partial class CargoTransferTask : WorkerTask
 		return isTaskEnd;
 	}
 
+	public override bool CanDispatchTo(AIWorker worker)
+	{
+		return CanDispatchToWorkerZones(worker, sourcePort, targetPort);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
@@ -59,16 +64,16 @@ public sealed partial class CargoTransferTask : WorkerTask
 		return $"Cargo Transfer\nFrom: {sourceName}\nTo: {targetName}";
 	}
 
-	private InboundCargoPort ResolveTargetPort(in int3 from)
+	private InboundCargoPort ResolveTargetPort(in int3 from, ZoneFilter zoneFilter)
 	{
-		if (targetPort != null && targetPort.CanPutBox())
+		if (targetPort != null && targetPort.CanPutBox() && zoneFilter.Matches(GameContext.Instance.ZoneMgr, targetPort))
 			return targetPort;
 
-		targetPort = FindClosestLinkedInboundPort(sourcePort, from);
+		targetPort = FindClosestLinkedInboundPort(sourcePort, from, zoneFilter);
 		return targetPort;
 	}
 
-	private static InboundCargoPort FindClosestLinkedInboundPort(OutboundCargoPort outboundCargoPort, in int3 from)
+	private static InboundCargoPort FindClosestLinkedInboundPort(OutboundCargoPort outboundCargoPort, in int3 from, ZoneFilter zoneFilter)
 	{
 		if (outboundCargoPort == null || GridService == null || BuildingManager == null)
 			return null;
@@ -77,7 +82,7 @@ public sealed partial class CargoTransferTask : WorkerTask
 		if (cell == null || cell.BuildingId == 0 || BuildingManager.TryGetBuilding(cell.BuildingId, out Building sourceBuilding) == false || sourceBuilding == null)
 			return null;
 
-		return sourceBuilding.ResolveLinkedInboundPortTarget(from);
+		return sourceBuilding.ResolveLinkedInboundPortTarget(from, zoneFilter);
 	}
 
 	public static NodeState SetSourceTarget(in BTContext ctx)
@@ -121,7 +126,8 @@ public sealed partial class CargoTransferTask : WorkerTask
 	public static NodeState SetTargetPort(in BTContext ctx)
 	{
 		CargoTransferTask task = (CargoTransferTask)ctx.Worker.CurrentTask;
-		InboundCargoPort targetPort = task.ResolveTargetPort(ctx.Worker.GridPosition);
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(ctx.Worker.CarryingAbility?.CarryingBox, ctx.Worker);
+		InboundCargoPort targetPort = task.ResolveTargetPort(ctx.Worker.GridPosition, zoneFilter);
 		if (targetPort == null)
 		{
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);

@@ -72,6 +72,11 @@ public sealed class OBTask : WorkerTask
 		return isTaskEnd;
 	}
 
+	public override bool CanDispatchTo(AIWorker worker)
+	{
+		return CanDispatchToWorkerZones(worker, sourceBuffer, targetPort);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
@@ -88,15 +93,15 @@ public sealed class OBTask : WorkerTask
 		return $"Outbound Transfer\nFrom: {sourceName}\nTo: {targetName}";
 	}
 
-	private OutboundCargoPort ResolveTargetPort(in int3 from)
+	private OutboundCargoPort ResolveTargetPort(in int3 from, ZoneFilter zoneFilter)
 	{
-		if (targetPort != null && targetPort.CanPutBox())
+		if (targetPort != null && targetPort.CanPutBox() && zoneFilter.Matches(GameContext.Instance.ZoneMgr, targetPort))
 			return targetPort;
 
 		if (buildingId == 0 || BuildingManager == null || BuildingManager.TryGetBuilding(buildingId, out Building building) == false)
 			return null;
 
-		targetPort = building.ResolveOutboundPortTarget(from);
+		targetPort = building.ResolveOutboundPortTarget(from, zoneFilter);
 		return targetPort;
 	}
 
@@ -139,7 +144,8 @@ public sealed class OBTask : WorkerTask
 	public static NodeState SetTargetPort(in BTContext ctx)
 	{
 		OBTask task = (OBTask)ctx.Worker.CurrentTask;
-		OutboundCargoPort targetPort = task.ResolveTargetPort(ctx.Worker.GridPosition);
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(ctx.Worker.CarryingAbility?.CarryingBox, ctx.Worker);
+		OutboundCargoPort targetPort = task.ResolveTargetPort(ctx.Worker.GridPosition, zoneFilter);
 		if (targetPort == null)
 		{
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);

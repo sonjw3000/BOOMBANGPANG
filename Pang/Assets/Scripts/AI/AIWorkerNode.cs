@@ -102,7 +102,7 @@ public abstract partial class AIWorker
 
 	private static NodeState SetGoalClosestBoxPoolPick(in BTContext context)
 	{
-		WMSys.BoxPoolService.TryFindDestination(0, context.Worker.GridPosition, InteractionKind.Pick, ZoneFilter.None, out BoxPool pool);
+		WMSys.BoxPoolService.TryFindDestination(0, context.Worker.GridPosition, InteractionKind.Pick, ZoneFilter.ForWorker(context.Worker), out BoxPool pool);
 		context.LocalBlackBoard.SetTargetBuilding(pool);
 
 		return Success;
@@ -110,7 +110,7 @@ public abstract partial class AIWorker
 
 	private static NodeState SetGoalClosestBoxPoolPut(in BTContext context)
 	{
-		WMSys.BoxPoolService.TryFindDestination(0, context.Worker.GridPosition, InteractionKind.Put, ZoneFilter.None, out BoxPool pool);
+		WMSys.BoxPoolService.TryFindDestination(0, context.Worker.GridPosition, InteractionKind.Put, ZoneFilter.ForWorker(context.Worker), out BoxPool pool);
 		context.LocalBlackBoard.SetTargetBuilding(pool);
 
 		return Success;
@@ -131,7 +131,7 @@ public abstract partial class AIWorker
 
 		if (box == null)
 		{
-			WMSys.BoxPoolService.TryFindDestination(0, context.Worker.GridPosition, InteractionKind.Pick, ZoneFilter.None, out BoxPool nextPool);
+			WMSys.BoxPoolService.TryFindDestination(0, context.Worker.GridPosition, InteractionKind.Pick, ZoneFilter.ForWorker(context.Worker), out BoxPool nextPool);
 			context.LocalBlackBoard.SetTargetBuilding(nextPool);
 
 			if (nextPool != null)
@@ -400,7 +400,7 @@ public abstract partial class AIWorker
 		if (AirlockService == null || buildingId == 0)
 			return false;
 
-		if (AirlockService.TryFindDestination(buildingId, ctx.Worker.GridPosition, InteractionKind.Enter, ZoneFilter.None, out Airlock airlock) == false || airlock == null)
+		if (AirlockService.TryFindDestination(buildingId, ctx.Worker.GridPosition, InteractionKind.Enter, ZoneFilter.ForWorker(ctx.Worker), out Airlock airlock) == false || airlock == null)
 			return false;
 
 		if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
