@@ -11,14 +11,15 @@ public class ZoneArea
 	[SerializeField] private RectInt bound;
 	[SerializeField] private int floor;
 	[SerializeField] private uint runtimeBuildingId;
+	[SerializeField] private ZoneRule zoneRule = new();
 	private List<IFacility> occupiedFacilities = new();
-	private ZoneRule zoneRule = null;
 
 	public string DisplayName => displayName;
 	public ZoneType Type => type;
 	public RectInt Bounds => bound;
 	public int Floor => floor;
 	public uint RuntimeBuildingId => runtimeBuildingId;
+	public ZoneRule Rule => zoneRule;
 	public IReadOnlyList<IFacility> OccupiedFacilities => EnsureFacilityList();
 
 	public ZoneArea(string name, ZoneType type, RectInt bound, int floor, uint runtimeBuildingId)
@@ -82,6 +83,6 @@ public class ZoneArea
 
 	public bool IsFilterCapable(in ZoneFilter filter)
 	{
-		return (zoneRule == null) || zoneRule.IsFilterCapable(filter);
+		return zoneRule == null || zoneRule.IsFilterCapable(filter);
 	}
 }

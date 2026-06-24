@@ -1,80 +1,113 @@
-﻿using System.Collections.Generic;
-using Unity.VisualScripting;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
 
-
-public class ZoneItemRule
+[Serializable]
+public sealed class ZoneItemRule
 {
-	private ItemTag requiredItemTags;
-	private ItemTag forbiddenItemTags;
-
-	private HashSet<ItemDefinition> whiteList = new();
-	private HashSet<ItemDefinition> blackList = new();
+	[SerializeField] private ItemTag requiredItemTags = ItemTag.None;
+	[SerializeField] private ItemTag forbiddenItemTags = ItemTag.None;
+	[SerializeField] private List<ItemDefinition> whiteList = new();
+	[SerializeField] private List<ItemDefinition> blackList = new();
 
 	public ItemTag RequiredItemTags => requiredItemTags;
 	public ItemTag ForbiddenItemTags => forbiddenItemTags;
+	public IReadOnlyList<ItemDefinition> WhiteList => whiteList;
+	public IReadOnlyList<ItemDefinition> BlackList => blackList;
 
-	public IReadOnlyCollection<ItemDefinition> WhiteList => whiteList;
-	public IReadOnlyCollection<ItemDefinition> BlackList => blackList;
+	public bool IsEmpty =>
+		requiredItemTags == ItemTag.None &&
+		forbiddenItemTags == ItemTag.None &&
+		(whiteList == null || whiteList.Count == 0) &&
+		(blackList == null || blackList.Count == 0);
 
-
-	public bool IsItemCapable(in ZoneItemFilter filter)
+	public bool IsItemCapable(ZoneItemFilter filter)
 	{
-		if (whiteList.Count != 0)
+		if (IsEmpty || filter == null)
+			return true;
+
+		if (whiteList != null && whiteList.Count != 0 && filter.ItemSet != null)
 		{
-			foreach (var item in filter.ItemSet)
+			foreach (ItemDefinition item in filter.ItemSet)
 			{
-				if (whiteList.Contains(item) == false)
+				if (item != null && whiteList.Contains(item) == false)
 					return false;
 			}
 		}
 
-		if (blackList.Count != 0)
+		if (blackList != null && blackList.Count != 0 && filter.ItemSet != null)
 		{
-			foreach (var item in filter.ItemSet)
+			foreach (ItemDefinition item in filter.ItemSet)
 			{
-				if (blackList.Contains(item))
+				if (item != null && blackList.Contains(item))
 					return false;
 			}
 		}
 
-		if (filter.TagFilter.HasFlag(requiredItemTags) == false)
+		if ((filter.TagFilter & requiredItemTags) != requiredItemTags)
 			return false;
 
-		if (filter.TagFilter.HasFlag(forbiddenItemTags))
+		if ((filter.TagFilter & forbiddenItemTags) != ItemTag.None)
 			return false;
 
 		return true;
 	}
 }
 
-public class ZoneWorkerRule
+[Serializable]
+public sealed class ZoneWorkerRule
 {
-	public WorkerKind requiredWorkerKinds = WorkerKind.None;
+	[SerializeField] private WorkerKind requiredWorkerKind = WorkerKind.None;
+	[SerializeField] private List<HumanType> requiredHumanTypes = new();
+	[SerializeField] private List<HumanType> forbiddenHumanTypes = new();
+	[SerializeField] private List<RobotType> requiredRobotTypes = new();
+	[SerializeField] private List<RobotType> forbiddenRobotTypes = new();
+	[SerializeField] private WorkerAbility requiredWorkerAbility = WorkerAbility.None;
 
-	public HashSet<HumanType> requiredHumanTypes;
-	public HashSet<HumanType> forbiddenHumanTypes;
-	public HashSet<RobotType> requiredRobotTypes;
-	public HashSet<RobotType> forbiddenRobotTypes;
+	public WorkerKind RequiredWorkerKind => requiredWorkerKind;
+	public IReadOnlyList<HumanType> RequiredHumanTypes => requiredHumanTypes;
+	public IReadOnlyList<HumanType> ForbiddenHumanTypes => forbiddenHumanTypes;
+	public IReadOnlyList<RobotType> RequiredRobotTypes => requiredRobotTypes;
+	public IReadOnlyList<RobotType> ForbiddenRobotTypes => forbiddenRobotTypes;
+	public WorkerAbility RequiredWorkerAbility => requiredWorkerAbility;
 
-	public WorkerAbility requiredWorkerAbility;
+	public bool IsEmpty =>
+		requiredWorkerKind == WorkerKind.None &&
+		requiredWorkerAbility == WorkerAbility.None &&
+		(requiredHumanTypes == null || requiredHumanTypes.Count == 0) &&
+		(forbiddenHumanTypes == null || forbiddenHumanTypes.Count == 0) &&
+		(requiredRobotTypes == null || requiredRobotTypes.Count == 0) &&
+		(forbiddenRobotTypes == null || forbiddenRobotTypes.Count == 0);
 
-	public bool IsWorkerCapable(in ZoneWorkerFilter filter)
+	public bool IsWorkerCapable(ZoneWorkerFilter filter)
 	{
-		if (requiredWorkerKinds != WorkerKind.None && filter.Worker.WorkerKind != requiredWorkerKinds)
+		if (IsEmpty || filter == null || filter.Worker == null)
+			return true;
+
+		AIWorker worker = filter.Worker;
+		if (requiredWorkerKind != WorkerKind.None && worker.WorkerKind != requiredWorkerKind)
 			return false;
-		
-		if (filter.Worker.WorkerKind == WorkerKind.Human)
+
+		if (requiredWorkerAbility != WorkerAbility.None && worker.HasAbility(requiredWorkerAbility) == false)
+			return false;
+
+		if (worker.WorkerKind == WorkerKind.Human)
 		{
-			if (requiredHumanTypes.Contains(filter.Worker.HumanType) == false)
+			if (requiredHumanTypes != null && requiredHumanTypes.Count != 0 && requiredHumanTypes.Contains(worker.HumanType) == false)
 				return false;
-			if (forbiddenHumanTypes.Contains(filter.Worker.HumanType))
+
+			if (forbiddenHumanTypes != null && forbiddenHumanTypes.Contains(worker.HumanType))
 				return false;
+
+			return true;
 		}
-		else
+
+		if (worker.WorkerKind == WorkerKind.Robot)
 		{
-			if (requiredRobotTypes.Contains(filter.Worker.RobotType) == false)
+			if (requiredRobotTypes != null && requiredRobotTypes.Count != 0 && requiredRobotTypes.Contains(worker.RobotType) == false)
 				return false;
-			if (forbiddenRobotTypes.Contains(filter.Worker.RobotType))
+
+			if (forbiddenRobotTypes != null && forbiddenRobotTypes.Contains(worker.RobotType))
 				return false;
 		}
 
@@ -82,21 +115,27 @@ public class ZoneWorkerRule
 	}
 }
 
-public class ZoneRule
+[Serializable]
+public sealed class ZoneRule
 {
-	// 판단을 위한 우선순위
-	public int priority;
+	[SerializeField] private int priority;
+	[SerializeField] private ZoneItemRule itemRule = new();
+	[SerializeField] private ZoneWorkerRule workerRule = new();
 
-	// 제약조건
-	public ZoneItemRule itemRule;
-	public ZoneWorkerRule workerRule;
+	public int Priority => priority;
+	public ZoneItemRule ItemRule => itemRule;
+	public ZoneWorkerRule WorkerRule => workerRule;
+
+	public bool IsEmpty =>
+		(itemRule == null || itemRule.IsEmpty) &&
+		(workerRule == null || workerRule.IsEmpty);
 
 	public bool IsFilterCapable(in ZoneFilter filter)
 	{
-		if (itemRule.IsItemCapable(filter.ItemFilter) == false)
+		if (itemRule != null && itemRule.IsItemCapable(filter.ItemFilter) == false)
 			return false;
-		
-		if (workerRule.IsWorkerCapable(filter.WorkerFilter) == false)
+
+		if (workerRule != null && workerRule.IsWorkerCapable(filter.WorkerFilter) == false)
 			return false;
 
 		return true;
