@@ -7,14 +7,14 @@ public sealed class IBTask : WorkerTask
 {
 	private readonly InboundCargoPort sourcePort;
 	private readonly uint buildingId;
-	private CapsuleBuffer targetBuffer;
+	private readonly CapsuleBuffer targetBuffer;
 	private bool isTaskEnd;
 
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
-	private static BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
 
 	internal InboundCargoPort SourcePort => sourcePort;
 	internal uint BuildingId => buildingId;
+	internal CapsuleBuffer TargetBuffer => targetBuffer;
 
 	public IBTask(InboundCargoPort sourcePort, uint buildingId, CapsuleBuffer targetBuffer = null) : base(TaskType.IB)
 	{
@@ -94,18 +94,6 @@ public sealed class IBTask : WorkerTask
 		return $"Inbound Transfer\nFrom: {sourceName}\nTo: {targetName}";
 	}
 
-	private CapsuleBuffer ResolveTargetBuffer(in int3 from, ZoneFilter zoneFilter)
-	{
-		if (targetBuffer != null && targetBuffer.CanReceiveFromInbound() && zoneFilter.Matches(GameContext.Instance.ZoneMgr, targetBuffer))
-			return targetBuffer;
-
-		if (buildingId == 0 || BuildingManager == null || BuildingManager.TryGetBuilding(buildingId, out Building building) == false)
-			return null;
-
-		targetBuffer = building.ResolveInboundBufferTarget(from, zoneFilter);
-		return targetBuffer;
-	}
-
 	public static NodeState SetSourceTarget(in BTContext ctx)
 	{
 		IBTask task = (IBTask)ctx.Worker.CurrentTask;
@@ -145,16 +133,14 @@ public sealed class IBTask : WorkerTask
 	public static NodeState SetTargetBuffer(in BTContext ctx)
 	{
 		IBTask task = (IBTask)ctx.Worker.CurrentTask;
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(ctx.Worker.CarryingAbility?.CarryingBox, ctx.Worker);
-		CapsuleBuffer targetBuffer = task.ResolveTargetBuffer(ctx.Worker.GridPosition, zoneFilter);
-		if (targetBuffer == null)
+		if (task.targetBuffer == null || task.targetBuffer.CanReceiveFromInbound() == false)
 		{
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CapsuleBuffer);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
-		ctx.LocalBlackBoard.SetTargetBuilding(targetBuffer);
+		ctx.LocalBlackBoard.SetTargetBuilding(task.targetBuffer);
 		return Success;
 	}
 
@@ -174,7 +160,8 @@ public sealed class IBTask : WorkerTask
 		}
 
 		task.WorkerCarryBox.PutBox(box);
-		task.targetBuffer = null;
-		return Failure;
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CapsuleBuffer);
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+		return AIWorker.MoveToStandbyWhileWaiting(ctx);
 	}
 }

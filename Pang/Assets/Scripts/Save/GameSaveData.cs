@@ -473,6 +473,7 @@ public sealed class UnloadingTaskSaveData
 public sealed class LoadingTaskSaveData
 {
 	public int TargetPortId;
+	public int TargetStationId;
 	public bool IsLoadEnd;
 }
 
@@ -499,6 +500,7 @@ public sealed class CapsuleTransferTaskSaveData
 	public bool IsInbound;
 	public uint BuildingId;
 	public int SourcePlaceableId = -1;
+	public int TargetPlaceableId = -1;
 }
 
 [Serializable]

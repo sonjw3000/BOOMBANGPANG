@@ -7,14 +7,14 @@ public sealed class OBTask : WorkerTask
 {
 	private readonly CapsuleBuffer sourceBuffer;
 	private readonly uint buildingId;
-	private OutboundCargoPort targetPort;
+	private readonly OutboundCargoPort targetPort;
 	private bool isTaskEnd;
 
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
-	private static BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
 
 	internal CapsuleBuffer SourceBuffer => sourceBuffer;
 	internal uint BuildingId => buildingId;
+	internal OutboundCargoPort TargetPort => targetPort;
 
 	public OBTask(CapsuleBuffer sourceBuffer, uint buildingId, OutboundCargoPort targetPort = null) : base(TaskType.OB)
 	{
@@ -93,18 +93,6 @@ public sealed class OBTask : WorkerTask
 		return $"Outbound Transfer\nFrom: {sourceName}\nTo: {targetName}";
 	}
 
-	private OutboundCargoPort ResolveTargetPort(in int3 from, ZoneFilter zoneFilter)
-	{
-		if (targetPort != null && targetPort.CanPutBox() && zoneFilter.Matches(GameContext.Instance.ZoneMgr, targetPort))
-			return targetPort;
-
-		if (buildingId == 0 || BuildingManager == null || BuildingManager.TryGetBuilding(buildingId, out Building building) == false)
-			return null;
-
-		targetPort = building.ResolveOutboundPortTarget(from, zoneFilter);
-		return targetPort;
-	}
-
 	public static NodeState SetSourceTarget(in BTContext ctx)
 	{
 		OBTask task = (OBTask)ctx.Worker.CurrentTask;
@@ -144,16 +132,14 @@ public sealed class OBTask : WorkerTask
 	public static NodeState SetTargetPort(in BTContext ctx)
 	{
 		OBTask task = (OBTask)ctx.Worker.CurrentTask;
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(ctx.Worker.CarryingAbility?.CarryingBox, ctx.Worker);
-		OutboundCargoPort targetPort = task.ResolveTargetPort(ctx.Worker.GridPosition, zoneFilter);
-		if (targetPort == null)
+		if (task.targetPort == null || task.targetPort.CanPutBox() == false)
 		{
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
-		ctx.LocalBlackBoard.SetTargetBuilding(targetPort);
+		ctx.LocalBlackBoard.SetTargetBuilding(task.targetPort);
 		return Success;
 	}
 
@@ -173,7 +159,8 @@ public sealed class OBTask : WorkerTask
 		}
 
 		task.WorkerCarryBox.PutBox(box);
-		task.targetPort = null;
-		return Failure;
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+		return AIWorker.MoveToStandbyWhileWaiting(ctx);
 	}
 }

@@ -480,7 +480,8 @@ public class Building
 			return;
 
 		int3 sourcePoint = ResolveInteractionOrigin(cargoPort, InteractionKind.Pick);
-		CapsuleBuffer targetBuffer = ResolveInboundBufferTarget(sourcePoint);
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(cargoPort.DockedCapsule);
+		CapsuleBuffer targetBuffer = ResolveInboundBufferTarget(sourcePoint, zoneFilter);
 		if (targetBuffer == null)
 			return;
 
@@ -536,7 +537,8 @@ public class Building
 		if (TaskManager == null)
 			return;
 
-		OutboundCargoPort targetPort = ResolveOutboundPortTarget(capsuleBuffer.GridPosition);
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(capsuleBuffer.DockedCapsule);
+		OutboundCargoPort targetPort = ResolveOutboundPortTarget(capsuleBuffer.GridPosition, zoneFilter);
 		if (targetPort == null)
 		{
 			pendingOutboundBuffers.Add(capsuleBuffer);

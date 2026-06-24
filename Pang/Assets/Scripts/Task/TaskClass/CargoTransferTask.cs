@@ -1,4 +1,3 @@
-using Unity.Mathematics;
 using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
@@ -6,11 +5,8 @@ using static IBaseNode.NodeState;
 public sealed partial class CargoTransferTask : WorkerTask
 {
 	private readonly OutboundCargoPort sourcePort;
-	private InboundCargoPort targetPort;
+	private readonly InboundCargoPort targetPort;
 	private bool isTaskEnd;
-
-	private static GridService GridService => GameContext.Instance.GridService;
-	private static BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 
 	internal OutboundCargoPort SourcePort => sourcePort;
 	internal InboundCargoPort TargetPort => targetPort;
@@ -64,27 +60,6 @@ public sealed partial class CargoTransferTask : WorkerTask
 		return $"Cargo Transfer\nFrom: {sourceName}\nTo: {targetName}";
 	}
 
-	private InboundCargoPort ResolveTargetPort(in int3 from, ZoneFilter zoneFilter)
-	{
-		if (targetPort != null && targetPort.CanPutBox() && zoneFilter.Matches(GameContext.Instance.ZoneMgr, targetPort))
-			return targetPort;
-
-		targetPort = FindClosestLinkedInboundPort(sourcePort, from, zoneFilter);
-		return targetPort;
-	}
-
-	private static InboundCargoPort FindClosestLinkedInboundPort(OutboundCargoPort outboundCargoPort, in int3 from, ZoneFilter zoneFilter)
-	{
-		if (outboundCargoPort == null || GridService == null || BuildingManager == null)
-			return null;
-
-		GridCell cell = GridService.GetCell(outboundCargoPort.GridPosition);
-		if (cell == null || cell.BuildingId == 0 || BuildingManager.TryGetBuilding(cell.BuildingId, out Building sourceBuilding) == false || sourceBuilding == null)
-			return null;
-
-		return sourceBuilding.ResolveLinkedInboundPortTarget(from, zoneFilter);
-	}
-
 	public static NodeState SetSourceTarget(in BTContext ctx)
 	{
 		CargoTransferTask task = (CargoTransferTask)ctx.Worker.CurrentTask;
@@ -126,16 +101,14 @@ public sealed partial class CargoTransferTask : WorkerTask
 	public static NodeState SetTargetPort(in BTContext ctx)
 	{
 		CargoTransferTask task = (CargoTransferTask)ctx.Worker.CurrentTask;
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(ctx.Worker.CarryingAbility?.CarryingBox, ctx.Worker);
-		InboundCargoPort targetPort = task.ResolveTargetPort(ctx.Worker.GridPosition, zoneFilter);
-		if (targetPort == null)
+		if (task.targetPort == null || task.targetPort.CanPutBox() == false)
 		{
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
-		ctx.LocalBlackBoard.SetTargetBuilding(targetPort);
+		ctx.LocalBlackBoard.SetTargetBuilding(task.targetPort);
 		return Success;
 	}
 
@@ -155,7 +128,8 @@ public sealed partial class CargoTransferTask : WorkerTask
 		}
 
 		task.WorkerCarryBox.PutBox(box);
-		task.targetPort = null;
-		return Failure;
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+		return AIWorker.MoveToStandbyWhileWaiting(ctx);
 	}
 }

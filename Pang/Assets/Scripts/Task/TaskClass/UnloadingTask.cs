@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System;
-using UnityEngine;
+﻿using UnityEngine;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
@@ -10,8 +8,6 @@ public partial class UnloadingTask : WorkerTask
 	private CargoPort cargoPort;
 
 	private bool IsUnloadEnd = false;
-
-	static private CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
 
 	public UnloadingTask(Rocket rocket, CargoPort cargoPort = null) : base(TaskType.Unloading)
 	{
@@ -112,27 +108,15 @@ public partial class UnloadingTask : WorkerTask
 	public static NodeState SetZoneTarget(in BTContext ctx)
 	{
 		UnloadingTask task = (UnloadingTask)ctx.Worker.CurrentTask;
-		BoxBase box = task.WorkerCarryBox?.CarryingBox;
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(box, ctx.Worker);
-		if (task.cargoPort == null ||
-			task.cargoPort.CanPutBox() == false ||
-			zoneFilter.Matches(GameContext.Instance.ZoneMgr, task.cargoPort) == false)
+		if (task.cargoPort == null || task.cargoPort.CanPutBox() == false)
 		{
-			task.cargoPort = CargoPortService.FindClosestAvailablePortForBox(
-				ctx.Worker.GridPosition,
-				InteractionKind.Put,
-				box,
-				zoneFilter: zoneFilter,
-				predicate: candidate => candidate is InboundCargoPort);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.cargoPort);
-		if (task.cargoPort != null)
-			return Success;
-
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
-		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-		return AIWorker.MoveToStandbyWhileWaiting(ctx);
+		return Success;
 	}
 
 	public static NodeState PutOnBuffer(in BTContext ctx)
@@ -158,7 +142,9 @@ public partial class UnloadingTask : WorkerTask
 		}
 
 		task.WorkerCarryBox.PutBox(box);
-		return Failure;
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+		return AIWorker.MoveToStandbyWhileWaiting(ctx);
 	}
 
 }

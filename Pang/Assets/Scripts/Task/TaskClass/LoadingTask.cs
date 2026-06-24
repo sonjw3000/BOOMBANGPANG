@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
@@ -7,15 +6,16 @@ public partial class LoadingTask : WorkerTask
 {
 	private bool isLoadEnd = false;
 
-	private CargoPort targetPort = null;
+	private readonly CargoPort sourcePort;
+	private readonly LaunchStation targetStation;
 
-	static private LaunchStationService LaunchStationService => GameContext.Instance.OBWorkflowSvc.LaunchStationService;
-	static private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
-	static private GridService GridService => GameContext.Instance.GridService;
+	internal CargoPort SourcePort => sourcePort;
+	internal LaunchStation TargetStation => targetStation;
 
-	public LoadingTask(CargoPort cargoPort) : base(TaskType.Loading)
+	public LoadingTask(CargoPort sourcePort, LaunchStation targetStation) : base(TaskType.Loading)
 	{
-		this.targetPort = cargoPort;
+		this.sourcePort = sourcePort;
+		this.targetStation = targetStation;
 	}
 
 	protected override void OnTaskAssigned()
@@ -48,7 +48,7 @@ public partial class LoadingTask : WorkerTask
 
 	public override bool CanDispatchTo(AIWorker worker)
 	{
-		return CanDispatchToWorkerZones(worker, targetPort);
+		return CanDispatchToWorkerZones(worker, sourcePort, targetStation);
 	}
 
 #if UNITY_EDITOR
@@ -61,15 +61,18 @@ public partial class LoadingTask : WorkerTask
 	public override string GetStatusSummary()
 	{
 		if (isLoadEnd)
-			return $"CargoPort: {targetPort?.name ?? "None"}\nLoading complete.";
+			return $"CargoPort: {sourcePort?.name ?? "None"}\nLaunchStation: {targetStation?.name ?? "None"}\nLoading complete.";
 
-		return $"CargoPort: {targetPort?.name ?? "None"}\nMoving cargo to launch station.";
+		return $"CargoPort: {sourcePort?.name ?? "None"}\nLaunchStation: {targetStation?.name ?? "None"}\nMoving cargo to launch station.";
 	}
 
 	static private NodeState SetLoadTarget(in BTContext ctx)
 	{
 		var task = ctx.Worker.CurrentTask as LoadingTask;
-		ctx.LocalBlackBoard.SetTargetBuilding(task.targetPort);
+		if (task?.sourcePort == null)
+			return Failure;
+
+		ctx.LocalBlackBoard.SetTargetBuilding(task.sourcePort);
 
 		return Success;
 	}
@@ -80,7 +83,7 @@ public partial class LoadingTask : WorkerTask
 
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 
-		if (task.targetPort == null)
+		if (task.sourcePort == null)
 		{
 			Debug.LogError("No available load port found!");
 			// todo worker를 off 후 대기시켜야함
@@ -91,10 +94,10 @@ public partial class LoadingTask : WorkerTask
 		if (ctx.Worker.CarryingAbility == null || ctx.Worker.CarryingAbility.CarryingBox != null)
 			return Failure;
 
-		if (task.targetPort.GetBox(out BoxBase box) == false || ctx.Worker.CarryingAbility.PutBox(box) == false)
+		if (task.sourcePort.GetBox(out BoxBase box) == false || ctx.Worker.CarryingAbility.PutBox(box) == false)
 		{
 			if (box != null)
-				task.targetPort.PutBox(box);
+				task.sourcePort.PutBox(box);
 
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
@@ -107,10 +110,14 @@ public partial class LoadingTask : WorkerTask
 	static private NodeState SetLaunchStation(in BTContext ctx)
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(ctx.Worker.CarryingAbility?.CarryingBox, ctx.Worker);
-		var launchStation = GetLaunchStationForTask(task, ctx.Worker.GridPosition, InteractionKind.Put, zoneFilter);
+		if (task.targetStation == null)
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+		}
 
-		ctx.LocalBlackBoard.SetTargetBuilding(launchStation);
+		ctx.LocalBlackBoard.SetTargetBuilding(task.targetStation);
 		return Success;
 	}
 
@@ -118,11 +125,8 @@ public partial class LoadingTask : WorkerTask
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
 		var carryAbility = ctx.Worker.CarryingAbility;
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(carryAbility?.CarryingBox, ctx.Worker);
-		var launchStation = GetLaunchStationForTask(task, ctx.Worker.GridPosition, InteractionKind.Pick, zoneFilter);
-		if (launchStation == null)
+		if (task.targetStation == null)
 		{
-			// Future: launch station service should wake this worker when storage has room.
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 			Debug.LogError("No available launch station found!");
@@ -138,7 +142,7 @@ public partial class LoadingTask : WorkerTask
 			return Running;
 		}
 
-		launchStation.TryGetAddon<CargoStorageAddon>(out var pad);
+		task.targetStation.TryGetAddon<CargoStorageAddon>(out var pad);
 		if (pad == null || pad.CanStoreCargo(carryAbility.CarryingBox) == false)
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
@@ -152,27 +156,12 @@ public partial class LoadingTask : WorkerTask
 			if (box != null)
 				carryAbility.PutBox(box);
 
-			return Failure;
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
+			return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
 
 		task.isLoadEnd = true;
 		return Success;
-	}
-
-	private static LaunchStation GetLaunchStationForTask(LoadingTask task, in Unity.Mathematics.int3 from, InteractionKind interactionKind, ZoneFilter zoneFilter)
-	{
-		if (task?.targetPort != null)
-		{
-			GridCell targetCell = GridService?.GetCell(task.targetPort.GridPosition);
-			if (targetCell != null && targetCell.BuildingId != 0)
-			{
-				LaunchStationService.TryFindDestination(targetCell.BuildingId, from, interactionKind, zoneFilter, out LaunchStation localStation);
-				if (localStation != null)
-					return localStation;
-			}
-		}
-
-		LaunchStationService.TryFindDestination(0, from, interactionKind, zoneFilter, out LaunchStation globalStation);
-		return globalStation;
 	}
 }

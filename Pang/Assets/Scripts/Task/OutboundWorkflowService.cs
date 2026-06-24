@@ -76,7 +76,11 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (cargoPort is not OutboundCargoPort || cargoPort.CanGetBox() == false)
 			return;
 
-		TaskMgr.EnqueueTask(new LoadingTask(cargoPort));
+		LaunchStation targetStation = ResolveLoadingTargetStation(cargoPort);
+		if (targetStation == null)
+			return;
+
+		TaskMgr.EnqueueTask(new LoadingTask(cargoPort, targetStation));
 	}
 
 	private void Awake()
@@ -263,7 +267,26 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			return null;
 
 		int3 sourcePoint = ResolveInteractionOrigin(sourcePort, InteractionKind.Pick);
-		return sourceBuilding.ResolveLinkedInboundPortTarget(sourcePoint);
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(sourcePort.DockedCapsule);
+		return sourceBuilding.ResolveLinkedInboundPortTarget(sourcePoint, zoneFilter);
+	}
+
+	private LaunchStation ResolveLoadingTargetStation(CargoPort sourcePort)
+	{
+		if (sourcePort == null || launchStationService == null)
+			return null;
+
+		int3 sourcePoint = ResolveInteractionOrigin(sourcePort, InteractionKind.Pick);
+		ZoneFilter zoneFilter = ZoneFilter.ForContainer(sourcePort.DockedCapsule);
+		if (ResolveSourceBuilding(sourcePort, out Building sourceBuilding) &&
+			launchStationService.TryFindDestination(sourceBuilding.RuntimeBuildingId, sourcePoint, InteractionKind.Put, zoneFilter, out LaunchStation localStation))
+		{
+			return localStation;
+		}
+
+		return launchStationService.TryFindDestination(0, sourcePoint, InteractionKind.Put, zoneFilter, out LaunchStation globalStation)
+			? globalStation
+			: null;
 	}
 
 	private static int3 ResolveInteractionOrigin(BoxInteraction interactionTarget, InteractionKind interactionKind)
@@ -299,7 +322,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		}
 	}
 
-	private bool ResolveSourceBuilding(OutboundCargoPort sourcePort, out Building building)
+	private bool ResolveSourceBuilding(CargoPort sourcePort, out Building building)
 	{
 		building = null;
 		if (sourcePort == null || GridService == null || BuildingManager == null)

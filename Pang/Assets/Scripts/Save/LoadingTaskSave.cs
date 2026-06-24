@@ -7,7 +7,8 @@ public partial class LoadingTask
 	{
 		return new LoadingTaskSaveData
 		{
-			TargetPortId = targetPort != null && getPlaceableId != null ? getPlaceableId(targetPort.gameObject) : -1,
+			TargetPortId = SourcePort != null && getPlaceableId != null ? getPlaceableId(SourcePort.gameObject) : -1,
+			TargetStationId = TargetStation != null && getPlaceableId != null ? getPlaceableId(TargetStation.gameObject) : -1,
 			IsLoadEnd = isLoadEnd,
 		};
 	}

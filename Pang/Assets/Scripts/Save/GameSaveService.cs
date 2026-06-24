@@ -488,12 +488,14 @@ public static class TaskSaveDataExtensions
 {
 	public static UnloadingTask Restore(this UnloadingTaskSaveData data, Dictionary<int, GameObject> placeables)
 	{
-		if (data == null || placeables.TryGetValue(data.TargetRocketId, out var rocketObj) == false || rocketObj.TryGetComponent<Rocket>(out var rocket) == false)
+		if (data == null ||
+			placeables.TryGetValue(data.TargetRocketId, out var rocketObj) == false ||
+			rocketObj.TryGetComponent<Rocket>(out var rocket) == false ||
+			placeables.TryGetValue(data.CargoPortId, out var portObj) == false ||
+			portObj.TryGetComponent<CargoPort>(out var cargoPort) == false)
+		{
 			return null;
-
-		CargoPort cargoPort = null;
-		if (data.CargoPortId >= 0 && placeables.TryGetValue(data.CargoPortId, out var portObj))
-			portObj.TryGetComponent(out cargoPort);
+		}
 
 		UnloadingTask task = new(rocket, cargoPort);
 		task.RestoreState(cargoPort, data.IsUnloadEnd);
@@ -502,10 +504,16 @@ public static class TaskSaveDataExtensions
 
 	public static LoadingTask Restore(this LoadingTaskSaveData data, Dictionary<int, GameObject> placeables)
 	{
-		if (data == null || placeables.TryGetValue(data.TargetPortId, out var portObj) == false || portObj.TryGetComponent<CargoPort>(out var cargoPort) == false)
+		if (data == null ||
+			placeables.TryGetValue(data.TargetPortId, out var portObj) == false ||
+			portObj.TryGetComponent<CargoPort>(out var cargoPort) == false ||
+			placeables.TryGetValue(data.TargetStationId, out var stationObj) == false ||
+			stationObj.TryGetComponent<LaunchStation>(out var targetStation) == false)
+		{
 			return null;
+		}
 
-		LoadingTask task = new(cargoPort);
+		LoadingTask task = new(cargoPort, targetStation);
 		task.RestoreState(data.IsLoadEnd);
 		return task;
 	}
@@ -541,18 +549,24 @@ public static class TaskSaveDataExtensions
 
 	public static WorkerTask Restore(this CapsuleTransferTaskSaveData data, Dictionary<int, GameObject> placeables)
 	{
-		if (data == null || placeables.TryGetValue(data.SourcePlaceableId, out var sourceObj) == false)
+		if (data == null ||
+			placeables.TryGetValue(data.SourcePlaceableId, out var sourceObj) == false ||
+			placeables.TryGetValue(data.TargetPlaceableId, out var targetObj) == false)
+		{
 			return null;
+		}
 
 		if (data.IsInbound)
 		{
 			return sourceObj.TryGetComponent<InboundCargoPort>(out var inboundCargoPort)
-				? new IBTask(inboundCargoPort, data.BuildingId)
+				&& targetObj.TryGetComponent<CapsuleBuffer>(out var targetBuffer)
+				? new IBTask(inboundCargoPort, data.BuildingId, targetBuffer)
 				: null;
 		}
 
 		return sourceObj.TryGetComponent<CapsuleBuffer>(out var capsuleBuffer)
-			? new OBTask(capsuleBuffer, data.BuildingId)
+			&& targetObj.TryGetComponent<OutboundCargoPort>(out var targetPort)
+			? new OBTask(capsuleBuffer, data.BuildingId, targetPort)
 			: null;
 	}
 
@@ -568,15 +582,14 @@ public static class TaskSaveDataExtensions
 
 	public static CargoTransferTask Restore(this CargoTransferTaskSaveData data, Dictionary<int, GameObject> placeables)
 	{
-		if (data == null || placeables.TryGetValue(data.SourcePortId, out var sourceObj) == false || sourceObj.TryGetComponent<OutboundCargoPort>(out var sourcePort) == false)
-			return null;
-
-		InboundCargoPort targetPort = null;
-		if (data.TargetPortId >= 0 &&
-			placeables.TryGetValue(data.TargetPortId, out var targetObj) &&
-			targetObj.TryGetComponent(out InboundCargoPort restoredTargetPort))
+		if (data == null ||
+			placeables.TryGetValue(data.SourcePortId, out var sourceObj) == false ||
+			sourceObj.TryGetComponent<OutboundCargoPort>(out var sourcePort) == false ||
+			data.TargetPortId < 0 ||
+			placeables.TryGetValue(data.TargetPortId, out var targetObj) == false ||
+			targetObj.TryGetComponent<InboundCargoPort>(out var targetPort) == false)
 		{
-			targetPort = restoredTargetPort;
+			return null;
 		}
 
 		return new CargoTransferTask(sourcePort, targetPort);
