@@ -1,139 +1,279 @@
-using System.Text;
+using System;
 using System.Collections.Generic;
-using TMPro;
+using System.Text;
+using Assets.Scripts.UI;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 {
-	[SerializeField] private ZoneDetailLayoutView layoutPrefab = null;
-	[SerializeField] private LabelButtonRowView facilityRowPrefab = null;
+	protected override bool UseDefaultTabs => false;
 
-	private ZoneDetailLayoutView layoutView;
-	private readonly List<GameObject> facilityRows = new();
+	private enum ZoneDetailTab
+	{
+		Info,
+		Rules,
+		Action,
+	}
+
+	private static readonly ItemTag[] ItemTagOptions =
+	{
+		ItemTag.Fragile,
+		ItemTag.Food,
+		ItemTag.Danger,
+		ItemTag.Electric,
+	};
+
+	private static readonly WorkerAbility[] WorkerAbilityOptions =
+	{
+		WorkerAbility.CarryBox,
+		WorkerAbility.PickingStoring,
+		WorkerAbility.Packing,
+		WorkerAbility.Labeling,
+		WorkerAbility.CargoHandling,
+	};
+
+	private static readonly WorkerKind[] WorkerKindOptions =
+	{
+		WorkerKind.None,
+		WorkerKind.Human,
+		WorkerKind.Robot,
+	};
+
+	private static readonly HumanType[] HumanTypeOptions =
+	{
+		HumanType.FullTime,
+		HumanType.PartTime,
+		HumanType.Illegal,
+	};
+
+	private static readonly RobotType[] RobotTypeOptions =
+	{
+		RobotType.Transfer,
+	};
+
+	private const int DefaultPriorityOptionMax = 10;
+
+	[SerializeField] private RectTransform infoTabRoot = null;
+	[SerializeField] private RectTransform rulesTabRoot = null;
+	[SerializeField] private RectTransform actionTabRoot = null;
+	[SerializeField] private ZoneDetailLayoutView layoutView = null;
+	[SerializeField] private ZoneRuleEditorView ruleEditorView = null;
+	[SerializeField] private TextButtonView deleteZoneButton = null;
+
 	private SelectionUIMaster selectionUIMaster;
+	private UIWindow window;
+	private bool rulesUiBound;
+	private bool suppressRuleEvents;
 	private string lastFacilityListSignature;
+	private int currentPriorityOptionMax = -1;
 
 	protected override void LinkData()
 	{
-		EnsureLayout();
-		RebuildFacilityRows();
+		EnsureWindow();
+		BindRuleEditor();
+		BindActionTab();
+		SetupTabs();
+		SetTab((int)ZoneDetailTab.Info);
 		UpdateData();
 	}
 
 	protected override void UpdateData()
 	{
-		var zoneProvider = provider as ZoneUIProvider;
-		var zone = zoneProvider?.Target?.Zone;
+		ZoneArea zone = GetZone();
 		if (zone == null)
 			return;
 
-		EnsureLayout();
-		if (layoutView == null || layoutView.NameText == null)
+		UpdateInfoTab(zone);
+		UpdateRulesTab(zone);
+	}
+
+	private void EnsureWindow()
+	{
+		if (window == null)
+			window = GetComponentInParent<UIWindow>(true);
+	}
+
+	private void SetupTabs()
+	{
+		if (window == null)
 			return;
 
-		layoutView.NameText.text = zone.DisplayName;
+		window.ClearTabs();
+		window.AddTab("Info", SetTab);
+		window.AddTab("Rules", SetTab);
+		window.AddTab("Action", SetTab);
+		window.UpdateTabVisuals(0);
+	}
+
+	private void SetTab(int tabIndex)
+	{
+		if (infoTabRoot != null)
+			infoTabRoot.gameObject.SetActive(tabIndex == (int)ZoneDetailTab.Info);
+		if (rulesTabRoot != null)
+			rulesTabRoot.gameObject.SetActive(tabIndex == (int)ZoneDetailTab.Rules);
+		if (actionTabRoot != null)
+			actionTabRoot.gameObject.SetActive(tabIndex == (int)ZoneDetailTab.Action);
+
+		window?.UpdateTabVisuals(tabIndex);
+	}
+
+	private void BindRuleEditor()
+	{
+		if (ruleEditorView == null || rulesUiBound)
+			return;
+
+		BindDropdown(ruleEditorView.PriorityDropdownRow, HandlePriorityChanged);
+		BindDropdown(ruleEditorView.WorkerKindDropdownRow, HandleWorkerKindChanged);
+		SetDropdownOptions(ruleEditorView.WorkerKindDropdownRow, WorkerKindOptions);
+
+		BindToggleRows(ruleEditorView.RequiredItemTagToggles, ItemTagOptions, HandleRequiredItemTagChanged);
+		BindToggleRows(ruleEditorView.ForbiddenItemTagToggles, ItemTagOptions, HandleForbiddenItemTagChanged);
+		BindToggleRows(ruleEditorView.RequiredWorkerAbilityToggles, WorkerAbilityOptions, HandleRequiredWorkerAbilityChanged);
+		BindToggleRows(ruleEditorView.RequiredHumanTypeToggles, HumanTypeOptions, HandleRequiredHumanTypeChanged);
+		BindToggleRows(ruleEditorView.ForbiddenHumanTypeToggles, HumanTypeOptions, HandleForbiddenHumanTypeChanged);
+		BindToggleRows(ruleEditorView.RequiredRobotTypeToggles, RobotTypeOptions, HandleRequiredRobotTypeChanged);
+		BindToggleRows(ruleEditorView.ForbiddenRobotTypeToggles, RobotTypeOptions, HandleForbiddenRobotTypeChanged);
+
+		ruleEditorView.ClearWhiteListButton?.Configure("Clear White List", HandleClearWhiteListClicked);
+		ruleEditorView.ClearBlackListButton?.Configure("Clear Black List", HandleClearBlackListClicked);
+		ruleEditorView.ResetRuleButton?.Configure("Reset Entire Rule", HandleResetRuleClicked);
+
+		rulesUiBound = true;
+	}
+
+	private void BindActionTab()
+	{
+		deleteZoneButton?.Configure("Delete Zone", () => provider?.DeleteObject());
+	}
+
+	private void UpdateInfoTab(ZoneArea zone)
+	{
+		if (layoutView == null)
+			return;
+
+		if (layoutView.NameText != null)
+			layoutView.NameText.text = zone.DisplayName;
 		if (layoutView.TypeText != null)
 			layoutView.TypeText.text = zone.Type.ToString();
-
 		if (layoutView.BoundsText != null)
 		{
 			RectInt bounds = zone.Bounds;
 			layoutView.BoundsText.text = $"Bounds: {bounds.width}x{bounds.height} @ {bounds.xMin}, {bounds.yMin}  Floor: {zone.Floor}";
 		}
-
 		if (layoutView.FacilitiesHeaderText != null)
 			layoutView.FacilitiesHeaderText.text = "Facilities";
-
 		if (layoutView.FacilitiesPlaceholderText != null)
 		{
-			layoutView.FacilitiesPlaceholderText.text = zone.OccupiedFacilities.Count > 0
-				? "Select a facility to inspect details."
-				: "No facilities in this zone.";
+			layoutView.FacilitiesPlaceholderText.text = BuildFacilitiesPlaceholder(zone);
 		}
 
-		RebuildFacilityRowsIfNeeded(zone);
+		RefreshFacilityRowsIfNeeded(zone);
 	}
-	private void EnsureLayout()
+
+	private void UpdateRulesTab(ZoneArea zone)
 	{
-		if (layoutView != null)
+		if (ruleEditorView == null)
 			return;
 
-		if (layoutPrefab == null)
+		ZoneRule rule = zone.Rule ?? new ZoneRule();
+		ZoneItemRule itemRule = rule.ItemRule ?? new ZoneItemRule();
+		ZoneWorkerRule workerRule = rule.WorkerRule ?? new ZoneWorkerRule();
+
+		suppressRuleEvents = true;
+		try
 		{
-			Debug.LogError("[ZoneDetailContent] Layout prefab is missing.", this);
-			return;
-		}
+			RefreshPriorityDropdown(rule.Priority);
+			SetDropdownIndex(ruleEditorView.WorkerKindDropdownRow, WorkerKindOptions, workerRule.RequiredWorkerKind);
 
-		layoutView = Instantiate(layoutPrefab, InfoTabRoot);
-		layoutView.name = "ZoneDetailLayout";
-		if (layoutView.TypeText != null)
-			layoutView.TypeText.color = new Color(0.8f, 0.86f, 0.94f, 1f);
-		if (layoutView.BoundsText != null)
-			layoutView.BoundsText.color = new Color(0.82f, 0.86f, 0.9f, 1f);
-		if (layoutView.FacilitiesPlaceholderText != null)
-			layoutView.FacilitiesPlaceholderText.color = new Color(0.82f, 0.86f, 0.9f, 1f);
+			ApplyFlagToggles(ruleEditorView.RequiredItemTagToggles, ItemTagOptions, itemRule.RequiredItemTags);
+			ApplyFlagToggles(ruleEditorView.ForbiddenItemTagToggles, ItemTagOptions, itemRule.ForbiddenItemTags);
+			ApplyFlagToggles(ruleEditorView.RequiredWorkerAbilityToggles, WorkerAbilityOptions, workerRule.RequiredWorkerAbility);
+			ApplyListToggles(ruleEditorView.RequiredHumanTypeToggles, HumanTypeOptions, workerRule.RequiredHumanTypes);
+			ApplyListToggles(ruleEditorView.ForbiddenHumanTypeToggles, HumanTypeOptions, workerRule.ForbiddenHumanTypes);
+			ApplyListToggles(ruleEditorView.RequiredRobotTypeToggles, RobotTypeOptions, workerRule.RequiredRobotTypes);
+			ApplyListToggles(ruleEditorView.ForbiddenRobotTypeToggles, RobotTypeOptions, workerRule.ForbiddenRobotTypes);
+
+			if (ruleEditorView.WhiteListSummaryRow?.Text != null)
+				ruleEditorView.WhiteListSummaryRow.Text.text = BuildItemListSummary("White List", itemRule.WhiteList);
+			if (ruleEditorView.BlackListSummaryRow?.Text != null)
+				ruleEditorView.BlackListSummaryRow.Text.text = BuildItemListSummary("Black List", itemRule.BlackList);
+
+			if (ruleEditorView.ClearWhiteListButton?.Button != null)
+				ruleEditorView.ClearWhiteListButton.Button.interactable = itemRule.WhiteList != null && itemRule.WhiteList.Count > 0;
+			if (ruleEditorView.ClearBlackListButton?.Button != null)
+				ruleEditorView.ClearBlackListButton.Button.interactable = itemRule.BlackList != null && itemRule.BlackList.Count > 0;
+		}
+		finally
+		{
+			suppressRuleEvents = false;
+		}
 	}
 
-	private void RebuildFacilityRowsIfNeeded(ZoneArea zone)
+	private void RefreshPriorityDropdown(int priority)
+	{
+		if (ruleEditorView?.PriorityDropdownRow?.Dropdown == null)
+			return;
+
+		int maxPriority = Mathf.Max(DefaultPriorityOptionMax, priority);
+		if (currentPriorityOptionMax != maxPriority)
+		{
+			currentPriorityOptionMax = maxPriority;
+			List<string> options = new();
+			for (int i = 0; i <= currentPriorityOptionMax; ++i)
+				options.Add(i.ToString());
+
+			ruleEditorView.PriorityDropdownRow.Dropdown.ClearOptions();
+			ruleEditorView.PriorityDropdownRow.Dropdown.AddOptions(options);
+		}
+
+		ruleEditorView.PriorityDropdownRow.Dropdown.SetValueWithoutNotify(Mathf.Clamp(priority, 0, currentPriorityOptionMax));
+	}
+
+	private void RefreshFacilityRowsIfNeeded(ZoneArea zone)
 	{
 		string signature = BuildFacilityListSignature(zone);
 		if (lastFacilityListSignature == signature)
 			return;
 
-		RebuildFacilityRows();
+		ApplyFacilityRows(zone);
 		lastFacilityListSignature = signature;
 	}
 
-	private void RebuildFacilityRows()
+	private void ApplyFacilityRows(ZoneArea zone)
 	{
-		ClearFacilityRows();
-
-		var zoneProvider = provider as ZoneUIProvider;
-		ZoneArea zone = zoneProvider?.Target?.Zone;
-		if (zone == null || layoutView == null || layoutView.FacilitiesListRoot == null)
+		if (layoutView == null)
 			return;
 
-		for (int i = 0; i < zone.OccupiedFacilities.Count; ++i)
-		{
-			IFacility facility = zone.OccupiedFacilities[i];
-			if (facility is not Component component || component == null)
-				continue;
-
-			CreateFacilityRow(component);
-		}
-	}
-
-	private void CreateFacilityRow(Component facilityComponent)
-	{
-		if (facilityRowPrefab == null || layoutView == null)
-		{
-			Debug.LogError("[ZoneDetailContent] Facility row prefab is missing.", this);
+		LabelButtonRowView[] rows = layoutView.FacilityRows;
+		if (rows == null || rows.Length == 0)
 			return;
-		}
 
-		LabelButtonRowView row = Instantiate(facilityRowPrefab, layoutView.FacilitiesListRoot);
-		row.name = facilityComponent.name + "Row";
-		facilityRows.Add(row.gameObject);
-
-		if (row.LabelText != null)
-			row.LabelText.text = facilityComponent.name;
-
-		row.ActionButton?.Configure("View Details", () => HandleViewFacilityDetailsClicked(facilityComponent.gameObject));
-	}
-
-	private void ClearFacilityRows()
-	{
-		for (int i = 0; i < facilityRows.Count; ++i)
+		for (int i = 0; i < rows.Length; ++i)
 		{
-			GameObject row = facilityRows[i];
+			LabelButtonRowView row = rows[i];
 			if (row == null)
 				continue;
 
-			row.SetActive(false);
-			Destroy(row);
-		}
+			bool hasFacility = zone != null && i < zone.OccupiedFacilities.Count;
+			row.gameObject.SetActive(hasFacility);
+			if (hasFacility == false)
+				continue;
 
-		facilityRows.Clear();
+			IFacility facility = zone.OccupiedFacilities[i];
+			if (facility is not Component component || component == null)
+			{
+				row.gameObject.SetActive(false);
+				continue;
+			}
+
+			row.name = component.name + "Row";
+			if (row.LabelText != null)
+				row.LabelText.text = component.name;
+			row.ActionButton?.Configure("View Details", () => HandleViewFacilityDetailsClicked(component.gameObject));
+			if (row.ActionButton?.Button != null)
+				row.ActionButton.Button.interactable = true;
+		}
 	}
 
 	private void HandleViewFacilityDetailsClicked(GameObject facilityObject)
@@ -145,6 +285,178 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 		selectionUIMaster?.OpenDetailWindow(facilityObject);
 	}
 
+	private void HandlePriorityChanged(int index)
+	{
+		if (suppressRuleEvents)
+			return;
+
+		ApplyRuleMutation(rule => rule.SetPriority(index));
+	}
+
+	private void HandleWorkerKindChanged(int index)
+	{
+		if (suppressRuleEvents || index < 0 || index >= WorkerKindOptions.Length)
+			return;
+
+		ApplyRuleMutation(rule =>
+		{
+			ZoneWorkerRule workerRule = new(rule.WorkerRule);
+			workerRule.SetRequiredWorkerKind(WorkerKindOptions[index]);
+			rule.SetWorkerRule(workerRule);
+		});
+	}
+
+	private void HandleRequiredItemTagChanged(ItemTag tag, bool isOn)
+	{
+		if (suppressRuleEvents)
+			return;
+
+		ApplyRuleMutation(rule =>
+		{
+			ZoneItemRule itemRule = new(rule.ItemRule);
+			itemRule.SetRequiredItemTags(isOn ? itemRule.RequiredItemTags | tag : itemRule.RequiredItemTags & ~tag);
+			rule.SetItemRule(itemRule);
+		});
+	}
+
+	private void HandleForbiddenItemTagChanged(ItemTag tag, bool isOn)
+	{
+		if (suppressRuleEvents)
+			return;
+
+		ApplyRuleMutation(rule =>
+		{
+			ZoneItemRule itemRule = new(rule.ItemRule);
+			itemRule.SetForbiddenItemTags(isOn ? itemRule.ForbiddenItemTags | tag : itemRule.ForbiddenItemTags & ~tag);
+			rule.SetItemRule(itemRule);
+		});
+	}
+
+	private void HandleRequiredWorkerAbilityChanged(WorkerAbility ability, bool isOn)
+	{
+		if (suppressRuleEvents)
+			return;
+
+		ApplyRuleMutation(rule =>
+		{
+			ZoneWorkerRule workerRule = new(rule.WorkerRule);
+			workerRule.SetRequiredWorkerAbility(isOn
+				? workerRule.RequiredWorkerAbility | ability
+				: workerRule.RequiredWorkerAbility & ~ability);
+			rule.SetWorkerRule(workerRule);
+		});
+	}
+
+	private void HandleRequiredHumanTypeChanged(HumanType humanType, bool isOn)
+	{
+		if (suppressRuleEvents)
+			return;
+
+		ApplyRuleMutation(rule =>
+		{
+			ZoneWorkerRule workerRule = new(rule.WorkerRule);
+			List<HumanType> values = new(workerRule.RequiredHumanTypes);
+			SetListValue(values, humanType, isOn);
+			workerRule.SetRequiredHumanTypes(values);
+			rule.SetWorkerRule(workerRule);
+		});
+	}
+
+	private void HandleForbiddenHumanTypeChanged(HumanType humanType, bool isOn)
+	{
+		if (suppressRuleEvents)
+			return;
+
+		ApplyRuleMutation(rule =>
+		{
+			ZoneWorkerRule workerRule = new(rule.WorkerRule);
+			List<HumanType> values = new(workerRule.ForbiddenHumanTypes);
+			SetListValue(values, humanType, isOn);
+			workerRule.SetForbiddenHumanTypes(values);
+			rule.SetWorkerRule(workerRule);
+		});
+	}
+
+	private void HandleRequiredRobotTypeChanged(RobotType robotType, bool isOn)
+	{
+		if (suppressRuleEvents)
+			return;
+
+		ApplyRuleMutation(rule =>
+		{
+			ZoneWorkerRule workerRule = new(rule.WorkerRule);
+			List<RobotType> values = new(workerRule.RequiredRobotTypes);
+			SetListValue(values, robotType, isOn);
+			workerRule.SetRequiredRobotTypes(values);
+			rule.SetWorkerRule(workerRule);
+		});
+	}
+
+	private void HandleForbiddenRobotTypeChanged(RobotType robotType, bool isOn)
+	{
+		if (suppressRuleEvents)
+			return;
+
+		ApplyRuleMutation(rule =>
+		{
+			ZoneWorkerRule workerRule = new(rule.WorkerRule);
+			List<RobotType> values = new(workerRule.ForbiddenRobotTypes);
+			SetListValue(values, robotType, isOn);
+			workerRule.SetForbiddenRobotTypes(values);
+			rule.SetWorkerRule(workerRule);
+		});
+	}
+
+	private void HandleClearWhiteListClicked()
+	{
+		ApplyRuleMutation(rule =>
+		{
+			ZoneItemRule itemRule = new(rule.ItemRule);
+			itemRule.SetWhiteList(Array.Empty<ItemDefinition>());
+			rule.SetItemRule(itemRule);
+		});
+	}
+
+	private void HandleClearBlackListClicked()
+	{
+		ApplyRuleMutation(rule =>
+		{
+			ZoneItemRule itemRule = new(rule.ItemRule);
+			itemRule.SetBlackList(Array.Empty<ItemDefinition>());
+			rule.SetItemRule(itemRule);
+		});
+	}
+
+	private void HandleResetRuleClicked()
+	{
+		ApplyRuleMutation(rule => rule.Clear());
+	}
+
+	private void ApplyRuleMutation(Action<ZoneRule> mutator)
+	{
+		if (mutator == null)
+			return;
+
+		ZoneArea zone = GetZone();
+		ZoneManager zoneManager = GetZoneManager();
+		if (zone == null || zoneManager == null)
+			return;
+
+		ZoneRule nextRule = new(zone.Rule);
+		mutator(nextRule);
+		zoneManager.SetZoneRule(zone, nextRule);
+	}
+
+	private ZoneArea GetZone()
+	{
+		return (provider as ZoneUIProvider)?.Target?.Zone;
+	}
+
+	private ZoneManager GetZoneManager()
+	{
+		return (provider as ZoneUIProvider)?.Target?.ZoneManager;
+	}
+
 	private void EnsureSelectionUIMaster()
 	{
 		if (selectionUIMaster == null)
@@ -154,12 +466,163 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 			selectionUIMaster = FindFirstObjectByType<SelectionUIMaster>(FindObjectsInactive.Include);
 	}
 
-	private static string BuildFacilityListSignature(ZoneArea zone)
+	private static void BindDropdown(DropdownRowView rowView, UnityEngine.Events.UnityAction<int> onChanged)
+	{
+		if (rowView?.Dropdown == null)
+			return;
+
+		rowView.Dropdown.onValueChanged.RemoveAllListeners();
+		if (onChanged != null)
+			rowView.Dropdown.onValueChanged.AddListener(onChanged);
+	}
+
+	private static void BindToggleRows<T>(ToggleRowView[] rows, IReadOnlyList<T> values, Action<T, bool> onChanged)
+	{
+		if (rows == null)
+			return;
+
+		for (int i = 0; i < rows.Length && i < values.Count; ++i)
+		{
+			ToggleRowView row = rows[i];
+			if (row?.Toggle == null)
+				continue;
+
+			T value = values[i];
+			row.Toggle.onValueChanged.RemoveAllListeners();
+			row.Toggle.onValueChanged.AddListener(isOn => onChanged?.Invoke(value, isOn));
+		}
+	}
+
+	private static void ApplyFlagToggles<TEnum>(ToggleRowView[] rows, IReadOnlyList<TEnum> values, TEnum currentFlags)
+		where TEnum : Enum
+	{
+		if (rows == null)
+			return;
+
+		long currentValue = Convert.ToInt64(currentFlags);
+		for (int i = 0; i < rows.Length && i < values.Count; ++i)
+		{
+			ToggleRowView row = rows[i];
+			if (row?.Toggle == null)
+				continue;
+
+			long flagValue = Convert.ToInt64(values[i]);
+			bool isOn = flagValue != 0 && (currentValue & flagValue) == flagValue;
+			row.Toggle.SetIsOnWithoutNotify(isOn);
+		}
+	}
+
+	private static void ApplyListToggles<T>(ToggleRowView[] rows, IReadOnlyList<T> values, IReadOnlyList<T> selectedValues)
+	{
+		if (rows == null)
+			return;
+
+		HashSet<T> selectedSet = selectedValues != null ? new HashSet<T>(selectedValues) : null;
+		for (int i = 0; i < rows.Length && i < values.Count; ++i)
+		{
+			ToggleRowView row = rows[i];
+			if (row?.Toggle == null)
+				continue;
+
+			row.Toggle.SetIsOnWithoutNotify(selectedSet != null && selectedSet.Contains(values[i]));
+		}
+	}
+
+	private static void SetDropdownOptions<T>(DropdownRowView rowView, IReadOnlyList<T> values)
+	{
+		if (rowView?.Dropdown == null)
+			return;
+
+		rowView.Dropdown.ClearOptions();
+		List<string> options = new();
+		for (int i = 0; i < values.Count; ++i)
+			options.Add(values[i].ToString());
+
+		rowView.Dropdown.AddOptions(options);
+	}
+
+	private static void SetDropdownIndex<T>(DropdownRowView rowView, IReadOnlyList<T> values, T currentValue)
+	{
+		if (rowView?.Dropdown == null)
+			return;
+
+		int selectedIndex = 0;
+		EqualityComparer<T> comparer = EqualityComparer<T>.Default;
+		for (int i = 0; i < values.Count; ++i)
+		{
+			if (comparer.Equals(values[i], currentValue))
+			{
+				selectedIndex = i;
+				break;
+			}
+		}
+
+		rowView.Dropdown.SetValueWithoutNotify(selectedIndex);
+	}
+
+	private static void SetListValue<T>(List<T> values, T value, bool isOn)
+	{
+		if (isOn)
+		{
+			if (values.Contains(value) == false)
+				values.Add(value);
+			return;
+		}
+
+		values.Remove(value);
+	}
+
+	private static string BuildItemListSummary(string label, IReadOnlyList<ItemDefinition> items)
+	{
+		if (items == null || items.Count == 0)
+			return $"{label}: none";
+
+		StringBuilder builder = new();
+		builder.Append(label);
+		builder.Append(": ");
+		builder.Append(items.Count);
+		builder.Append(" item(s)");
+
+		int printed = 0;
+		for (int i = 0; i < items.Count && printed < 3; ++i)
+		{
+			ItemDefinition item = items[i];
+			if (item == null)
+				continue;
+
+			builder.Append(printed == 0 ? " - " : ", ");
+			builder.Append(item.name);
+			printed++;
+		}
+
+		if (items.Count > printed)
+			builder.Append(", ...");
+
+		return builder.ToString();
+	}
+
+	private string BuildFacilitiesPlaceholder(ZoneArea zone)
 	{
 		if (zone == null || zone.OccupiedFacilities.Count <= 0)
+			return "No facilities in this zone.";
+
+		int visibleCapacity = layoutView?.FacilityRows != null ? layoutView.FacilityRows.Length : 0;
+		if (visibleCapacity > 0 && zone.OccupiedFacilities.Count > visibleCapacity)
+			return $"Showing first {visibleCapacity} of {zone.OccupiedFacilities.Count} facilities.";
+
+		return "Select a facility to inspect details.";
+	}
+
+	private static string BuildFacilityListSignature(ZoneArea zone)
+	{
+		if (zone == null)
 			return string.Empty;
 
 		StringBuilder builder = new();
+		builder.Append(zone.RuntimeBuildingId);
+		builder.Append(':');
+		builder.Append(zone.DisplayName);
+		builder.Append(':');
 		for (int i = 0; i < zone.OccupiedFacilities.Count; ++i)
 		{
 			IFacility facility = zone.OccupiedFacilities[i];

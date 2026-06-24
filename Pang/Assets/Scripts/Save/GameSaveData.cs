@@ -176,6 +176,35 @@ public sealed class ZoneSaveData
 	public uint RuntimeBuildingId;
 	public int Floor;
 	public RectIntSaveData Bounds = new();
+	public ZoneRuleSaveData Rule = new();
+}
+
+[Serializable]
+public sealed class ZoneRuleSaveData
+{
+	public int Priority;
+	public ZoneItemRuleSaveData ItemRule = new();
+	public ZoneWorkerRuleSaveData WorkerRule = new();
+}
+
+[Serializable]
+public sealed class ZoneItemRuleSaveData
+{
+	public ItemTag RequiredItemTags = ItemTag.None;
+	public ItemTag ForbiddenItemTags = ItemTag.None;
+	public List<uint> WhiteListItemIds = new();
+	public List<uint> BlackListItemIds = new();
+}
+
+[Serializable]
+public sealed class ZoneWorkerRuleSaveData
+{
+	public WorkerKind RequiredWorkerKind = WorkerKind.None;
+	public List<HumanType> RequiredHumanTypes = new();
+	public List<HumanType> ForbiddenHumanTypes = new();
+	public List<RobotType> RequiredRobotTypes = new();
+	public List<RobotType> ForbiddenRobotTypes = new();
+	public WorkerAbility RequiredWorkerAbility = WorkerAbility.None;
 }
 
 [Serializable]

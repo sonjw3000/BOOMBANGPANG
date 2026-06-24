@@ -43,7 +43,6 @@ public class SelectionUIMaster : MonoBehaviour
 	[Header("Detail Contents")]
 	[SerializeField] private DetailContentBase[] detailContents;
 	[SerializeField] private BuildingDetailContent buildingDetailContentPrefab;
-	[SerializeField] private ZoneDetailContent zoneDetailContentPrefab;
 	[SerializeField] private AirlockDetailContent airlockDetailContentPrefab;
 
 	[Header("World Highlight")]
@@ -85,7 +84,6 @@ public class SelectionUIMaster : MonoBehaviour
 		providerTypes.Add(typeof(ZoneUIProvider));
 		providerTypes.Add(typeof(BuildingUIProvider));
 
-		EnsureRuntimeZoneDetailContent();
 		EnsureRuntimeBuildingDetailContent();
 		EnsureRuntimeAirlockDetailContent();
 		EnsureRuntimeCapsuleBufferDetailContent();
@@ -325,11 +323,6 @@ public class SelectionUIMaster : MonoBehaviour
 	private void EnsureRuntimeBuildingDetailContent()
 	{
 		EnsureRuntimeDetailContent(buildingDetailContentPrefab, "RuntimeBuildingDetailContent");
-	}
-
-	private void EnsureRuntimeZoneDetailContent()
-	{
-		EnsureRuntimeDetailContent(zoneDetailContentPrefab, "RuntimeZoneDetailContent");
 	}
 
 	private void EnsureModeDependencies()

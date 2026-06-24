@@ -5949,20 +5949,31 @@ MonoBehaviour:
   - {fileID: 2588224612901135007}
   - {fileID: 6301184221576649931}
   buildingDetailContentPrefab: {fileID: 6696425890881901875, guid: acc85eab220a95c4290fcb467a187545, type: 3}
-  zoneDetailContentPrefab: {fileID: 1661096378977446707, guid: d5a0464e365ebc9458982c327c652ef6, type: 3}
   airlockDetailContentPrefab: {fileID: 2417450474382095622, guid: b6ba0662e3716234e981019b290c24fd, type: 3}
-  selectedTilePrefab: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
-  interactionTilePrefab: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
-  interactionLabelPrefab: {fileID: 332711428261118799, guid: 34cb7ef3efcff6c4099dfb58d514ea84, type: 3}
+  highlightVisuals:
+    _serializedList:
+    - Key: 0
+      Value:
+        Prefab: {fileID: 0}
+        Height: 0.03
+        Scale: {x: 1.08, y: 1, z: 1.08}
+        FontSize: 0
+        Color: {r: 1, g: 1, b: 1, a: 1}
+    - Key: 1
+      Value:
+        Prefab: {fileID: 0}
+        Height: 0.035
+        Scale: {x: 0.72, y: 1, z: 0.72}
+        FontSize: 0
+        Color: {r: 1, g: 1, b: 1, a: 1}
+    - Key: 2
+      Value:
+        Prefab: {fileID: 0}
+        Height: 0.04
+        Scale: {x: 0.2, y: 0.2, z: 0.2}
+        FontSize: 3.6
+        Color: {r: 1, g: 1, b: 1, a: 1}
   interactionModeHudPrefab: {fileID: 5353290070793651210, guid: c02309a4a793c0c46bbc62087fcd287f, type: 3}
-  selectedTileHeight: 0.03
-  interactionTileHeight: 0.035
-  interactionLabelHeight: 0.04
-  selectedTileScale: {x: 1.08, y: 1, z: 1.08}
-  interactionTileScale: {x: 0.72, y: 1, z: 0.72}
-  interactionLabelFontSize: 3.6
-  interactionLabelScale: 0.2
-  interactionLabelColor: {r: 1, g: 1, b: 1, a: 1}
   interactionHighlightPoolSize: 8
   zoneOverlayController: {fileID: 0}
   buildingPlacementOverlayController: {fileID: 0}

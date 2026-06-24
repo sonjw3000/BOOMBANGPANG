@@ -33,6 +33,7 @@ public class ZoneArea
 
 	public void Resize(in RectInt bound) => this.bound = bound;
 	public void Rename(string newDisplayName) => displayName = newDisplayName;
+	public void SetRule(ZoneRule rule) => zoneRule = rule != null ? new ZoneRule(rule) : new ZoneRule();
 
 	public bool RegisterFacility(IFacility facility)
 	{

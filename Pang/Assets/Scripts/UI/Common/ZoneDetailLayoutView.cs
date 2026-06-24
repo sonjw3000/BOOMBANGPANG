@@ -8,6 +8,7 @@ public sealed class ZoneDetailLayoutView : MonoBehaviour
 	[SerializeField] private TextMeshProUGUI boundsText = null;
 	[SerializeField] private TextMeshProUGUI facilitiesHeaderText = null;
 	[SerializeField] private RectTransform facilitiesListRoot = null;
+	[SerializeField] private LabelButtonRowView[] facilityRows = null;
 	[SerializeField] private TextMeshProUGUI facilitiesPlaceholderText = null;
 
 	public TextMeshProUGUI NameText => nameText;
@@ -15,5 +16,6 @@ public sealed class ZoneDetailLayoutView : MonoBehaviour
 	public TextMeshProUGUI BoundsText => boundsText;
 	public TextMeshProUGUI FacilitiesHeaderText => facilitiesHeaderText;
 	public RectTransform FacilitiesListRoot => facilitiesListRoot;
+	public LabelButtonRowView[] FacilityRows => facilityRows;
 	public TextMeshProUGUI FacilitiesPlaceholderText => facilitiesPlaceholderText;
 }
