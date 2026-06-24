@@ -18,6 +18,7 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 	[SerializeField] private float capacity = 10.0f;
 	[SerializeField] private uint boxId = 0;
 	protected float size = 0.0f;
+	private ItemTag itemTags = ItemTag.None;
 
 	protected List<ItemStack> stacks = new();
 	protected Dictionary<uint, int> itemTotals = new();
@@ -31,6 +32,7 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 
 	public IReadOnlyList<ItemStack> Stacks => stacks;
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
+	public ItemTag ItemTags => itemTags;
 
 	public float Capacity => capacity;
 	public BoxType Type => boxType;
@@ -46,6 +48,7 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 		stacks.Clear();
 		itemTotals.Clear();
 		size = 0;
+		itemTags = ItemTag.None;
 	}
 
 	public void UpdateToteCapacity(float capacity) => this.capacity = capacity;
@@ -239,6 +242,26 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 
 	// pallet같은 경우에는 소유한 pallet들의 capacity들을 합쳐야하기 때문에
 	protected abstract void UpdateSize();
+
+	protected void RebuildItemTags()
+	{
+		itemTags = ItemTag.None;
+
+		if (itemDB == null || stacks == null)
+			return;
+
+		for (int i = 0; i < stacks.Count; ++i)
+		{
+			ItemStack stack = stacks[i];
+			if (stack == null || stack.Quantity <= 0)
+				continue;
+
+			if (itemDB.GetItemData(stack.ItemID, out ItemDefinition itemData) == false || itemData == null)
+				continue;
+
+			itemTags |= itemData.Tag;
+		}
+	}
 
 	private bool CanCreateNewStack() => true;
 

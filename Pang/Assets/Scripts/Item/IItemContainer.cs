@@ -13,6 +13,7 @@ public interface IItemContainer
 	public float TotalSize { get; }
 	public float MaxSize { get; }
 	public float FilledPercent => MaxSize <= 0 ? 0 : (TotalSize / MaxSize) * 100.0f;
+	public ItemTag ItemTags { get; }
 
 	public bool CanRegister();
 

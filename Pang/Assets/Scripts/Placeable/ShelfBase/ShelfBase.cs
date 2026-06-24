@@ -18,6 +18,7 @@ public abstract partial class ShelfBase :
 	protected Dictionary<uint, int> itemsReservedPick = new();
 
 	private float totalSize = 0.0f;
+	private ItemTag itemTags = ItemTag.None;
 
 	public float TotalSize => totalSize;
 	public float MaxSize => sizePerStack * maxStacks;
@@ -39,6 +40,7 @@ public abstract partial class ShelfBase :
 	public IReadOnlyList<ItemStack> Stacks => stacks;
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
 	public IReadOnlyDictionary<uint, int> ItemToBePicked => itemsReservedPick;
+	public ItemTag ItemTags => itemTags;
 	public int GetPickableQuantity(uint itemID) => ItemTotals.GetValueOrDefault(itemID) - ItemToBePicked.GetValueOrDefault(itemID);
 	public bool CanRegister() => MaxStack > Stacks.Count;
 	public float MaxStack => maxStacks;
@@ -89,6 +91,27 @@ public abstract partial class ShelfBase :
 	private void UpdateSize()
 	{
 		totalSize = stacks.Sum(s => itemDB.GetItemSize(s.ItemID) * s.Quantity);
+		RebuildItemTags();
+	}
+
+	private void RebuildItemTags()
+	{
+		itemTags = ItemTag.None;
+
+		if (itemDB == null || stacks == null)
+			return;
+
+		for (int i = 0; i < stacks.Count; ++i)
+		{
+			ItemStack stack = stacks[i];
+			if (stack == null || stack.Quantity <= 0)
+				continue;
+
+			if (itemDB.GetItemData(stack.ItemID, out ItemDefinition itemData) == false || itemData == null)
+				continue;
+
+			itemTags |= itemData.Tag;
+		}
 	}
 
 

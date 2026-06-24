@@ -10,6 +10,7 @@ public class Pallet : BoxBase
 	{
 		size = stacks.Sum(s => itemDB.GetItemSize(s.ItemID) * s.Quantity);
 		size += boxes.Sum(s => s.Capacity);
+		RebuildItemTags();
 	}
 
 	public override void ResetContainer()
