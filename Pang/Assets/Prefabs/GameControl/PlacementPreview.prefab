@@ -50,3 +50,10 @@ MonoBehaviour:
   possiblePrefab: {fileID: 4713006951816037023, guid: e53a5aebe34f4144198d61b19e682c59, type: 3}
   blockedPrePool: 2
   blockedPrefab: {fileID: 4713006951816037023, guid: 531711786fc67bd41974753136ea8a73, type: 3}
+  spaceOverlayHeight: 0.02
+  indoorOverlayColor: {r: 0.65, g: 1, b: 0.65, a: 0.28}
+  interactionPreviewScale: 0.72
+  interactionLabelHeight: 0.04
+  interactionLabelFontSize: 3.4
+  interactionLabelScale: 0.2
+  interactionLabelColor: {r: 1, g: 1, b: 1, a: 1}

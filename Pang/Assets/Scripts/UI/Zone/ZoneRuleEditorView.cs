@@ -4,6 +4,13 @@ public sealed class ZoneRuleEditorView : MonoBehaviour
 {
 	[SerializeField] private DropdownRowView priorityDropdownRow = null;
 	[SerializeField] private DropdownRowView workerKindDropdownRow = null;
+	[SerializeField] private MultiSelectDropdownRowView requiredItemTagsDropdown = null;
+	[SerializeField] private MultiSelectDropdownRowView forbiddenItemTagsDropdown = null;
+	[SerializeField] private MultiSelectDropdownRowView requiredWorkerAbilitiesDropdown = null;
+	[SerializeField] private MultiSelectDropdownRowView requiredHumanTypesDropdown = null;
+	[SerializeField] private MultiSelectDropdownRowView forbiddenHumanTypesDropdown = null;
+	[SerializeField] private MultiSelectDropdownRowView requiredRobotTypesDropdown = null;
+	[SerializeField] private MultiSelectDropdownRowView forbiddenRobotTypesDropdown = null;
 
 	[SerializeField] private ToggleRowView[] requiredItemTagToggles = null;
 	[SerializeField] private ToggleRowView[] forbiddenItemTagToggles = null;
@@ -21,6 +28,13 @@ public sealed class ZoneRuleEditorView : MonoBehaviour
 
 	public DropdownRowView PriorityDropdownRow => priorityDropdownRow;
 	public DropdownRowView WorkerKindDropdownRow => workerKindDropdownRow;
+	public MultiSelectDropdownRowView RequiredItemTagsDropdown => requiredItemTagsDropdown;
+	public MultiSelectDropdownRowView ForbiddenItemTagsDropdown => forbiddenItemTagsDropdown;
+	public MultiSelectDropdownRowView RequiredWorkerAbilitiesDropdown => requiredWorkerAbilitiesDropdown;
+	public MultiSelectDropdownRowView RequiredHumanTypesDropdown => requiredHumanTypesDropdown;
+	public MultiSelectDropdownRowView ForbiddenHumanTypesDropdown => forbiddenHumanTypesDropdown;
+	public MultiSelectDropdownRowView RequiredRobotTypesDropdown => requiredRobotTypesDropdown;
+	public MultiSelectDropdownRowView ForbiddenRobotTypesDropdown => forbiddenRobotTypesDropdown;
 	public ToggleRowView[] RequiredItemTagToggles => requiredItemTagToggles;
 	public ToggleRowView[] ForbiddenItemTagToggles => forbiddenItemTagToggles;
 	public ToggleRowView[] RequiredWorkerAbilityToggles => requiredWorkerAbilityToggles;

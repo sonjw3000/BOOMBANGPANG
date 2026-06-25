@@ -42,8 +42,6 @@ public class SelectionUIMaster : MonoBehaviour
 
 	[Header("Detail Contents")]
 	[SerializeField] private DetailContentBase[] detailContents;
-	[SerializeField] private BuildingDetailContent buildingDetailContentPrefab;
-	[SerializeField] private AirlockDetailContent airlockDetailContentPrefab;
 
 	[Header("World Highlight")]
 	[SerializedDictionary("Highlight", "Visual")]
@@ -84,8 +82,6 @@ public class SelectionUIMaster : MonoBehaviour
 		providerTypes.Add(typeof(ZoneUIProvider));
 		providerTypes.Add(typeof(BuildingUIProvider));
 
-		EnsureRuntimeBuildingDetailContent();
-		EnsureRuntimeAirlockDetailContent();
 		EnsureRuntimeCapsuleBufferDetailContent();
 		EnsureDetailWindowManager();
 		EnsureHighlightRoot();
@@ -318,11 +314,6 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 
 		detailWindowManager.Initialize(detailUI);
-	}
-
-	private void EnsureRuntimeBuildingDetailContent()
-	{
-		EnsureRuntimeDetailContent(buildingDetailContentPrefab, "RuntimeBuildingDetailContent");
 	}
 
 	private void EnsureModeDependencies()
@@ -560,11 +551,6 @@ public class SelectionUIMaster : MonoBehaviour
 		return builder.ToString();
 	}
 
-	private void EnsureRuntimeAirlockDetailContent()
-	{
-		EnsureRuntimeDetailContent(airlockDetailContentPrefab, "RuntimeAirlockDetailContent");
-	}
-
 	private void EnsureRuntimeCapsuleBufferDetailContent()
 	{
 		foreach (DetailContentBase detailContent in detailContents)
@@ -607,41 +593,6 @@ public class SelectionUIMaster : MonoBehaviour
 		};
 		detailContents = contents.ToArray();
 		detailUI.RefreshDetailContentCache();
-	}
-
-	private void EnsureRuntimeDetailContent<T>(T prefab, string objectName)
-		where T : DetailContentBase
-	{
-		if (detailUI == null)
-			return;
-
-		foreach (DetailContentBase detailContent in detailContents)
-		{
-			if (detailContent is T)
-				return;
-		}
-
-		UIWindow detailWindow = detailUI.GetComponentInChildren<UIWindow>(true);
-		Transform parent = detailWindow != null && detailWindow.ContentRoot != null
-			? detailWindow.ContentRoot
-			: detailUI.transform;
-
-		if (prefab == null)
-		{
-			Debug.LogError($"[SelectionUIMaster] Missing detail content prefab for {objectName}", this);
-			return;
-		}
-
-		GameObject detailRoot = Instantiate(prefab.gameObject, parent);
-		detailRoot.name = objectName;
-		detailRoot.SetActive(false);
-
-		T runtimeDetailContent = detailRoot.GetComponent<T>();
-		var contents = new List<DetailContentBase>(detailContents ?? System.Array.Empty<DetailContentBase>())
-		{
-			runtimeDetailContent
-		};
-		detailContents = contents.ToArray();
 	}
 
 	private void EnsureHighlightVisuals()

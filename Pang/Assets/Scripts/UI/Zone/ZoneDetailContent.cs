@@ -127,13 +127,13 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 		BindDropdown(ruleEditorView.WorkerKindDropdownRow, HandleWorkerKindChanged);
 		SetDropdownOptions(ruleEditorView.WorkerKindDropdownRow, WorkerKindOptions);
 
-		BindToggleRows(ruleEditorView.RequiredItemTagToggles, ItemTagOptions, HandleRequiredItemTagChanged);
-		BindToggleRows(ruleEditorView.ForbiddenItemTagToggles, ItemTagOptions, HandleForbiddenItemTagChanged);
-		BindToggleRows(ruleEditorView.RequiredWorkerAbilityToggles, WorkerAbilityOptions, HandleRequiredWorkerAbilityChanged);
-		BindToggleRows(ruleEditorView.RequiredHumanTypeToggles, HumanTypeOptions, HandleRequiredHumanTypeChanged);
-		BindToggleRows(ruleEditorView.ForbiddenHumanTypeToggles, HumanTypeOptions, HandleForbiddenHumanTypeChanged);
-		BindToggleRows(ruleEditorView.RequiredRobotTypeToggles, RobotTypeOptions, HandleRequiredRobotTypeChanged);
-		BindToggleRows(ruleEditorView.ForbiddenRobotTypeToggles, RobotTypeOptions, HandleForbiddenRobotTypeChanged);
+		BindMultiSelectDropdown(ruleEditorView.RequiredItemTagsDropdown, ItemTagOptions, HandleRequiredItemTagChanged);
+		BindMultiSelectDropdown(ruleEditorView.ForbiddenItemTagsDropdown, ItemTagOptions, HandleForbiddenItemTagChanged);
+		BindMultiSelectDropdown(ruleEditorView.RequiredWorkerAbilitiesDropdown, WorkerAbilityOptions, HandleRequiredWorkerAbilityChanged);
+		BindMultiSelectDropdown(ruleEditorView.RequiredHumanTypesDropdown, HumanTypeOptions, HandleRequiredHumanTypeChanged);
+		BindMultiSelectDropdown(ruleEditorView.ForbiddenHumanTypesDropdown, HumanTypeOptions, HandleForbiddenHumanTypeChanged);
+		BindMultiSelectDropdown(ruleEditorView.RequiredRobotTypesDropdown, RobotTypeOptions, HandleRequiredRobotTypeChanged);
+		BindMultiSelectDropdown(ruleEditorView.ForbiddenRobotTypesDropdown, RobotTypeOptions, HandleForbiddenRobotTypeChanged);
 
 		ruleEditorView.ClearWhiteListButton?.Configure("Clear White List", HandleClearWhiteListClicked);
 		ruleEditorView.ClearBlackListButton?.Configure("Clear Black List", HandleClearBlackListClicked);
@@ -185,14 +185,15 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 		{
 			RefreshPriorityDropdown(rule.Priority);
 			SetDropdownIndex(ruleEditorView.WorkerKindDropdownRow, WorkerKindOptions, workerRule.RequiredWorkerKind);
+			ApplyWorkerKindVisibility(workerRule.RequiredWorkerKind);
 
-			ApplyFlagToggles(ruleEditorView.RequiredItemTagToggles, ItemTagOptions, itemRule.RequiredItemTags);
-			ApplyFlagToggles(ruleEditorView.ForbiddenItemTagToggles, ItemTagOptions, itemRule.ForbiddenItemTags);
-			ApplyFlagToggles(ruleEditorView.RequiredWorkerAbilityToggles, WorkerAbilityOptions, workerRule.RequiredWorkerAbility);
-			ApplyListToggles(ruleEditorView.RequiredHumanTypeToggles, HumanTypeOptions, workerRule.RequiredHumanTypes);
-			ApplyListToggles(ruleEditorView.ForbiddenHumanTypeToggles, HumanTypeOptions, workerRule.ForbiddenHumanTypes);
-			ApplyListToggles(ruleEditorView.RequiredRobotTypeToggles, RobotTypeOptions, workerRule.RequiredRobotTypes);
-			ApplyListToggles(ruleEditorView.ForbiddenRobotTypeToggles, RobotTypeOptions, workerRule.ForbiddenRobotTypes);
+			ApplyFlagDropdown(ruleEditorView.RequiredItemTagsDropdown, ItemTagOptions, itemRule.RequiredItemTags);
+			ApplyFlagDropdown(ruleEditorView.ForbiddenItemTagsDropdown, ItemTagOptions, itemRule.ForbiddenItemTags);
+			ApplyFlagDropdown(ruleEditorView.RequiredWorkerAbilitiesDropdown, WorkerAbilityOptions, workerRule.RequiredWorkerAbility);
+			ApplyListDropdown(ruleEditorView.RequiredHumanTypesDropdown, HumanTypeOptions, workerRule.RequiredHumanTypes);
+			ApplyListDropdown(ruleEditorView.ForbiddenHumanTypesDropdown, HumanTypeOptions, workerRule.ForbiddenHumanTypes);
+			ApplyListDropdown(ruleEditorView.RequiredRobotTypesDropdown, RobotTypeOptions, workerRule.RequiredRobotTypes);
+			ApplyListDropdown(ruleEditorView.ForbiddenRobotTypesDropdown, RobotTypeOptions, workerRule.ForbiddenRobotTypes);
 
 			if (ruleEditorView.WhiteListSummaryRow?.Text != null)
 				ruleEditorView.WhiteListSummaryRow.Text.text = BuildItemListSummary("White List", itemRule.WhiteList);
@@ -298,10 +299,13 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 		if (suppressRuleEvents || index < 0 || index >= WorkerKindOptions.Length)
 			return;
 
+		WorkerKind nextWorkerKind = WorkerKindOptions[index];
+		ApplyWorkerKindVisibility(nextWorkerKind);
+
 		ApplyRuleMutation(rule =>
 		{
 			ZoneWorkerRule workerRule = new(rule.WorkerRule);
-			workerRule.SetRequiredWorkerKind(WorkerKindOptions[index]);
+			workerRule.SetRequiredWorkerKind(nextWorkerKind);
 			rule.SetWorkerRule(workerRule);
 		});
 	}
@@ -476,30 +480,41 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 			rowView.Dropdown.onValueChanged.AddListener(onChanged);
 	}
 
-	private static void BindToggleRows<T>(ToggleRowView[] rows, IReadOnlyList<T> values, Action<T, bool> onChanged)
+	private static void BindMultiSelectDropdown<T>(MultiSelectDropdownRowView dropdownView, IReadOnlyList<T> values, Action<T, bool> onChanged)
 	{
+		ToggleRowView[] rows = dropdownView?.OptionRows;
 		if (rows == null)
 			return;
 
-		for (int i = 0; i < rows.Length && i < values.Count; ++i)
+		for (int i = 0; i < rows.Length; ++i)
 		{
 			ToggleRowView row = rows[i];
-			if (row?.Toggle == null)
+			if (row == null)
+				continue;
+
+			bool isVisible = i < values.Count;
+			row.gameObject.SetActive(isVisible);
+			if (isVisible == false || row.Toggle == null)
 				continue;
 
 			T value = values[i];
+			if (row.LabelText != null)
+				row.LabelText.text = value.ToString();
+
 			row.Toggle.onValueChanged.RemoveAllListeners();
 			row.Toggle.onValueChanged.AddListener(isOn => onChanged?.Invoke(value, isOn));
 		}
 	}
 
-	private static void ApplyFlagToggles<TEnum>(ToggleRowView[] rows, IReadOnlyList<TEnum> values, TEnum currentFlags)
+	private static void ApplyFlagDropdown<TEnum>(MultiSelectDropdownRowView dropdownView, IReadOnlyList<TEnum> values, TEnum currentFlags)
 		where TEnum : Enum
 	{
+		ToggleRowView[] rows = dropdownView?.OptionRows;
 		if (rows == null)
 			return;
 
 		long currentValue = Convert.ToInt64(currentFlags);
+		List<string> selectedLabels = new();
 		for (int i = 0; i < rows.Length && i < values.Count; ++i)
 		{
 			ToggleRowView row = rows[i];
@@ -509,23 +524,34 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 			long flagValue = Convert.ToInt64(values[i]);
 			bool isOn = flagValue != 0 && (currentValue & flagValue) == flagValue;
 			row.Toggle.SetIsOnWithoutNotify(isOn);
+			if (isOn)
+				selectedLabels.Add(values[i].ToString());
 		}
+
+		SetDropdownSummary(dropdownView, selectedLabels);
 	}
 
-	private static void ApplyListToggles<T>(ToggleRowView[] rows, IReadOnlyList<T> values, IReadOnlyList<T> selectedValues)
+	private static void ApplyListDropdown<T>(MultiSelectDropdownRowView dropdownView, IReadOnlyList<T> values, IReadOnlyList<T> selectedValues)
 	{
+		ToggleRowView[] rows = dropdownView?.OptionRows;
 		if (rows == null)
 			return;
 
 		HashSet<T> selectedSet = selectedValues != null ? new HashSet<T>(selectedValues) : null;
+		List<string> selectedLabels = new();
 		for (int i = 0; i < rows.Length && i < values.Count; ++i)
 		{
 			ToggleRowView row = rows[i];
 			if (row?.Toggle == null)
 				continue;
 
-			row.Toggle.SetIsOnWithoutNotify(selectedSet != null && selectedSet.Contains(values[i]));
+			bool isSelected = selectedSet != null && selectedSet.Contains(values[i]);
+			row.Toggle.SetIsOnWithoutNotify(isSelected);
+			if (isSelected)
+				selectedLabels.Add(values[i].ToString());
 		}
+
+		SetDropdownSummary(dropdownView, selectedLabels);
 	}
 
 	private static void SetDropdownOptions<T>(DropdownRowView rowView, IReadOnlyList<T> values)
@@ -570,6 +596,51 @@ public class ZoneDetailContent : DetailContent<ZoneSelectionProxy>
 		}
 
 		values.Remove(value);
+	}
+
+	private static void SetDropdownSummary(MultiSelectDropdownRowView dropdownView, IReadOnlyList<string> selectedLabels)
+	{
+		if (dropdownView?.SummaryText == null)
+			return;
+
+		if (selectedLabels == null || selectedLabels.Count == 0)
+		{
+			dropdownView.SummaryText.text = "None";
+			return;
+		}
+
+		if (selectedLabels.Count <= 2)
+		{
+			dropdownView.SummaryText.text = string.Join(", ", selectedLabels);
+			return;
+		}
+
+		dropdownView.SummaryText.text = $"{selectedLabels[0]}, {selectedLabels[1]} +{selectedLabels.Count - 2}";
+	}
+
+	private void ApplyWorkerKindVisibility(WorkerKind workerKind)
+	{
+		if (ruleEditorView == null)
+			return;
+
+		bool showHuman = workerKind == WorkerKind.None || workerKind == WorkerKind.Human;
+		bool showRobot = workerKind == WorkerKind.None || workerKind == WorkerKind.Robot;
+
+		SetRuleDropdownVisible(ruleEditorView.RequiredHumanTypesDropdown, showHuman);
+		SetRuleDropdownVisible(ruleEditorView.ForbiddenHumanTypesDropdown, showHuman);
+		SetRuleDropdownVisible(ruleEditorView.RequiredRobotTypesDropdown, showRobot);
+		SetRuleDropdownVisible(ruleEditorView.ForbiddenRobotTypesDropdown, showRobot);
+	}
+
+	private static void SetRuleDropdownVisible(MultiSelectDropdownRowView dropdownView, bool isVisible)
+	{
+		if (dropdownView == null)
+			return;
+
+		if (isVisible == false)
+			dropdownView.Collapse();
+
+		dropdownView.gameObject.SetActive(isVisible);
 	}
 
 	private static string BuildItemListSummary(string label, IReadOnlyList<ItemDefinition> items)
