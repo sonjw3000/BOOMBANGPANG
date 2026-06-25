@@ -510,6 +510,7 @@ public sealed class LoadingTaskSaveData
 public sealed class PickingTaskSaveData
 {
 	public WorkJobSaveData Job;
+	public uint BuildingId;
 	public bool IsPickingPhaseEnd;
 	public bool IsTaskEnd;
 }

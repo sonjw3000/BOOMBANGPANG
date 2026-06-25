@@ -8,14 +8,9 @@ public sealed partial class PickingTask
 		return new PickingTaskSaveData
 		{
 			Job = pickJob?.CaptureState(getPlaceableId, registerOrderLine),
+			BuildingId = buildingId,
 			IsPickingPhaseEnd = isPickingPhaseEnd,
 			IsTaskEnd = isTaskEnd,
 		};
-	}
-
-	public void RestoreState(bool isPickingPhaseEnd, bool isTaskEnd)
-	{
-		this.isPickingPhaseEnd = isPickingPhaseEnd;
-		this.isTaskEnd = isTaskEnd;
 	}
 }

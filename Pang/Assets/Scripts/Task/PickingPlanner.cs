@@ -6,6 +6,7 @@ public sealed class PickingPlanner
 	private static int jobID = 1;
 
 	private readonly CollectPlanner<OrderLine> collectPlanner;
+	private readonly ICollectSupplySource collectSupplySource;
 	private readonly ICollectRequestSource<OrderLine> collectRequestSource;
 	private CollectingPolicyType collectingPolicyType;
 	private float boxFillLimitPercent;
@@ -20,6 +21,7 @@ public sealed class PickingPlanner
 		float boxFillLimitPercent,
 		CollectingPolicyType collectingPolicyType = CollectingPolicyType.Nearest)
 	{
+		this.collectSupplySource = collectSupplySource;
 		this.collectRequestSource = collectRequestSource;
 		this.boxFillLimitPercent = boxFillLimitPercent;
 		collectPlanner = new CollectPlanner<OrderLine>(
@@ -42,8 +44,26 @@ public sealed class PickingPlanner
 
 	public bool HasPendingCollectWork()
 	{
-		foreach (uint _ in collectRequestSource.GetRequestedItemIds())
-			return true;
+		return HasPendingCollectWork(0);
+	}
+
+	public bool HasPendingCollectWork(uint buildingId)
+	{
+		foreach (uint itemId in collectRequestSource.GetRequestedItemIds())
+		{
+			foreach (OrderLine requestLine in collectRequestSource.GetRequestLines(itemId))
+			{
+				if (collectRequestSource.GetAllocatableQuantity(requestLine) <= 0)
+					continue;
+
+				IEnumerable<ShelfBase> sources = buildingId != 0
+					? collectSupplySource.GetSources(buildingId, itemId)
+					: collectSupplySource.GetSources(itemId);
+
+				foreach (ShelfBase _ in sources)
+					return true;
+			}
+		}
 
 		return false;
 	}
@@ -61,6 +81,11 @@ public sealed class PickingPlanner
 
 	public bool TryAllocateNextCollectLine(AIWorker worker, out WorkLine line)
 	{
+		return TryAllocateNextCollectLine(worker, 0, out line);
+	}
+
+	public bool TryAllocateNextCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
+	{
 		line = null;
 		if (worker == null)
 			return false;
@@ -72,7 +97,7 @@ public sealed class PickingPlanner
 		if (HasReachedBoxFillLimit(box))
 			return false;
 
-		return collectPlanner.TryAllocateNextCollectLine(worker, out line);
+		return collectPlanner.TryAllocateNextCollectLine(worker, buildingId, out line);
 	}
 
 	private bool HasReachedBoxFillLimit(BoxBase box)
