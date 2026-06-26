@@ -8,6 +8,8 @@ public partial class TaskManager : MonoBehaviour
 {
 	private Dictionary<TaskType, LinkedList<WorkerTask>> taskQueue = new();
 	private Dictionary<TaskType, LinkedList<WorkerTask>> taskOnProgress = new();
+	private readonly LinkedList<TaskBuildRequest> taskBuildQueue = new();
+	private readonly Dictionary<object, LinkedListNode<TaskBuildRequest>> taskBuildRequestsByKey = new();
 
 	private ProcessStatsCollector Stats => GameContext.Instance.ProcessStats;
 
@@ -16,6 +18,7 @@ public partial class TaskManager : MonoBehaviour
 
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue => taskQueue;
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskOnProgress => taskOnProgress;
+	public IReadOnlyCollection<TaskBuildRequest> TaskBuildQueue => taskBuildQueue;
 
 	private void Awake()
 	{
@@ -30,8 +33,73 @@ public partial class TaskManager : MonoBehaviour
 	
 	public void EnqueueTask(WorkerTask task)
 	{
+		if (task == null)
+			return;
+
 		taskQueue[task.Type].AddLast(task);
 		Stats.AddQueue(task.Type);
+	}
+
+	public bool EnqueueTaskBuildRequest(TaskBuildRequest request)
+	{
+		if (request == null || request.IsStillValid == false)
+			return false;
+
+		object key = request.RequestKey;
+		if (key != null && taskBuildRequestsByKey.ContainsKey(key))
+			return false;
+
+		LinkedListNode<TaskBuildRequest> node = taskBuildQueue.AddLast(request);
+		if (key != null)
+			taskBuildRequestsByKey[key] = node;
+
+		return true;
+	}
+
+	public bool CancelTaskBuildRequest(object requestKey)
+	{
+		if (requestKey == null || taskBuildRequestsByKey.TryGetValue(requestKey, out var node) == false)
+			return false;
+
+		RemoveTaskBuildRequest(node);
+		return true;
+	}
+
+	private void ProcessTaskBuildQueue()
+	{
+		LinkedListNode<TaskBuildRequest> node = taskBuildQueue.First;
+		while (node != null)
+		{
+			LinkedListNode<TaskBuildRequest> next = node.Next;
+			TaskBuildRequest request = node.Value;
+			if (request == null || request.IsStillValid == false)
+			{
+				RemoveTaskBuildRequest(node);
+				node = next;
+				continue;
+			}
+
+			if (request.TryBuild(out WorkerTask task) && task != null)
+			{
+				RemoveTaskBuildRequest(node);
+				EnqueueTask(task);
+				request.OnTaskQueued(task);
+			}
+
+			node = next;
+		}
+	}
+
+	private void RemoveTaskBuildRequest(LinkedListNode<TaskBuildRequest> node)
+	{
+		if (node == null)
+			return;
+
+		object key = node.Value?.RequestKey;
+		if (key != null)
+			taskBuildRequestsByKey.Remove(key);
+
+		taskBuildQueue.Remove(node);
 	}
 
 	// dispatch task to workers
@@ -100,6 +168,7 @@ public partial class TaskManager : MonoBehaviour
 
 	public void Update()
 	{
+		ProcessTaskBuildQueue();
 		Dispatch();
 	}
 

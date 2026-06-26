@@ -33,8 +33,6 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private StoringPlanner storingPlanner;
 	private float timeSinceLastInboundRocketSpawn = 0.0f;
-	private readonly HashSet<Rocket> pendingUnloadingRockets = new();
-
 	public InboundRequestService RequestService => requestService;
 	public StoringPlanner StoringPlanner => storingPlanner;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
@@ -130,24 +128,20 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void Start()
 	{
-		SubscribeCargoPortEvents();
 		if (RocketService != null)
 			RocketService.InboundRocketLanded += OnInboundRocketLanded;
 	}
 
 	private void OnEnable()
 	{
-		SubscribeCargoPortEvents();
 	}
 
 	private void OnDisable()
 	{
-		UnsubscribeCargoPortEvents();
 	}
 
 	private void OnDestroy()
 	{
-		UnsubscribeCargoPortEvents();
 		if (RocketService != null)
 			RocketService.InboundRocketLanded -= OnInboundRocketLanded;
 	}
@@ -195,33 +189,6 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		}
 	}
 
-	private void SubscribeCargoPortEvents()
-	{
-		CargoPortService cargoPortService = CargoPortService;
-		if (cargoPortService == null)
-			return;
-
-		cargoPortService.OnCargoUndocked -= HandleCargoUndocked;
-		cargoPortService.OnCargoUndocked += HandleCargoUndocked;
-	}
-
-	private void UnsubscribeCargoPortEvents()
-	{
-		CargoPortService cargoPortService = CargoPortService;
-		if (cargoPortService == null)
-			return;
-
-		cargoPortService.OnCargoUndocked -= HandleCargoUndocked;
-	}
-
-	private void HandleCargoUndocked(uint buildingId, CargoPort cargoPort)
-	{
-		if (cargoPort is not InboundCargoPort)
-			return;
-
-		TryEnqueuePendingUnloadingTasks();
-	}
-
 	private void RebuildPlanner()
 	{
 		storingPlanner = new StoringPlanner(
@@ -259,7 +226,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		return toteCapacity * fillRatio;
 	}
 
-	private CargoPort ResolveUnloadingDestinationPort(Rocket rocket)
+	internal CargoPort ResolveUnloadingDestinationPort(Rocket rocket, uint requestedBuildingId = 0)
 	{
 		if (rocket == null || CargoPortService == null)
 			return null;
@@ -269,7 +236,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		return CargoPortService.FindClosestAvailablePort(
 			rocket.GridPosition,
 			InteractionKind.Put,
-			unloadingDestinationBuildingId,
+			requestedBuildingId,
 			zoneFilter,
 			predicate: candidate => candidate is InboundCargoPort);
 	}
@@ -279,27 +246,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		if (rocket == null || TaskMgr == null)
 			return;
 
-		CargoPort targetPort = ResolveUnloadingDestinationPort(rocket);
-		if (targetPort == null)
-		{
-			pendingUnloadingRockets.Add(rocket);
-			return;
-		}
-
-		pendingUnloadingRockets.Remove(rocket);
-		UnloadingTask task = new(rocket, targetPort);
-		TaskMgr.EnqueueTask(task);
-	}
-
-	private void TryEnqueuePendingUnloadingTasks()
-	{
-		if (pendingUnloadingRockets.Count <= 0)
-			return;
-
-		Rocket[] pendingRockets = new Rocket[pendingUnloadingRockets.Count];
-		pendingUnloadingRockets.CopyTo(pendingRockets);
-		for (int i = 0; i < pendingRockets.Length; ++i)
-			TryEnqueueUnloadingTask(pendingRockets[i]);
+		TaskMgr.EnqueueTaskBuildRequest(new UnloadingTaskBuildRequest(rocket, unloadingDestinationBuildingId));
 	}
 
 	private bool TryGetLandingPoint(out int3 landingPoint)

@@ -351,6 +351,7 @@ public class Building
 
 		pendingInboundPorts.Remove(cargoPort);
 		queuedInboundPorts.Remove(cargoPort);
+		TaskManager?.CancelTaskBuildRequest(IBTaskBuildRequest.GetRequestKey(cargoPort));
 	}
 
 	protected virtual void OnInboundCargoQuantityZero(InboundCargoPort cargoPort)
@@ -361,6 +362,7 @@ public class Building
 		pendingInboundPorts.Remove(cargoPort);
 		queuedInboundPorts.Remove(cargoPort);
 		queuedInboundTargets.Remove(cargoPort);
+		TaskManager?.CancelTaskBuildRequest(IBTaskBuildRequest.GetRequestKey(cargoPort));
 	}
 
 	protected virtual void OnOutboundCargoUndocked(OutboundCargoPort cargoPort)
@@ -391,6 +393,7 @@ public class Building
 
 		pendingOutboundBuffers.Remove(capsuleBuffer);
 		queuedOutboundBuffers.Remove(capsuleBuffer);
+		TaskManager?.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
 		TryEnqueuePendingInboundTasks();
 	}
 
@@ -479,15 +482,7 @@ public class Building
 		if (cargoPort.IsCapsuleEmpty())
 			return;
 
-		int3 sourcePoint = ResolveInteractionOrigin(cargoPort, InteractionKind.Pick);
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(cargoPort.DockedCapsule);
-		CapsuleBuffer targetBuffer = ResolveInboundBufferTarget(sourcePoint, zoneFilter);
-		if (targetBuffer == null)
-			return;
-
-		TaskManager.EnqueueTask(new IBTask(cargoPort, RuntimeBuildingId, targetBuffer));
-		queuedInboundPorts.Add(cargoPort);
-		queuedInboundTargets[cargoPort] = targetBuffer;
+		TaskManager.EnqueueTaskBuildRequest(new IBTaskBuildRequest(cargoPort, RuntimeBuildingId));
 	}
 
 	private static int3 ResolveInteractionOrigin(BoxInteraction interactionTarget, InteractionKind interactionKind)
@@ -525,30 +520,49 @@ public class Building
 		if (capsuleBuffer.CanDispatchToOutbound() == false || queuedOutboundBuffers.Contains(capsuleBuffer))
 		{
 			pendingOutboundBuffers.Remove(capsuleBuffer);
+			TaskManager?.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
 			return;
 		}
 
 		if (CanDispatchBufferToOutbound(capsuleBuffer) == false)
 		{
 			pendingOutboundBuffers.Remove(capsuleBuffer);
+			TaskManager?.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
 			return;
 		}
 
 		if (TaskManager == null)
 			return;
 
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(capsuleBuffer.DockedCapsule);
-		OutboundCargoPort targetPort = ResolveOutboundPortTarget(capsuleBuffer.GridPosition, zoneFilter);
-		if (targetPort == null)
-		{
-			pendingOutboundBuffers.Add(capsuleBuffer);
-			return;
-		}
+		pendingOutboundBuffers.Add(capsuleBuffer);
+		TaskManager.EnqueueTaskBuildRequest(new OBTaskBuildRequest(capsuleBuffer, RuntimeBuildingId));
+	}
 
-		TaskManager.EnqueueTask(new OBTask(capsuleBuffer, RuntimeBuildingId, targetPort));
-		queuedOutboundBuffers.Add(capsuleBuffer);
-		queuedOutboundTargets[capsuleBuffer] = targetPort;
-		pendingOutboundBuffers.Remove(capsuleBuffer);
+	internal bool CanBuildOutboundTaskRequest(CapsuleBuffer capsuleBuffer)
+	{
+		return capsuleBuffer != null && capsuleBuffer.CanDispatchToOutbound() && CanDispatchBufferToOutbound(capsuleBuffer);
+	}
+
+	internal void OnInboundTaskBuilt(IBTask task)
+	{
+		if (task?.SourcePort == null)
+			return;
+
+		queuedInboundPorts.Add(task.SourcePort);
+		if (task.TargetBuffer != null)
+			queuedInboundTargets[task.SourcePort] = task.TargetBuffer;
+	}
+
+	internal void OnOutboundTaskBuilt(OBTask task)
+	{
+		if (task?.SourceBuffer == null)
+			return;
+
+		queuedOutboundBuffers.Add(task.SourceBuffer);
+		if (task.TargetPort != null)
+			queuedOutboundTargets[task.SourceBuffer] = task.TargetPort;
+
+		pendingOutboundBuffers.Remove(task.SourceBuffer);
 	}
 
 	private void TryEvaluatePendingOutboundBuffers()

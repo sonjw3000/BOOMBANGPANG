@@ -10,5 +10,8 @@ public partial class TaskManager
 			taskQueue[type].Clear();
 			taskOnProgress[type].Clear();
 		}
+
+		taskBuildQueue.Clear();
+		taskBuildRequestsByKey.Clear();
 	}
 }

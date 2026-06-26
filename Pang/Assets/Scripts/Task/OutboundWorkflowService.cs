@@ -21,7 +21,6 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private float timeSinceLastOrder = 0.0f;
 	private PickingPlanner pickingPlanner;
 	private readonly HashSet<OutboundCargoPort> queuedCargoTransferPorts = new();
-	private readonly HashSet<OutboundCargoPort> pendingCargoTransferPorts = new();
 	private readonly Dictionary<OutboundCargoPort, InboundCargoPort> queuedCargoTransferTargets = new();
 
 	public PackingStationService PackingStationService => packingStationService;
@@ -77,11 +76,10 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (cargoPort is not OutboundCargoPort || cargoPort.CanGetBox() == false)
 			return;
 
-		LaunchStation targetStation = ResolveLoadingTargetStation(cargoPort);
-		if (targetStation == null)
-			return;
-
-		TaskMgr.EnqueueTask(new LoadingTask(cargoPort, targetStation));
+		uint requestedBuildingId = ResolveSourceBuilding(cargoPort, out Building sourceBuilding)
+			? sourceBuilding.RuntimeBuildingId
+			: 0;
+		TaskMgr.EnqueueTaskBuildRequest(new LoadingTaskBuildRequest(cargoPort, requestedBuildingId));
 	}
 
 	private void Awake()
@@ -200,7 +198,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (cargoPort is not OutboundCargoPort outboundCargoPort)
 			return;
 
-		TryEnqueueCargoTransferTask(outboundCargoPort);
+		TryEnqueueCargoTransferTask(outboundCargoPort, buildingId);
 	}
 
 	private void HandleCargoUndocked(uint buildingId, CargoPort cargoPort)
@@ -209,13 +207,12 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		{
 			case OutboundCargoPort outboundCargoPort:
 				queuedCargoTransferPorts.Remove(outboundCargoPort);
-				pendingCargoTransferPorts.Remove(outboundCargoPort);
 				queuedCargoTransferTargets.Remove(outboundCargoPort);
+				TaskMgr?.CancelTaskBuildRequest(CargoTransferBuildRequest.GetRequestKey(outboundCargoPort));
 				break;
 
 			case InboundCargoPort inboundCargoPort:
 				RemoveQueuedCargoTransferTarget(inboundCargoPort);
-				TryEnqueuePendingCargoTransferTasks();
 				break;
 		}
 	}
@@ -226,53 +223,31 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			return;
 
 		queuedCargoTransferPorts.Remove(task.SourcePort);
-		pendingCargoTransferPorts.Remove(task.SourcePort);
 		queuedCargoTransferTargets.Remove(task.SourcePort);
 
 		if (task.TargetPort != null)
 			RemoveQueuedCargoTransferTarget(task.TargetPort);
 	}
 
-	private void TryEnqueueCargoTransferTask(OutboundCargoPort sourcePort)
+	private void TryEnqueueCargoTransferTask(OutboundCargoPort sourcePort, uint buildingId)
 	{
 		if (sourcePort == null || queuedCargoTransferPorts.Contains(sourcePort) || TaskMgr == null || sourcePort.CanGetBox() == false)
 			return;
 
-		InboundCargoPort targetPort = ResolveLinkedInboundTarget(sourcePort);
-		if (targetPort == null)
-		{
-			pendingCargoTransferPorts.Add(sourcePort);
-			return;
-		}
-
-		TaskMgr.EnqueueTask(new CargoTransferTask(sourcePort, targetPort));
-		queuedCargoTransferPorts.Add(sourcePort);
-		queuedCargoTransferTargets[sourcePort] = targetPort;
-		pendingCargoTransferPorts.Remove(sourcePort);
+		TaskMgr.EnqueueTaskBuildRequest(new CargoTransferBuildRequest(sourcePort, buildingId));
 	}
 
-	private void TryEnqueuePendingCargoTransferTasks()
+	internal void OnCargoTransferTaskBuilt(CargoTransferTask task)
 	{
-		if (pendingCargoTransferPorts.Count <= 0)
+		if (task?.SourcePort == null)
 			return;
 
-		OutboundCargoPort[] pendingPorts = new OutboundCargoPort[pendingCargoTransferPorts.Count];
-		pendingCargoTransferPorts.CopyTo(pendingPorts);
-		for (int i = 0; i < pendingPorts.Length; ++i)
-			TryEnqueueCargoTransferTask(pendingPorts[i]);
+		queuedCargoTransferPorts.Add(task.SourcePort);
+		if (task.TargetPort != null)
+			queuedCargoTransferTargets[task.SourcePort] = task.TargetPort;
 	}
 
-	private InboundCargoPort ResolveLinkedInboundTarget(OutboundCargoPort sourcePort)
-	{
-		if (sourcePort == null || ResolveSourceBuilding(sourcePort, out Building sourceBuilding) == false)
-			return null;
-
-		int3 sourcePoint = ResolveInteractionOrigin(sourcePort, InteractionKind.Pick);
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(sourcePort.DockedCapsule);
-		return sourceBuilding.ResolveLinkedInboundPortTarget(sourcePoint, zoneFilter);
-	}
-
-	private LaunchStation ResolveLoadingTargetStation(CargoPort sourcePort)
+	internal LaunchStation ResolveLoadingTargetStation(CargoPort sourcePort)
 	{
 		if (sourcePort == null || launchStationService == null)
 			return null;
@@ -335,4 +310,5 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			BuildingManager.TryGetBuilding(cell.BuildingId, out building) &&
 			building != null;
 	}
+
 }
