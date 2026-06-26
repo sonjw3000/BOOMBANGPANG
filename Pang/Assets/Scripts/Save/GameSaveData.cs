@@ -510,10 +510,12 @@ public sealed class LoadingTaskSaveData
 public sealed class PickingTaskSaveData
 {
 	public WorkJobSaveData Job;
-	public uint BuildingId;
-	public bool IsPickingPhaseEnd;
-	public bool IsTaskEnd;
-}
+		public uint BuildingId;
+		public bool IsPickingPhaseEnd;
+		public bool IsTaskEnd;
+		public WorkLineSaveData CurrentPlaceLine;
+		public int PlacingLineIndex;
+	}
 
 [Serializable]
 public sealed class StoringTaskSaveData

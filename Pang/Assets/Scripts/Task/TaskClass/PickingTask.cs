@@ -10,12 +10,24 @@ public sealed partial class PickingTask : WorkerTask
 	private bool isPickingPhaseEnd = false;
 	private bool isTaskEnd = false;
 	private BoxBase checkedPickingBox = null;
+	private WorkLine currentPlaceLine = null;
+	private int placingLineIndex = 0;
+
+	public enum Phase
+	{
+		Collect,
+		Place
+	}
 
 	public WorkJob PickingData => pickJob;
+	public Phase CurrentPhase => isPickingPhaseEnd ? Phase.Place : Phase.Collect;
 	public WorkLine CurrentLine
 	{
 		get
 		{
+			if (isPickingPhaseEnd)
+				return currentPlaceLine;
+
 			if (PickingData.CurrentLineIndex >= pickJob.Lines.Count)
 				return null;
 
@@ -24,7 +36,6 @@ public sealed partial class PickingTask : WorkerTask
 	}
 
 	private static CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
-	private static PackingStationService PackingStationService => GameContext.Instance.OBWorkflowSvc.PackingStationService;
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private static PickingPlanner Planner => GameContext.Instance.OBWorkflowSvc.PickingPlanner;
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
@@ -54,7 +65,8 @@ public sealed partial class PickingTask : WorkerTask
 			if (candidate.CanAcceptPreferredTask(this) == false)
 				continue;
 
-			if (Planner.HasPendingCollectWork(candidate.PrimaryBuildingId) == false)
+			uint candidateBuildingId = buildingId != 0 ? buildingId : candidate.PrimaryBuildingId;
+			if (Planner.HasPendingCollectWork(candidateBuildingId) == false)
 				continue;
 
 			worker = candidate;
@@ -82,8 +94,8 @@ public sealed partial class PickingTask : WorkerTask
 
 		SequenceNode put = new SequenceNode();
 		put.Add(new ActionNode(CheckPickingEnd));
-		put.Add(AIWorker.MoveToTarget(WorkerStatusTarget.PackingStation, InteractionKind.Put, GetAvailablePackingStation));
-		put.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, PickingEndAction));
+		put.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CapsuleBuffer, InteractionKind.Put, SetPlacingPosition));
+		put.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutItem, PlaceItems));
 
 		SequenceNode pick = new SequenceNode();
 		pick.Add(new ActionNode(CheckIsPickingState));
@@ -125,17 +137,22 @@ public sealed partial class PickingTask : WorkerTask
 			return "Picking complete.";
 
 		if (isPickingPhaseEnd)
-			return "Phase: Deliver\nMoving picked box to packing station.";
+		{
+			string targetName = CurrentLine?.TargetName ?? "None";
+			return $"Phase: Place\nTarget: {targetName}";
+		}
 
 		string sourceName = CurrentLine?.TargetName ?? "None";
 		return $"Phase: Pick\nSource: {sourceName}";
 	}
 
-	public void RestoreState(uint buildingId, bool isPickingPhaseEnd, bool isTaskEnd)
+	public void RestoreState(uint buildingId, bool isPickingPhaseEnd, bool isTaskEnd, WorkLine currentPlaceLine = null, int placingLineIndex = 0)
 	{
 		this.buildingId = buildingId;
 		this.isPickingPhaseEnd = isPickingPhaseEnd;
 		this.isTaskEnd = isTaskEnd;
+		this.currentPlaceLine = currentPlaceLine;
+		this.placingLineIndex = placingLineIndex;
 	}
 
 	public static NodeState CheckPickingEnd(in BTContext ctx)
@@ -201,56 +218,23 @@ public sealed partial class PickingTask : WorkerTask
 		return Success;
 	}
 
-	public static NodeState GetAvailablePackingStation(in BTContext ctx)
-	{
-		PackingStationService.TryReserveWaitingStation(ctx.Worker, out var targetStation);
-
-		ctx.LocalBlackBoard.SetTargetBuilding(targetStation);
-		if (targetStation != null)
-			return Success;
-
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.PackingStation);
-		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-		return AIWorker.MoveToStandbyWhileWaiting(ctx);
-	}
-
-	public static NodeState PickingEndAction(in BTContext ctx)
-	{
-		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
-
-		if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var placeable)
-			&& placeable is PackingStation station)
-		{
-			if (task.WorkerCarryBox.GetBox(out var box) && station.PutBoxToPack(new BoxWithOrder(box, task.pickJob)))
-			{
-				task.isTaskEnd = true;
-				return Success;
-			}
-			else if (box != null)
-			{
-				station.ClearIncomingBoxReservation(ctx.Worker);
-				task.WorkerCarryBox.PutBox(box);
-			}
-		}
-
-		return Failure;
-	}
-
 	public static NodeState SetTarget(in BTContext ctx)
 	{
 		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
 
 		if (task.CurrentLine == null)
 		{
-			if (Planner != null && task.buildingId != 0 && Planner.TryAllocateNextCollectLine(ctx.Worker, task.buildingId, out var nextLine))
+			WorkLine nextLine = null;
+			WorkPlanResult result = Planner != null
+				? Planner.TryGetCollectLine(ctx.Worker, task.buildingId, out nextLine)
+				: WorkPlanResult.Waiting;
+
+			if (result == WorkPlanResult.Issued)
 			{
 				task.PickingData.Lines.Add(nextLine);
 			}
 			else
-			{
-				task.isPickingPhaseEnd = true;
-				return Failure;
-			}
+				return task.ApplyPlanResult(ctx, result);
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.CurrentLine.Target);
@@ -270,7 +254,12 @@ public sealed partial class PickingTask : WorkerTask
 		}
 
 		int remainingQuantity = curLine.Quantity - curLine.CompleteQuantity;
-		ItemTransferResult result = ItemTransferUtility.MoveItem(new(curLine.Container, box, curLine.ItemID, remainingQuantity, consumeSourcePickReservation: true));
+		ItemStack pickedStack = ItemStack.Rent(curLine.ItemID, relatedOrderLine: curLine.RelatedOrderLine);
+		pickedStack.AddItem(remainingQuantity);
+		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(curLine.Container, box, pickedStack, consumeSourcePickReservation: true);
+		if (result.Kind != TransferResultKind.Complete && pickedStack.Quantity > 0)
+			pickedStack.Recycle();
+
 		int pickedQuantity = OrderMgr.ReportPickingCompleted(curLine.RelatedOrderLine, result.Moved);
 		if (pickedQuantity != result.Moved)
 		{
@@ -286,6 +275,119 @@ public sealed partial class PickingTask : WorkerTask
 
 		task.PickingData.MoveToNextLine();
 		return Success;
+	}
+
+	public static NodeState SetPlacingPosition(in BTContext ctx)
+	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+		if (task.currentPlaceLine == null)
+		{
+			if (task.TryGetNextPickedLine(out WorkLine pickedLine) == false)
+			{
+				task.isTaskEnd = true;
+				return Failure;
+			}
+
+			WorkLine nextLine = null;
+			WorkPlanResult result = Planner != null
+				? Planner.TryGetPlaceLine(ctx.Worker, task.buildingId, pickedLine, out nextLine)
+				: WorkPlanResult.Waiting;
+
+			if (result == WorkPlanResult.Issued)
+				task.currentPlaceLine = nextLine;
+			else
+				return task.ApplyPlanResult(ctx, result);
+		}
+
+		if (task.currentPlaceLine?.Target == null)
+			return Failure;
+
+		ctx.LocalBlackBoard.SetTargetBuilding(task.currentPlaceLine.Target);
+		return Success;
+	}
+
+	public static NodeState PlaceItems(in BTContext ctx)
+	{
+		PickingTask task = (PickingTask)ctx.Worker.CurrentTask;
+		WorkLine line = task.currentPlaceLine;
+		BoxBase box = ctx.Worker.CarryingAbility?.CarryingBox;
+		if (line == null || line.Action != WorkLineAction.Put || box == null)
+			return Failure;
+
+		int remainingQuantity = line.Quantity - line.CompleteQuantity;
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(
+			box,
+			line.Container,
+			line.ItemID,
+			remainingQuantity,
+			stackPredicate: stack => ReferenceEquals(stack.RelatedOrderLine, line.RelatedOrderLine)));
+		line.CompleteQuantity += result.Moved;
+
+		if (line.IsComplete == false)
+		{
+			Debug.LogError("[PickingTask] Planned place quantity was not fully moved.");
+			return Failure;
+		}
+
+		task.currentPlaceLine = null;
+		task.placingLineIndex += 1;
+		if (task.placingLineIndex >= task.pickJob.Lines.Count)
+		{
+			task.isTaskEnd = true;
+			return Success;
+		}
+
+		return task.ApplyPlanResult(ctx, Planner != null ? Planner.OnPlaceLineCompleted(ctx.Worker, line, result) : WorkPlanResult.Waiting);
+	}
+
+	private bool TryGetNextPickedLine(out WorkLine pickedLine)
+	{
+		pickedLine = null;
+		if (pickJob?.Lines == null)
+			return false;
+
+		while (placingLineIndex < pickJob.Lines.Count)
+		{
+			WorkLine candidate = pickJob.Lines[placingLineIndex];
+			if (candidate != null && candidate.Quantity > 0)
+			{
+				pickedLine = candidate;
+				return true;
+			}
+
+			placingLineIndex += 1;
+		}
+
+		return false;
+	}
+
+	private NodeState ApplyPlanResult(in BTContext ctx, WorkPlanResult result)
+	{
+		switch (result)
+		{
+			case WorkPlanResult.Issued:
+				return Success;
+
+			case WorkPlanResult.SwitchPhase:
+				isPickingPhaseEnd = true;
+				currentPlaceLine = null;
+				return Failure;
+
+			case WorkPlanResult.Completed:
+				if (isPickingPhaseEnd)
+					isTaskEnd = true;
+				else
+					isPickingPhaseEnd = true;
+
+				currentPlaceLine = null;
+				return Failure;
+
+			case WorkPlanResult.Waiting:
+			default:
+				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+				ctx.Worker.SetWorkerTarget(isPickingPhaseEnd ? WorkerStatusTarget.CapsuleBuffer : WorkerStatusTarget.Shelf);
+				return AIWorker.MoveToStandbyWhileWaiting(ctx);
+		}
 	}
 
 	private static string FormatStacks(BoxBase box)

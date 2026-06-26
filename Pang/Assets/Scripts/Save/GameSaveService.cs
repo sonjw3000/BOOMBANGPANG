@@ -528,7 +528,8 @@ public static class TaskSaveDataExtensions
 			return null;
 
 		PickingTask task = new(job, data.BuildingId);
-		task.RestoreState(data.BuildingId, data.IsPickingPhaseEnd, data.IsTaskEnd);
+		WorkLine currentPlaceLine = data.CurrentPlaceLine != null ? data.CurrentPlaceLine.Restore(placeables, orderLines) : null;
+		task.RestoreState(data.BuildingId, data.IsPickingPhaseEnd, data.IsTaskEnd, currentPlaceLine, data.PlacingLineIndex);
 		return task;
 	}
 

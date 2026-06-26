@@ -35,6 +35,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+	private CapsuleBufferService CapsuleBufferService => GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
@@ -119,15 +120,12 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (pickingPlanner == null || pickingPlanner.HasPendingCollectWork() == false)
 			return;
 
-		int desiredTaskCount = GetDesiredPickingTaskCount();
-		int currentTaskCount = GetCurrentPickingTaskCount();
-		if (desiredTaskCount <= currentTaskCount)
-			return;
-
-		int tasksToBuild = Mathf.Min(maxPickingTasksPerUpdate, Mathf.Max(0, desiredTaskCount - currentTaskCount));
-		for (int i = 0; i < tasksToBuild; ++i)
+		for (int i = 0; i < maxPickingTasksPerUpdate; ++i)
 		{
-			if (pickingPlanner.BuildPickingTask(out var task) == false)
+			if (TrySelectPickingBuilding(out uint buildingId) == false)
+				break;
+
+			if (pickingPlanner.BuildPickingTask(buildingId, out var task) == false)
 				break;
 
 			if (task != null)
@@ -140,6 +138,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		pickingPlanner = new PickingPlanner(
 			GameContext.Instance.StorageService,
 			GameContext.Instance.OrderMgr,
+			CapsuleBufferService,
 			pickingBoxFillLimitPercent,
 			defaultPickingCollectingPolicyType);
 	}
@@ -147,6 +146,15 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private int GetCurrentPickingTaskCount()
 	{
 		return TaskMgr.TaskQueue[TaskType.Picking].Count + TaskMgr.TaskOnProgress[TaskType.Picking].Count;
+	}
+
+	private int GetCurrentPickingTaskCount(uint buildingId)
+	{
+		if (TaskMgr == null)
+			return 0;
+
+		return CountPickingTasks(TaskMgr.TaskQueue[TaskType.Picking], buildingId) +
+			CountPickingTasks(TaskMgr.TaskOnProgress[TaskType.Picking], buildingId);
 	}
 
 	private int GetDesiredPickingTaskCount()
@@ -162,6 +170,49 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		return Mathf.CeilToInt(totalOutstandingSize / effectiveBoxCapacity);
 	}
 
+	private int GetDesiredPickingTaskCount(uint buildingId, float pickableOutstandingSize)
+	{
+		float effectiveBoxCapacity = GetEffectivePickingBoxCapacity();
+		if (effectiveBoxCapacity <= 0.0f || pickableOutstandingSize <= 0.0f)
+			return 0;
+
+		return Mathf.CeilToInt(pickableOutstandingSize / effectiveBoxCapacity);
+	}
+
+	private bool TrySelectPickingBuilding(out uint buildingId)
+	{
+		buildingId = 0;
+		if (BuildingManager == null || pickingPlanner == null || ItemDB == null)
+			return false;
+
+		float bestPickableSize = 0.0f;
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			Building building = buildings[i];
+			if (building == null || building.Type != BuildingType.Storage || building.RuntimeBuildingId == 0)
+				continue;
+
+			uint candidateBuildingId = building.RuntimeBuildingId;
+			float pickableSize = pickingPlanner.GetPickableOutstandingTotalSize(candidateBuildingId, ItemDB);
+			if (pickableSize <= 0.0f)
+				continue;
+
+			int desired = GetDesiredPickingTaskCount(candidateBuildingId, pickableSize);
+			int current = GetCurrentPickingTaskCount(candidateBuildingId);
+			if (desired <= current)
+				continue;
+
+			if (pickableSize <= bestPickableSize)
+				continue;
+
+			bestPickableSize = pickableSize;
+			buildingId = candidateBuildingId;
+		}
+
+		return buildingId != 0;
+	}
+
 	private float GetEffectivePickingBoxCapacity()
 	{
 		float toteCapacity = BoxMgr != null ? BoxMgr.ToteCapacity : 0.0f;
@@ -169,6 +220,21 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			return 0.0f;
 
 		return toteCapacity * Mathf.Clamp01(pickingBoxFillLimitPercent / 100.0f);
+	}
+
+	private static int CountPickingTasks(IEnumerable<WorkerTask> tasks, uint buildingId)
+	{
+		if (tasks == null)
+			return 0;
+
+		int count = 0;
+		foreach (WorkerTask task in tasks)
+		{
+			if (task is PickingTask pickingTask && pickingTask.BuildingId == buildingId)
+				count += 1;
+		}
+
+		return count;
 	}
 
 	private void SubscribeCargoPortEvents()
