@@ -39,6 +39,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private BoxManager BoxMgr => GameContext.Instance.BoxMgr;
 	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
+	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private RocketService RocketService => GameContext.Instance.RocketSvc;
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
 	private ZoneManager ZoneManager
@@ -170,7 +171,47 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void CheckStoreTaskAvailable()
 	{
-		if (storingPlanner == null || storingPlanner.HasPendingCollectWork() == false)
+		if (storingPlanner == null || requestService == null)
+			return;
+
+		BuildingManager buildingManager = BuildingManager;
+		if (buildingManager == null || buildingManager.RegisteredBuildings.Count <= 0)
+		{
+			CheckGlobalStoreTaskAvailable();
+			return;
+		}
+
+		int remainingBuilds = maxStoreTasksPerUpdate;
+		for (int i = 0; i < buildingManager.RegisteredBuildings.Count && remainingBuilds > 0; ++i)
+		{
+			Building building = buildingManager.RegisteredBuildings[i];
+			uint buildingId = building != null ? building.RuntimeBuildingId : 0;
+			if (buildingId == 0 || storingPlanner.HasPendingCollectWork(buildingId) == false)
+				continue;
+
+			int desiredTaskCount = GetDesiredStoringTaskCount(buildingId);
+			int currentTaskCount = GetCurrentStoringTaskCount(buildingId);
+			if (desiredTaskCount <= currentTaskCount)
+				continue;
+
+			int tasksToBuild = Mathf.Min(remainingBuilds, Mathf.Max(0, desiredTaskCount - currentTaskCount));
+			for (int taskIndex = 0; taskIndex < tasksToBuild; ++taskIndex)
+			{
+				if (storingPlanner.BuildStoreTask(buildingId, out var task) == false)
+					break;
+
+				if (task != null)
+				{
+					TaskMgr.EnqueueTask(task);
+					remainingBuilds -= 1;
+				}
+			}
+		}
+	}
+
+	private void CheckGlobalStoreTaskAvailable()
+	{
+		if (storingPlanner.HasPendingCollectWork() == false)
 			return;
 
 		int desiredTaskCount = GetDesiredStoringTaskCount();
@@ -203,13 +244,41 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		return TaskMgr.TaskQueue[Storing].Count + TaskMgr.TaskOnProgress[Storing].Count;
 	}
 
+	private int GetCurrentStoringTaskCount(uint buildingId)
+	{
+		if (buildingId == 0)
+			return GetCurrentStoringTaskCount();
+
+		return CountStoringTasks(TaskMgr.TaskQueue[Storing], buildingId) + CountStoringTasks(TaskMgr.TaskOnProgress[Storing], buildingId);
+	}
+
+	private static int CountStoringTasks(IEnumerable<WorkerTask> tasks, uint buildingId)
+	{
+		if (tasks == null)
+			return 0;
+
+		int count = 0;
+		foreach (WorkerTask task in tasks)
+		{
+			if (task is StoringTask storingTask && storingTask.BuildingId == buildingId)
+				count += 1;
+		}
+
+		return count;
+	}
+
 	private int GetDesiredStoringTaskCount()
+	{
+		return GetDesiredStoringTaskCount(0);
+	}
+
+	private int GetDesiredStoringTaskCount(uint buildingId)
 	{
 		float effectiveBoxCapacity = GetEffectiveStoringBoxCapacity();
 		if (effectiveBoxCapacity <= 0.0f)
 			return 0;
 
-		float totalOutstandingSize = requestService != null ? requestService.GetOutstandingTotalSize(ItemDB) : 0.0f;
+		float totalOutstandingSize = requestService != null ? requestService.GetOutstandingTotalSize(buildingId, ItemDB) : 0.0f;
 		if (totalOutstandingSize <= 0.0f)
 			return 0;
 

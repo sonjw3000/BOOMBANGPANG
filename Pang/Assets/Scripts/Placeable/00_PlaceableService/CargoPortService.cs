@@ -139,12 +139,27 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 
 	public IEnumerable<ShelfBase> GetSources(uint itemId)
 	{
-		yield break;
+		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
+		for (int i = 0; i < buildingIds.Count; ++i)
+		{
+			foreach (ShelfBase source in GetSources(buildingIds[i], itemId))
+				yield return source;
+		}
 	}
 
 	public IEnumerable<ShelfBase> GetSources(uint buildingId, uint itemId)
 	{
-		yield break;
+		if (TryGetBuildingFacilities(buildingId, out var facilities) == false)
+			yield break;
+
+		for (int i = 0; i < facilities.Count; ++i)
+		{
+			if (facilities[i] is not InboundCargoPort source)
+				continue;
+
+			if (source.GetPickableQuantity(itemId) > 0)
+				yield return source;
+		}
 	}
 
 	public IReadOnlyList<CargoPort> GetCargoPorts(uint buildingId)

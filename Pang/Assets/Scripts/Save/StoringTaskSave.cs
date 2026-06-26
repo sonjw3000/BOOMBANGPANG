@@ -7,6 +7,7 @@ public partial class StoringTask
 	{
 		return new StoringTaskSaveData
 		{
+			BuildingId = buildingId,
 			Job = storeJob?.CaptureState(getPlaceableId, registerOrderLine),
 			CurrentPhase = CurrentPhase,
 			IsJobEnd = IsJobEnd,

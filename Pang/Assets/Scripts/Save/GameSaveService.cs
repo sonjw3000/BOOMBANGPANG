@@ -541,7 +541,7 @@ public static class TaskSaveDataExtensions
 		if (job == null)
 			return null;
 
-		StoringTask task = new(job);
+		StoringTask task = new(job, data.BuildingId);
 		WorkLine placingLine = data.PlacingLine != null ? data.PlacingLine.Restore(placeables, orderLines) : null;
 		task.RestoreState(data.CurrentPhase, data.IsJobEnd, placingLine);
 		return task;

@@ -518,6 +518,7 @@ public sealed class PickingTaskSaveData
 [Serializable]
 public sealed class StoringTaskSaveData
 {
+	public uint BuildingId;
 	public WorkJobSaveData Job;
 	public StoringTask.Phase CurrentPhase;
 	public bool IsJobEnd;

@@ -66,6 +66,11 @@ public partial class InboundRequestService : MonoBehaviour, ICollectRequestSourc
 
 	public float GetOutstandingTotalSize(ItemDatabase itemDatabase)
 	{
+		return GetOutstandingTotalSize(0, itemDatabase);
+	}
+
+	public float GetOutstandingTotalSize(uint buildingId, ItemDatabase itemDatabase)
+	{
 		if (itemDatabase == null)
 			return 0.0f;
 
@@ -73,6 +78,9 @@ public partial class InboundRequestService : MonoBehaviour, ICollectRequestSourc
 		foreach (InboundLine line in inboundRequests)
 		{
 			if (line == null || line.Quantity <= 0)
+				continue;
+
+			if (buildingId != 0 && ResolveBuildingId(line.CargoPort) != buildingId)
 				continue;
 
 			totalSize += itemDatabase.GetItemSize(line.ItemID) * line.Quantity;
@@ -135,6 +143,15 @@ public partial class InboundRequestService : MonoBehaviour, ICollectRequestSourc
 		}
 
 		return null;
+	}
+
+	private static uint ResolveBuildingId(CargoPort port)
+	{
+		if (port == null || GameContext.HasInstance == false || GameContext.Instance.GridService == null)
+			return 0;
+
+		GridCell cell = GameContext.Instance.GridService.GetCell(port.GridPosition);
+		return cell != null ? cell.BuildingId : 0;
 	}
 
 }

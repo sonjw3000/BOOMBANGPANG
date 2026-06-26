@@ -7,12 +7,14 @@
 
 using UnityEngine;
 using System;
+using Unity.Mathematics;
 using static IBaseNode;
 using static IBaseNode.NodeState;
 
 public partial class StoringTask : WorkerTask
 {
 	private WorkJob storeJob;
+	private uint buildingId;
 
 	private WorkLine placingLine = null;
 
@@ -31,10 +33,40 @@ public partial class StoringTask : WorkerTask
 
 	public WorkLine CurrentLine => storeJob?.CurrentLine;
 	private static StoringPlanner Planner => GameContext.Instance.IBWorkflowSvc.StoringPlanner;
+	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
+	internal uint BuildingId => buildingId;
 
-	public StoringTask(WorkJob job) : base(TaskType.Storing)
+	public StoringTask(WorkJob job, uint buildingId = 0) : base(TaskType.Storing)
 	{
 		storeJob = job;
+		this.buildingId = buildingId;
+	}
+
+	public override bool TryGetPreferredWorker(out AIWorker worker)
+	{
+		worker = null;
+		if (buildingId == 0 || WorkerManager == null)
+			return false;
+
+		int bestDistance = int.MaxValue;
+		foreach (AIWorker candidate in WorkerManager.Workers)
+		{
+			if (candidate == null ||
+				candidate.PrimaryBuildingId != buildingId ||
+				candidate.CanAcceptPreferredTask(this) == false)
+			{
+				continue;
+			}
+
+			int distance = math.abs(candidate.GridPosition.x - GetReferencePosition().x) + math.abs(candidate.GridPosition.z - GetReferencePosition().z);
+			if (distance >= bestDistance)
+				continue;
+
+			bestDistance = distance;
+			worker = candidate;
+		}
+
+		return true;
 	}
 
 	protected override void OnTaskAssigned()
@@ -107,7 +139,7 @@ public partial class StoringTask : WorkerTask
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
 		if (task.CurrentLine == null)
 		{
-			if (Planner != null && Planner.TryAllocateNextCollectLine(ctx.Worker, out var nextLine))
+			if (Planner != null && Planner.TryAllocateNextCollectLine(ctx.Worker, task.buildingId, out var nextLine))
 			{
 				task.storeJob.Lines.Add(nextLine);
 			}
@@ -126,6 +158,14 @@ public partial class StoringTask : WorkerTask
 		ctx.LocalBlackBoard.SetTargetBuilding(task.CurrentLine.Source);
 
 		return Success;
+	}
+
+	private int3 GetReferencePosition()
+	{
+		if (CurrentLine?.Source != null)
+			return CurrentLine.Source.GridPosition;
+
+		return OccupyWorker != null ? OccupyWorker.GridPosition : default;
 	}
 
 	public static NodeState PickItems(in BTContext ctx)
