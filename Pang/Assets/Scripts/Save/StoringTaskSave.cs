@@ -11,21 +11,22 @@ public partial class StoringTask
 			Job = storeJob?.CaptureState(getPlaceableId, registerOrderLine),
 			CurrentPhase = CurrentPhase,
 			IsJobEnd = IsJobEnd,
-			PlacingLine = placingLine == null ? null : new WorkLineSaveData
+			PlacingLine = currentLine == null ? null : new WorkLineSaveData
 			{
-				SourcePlaceableId = getPlaceableId != null ? getPlaceableId(placingLine.Source.gameObject) : -1,
-				ItemId = placingLine.ItemID,
-				Quantity = placingLine.Quantity,
-				CompleteQuantity = placingLine.CompleteQuantity,
-				RelatedOrderLineId = registerOrderLine != null && placingLine.RelatedOrderLine != null ? registerOrderLine(placingLine.RelatedOrderLine) : -1,
+				Action = currentLine.Action,
+				SourcePlaceableId = getPlaceableId != null && currentLine.TargetComponent != null ? getPlaceableId(currentLine.TargetComponent.gameObject) : -1,
+				ItemId = currentLine.ItemID,
+				Quantity = currentLine.Quantity,
+				CompleteQuantity = currentLine.CompleteQuantity,
+				RelatedOrderLineId = registerOrderLine != null && currentLine.RelatedOrderLine != null ? registerOrderLine(currentLine.RelatedOrderLine) : -1,
 			},
 		};
 	}
 
-	public void RestoreState(Phase currentPhase, bool isJobEnd, WorkLine placingLine)
+	public void RestoreState(Phase currentPhase, bool isJobEnd, WorkLine currentLine)
 	{
 		CurrentPhase = currentPhase;
 		IsJobEnd = isJobEnd;
-		this.placingLine = placingLine;
+		this.currentLine = currentLine;
 	}
 }

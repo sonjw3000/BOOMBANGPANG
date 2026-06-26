@@ -39,6 +39,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private BoxManager BoxMgr => GameContext.Instance.BoxMgr;
 	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
+	private CapsuleBufferService CapsuleBufferService => GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private RocketService RocketService => GameContext.Instance.RocketSvc;
 	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
@@ -171,7 +172,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void CheckStoreTaskAvailable()
 	{
-		if (storingPlanner == null || requestService == null)
+		if (storingPlanner == null)
 			return;
 
 		BuildingManager buildingManager = BuildingManager;
@@ -233,8 +234,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	private void RebuildPlanner()
 	{
 		storingPlanner = new StoringPlanner(
-			CargoPortService,
-			requestService,
+			CapsuleBufferService,
 			defaultStoringCollectingPolicyType,
 			defaultStoringPlacingPolicyType);
 	}
@@ -278,7 +278,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		if (effectiveBoxCapacity <= 0.0f)
 			return 0;
 
-		float totalOutstandingSize = requestService != null ? requestService.GetOutstandingTotalSize(buildingId, ItemDB) : 0.0f;
+		float totalOutstandingSize = storingPlanner != null ? storingPlanner.GetCollectOutstandingTotalSize(buildingId, ItemDB) : 0.0f;
 		if (totalOutstandingSize <= 0.0f)
 			return 0;
 

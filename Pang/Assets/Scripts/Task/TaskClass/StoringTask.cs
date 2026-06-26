@@ -15,8 +15,7 @@ public partial class StoringTask : WorkerTask
 {
 	private WorkJob storeJob;
 	private uint buildingId;
-
-	private WorkLine placingLine = null;
+	private WorkLine currentLine = null;
 
 	public bool IsJobEnd = false;
 
@@ -31,7 +30,7 @@ public partial class StoringTask : WorkerTask
 	}
 
 
-	public WorkLine CurrentLine => storeJob?.CurrentLine;
+	public WorkLine CurrentLine => currentLine;
 	private static StoringPlanner Planner => GameContext.Instance.IBWorkflowSvc.StoringPlanner;
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
 	internal uint BuildingId => buildingId;
@@ -86,7 +85,7 @@ public partial class StoringTask : WorkerTask
 		SequenceNode collect = new SequenceNode();
 		collect.Add(new ActionNode(CheckPhaseCollect));
 		collect.Add(AIWorker.CheckBoxAndGet(BoxType.Personal));
-		collect.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetCollectingPosition));
+		collect.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CapsuleBuffer, InteractionKind.Pick, SetCollectingPosition));
 		collect.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickItem, PickItems));
 
 		// phase: placing
@@ -109,7 +108,7 @@ public partial class StoringTask : WorkerTask
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
-		return $"[StoringTask] CurrentIndex: {storeJob.CurrentLineIndex}";
+		return $"[StoringTask] Phase: {CurrentPhase}";
 	}
 #endif
 
@@ -120,11 +119,11 @@ public partial class StoringTask : WorkerTask
 
 		if (CurrentPhase == Phase.Collect)
 		{
-			string sourceName = CurrentLine?.Source != null ? CurrentLine.Source.name : "None";
+			string sourceName = CurrentLine?.TargetName ?? "None";
 			return $"Phase: Collect\nSource: {sourceName}";
 		}
 
-		string placeName = placingLine?.Source != null ? placingLine.Source.name : "None";
+		string placeName = CurrentLine?.TargetName ?? "None";
 		return $"Phase: Place\nTarget: {placeName}";
 	}
 
@@ -137,33 +136,33 @@ public partial class StoringTask : WorkerTask
 	public static NodeState SetCollectingPosition(in BTContext ctx)
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
-		if (task.CurrentLine == null)
+		if (task.currentLine == null)
 		{
-			if (Planner != null && Planner.TryAllocateNextCollectLine(ctx.Worker, task.buildingId, out var nextLine))
+			WorkLine nextLine = null;
+			WorkPlanResult result = Planner != null
+				? Planner.TryGetCollectLine(ctx.Worker, task.buildingId, out nextLine)
+				: WorkPlanResult.Waiting;
+
+			if (result == WorkPlanResult.Issued)
 			{
-				task.storeJob.Lines.Add(nextLine);
-			}
-			else if (task.CarryingAbility?.CarryingBox != null && task.CarryingAbility.CarryingBox.Stacks.Count > 0)
-			{
-				task.CurrentPhase = Phase.Place;
-				return Failure;
+				task.currentLine = nextLine;
 			}
 			else
-			{
-				task.IsJobEnd = true;
-				return Failure;
-			}
+				return task.ApplyPlanResult(ctx, result);
 		}
 
-		ctx.LocalBlackBoard.SetTargetBuilding(task.CurrentLine.Source);
+		if (task.currentLine?.Target == null)
+			return Failure;
+
+		ctx.LocalBlackBoard.SetTargetBuilding(task.currentLine.Target);
 
 		return Success;
 	}
 
 	private int3 GetReferencePosition()
 	{
-		if (CurrentLine?.Source != null)
-			return CurrentLine.Source.GridPosition;
+		if (CurrentLine?.Target != null)
+			return CurrentLine.Target.GridPosition;
 
 		return OccupyWorker != null ? OccupyWorker.GridPosition : default;
 	}
@@ -180,20 +179,22 @@ public partial class StoringTask : WorkerTask
 			return Failure;
 		}
 
-		int remainingQuantity = task.CurrentLine.Quantity - task.CurrentLine.CompleteQuantity;
-		ItemTransferResult result = ItemTransferUtility.MoveItem(new(task.CurrentLine.Source, box, task.CurrentLine.ItemID, remainingQuantity, consumeSourcePickReservation: true));
-		task.CurrentLine.CompleteQuantity += result.Moved;
+		WorkLine line = task.currentLine;
+		if (line == null || line.Action != WorkLineAction.Pick)
+			return Failure;
 
-		if (task.CurrentLine.IsComplete == false)
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(line.Container, box, line.ItemID, line.Quantity));
+		line.CompleteQuantity += result.Moved;
+
+		if (line.IsComplete == false)
 		{
-			Debug.Log($"Quantity: {task.CurrentLine.Quantity}, real picked: {task.CurrentLine.CompleteQuantity}");
+			Debug.Log($"Quantity: {line.Quantity}, real picked: {line.CompleteQuantity}");
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
 			return Failure;
 		}
 
-		task.storeJob.MoveToNextLine();
-
-		return Success;
+		task.currentLine = null;
+		return task.ApplyPlanResult(ctx, Planner != null ? Planner.OnCollectLineCompleted(ctx.Worker, line, result) : WorkPlanResult.Waiting);
 	}
 
 	public static NodeState CheckPhasePlace(in BTContext ctx)
@@ -205,17 +206,26 @@ public partial class StoringTask : WorkerTask
 	public static NodeState SetPlacingPosition(in BTContext ctx)
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
-		if (task.placingLine == null && (Planner == null || Planner.TryDecideNextPlacingLine(ctx.Worker, out task.placingLine) == false))
+		if (task.currentLine == null)
 		{
-			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			// 현재는 standby에서 task를 계속 재평가한다.
-			// 이후 shelf/storage manager가 worker를 disable 후 가능해질 때 enable하는 패턴으로 교체할 수 있다.
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			WorkLine nextLine = null;
+			WorkPlanResult result = Planner != null
+				? Planner.TryGetPlaceLine(ctx.Worker, out nextLine)
+				: WorkPlanResult.Waiting;
+
+			if (result == WorkPlanResult.Issued)
+			{
+				task.currentLine = nextLine;
+			}
+			else
+				return task.ApplyPlanResult(ctx, result);
 		}
 
+		if (task.currentLine?.Target == null)
+			return Failure;
+
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Shelf);
-		ctx.LocalBlackBoard.SetTargetBuilding(task.placingLine.Source);
+		ctx.LocalBlackBoard.SetTargetBuilding(task.currentLine.Target);
 
 		return Success;
 	}
@@ -225,38 +235,53 @@ public partial class StoringTask : WorkerTask
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;
 
 		// place items to target
-		WorkLine line = task.placingLine;
+		WorkLine line = task.currentLine;
 		BoxBase box = task.WorkerCarryBox.CarryingBox;
 
-		if (line == null || box == null)
+		if (line == null || box == null || line.Action != WorkLineAction.Put)
 		{
 			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
 			return Running;
 		}
 		
-		ItemTransferResult result = ItemTransferUtility.MoveItem(new(box, line.Source, line.ItemID, line.Quantity));
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(box, line.Container, line.ItemID, line.Quantity));
 		line.CompleteQuantity += result.Moved;
 
-		if (result.Kind == TransferResultKind.Complete)
-		{
-			task.placingLine = null;
-		}
-		else
+		if (result.Kind != TransferResultKind.Complete)
 		{
 			// 현재 목적지가 더 받을 수 없으면 다음 평가에서 placing policy에게 새 위치를 요청한다.
 			// 새 위치가 없다면 SetPlacingPosition에서 standby로 이동한다.
-			task.placingLine = null;
+			task.currentLine = null;
 			return Failure;
 		}
 
-		// if no items in box, end job
-		if (box.Stacks.Count == 0)
-		{
-			//Debug.Log("Box End!");
-			task.IsJobEnd = true;
-		}
+		task.currentLine = null;
+		return task.ApplyPlanResult(ctx, Planner != null ? Planner.OnPlaceLineCompleted(ctx.Worker, line, result) : WorkPlanResult.Waiting);
+	}
 
-		return Success;
+	private NodeState ApplyPlanResult(in BTContext ctx, WorkPlanResult result)
+	{
+		switch (result)
+		{
+			case WorkPlanResult.Issued:
+				return Success;
+
+			case WorkPlanResult.SwitchPhase:
+				CurrentPhase = CurrentPhase == Phase.Collect ? Phase.Place : Phase.Collect;
+				currentLine = null;
+				return Failure;
+
+			case WorkPlanResult.Completed:
+				IsJobEnd = true;
+				currentLine = null;
+				return Failure;
+
+			case WorkPlanResult.Waiting:
+			default:
+				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+				ctx.Worker.SetWorkerTarget(CurrentPhase == Phase.Collect ? WorkerStatusTarget.CapsuleBuffer : WorkerStatusTarget.Shelf);
+				return AIWorker.MoveToStandbyWhileWaiting(ctx);
+		}
 	}
 }

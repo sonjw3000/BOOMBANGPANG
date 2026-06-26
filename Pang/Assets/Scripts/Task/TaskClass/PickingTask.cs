@@ -127,7 +127,7 @@ public sealed partial class PickingTask : WorkerTask
 		if (isPickingPhaseEnd)
 			return "Phase: Deliver\nMoving picked box to packing station.";
 
-		string sourceName = CurrentLine?.Source != null ? CurrentLine.Source.name : "None";
+		string sourceName = CurrentLine?.TargetName ?? "None";
 		return $"Phase: Pick\nSource: {sourceName}";
 	}
 
@@ -253,7 +253,7 @@ public sealed partial class PickingTask : WorkerTask
 			}
 		}
 
-		ctx.LocalBlackBoard.SetTargetBuilding(task.CurrentLine.Source);
+		ctx.LocalBlackBoard.SetTargetBuilding(task.CurrentLine.Target);
 		return Success;
 	}
 
@@ -270,7 +270,7 @@ public sealed partial class PickingTask : WorkerTask
 		}
 
 		int remainingQuantity = curLine.Quantity - curLine.CompleteQuantity;
-		ItemTransferResult result = ItemTransferUtility.MoveItem(new(curLine.Source, box, curLine.ItemID, remainingQuantity, consumeSourcePickReservation: true));
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(curLine.Container, box, curLine.ItemID, remainingQuantity, consumeSourcePickReservation: true));
 		int pickedQuantity = OrderMgr.ReportPickingCompleted(curLine.RelatedOrderLine, result.Moved);
 		if (pickedQuantity != result.Moved)
 		{

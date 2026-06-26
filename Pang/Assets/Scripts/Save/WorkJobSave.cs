@@ -22,7 +22,8 @@ public sealed partial class WorkJob
 		{
 			data.Lines.Add(new WorkLineSaveData
 			{
-				SourcePlaceableId = getPlaceableId != null ? getPlaceableId(line.Source.gameObject) : -1,
+				Action = line.Action,
+				SourcePlaceableId = getPlaceableId != null && line.TargetComponent != null ? getPlaceableId(line.TargetComponent.gameObject) : -1,
 				ItemId = line.ItemID,
 				Quantity = line.Quantity,
 				CompleteQuantity = line.CompleteQuantity,

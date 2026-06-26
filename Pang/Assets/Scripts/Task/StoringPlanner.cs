@@ -1,12 +1,12 @@
 using System.Collections.Generic;
+using Unity.Mathematics;
+using UnityEngine;
 
 public sealed class StoringPlanner
 {
 	private static int jobID = 1;
 
-	private readonly CollectPlanner<InboundLine> collectPlanner;
-	private readonly ICollectSupplySource collectSupplySource;
-	private readonly ICollectRequestSource<InboundLine> collectRequestSource;
+	private readonly CapsuleBufferService capsuleBufferService;
 	private CollectingPolicyType collectingPolicyType;
 	private PlacingPolicyType placingPolicyType;
 	private IPlacingPolicy placingPolicy;
@@ -17,17 +17,11 @@ public sealed class StoringPlanner
 	public PlacingPolicyType PlacingPolicyType => placingPolicyType;
 
 	public StoringPlanner(
-		ICollectSupplySource collectSupplySource,
-		ICollectRequestSource<InboundLine> collectRequestSource,
+		CapsuleBufferService capsuleBufferService,
 		CollectingPolicyType collectingPolicyType = CollectingPolicyType.Nearest,
 		PlacingPolicyType placingPolicyType = PlacingPolicyType.BelowAverageFilledNearest)
 	{
-		this.collectSupplySource = collectSupplySource;
-		this.collectRequestSource = collectRequestSource;
-		collectPlanner = new CollectPlanner<InboundLine>(
-			collectSupplySource,
-			collectRequestSource,
-			CollectingPolicyFactory.Create<InboundLine>(collectingPolicyType));
+		this.capsuleBufferService = capsuleBufferService;
 		SetCollectingPolicy(collectingPolicyType);
 		SetPlacingPolicy(placingPolicyType);
 	}
@@ -35,7 +29,6 @@ public sealed class StoringPlanner
 	public void SetCollectingPolicy(CollectingPolicyType policyType)
 	{
 		collectingPolicyType = policyType;
-		collectPlanner.SetCollectingPolicy(CollectingPolicyFactory.Create<InboundLine>(policyType));
 	}
 
 	public void SetPlacingPolicy(PlacingPolicyType policyType)
@@ -51,28 +44,9 @@ public sealed class StoringPlanner
 
 	public bool HasPendingCollectWork(uint buildingId)
 	{
-		foreach (uint itemId in collectRequestSource.GetRequestedItemIds())
+		foreach (CapsuleBuffer buffer in EnumerateCollectBuffers(buildingId))
 		{
-			bool hasAllocatableRequest = false;
-			foreach (InboundLine requestLine in collectRequestSource.GetRequestLines(itemId))
-			{
-				if (collectRequestSource.GetAllocatableQuantity(requestLine) > 0)
-				{
-					hasAllocatableRequest = true;
-					break;
-				}
-			}
-
-			if (hasAllocatableRequest == false)
-				continue;
-
-			foreach (ShelfBase source in collectSupplySource.GetSources(buildingId, itemId))
-			{
-				if (source != null && source.GetPickableQuantity(itemId) > 0)
-					return true;
-			}
-
-			if (buildingId == 0)
+			if (HasCollectableItem(buffer))
 				return true;
 		}
 
@@ -97,32 +71,166 @@ public sealed class StoringPlanner
 
 	public bool TryAllocateNextCollectLine(AIWorker worker, out WorkLine line)
 	{
-		return collectPlanner.TryAllocateNextCollectLine(worker, out line);
+		return TryGetCollectLine(worker, 0, out line) == WorkPlanResult.Issued;
 	}
 
 	public bool TryAllocateNextCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
 	{
-		return collectPlanner.TryAllocateNextCollectLine(worker, buildingId, out line);
+		return TryGetCollectLine(worker, buildingId, out line) == WorkPlanResult.Issued;
+	}
+
+	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
+	{
+		line = null;
+		BoxBase box = worker?.CarryingAbility?.CarryingBox;
+		if (worker == null || box == null)
+			return WorkPlanResult.Waiting;
+
+		if (box.TotalSize >= box.MaxSize)
+			return WorkPlanResult.SwitchPhase;
+
+		CapsuleBuffer bestBuffer = null;
+		uint bestItemId = 0;
+		int bestQuantity = 0;
+		int bestDistance = int.MaxValue;
+
+		foreach (CapsuleBuffer buffer in EnumerateCollectBuffers(buildingId))
+		{
+			if (buffer == null || HasCollectableItem(buffer) == false)
+				continue;
+
+			foreach (var itemTotal in buffer.ItemTotals)
+			{
+				uint itemId = itemTotal.Key;
+				int available = buffer.GetQuantity(itemId);
+				if (available <= 0)
+					continue;
+
+				int acceptable = box.GetAcceptableQuantity(itemId, available);
+				if (acceptable <= 0)
+					continue;
+
+				if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+					buffer,
+					InteractionKind.Pick,
+					worker.GridPosition,
+					GameContext.Instance.GridService,
+					out _,
+					out int distance) == false)
+				{
+					continue;
+				}
+
+				int quantity = Mathf.Min(available, acceptable);
+				if (distance >= bestDistance)
+					continue;
+
+				bestBuffer = buffer;
+				bestItemId = itemId;
+				bestQuantity = quantity;
+				bestDistance = distance;
+			}
+		}
+
+		if (bestBuffer != null && bestQuantity > 0)
+		{
+			line = new WorkLine(WorkLineAction.Pick, bestBuffer, bestBuffer, bestItemId, bestQuantity);
+			return WorkPlanResult.Issued;
+		}
+
+		return box.Stacks.Count > 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Completed;
+	}
+
+	public WorkPlanResult OnCollectLineCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
+	{
+		if (result.Kind == TransferResultKind.None)
+			return WorkPlanResult.Waiting;
+
+		BoxBase box = worker?.CarryingAbility?.CarryingBox;
+		if (box == null)
+			return WorkPlanResult.Waiting;
+
+		if (box.TotalSize >= box.MaxSize)
+			return WorkPlanResult.SwitchPhase;
+
+		return WorkPlanResult.Issued;
 	}
 
 	public bool TryDecideNextPlacingLine(AIWorker worker, out WorkLine line)
 	{
+		return TryGetPlaceLine(worker, out line) == WorkPlanResult.Issued;
+	}
+
+	public WorkPlanResult TryGetPlaceLine(AIWorker worker, out WorkLine line)
+	{
 		line = null;
 
 		if (worker == null || placingPolicy == null)
-			return false;
+			return WorkPlanResult.Waiting;
 
 		BoxBase box = worker.CarryingAbility?.CarryingBox;
 		if (box == null)
-			return false;
+			return WorkPlanResult.Waiting;
+
+		if (box.Stacks.Count <= 0)
+			return WorkPlanResult.SwitchPhase;
 
 		if (placingPolicy.TryDecide(worker.GridPosition, box, null, out var decision) == false)
-			return false;
+			return WorkPlanResult.Waiting;
 
 		if (decision.shelf == null || decision.Quantity <= 0)
-			return false;
+			return WorkPlanResult.Waiting;
 
-		line = new WorkLine(decision.shelf, decision.ItemID, decision.Quantity);
-		return true;
+		line = new WorkLine(WorkLineAction.Put, decision.shelf, decision.shelf, decision.ItemID, decision.Quantity);
+		return WorkPlanResult.Issued;
+	}
+
+	public WorkPlanResult OnPlaceLineCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
+	{
+		if (result.Kind == TransferResultKind.None)
+			return WorkPlanResult.Waiting;
+
+		BoxBase box = worker?.CarryingAbility?.CarryingBox;
+		if (box == null)
+			return WorkPlanResult.Waiting;
+
+		return box.Stacks.Count <= 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Issued;
+	}
+
+	public float GetCollectOutstandingTotalSize(uint buildingId, ItemDatabase itemDatabase)
+	{
+		if (itemDatabase == null)
+			return 0.0f;
+
+		float totalSize = 0.0f;
+		foreach (CapsuleBuffer buffer in EnumerateCollectBuffers(buildingId))
+		{
+			if (buffer == null)
+				continue;
+
+			foreach (var itemTotal in buffer.ItemTotals)
+			{
+				if (itemTotal.Value <= 0)
+					continue;
+
+				totalSize += itemDatabase.GetItemSize(itemTotal.Key) * itemTotal.Value;
+			}
+		}
+
+		return totalSize;
+	}
+
+	private IEnumerable<CapsuleBuffer> EnumerateCollectBuffers(uint buildingId)
+	{
+		if (capsuleBufferService == null)
+			yield break;
+
+		foreach (CapsuleBuffer buffer in capsuleBufferService.GetBuffers(buildingId))
+			yield return buffer;
+	}
+
+	private static bool HasCollectableItem(CapsuleBuffer buffer)
+	{
+		return buffer != null && buffer.HasCapsule && buffer.IsCapsuleEmpty() == false && buffer.ItemTotals.Count > 0;
 	}
 }

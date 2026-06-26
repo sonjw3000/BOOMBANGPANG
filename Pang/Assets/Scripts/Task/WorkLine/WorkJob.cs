@@ -14,19 +14,44 @@ public enum WorkOp
 	Packing,
 }
 
+public enum WorkLineAction
+{
+	Pick,
+	Put,
+}
+
+public enum WorkPlanResult
+{
+	Issued,
+	Waiting,
+	SwitchPhase,
+	Completed,
+}
+
 public sealed class WorkLine
 {
-	public readonly ShelfBase Source;
+	public readonly WorkLineAction Action;
+	public readonly IItemContainer Container;
+	public readonly IGridPlaceable Target;
 	public readonly uint ItemID;
 	public readonly int Quantity;
 	public readonly OrderLine RelatedOrderLine = null;
 	public int CompleteQuantity = 0;
 
 	public bool IsComplete => Quantity == CompleteQuantity;
+	public Component TargetComponent => Target as Component;
+	public string TargetName => TargetComponent != null ? TargetComponent.name : "None";
 
 	public WorkLine(ShelfBase source, uint itemID, int quantity, OrderLine relatedOrderLine = null)
+		: this(WorkLineAction.Pick, source, source, itemID, quantity, relatedOrderLine)
 	{
-		Source = source;
+	}
+
+	public WorkLine(WorkLineAction action, IItemContainer container, IGridPlaceable target, uint itemID, int quantity, OrderLine relatedOrderLine = null)
+	{
+		Action = action;
+		Container = container;
+		Target = target;
 		ItemID = itemID;
 		Quantity = quantity;
 		RelatedOrderLine = relatedOrderLine;

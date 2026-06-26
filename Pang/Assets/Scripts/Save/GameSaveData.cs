@@ -576,6 +576,7 @@ public sealed class WorkJobSaveData
 [Serializable]
 public sealed class WorkLineSaveData
 {
+	public WorkLineAction Action;
 	public int SourcePlaceableId;
 	public uint ItemId;
 	public int Quantity;

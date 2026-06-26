@@ -640,12 +640,36 @@ public static class TaskSaveDataExtensions
 
 	public static WorkLine Restore(this WorkLineSaveData data, Dictionary<int, GameObject> placeables, Dictionary<int, OrderLine> orderLines)
 	{
-		if (data == null || placeables.TryGetValue(data.SourcePlaceableId, out var sourceObj) == false || sourceObj.TryGetComponent<ShelfBase>(out var source) == false)
+		if (data == null || placeables.TryGetValue(data.SourcePlaceableId, out var sourceObj) == false)
+			return null;
+
+		if (TryResolveWorkLineTarget(sourceObj, out IItemContainer container, out IGridPlaceable target) == false)
 			return null;
 
 		orderLines.TryGetValue(data.RelatedOrderLineId, out var relatedOrderLine);
-		WorkLine line = new(source, data.ItemId, data.Quantity, relatedOrderLine);
+		WorkLine line = new(data.Action, container, target, data.ItemId, data.Quantity, relatedOrderLine);
 		line.CompleteQuantity = data.CompleteQuantity;
 		return line;
+	}
+
+	private static bool TryResolveWorkLineTarget(GameObject sourceObj, out IItemContainer container, out IGridPlaceable target)
+	{
+		container = null;
+		target = null;
+		if (sourceObj == null)
+			return false;
+
+		Component[] components = sourceObj.GetComponents<Component>();
+		for (int i = 0; i < components.Length; ++i)
+		{
+			if (components[i] is IItemContainer itemContainer && components[i] is IGridPlaceable placeable)
+			{
+				container = itemContainer;
+				target = placeable;
+				return true;
+			}
+		}
+
+		return false;
 	}
 }
