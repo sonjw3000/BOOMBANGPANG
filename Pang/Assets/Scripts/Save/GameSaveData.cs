@@ -60,6 +60,7 @@ public sealed class GameSaveData
 	public GridMapSaveData Grid = new();
 	public ContractServiceSaveData Contracts = new();
 	public OrderManagerSaveData Orders = new();
+	public OutboundPickingManifestSaveData OutboundPickingManifests = new();
 	public DeliveryQueueSaveData DeliveryQueue = new();
 	public OrderDeliverySaveData OrderDelivery = new();
 	[UnityEngine.Serialization.FormerlySerializedAs("RocketManager")]
@@ -105,6 +106,28 @@ public sealed class InboundWorkflowPolicySaveData
 public sealed class OutboundWorkflowPolicySaveData
 {
 	public CollectingPolicyType PickingCollectingPolicy = CollectingPolicyType.Nearest;
+}
+
+[Serializable]
+public sealed class OutboundPickingManifestSaveData
+{
+	public List<PickingManifestSaveData> Manifests = new();
+}
+
+[Serializable]
+public sealed class PickingManifestSaveData
+{
+	public uint BoxId;
+	public List<PickingManifestLineSaveData> Lines = new();
+}
+
+[Serializable]
+public sealed class PickingManifestLineSaveData
+{
+	public int OrderLineId = -1;
+	public uint ItemId;
+	public int PickedQuantity;
+	public int PackedQuantity;
 }
 
 [Serializable]

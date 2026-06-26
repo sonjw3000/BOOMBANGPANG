@@ -22,10 +22,12 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private PickingPlanner pickingPlanner;
 	private readonly HashSet<OutboundCargoPort> queuedCargoTransferPorts = new();
 	private readonly Dictionary<OutboundCargoPort, InboundCargoPort> queuedCargoTransferTargets = new();
+	private readonly Dictionary<uint, PickingManifest> pickingManifests = new();
 
 	public PackingStationService PackingStationService => packingStationService;
 	public LaunchStationService LaunchStationService => launchStationService;
 	public PickingPlanner PickingPlanner => pickingPlanner;
+	public IReadOnlyDictionary<uint, PickingManifest> PickingManifests => pickingManifests;
 	public CollectingPolicyType PickingCollectingPolicyType => pickingPlanner != null ? pickingPlanner.CollectingPolicyType : defaultPickingCollectingPolicyType;
 	public float CargoPortThresholdPercent => cargoPortThresholdPercent;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
@@ -70,6 +72,92 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			return;
 
 		pickingPlanner.SetCollectingPolicy(policyType);
+	}
+
+	public PickingManifest GetPickingManifest(BoxBase box)
+	{
+		return box != null ? GetPickingManifest(box.BoxId) : null;
+	}
+
+	public PickingManifest GetPickingManifest(uint boxId)
+	{
+		if (boxId == 0)
+			return null;
+
+		if (pickingManifests.TryGetValue(boxId, out PickingManifest manifest) == false)
+		{
+			manifest = new PickingManifest();
+			pickingManifests.Add(boxId, manifest);
+		}
+
+		return manifest;
+	}
+
+	public bool TryGetPickingManifest(BoxBase box, out PickingManifest manifest)
+	{
+		manifest = null;
+		return box != null && TryGetPickingManifest(box.BoxId, out manifest);
+	}
+
+	public bool TryGetPickingManifest(uint boxId, out PickingManifest manifest)
+	{
+		manifest = null;
+		return boxId != 0 && pickingManifests.TryGetValue(boxId, out manifest);
+	}
+
+	public void ClearPickingManifest(BoxBase box)
+	{
+		if (box != null)
+			ClearPickingManifest(box.BoxId);
+	}
+
+	public void ClearPickingManifest(uint boxId)
+	{
+		if (boxId != 0)
+			pickingManifests.Remove(boxId);
+	}
+
+	public int AddPickedToManifest(BoxBase box, OrderLine orderLine, uint itemId, int quantity)
+	{
+		if (box == null || quantity <= 0)
+			return 0;
+
+		PickingManifest manifest = GetPickingManifest(box);
+		return manifest != null ? manifest.AddPicked(orderLine, itemId, quantity) : 0;
+	}
+
+	public int TransferPickingManifest(BoxBase from, BoxBase to, OrderLine orderLine, uint itemId, int quantity)
+	{
+		if (from == null || to == null || from.BoxId == to.BoxId || quantity <= 0)
+			return 0;
+
+		if (TryGetPickingManifest(from, out PickingManifest sourceManifest) == false)
+			return 0;
+
+		PickingManifest targetManifest = GetPickingManifest(to);
+		if (targetManifest == null)
+			return 0;
+
+		int moved = sourceManifest.RemovePicked(orderLine, itemId, quantity);
+		if (moved <= 0)
+			return 0;
+
+		int added = targetManifest.AddPicked(orderLine, itemId, moved);
+		if (added != moved)
+			Debug.LogWarning($"[OutboundWorkflowService] Picking manifest transfer mismatch. item={itemId}, moved={moved}, added={added}");
+
+		if (sourceManifest.IsEmpty)
+			ClearPickingManifest(from);
+
+		return added;
+	}
+
+	public int ReportPackedFromManifest(BoxBase box, OrderLine orderLine, uint itemId, int quantity)
+	{
+		if (box == null || quantity <= 0 || TryGetPickingManifest(box, out PickingManifest manifest) == false)
+			return 0;
+
+		return manifest.ReportPacked(orderLine, itemId, quantity);
 	}
 
 	public void BuildLoadingTask(CargoPort cargoPort)

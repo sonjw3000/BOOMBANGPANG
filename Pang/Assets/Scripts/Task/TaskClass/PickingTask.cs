@@ -36,6 +36,7 @@ public sealed partial class PickingTask : WorkerTask
 	}
 
 	private static CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
+	private static OutboundWorkflowService OutboundWorkflowService => GameContext.Instance.OBWorkflowSvc;
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private static PickingPlanner Planner => GameContext.Instance.OBWorkflowSvc.PickingPlanner;
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
@@ -267,6 +268,7 @@ public sealed partial class PickingTask : WorkerTask
 		}
 
 		curLine.CompleteQuantity += result.Moved;
+		OutboundWorkflowService?.AddPickedToManifest(box, curLine.RelatedOrderLine, curLine.ItemID, result.Moved);
 		if (curLine.IsComplete == false)
 		{
 			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
@@ -327,6 +329,15 @@ public sealed partial class PickingTask : WorkerTask
 		{
 			Debug.LogError("[PickingTask] Planned place quantity was not fully moved.");
 			return Failure;
+		}
+
+		if (line.Container is CapsuleBuffer targetBuffer && targetBuffer.DockedCapsule != null)
+		{
+			int manifestMoved = OutboundWorkflowService != null
+				? OutboundWorkflowService.TransferPickingManifest(box, targetBuffer.DockedCapsule, line.RelatedOrderLine, line.ItemID, result.Moved)
+				: 0;
+			if (manifestMoved != result.Moved)
+				Debug.LogWarning($"[PickingTask] Picking manifest place mismatch. item={line.ItemID}, moved={result.Moved}, manifestMoved={manifestMoved}");
 		}
 
 		task.currentPlaceLine = null;

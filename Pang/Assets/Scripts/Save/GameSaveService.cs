@@ -135,6 +135,7 @@ public sealed class GameSaveService : MonoBehaviour
 		data.Grid = Ctx.GridService.CaptureState();
 		data.Contracts = Ctx.ContractMgr.CaptureState();
 		data.Orders = Ctx.OrderMgr.CaptureState(RegisterOrderLine);
+		data.OutboundPickingManifests = Ctx.OBWorkflowSvc.CapturePickingManifestState(RegisterOrderLine);
 		data.DeliveryQueue = Ctx.DeliveryService.CaptureState();
 		data.OrderDelivery = Ctx.OrderDelivery.CaptureState();
 		data.RocketService = Ctx.RocketSvc.CaptureState();
@@ -192,6 +193,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.ContractMgr.RestoreState(data.Contracts);
 		Ctx.OrderMgr.RestoreState(data.Orders, Ctx.ContractMgr, restoredOrderLines);
 		Ctx.BoxMgr.RestoreSaveData(data.BoxRegistry, restoredOrderLines);
+		Ctx.OBWorkflowSvc.RestorePickingManifestState(data.OutboundPickingManifests, restoredOrderLines);
 
 		foreach (PlaceableSaveData placeableData in data.Placeables.Where(p => p.IsWorker == false))
 			InstantiatePlaceable(placeableData, restoredPlaceables, workersById, restoredOrderLines);
