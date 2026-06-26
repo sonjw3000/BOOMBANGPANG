@@ -37,14 +37,22 @@ public readonly struct ItemTransferPayload
 	public readonly uint ItemID;
 	public readonly int Quantity;
 	public readonly bool ConsumeSourcePickReservation;
+	public readonly Predicate<ItemStack> StackPredicate;
 
-	public ItemTransferPayload(IItemContainer from, IItemContainer to, uint itemID, int quantity, bool consumeSourcePickReservation = false)
+	public ItemTransferPayload(
+		IItemContainer from,
+		IItemContainer to,
+		uint itemID,
+		int quantity,
+		bool consumeSourcePickReservation = false,
+		Predicate<ItemStack> stackPredicate = null)
 	{
 		From = from;
 		To = to;
 		ItemID = itemID;
 		Quantity = quantity;
 		ConsumeSourcePickReservation = consumeSourcePickReservation;
+		StackPredicate = stackPredicate;
 	}
 }
 
@@ -77,35 +85,57 @@ public static class ItemTransferUtility
 			return new(payload, 0);
 		}
 
-		int available = GetDefaultQuantity(payload.From, payload.ItemID);
-		int acceptable = payload.To.GetAcceptableQuantity(payload.ItemID, payload.Quantity);
-		int movable = Math.Min(payload.Quantity, Math.Min(available, acceptable));
+		if (ReferenceEquals(payload.From, payload.To))
+		{
+			int sameContainerMovable = GetMatchingQuantity(payload.From, payload.ItemID, payload.Quantity, payload.StackPredicate);
+			return new(payload, sameContainerMovable);
+		}
 
-		if (movable <= 0)
-			return new(payload, 0);
+		int remaining = payload.Quantity;
+		int moved = 0;
+		for (int i = payload.From.Stacks.Count - 1; i >= 0 && remaining > 0; --i)
+		{
+			ItemStack stack = payload.From.Stacks[i];
+			if (CanMoveStack(stack, payload.ItemID, payload.StackPredicate) == false)
+				continue;
 
-		int removed = payload.From.RemoveItem(payload.ItemID, movable);
-		ConsumeSourcePickReservation(payload.From, payload.ItemID, removed, payload.ConsumeSourcePickReservation);
-		int moved = payload.To.AddItem(payload.ItemID, removed);
+			int movedFromStack = TryMoveStackQuantity(payload, stack, remaining);
+			if (movedFromStack <= 0)
+				continue;
 
-		if (moved != removed)
-			Debug.LogError($"[ItemTransferUtility] MoveItem committed an unexpected amount. item={payload.ItemID}, planned={movable}, removed={removed}, moved={moved}");
+			moved += movedFromStack;
+			remaining -= movedFromStack;
+		}
 
 		return new(payload, moved);
 	}
 
-	public static ItemTransferResult MoveItemAsStack(IItemContainer from, IItemContainer to, ItemStack stack, bool consumeSourcePickReservation = false)
+	public static ItemTransferResult MoveItemAsStack(
+		IItemContainer from,
+		IItemContainer to,
+		ItemStack stack,
+		bool consumeSourcePickReservation = false,
+		Predicate<ItemStack> sourceStackPredicate = null)
 	{
 		if (from == null || to == null || stack == null || stack.Quantity <= 0)
 			return new(new ItemTransferPayload(from, to, stack != null ? stack.ItemID : 0, 0), 0);
 
-		ItemTransferPayload payload = new(from, to, stack.ItemID, stack.Quantity);
-		if (GetDefaultQuantity(from, stack.ItemID) < stack.Quantity || to.CanAcceptStack(stack) == false)
+		ItemTransferPayload payload = new(
+			from,
+			to,
+			stack.ItemID,
+			stack.Quantity,
+			consumeSourcePickReservation,
+			sourceStackPredicate);
+
+		if (to.CanAcceptStack(stack) == false)
 			return new(payload, 0);
 
-		int requestedQuantity = stack.Quantity;
-		int removed = from.RemoveItem(stack.ItemID, stack.Quantity);
-		ConsumeSourcePickReservation(from, stack.ItemID, removed, consumeSourcePickReservation);
+		int available = GetMatchingQuantity(from, stack.ItemID, stack.Quantity, sourceStackPredicate);
+		if (available < stack.Quantity)
+			return new(payload, 0);
+
+		int removed = RemoveMatchingQuantity(from, stack.ItemID, stack.Quantity, sourceStackPredicate, consumeSourcePickReservation);
 		if (removed != stack.Quantity)
 		{
 			Debug.LogError($"[ItemTransferUtility] MoveItemAsStack removed an unexpected amount. item={stack.ItemID}, requested={stack.Quantity}, removed={removed}");
@@ -125,7 +155,39 @@ public static class ItemTransferUtility
 		if (stack.Quantity <= 0)
 			stack.Recycle();
 
-		return new(payload, requestedQuantity);
+		return new(payload, removed);
+	}
+
+	public static int GetMovableQuantity(
+		IItemContainer from,
+		IItemContainer to,
+		uint itemId,
+		int requested,
+		Predicate<ItemStack> stackPredicate = null)
+	{
+		if (from == null || to == null || requested <= 0)
+			return 0;
+
+		if (ReferenceEquals(from, to))
+			return GetMatchingQuantity(from, itemId, requested, stackPredicate);
+
+		int remaining = requested;
+		int movable = 0;
+		for (int i = from.Stacks.Count - 1; i >= 0 && remaining > 0; --i)
+		{
+			ItemStack stack = from.Stacks[i];
+			if (CanMoveStack(stack, itemId, stackPredicate) == false)
+				continue;
+
+			int stackMovable = GetStackTransferQuantity(to, stack, remaining);
+			if (stackMovable <= 0)
+				continue;
+
+			movable += stackMovable;
+			remaining -= stackMovable;
+		}
+
+		return movable;
 	}
 
 	public static TransferResultKind MoveAllStacks(in FullyTransferPayload payload)
@@ -193,11 +255,22 @@ public static class ItemTransferUtility
 		if (acceptable <= 0)
 			return false;
 
-		movedStack = stack.Split(acceptable);
-		if (movedStack == null)
+		if (payload.From.RemoveStack(stack) == false)
 			return false;
 
+		movedStack = stack.Split(acceptable);
+		if (movedStack == null)
+		{
+			RestoreStack(payload.From, stack);
+			return false;
+		}
+
 		int movedQuantity = movedStack.Quantity;
+		if (stack.Quantity > 0)
+			RestoreStack(payload.From, stack);
+		else
+			stack.Recycle();
+
 		if (payload.To.AddStack(movedStack) == false)
 		{
 			RestoreStack(payload.From, movedStack);
@@ -210,32 +283,180 @@ public static class ItemTransferUtility
 			movedStack.Recycle();
 		movedStack = movedReportStack;
 
-		if (stack.Quantity <= 0)
-		{
-			if (payload.From.RemoveStack(stack) == false)
-				Debug.LogError("[ItemTransferUtility] Failed to detach emptied source stack after split move.");
-			else
-				stack.Recycle();
-		}
-
 		ConsumeSourcePickReservation(payload.From, movedStack.ItemID, movedStack.Quantity, payload.ConsumeSourcePickReservation);
 		return true;
 	}
 
-	private static int GetDefaultQuantity(IItemContainer container, uint itemId)
+	private static int GetMatchingQuantity(
+		IItemContainer container,
+		uint itemId,
+		int requested,
+		Predicate<ItemStack> stackPredicate)
 	{
-		if (container?.Stacks == null)
+		if (container?.Stacks == null || requested <= 0)
 			return 0;
 
 		int quantity = 0;
 		for (int i = 0; i < container.Stacks.Count; ++i)
 		{
 			ItemStack stack = container.Stacks[i];
-			if (stack != null && stack.HasItemID(itemId) && stack.IsDefaultIdentity)
-				quantity += stack.Quantity;
+			if (CanMoveStack(stack, itemId, stackPredicate) == false)
+				continue;
+
+			quantity += Math.Min(stack.Quantity, requested - quantity);
+			if (quantity >= requested)
+				break;
 		}
 
 		return quantity;
+	}
+
+	private static bool CanMoveStack(ItemStack stack, uint itemId, Predicate<ItemStack> stackPredicate)
+	{
+		return stack != null &&
+			stack.Quantity > 0 &&
+			stack.HasItemID(itemId) &&
+			(stackPredicate == null || stackPredicate(stack));
+	}
+
+	private static int RemoveMatchingQuantity(
+		IItemContainer container,
+		uint itemId,
+		int quantity,
+		Predicate<ItemStack> stackPredicate,
+		bool consumeSourcePickReservation)
+	{
+		if (container?.Stacks == null || quantity <= 0)
+			return 0;
+
+		int remaining = quantity;
+		int removed = 0;
+		for (int i = container.Stacks.Count - 1; i >= 0 && remaining > 0; --i)
+		{
+			ItemStack stack = container.Stacks[i];
+			if (CanMoveStack(stack, itemId, stackPredicate) == false)
+				continue;
+
+			int removeFromStack = Math.Min(stack.Quantity, remaining);
+			if (removeFromStack >= stack.Quantity)
+			{
+				if (container.RemoveStack(stack) == false)
+					continue;
+
+				removed += removeFromStack;
+				remaining -= removeFromStack;
+				ConsumeSourcePickReservation(container, itemId, removeFromStack, consumeSourcePickReservation);
+				stack.Recycle();
+				continue;
+			}
+
+			if (container.RemoveStack(stack) == false)
+				continue;
+
+			ItemStack removedStack = stack.Split(removeFromStack);
+			if (stack.Quantity > 0)
+				RestoreStack(container, stack);
+			else
+				stack.Recycle();
+
+			if (removedStack == null)
+				continue;
+
+			removed += removedStack.Quantity;
+			remaining -= removedStack.Quantity;
+			ConsumeSourcePickReservation(container, itemId, removedStack.Quantity, consumeSourcePickReservation);
+			removedStack.Recycle();
+		}
+
+		return removed;
+	}
+
+	private static int TryMoveStackQuantity(in ItemTransferPayload payload, ItemStack stack, int requested)
+	{
+		int quantity = GetStackTransferQuantity(payload.To, stack, requested);
+		if (quantity <= 0)
+			return 0;
+
+		if (quantity >= stack.Quantity)
+			return MoveWholeStack(payload, stack);
+
+		return MovePartialStack(payload, stack, quantity);
+	}
+
+	private static int MoveWholeStack(in ItemTransferPayload payload, ItemStack stack)
+	{
+		int movedQuantity = stack.Quantity;
+		if (payload.From.RemoveStack(stack) == false)
+			return 0;
+
+		if (payload.To.AddStack(stack) == false)
+		{
+			Debug.LogError("[ItemTransferUtility] MoveItem failed after destination acceptance was calculated.");
+			RestoreStack(payload.From, stack);
+			return 0;
+		}
+
+		ConsumeSourcePickReservation(payload.From, stack.ItemID, movedQuantity, payload.ConsumeSourcePickReservation);
+
+		if (stack.Quantity <= 0)
+			stack.Recycle();
+
+		return movedQuantity;
+	}
+
+	private static int MovePartialStack(in ItemTransferPayload payload, ItemStack stack, int quantity)
+	{
+		if (payload.From.RemoveStack(stack) == false)
+			return 0;
+
+		ItemStack movedStack = stack.Split(quantity);
+		if (movedStack == null)
+		{
+			RestoreStack(payload.From, stack);
+			return 0;
+		}
+
+		if (stack.Quantity > 0)
+			RestoreStack(payload.From, stack);
+		else
+			stack.Recycle();
+
+		int movedQuantity = movedStack.Quantity;
+		if (payload.To.AddStack(movedStack) == false)
+		{
+			Debug.LogError("[ItemTransferUtility] MoveItem partial transfer failed after destination acceptance was calculated.");
+			RestoreStack(payload.From, movedStack);
+			return 0;
+		}
+
+		ConsumeSourcePickReservation(payload.From, movedStack.ItemID, movedQuantity, payload.ConsumeSourcePickReservation);
+
+		if (movedStack.Quantity <= 0)
+			movedStack.Recycle();
+
+		return movedQuantity;
+	}
+
+	private static int GetStackTransferQuantity(IItemContainer to, ItemStack stack, int requested)
+	{
+		if (to == null || stack == null || requested <= 0)
+			return 0;
+
+		int quantity = Math.Min(stack.Quantity, requested);
+		if (quantity <= 0)
+			return 0;
+
+		if (quantity == stack.Quantity && to.CanAcceptStack(stack))
+			return quantity;
+
+		int acceptable = Math.Min(quantity, GetAcceptableQuantityForStack(to, stack));
+		if (acceptable <= 0)
+			return 0;
+
+		ItemStack probe = stack.CloneWithQuantity(acceptable);
+		bool canAccept = to.CanAcceptStack(probe);
+		probe?.Recycle();
+		return canAccept ? acceptable : 0;
 	}
 
 	private static int GetAcceptableQuantityForStack(IItemContainer container, ItemStack stack)

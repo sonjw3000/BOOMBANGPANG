@@ -183,13 +183,14 @@ public partial class StoringTask : WorkerTask
 		if (line == null || line.Action != WorkLineAction.Pick)
 			return Failure;
 
-		ItemTransferResult result = ItemTransferUtility.MoveItem(new(line.Container, box, line.ItemID, line.Quantity));
+		int remainingQuantity = line.Quantity - line.CompleteQuantity;
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(line.Container, box, line.ItemID, remainingQuantity));
 		line.CompleteQuantity += result.Moved;
 
 		if (line.IsComplete == false)
 		{
 			Debug.Log($"Quantity: {line.Quantity}, real picked: {line.CompleteQuantity}");
-			Debug.LogError("Reserve까지 해줬는데도 0이라고? 난 이거 인정 못해");
+			Debug.LogError("[StoringTask] Planned pick quantity was not fully moved.");
 			return Failure;
 		}
 
@@ -245,7 +246,8 @@ public partial class StoringTask : WorkerTask
 			return Running;
 		}
 		
-		ItemTransferResult result = ItemTransferUtility.MoveItem(new(box, line.Container, line.ItemID, line.Quantity));
+		int remainingQuantity = line.Quantity - line.CompleteQuantity;
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(box, line.Container, line.ItemID, remainingQuantity));
 		line.CompleteQuantity += result.Moved;
 
 		if (result.Kind != TransferResultKind.Complete)

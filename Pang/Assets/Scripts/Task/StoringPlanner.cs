@@ -102,7 +102,7 @@ public sealed class StoringPlanner
 			foreach (var itemTotal in buffer.ItemTotals)
 			{
 				uint itemId = itemTotal.Key;
-				int available = buffer.GetQuantity(itemId);
+				int available = ItemTransferUtility.GetMovableQuantity(buffer, box, itemId, itemTotal.Value);
 				if (available <= 0)
 					continue;
 
