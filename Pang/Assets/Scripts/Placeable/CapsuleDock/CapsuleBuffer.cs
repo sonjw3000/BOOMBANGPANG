@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -11,9 +12,13 @@ public enum CapsuleBufferState
 	Shared,
 }
 
-public partial class CapsuleBuffer : 
-	CapsuleDock
+public partial class CapsuleBuffer :
+	CapsuleDock,
+	IItemContainer
 {
+	private static readonly IReadOnlyList<ItemStack> EmptyStacks = Array.Empty<ItemStack>();
+	private static readonly IReadOnlyDictionary<uint, int> EmptyItemTotals = new Dictionary<uint, int>();
+
 	[SerializeField] private GameObject boxStackPos;
 	[SerializeField] private CapsuleBufferState bufferState = CapsuleBufferState.Shared;
 
@@ -24,9 +29,20 @@ public partial class CapsuleBuffer :
 
 	public CapsuleBufferState BufferState => bufferState;
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.CapsuleBuffer;
+	public IReadOnlyList<ItemStack> Stacks => DockedCapsule != null ? DockedCapsule.Stacks : EmptyStacks;
+	public IReadOnlyDictionary<uint, int> ItemTotals => DockedCapsule != null ? DockedCapsule.ItemTotals : EmptyItemTotals;
+	public ItemTag ItemTags => DockedCapsule != null ? DockedCapsule.ItemTags : ItemTag.None;
 
 	public bool CanReceiveFromInbound() => bufferState != CapsuleBufferState.OBOnly && CanPutBox();
 	public bool CanDispatchToOutbound() => bufferState != CapsuleBufferState.IBOnly && CanGetBox() && IsCapsuleEmpty() == false;
+	public bool CanRegister() => DockedCapsule != null && DockedCapsule.CanRegister();
+	public int GetQuantity(uint itemId) => DockedCapsule != null ? DockedCapsule.GetQuantity(itemId) : 0;
+	public int GetAcceptableQuantity(uint itemId, int requested) => DockedCapsule != null ? DockedCapsule.GetAcceptableQuantity(itemId, requested) : 0;
+	public bool CanAcceptStack(ItemStack stack) => DockedCapsule != null && DockedCapsule.CanAcceptStack(stack);
+	public int AddItem(uint itemId, int quantity) => DockedCapsule != null ? DockedCapsule.AddItem(itemId, quantity) : 0;
+	public int RemoveItem(uint itemId, int quantity) => DockedCapsule != null ? DockedCapsule.RemoveItem(itemId, quantity) : 0;
+	public bool AddStack(ItemStack stack) => DockedCapsule != null && DockedCapsule.AddStack(stack);
+	public bool RemoveStack(ItemStack stack) => DockedCapsule != null && DockedCapsule.RemoveStack(stack);
 
 	public void SetBufferState(CapsuleBufferState newState)
 	{
