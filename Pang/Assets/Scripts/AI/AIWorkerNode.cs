@@ -375,11 +375,10 @@ public abstract partial class AIWorker
 		if (targetPlaceable is not IInteractionPoint interaction)
 			return false;
 
-		if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+		if (InteractionPointSelector.TryGetInteractionPoint(
 			interaction,
 			interactionKind,
 			ctx.Worker.position,
-			GridService,
 			out int3 goalPos,
 			out _) == false)
 		{
@@ -403,11 +402,10 @@ public abstract partial class AIWorker
 		if (AirlockService.TryFindDestination(buildingId, ctx.Worker.GridPosition, InteractionKind.Enter, ZoneFilter.ForWorker(ctx.Worker), out Airlock airlock) == false || airlock == null)
 			return false;
 
-		if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+		if (InteractionPointSelector.TryGetInteractionPoint(
 			airlock,
 			InteractionKind.Enter,
 			ctx.Worker.position,
-			GridService,
 			out int3 goalPos,
 			out _) == false)
 		{

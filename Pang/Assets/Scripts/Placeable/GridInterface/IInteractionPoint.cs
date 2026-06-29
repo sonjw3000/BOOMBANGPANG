@@ -28,16 +28,17 @@ public interface IInteractionPoint
 
 public static class InteractionPointSelector
 {
-	public static bool TryGetClosestSameRegionInteractionPoint(
+	public static bool TryGetInteractionPoint(
 		IInteractionPoint target,
 		InteractionKind interactionKind,
 		in int3 from,
-		GridService gridService,
 		out int3 point,
 		out int distance)
 	{
 		point = default;
 		distance = int.MaxValue;
+
+		var gridService = GameContext.Instance.GridService;
 
 		if (target == null || gridService == null)
 			return false;

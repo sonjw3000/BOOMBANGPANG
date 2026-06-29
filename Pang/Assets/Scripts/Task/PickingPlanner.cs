@@ -146,11 +146,10 @@ public sealed class PickingPlanner
 			if (movable < pickedLine.Quantity)
 				continue;
 
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPoint(
 				buffer,
 				InteractionKind.Put,
 				worker.GridPosition,
-				GameContext.Instance.GridService,
 				out _,
 				out int distance) == false)
 			{

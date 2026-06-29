@@ -174,11 +174,10 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 	{
 		score = int.MaxValue;
 		return facility is IInteractionPoint interactionPoint
-			&& InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+			&& InteractionPointSelector.TryGetInteractionPoint(
 				interactionPoint,
 				interactionKind,
 				from,
-				GridService,
 				out _,
 				out score);
 	}

@@ -63,6 +63,10 @@ public class Building
 	private uint runtimeBuildingId;
 	private BuildingState state = BuildingState.Active;
 	private BuildingWorkScope workScope = BuildingWorkScope.HomeOnly;
+
+	private bool overrideCapsuleThreshold = false;
+	private float capsuleThresholdPercent = 80.0f;
+
 	private bool isRegistered;
 
 	private readonly List<GridCell> occupiedCells;
@@ -94,16 +98,30 @@ public class Building
 	public IReadOnlyCollection<uint> InputBuildingIds => inputBuildingIds;
 	public IReadOnlyCollection<uint> OutputBuildingIds => outputBuildingIds;
 
+	public bool OverrideCapsuleThreshold => overrideCapsuleThreshold;
+	public float CapsuleThresholdPercent => capsuleThresholdPercent;
+
 	private TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
 	private OutboundWorkflowService OutboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
+	
 	public Building(string displayName, List<GridCell> occupiedCells, BuildingType buildingType = BuildingType.Generic)
 	{
 		this.displayName = displayName;
 		this.buildingType = buildingType;
 		this.occupiedCells = occupiedCells ?? new List<GridCell>();
+	}
+
+	public void SetOverrideCapsuleThreshold(bool value)
+	{
+		overrideCapsuleThreshold = value;
+	}
+
+	public void SetCapsuleThresholdPercent(float value)
+	{
+		capsuleThresholdPercent = UnityEngine.Mathf.Clamp(value, 0.0f, 100.0f);
 	}
 
 	internal void AssignRuntimeBuildingId(uint id)
@@ -418,7 +436,7 @@ public class Building
 		TryEvaluatePackingIngress(capsuleBuffer);
 	}
 
-	protected virtual bool CanDispatchBufferToOutbound(CapsuleBuffer capsuleBuffer)
+	protected virtual bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
 	{
 		return false;
 	}
@@ -465,7 +483,7 @@ public class Building
 					zoneFilter.Matches(ZoneManager, candidate) == false)
 					continue;
 
-				if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, InteractionKind.Put, from, GridService, out _, out int score) == false)
+				if (InteractionPointSelector.TryGetInteractionPoint(candidate, InteractionKind.Put, from, out _, out int score) == false)
 					continue;
 
 				if (score >= bestScore)
@@ -522,22 +540,15 @@ public class Building
 		if (capsuleBuffer == null)
 			return;
 
-		if (capsuleBuffer.CanDispatchToOutbound() == false || queuedOutboundBuffers.Contains(capsuleBuffer))
-		{
-			pendingOutboundBuffers.Remove(capsuleBuffer);
-			TaskManager?.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
-			return;
-		}
-
-		if (CanDispatchBufferToOutbound(capsuleBuffer) == false)
-		{
-			pendingOutboundBuffers.Remove(capsuleBuffer);
-			TaskManager?.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
-			return;
-		}
-
 		if (TaskManager == null)
 			return;
+
+		if (IsBufferOutboundReady(capsuleBuffer) == false || queuedOutboundBuffers.Contains(capsuleBuffer))
+		{
+			pendingOutboundBuffers.Remove(capsuleBuffer);
+			TaskManager.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
+			return;
+		}
 
 		pendingOutboundBuffers.Add(capsuleBuffer);
 		TaskManager.EnqueueTaskBuildRequest(new OBTaskBuildRequest(capsuleBuffer, RuntimeBuildingId));
@@ -559,7 +570,7 @@ public class Building
 
 	internal bool CanBuildOutboundTaskRequest(CapsuleBuffer capsuleBuffer)
 	{
-		return capsuleBuffer != null && capsuleBuffer.CanDispatchToOutbound() && CanDispatchBufferToOutbound(capsuleBuffer);
+		return capsuleBuffer != null && capsuleBuffer.CanDispatchToOutbound() && IsBufferOutboundReady(capsuleBuffer);
 	}
 
 	internal bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
@@ -626,7 +637,7 @@ public class Building
 			if (predicate != null && predicate(candidate) == false)
 				continue;
 
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, interactionKind, from, GridService, out _, out int score) == false)
+			if (InteractionPointSelector.TryGetInteractionPoint(candidate, interactionKind, from, out _, out int score) == false)
 				continue;
 
 			if (score >= bestScore)
@@ -655,7 +666,7 @@ public class Building
 			if (predicate != null && predicate(candidate) == false)
 				continue;
 
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(candidate, InteractionKind.Put, from, GridService, out _, out int score) == false)
+			if (InteractionPointSelector.TryGetInteractionPoint(candidate, InteractionKind.Put, from, out _, out int score) == false)
 				continue;
 
 			if (score >= bestScore)

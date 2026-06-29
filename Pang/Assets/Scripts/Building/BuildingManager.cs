@@ -277,6 +277,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 		return buildingType switch
 		{
 			BuildingType.Staging => new StagingBuilding(displayName, ownedCells),
+			BuildingType.Storage => new StorageBuilding(displayName, ownedCells),
 			_ => new Building(displayName, ownedCells, buildingType),
 		};
 	}

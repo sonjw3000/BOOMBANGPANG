@@ -110,11 +110,10 @@ public sealed class StoringPlanner
 				if (acceptable <= 0)
 					continue;
 
-				if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+				if (InteractionPointSelector.TryGetInteractionPoint(
 					buffer,
 					InteractionKind.Pick,
 					worker.GridPosition,
-					GameContext.Instance.GridService,
 					out _,
 					out int distance) == false)
 				{

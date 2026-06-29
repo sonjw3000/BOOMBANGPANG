@@ -41,11 +41,10 @@ public class NearestPlacingPolicy : IPlacingPolicy
 				continue;
 			}
 
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPoint(
 				shelf,
 				InteractionKind.Put,
 				workerPos,
-				GameContext.Instance.GridService,
 				out _,
 				out int dist) == false)
 				continue;
@@ -96,11 +95,10 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 				continue;
 			}
 
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPoint(
 				shelf,
 				InteractionKind.Put,
 				workerPos,
-				GameContext.Instance.GridService,
 				out _,
 				out _) == false)
 				continue;
@@ -127,11 +125,10 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 				continue;
 			}
 
-			if (InteractionPointSelector.TryGetClosestSameRegionInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPoint(
 				shelf,
 				InteractionKind.Put,
 				workerPos,
-				GameContext.Instance.GridService,
 				out _,
 				out int dist) == false)
 				continue;
