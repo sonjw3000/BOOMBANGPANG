@@ -18,7 +18,14 @@ DAILY_PATH = VAULT_PATH / os.getenv(
 	"Daily"
 )
 
+TASK_PATH = VAULT_PATH / os.getenv(
+    "OBSIDIAN_TASK_PATH",
+    "Task"
+)
+
 GIT_SINCE = os.getenv(
 	"GIT_SINCE",
 	"midnight"
 )
+
+TASK_COMMIT_HEADING = "## 관련 커밋"
