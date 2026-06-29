@@ -7,7 +7,6 @@ public sealed class ItemContainerItemDisplayInfo
 	public int Quantity { get; set; }
 	public byte Freshness { get; set; }
 	public byte Damage { get; set; }
-	public int? RelatedOrderId { get; set; }
 }
 
 public sealed class ItemContainerDisplayInfo
@@ -32,17 +31,8 @@ public static class ItemContainerDisplayUtility
 				Quantity = stack.Quantity,
 				Freshness = stack.Freshness,
 				Damage = stack.Damage,
-				RelatedOrderId = ResolveOrderId(stack),
 			})
 			.ToList();
-	}
-
-	private static int? ResolveOrderId(ItemStack stack)
-	{
-		if (stack?.RelatedOrderLine?.ParentOrder != null)
-			return stack.RelatedOrderLine.ParentOrder.OrderID;
-
-		return null;
 	}
 
 	private static string ResolveItemName(uint itemId)

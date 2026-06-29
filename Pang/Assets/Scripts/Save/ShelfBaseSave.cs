@@ -15,7 +15,6 @@ public abstract partial class ShelfBase
 				Freshness = stack.Freshness,
 				Damage = stack.Damage,
 				Status = stack.Status,
-				RelatedOrderLineId = registerOrderLine != null && stack.RelatedOrderLine != null ? registerOrderLine(stack.RelatedOrderLine) : -1,
 				OutboundStage = stack.OutboundStage,
 			});
 		}
@@ -45,11 +44,7 @@ public abstract partial class ShelfBase
 		{
 			foreach (var stackData in data.Stacks)
 			{
-				OrderLine line = null;
-				if (orderLines != null && stackData.RelatedOrderLineId >= 0)
-					orderLines.TryGetValue(stackData.RelatedOrderLineId, out line);
-
-				ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, line, stackData.OutboundStage);
+				ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, stackData.OutboundStage);
 				stack.AddItem(stackData.Quantity);
 				AddStack(stack);
 				if (stack.Quantity <= 0)

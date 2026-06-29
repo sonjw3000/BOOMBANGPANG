@@ -19,8 +19,8 @@ public class ItemContainerItemRowView : MonoBehaviour
 		quantityText.text = itemInfo != null ? itemInfo.Quantity.ToString() : "0";
 		freshnessText.text = itemInfo != null ? $"{itemInfo.Freshness}%" : "0%";
 		damageText.text = itemInfo != null ? $"{itemInfo.Damage}%" : "0%";
-		orderText.text = itemInfo?.RelatedOrderId is int orderId ? $"Order #{orderId}" : string.Empty;
-		orderText.gameObject.SetActive(true);
+		orderText.text = string.Empty;
+		orderText.gameObject.SetActive(false);
 		itemNameText.fontStyle = FontStyles.Normal;
 		quantityText.fontStyle = FontStyles.Normal;
 		freshnessText.fontStyle = FontStyles.Normal;
@@ -35,8 +35,8 @@ public class ItemContainerItemRowView : MonoBehaviour
 		quantityText.text = "Quantity";
 		freshnessText.text = "Fresh";
 		damageText.text = "Damage";
-		orderText.text = "Related Order";
-		orderText.gameObject.SetActive(true);
+		orderText.text = string.Empty;
+		orderText.gameObject.SetActive(false);
 		itemNameText.fontStyle = FontStyles.Bold;
 		quantityText.fontStyle = FontStyles.Bold;
 		freshnessText.fontStyle = FontStyles.Bold;

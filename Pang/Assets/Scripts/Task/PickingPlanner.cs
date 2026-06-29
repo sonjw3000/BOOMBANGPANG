@@ -127,9 +127,13 @@ public sealed class PickingPlanner
 		if (box == null)
 			return WorkPlanResult.Waiting;
 
-		Predicate<ItemStack> stackPredicate = stack => ReferenceEquals(stack.RelatedOrderLine, pickedLine.RelatedOrderLine);
-		if (ItemTransferUtility.GetMovableQuantity(box, box, pickedLine.ItemID, pickedLine.Quantity, stackPredicate) < pickedLine.Quantity)
+		OutboundWorkflowService outboundWorkflowService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
+		if (outboundWorkflowService == null ||
+			outboundWorkflowService.GetPackableManifestQuantity(box, pickedLine.RelatedOrderLine, pickedLine.ItemID) < pickedLine.Quantity ||
+			ItemTransferUtility.GetMovableQuantity(box, box, pickedLine.ItemID, pickedLine.Quantity) < pickedLine.Quantity)
+		{
 			return WorkPlanResult.Completed;
+		}
 
 		CapsuleBuffer bestBuffer = null;
 		int bestDistance = int.MaxValue;
@@ -138,7 +142,7 @@ public sealed class PickingPlanner
 			if (buffer == null)
 				continue;
 
-			int movable = ItemTransferUtility.GetMovableQuantity(box, buffer, pickedLine.ItemID, pickedLine.Quantity, stackPredicate);
+			int movable = ItemTransferUtility.GetMovableQuantity(box, buffer, pickedLine.ItemID, pickedLine.Quantity);
 			if (movable < pickedLine.Quantity)
 				continue;
 

@@ -45,7 +45,6 @@ public class ItemStack
 	private byte freshness = DefaultFreshnessValue;
 	private byte damage = DefaultDamageValue;
 	private ItemStatus status = ItemStatus.None;
-	private OrderLine relatedOrderLine = null;
 	private PackageOutboundStage outboundStage = PackageOutboundStage.None;
 
 	public uint ItemID => itemID;
@@ -53,15 +52,12 @@ public class ItemStack
 	public byte Freshness => freshness;
 	public byte Damage => damage;
 	public ItemStatus Status => status;
-	public OrderLine RelatedOrderLine => relatedOrderLine;
-	public int? RelatedOrderId => relatedOrderLine?.ParentOrder?.OrderID;
 	public PackageOutboundStage OutboundStage => outboundStage;
 	public float Size => GameContext.Instance.ItemDB.GetItemSize(ItemID) * Quantity;
 	public bool IsDefaultIdentity =>
 		freshness == DefaultFreshnessValue &&
 		damage == DefaultDamageValue &&
 		status == ItemStatus.None &&
-		relatedOrderLine == null &&
 		outboundStage == PackageOutboundStage.None;
 
 	public ItemStack(
@@ -69,10 +65,9 @@ public class ItemStack
 		byte freshness = 100,
 		byte damage = 0,
 		ItemStatus status = ItemStatus.None,
-		OrderLine relatedOrderLine = null,
 		PackageOutboundStage outboundStage = PackageOutboundStage.None)
 	{
-		Initialize(itemID, freshness, damage, status, relatedOrderLine, outboundStage);
+		Initialize(itemID, freshness, damage, status, outboundStage);
 	}
 
 	private static byte ClampPercent(byte value) => (byte)Mathf.Clamp((int)value, 0, 100);
@@ -82,22 +77,21 @@ public class ItemStack
 		byte freshness = 100,
 		byte damage = 0,
 		ItemStatus status = ItemStatus.None,
-		OrderLine relatedOrderLine = null,
 		PackageOutboundStage outboundStage = PackageOutboundStage.None)
 	{
 		if (pool.Count > 0)
 		{
 			ItemStack stack = pool.Pop();
-			stack.Initialize(itemID, freshness, damage, status, relatedOrderLine, outboundStage);
+			stack.Initialize(itemID, freshness, damage, status, outboundStage);
 			return stack;
 		}
 
-		return new ItemStack(itemID, freshness, damage, status, relatedOrderLine, outboundStage);
+		return new ItemStack(itemID, freshness, damage, status, outboundStage);
 	}
 
 	public static ItemStack RentDefault(uint itemID)
 	{
-		return Rent(itemID, DefaultFreshnessValue, DefaultDamageValue, ItemStatus.None, null, PackageOutboundStage.None);
+		return Rent(itemID, DefaultFreshnessValue, DefaultDamageValue, ItemStatus.None, PackageOutboundStage.None);
 	}
 
 	public bool HasItemID(uint itemID) => this.itemID == itemID;
@@ -128,11 +122,6 @@ public class ItemStack
 		this.status &= ~status;
 	}
 
-	public void AssignRelatedOrderLine(OrderLine relatedOrderLine)
-	{
-		this.relatedOrderLine = relatedOrderLine;
-	}
-
 	public void SetOutboundStage(PackageOutboundStage outboundStage)
 	{
 		this.outboundStage = outboundStage;
@@ -147,7 +136,6 @@ public class ItemStack
 			freshness == other.freshness &&
 			damage == other.damage &&
 			status == other.status &&
-			ReferenceEquals(relatedOrderLine, other.relatedOrderLine) &&
 			outboundStage == other.outboundStage;
 	}
 
@@ -186,7 +174,7 @@ public class ItemStack
 
 	protected virtual ItemStack CreateEmptyLikeThis()
 	{
-		return Rent(itemID, freshness, damage, status, relatedOrderLine, outboundStage);
+		return Rent(itemID, freshness, damage, status, outboundStage);
 	}
 
 	public virtual ItemStack CreateTransferStack(int amount)
@@ -234,45 +222,11 @@ public class ItemStack
 			pool.Push(this);
 	}
 
-	public void ReportOutboundProgress(OrderManager orderManager, PackageOutboundStage targetStage)
-	{
-		if (orderManager == null || relatedOrderLine == null)
-			return;
-
-		if (targetStage <= outboundStage)
-			return;
-
-		for (PackageOutboundStage nextStage = outboundStage + 1; nextStage <= targetStage; ++nextStage)
-		{
-			switch (nextStage)
-			{
-				case PackageOutboundStage.WaitingForShipping:
-					orderManager.ReportWaitingForShipping(relatedOrderLine, Quantity);
-					break;
-
-				case PackageOutboundStage.Shipping:
-					orderManager.ReportShipping(relatedOrderLine, Quantity);
-					break;
-
-				case PackageOutboundStage.InDelivery:
-					orderManager.ReportInDelivery(relatedOrderLine, Quantity);
-					break;
-
-				case PackageOutboundStage.Completed:
-					orderManager.ReportCompleted(relatedOrderLine, Quantity);
-					break;
-			}
-		}
-
-		outboundStage = targetStage;
-	}
-
 	private void Initialize(
 		uint itemID,
 		byte freshness,
 		byte damage,
 		ItemStatus status,
-		OrderLine relatedOrderLine,
 		PackageOutboundStage outboundStage)
 	{
 		this.itemID = itemID;
@@ -280,7 +234,6 @@ public class ItemStack
 		this.freshness = ClampPercent(freshness);
 		this.damage = ClampPercent(damage);
 		this.status = status;
-		this.relatedOrderLine = relatedOrderLine;
 		this.outboundStage = outboundStage;
 	}
 
@@ -291,7 +244,6 @@ public class ItemStack
 		freshness = DefaultFreshnessValue;
 		damage = DefaultDamageValue;
 		status = ItemStatus.None;
-		relatedOrderLine = null;
 		outboundStage = PackageOutboundStage.None;
 	}
 }

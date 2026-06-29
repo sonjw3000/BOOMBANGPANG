@@ -7,14 +7,21 @@ public sealed class PickingManifestLine
 	public readonly uint ItemId;
 	public int PickedQuantity { get; private set; }
 	public int PackedQuantity { get; private set; }
+	public PackageOutboundStage OutboundStage { get; private set; }
 	public int PackableQuantity => Mathf.Max(0, PickedQuantity - PackedQuantity);
 
-	public PickingManifestLine(OrderLine orderLine, uint itemId, int pickedQuantity, int packedQuantity = 0)
+	public PickingManifestLine(
+		OrderLine orderLine,
+		uint itemId,
+		int pickedQuantity,
+		int packedQuantity = 0,
+		PackageOutboundStage outboundStage = PackageOutboundStage.None)
 	{
 		OrderLine = orderLine;
 		ItemId = itemId;
 		PickedQuantity = Mathf.Max(0, pickedQuantity);
 		PackedQuantity = Mathf.Clamp(packedQuantity, 0, PickedQuantity);
+		OutboundStage = outboundStage;
 	}
 
 	public int AddPicked(int quantity)
@@ -37,6 +44,37 @@ public sealed class PickingManifestLine
 		int actual = Mathf.Clamp(quantity, 0, PackableQuantity);
 		PackedQuantity += actual;
 		return actual;
+	}
+
+	public int ReportOutboundProgress(OrderManager orderManager, PackageOutboundStage targetStage)
+	{
+		if (orderManager == null || OrderLine == null || targetStage <= OutboundStage || PackedQuantity <= 0)
+			return 0;
+
+		for (PackageOutboundStage nextStage = OutboundStage + 1; nextStage <= targetStage; ++nextStage)
+		{
+			switch (nextStage)
+			{
+				case PackageOutboundStage.WaitingForShipping:
+					orderManager.ReportWaitingForShipping(OrderLine, PackedQuantity);
+					break;
+
+				case PackageOutboundStage.Shipping:
+					orderManager.ReportShipping(OrderLine, PackedQuantity);
+					break;
+
+				case PackageOutboundStage.InDelivery:
+					orderManager.ReportInDelivery(OrderLine, PackedQuantity);
+					break;
+
+				case PackageOutboundStage.Completed:
+					orderManager.ReportCompleted(OrderLine, PackedQuantity);
+					break;
+			}
+		}
+
+		OutboundStage = targetStage;
+		return PackedQuantity;
 	}
 }
 
@@ -95,12 +133,26 @@ public sealed class PickingManifest
 		return line != null ? line.ReportPacked(quantity) : 0;
 	}
 
-	public void AddRestoredLine(OrderLine orderLine, uint itemId, int pickedQuantity, int packedQuantity)
+	public void AddRestoredLine(
+		OrderLine orderLine,
+		uint itemId,
+		int pickedQuantity,
+		int packedQuantity,
+		PackageOutboundStage outboundStage = PackageOutboundStage.None)
 	{
 		if (orderLine == null || pickedQuantity <= 0)
 			return;
 
-		lines.Add(new PickingManifestLine(orderLine, itemId, pickedQuantity, packedQuantity));
+		lines.Add(new PickingManifestLine(orderLine, itemId, pickedQuantity, packedQuantity, outboundStage));
+	}
+
+	public int ReportOutboundProgress(OrderManager orderManager, PackageOutboundStage targetStage)
+	{
+		int reported = 0;
+		for (int i = 0; i < lines.Count; ++i)
+			reported += lines[i]?.ReportOutboundProgress(orderManager, targetStage) ?? 0;
+
+		return reported;
 	}
 
 	private void RemoveLineIfEmpty(PickingManifestLine line)

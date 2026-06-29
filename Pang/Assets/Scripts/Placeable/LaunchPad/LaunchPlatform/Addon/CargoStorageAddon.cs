@@ -13,6 +13,7 @@ public partial class CargoStorageAddon
 	public IEnumerable<BoxBase> CargosToLaunch => cargosToLaunch;
 
 	static private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
+	static private OutboundWorkflowService OutboundWorkflow => GameContext.Instance.OBWorkflowSvc;
 
 	public bool CanStoreCargo(BoxBase cargo)
 	{
@@ -38,10 +39,9 @@ public partial class CargoStorageAddon
 		cargo.transform.SetParent(transform);
 		cargo.transform.SetLocalPositionAndRotation(Vector3.zero + new Vector3(0, cargosToLaunch.Count, 0), Quaternion.identity);
 
-		foreach (var stack in cargo.Stacks)
-		{
-			stack.ReportOutboundProgress(OrderMgr, PackageOutboundStage.Shipping);
-		}
+		int reported = OutboundWorkflow.ReportOutboundProgressFromManifest(cargo, PackageOutboundStage.Shipping);
+		if (reported <= 0)
+			Debug.LogWarning("[CargoStorageAddon] Stored packed cargo without manifest shipping progress.");
 
 		return true;
 	}

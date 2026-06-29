@@ -128,6 +128,7 @@ public sealed class PickingManifestLineSaveData
 	public uint ItemId;
 	public int PickedQuantity;
 	public int PackedQuantity;
+	public PackageOutboundStage OutboundStage = PackageOutboundStage.None;
 }
 
 [Serializable]
@@ -485,7 +486,6 @@ public sealed class ItemStackSaveData
 	public byte Freshness = 100;
 	public byte Damage;
 	public ItemStatus Status = ItemStatus.None;
-	public int RelatedOrderLineId = -1;
 	public PackageOutboundStage OutboundStage = PackageOutboundStage.None;
 }
 

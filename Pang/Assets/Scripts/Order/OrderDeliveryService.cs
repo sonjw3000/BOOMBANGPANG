@@ -18,6 +18,7 @@ public partial class OrderDeliveryService : MonoBehaviour
 
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private static BoxManager BoxMgr => GameContext.Instance.BoxMgr;
+	private static OutboundWorkflowService OutboundWorkflow => GameContext.Instance.OBWorkflowSvc;
 
 	private List<DeliveryProgress> deliveryProgresses = new();
 
@@ -33,13 +34,9 @@ public partial class OrderDeliveryService : MonoBehaviour
 			if (progress.TimeRemain > 0)
 				continue;
 
-			foreach (var stack in progress.Cargo.Stacks)
-			{
-				if (stack == null || stack.HasStatus(ItemStatus.Packed) == false)
-					continue;
-
-				stack.ReportOutboundProgress(OrderMgr, PackageOutboundStage.Completed);
-			}
+			int reported = OutboundWorkflow.ReportOutboundProgressFromManifest(progress.Cargo, PackageOutboundStage.Completed);
+			if (reported <= 0)
+				Debug.LogWarning("[OrderDeliveryService] Delivered cargo without manifest completion progress.");
 
 			Debug.Log("Cargo Delivered!");
 

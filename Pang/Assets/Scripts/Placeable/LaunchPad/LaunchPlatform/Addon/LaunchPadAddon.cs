@@ -8,6 +8,7 @@ public partial class LaunchPadAddon : PlatformAddon
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private static OrderDeliveryService OrderDelivery => GameContext.Instance.OrderDelivery;
 	private static GameTime GameTime => GameContext.Instance.GameTime;
+	private static OutboundWorkflowService OutboundWorkflow => GameContext.Instance.OBWorkflowSvc;
 
 	private bool readyToLaunch = false;
 
@@ -49,15 +50,16 @@ public partial class LaunchPadAddon : PlatformAddon
 		
 		foreach (var stack in cargoToLaunch.Stacks)
 		{
-			if (stack == null || stack.HasStatus(ItemStatus.Packed) == false || stack.RelatedOrderLine?.ParentOrder == null)
+			if (stack == null || stack.HasStatus(ItemStatus.Packed) == false)
 			{
 				Debug.LogError("LaunchPad: This Stack in box is not packed!!");
 				return;
 			}
-
-			Debug.Log($"OrderID: {stack.RelatedOrderLine.ParentOrder.OrderID} / item: {stack.ItemID}, qty: {stack.Quantity} Launched!!");
-			stack.ReportOutboundProgress(OrderMgr, PackageOutboundStage.InDelivery);
 		}
+
+		int reported = OutboundWorkflow.ReportOutboundProgressFromManifest(cargoToLaunch, PackageOutboundStage.InDelivery);
+		if (reported <= 0)
+			Debug.LogWarning("[LaunchPadAddon] Launched packed cargo without manifest delivery progress.");
 
 		OrderDelivery.DeliverCargo(cargoToLaunch, GameTime.WeekToSeconds(4));
 

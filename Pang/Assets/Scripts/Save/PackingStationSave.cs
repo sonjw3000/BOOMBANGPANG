@@ -21,7 +21,6 @@ public partial class PackingStation
 				Freshness = stack.Freshness,
 				Damage = stack.Damage,
 				Status = stack.Status,
-				RelatedOrderLineId = registerOrderLine != null && stack.RelatedOrderLine != null ? registerOrderLine(stack.RelatedOrderLine) : -1,
 				OutboundStage = stack.OutboundStage,
 			}),
 			WaitingBox = CaptureBoxWithOrder(waitStackBox, registerOrderLine, getPlaceableId),
@@ -56,11 +55,7 @@ public partial class PackingStation
 
 		foreach (var stackData in data.PackedItems)
 		{
-			OrderLine line = null;
-			if (restoredOrderLines != null && stackData.RelatedOrderLineId >= 0)
-				restoredOrderLines.TryGetValue(stackData.RelatedOrderLineId, out line);
-
-			ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, line, stackData.OutboundStage);
+			ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, stackData.OutboundStage);
 			stack.AddItem(stackData.Quantity);
 			AddStack(stack);
 			if (stack.Quantity <= 0)

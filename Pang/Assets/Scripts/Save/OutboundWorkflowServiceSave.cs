@@ -42,6 +42,7 @@ public partial class OutboundWorkflowService
 					ItemId = line.ItemId,
 					PickedQuantity = line.PickedQuantity,
 					PackedQuantity = line.PackedQuantity,
+					OutboundStage = line.OutboundStage,
 				});
 			}
 
@@ -74,7 +75,7 @@ public partial class OutboundWorkflowService
 
 				OrderLine orderLine = null;
 				restoredOrderLines?.TryGetValue(lineData.OrderLineId, out orderLine);
-				manifest.AddRestoredLine(orderLine, lineData.ItemId, lineData.PickedQuantity, lineData.PackedQuantity);
+				manifest.AddRestoredLine(orderLine, lineData.ItemId, lineData.PickedQuantity, lineData.PackedQuantity, lineData.OutboundStage);
 			}
 
 			if (manifest.IsEmpty)

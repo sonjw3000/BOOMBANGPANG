@@ -163,7 +163,6 @@ public partial class PackingTask : WorkerTask
 		ItemStack packedStack = ItemStack.Rent(
 			line.ItemID,
 			status: ItemStatus.Packed,
-			relatedOrderLine: line.RelatedOrderLine,
 			outboundStage: PackageOutboundStage.None);
 		packedStack.AddItem(quantityToPack);
 
@@ -186,6 +185,12 @@ public partial class PackingTask : WorkerTask
 		if (packedQuantity != result.Moved)
 		{
 			Debug.LogWarning($"[PackingTask] Packing progress mismatch. packed={result.Moved}, applied={packedQuantity}");
+		}
+
+		int manifestPacked = GameContext.Instance.OBWorkflowSvc.ReportPackedFromManifest(box.Box, line.RelatedOrderLine, line.ItemID, result.Moved);
+		if (manifestPacked != result.Moved)
+		{
+			Debug.LogWarning($"[PackingTask] Manifest packing progress mismatch. packed={result.Moved}, applied={manifestPacked}");
 		}
 
 		box.Job.MoveToNextLine();

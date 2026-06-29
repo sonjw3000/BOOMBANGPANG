@@ -160,6 +160,23 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		return manifest.ReportPacked(orderLine, itemId, quantity);
 	}
 
+	public int GetPackableManifestQuantity(BoxBase box, OrderLine orderLine, uint itemId)
+	{
+		if (box == null || TryGetPickingManifest(box, out PickingManifest manifest) == false)
+			return 0;
+
+		PickingManifestLine line = manifest.FindLine(orderLine, itemId);
+		return line != null ? line.PackableQuantity : 0;
+	}
+
+	public int ReportOutboundProgressFromManifest(BoxBase box, PackageOutboundStage targetStage)
+	{
+		if (box == null || TryGetPickingManifest(box, out PickingManifest manifest) == false)
+			return 0;
+
+		return manifest.ReportOutboundProgress(OrderMgr, targetStage);
+	}
+
 	public void BuildLoadingTask(CargoPort cargoPort)
 	{
 		if (cargoPort is not OutboundCargoPort || cargoPort.CanGetBox() == false)

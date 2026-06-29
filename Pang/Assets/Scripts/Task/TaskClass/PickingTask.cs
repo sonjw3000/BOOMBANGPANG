@@ -255,7 +255,7 @@ public sealed partial class PickingTask : WorkerTask
 		}
 
 		int remainingQuantity = curLine.Quantity - curLine.CompleteQuantity;
-		ItemStack pickedStack = ItemStack.Rent(curLine.ItemID, relatedOrderLine: curLine.RelatedOrderLine);
+		ItemStack pickedStack = ItemStack.Rent(curLine.ItemID);
 		pickedStack.AddItem(remainingQuantity);
 		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(curLine.Container, box, pickedStack, consumeSourcePickReservation: true);
 		if (result.Kind != TransferResultKind.Complete && pickedStack.Quantity > 0)
@@ -321,8 +321,7 @@ public sealed partial class PickingTask : WorkerTask
 			box,
 			line.Container,
 			line.ItemID,
-			remainingQuantity,
-			stackPredicate: stack => ReferenceEquals(stack.RelatedOrderLine, line.RelatedOrderLine)));
+			remainingQuantity));
 		line.CompleteQuantity += result.Moved;
 
 		if (line.IsComplete == false)
