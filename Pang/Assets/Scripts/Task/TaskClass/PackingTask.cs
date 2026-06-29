@@ -6,6 +6,7 @@ using static IBaseNode.NodeState;
 public partial class PackingTask : WorkerTask
 {
 	private static PackingStationService PackingStationService => GameContext.Instance.OBWorkflowSvc.PackingStationService;
+	private static OutboundWorkflowService OutboundWorkflowService => GameContext.Instance.OBWorkflowSvc;
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 
 	private readonly PackingStation targetStation;
@@ -159,7 +160,13 @@ public partial class PackingTask : WorkerTask
 		if (box == null || line == null)
 			return Failure;
 
-		int quantityToPack = Math.Min(line.CompleteQuantity, box.Box.GetQuantity(line.ItemID));
+		if (OutboundWorkflowService.TryGetPackableManifestLine(box.Box, line.RelatedOrderLine, line.ItemID, out PickingManifestLine manifestLine) == false)
+		{
+			Debug.LogWarning($"[PackingTask] No packable manifest line. box={box.Box?.BoxId}, item={line.ItemID}");
+			return Failure;
+		}
+
+		int quantityToPack = Math.Min(manifestLine.PackableQuantity, box.Box.GetQuantity(line.ItemID));
 		ItemStack packedStack = ItemStack.Rent(
 			line.ItemID,
 			status: ItemStatus.Packed,
@@ -181,16 +188,16 @@ public partial class PackingTask : WorkerTask
 			return Failure;
 		}
 
-		int packedQuantity = OrderMgr.ReportPackagingCompleted(line.RelatedOrderLine, result.Moved);
-		if (packedQuantity != result.Moved)
-		{
-			Debug.LogWarning($"[PackingTask] Packing progress mismatch. packed={result.Moved}, applied={packedQuantity}");
-		}
-
-		int manifestPacked = GameContext.Instance.OBWorkflowSvc.ReportPackedFromManifest(box.Box, line.RelatedOrderLine, line.ItemID, result.Moved);
+		int manifestPacked = OutboundWorkflowService.ReportPackedFromManifest(box.Box, line.RelatedOrderLine, line.ItemID, result.Moved);
 		if (manifestPacked != result.Moved)
 		{
 			Debug.LogWarning($"[PackingTask] Manifest packing progress mismatch. packed={result.Moved}, applied={manifestPacked}");
+		}
+
+		int packedQuantity = OrderMgr.ReportPackagingCompleted(line.RelatedOrderLine, manifestPacked);
+		if (packedQuantity != result.Moved)
+		{
+			Debug.LogWarning($"[PackingTask] Order packing progress mismatch. packed={result.Moved}, manifest={manifestPacked}, applied={packedQuantity}");
 		}
 
 		box.Job.MoveToNextLine();
