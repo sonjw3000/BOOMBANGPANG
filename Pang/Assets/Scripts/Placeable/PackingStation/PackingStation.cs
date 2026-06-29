@@ -230,8 +230,19 @@ public partial class PackingStation :
 
 	public override bool PutBox(BoxBase box)
 	{
-		Debug.LogError("PackingStation requires PutBoxToPack with order data.");
-		return false;
+		if (box == null)
+			return false;
+
+		if (GameContext.HasInstance == false)
+			return false;
+
+		if (GameContext.Instance.OBWorkflowSvc.TryBuildPackingJob(box, this, this, out WorkJob job) == false)
+		{
+			Debug.LogError("PackingStation requires a box with packing manifest.");
+			return false;
+		}
+
+		return PutBoxToPack(new BoxWithOrder(box, job));
 	}
 
 	public bool PutBoxToPack(BoxWithOrder boxToPack)
@@ -239,6 +250,7 @@ public partial class PackingStation :
 		if (waitStackBox != null || boxToPack == null)
 			return false;
 
+		incomingRequestSuspended = false;
 		boxToPack.Job.ResetForPacking();
 		ClearIncomingBoxReservation();
 		SetWaitStackBox(boxToPack);

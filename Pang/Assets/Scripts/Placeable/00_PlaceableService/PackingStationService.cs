@@ -11,7 +11,7 @@ public partial class PackingStationService : FacilityService<PackingStation>
 		public readonly HashSet<PackingStation> QueuedPackingTasks = new();
 	}
 
-	private static CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
+	private static CapsuleBufferService CapsuleBufferService => GameContext.Instance.CapsuleBufferSvc;
 	private static TaskManager TaskManager => GameContext.Instance.TaskMgr;
 
 	private readonly Dictionary<uint, BuildingPackingState> statesByBuildingId = new();
@@ -120,18 +120,19 @@ public partial class PackingStationService : FacilityService<PackingStation>
 		if (packingStation == null || TryGetBuildingId(packingStation, out uint buildingId) == false)
 			return;
 
-		CargoPort port = CargoPortService.FindClosestAvailablePort(
-			packingStation.GridPosition,
-			InteractionKind.Put,
-			buildingId,
-			candidate => candidate is OutboundCargoPort);
-		if (port == null)
-			return;
+		TaskManager.EnqueueTaskBuildRequest(new WaterTaskBuildRequest(packingStation, buildingId));
+	}
 
-		TransferContext from = new TransferContext(packingStation, TransferObjectType.Box);
-		TransferContext to = new TransferContext(port, TransferObjectType.Box);
+	public bool TryClaimWaitingStation(uint buildingId, out PackingStation station)
+	{
+		station = null;
+		if (statesByBuildingId.TryGetValue(buildingId, out BuildingPackingState state) == false)
+			return false;
 
-		TaskManager.EnqueueTask(new WaterTask(from, to));
+		if (TryClaimWaitingStation(state, candidate => candidate.CurrentPackingWorker != null, out station))
+			return true;
+
+		return TryClaimWaitingStation(state, candidate => candidate.CurrentPackingWorker == null, out station);
 	}
 
 	private BuildingPackingState GetOrCreateState(uint buildingId)
@@ -230,5 +231,75 @@ public partial class PackingStationService : FacilityService<PackingStation>
 			return;
 
 		state.WaitingQueue.Remove(station);
+	}
+
+	private CapsuleBuffer FindClosestOutboundBuffer(uint buildingId, in Unity.Mathematics.int3 from)
+	{
+		CapsuleBuffer best = null;
+		int bestDistance = int.MaxValue;
+
+		foreach (CapsuleBuffer buffer in CapsuleBufferService.GetBuffers(buildingId))
+		{
+			if (buffer == null || buffer.BufferState == CapsuleBufferState.IBOnly || buffer.DockedCapsule == null)
+				continue;
+
+			int distance = (int)Unity.Mathematics.math.lengthsq(buffer.GridPosition - from);
+			if (distance >= bestDistance)
+				continue;
+
+			best = buffer;
+			bestDistance = distance;
+		}
+
+		return best;
+	}
+
+	public bool TryResolveOutboundBuffer(PackingStation sourceStation, out CapsuleBuffer targetBuffer)
+	{
+		targetBuffer = null;
+		if (sourceStation == null || TryGetBuildingId(sourceStation, out uint buildingId) == false)
+			return false;
+
+		targetBuffer = FindClosestOutboundBuffer(buildingId, sourceStation.GridPosition);
+		return targetBuffer != null;
+	}
+
+	private bool TryClaimWaitingStation(
+		BuildingPackingState state,
+		System.Predicate<PackingStation> predicate,
+		out PackingStation station)
+	{
+		var node = state.WaitingQueue.First;
+		while (node != null)
+		{
+			var next = node.Next;
+			PackingStation candidate = node.Value;
+			if (candidate == null)
+			{
+				state.WaitingQueue.Remove(node);
+				node = next;
+				continue;
+			}
+
+			if (candidate.CanRequestIncomingBox() == false)
+			{
+				RemoveWaitingStation(state, candidate);
+				node = next;
+				continue;
+			}
+
+			if (predicate(candidate))
+			{
+				candidate.SetIncomingRequestSuspended(true);
+				RemoveWaitingStation(state, candidate);
+				station = candidate;
+				return true;
+			}
+
+			node = next;
+		}
+
+		station = null;
+		return false;
 	}
 }

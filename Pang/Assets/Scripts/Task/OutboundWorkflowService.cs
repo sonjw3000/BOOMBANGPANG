@@ -152,6 +152,86 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		return added;
 	}
 
+	public int TransferPickingManifest(BoxBase from, BoxBase to, uint itemId, int quantity)
+	{
+		if (from == null || to == null || from.BoxId == to.BoxId || quantity <= 0)
+			return 0;
+
+		if (TryGetPickingManifest(from, out PickingManifest sourceManifest) == false)
+			return 0;
+
+		PickingManifest targetManifest = GetPickingManifest(to);
+		if (targetManifest == null)
+			return 0;
+
+		int remaining = quantity;
+		int movedTotal = 0;
+		List<PickingManifestLine> snapshot = new(sourceManifest.Lines);
+		for (int i = 0; i < snapshot.Count && remaining > 0; ++i)
+		{
+			PickingManifestLine line = snapshot[i];
+			if (line == null || line.ItemId != itemId || line.PackableQuantity <= 0 || line.OrderLine == null)
+				continue;
+
+			int requested = Mathf.Min(remaining, line.PackableQuantity);
+			int moved = sourceManifest.RemovePicked(line.OrderLine, itemId, requested);
+			if (moved <= 0)
+				continue;
+
+			int added = targetManifest.AddPicked(line.OrderLine, itemId, moved);
+			if (added != moved)
+				Debug.LogWarning($"[OutboundWorkflowService] Picking manifest transfer mismatch. item={itemId}, moved={moved}, added={added}");
+
+			movedTotal += added;
+			remaining -= added;
+		}
+
+		if (sourceManifest.IsEmpty)
+			ClearPickingManifest(from);
+
+		return movedTotal;
+	}
+
+	public bool HasPackableManifest(BoxBase box)
+	{
+		if (TryGetPickingManifest(box, out PickingManifest manifest) == false)
+			return false;
+
+		IReadOnlyList<PickingManifestLine> lines = manifest.Lines;
+		for (int i = 0; i < lines.Count; ++i)
+		{
+			if (lines[i] != null && lines[i].PackableQuantity > 0)
+				return true;
+		}
+
+		return false;
+	}
+
+	public bool TryBuildPackingJob(BoxBase box, IItemContainer container, IGridPlaceable target, out WorkJob job)
+	{
+		job = null;
+		if (box == null || container == null || target == null || TryGetPickingManifest(box, out PickingManifest manifest) == false)
+			return false;
+
+		List<WorkLine> lines = new();
+		IReadOnlyList<PickingManifestLine> manifestLines = manifest.Lines;
+		for (int i = 0; i < manifestLines.Count; ++i)
+		{
+			PickingManifestLine line = manifestLines[i];
+			if (line?.OrderLine == null || line.PackableQuantity <= 0)
+				continue;
+
+			lines.Add(new WorkLine(WorkLineAction.Pick, container, target, line.ItemId, line.PackableQuantity, line.OrderLine));
+		}
+
+		if (lines.Count <= 0)
+			return false;
+
+		job = new WorkJob(PickingPlanner.GetNextJobId(), lines, WorkOp.Packing);
+		PickingPlanner.SetNextJobId(job.JobID + 1);
+		return true;
+	}
+
 	public int ReportPackedFromManifest(BoxBase box, OrderLine orderLine, uint itemId, int quantity)
 	{
 		if (box == null || quantity <= 0 || TryGetPickingManifest(box, out PickingManifest manifest) == false)

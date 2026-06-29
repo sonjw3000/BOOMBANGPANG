@@ -98,6 +98,7 @@ public class Building
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
+	private OutboundWorkflowService OutboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
 	public Building(string displayName, List<GridCell> occupiedCells, BuildingType buildingType = BuildingType.Generic)
 	{
 		this.displayName = displayName;
@@ -384,6 +385,7 @@ public class Building
 	{
 		RemoveQueuedInboundTarget(capsuleBuffer);
 		TryEvaluateOutbound(capsuleBuffer);
+		TryEvaluatePackingIngress(capsuleBuffer);
 	}
 
 	protected virtual void OnCapsuleBufferUndocked(CapsuleBuffer capsuleBuffer)
@@ -394,12 +396,14 @@ public class Building
 		pendingOutboundBuffers.Remove(capsuleBuffer);
 		queuedOutboundBuffers.Remove(capsuleBuffer);
 		TaskManager?.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
+		TaskManager?.CancelTaskBuildRequest(WaterTaskBuildRequest.GetRequestKey(capsuleBuffer));
 		TryEnqueuePendingInboundTasks();
 	}
 
 	protected virtual void OnCapsuleBufferContentChanged(CapsuleBuffer capsuleBuffer)
 	{
 		TryEvaluateOutbound(capsuleBuffer);
+		TryEvaluatePackingIngress(capsuleBuffer);
 	}
 
 	protected virtual void OnCapsuleBufferStateChanged(CapsuleBuffer capsuleBuffer)
@@ -411,6 +415,7 @@ public class Building
 			TryEnqueuePendingInboundTasks();
 
 		TryEvaluateOutbound(capsuleBuffer);
+		TryEvaluatePackingIngress(capsuleBuffer);
 	}
 
 	protected virtual bool CanDispatchBufferToOutbound(CapsuleBuffer capsuleBuffer)
@@ -538,9 +543,34 @@ public class Building
 		TaskManager.EnqueueTaskBuildRequest(new OBTaskBuildRequest(capsuleBuffer, RuntimeBuildingId));
 	}
 
+	private void TryEvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
+	{
+		if (TaskManager == null || capsuleBuffer == null)
+			return;
+
+		if (CanBuildWaterTaskRequest(capsuleBuffer) == false)
+		{
+			TaskManager.CancelTaskBuildRequest(WaterTaskBuildRequest.GetRequestKey(capsuleBuffer));
+			return;
+		}
+
+		TaskManager.EnqueueTaskBuildRequest(new WaterTaskBuildRequest(capsuleBuffer, RuntimeBuildingId));
+	}
+
 	internal bool CanBuildOutboundTaskRequest(CapsuleBuffer capsuleBuffer)
 	{
 		return capsuleBuffer != null && capsuleBuffer.CanDispatchToOutbound() && CanDispatchBufferToOutbound(capsuleBuffer);
+	}
+
+	internal bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
+	{
+		return buildingType == BuildingType.Packing &&
+			capsuleBuffer != null &&
+			capsuleBuffer.BufferState != CapsuleBufferState.OBOnly &&
+			capsuleBuffer.DockedCapsule != null &&
+			capsuleBuffer.IsCapsuleEmpty() == false &&
+			OutboundWorkflowService != null &&
+			OutboundWorkflowService.HasPackableManifest(capsuleBuffer.DockedCapsule);
 	}
 
 	internal void OnInboundTaskBuilt(IBTask task)
