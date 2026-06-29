@@ -211,7 +211,7 @@ public partial class StoringTask : WorkerTask
 		{
 			WorkLine nextLine = null;
 			WorkPlanResult result = Planner != null
-				? Planner.TryGetPlaceLine(ctx.Worker, out nextLine)
+				? Planner.TryGetPlaceLine(ctx.Worker, task.buildingId, out nextLine)
 				: WorkPlanResult.Waiting;
 
 			if (result == WorkPlanResult.Issued)

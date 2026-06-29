@@ -10,6 +10,7 @@ public sealed class StoringPlanner
 	private CollectingPolicyType collectingPolicyType;
 	private PlacingPolicyType placingPolicyType;
 	private IPlacingPolicy placingPolicy;
+	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 
 	public static int GetNextJobId() => jobID;
 	public static void SetNextJobId(int nextJobId) => jobID = nextJobId;
@@ -157,10 +158,20 @@ public sealed class StoringPlanner
 
 	public bool TryDecideNextPlacingLine(AIWorker worker, out WorkLine line)
 	{
-		return TryGetPlaceLine(worker, out line) == WorkPlanResult.Issued;
+		return TryGetPlaceLine(worker, 0, out line) == WorkPlanResult.Issued;
+	}
+
+	public bool TryDecideNextPlacingLine(AIWorker worker, uint buildingId, out WorkLine line)
+	{
+		return TryGetPlaceLine(worker, buildingId, out line) == WorkPlanResult.Issued;
 	}
 
 	public WorkPlanResult TryGetPlaceLine(AIWorker worker, out WorkLine line)
+	{
+		return TryGetPlaceLine(worker, 0, out line);
+	}
+
+	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, out WorkLine line)
 	{
 		line = null;
 
@@ -174,7 +185,7 @@ public sealed class StoringPlanner
 		if (box.Stacks.Count <= 0)
 			return WorkPlanResult.SwitchPhase;
 
-		if (placingPolicy.TryDecide(worker.GridPosition, box, null, out var decision) == false)
+		if (placingPolicy.TryDecide(worker.GridPosition, box, shelf => IsShelfInBuilding(shelf, buildingId), out var decision) == false)
 			return WorkPlanResult.Waiting;
 
 		if (decision.shelf == null || decision.Quantity <= 0)
@@ -231,5 +242,17 @@ public sealed class StoringPlanner
 	private static bool HasCollectableItem(CapsuleBuffer buffer)
 	{
 		return buffer != null && buffer.HasCapsule && buffer.IsCapsuleEmpty() == false && buffer.ItemTotals.Count > 0;
+	}
+
+	private bool IsShelfInBuilding(ShelfBase shelf, uint buildingId)
+	{
+		if (buildingId == 0)
+			return true;
+
+		if (shelf == null || GridService == null)
+			return false;
+
+		GridCell cell = GridService.GetCell(shelf.GridPosition);
+		return cell != null && cell.BuildingId == buildingId;
 	}
 }
