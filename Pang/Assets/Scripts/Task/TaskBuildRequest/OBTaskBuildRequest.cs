@@ -13,7 +13,7 @@ public sealed class OBTaskBuildRequest : TaskBuildRequest<OBTask>
 
 	public static object GetRequestKey(CapsuleBuffer sourceBuffer)
 	{
-		return sourceBuffer;
+		return new TaskBuildRequestKey(WorkerTask.TaskType.OB, sourceBuffer);
 	}
 
 	protected override bool TryBuildTask(out OBTask task)

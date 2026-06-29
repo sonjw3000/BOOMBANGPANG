@@ -13,7 +13,7 @@ public sealed class LoadingTaskBuildRequest : TaskBuildRequest<LoadingTask>
 
 	public static object GetRequestKey(CargoPort sourcePort)
 	{
-		return sourcePort;
+		return new TaskBuildRequestKey(WorkerTask.TaskType.Loading, sourcePort);
 	}
 
 	protected override bool TryBuildTask(out LoadingTask task)

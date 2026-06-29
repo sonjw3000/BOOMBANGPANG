@@ -1,4 +1,7 @@
 
+using System;
+using System.Runtime.CompilerServices;
+
 public abstract class TaskBuildRequest
 {
 	private readonly uint requestedBuildingID = 0;
@@ -23,6 +26,36 @@ public abstract class TaskBuildRequest
 	}
 }
 
+public readonly struct TaskBuildRequestKey : IEquatable<TaskBuildRequestKey>
+{
+	private readonly WorkerTask.TaskType taskType;
+	private readonly object source;
+
+	public TaskBuildRequestKey(WorkerTask.TaskType taskType, object source)
+	{
+		this.taskType = taskType;
+		this.source = source;
+	}
+
+	public bool Equals(TaskBuildRequestKey other)
+	{
+		return taskType == other.taskType && ReferenceEquals(source, other.source);
+	}
+
+	public override bool Equals(object obj)
+	{
+		return obj is TaskBuildRequestKey other && Equals(other);
+	}
+
+	public override int GetHashCode()
+	{
+		int hash = 17;
+		hash = hash * 31 + (int)taskType;
+		hash = hash * 31 + (source != null ? RuntimeHelpers.GetHashCode(source) : 0);
+		return hash;
+	}
+}
+
 public abstract class TaskBuildRequest<TTask> : TaskBuildRequest where TTask : WorkerTask
 {
 	public TaskBuildRequest(uint requestedBuildingID) : base(requestedBuildingID) {}
@@ -41,4 +74,3 @@ public abstract class TaskBuildRequest<TTask> : TaskBuildRequest where TTask : W
 
 	protected abstract bool TryBuildTask(out TTask task);
 }
-

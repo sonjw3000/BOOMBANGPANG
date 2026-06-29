@@ -78,7 +78,6 @@ public class Building
 	private readonly HashSet<uint> outputBuildingIds = new();
 	private readonly HashSet<InboundCargoPort> pendingInboundPorts = new();
 	private readonly HashSet<InboundCargoPort> queuedInboundPorts = new();
-	private readonly HashSet<CapsuleBuffer> pendingOutboundBuffers = new();
 	private readonly HashSet<CapsuleBuffer> queuedOutboundBuffers = new();
 	private readonly Dictionary<InboundCargoPort, CapsuleBuffer> queuedInboundTargets = new();
 	private readonly Dictionary<CapsuleBuffer, OutboundCargoPort> queuedOutboundTargets = new();
@@ -215,7 +214,6 @@ public class Building
 		{
 			UnsubscribeCapsuleBuffer(capsuleBuffer);
 			occupiedCapsuleBuffers.Remove(capsuleBuffer);
-			pendingOutboundBuffers.Remove(capsuleBuffer);
 			queuedOutboundBuffers.Remove(capsuleBuffer);
 			RemoveQueuedInboundTarget(capsuleBuffer);
 			queuedOutboundTargets.Remove(capsuleBuffer);
@@ -387,7 +385,6 @@ public class Building
 	protected virtual void OnOutboundCargoUndocked(OutboundCargoPort cargoPort)
 	{
 		RemoveQueuedOutboundTarget(cargoPort);
-		TryEvaluatePendingOutboundBuffers();
 	}
 
 	protected virtual void OnOutboundCargoDocked(OutboundCargoPort cargoPort)
@@ -411,10 +408,8 @@ public class Building
 		if (capsuleBuffer == null)
 			return;
 
-		pendingOutboundBuffers.Remove(capsuleBuffer);
 		queuedOutboundBuffers.Remove(capsuleBuffer);
 		TaskManager?.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
-		TaskManager?.CancelTaskBuildRequest(WaterTaskBuildRequest.GetRequestKey(capsuleBuffer));
 		TryEnqueuePendingInboundTasks();
 	}
 
@@ -545,27 +540,15 @@ public class Building
 
 		if (IsBufferOutboundReady(capsuleBuffer) == false || queuedOutboundBuffers.Contains(capsuleBuffer))
 		{
-			pendingOutboundBuffers.Remove(capsuleBuffer);
 			TaskManager.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
 			return;
 		}
 
-		pendingOutboundBuffers.Add(capsuleBuffer);
 		TaskManager.EnqueueTaskBuildRequest(new OBTaskBuildRequest(capsuleBuffer, RuntimeBuildingId));
 	}
 
-	private void TryEvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
+	protected virtual void TryEvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
 	{
-		if (TaskManager == null || capsuleBuffer == null)
-			return;
-
-		if (CanBuildWaterTaskRequest(capsuleBuffer) == false)
-		{
-			TaskManager.CancelTaskBuildRequest(WaterTaskBuildRequest.GetRequestKey(capsuleBuffer));
-			return;
-		}
-
-		TaskManager.EnqueueTaskBuildRequest(new WaterTaskBuildRequest(capsuleBuffer, RuntimeBuildingId));
 	}
 
 	internal bool CanBuildOutboundTaskRequest(CapsuleBuffer capsuleBuffer)
@@ -573,15 +556,14 @@ public class Building
 		return capsuleBuffer != null && capsuleBuffer.CanDispatchToOutbound() && IsBufferOutboundReady(capsuleBuffer);
 	}
 
-	internal bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
+	internal virtual bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
 	{
-		return buildingType == BuildingType.Packing &&
-			capsuleBuffer != null &&
-			capsuleBuffer.BufferState != CapsuleBufferState.OBOnly &&
-			capsuleBuffer.DockedCapsule != null &&
-			capsuleBuffer.IsCapsuleEmpty() == false &&
-			OutboundWorkflowService != null &&
-			OutboundWorkflowService.HasPackableManifest(capsuleBuffer.DockedCapsule);
+		return false;
+	}
+
+	internal virtual bool CanBuildWaterTaskRequest(PackingStation packingStation)
+	{
+		return false;
 	}
 
 	internal void OnInboundTaskBuilt(IBTask task)
@@ -602,19 +584,6 @@ public class Building
 		queuedOutboundBuffers.Add(task.SourceBuffer);
 		if (task.TargetPort != null)
 			queuedOutboundTargets[task.SourceBuffer] = task.TargetPort;
-
-		pendingOutboundBuffers.Remove(task.SourceBuffer);
-	}
-
-	private void TryEvaluatePendingOutboundBuffers()
-	{
-		if (pendingOutboundBuffers.Count <= 0)
-			return;
-
-		CapsuleBuffer[] buffers = new CapsuleBuffer[pendingOutboundBuffers.Count];
-		pendingOutboundBuffers.CopyTo(buffers);
-		for (int i = 0; i < buffers.Length; ++i)
-			TryEvaluateOutbound(buffers[i]);
 	}
 
 	private CapsuleBuffer FindClosestCapsuleBuffer(

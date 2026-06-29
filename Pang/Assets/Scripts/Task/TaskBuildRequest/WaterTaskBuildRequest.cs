@@ -23,7 +23,7 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WaterTask>
 
 	public static object GetRequestKey(IInteractionPoint source)
 	{
-		return source;
+		return new TaskBuildRequestKey(WorkerTask.TaskType.Water, source);
 	}
 
 	protected override bool TryBuildTask(out WaterTask task)
@@ -35,7 +35,7 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WaterTask>
 		return source switch
 		{
 			CapsuleBuffer buffer => TryBuildFromBuffer(building, buffer, out task),
-			PackingStation station => TryBuildFromStation(station, out task),
+			PackingStation station => TryBuildFromStation(building, station, out task),
 			_ => false,
 		};
 	}
@@ -56,9 +56,12 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WaterTask>
 		return true;
 	}
 
-	private bool TryBuildFromStation(PackingStation sourceStation, out WaterTask task)
+	private bool TryBuildFromStation(Building building, PackingStation sourceStation, out WaterTask task)
 	{
 		task = null;
+		if (building.CanBuildWaterTaskRequest(sourceStation) == false)
+			return false;
+
 		PackingStationService packingStationService = Ctx?.OBWorkflowSvc?.PackingStationService;
 		if (packingStationService == null || packingStationService.TryResolveOutboundBuffer(sourceStation, out CapsuleBuffer targetBuffer) == false)
 			return false;

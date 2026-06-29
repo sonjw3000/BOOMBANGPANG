@@ -15,7 +15,7 @@ public sealed class IBTaskBuildRequest : TaskBuildRequest<IBTask>
 
 	public static object GetRequestKey(InboundCargoPort sourcePort)
 	{
-		return sourcePort;
+		return new TaskBuildRequestKey(WorkerTask.TaskType.IB, sourcePort);
 	}
 
 	protected override bool TryBuildTask(out IBTask task)

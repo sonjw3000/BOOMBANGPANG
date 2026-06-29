@@ -13,7 +13,7 @@ public sealed class UnloadingTaskBuildRequest : TaskBuildRequest<UnloadingTask>
 
 	public static object GetRequestKey(Rocket rocket)
 	{
-		return rocket;
+		return new TaskBuildRequestKey(WorkerTask.TaskType.Unloading, rocket);
 	}
 
 	protected override bool TryBuildTask(out UnloadingTask task)

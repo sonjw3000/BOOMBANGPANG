@@ -10,7 +10,6 @@ public sealed class StagingBuilding : Building
 	{
 		// todo
 		// check buffer items are fully labeled
-
-		return true;
+		return capsuleBuffer.HasCapsule && capsuleBuffer.CanDispatchToOutbound();
 	}
 }

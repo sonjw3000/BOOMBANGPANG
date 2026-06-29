@@ -17,7 +17,7 @@ public sealed class CargoTransferBuildRequest : TaskBuildRequest<CargoTransferTa
 
 	public static object GetRequestKey(OutboundCargoPort sourcePort)
 	{
-		return sourcePort;
+		return new TaskBuildRequestKey(WorkerTask.TaskType.CargoTransfer, sourcePort);
 	}
 
 	protected override bool TryBuildTask(out CargoTransferTask task)
