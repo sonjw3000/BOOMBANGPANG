@@ -8,7 +8,7 @@ public sealed class CapsuleBufferDetailBuilder : ShelfBaseDetailContent<CapsuleB
 	private TextMeshProUGUI capsuleValue;
 	private TextMeshProUGUI inboundAccessValue;
 	private TextMeshProUGUI outboundAccessValue;
-	private Button sharedStateButton;
+	private Button emptyStateButton;
 	private Button inboundOnlyStateButton;
 	private Button outboundOnlyStateButton;
 
@@ -39,7 +39,7 @@ public sealed class CapsuleBufferDetailBuilder : ShelfBaseDetailContent<CapsuleB
 		if (provider is not CapsuleBufferUIProvider capsuleBufferProvider || capsuleBufferProvider.Target == null)
 			return;
 
-		sharedStateButton = AddStateButton("Set Shared", capsuleBufferProvider, CapsuleBufferState.Shared);
+		emptyStateButton = AddStateButton("Set Empty", capsuleBufferProvider, CapsuleBufferState.Empty);
 		inboundOnlyStateButton = AddStateButton("Set Inbound Only", capsuleBufferProvider, CapsuleBufferState.IBOnly);
 		outboundOnlyStateButton = AddStateButton("Set Outbound Only", capsuleBufferProvider, CapsuleBufferState.OBOnly);
 		UpdateActionButtons();
@@ -74,8 +74,8 @@ public sealed class CapsuleBufferDetailBuilder : ShelfBaseDetailContent<CapsuleB
 			return;
 
 		CapsuleBufferState currentState = capsuleBufferProvider.Target.BufferState;
-		if (sharedStateButton != null)
-			sharedStateButton.interactable = currentState != CapsuleBufferState.Shared;
+		if (emptyStateButton != null)
+			emptyStateButton.interactable = currentState != CapsuleBufferState.Empty;
 		if (inboundOnlyStateButton != null)
 			inboundOnlyStateButton.interactable = currentState != CapsuleBufferState.IBOnly;
 		if (outboundOnlyStateButton != null)

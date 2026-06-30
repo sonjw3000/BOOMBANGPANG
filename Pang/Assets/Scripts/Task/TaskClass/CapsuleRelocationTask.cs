@@ -90,7 +90,9 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 	public override bool CanDispatchTo(AIWorker worker)
 	{
-		return CanDispatchToWorkerZones(worker, sourceDock, targetDock);
+		return worker != null &&
+			(buildingId == 0 || worker.PrimaryBuildingId == buildingId) &&
+			CanDispatchToWorkerZones(worker, sourceDock, targetDock);
 	}
 
 #if UNITY_EDITOR

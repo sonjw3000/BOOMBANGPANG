@@ -37,11 +37,15 @@ public static class WorkerTaskAssignmentPolicy
 		switch (taskType)
 		{
 			case WorkerTask.TaskType.Undefined:
-			case WorkerTask.TaskType.IB:
-			case WorkerTask.TaskType.OB:
-			case WorkerTask.TaskType.CargoTransfer:
 			case WorkerTask.TaskType.Water:
 				return true;
+
+			case WorkerTask.TaskType.IB:
+			case WorkerTask.TaskType.OB:
+				return buildingType.HasValue;
+
+			case WorkerTask.TaskType.CargoTransfer:
+				return buildingType.HasValue == false;
 
 			case WorkerTask.TaskType.Unloading:
 			case WorkerTask.TaskType.Loading:

@@ -242,7 +242,7 @@ public sealed class PickingPlanner
 
 		foreach (CapsuleBuffer buffer in capsuleBufferService.GetBuffers(buildingId))
 		{
-			if (buffer != null && buffer.BufferState != CapsuleBufferState.IBOnly && buffer.HasCapsule)
+			if (buffer != null && buffer.BufferState == CapsuleBufferState.OBOnly && buffer.HasCapsule)
 				yield return buffer;
 		}
 	}

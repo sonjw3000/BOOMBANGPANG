@@ -45,7 +45,7 @@ public sealed class PackingBuilding : Building
 	internal override bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
 	{
 		return capsuleBuffer != null &&
-			capsuleBuffer.BufferState != CapsuleBufferState.OBOnly &&
+			capsuleBuffer.BufferState == CapsuleBufferState.IBOnly &&
 			capsuleBuffer.DockedCapsule != null &&
 			capsuleBuffer.IsCapsuleEmpty() == false &&
 			GameContext.HasInstance &&

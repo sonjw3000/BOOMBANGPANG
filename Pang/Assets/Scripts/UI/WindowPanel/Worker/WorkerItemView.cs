@@ -54,7 +54,7 @@ namespace Assets.Scripts.UI
 				selectedHandleGroup = GetHandleGroup(worker.TaskType);
 
 			nameText.text = $"{worker.Name} (ID: {worker.WorkerID})";
-			taskText.text = $"Task: {worker.TaskType}";
+			taskText.text = $"Task: {GetTaskTypeDisplayName(worker.TaskType)}";
 
 			var state = worker.WorkerState;
 			statusText.text = $"{state.Action} {state.Target}";
@@ -137,7 +137,7 @@ namespace Assets.Scripts.UI
 			if (currentTaskAvailable == false || IsTaskTypeVisibleInHandleGroup(worker.TaskType, selectedGroup) == false)
 			{
 				validTypes.Add(worker.TaskType);
-				options.Add($"{worker.TaskType} (Current Unavailable)");
+				options.Add($"{GetTaskTypeDisplayName(worker.TaskType)} (Current Unavailable)");
 			}
 
 			for (int i = 0; i < assignableTypes.Count; ++i)
@@ -153,7 +153,7 @@ namespace Assets.Scripts.UI
 					selectedIndex = validTypes.Count;
 
 				validTypes.Add(type);
-				options.Add(type.ToString());
+				options.Add(GetTaskTypeDisplayName(type));
 			}
 
 			if (options.Count > 0)
@@ -265,7 +265,7 @@ namespace Assets.Scripts.UI
 				return;
 
 			GameContext.Instance.WorkerMgr.ChangeWorkerTaskType(currentWorker, newType);
-			taskText.text = $"Task: {currentWorker.TaskType}";
+			taskText.text = $"Task: {GetTaskTypeDisplayName(currentWorker.TaskType)}";
 			if (newType != WorkerTask.TaskType.Undefined)
 				selectedHandleGroup = GetHandleGroup(newType);
 		}
@@ -313,6 +313,16 @@ namespace Assets.Scripts.UI
 				return true;
 
 			return GetHandleGroup(taskType) == group;
+		}
+
+		private static string GetTaskTypeDisplayName(WorkerTask.TaskType taskType)
+		{
+			return taskType switch
+			{
+				WorkerTask.TaskType.IB => "CapsuleRelocation (Inbound)",
+				WorkerTask.TaskType.OB => "CapsuleRelocation (Outbound)",
+				_ => taskType.ToString(),
+			};
 		}
 
 		private Color GetFatigueColor(float fatigue)

@@ -9,7 +9,7 @@ public enum CapsuleBufferState
 {
 	IBOnly,
 	OBOnly,
-	Shared,
+	Empty,
 }
 
 public partial class CapsuleBuffer :
@@ -20,7 +20,7 @@ public partial class CapsuleBuffer :
 	private static readonly IReadOnlyDictionary<uint, int> EmptyItemTotals = new Dictionary<uint, int>();
 
 	[SerializeField] private GameObject boxStackPos;
-	[SerializeField] private CapsuleBufferState bufferState = CapsuleBufferState.Shared;
+	[SerializeField] private CapsuleBufferState bufferState = CapsuleBufferState.Empty;
 
 	public event Action<CapsuleBuffer> OnCapsuleDocked;
 	public event Action<CapsuleBuffer> OnCapsuleUndocked;
@@ -33,8 +33,8 @@ public partial class CapsuleBuffer :
 	public IReadOnlyDictionary<uint, int> ItemTotals => DockedCapsule != null ? DockedCapsule.ItemTotals : EmptyItemTotals;
 	public ItemTag ItemTags => DockedCapsule != null ? DockedCapsule.ItemTags : ItemTag.None;
 
-	public bool CanReceiveFromInbound() => bufferState != CapsuleBufferState.OBOnly && CanPutBox();
-	public bool CanDispatchToOutbound() => bufferState != CapsuleBufferState.IBOnly && CanGetBox() && IsCapsuleEmpty() == false;
+	public bool CanReceiveFromInbound() => bufferState == CapsuleBufferState.IBOnly && CanPutBox();
+	public bool CanDispatchToOutbound() => bufferState == CapsuleBufferState.OBOnly && CanGetBox() && IsCapsuleEmpty() == false;
 	public bool CanRegister() => DockedCapsule != null && DockedCapsule.CanRegister();
 	public int GetQuantity(uint itemId) => DockedCapsule != null ? DockedCapsule.GetQuantity(itemId) : 0;
 	public int GetAcceptableQuantity(uint itemId, int requested) => DockedCapsule != null ? DockedCapsule.GetAcceptableQuantity(itemId, requested) : 0;

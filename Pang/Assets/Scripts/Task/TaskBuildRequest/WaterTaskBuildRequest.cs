@@ -16,7 +16,7 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WaterTask>
 	public override object RequestKey => GetRequestKey(source);
 	public override bool IsStillValid => source switch
 	{
-		CapsuleBuffer buffer => buffer.BufferState != CapsuleBufferState.OBOnly && buffer.IsCapsuleEmpty() == false,
+		CapsuleBuffer buffer => buffer.BufferState == CapsuleBufferState.IBOnly && buffer.IsCapsuleEmpty() == false,
 		PackingStation station => station.EndPackingBox != null,
 		_ => false,
 	};

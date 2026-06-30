@@ -51,7 +51,8 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 		{
 			CapsuleBufferState.IBOnly => "Inbound Only",
 			CapsuleBufferState.OBOnly => "Outbound Only",
-			_ => "Shared",
+			CapsuleBufferState.Empty => "Empty",
+			_ => "Unknown",
 		};
 	}
 }

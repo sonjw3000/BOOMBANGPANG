@@ -240,7 +240,7 @@ public partial class PackingStationService : FacilityService<PackingStation>
 
 		foreach (CapsuleBuffer buffer in CapsuleBufferService.GetBuffers(buildingId))
 		{
-			if (buffer == null || buffer.BufferState == CapsuleBufferState.IBOnly || buffer.DockedCapsule == null)
+			if (buffer == null || buffer.BufferState != CapsuleBufferState.OBOnly || buffer.DockedCapsule == null)
 				continue;
 
 			int distance = (int)Unity.Mathematics.math.lengthsq(buffer.GridPosition - from);
