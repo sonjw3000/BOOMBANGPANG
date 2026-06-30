@@ -102,7 +102,7 @@ MonoBehaviour:
   baseWorkSpeedMultiplier: 1
   minimumWorkSpeedMultiplier: 0.5
   tick: 0
-  workerMainTaskType: 6
+  workerMainTaskType: 999
   visualRoot: {fileID: 3145472337838494173}
   batteryLevel: 100
   monthlyMaintenanceCost: 100

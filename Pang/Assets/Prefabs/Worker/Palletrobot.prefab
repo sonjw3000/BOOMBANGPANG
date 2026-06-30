@@ -71,7 +71,7 @@ MonoBehaviour:
   baseWorkSpeedMultiplier: 1
   minimumWorkSpeedMultiplier: 0.5
   tick: 0
-  workerMainTaskType: 6
+  workerMainTaskType: 999
   visualRoot: {fileID: 0}
   fatigue: 0
   fatigueIncreasePerTask: 2
