@@ -423,6 +423,8 @@ public sealed class GameSaveService : MonoBehaviour
 			case WorkerTask.TaskType.Unloading:
 				return taskData.Unloading?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.IB:
+			case WorkerTask.TaskType.CapsuleClear:
+			case WorkerTask.TaskType.CapsuleSupply:
 			case WorkerTask.TaskType.OB:
 				return taskData.CapsuleTransfer?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.CargoTransfer:
@@ -562,10 +564,17 @@ public static class TaskSaveDataExtensions
 			return null;
 		}
 
-		WorkerTask.TaskType taskType = data.IsInbound ? WorkerTask.TaskType.IB : WorkerTask.TaskType.OB;
-		CapsuleRelocationReason reason = data.IsInbound
-			? CapsuleRelocationReason.SourceMustClear
-			: CapsuleRelocationReason.DestinationNeedsCapsule;
+		WorkerTask.TaskType taskType = data.HasTaskType
+			? data.TaskType
+			: data.IsInbound ? WorkerTask.TaskType.IB : WorkerTask.TaskType.OB;
+		CapsuleRelocationReason reason = taskType switch
+		{
+			WorkerTask.TaskType.IB => CapsuleRelocationReason.SourceMustClear,
+			WorkerTask.TaskType.OB => CapsuleRelocationReason.DestinationNeedsCapsule,
+			WorkerTask.TaskType.CapsuleClear => CapsuleRelocationReason.StateMismatch,
+			WorkerTask.TaskType.CapsuleSupply => CapsuleRelocationReason.DestinationNeedsCapsule,
+			_ => CapsuleRelocationReason.StateMismatch,
+		};
 		return new CapsuleRelocationTask(taskType, sourceDock, targetDock, data.BuildingId, reason);
 	}
 

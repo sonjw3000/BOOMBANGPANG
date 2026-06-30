@@ -42,7 +42,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 	public string ResourceDisplay => $"{ResourceValue:0.0}%";
 	public string MoveSpeedDisplay => currentTarget != null ? $"x{currentTarget.GetMoveSpeedMultiplier():0.00}" : "x0.00";
 	public string WorkSpeedDisplay => currentTarget != null ? $"x{currentTarget.GetWorkSpeedMultiplier():0.00}" : "x0.00";
-	public string MainTaskTypeDisplay => currentTarget != null ? currentTarget.TaskType.ToString() : "None";
+	public string MainTaskTypeDisplay => currentTarget != null ? BuildTaskTypeDisplay(currentTarget) : "None";
 	public string AbilityDisplay => currentTarget != null ? BuildAbilityDisplay(currentTarget.Ability) : "None";
 	public string MonthlyCostDisplay => currentTarget != null ? currentTarget.MonthlyCost.ToString() : "0";
 	public string PositionDisplay => currentTarget != null ? currentTarget.GridPosition.ToString() : "(0,0,0)";
@@ -150,5 +150,37 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		}
 
 		return builder.Length > 0 ? builder.ToString() : "None";
+	}
+
+	private static string BuildTaskTypeDisplay(AIWorker worker)
+	{
+		if (worker == null || worker.AssignedTaskTypes.Count == 0)
+			return "Undefined";
+
+		if (worker.AssignedTaskTypes.Count == 1)
+			return GetTaskTypeDisplayName(worker.AssignedTaskTypes[0]);
+
+		StringBuilder builder = new();
+		for (int i = 0; i < worker.AssignedTaskTypes.Count; ++i)
+		{
+			if (i > 0)
+				builder.Append(", ");
+
+			builder.Append(GetTaskTypeDisplayName(worker.AssignedTaskTypes[i]));
+		}
+
+		return builder.ToString();
+	}
+
+	private static string GetTaskTypeDisplayName(WorkerTask.TaskType taskType)
+	{
+		return taskType switch
+		{
+			WorkerTask.TaskType.IB => "CapsuleRelocation (Inbound)",
+			WorkerTask.TaskType.CapsuleClear => "CapsuleRelocation (Clear)",
+			WorkerTask.TaskType.CapsuleSupply => "CapsuleRelocation (Supply)",
+			WorkerTask.TaskType.OB => "CapsuleRelocation (Outbound)",
+			_ => taskType.ToString(),
+		};
 	}
 }

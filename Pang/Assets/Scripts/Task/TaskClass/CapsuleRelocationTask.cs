@@ -129,6 +129,8 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		return Type switch
 		{
 			TaskType.IB when sourceDock is InboundCargoPort => sourceDock.IsCapsuleEmpty() == false,
+			TaskType.CapsuleClear when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.BufferState == CapsuleBufferState.IBOnly && sourceBuffer.IsCapsuleEmpty(),
+			TaskType.CapsuleSupply when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.BufferState == CapsuleBufferState.Empty && sourceBuffer.IsCapsuleEmpty(),
 			TaskType.OB when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanDispatchToOutbound(),
 			_ => true,
 		};
@@ -142,6 +144,8 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		return Type switch
 		{
 			TaskType.IB when targetDock is CapsuleBuffer targetBuffer => targetBuffer.CanReceiveFromInbound(),
+			TaskType.CapsuleClear when targetDock is CapsuleBuffer targetBuffer => targetBuffer.BufferState == CapsuleBufferState.Empty && targetBuffer.CanPutBox(),
+			TaskType.CapsuleSupply when targetDock is CapsuleBuffer targetBuffer => targetBuffer.BufferState == CapsuleBufferState.OBOnly && targetBuffer.CanPutBox(),
 			_ => targetDock.CanPutBox(),
 		};
 	}

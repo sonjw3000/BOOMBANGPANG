@@ -7,6 +7,8 @@ public static class CapsuleTransferTaskSaveExtensions
 	{
 		return task == null ? null : new CapsuleTransferTaskSaveData
 		{
+			HasTaskType = true,
+			TaskType = task.Type,
 			IsInbound = task.Type == WorkerTask.TaskType.IB,
 			BuildingId = task.BuildingId,
 			SourcePlaceableId = getPlaceableId != null && task.SourceDock != null ? getPlaceableId(task.SourceDock.gameObject) : -1,

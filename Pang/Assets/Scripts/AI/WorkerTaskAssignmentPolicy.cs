@@ -41,6 +41,8 @@ public static class WorkerTaskAssignmentPolicy
 				return true;
 
 			case WorkerTask.TaskType.IB:
+			case WorkerTask.TaskType.CapsuleClear:
+			case WorkerTask.TaskType.CapsuleSupply:
 			case WorkerTask.TaskType.OB:
 				return buildingType.HasValue;
 

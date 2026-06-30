@@ -139,6 +139,7 @@ public partial class TaskManager : MonoBehaviour
 			// IB
 			case TaskType.Unloading:
 			case TaskType.IB:
+			case TaskType.CapsuleClear:
 			case TaskType.Labeling:
 			//case TaskType.Receive:
 			//case TaskType.Label:
@@ -147,6 +148,7 @@ public partial class TaskManager : MonoBehaviour
 				break;
 
 			// OB
+			case TaskType.CapsuleSupply:
 			case TaskType.OB:
 			case TaskType.CargoTransfer:
 			case TaskType.Picking:

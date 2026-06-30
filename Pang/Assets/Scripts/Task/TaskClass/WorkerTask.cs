@@ -8,6 +8,8 @@ public static class WorkerTaskTypeRequirement
 		{
 			WorkerTask.TaskType.Unloading => WorkerAbility.CargoHandling,
 			WorkerTask.TaskType.IB => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.CapsuleClear => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.CapsuleSupply => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.OB => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.CargoTransfer => WorkerAbility.CargoHandling,
 			WorkerTask.TaskType.Storing => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -30,6 +32,8 @@ public abstract class WorkerTask
 	{
 		Unloading = 0,
 		IB,
+		CapsuleClear,
+		CapsuleSupply,
 		Storing,
 		OB,
 		Picking,

@@ -79,6 +79,8 @@ public class Building
 	private readonly HashSet<InboundCargoPort> pendingInboundPorts = new();
 	private readonly HashSet<InboundCargoPort> queuedInboundPorts = new();
 	private readonly HashSet<CapsuleBuffer> queuedOutboundBuffers = new();
+	private readonly HashSet<CapsuleBuffer> queuedBufferRelocationSources = new();
+	private readonly HashSet<CapsuleBuffer> queuedBufferRelocationTargets = new();
 	private readonly Dictionary<InboundCargoPort, CapsuleBuffer> queuedInboundTargets = new();
 	private readonly Dictionary<CapsuleBuffer, OutboundCargoPort> queuedOutboundTargets = new();
 	// todo
@@ -215,6 +217,8 @@ public class Building
 			UnsubscribeCapsuleBuffer(capsuleBuffer);
 			occupiedCapsuleBuffers.Remove(capsuleBuffer);
 			queuedOutboundBuffers.Remove(capsuleBuffer);
+			queuedBufferRelocationSources.Remove(capsuleBuffer);
+			queuedBufferRelocationTargets.Remove(capsuleBuffer);
 			RemoveQueuedInboundTarget(capsuleBuffer);
 			queuedOutboundTargets.Remove(capsuleBuffer);
 		}
@@ -399,8 +403,10 @@ public class Building
 	protected virtual void OnCapsuleBufferDocked(CapsuleBuffer capsuleBuffer)
 	{
 		RemoveQueuedInboundTarget(capsuleBuffer);
+		queuedBufferRelocationTargets.Remove(capsuleBuffer);
 		TryEvaluateOutbound(capsuleBuffer);
 		TryEvaluatePackingIngress(capsuleBuffer);
+		TryEvaluateBufferRelocation(capsuleBuffer);
 	}
 
 	protected virtual void OnCapsuleBufferUndocked(CapsuleBuffer capsuleBuffer)
@@ -409,7 +415,11 @@ public class Building
 			return;
 
 		queuedOutboundBuffers.Remove(capsuleBuffer);
+		queuedBufferRelocationSources.Remove(capsuleBuffer);
+		queuedBufferRelocationTargets.Remove(capsuleBuffer);
 		TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetOutboundRequestKey(capsuleBuffer));
+		TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetBufferRelocationRequestKey(WorkerTask.TaskType.CapsuleClear, capsuleBuffer));
+		TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetBufferRelocationRequestKey(WorkerTask.TaskType.CapsuleSupply, capsuleBuffer));
 		TryEnqueuePendingInboundTasks();
 	}
 
@@ -417,6 +427,7 @@ public class Building
 	{
 		TryEvaluateOutbound(capsuleBuffer);
 		TryEvaluatePackingIngress(capsuleBuffer);
+		TryEvaluateBufferRelocation(capsuleBuffer);
 	}
 
 	protected virtual void OnCapsuleBufferStateChanged(CapsuleBuffer capsuleBuffer)
@@ -429,6 +440,7 @@ public class Building
 
 		TryEvaluateOutbound(capsuleBuffer);
 		TryEvaluatePackingIngress(capsuleBuffer);
+		TryEvaluateBufferRelocation(capsuleBuffer);
 	}
 
 	protected virtual bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
@@ -555,6 +567,69 @@ public class Building
 			CapsuleRelocationReason.DestinationNeedsCapsule));
 	}
 
+	private void TryEvaluateBufferRelocation(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer == null || TaskManager == null)
+			return;
+
+		if (capsuleBuffer.BufferState == CapsuleBufferState.IBOnly)
+		{
+			TryEnqueueBufferRelocation(
+				capsuleBuffer,
+				WorkerTask.TaskType.CapsuleClear,
+				CapsuleBufferState.Empty,
+				CapsuleRelocationReason.StateMismatch);
+			return;
+		}
+
+		if (capsuleBuffer.BufferState == CapsuleBufferState.Empty)
+		{
+			TryEnqueueBufferRelocation(
+				capsuleBuffer,
+				WorkerTask.TaskType.CapsuleSupply,
+				CapsuleBufferState.OBOnly,
+				CapsuleRelocationReason.DestinationNeedsCapsule);
+		}
+	}
+
+	private void TryEnqueueBufferRelocation(
+		CapsuleBuffer sourceBuffer,
+		WorkerTask.TaskType taskType,
+		CapsuleBufferState targetState,
+		CapsuleRelocationReason reason)
+	{
+		if (sourceBuffer == null ||
+			sourceBuffer.HasCapsule == false ||
+			sourceBuffer.IsCapsuleEmpty() == false ||
+			queuedBufferRelocationSources.Contains(sourceBuffer))
+		{
+			TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetBufferRelocationRequestKey(taskType, sourceBuffer));
+			return;
+		}
+
+		CapsuleBuffer targetBuffer = FindClosestCapsuleBuffer(
+			sourceBuffer.GridPosition,
+			InteractionKind.Put,
+			candidate =>
+				candidate != null &&
+				candidate.BufferState == targetState &&
+				candidate.CanPutBox() &&
+				queuedBufferRelocationTargets.Contains(candidate) == false);
+
+		if (targetBuffer == null)
+		{
+			TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetBufferRelocationRequestKey(taskType, sourceBuffer));
+			return;
+		}
+
+		TaskManager.EnqueueTaskBuildRequest(new CapsuleRelocationTaskBuildRequest(
+			sourceBuffer,
+			RuntimeBuildingId,
+			taskType,
+			reason,
+			targetBuffer));
+	}
+
 	protected virtual void TryEvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
 	{
 	}
@@ -588,6 +663,14 @@ public class Building
 				queuedInboundPorts.Add(sourcePort);
 				if (task.TargetDock is CapsuleBuffer targetBuffer)
 					queuedInboundTargets[sourcePort] = targetBuffer;
+				break;
+
+			case WorkerTask.TaskType.CapsuleClear:
+			case WorkerTask.TaskType.CapsuleSupply:
+				if (task.SourceDock is CapsuleBuffer bufferSource)
+					queuedBufferRelocationSources.Add(bufferSource);
+				if (task.TargetDock is CapsuleBuffer bufferTarget)
+					queuedBufferRelocationTargets.Add(bufferTarget);
 				break;
 
 			case WorkerTask.TaskType.OB:

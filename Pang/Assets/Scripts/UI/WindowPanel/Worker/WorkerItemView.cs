@@ -54,7 +54,7 @@ namespace Assets.Scripts.UI
 				selectedHandleGroup = GetHandleGroup(worker.TaskType);
 
 			nameText.text = $"{worker.Name} (ID: {worker.WorkerID})";
-			taskText.text = $"Task: {GetTaskTypeDisplayName(worker.TaskType)}";
+			taskText.text = $"Task: {GetWorkerTaskDisplay(worker)}";
 
 			var state = worker.WorkerState;
 			statusText.text = $"{state.Action} {state.Target}";
@@ -75,9 +75,9 @@ namespace Assets.Scripts.UI
 			}
 
 			EnsureManagementLayout();
+			ConfigurePrimaryBuildingDropdown(worker);
 			ConfigureHandleGroupDropdown(worker);
 			ConfigureTaskDropdown(worker);
-			ConfigurePrimaryBuildingDropdown(worker);
 		}
 
 		private void ConfigureHandleGroupDropdown(AIWorker worker)
@@ -134,7 +134,8 @@ namespace Assets.Scripts.UI
 			WorkerTaskHandleGroup selectedGroup = GetSelectedHandleGroup();
 			bool currentTaskAvailable = WorkerManager.CanChangeType(worker, worker.TaskType);
 
-			if (currentTaskAvailable == false || IsTaskTypeVisibleInHandleGroup(worker.TaskType, selectedGroup) == false)
+			if (worker.TaskType != WorkerTask.TaskType.Undefined &&
+				(currentTaskAvailable == false || IsTaskTypeVisibleInHandleGroup(worker.TaskType, selectedGroup) == false))
 			{
 				validTypes.Add(worker.TaskType);
 				options.Add($"{GetTaskTypeDisplayName(worker.TaskType)} (Current Unavailable)");
@@ -153,7 +154,7 @@ namespace Assets.Scripts.UI
 					selectedIndex = validTypes.Count;
 
 				validTypes.Add(type);
-				options.Add(GetTaskTypeDisplayName(type));
+				options.Add(GetTaskOptionLabel(worker, type, selectedGroup));
 			}
 
 			if (options.Count > 0)
@@ -229,9 +230,9 @@ namespace Assets.Scripts.UI
 				managementLayout.minHeight = 120f;
 			}
 
-			ConfigureDropdownRect(handleGroupDropdown != null ? handleGroupDropdown.GetComponent<RectTransform>() : null, 0f, -4f);
-			ConfigureDropdownRect(typeDropdown.GetComponent<RectTransform>(), 0f, -42f);
-			ConfigureDropdownRect(primaryBuildingDropdown != null ? primaryBuildingDropdown.GetComponent<RectTransform>() : null, 0f, -80f);
+			ConfigureDropdownRect(primaryBuildingDropdown != null ? primaryBuildingDropdown.GetComponent<RectTransform>() : null, 0f, -4f);
+			ConfigureDropdownRect(handleGroupDropdown != null ? handleGroupDropdown.GetComponent<RectTransform>() : null, 0f, -42f);
+			ConfigureDropdownRect(typeDropdown.GetComponent<RectTransform>(), 0f, -80f);
 		}
 
 		private static void ConfigureDropdownRect(RectTransform rect, float left, float top)
@@ -252,6 +253,7 @@ namespace Assets.Scripts.UI
 				return;
 
 			selectedHandleGroup = validHandleGroups[index];
+			GameContext.Instance.WorkerMgr.SetWorkerAssignedTaskTypes(currentWorker, System.Array.Empty<WorkerTask.TaskType>());
 			ConfigureTaskDropdown(currentWorker);
 		}
 
@@ -261,11 +263,24 @@ namespace Assets.Scripts.UI
 				return;
 
 			WorkerTask.TaskType newType = validTypes[index];
-			if (newType == currentWorker.TaskType)
+			WorkerTaskHandleGroup selectedGroup = GetSelectedHandleGroup();
+			if (selectedGroup == WorkerTaskHandleGroup.CargoHandle && IsCapsuleRelocationTaskType(newType))
+			{
+				ToggleWorkerTaskType(newType);
+				ConfigureTaskDropdown(currentWorker);
+				taskText.text = $"Task: {GetWorkerTaskDisplay(currentWorker)}";
+				return;
+			}
+
+			if (newType == currentWorker.TaskType && currentWorker.AssignedTaskTypes.Count == 1)
 				return;
 
-			GameContext.Instance.WorkerMgr.ChangeWorkerTaskType(currentWorker, newType);
-			taskText.text = $"Task: {GetTaskTypeDisplayName(currentWorker.TaskType)}";
+			if (newType == WorkerTask.TaskType.Undefined)
+				GameContext.Instance.WorkerMgr.SetWorkerAssignedTaskTypes(currentWorker, System.Array.Empty<WorkerTask.TaskType>());
+			else
+				GameContext.Instance.WorkerMgr.ChangeWorkerTaskType(currentWorker, newType);
+
+			taskText.text = $"Task: {GetWorkerTaskDisplay(currentWorker)}";
 			if (newType != WorkerTask.TaskType.Undefined)
 				selectedHandleGroup = GetHandleGroup(newType);
 		}
@@ -276,6 +291,9 @@ namespace Assets.Scripts.UI
 				return;
 
 			currentWorker.SetPrimaryBuildingId(validBuildingIds[index]);
+			selectedHandleGroup = WorkerTaskHandleGroup.Undefined;
+			GameContext.Instance.WorkerMgr.SetWorkerAssignedTaskTypes(currentWorker, System.Array.Empty<WorkerTask.TaskType>());
+			ConfigureHandleGroupDropdown(currentWorker);
 			ConfigureTaskDropdown(currentWorker);
 		}
 
@@ -292,6 +310,8 @@ namespace Assets.Scripts.UI
 			return taskType switch
 			{
 				WorkerTask.TaskType.IB or
+				WorkerTask.TaskType.CapsuleClear or
+				WorkerTask.TaskType.CapsuleSupply or
 				WorkerTask.TaskType.OB or
 				WorkerTask.TaskType.CargoTransfer or
 				WorkerTask.TaskType.Loading or
@@ -320,9 +340,52 @@ namespace Assets.Scripts.UI
 			return taskType switch
 			{
 				WorkerTask.TaskType.IB => "CapsuleRelocation (Inbound)",
+				WorkerTask.TaskType.CapsuleClear => "CapsuleRelocation (Clear)",
+				WorkerTask.TaskType.CapsuleSupply => "CapsuleRelocation (Supply)",
 				WorkerTask.TaskType.OB => "CapsuleRelocation (Outbound)",
 				_ => taskType.ToString(),
 			};
+		}
+
+		private static string GetTaskOptionLabel(AIWorker worker, WorkerTask.TaskType taskType, WorkerTaskHandleGroup selectedGroup)
+		{
+			string label = GetTaskTypeDisplayName(taskType);
+			if (selectedGroup != WorkerTaskHandleGroup.CargoHandle || IsCapsuleRelocationTaskType(taskType) == false)
+				return label;
+
+			return worker != null && worker.IsAssignedToTaskType(taskType)
+				? $"[x] {label}"
+				: $"[ ] {label}";
+		}
+
+		private static bool IsCapsuleRelocationTaskType(WorkerTask.TaskType taskType)
+		{
+			return taskType is WorkerTask.TaskType.IB or
+				WorkerTask.TaskType.CapsuleClear or
+				WorkerTask.TaskType.CapsuleSupply or
+				WorkerTask.TaskType.OB;
+		}
+
+		private void ToggleWorkerTaskType(WorkerTask.TaskType taskType)
+		{
+			var taskTypes = new System.Collections.Generic.List<WorkerTask.TaskType>(currentWorker.AssignedTaskTypes);
+			if (taskTypes.Contains(taskType))
+				taskTypes.Remove(taskType);
+			else
+				taskTypes.Add(taskType);
+
+			GameContext.Instance.WorkerMgr.SetWorkerAssignedTaskTypes(currentWorker, taskTypes);
+		}
+
+		private static string GetWorkerTaskDisplay(AIWorker worker)
+		{
+			if (worker == null || worker.AssignedTaskTypes.Count == 0)
+				return WorkerTask.TaskType.Undefined.ToString();
+
+			if (worker.AssignedTaskTypes.Count == 1)
+				return GetTaskTypeDisplayName(worker.AssignedTaskTypes[0]);
+
+			return $"{worker.AssignedTaskTypes.Count} CapsuleRelocation";
 		}
 
 		private Color GetFatigueColor(float fatigue)

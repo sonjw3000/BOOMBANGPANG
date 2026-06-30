@@ -108,6 +108,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private int tick = 0;
 	[SerializeField] private WorkerTask currentTask = null;
 	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
+	[SerializeField] private List<WorkerTask.TaskType> workerAssignedTaskTypes = new();
 	[SerializeField] private uint primaryBuildingId = 0;
 
 	[Header("Visual")]
@@ -207,6 +208,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	// task
 	public WorkerTask CurrentTask => currentTask;
 	public WorkerTask.TaskType TaskType => workerMainTaskType;
+	public IReadOnlyList<WorkerTask.TaskType> AssignedTaskTypes => workerAssignedTaskTypes;
 	public uint PrimaryBuildingId => primaryBuildingId;
 	public IInteractionPoint CurrentWorkingBuilding => currentWorkingPoint;
 	public bool IsAssignedToPackingStation => currentWorkingPoint is PackingStation;
@@ -447,7 +449,44 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 		WorkerTask.TaskType previousTaskType = workerMainTaskType;
 		workerMainTaskType = taskType;
+		workerAssignedTaskTypes.Clear();
+		if (taskType != WorkerTask.TaskType.Undefined)
+			workerAssignedTaskTypes.Add(taskType);
 		OnTaskTypeChanged?.Invoke(this, previousTaskType, taskType);
+	}
+
+	public bool IsAssignedToTaskType(WorkerTask.TaskType taskType)
+	{
+		return workerAssignedTaskTypes.Contains(taskType);
+	}
+
+	public void EnsureAssignedTaskTypesInitialized()
+	{
+		if (workerAssignedTaskTypes.Count > 0 || workerMainTaskType == WorkerTask.TaskType.Undefined)
+			return;
+
+		workerAssignedTaskTypes.Add(workerMainTaskType);
+	}
+
+	public void SetAssignedTaskTypes(IEnumerable<WorkerTask.TaskType> taskTypes)
+	{
+		WorkerTask.TaskType previousTaskType = workerMainTaskType;
+		workerAssignedTaskTypes.Clear();
+
+		if (taskTypes != null)
+		{
+			foreach (WorkerTask.TaskType taskType in taskTypes)
+			{
+				if (taskType == WorkerTask.TaskType.Undefined || workerAssignedTaskTypes.Contains(taskType))
+					continue;
+
+				workerAssignedTaskTypes.Add(taskType);
+			}
+		}
+
+		workerMainTaskType = workerAssignedTaskTypes.Count > 0 ? workerAssignedTaskTypes[0] : WorkerTask.TaskType.Undefined;
+		if (previousTaskType != workerMainTaskType)
+			OnTaskTypeChanged?.Invoke(this, previousTaskType, workerMainTaskType);
 	}
 
 	public void SetPrimaryBuildingId(uint buildingId)
@@ -571,7 +610,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptGeneralTask(WorkerTask.TaskType taskType)
 	{
-		if (currentTask != null || TaskType != taskType)
+		if (currentTask != null || IsAssignedToTaskType(taskType) == false)
 			return false;
 
 		if (IsAssignedToPackingStation)
@@ -590,7 +629,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptPreferredTask(WorkerTask task)
 	{
-		if (currentTask != null || task == null || TaskType != task.Type)
+		if (currentTask != null || task == null || IsAssignedToTaskType(task.Type) == false)
 			return false;
 
 		if (task is PackingTask packingTask)

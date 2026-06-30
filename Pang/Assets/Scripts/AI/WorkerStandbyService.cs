@@ -66,9 +66,11 @@ public class WorkerStandbyService : MonoBehaviour
 		switch (taskType)
 		{
 			case WorkerTask.TaskType.IB:
+			case WorkerTask.TaskType.CapsuleClear:
 				zoneType = ZoneType.InboundStandby;
 				return true;
 
+			case WorkerTask.TaskType.CapsuleSupply:
 			case WorkerTask.TaskType.OB:
 			case WorkerTask.TaskType.CargoTransfer:
 				zoneType = ZoneType.OutboundStandby;

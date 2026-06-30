@@ -3,6 +3,7 @@ using Unity.Mathematics;
 public sealed class CapsuleRelocationTaskBuildRequest : TaskBuildRequest<CapsuleRelocationTask>
 {
 	private readonly CapsuleDock sourceDock;
+	private readonly CapsuleDock targetDock;
 	private readonly WorkerTask.TaskType taskType;
 	private readonly CapsuleRelocationReason reason;
 
@@ -10,9 +11,11 @@ public sealed class CapsuleRelocationTaskBuildRequest : TaskBuildRequest<Capsule
 		CapsuleDock sourceDock,
 		uint requestedBuildingID,
 		WorkerTask.TaskType taskType,
-		CapsuleRelocationReason reason) : base(requestedBuildingID)
+		CapsuleRelocationReason reason,
+		CapsuleDock targetDock = null) : base(requestedBuildingID)
 	{
 		this.sourceDock = sourceDock;
+		this.targetDock = targetDock;
 		this.taskType = taskType;
 		this.reason = reason;
 	}
@@ -36,17 +39,22 @@ public sealed class CapsuleRelocationTaskBuildRequest : TaskBuildRequest<Capsule
 		return GetRequestKey(WorkerTask.TaskType.OB, sourceBuffer);
 	}
 
+	public static object GetBufferRelocationRequestKey(WorkerTask.TaskType taskType, CapsuleBuffer sourceBuffer)
+	{
+		return GetRequestKey(taskType, sourceBuffer);
+	}
+
 	protected override bool TryBuildTask(out CapsuleRelocationTask task)
 	{
 		task = null;
 		if (IsStillValid == false || BuildingManager == null || BuildingManager.TryGetBuilding(RequestedBuildingID, out Building building) == false)
 			return false;
 
-		CapsuleDock targetDock = ResolveTarget(building);
-		if (targetDock == null)
+		CapsuleDock resolvedTargetDock = targetDock != null ? targetDock : ResolveTarget(building);
+		if (resolvedTargetDock == null || CanUseTarget(resolvedTargetDock, taskType) == false)
 			return false;
 
-		task = new CapsuleRelocationTask(taskType, sourceDock, targetDock, RequestedBuildingID, reason);
+		task = new CapsuleRelocationTask(taskType, sourceDock, resolvedTargetDock, RequestedBuildingID, reason);
 		return true;
 	}
 
@@ -85,7 +93,24 @@ public sealed class CapsuleRelocationTaskBuildRequest : TaskBuildRequest<Capsule
 		return taskType switch
 		{
 			WorkerTask.TaskType.IB when dock is InboundCargoPort => dock.IsCapsuleEmpty() == false,
+			WorkerTask.TaskType.CapsuleClear when dock is CapsuleBuffer sourceBuffer => sourceBuffer.BufferState == CapsuleBufferState.IBOnly && sourceBuffer.IsCapsuleEmpty(),
+			WorkerTask.TaskType.CapsuleSupply when dock is CapsuleBuffer sourceBuffer => sourceBuffer.BufferState == CapsuleBufferState.Empty && sourceBuffer.IsCapsuleEmpty(),
 			WorkerTask.TaskType.OB when dock is CapsuleBuffer sourceBuffer => sourceBuffer.CanDispatchToOutbound(),
+			_ => false,
+		};
+	}
+
+	private static bool CanUseTarget(CapsuleDock dock, WorkerTask.TaskType taskType)
+	{
+		if (dock == null || dock.CanPutBox() == false)
+			return false;
+
+		return taskType switch
+		{
+			WorkerTask.TaskType.IB when dock is CapsuleBuffer targetBuffer => targetBuffer.CanReceiveFromInbound(),
+			WorkerTask.TaskType.CapsuleClear when dock is CapsuleBuffer targetBuffer => targetBuffer.BufferState == CapsuleBufferState.Empty,
+			WorkerTask.TaskType.CapsuleSupply when dock is CapsuleBuffer targetBuffer => targetBuffer.BufferState == CapsuleBufferState.OBOnly,
+			WorkerTask.TaskType.OB when dock is OutboundCargoPort => true,
 			_ => false,
 		};
 	}

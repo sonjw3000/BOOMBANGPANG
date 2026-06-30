@@ -41,6 +41,7 @@ public abstract partial class AIWorker
 			BaseWorkSpeedMultiplier = baseWorkSpeedMultiplier,
 			MinimumWorkSpeedMultiplier = minimumWorkSpeedMultiplier,
 			MainTaskType = workerMainTaskType,
+			AssignedTaskTypes = new System.Collections.Generic.List<WorkerTask.TaskType>(workerAssignedTaskTypes),
 			StatusAction = workerState.Action,
 			StatusTarget = workerState.Target,
 			CarryingBox = null,
@@ -80,6 +81,22 @@ public abstract partial class AIWorker
 		baseWorkSpeedMultiplier = data.BaseWorkSpeedMultiplier;
 		minimumWorkSpeedMultiplier = data.MinimumWorkSpeedMultiplier;
 		workerMainTaskType = data.MainTaskType;
+		workerAssignedTaskTypes.Clear();
+		if (data.AssignedTaskTypes != null && data.AssignedTaskTypes.Count > 0)
+		{
+			for (int i = 0; i < data.AssignedTaskTypes.Count; ++i)
+			{
+				WorkerTask.TaskType taskType = data.AssignedTaskTypes[i];
+				if (taskType != WorkerTask.TaskType.Undefined && workerAssignedTaskTypes.Contains(taskType) == false)
+					workerAssignedTaskTypes.Add(taskType);
+			}
+		}
+		else if (workerMainTaskType != WorkerTask.TaskType.Undefined)
+		{
+			workerAssignedTaskTypes.Add(workerMainTaskType);
+		}
+
+		workerMainTaskType = workerAssignedTaskTypes.Count > 0 ? workerAssignedTaskTypes[0] : WorkerTask.TaskType.Undefined;
 		workerState = new WorkerStatusInfo(data.StatusAction, data.StatusTarget);
 		preTrafficAction = workerState.Action;
 		isTrafficBlocked = false;

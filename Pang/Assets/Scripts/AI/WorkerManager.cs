@@ -57,7 +57,8 @@ public partial class WorkerManager : MonoBehaviour
 			return;
 
 		workers.Add(worker);
-		workersPerTaskType[worker.TaskType].Add(worker);
+		worker.EnsureAssignedTaskTypesInitialized();
+		RegisterWorkerTaskTypes(worker);
 
 		if (preserveWorkerId)
 		{
@@ -81,7 +82,7 @@ public partial class WorkerManager : MonoBehaviour
 
 		UnregisterWorkerStatus(worker);
 		UnsubscribeWorker(worker);
-		workersPerTaskType[worker.TaskType].Remove(worker);
+		UnregisterWorkerTaskTypes(worker);
 		RemoveIdleWorker(worker);
 
 		monthlyCost -= worker.MonthlyCost;
@@ -101,53 +102,45 @@ public partial class WorkerManager : MonoBehaviour
 		}
 
 		// have to check ability
-		switch (type)
-		{
-			case TaskType.Unloading:
-			case TaskType.CargoTransfer:
-				if (worker.GetComponent<CargoHandlingAbility>() == false)
-				{
-					Debug.Log("No Unloading Ability");
-					return;
-				}
-				break;
+		if (HasRequiredComponent(worker, type) == false)
+			return;
 
-			case TaskType.IB:
-			case TaskType.OB:
-			case TaskType.Storing:
-			case TaskType.Picking:
-				if (worker.GetComponent<CarryBoxAbility>() == false)
-				{
-					Debug.Log("No CarryboxAbility Ability");
-					return;
-				}
-				break;
-
-			case TaskType.Packing:
-				break;
-
-			case TaskType.Labeling:
-				if (worker.GetComponent<LabelingAbility>() == false)
-				{
-					Debug.Log("No LabelingAbility Ability");
-					return;
-				}
-				break;
-
-			case TaskType.Loading:
-				break;
-		}
-
-		workersPerTaskType[worker.TaskType].Remove(worker);
-		workersPerTaskType[type].Add(worker);
-
-		worker.ChangeWorkerType(type);
+		UnregisterWorkerTaskTypes(worker);
 		RemoveIdleWorker(worker);
+		worker.ChangeWorkerType(type);
+		RegisterWorkerTaskTypes(worker);
 
 
 		// todo
 		// picking / storing에 경우에는 별도의 자료구조가 또 있을수도 있다
 		// 추가되면 여기에도 추가하자
+	}
+
+	public void SetWorkerAssignedTaskTypes(AIWorker worker, IReadOnlyList<TaskType> taskTypes)
+	{
+		if (worker == null)
+			return;
+
+		List<TaskType> validTypes = new();
+		if (taskTypes != null)
+		{
+			for (int i = 0; i < taskTypes.Count; ++i)
+			{
+				TaskType taskType = taskTypes[i];
+				if (taskType == TaskType.Undefined || validTypes.Contains(taskType))
+					continue;
+
+				if (CanChangeType(worker, taskType) == false || HasRequiredComponent(worker, taskType) == false)
+					continue;
+
+				validTypes.Add(taskType);
+			}
+		}
+
+		UnregisterWorkerTaskTypes(worker);
+		RemoveIdleWorker(worker);
+		worker.SetAssignedTaskTypes(validTypes);
+		RegisterWorkerTaskTypes(worker);
 	}
 
 	public AIWorker GetAvailableWorkers(WorkerTask taskData)
@@ -175,6 +168,7 @@ public partial class WorkerManager : MonoBehaviour
 			if (worker == null || worker.CanAcceptGeneralTask(taskData) == false || taskData.CanDispatchTo(worker) == false)
 				continue;
 
+			RemoveIdleWorker(worker);
 			return worker;
 		}
 
@@ -186,10 +180,13 @@ public partial class WorkerManager : MonoBehaviour
 		if (worker == null)
 			return;
 
-		if (idleWorkersSet[worker.TaskType].Add(worker) == false)
-			return;
+		foreach (TaskType taskType in worker.AssignedTaskTypes)
+		{
+			if (idleWorkersSet[taskType].Add(worker) == false)
+				continue;
 
-		idleWorkersQueue[worker.TaskType].AddLast(worker);
+			idleWorkersQueue[taskType].AddLast(worker);
+		}
 	}
 
 	public void RemoveIdleWorker(AIWorker worker)
@@ -197,20 +194,83 @@ public partial class WorkerManager : MonoBehaviour
 		if (worker == null)
 			return;
 
-		if (idleWorkersSet[worker.TaskType].Remove(worker) == false)
-			return;
+		foreach (TaskType taskType in worker.AssignedTaskTypes)
+		{
+			if (idleWorkersSet[taskType].Remove(worker) == false)
+				continue;
 
-		idleWorkersQueue[worker.TaskType].Remove(worker);
+			idleWorkersQueue[taskType].Remove(worker);
+		}
 	}
 
 	private void SyncWorkerAvailability(AIWorker worker)
 	{
 		worker.UpdatePackingRecoveryState();
 
-		if (worker.CanAcceptGeneralTask(worker.TaskType))
+		if (worker.AssignedTaskTypes.Count > 0 && worker.CanAcceptGeneralTask(worker.AssignedTaskTypes[0]))
 			AddIdleWorker(worker);
 		else
 			RemoveIdleWorker(worker);
+	}
+
+	private void RegisterWorkerTaskTypes(AIWorker worker)
+	{
+		if (worker == null)
+			return;
+
+		foreach (TaskType taskType in worker.AssignedTaskTypes)
+		{
+			if (workersPerTaskType[taskType].Contains(worker) == false)
+				workersPerTaskType[taskType].Add(worker);
+		}
+	}
+
+	private void UnregisterWorkerTaskTypes(AIWorker worker)
+	{
+		if (worker == null)
+			return;
+
+		foreach (TaskType taskType in worker.AssignedTaskTypes)
+			workersPerTaskType[taskType].Remove(worker);
+	}
+
+	private static bool HasRequiredComponent(AIWorker worker, TaskType type)
+	{
+		switch (type)
+		{
+			case TaskType.Unloading:
+			case TaskType.CargoTransfer:
+				if (worker.GetComponent<CargoHandlingAbility>() == false)
+				{
+					Debug.Log("No CargoHandlingAbility");
+					return false;
+				}
+				return true;
+
+			case TaskType.IB:
+			case TaskType.CapsuleClear:
+			case TaskType.CapsuleSupply:
+			case TaskType.OB:
+			case TaskType.Storing:
+			case TaskType.Picking:
+				if (worker.GetComponent<CarryBoxAbility>() == false)
+				{
+					Debug.Log("No CarryBoxAbility");
+					return false;
+				}
+				return true;
+
+			case TaskType.Labeling:
+				if (worker.GetComponent<LabelingAbility>() == false)
+				{
+					Debug.Log("No LabelingAbility");
+					return false;
+				}
+				return true;
+
+			default:
+				return true;
+		}
 	}
 
 	private void Update()

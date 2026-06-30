@@ -395,6 +395,7 @@ public sealed class WorkerSaveData
 	public float BaseWorkSpeedMultiplier;
 	public float MinimumWorkSpeedMultiplier;
 	public WorkerTask.TaskType MainTaskType;
+	public List<WorkerTask.TaskType> AssignedTaskTypes = new();
 	public WorkerStatusAction StatusAction;
 	public WorkerStatusTarget StatusTarget;
 	public float Fatigue;
@@ -553,6 +554,8 @@ public sealed class StoringTaskSaveData
 [Serializable]
 public sealed class CapsuleTransferTaskSaveData
 {
+	public bool HasTaskType;
+	public WorkerTask.TaskType TaskType;
 	public bool IsInbound;
 	public uint BuildingId;
 	public int SourcePlaceableId = -1;
