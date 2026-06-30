@@ -255,22 +255,10 @@ public static class ItemTransferUtility
 		if (acceptable <= 0)
 			return false;
 
-		if (payload.From.RemoveStack(stack) == false)
+		if (payload.From.TryRemoveFromStack(stack, acceptable, out movedStack) == false)
 			return false;
-
-		movedStack = stack.Split(acceptable);
-		if (movedStack == null)
-		{
-			RestoreStack(payload.From, stack);
-			return false;
-		}
 
 		int movedQuantity = movedStack.Quantity;
-		if (stack.Quantity > 0)
-			RestoreStack(payload.From, stack);
-		else
-			stack.Recycle();
-
 		if (payload.To.AddStack(movedStack) == false)
 		{
 			RestoreStack(payload.From, movedStack);
@@ -350,16 +338,7 @@ public static class ItemTransferUtility
 				continue;
 			}
 
-			if (container.RemoveStack(stack) == false)
-				continue;
-
-			ItemStack removedStack = stack.Split(removeFromStack);
-			if (stack.Quantity > 0)
-				RestoreStack(container, stack);
-			else
-				stack.Recycle();
-
-			if (removedStack == null)
+			if (container.TryRemoveFromStack(stack, removeFromStack, out ItemStack removedStack) == false)
 				continue;
 
 			removed += removedStack.Quantity;
@@ -406,20 +385,8 @@ public static class ItemTransferUtility
 
 	private static int MovePartialStack(in ItemTransferPayload payload, ItemStack stack, int quantity)
 	{
-		if (payload.From.RemoveStack(stack) == false)
+		if (payload.From.TryRemoveFromStack(stack, quantity, out ItemStack movedStack) == false)
 			return 0;
-
-		ItemStack movedStack = stack.Split(quantity);
-		if (movedStack == null)
-		{
-			RestoreStack(payload.From, stack);
-			return 0;
-		}
-
-		if (stack.Quantity > 0)
-			RestoreStack(payload.From, stack);
-		else
-			stack.Recycle();
 
 		int movedQuantity = movedStack.Quantity;
 		if (payload.To.AddStack(movedStack) == false)
