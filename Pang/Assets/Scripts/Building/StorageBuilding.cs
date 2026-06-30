@@ -1,7 +1,7 @@
 public sealed class StorageBuilding : Building
 {
 	public StorageBuilding(string displayName, System.Collections.Generic.List<GridCell> occupiedCells)
-		: base(displayName, occupiedCells, BuildingType.Staging)
+		: base(displayName, occupiedCells, BuildingType.Storage)
 	{
 	}
 
