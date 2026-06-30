@@ -11,6 +11,9 @@ public abstract partial class BoxBase
 			ConcreteType = GetType().Name,
 		};
 
+		if (this is CargoCapsule capsule)
+			data.CapsuleLogisticsState = capsule.LogisticsState;
+
 		foreach (var stack in stacks)
 		{
 			data.Stacks.Add(new ItemStackSaveData
@@ -32,6 +35,9 @@ public abstract partial class BoxBase
 		ResetContainer();
 		if (data == null)
 			return;
+
+		if (this is CargoCapsule capsule)
+			capsule.SetLogisticsState(data.CapsuleLogisticsState);
 
 		foreach (var stackData in data.Stacks)
 		{

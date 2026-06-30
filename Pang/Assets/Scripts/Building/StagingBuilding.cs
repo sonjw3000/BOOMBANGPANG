@@ -36,11 +36,12 @@ public sealed class StagingBuilding : Building
 		if (capsuleBuffer == null ||
 			capsuleBuffer.HasCapsule == false ||
 			capsuleBuffer.IsCapsuleEmpty() ||
-			capsuleBuffer.BufferState == CapsuleBufferState.OBOnly)
+			capsuleBuffer.DockedCapsule == null ||
+			capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.Outbound)
 		{
 			return;
 		}
 
-		capsuleBuffer.SetBufferState(CapsuleBufferState.OBOnly);
+		capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Outbound);
 	}
 }

@@ -34,7 +34,7 @@ public partial class CapsuleBuffer :
 	public ItemTag ItemTags => DockedCapsule != null ? DockedCapsule.ItemTags : ItemTag.None;
 
 	public bool CanReceiveFromInbound() => bufferState == CapsuleBufferState.IBOnly && CanPutBox();
-	public bool CanDispatchToOutbound() => bufferState == CapsuleBufferState.OBOnly && CanGetBox() && IsCapsuleEmpty() == false;
+	public bool CanDispatchToOutbound() => CanGetBox() && DockedCapsule != null && DockedCapsule.LogisticsState == CapsuleLogisticsState.Outbound;
 	public bool CanRegister() => DockedCapsule != null && DockedCapsule.CanRegister();
 	public int GetQuantity(uint itemId) => DockedCapsule != null ? DockedCapsule.GetQuantity(itemId) : 0;
 	public int GetAcceptableQuantity(uint itemId, int requested) => DockedCapsule != null ? DockedCapsule.GetAcceptableQuantity(itemId, requested) : 0;

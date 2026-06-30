@@ -2,9 +2,30 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum CapsuleLogisticsState
+{
+	Inbound,
+	Empty,
+	Outbound,
+}
+
 public class CargoCapsule : BoxBase
 {
 	public event System.Action OnQuantityChanged;
+	public event System.Action<CargoCapsule> OnLogisticsStateChanged;
+
+	[SerializeField] private CapsuleLogisticsState logisticsState = CapsuleLogisticsState.Inbound;
+
+	public CapsuleLogisticsState LogisticsState => logisticsState;
+
+	public void SetLogisticsState(CapsuleLogisticsState newState)
+	{
+		if (logisticsState == newState)
+			return;
+
+		logisticsState = newState;
+		OnLogisticsStateChanged?.Invoke(this);
+	}
 
 	public void ApplyDamage(int damageRate, int damagePercent)
 	{

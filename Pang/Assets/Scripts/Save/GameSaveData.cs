@@ -469,6 +469,7 @@ public sealed class BoxSaveData
 	public uint BoxId;
 	public BoxType BoxType;
 	public string ConcreteType;
+	public CapsuleLogisticsState CapsuleLogisticsState;
 	public List<ItemStackSaveData> Stacks = new();
 }
 
