@@ -35,6 +35,10 @@ public partial class CapsuleBuffer :
 	public ItemTag ItemTags => DockedCapsule != null ? DockedCapsule.ItemTags : ItemTag.None;
 
 	public bool CanReceiveFromInbound() => bufferState == CapsuleBufferState.IBOnly && CanPutBox();
+	public bool CanProvideInboundItems() =>
+		bufferState == CapsuleBufferState.IBOnly &&
+		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Inbound &&
+		IsCapsuleEmpty() == false;
 	public bool CanDispatchToOutbound() => CanGetBox() && DockedCapsule != null && DockedCapsule.LogisticsState == CapsuleLogisticsState.Outbound;
 	public bool CanRelocateEmptyCapsuleFrom(CapsuleBufferState requiredState) =>
 		bufferState == requiredState &&

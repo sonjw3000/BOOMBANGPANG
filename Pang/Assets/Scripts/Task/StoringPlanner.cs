@@ -241,7 +241,7 @@ public sealed class StoringPlanner
 
 	private static bool HasCollectableItem(CapsuleBuffer buffer)
 	{
-		return buffer != null && buffer.HasCapsule && buffer.IsCapsuleEmpty() == false && buffer.ItemTotals.Count > 0;
+		return buffer != null && buffer.CanProvideInboundItems() && buffer.ItemTotals.Count > 0;
 	}
 
 	private bool IsShelfInBuilding(ShelfBase shelf, uint buildingId)
