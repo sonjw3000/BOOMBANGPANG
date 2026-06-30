@@ -246,23 +246,23 @@ public class Building
 
 	private void EvaluateCargoPortState(CargoPort cargoPort)
 	{
-		if (cargoPort is InboundCargoPort inboundCargoPort)
-		{
-			if (inboundCargoPort.HasCapsule && inboundCargoPort.IsCapsuleEmpty() == false)
-				OnInboundCargoDocked(inboundCargoPort);
-			else
-				OnInboundCargoUndocked(inboundCargoPort);
+			if (cargoPort is InboundCargoPort inboundCargoPort)
+			{
+				if (inboundCargoPort.HasCapsule && inboundCargoPort.IsCapsuleEmpty() == false)
+					OnInboundPortDocked(inboundCargoPort);
+				else
+					OnInboundPortUndocked(inboundCargoPort);
 
 			return;
 		}
 
-		if (cargoPort is OutboundCargoPort outboundCargoPort)
-		{
-			if (outboundCargoPort.CanPutBox())
-				OnOutboundCargoUndocked(outboundCargoPort);
-			else
-				OnOutboundCargoDocked(outboundCargoPort);
-		}
+			if (cargoPort is OutboundCargoPort outboundCargoPort)
+			{
+				if (outboundCargoPort.CanPutBox())
+					OnOutboundPortUndocked(outboundCargoPort);
+				else
+					OnOutboundPortDocked(outboundCargoPort);
+			}
 	}
 
 	private void UnsubscribeCargoPort(CargoPort cargoPort)
@@ -319,9 +319,9 @@ public class Building
 	private void HandleCargoDocked(CargoPort cargoPort)
 	{
 		if (cargoPort is InboundCargoPort inboundCargoPort)
-			OnInboundCargoDocked(inboundCargoPort);
+			OnInboundPortDocked(inboundCargoPort);
 		else if (cargoPort is OutboundCargoPort outboundCargoPort)
-			OnOutboundCargoDocked(outboundCargoPort);
+			OnOutboundPortDocked(outboundCargoPort);
 	}
 
 	private void HandleCargoUndocking(CargoPort cargoPort, CargoCapsule capsule)
@@ -332,21 +332,21 @@ public class Building
 	private void HandleCargoUndocked(CargoPort cargoPort)
 	{
 		if (cargoPort is InboundCargoPort inboundCargoPort)
-			OnInboundCargoUndocked(inboundCargoPort);
+			OnInboundPortUndocked(inboundCargoPort);
 		else if (cargoPort is OutboundCargoPort outboundCargoPort)
-			OnOutboundCargoUndocked(outboundCargoPort);
+			OnOutboundPortUndocked(outboundCargoPort);
 	}
 
 	private void HandleCargoQuantityZero(CargoPort cargoPort)
 	{
 		if (cargoPort is InboundCargoPort inboundCargoPort)
-			OnInboundCargoQuantityZero(inboundCargoPort);
+			OnInboundPortQuantityZero(inboundCargoPort);
 	}
 
 	private void HandleCargoQuantityOverPercent(CargoPort cargoPort)
 	{
 		if (cargoPort is OutboundCargoPort outboundCargoPort)
-			OnOutboundCargoQuantityOverPercent(outboundCargoPort);
+			OnOutboundPortQuantityOverPercent(outboundCargoPort);
 	}
 
 	private void HandleCapsuleBufferDocked(CapsuleBuffer capsuleBuffer)
@@ -377,28 +377,26 @@ public class Building
 	private void HandleCapsuleLogisticsStateChanged(CargoCapsule capsule)
 	{
 		UpdateRegisteredCapsuleState(capsule);
-		if (capsule?.CurrentBuffer == null)
-			return;
-
-		TryEvaluateOutbound(capsule.CurrentBuffer);
-		TryEvaluateEmptyCapsuleRelocations();
+		OnCapsuleStateChanged(capsule);
 	}
 
-	protected virtual void OnInboundCargoDocked(InboundCargoPort cargoPort)
+	protected virtual void OnInboundPortDocked(InboundCargoPort cargoPort)
 	{
 		if (cargoPort == null)
 			return;
 
-		cargoPort.DockedCapsule?.SetLogisticsState(CapsuleLogisticsState.IB);
 		RegisterDockedCapsule(cargoPort);
-		if (cargoPort.IsCapsuleEmpty())
+		CargoCapsule capsule = cargoPort.DockedCapsule;
+		if (capsule == null)
 			return;
 
-		pendingInboundPorts.Add(cargoPort);
-		TryEnqueueInboundTask(cargoPort);
+		if (capsule.LogisticsState != CapsuleLogisticsState.IB)
+			capsule.SetLogisticsState(CapsuleLogisticsState.IB);
+		else
+			OnCapsuleStateChanged(capsule);
 	}
 
-	protected virtual void OnInboundCargoUndocked(InboundCargoPort cargoPort)
+	protected virtual void OnInboundPortUndocked(InboundCargoPort cargoPort)
 	{
 		if (cargoPort == null)
 			return;
@@ -408,7 +406,7 @@ public class Building
 		TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetInboundRequestKey(cargoPort));
 	}
 
-	protected virtual void OnInboundCargoQuantityZero(InboundCargoPort cargoPort)
+	protected virtual void OnInboundPortQuantityZero(InboundCargoPort cargoPort)
 	{
 		if (cargoPort == null)
 			return;
@@ -420,30 +418,72 @@ public class Building
 		TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetInboundRequestKey(cargoPort));
 	}
 
-	protected virtual void OnOutboundCargoUndocked(OutboundCargoPort cargoPort)
+	protected virtual void OnOutboundPortUndocked(OutboundCargoPort cargoPort)
 	{
 		RemoveQueuedOutboundTarget(cargoPort);
 	}
 
-	protected virtual void OnOutboundCargoDocked(OutboundCargoPort cargoPort)
+	protected virtual void OnOutboundPortDocked(OutboundCargoPort cargoPort)
 	{
 		RegisterDockedCapsule(cargoPort);
 		RemoveQueuedOutboundTarget(cargoPort);
 	}
 
-	protected virtual void OnOutboundCargoQuantityOverPercent(OutboundCargoPort cargoPort)
+	protected virtual void OnOutboundPortQuantityOverPercent(OutboundCargoPort cargoPort)
 	{
 	}
 
 	protected virtual void OnCapsuleBufferDocked(CapsuleBuffer capsuleBuffer)
 	{
 		RegisterDockedCapsule(capsuleBuffer);
-		EvaluateCapsuleLogisticsState(capsuleBuffer);
+		switch (capsuleBuffer?.BufferState)
+		{
+			case CapsuleBufferState.IBOnly:
+				OnInboundBufferDocked(capsuleBuffer);
+				break;
+			case CapsuleBufferState.Empty:
+				OnEmptyBufferDocked(capsuleBuffer);
+				break;
+			case CapsuleBufferState.OBOnly:
+				OnOutboundBufferDocked(capsuleBuffer);
+				break;
+		}
+
+		OnCapsuleStateChanged(capsuleBuffer?.DockedCapsule);
 		RemoveQueuedInboundTarget(capsuleBuffer);
 		queuedBufferRelocationTargets.Remove(capsuleBuffer);
-		TryEvaluateOutbound(capsuleBuffer);
 		TryEvaluatePackingIngress(capsuleBuffer);
-		TryEvaluateEmptyCapsuleRelocations();
+	}
+
+	protected virtual void OnInboundBufferDocked(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer?.DockedCapsule == null || capsuleBuffer.IsCapsuleEmpty())
+			return;
+
+		if (capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.IB)
+			capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.IB);
+	}
+
+	protected virtual void OnEmptyBufferDocked(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer?.DockedCapsule == null)
+			return;
+
+		if (capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.Empty)
+			capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Empty);
+		else
+			OnCapsuleStateChanged(capsuleBuffer.DockedCapsule);
+	}
+
+	protected virtual void OnOutboundBufferDocked(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer?.DockedCapsule == null)
+			return;
+
+		if (capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty)
+			capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
+		else
+			OnCapsuleStateChanged(capsuleBuffer.DockedCapsule);
 	}
 
 	protected virtual void OnCapsuleBufferUndocking(CapsuleBuffer capsuleBuffer, CargoCapsule capsule)
@@ -542,10 +582,16 @@ public class Building
 
 	protected virtual void OnCapsuleBufferContentChanged(CapsuleBuffer capsuleBuffer)
 	{
-		EvaluateCapsuleLogisticsState(capsuleBuffer);
-		TryEvaluateOutbound(capsuleBuffer);
+		if (capsuleBuffer?.DockedCapsule != null)
+		{
+			CargoCapsule capsule = capsuleBuffer.DockedCapsule;
+			if (capsule.LogisticsState == CapsuleLogisticsState.IB && capsuleBuffer.IsCapsuleEmpty())
+				OnCapsuleEmpty(capsuleBuffer);
+			else if (capsule.LogisticsState == CapsuleLogisticsState.OBStandby && IsBufferOutboundReady(capsuleBuffer))
+				OnCapsuleOverThreshold(capsuleBuffer);
+		}
+
 		TryEvaluatePackingIngress(capsuleBuffer);
-		TryEvaluateEmptyCapsuleRelocations();
 	}
 
 	protected virtual void OnCapsuleBufferStateChanged(CapsuleBuffer capsuleBuffer)
@@ -553,51 +599,79 @@ public class Building
 		if (capsuleBuffer == null)
 			return;
 
-		EvaluateCapsuleLogisticsState(capsuleBuffer);
+		if (capsuleBuffer.HasCapsule)
+		{
+			switch (capsuleBuffer.BufferState)
+			{
+				case CapsuleBufferState.IBOnly:
+					OnInboundBufferDocked(capsuleBuffer);
+					break;
+				case CapsuleBufferState.Empty:
+					OnEmptyBufferDocked(capsuleBuffer);
+					break;
+				case CapsuleBufferState.OBOnly:
+					OnOutboundBufferDocked(capsuleBuffer);
+					break;
+			}
+		}
+
 		if (capsuleBuffer.CanReceiveFromInbound())
 			TryEnqueuePendingInboundTasks();
 
-		TryEvaluateOutbound(capsuleBuffer);
 		TryEvaluatePackingIngress(capsuleBuffer);
-		TryEvaluateEmptyCapsuleRelocations();
 	}
 
-	protected virtual void EvaluateCapsuleLogisticsState(CapsuleBuffer capsuleBuffer)
+	protected virtual void OnCapsuleEmpty(CapsuleBuffer capsuleBuffer)
 	{
-		if (capsuleBuffer?.DockedCapsule == null)
-			return;
-
-		CargoCapsule capsule = capsuleBuffer.DockedCapsule;
-		if (capsuleBuffer.BufferState == CapsuleBufferState.OBOnly)
+		if (capsuleBuffer?.DockedCapsule == null ||
+			capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.IB)
 		{
-			if (capsule.LogisticsState == CapsuleLogisticsState.Empty)
-			{
-				capsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
-				return;
-			}
-
-			if (capsule.LogisticsState == CapsuleLogisticsState.OBStandby &&
-				IsBufferOutboundReady(capsuleBuffer))
-			{
-				capsule.SetLogisticsState(CapsuleLogisticsState.OB);
-			}
-
 			return;
 		}
 
-		if (capsuleBuffer.IsCapsuleEmpty())
+		capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Empty);
+	}
+
+	protected virtual void OnCapsuleOverThreshold(CapsuleBuffer capsuleBuffer)
+	{
+		if (capsuleBuffer?.DockedCapsule == null ||
+			capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby)
 		{
-			capsule.SetLogisticsState(CapsuleLogisticsState.Empty);
 			return;
 		}
 
-		if (capsuleBuffer.BufferState == CapsuleBufferState.IBOnly)
-		{
-			if (capsule.LogisticsState != CapsuleLogisticsState.IB)
-				capsule.SetLogisticsState(CapsuleLogisticsState.IB);
-			return;
-		}
+		capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.OB);
+	}
 
+	private void OnCapsuleStateChanged(CargoCapsule capsule)
+	{
+		if (capsule == null)
+			return;
+
+		switch (capsule.LogisticsState)
+		{
+			case CapsuleLogisticsState.IB:
+				if (capsule.CurrentDock is InboundCargoPort inboundPort && capsule.Stacks.Count > 0)
+				{
+					pendingInboundPorts.Add(inboundPort);
+					TryEnqueueInboundTask(inboundPort);
+				}
+				break;
+
+			case CapsuleLogisticsState.Empty:
+				TryEvaluateEmptyCapsuleRelocations();
+				break;
+
+			case CapsuleLogisticsState.OBStandby:
+				if (capsule.CurrentBuffer != null && IsBufferOutboundReady(capsule.CurrentBuffer))
+					OnCapsuleOverThreshold(capsule.CurrentBuffer);
+				break;
+
+			case CapsuleLogisticsState.OB:
+				if (capsule.CurrentBuffer != null)
+					TryEvaluateOutbound(capsule.CurrentBuffer);
+				break;
+		}
 	}
 
 	protected virtual bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)

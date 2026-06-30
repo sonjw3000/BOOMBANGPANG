@@ -13,22 +13,9 @@ public sealed class StagingBuilding : Building
 		return capsuleBuffer.HasCapsule && capsuleBuffer.CanDispatchToOutbound();
 	}
 
-	protected override void OnCapsuleBufferDocked(CapsuleBuffer capsuleBuffer)
+	protected override void OnInboundBufferDocked(CapsuleBuffer capsuleBuffer)
 	{
 		EnsureOutboundState(capsuleBuffer);
-		base.OnCapsuleBufferDocked(capsuleBuffer);
-	}
-
-	protected override void OnCapsuleBufferContentChanged(CapsuleBuffer capsuleBuffer)
-	{
-		EnsureOutboundState(capsuleBuffer);
-		base.OnCapsuleBufferContentChanged(capsuleBuffer);
-	}
-
-	protected override void OnCapsuleBufferStateChanged(CapsuleBuffer capsuleBuffer)
-	{
-		EnsureOutboundState(capsuleBuffer);
-		base.OnCapsuleBufferStateChanged(capsuleBuffer);
 	}
 
 	private static void EnsureOutboundState(CapsuleBuffer capsuleBuffer)
