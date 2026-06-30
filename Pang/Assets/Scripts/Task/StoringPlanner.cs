@@ -215,7 +215,7 @@ public sealed class StoringPlanner
 		float totalSize = 0.0f;
 		foreach (CapsuleBuffer buffer in EnumerateCollectBuffers(buildingId))
 		{
-			if (buffer == null)
+			if (HasCollectableItem(buffer) == false)
 				continue;
 
 			foreach (var itemTotal in buffer.ItemTotals)

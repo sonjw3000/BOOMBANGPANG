@@ -92,9 +92,9 @@ public sealed class CapsuleRelocationTaskBuildRequest : TaskBuildRequest<Capsule
 
 		return taskType switch
 		{
-				WorkerTask.TaskType.IB when dock is InboundCargoPort => dock.IsCapsuleEmpty() == false,
-				WorkerTask.TaskType.CapsuleClear when dock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleBufferState.IBOnly),
-				WorkerTask.TaskType.CapsuleSupply when dock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleBufferState.Empty),
+			WorkerTask.TaskType.IB when dock is InboundCargoPort => dock.IsCapsuleEmpty() == false && dock.DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB,
+			WorkerTask.TaskType.CapsuleClear when dock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleBufferState.IBOnly),
+			WorkerTask.TaskType.CapsuleSupply when dock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleBufferState.Empty),
 			WorkerTask.TaskType.OB when dock is CapsuleBuffer sourceBuffer => sourceBuffer.CanDispatchToOutbound(),
 			_ => false,
 		};

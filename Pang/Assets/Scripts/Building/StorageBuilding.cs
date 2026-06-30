@@ -7,8 +7,14 @@ public sealed class StorageBuilding : Building
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
 	{
-		if (capsuleBuffer == null || capsuleBuffer.CanDispatchToOutbound() == false)
+		if (capsuleBuffer == null ||
+			capsuleBuffer.BufferState != CapsuleBufferState.OBOnly ||
+			capsuleBuffer.DockedCapsule == null ||
+			(capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby &&
+			 capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB))
+		{
 			return false;
+		}
 
         // todo
         // have to check items are fully labeled first

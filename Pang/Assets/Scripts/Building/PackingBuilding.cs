@@ -7,8 +7,14 @@ public sealed class PackingBuilding : Building
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
 	{
-		if (capsuleBuffer == null || capsuleBuffer.CanDispatchToOutbound() == false)
+		if (capsuleBuffer == null ||
+			capsuleBuffer.BufferState != CapsuleBufferState.OBOnly ||
+			capsuleBuffer.DockedCapsule == null ||
+			(capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby &&
+			 capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB))
+		{
 			return false;
+		}
 
         // todo
         // have to check items are fully packed first
@@ -45,9 +51,7 @@ public sealed class PackingBuilding : Building
 	internal override bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
 	{
 		return capsuleBuffer != null &&
-			capsuleBuffer.BufferState == CapsuleBufferState.IBOnly &&
-			capsuleBuffer.DockedCapsule != null &&
-			capsuleBuffer.IsCapsuleEmpty() == false &&
+			capsuleBuffer.CanProvideInboundItems() &&
 			GameContext.HasInstance &&
 			GameContext.Instance.OBWorkflowSvc != null &&
 			GameContext.Instance.OBWorkflowSvc.HasPackableManifest(capsuleBuffer.DockedCapsule);

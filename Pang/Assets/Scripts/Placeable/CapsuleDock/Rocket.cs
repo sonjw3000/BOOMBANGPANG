@@ -131,7 +131,7 @@ public partial class Rocket : CapsuleDock
 		CargoCapsule capsule = null;
 		if (BoxMgr.GetNewBox(BoxType.Capsule, out BoxBase newBox))
 			capsule = newBox as CargoCapsule;
-		capsule?.SetLogisticsState(CapsuleLogisticsState.Inbound);
+		capsule?.SetLogisticsState(CapsuleLogisticsState.IBStandby);
 		if (capsule == null || TryDockCapsule(capsule) == false)
 		{
 			if (capsule != null)
@@ -179,7 +179,7 @@ public partial class Rocket : CapsuleDock
 		CargoCapsule capsule = null;
 		if (BoxMgr.GetNewBox(BoxType.Capsule, out BoxBase newBox))
 			capsule = newBox as CargoCapsule;
-		capsule?.SetLogisticsState(CapsuleLogisticsState.Inbound);
+		capsule?.SetLogisticsState(CapsuleLogisticsState.IBStandby);
 		if (capsule == null || TryDockCapsule(capsule) == false)
 		{
 			if (capsule != null)

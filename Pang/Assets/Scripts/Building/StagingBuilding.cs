@@ -37,11 +37,11 @@ public sealed class StagingBuilding : Building
 			capsuleBuffer.HasCapsule == false ||
 			capsuleBuffer.IsCapsuleEmpty() ||
 			capsuleBuffer.DockedCapsule == null ||
-			capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.Outbound)
+			capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
 		{
 			return;
 		}
 
-		capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Outbound);
+		capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.OB);
 	}
 }

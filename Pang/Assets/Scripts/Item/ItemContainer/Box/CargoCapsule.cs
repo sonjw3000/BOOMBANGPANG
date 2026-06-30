@@ -4,9 +4,11 @@ using UnityEngine;
 
 public enum CapsuleLogisticsState
 {
-	Inbound,
+	IBStandby,
+	IB,
 	Empty,
-	Outbound,
+	OBStandby,
+	OB,
 }
 
 public class CargoCapsule : BoxBase
@@ -14,7 +16,7 @@ public class CargoCapsule : BoxBase
 	public event System.Action OnQuantityChanged;
 	public event System.Action<CargoCapsule> OnLogisticsStateChanged;
 
-	[SerializeField] private CapsuleLogisticsState logisticsState = CapsuleLogisticsState.Inbound;
+	[SerializeField] private CapsuleLogisticsState logisticsState = CapsuleLogisticsState.IBStandby;
 	private CapsuleDock currentDock;
 
 	public CapsuleLogisticsState LogisticsState => logisticsState;

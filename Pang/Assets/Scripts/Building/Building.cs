@@ -389,6 +389,7 @@ public class Building
 		if (cargoPort == null)
 			return;
 
+		cargoPort.DockedCapsule?.SetLogisticsState(CapsuleLogisticsState.IB);
 		RegisterDockedCapsule(cargoPort);
 		if (cargoPort.IsCapsuleEmpty())
 			return;
@@ -437,6 +438,7 @@ public class Building
 	protected virtual void OnCapsuleBufferDocked(CapsuleBuffer capsuleBuffer)
 	{
 		RegisterDockedCapsule(capsuleBuffer);
+		EvaluateCapsuleLogisticsState(capsuleBuffer);
 		RemoveQueuedInboundTarget(capsuleBuffer);
 		queuedBufferRelocationTargets.Remove(capsuleBuffer);
 		TryEvaluateOutbound(capsuleBuffer);
@@ -551,6 +553,7 @@ public class Building
 		if (capsuleBuffer == null)
 			return;
 
+		EvaluateCapsuleLogisticsState(capsuleBuffer);
 		if (capsuleBuffer.CanReceiveFromInbound())
 			TryEnqueuePendingInboundTasks();
 
@@ -565,17 +568,36 @@ public class Building
 			return;
 
 		CargoCapsule capsule = capsuleBuffer.DockedCapsule;
+		if (capsuleBuffer.BufferState == CapsuleBufferState.OBOnly)
+		{
+			if (capsule.LogisticsState == CapsuleLogisticsState.Empty)
+			{
+				capsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
+				return;
+			}
+
+			if (capsule.LogisticsState == CapsuleLogisticsState.OBStandby &&
+				IsBufferOutboundReady(capsuleBuffer))
+			{
+				capsule.SetLogisticsState(CapsuleLogisticsState.OB);
+			}
+
+			return;
+		}
+
 		if (capsuleBuffer.IsCapsuleEmpty())
 		{
 			capsule.SetLogisticsState(CapsuleLogisticsState.Empty);
 			return;
 		}
 
-		if (capsuleBuffer.BufferState == CapsuleBufferState.OBOnly &&
-			capsule.LogisticsState == CapsuleLogisticsState.Empty)
+		if (capsuleBuffer.BufferState == CapsuleBufferState.IBOnly)
 		{
-			capsule.SetLogisticsState(CapsuleLogisticsState.Outbound);
+			if (capsule.LogisticsState != CapsuleLogisticsState.IB)
+				capsule.SetLogisticsState(CapsuleLogisticsState.IB);
+			return;
 		}
+
 	}
 
 	protected virtual bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
