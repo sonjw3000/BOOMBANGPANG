@@ -28,7 +28,6 @@ def append_message_under_heading(content: str, message: str) -> tuple[str, bool]
 			content.rstrip()
 			+ "\n\n"
 			+ TASK_COMMIT_HEADING
-			+ "\n\n"
 			+ entry
 			+ "\n"
 		)
