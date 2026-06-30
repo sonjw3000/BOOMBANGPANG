@@ -239,11 +239,11 @@ public partial class PackingStationService : FacilityService<PackingStation>
 		int bestDistance = int.MaxValue;
 
 		foreach (CapsuleBuffer buffer in CapsuleBufferService.GetBuffers(buildingId))
-		{
-			if (buffer == null || buffer.BufferState != CapsuleBufferState.OBOnly || buffer.DockedCapsule == null)
-				continue;
+			{
+				if (buffer == null || buffer.CanReceiveOutboundItems() == false)
+					continue;
 
-			int distance = (int)Unity.Mathematics.math.lengthsq(buffer.GridPosition - from);
+				int distance = (int)Unity.Mathematics.math.lengthsq(buffer.GridPosition - from);
 			if (distance >= bestDistance)
 				continue;
 

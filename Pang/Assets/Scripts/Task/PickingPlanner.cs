@@ -241,9 +241,9 @@ public sealed class PickingPlanner
 			yield break;
 
 		foreach (CapsuleBuffer buffer in capsuleBufferService.GetBuffers(buildingId))
-		{
-			if (buffer != null && buffer.BufferState == CapsuleBufferState.OBOnly && buffer.HasCapsule)
-				yield return buffer;
-		}
+			{
+				if (buffer != null && buffer.CanReceiveOutboundItems())
+					yield return buffer;
+			}
 	}
 }

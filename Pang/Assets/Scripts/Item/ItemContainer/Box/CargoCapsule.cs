@@ -15,8 +15,11 @@ public class CargoCapsule : BoxBase
 	public event System.Action<CargoCapsule> OnLogisticsStateChanged;
 
 	[SerializeField] private CapsuleLogisticsState logisticsState = CapsuleLogisticsState.Inbound;
+	private CapsuleDock currentDock;
 
 	public CapsuleLogisticsState LogisticsState => logisticsState;
+	public CapsuleDock CurrentDock => currentDock;
+	public CapsuleBuffer CurrentBuffer => currentDock as CapsuleBuffer;
 
 	public void SetLogisticsState(CapsuleLogisticsState newState)
 	{
@@ -25,6 +28,11 @@ public class CargoCapsule : BoxBase
 
 		logisticsState = newState;
 		OnLogisticsStateChanged?.Invoke(this);
+	}
+
+	public void SetCurrentDock(CapsuleDock dock)
+	{
+		currentDock = dock;
 	}
 
 	public void ApplyDamage(int damageRate, int damagePercent)

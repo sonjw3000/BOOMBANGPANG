@@ -23,6 +23,7 @@ public partial class CapsuleBuffer :
 	[SerializeField] private CapsuleBufferState bufferState = CapsuleBufferState.Empty;
 
 	public event Action<CapsuleBuffer> OnCapsuleDocked;
+	public event Action<CapsuleBuffer, CargoCapsule> OnCapsuleUndocking;
 	public event Action<CapsuleBuffer> OnCapsuleUndocked;
 	public event Action<CapsuleBuffer> OnCapsuleContentChanged;
 	public event Action<CapsuleBuffer> OnBufferStateChanged;
@@ -35,6 +36,15 @@ public partial class CapsuleBuffer :
 
 	public bool CanReceiveFromInbound() => bufferState == CapsuleBufferState.IBOnly && CanPutBox();
 	public bool CanDispatchToOutbound() => CanGetBox() && DockedCapsule != null && DockedCapsule.LogisticsState == CapsuleLogisticsState.Outbound;
+	public bool CanRelocateEmptyCapsuleFrom(CapsuleBufferState requiredState) =>
+		bufferState == requiredState &&
+		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Empty &&
+		IsCapsuleEmpty();
+	public bool CanReceiveOutboundItems() =>
+		bufferState == CapsuleBufferState.OBOnly &&
+		DockedCapsule != null &&
+		(DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty ||
+		 DockedCapsule.LogisticsState == CapsuleLogisticsState.Outbound);
 	public bool CanRegister() => DockedCapsule != null && DockedCapsule.CanRegister();
 	public int GetQuantity(uint itemId) => DockedCapsule != null ? DockedCapsule.GetQuantity(itemId) : 0;
 	public int GetAcceptableQuantity(uint itemId, int requested) => DockedCapsule != null ? DockedCapsule.GetAcceptableQuantity(itemId, requested) : 0;
@@ -75,6 +85,11 @@ public partial class CapsuleBuffer :
 			OnCapsuleDocked?.Invoke(this);
 		else
 			OnCapsuleUndocked?.Invoke(this);
+	}
+
+	protected override void OnBeforeCapsuleUndocked(CargoCapsule capsule)
+	{
+		OnCapsuleUndocking?.Invoke(this, capsule);
 	}
 
 	protected override void OnCapsuleQuantityChanged()
