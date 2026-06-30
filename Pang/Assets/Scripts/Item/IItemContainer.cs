@@ -30,6 +30,8 @@ public interface IItemContainer
 	public bool AddStack(ItemStack stack);
 
 	public bool RemoveStack(ItemStack stack);
+
+	public bool TryRemoveFromStack(ItemStack stack, int quantity, out ItemStack removedStack);
 }
 
 // 실제 item 저장

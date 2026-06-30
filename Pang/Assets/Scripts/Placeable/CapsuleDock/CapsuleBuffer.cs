@@ -53,6 +53,11 @@ public partial class CapsuleBuffer :
 	public int RemoveItem(uint itemId, int quantity) => DockedCapsule != null ? DockedCapsule.RemoveItem(itemId, quantity) : 0;
 	public bool AddStack(ItemStack stack) => DockedCapsule != null && DockedCapsule.AddStack(stack);
 	public bool RemoveStack(ItemStack stack) => DockedCapsule != null && DockedCapsule.RemoveStack(stack);
+	public bool TryRemoveFromStack(ItemStack stack, int quantity, out ItemStack removedStack)
+	{
+		removedStack = null;
+		return DockedCapsule != null && DockedCapsule.TryRemoveFromStack(stack, quantity, out removedStack);
+	}
 
 	public void SetBufferState(CapsuleBufferState newState)
 	{

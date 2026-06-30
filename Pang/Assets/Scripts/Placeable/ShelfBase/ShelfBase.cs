@@ -250,6 +250,40 @@ public abstract partial class ShelfBase :
 
 		return true;
 	}
+
+	public bool TryRemoveFromStack(ItemStack stack, int quantity, out ItemStack removedStack)
+	{
+		removedStack = null;
+		if (stack == null || quantity <= 0 || stacks.Contains(stack) == false)
+			return false;
+
+		uint itemId = stack.ItemID;
+		removedStack = stack.Split(quantity);
+		if (removedStack == null)
+			return false;
+
+		int removedQuantity = removedStack.Quantity;
+		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) - removedQuantity;
+		if (itemTotals[itemId] <= 0)
+		{
+			if (itemTotals[itemId] < 0)
+				Debug.LogWarning($"Item total for {itemId} went below zero after removing stack quantity. Adjusting to zero.");
+
+			itemTotals.Remove(itemId);
+			OnItemPresentChanged?.Invoke(this, itemId, false);
+		}
+
+		if (stack.Quantity <= 0)
+		{
+			stacks.Remove(stack);
+			stack.Recycle();
+		}
+
+		OnItemQuantityChanged?.Invoke(this, itemId, -removedQuantity);
+		UpdateSize();
+		return true;
+	}
+
 	public bool CanAccept(uint itemId, int quantity)
 	{
 		return GetAcceptableQuantity(itemId, quantity) >= quantity;

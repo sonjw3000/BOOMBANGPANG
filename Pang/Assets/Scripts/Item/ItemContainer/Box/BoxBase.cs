@@ -240,6 +240,32 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 		return true;
 	}
 
+	public bool TryRemoveFromStack(ItemStack stack, int quantity, out ItemStack removedStack)
+	{
+		removedStack = null;
+		if (stack == null || quantity <= 0 || stacks.Contains(stack) == false)
+			return false;
+
+		uint itemId = stack.ItemID;
+		removedStack = stack.Split(quantity);
+		if (removedStack == null)
+			return false;
+
+		int removedQuantity = removedStack.Quantity;
+		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) - removedQuantity;
+		if (itemTotals[itemId] <= 0)
+			itemTotals.Remove(itemId);
+
+		if (stack.Quantity <= 0)
+		{
+			stacks.Remove(stack);
+			stack.Recycle();
+		}
+
+		UpdateSize();
+		return true;
+	}
+
 	// pallet같은 경우에는 소유한 pallet들의 capacity들을 합쳐야하기 때문에
 	protected abstract void UpdateSize();
 

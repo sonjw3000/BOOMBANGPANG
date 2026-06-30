@@ -306,6 +306,32 @@ public partial class PackingStation :
 		return true;
 	}
 
+	public bool TryRemoveFromStack(ItemStack stack, int quantity, out ItemStack removedStack)
+	{
+		removedStack = null;
+		if (stack == null || quantity <= 0 || packedItems.Contains(stack) == false)
+			return false;
+
+		uint itemId = stack.ItemID;
+		removedStack = stack.Split(quantity);
+		if (removedStack == null)
+			return false;
+
+		int removedQuantity = removedStack.Quantity;
+		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) - removedQuantity;
+		if (itemTotals[itemId] <= 0)
+			itemTotals.Remove(itemId);
+
+		if (stack.Quantity <= 0)
+		{
+			packedItems.Remove(stack);
+			stack.Recycle();
+		}
+
+		UpdateSize();
+		return true;
+	}
+
 	private void UpdateSize()
 	{
 		totalSize = 0.0f;
