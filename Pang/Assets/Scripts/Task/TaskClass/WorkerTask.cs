@@ -28,30 +28,23 @@ public abstract class WorkerTask
 {
 	public enum TaskType
 	{
-		// IB
 		Unloading = 0,
-		IB = 1,
-		//Receive,
-		//Label,
-		Storing = 2,
+		IB,
+		Storing,
+		OB,
+		Picking,
+		Packing,
+		Loading,
+		Water,
+		CargoTransfer,
 
-		// OB
-		OB = 3,
-		Picking = 4,
-		//Sorting,
-		Packing = 5,
+		
+		Undefined = 999,
 
-		Loading = 6,
-
-		Water = 7,
-		// undef
-		Undefined = 8,
-
-		HandleMistake = 9,
+		HandleMistake,
 
 		// cross-building
-		CargoTransfer = 10,
-		Labeling = 11,
+		Labeling,
 	}
 
 	public enum Status

@@ -2,21 +2,6 @@ using System.Collections.Generic;
 
 public static class WorkerTaskAssignmentPolicy
 {
-	private static readonly WorkerTask.TaskType[] orderedTaskTypes =
-	{
-		WorkerTask.TaskType.Undefined,
-		WorkerTask.TaskType.IB,
-		WorkerTask.TaskType.OB,
-		WorkerTask.TaskType.CargoTransfer,
-		WorkerTask.TaskType.Water,
-		WorkerTask.TaskType.Unloading,
-		WorkerTask.TaskType.Loading,
-		WorkerTask.TaskType.Labeling,
-		WorkerTask.TaskType.Storing,
-		WorkerTask.TaskType.Picking,
-		WorkerTask.TaskType.Packing,
-	};
-
 	public static bool CanAssign(AIWorker worker, WorkerTask.TaskType taskType)
 	{
 		if (worker == null)
@@ -37,9 +22,11 @@ public static class WorkerTaskAssignmentPolicy
 		if (worker == null)
 			return;
 
-		for (int i = 0; i < orderedTaskTypes.Length; ++i)
+		foreach (WorkerTask.TaskType taskType in System.Enum.GetValues(typeof(WorkerTask.TaskType)))
 		{
-			WorkerTask.TaskType taskType = orderedTaskTypes[i];
+			if (taskType > WorkerTask.TaskType.Undefined)
+				continue;
+
 			if (CanAssign(worker, taskType))
 				results.Add(taskType);
 		}

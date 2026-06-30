@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,17 +8,9 @@ namespace Assets.Scripts.UI
 {
 	public class WorkerWindow : MonoBehaviour
 	{
-		public enum TabType
-		{
-			Unassigned,
-			All,
-			Unloading,
-			IB,
-			OB,
-			CargoTransfer,
-			Loading,
-			Water
-		}
+		private const int UnassignedTabIndex = 0;
+		private const int AllTabIndex = 1;
+		private const int TaskTabStartIndex = 2;
 
 		[SerializeField] private UIWindow window;
 		[SerializeField] private WorkerItemView itemPrefab;
@@ -30,7 +23,8 @@ namespace Assets.Scripts.UI
 		[SerializeField] private Sprite icon;
 
 		private WorkerManager workerMgr => GameContext.Instance.WorkerMgr;
-		private TabType currentTab = TabType.All;
+		private int currentTabIndex = AllTabIndex;
+		private readonly List<WorkerTask.TaskType> taskTabs = new();
 		private List<WorkerItemView> activeItems = new List<WorkerItemView>();
 		private bool tabsInitialized = false;
 
@@ -59,21 +53,24 @@ namespace Assets.Scripts.UI
 		}
 
 		private void SetupTabs()
-{
+		{
 			if (tabsInitialized) return;
 			window.ClearTabs();
+			taskTabs.Clear();
 
-			// Order as requested: Unassigned, All, TaskTypes
 			window.AddTab("Unassigned", SetTab);
 			window.AddTab("All", SetTab);
-			window.AddTab("Unloading", SetTab);
-			window.AddTab("IB", SetTab);
-			window.AddTab("OB", SetTab);
-			window.AddTab("CargoTransfer", SetTab);
-			window.AddTab("Loading", SetTab);
-			window.AddTab("Water", SetTab);
 
-			window.UpdateTabVisuals((int)currentTab);
+			foreach (WorkerTask.TaskType taskType in Enum.GetValues(typeof(WorkerTask.TaskType)))
+			{
+				if (IsTaskTabType(taskType) == false)
+					continue;
+
+				taskTabs.Add(taskType);
+				window.AddTab(taskType.ToString(), SetTab);
+			}
+
+			window.UpdateTabVisuals(currentTabIndex);
 			tabsInitialized = true;
 		}
 
@@ -105,7 +102,7 @@ namespace Assets.Scripts.UI
 
 		public void SetTab(int tabIndex)
 		{
-			currentTab = (TabType)tabIndex;
+			currentTabIndex = tabIndex;
 			window.UpdateTabVisuals(tabIndex);
 			RefreshList();
 		}
@@ -145,19 +142,21 @@ namespace Assets.Scripts.UI
 
 		private bool ShouldShowInTab(AIWorker worker)
 		{
-			if (currentTab == TabType.All) return true;
-			if (currentTab == TabType.Unassigned) return worker.TaskType == WorkerTask.TaskType.Undefined;
+			if (currentTabIndex == AllTabIndex)
+				return true;
 
-			switch (currentTab)
-			{
-				case TabType.Unloading: return worker.TaskType == WorkerTask.TaskType.Unloading;
-				case TabType.IB: return worker.TaskType == WorkerTask.TaskType.IB;
-				case TabType.OB: return worker.TaskType == WorkerTask.TaskType.OB;
-				case TabType.CargoTransfer: return worker.TaskType == WorkerTask.TaskType.CargoTransfer;
-				case TabType.Loading: return worker.TaskType == WorkerTask.TaskType.Loading;
-				case TabType.Water: return worker.TaskType == WorkerTask.TaskType.Water;
-			}
-			return false;
+			if (currentTabIndex == UnassignedTabIndex)
+				return worker.TaskType == WorkerTask.TaskType.Undefined;
+
+			int taskTabIndex = currentTabIndex - TaskTabStartIndex;
+			return taskTabIndex >= 0 &&
+				taskTabIndex < taskTabs.Count &&
+				worker.TaskType == taskTabs[taskTabIndex];
+		}
+
+		private static bool IsTaskTabType(WorkerTask.TaskType taskType)
+		{
+			return taskType < WorkerTask.TaskType.Undefined;
 		}
 	}
 }

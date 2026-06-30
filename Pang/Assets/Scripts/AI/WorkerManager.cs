@@ -3,7 +3,7 @@ using Assets.Scripts.AI.BT;
 using System.Collections.Generic;
 using UnityEngine;
 using static WorkerTask;
-//using static WorkerTask.TaskType;
+using static WorkerTask.TaskType;
 
 [DefaultExecutionOrder(-100)]
 public partial class WorkerManager : MonoBehaviour
