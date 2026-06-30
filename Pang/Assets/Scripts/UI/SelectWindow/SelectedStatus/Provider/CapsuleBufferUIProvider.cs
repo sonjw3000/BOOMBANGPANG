@@ -12,6 +12,9 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 	public string CapsuleDisplay => currentTarget?.DockedCapsule != null
 		? $"Capsule #{currentTarget.DockedCapsule.BoxId}"
 		: "Empty";
+	public string DockedBufferDisplay => currentTarget?.DockedCapsule != null
+		? currentTarget.DockedCapsule.LogisticsState.ToString()
+		: "None";
 	public string CapacityDisplay => currentTarget != null ? $"{currentTarget.MaxSize:0.0} units" : "0.0 units";
 	public string CurrentSizeDisplay => currentTarget != null ? $"{currentTarget.TotalSize:0.0} units" : "0.0 units";
 	public string FilledPercentDisplay => currentTarget != null ? $"{currentTarget.FilledPercent:0.0}%" : "0.0%";
@@ -32,17 +35,19 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 		infoBlocks.Clear();
 		infoBlocks.Add(new KeyValueBlock("State", StateDisplay));
 		infoBlocks.Add(new KeyValueBlock("Capsule", CapsuleDisplay));
+		infoBlocks.Add(new KeyValueBlock("DockedBuffer", DockedBufferDisplay));
 		infoBlocks.Add(new KeyValueBlock("Filled", FilledPercentDisplay));
 	}
 
 	public override void OnUpdate()
 	{
-		if (infoBlocks.Count < 3)
+		if (infoBlocks.Count < 4)
 			return;
 
 		(infoBlocks[0] as KeyValueBlock)?.UpdateValue(StateDisplay);
 		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(CapsuleDisplay);
-		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(FilledPercentDisplay);
+		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(DockedBufferDisplay);
+		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(FilledPercentDisplay);
 	}
 
 	private static string GetStateLabel(CapsuleBufferState state)
