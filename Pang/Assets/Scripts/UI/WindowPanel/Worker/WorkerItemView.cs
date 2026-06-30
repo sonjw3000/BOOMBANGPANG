@@ -4,6 +4,13 @@ using TMPro;
 
 namespace Assets.Scripts.UI
 {
+	public enum WorkerTaskHandleGroup
+	{
+		Undefined,
+		CargoHandle,
+		ItemHandle,
+	}
+
 	public class WorkerItemView : MonoBehaviour
 	{
 		[SerializeField] private Image thumbnail;
@@ -14,15 +21,21 @@ namespace Assets.Scripts.UI
 
 		// Right side toggle/tab placeholder
 		[SerializeField] private GameObject managementTab;
+		[SerializeField] private TMPro.TMP_Dropdown handleGroupDropdown;
 		[SerializeField] private TMPro.TMP_Dropdown typeDropdown;
 		[SerializeField] private TMPro.TMP_Dropdown primaryBuildingDropdown;
 
 		private AIWorker currentWorker;
+		private WorkerTaskHandleGroup selectedHandleGroup = WorkerTaskHandleGroup.Undefined;
+		private readonly System.Collections.Generic.List<WorkerTaskHandleGroup> validHandleGroups = new();
 		private readonly System.Collections.Generic.List<WorkerTask.TaskType> validTypes = new();
 		private readonly System.Collections.Generic.List<uint> validBuildingIds = new();
 
 		private void Awake()
 		{
+			if (handleGroupDropdown != null)
+				handleGroupDropdown.onValueChanged.AddListener(OnHandleGroupDropdownValueChanged);
+
 			if (typeDropdown != null)
 				typeDropdown.onValueChanged.AddListener(OnTaskDropdownValueChanged);
 
@@ -35,7 +48,11 @@ namespace Assets.Scripts.UI
 			if (worker == null)
 				return;
 
+			bool workerChanged = currentWorker != worker;
 			currentWorker = worker;
+			if (workerChanged)
+				selectedHandleGroup = GetHandleGroup(worker.TaskType);
+
 			nameText.text = $"{worker.Name} (ID: {worker.WorkerID})";
 			taskText.text = $"Task: {worker.TaskType}";
 
@@ -57,10 +74,48 @@ namespace Assets.Scripts.UI
 				fatigueText.text = "";
 			}
 
-			EnsurePrimaryBuildingDropdown();
 			EnsureManagementLayout();
+			ConfigureHandleGroupDropdown(worker);
 			ConfigureTaskDropdown(worker);
 			ConfigurePrimaryBuildingDropdown(worker);
+		}
+
+		private void ConfigureHandleGroupDropdown(AIWorker worker)
+		{
+			if (handleGroupDropdown == null)
+				return;
+
+			handleGroupDropdown.onValueChanged.RemoveListener(OnHandleGroupDropdownValueChanged);
+			handleGroupDropdown.ClearOptions();
+			validHandleGroups.Clear();
+
+			WorkerTaskHandleGroup currentGroup = selectedHandleGroup;
+			int selectedIndex = 0;
+			var options = new System.Collections.Generic.List<string>();
+
+			AddHandleGroupOption(WorkerTaskHandleGroup.Undefined, "Undefined", currentGroup, options, ref selectedIndex);
+			AddHandleGroupOption(WorkerTaskHandleGroup.CargoHandle, "Cargo Handle", currentGroup, options, ref selectedIndex);
+			AddHandleGroupOption(WorkerTaskHandleGroup.ItemHandle, "Item Handle", currentGroup, options, ref selectedIndex);
+
+			handleGroupDropdown.interactable = true;
+			handleGroupDropdown.AddOptions(options);
+			handleGroupDropdown.value = selectedIndex;
+			handleGroupDropdown.RefreshShownValue();
+			handleGroupDropdown.onValueChanged.AddListener(OnHandleGroupDropdownValueChanged);
+		}
+
+		private void AddHandleGroupOption(
+			WorkerTaskHandleGroup group,
+			string label,
+			WorkerTaskHandleGroup currentGroup,
+			System.Collections.Generic.List<string> options,
+			ref int selectedIndex)
+		{
+			if (group == currentGroup)
+				selectedIndex = validHandleGroups.Count;
+
+			validHandleGroups.Add(group);
+			options.Add(label);
 		}
 
 		private void ConfigureTaskDropdown(AIWorker worker)
@@ -76,9 +131,10 @@ namespace Assets.Scripts.UI
 			var options = new System.Collections.Generic.List<string>();
 			var assignableTypes = new System.Collections.Generic.List<WorkerTask.TaskType>();
 			WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, assignableTypes);
+			WorkerTaskHandleGroup selectedGroup = GetSelectedHandleGroup();
 			bool currentTaskAvailable = WorkerManager.CanChangeType(worker, worker.TaskType);
 
-			if (currentTaskAvailable == false)
+			if (currentTaskAvailable == false || IsTaskTypeVisibleInHandleGroup(worker.TaskType, selectedGroup) == false)
 			{
 				validTypes.Add(worker.TaskType);
 				options.Add($"{worker.TaskType} (Current Unavailable)");
@@ -87,6 +143,9 @@ namespace Assets.Scripts.UI
 			for (int i = 0; i < assignableTypes.Count; ++i)
 			{
 				WorkerTask.TaskType type = assignableTypes[i];
+				if (IsTaskTypeVisibleInHandleGroup(type, selectedGroup) == false)
+					continue;
+
 				if (validTypes.Contains(type))
 					continue;
 
@@ -157,18 +216,6 @@ namespace Assets.Scripts.UI
 			primaryBuildingDropdown.onValueChanged.AddListener(OnPrimaryBuildingDropdownValueChanged);
 		}
 
-		private void EnsurePrimaryBuildingDropdown()
-		{
-			if (primaryBuildingDropdown != null || typeDropdown == null)
-				return;
-
-			GameObject dropdownObject = Instantiate(typeDropdown.gameObject, typeDropdown.transform.parent);
-			dropdownObject.name = "PrimaryBuildingDropdown";
-			dropdownObject.transform.SetSiblingIndex(typeDropdown.transform.GetSiblingIndex() + 1);
-			primaryBuildingDropdown = dropdownObject.GetComponent<TMPro.TMP_Dropdown>();
-			primaryBuildingDropdown?.onValueChanged.RemoveAllListeners();
-		}
-
 		private void EnsureManagementLayout()
 		{
 			if (managementTab == null || typeDropdown == null)
@@ -178,12 +225,13 @@ namespace Assets.Scripts.UI
 			{
 				managementLayout.preferredWidth = 180f;
 				managementLayout.minWidth = 180f;
-				managementLayout.preferredHeight = 84f;
-				managementLayout.minHeight = 84f;
+				managementLayout.preferredHeight = 120f;
+				managementLayout.minHeight = 120f;
 			}
 
-			ConfigureDropdownRect(typeDropdown.GetComponent<RectTransform>(), 0f, -4f);
-			ConfigureDropdownRect(primaryBuildingDropdown != null ? primaryBuildingDropdown.GetComponent<RectTransform>() : null, 0f, -42f);
+			ConfigureDropdownRect(handleGroupDropdown != null ? handleGroupDropdown.GetComponent<RectTransform>() : null, 0f, -4f);
+			ConfigureDropdownRect(typeDropdown.GetComponent<RectTransform>(), 0f, -42f);
+			ConfigureDropdownRect(primaryBuildingDropdown != null ? primaryBuildingDropdown.GetComponent<RectTransform>() : null, 0f, -80f);
 		}
 
 		private static void ConfigureDropdownRect(RectTransform rect, float left, float top)
@@ -198,6 +246,15 @@ namespace Assets.Scripts.UI
 			rect.sizeDelta = new Vector2(left - 16f, 34f);
 		}
 
+		private void OnHandleGroupDropdownValueChanged(int index)
+		{
+			if (currentWorker == null || index < 0 || index >= validHandleGroups.Count)
+				return;
+
+			selectedHandleGroup = validHandleGroups[index];
+			ConfigureTaskDropdown(currentWorker);
+		}
+
 		private void OnTaskDropdownValueChanged(int index)
 		{
 			if (currentWorker == null || index < 0 || index >= validTypes.Count)
@@ -209,6 +266,8 @@ namespace Assets.Scripts.UI
 
 			GameContext.Instance.WorkerMgr.ChangeWorkerTaskType(currentWorker, newType);
 			taskText.text = $"Task: {currentWorker.TaskType}";
+			if (newType != WorkerTask.TaskType.Undefined)
+				selectedHandleGroup = GetHandleGroup(newType);
 		}
 
 		private void OnPrimaryBuildingDropdownValueChanged(int index)
@@ -218,6 +277,42 @@ namespace Assets.Scripts.UI
 
 			currentWorker.SetPrimaryBuildingId(validBuildingIds[index]);
 			ConfigureTaskDropdown(currentWorker);
+		}
+
+		private WorkerTaskHandleGroup GetSelectedHandleGroup()
+		{
+			if (handleGroupDropdown == null || handleGroupDropdown.value < 0 || handleGroupDropdown.value >= validHandleGroups.Count)
+				return currentWorker != null ? GetHandleGroup(currentWorker.TaskType) : WorkerTaskHandleGroup.Undefined;
+
+			return selectedHandleGroup;
+		}
+
+		private static WorkerTaskHandleGroup GetHandleGroup(WorkerTask.TaskType taskType)
+		{
+			return taskType switch
+			{
+				WorkerTask.TaskType.IB or
+				WorkerTask.TaskType.OB or
+				WorkerTask.TaskType.CargoTransfer or
+				WorkerTask.TaskType.Loading or
+				WorkerTask.TaskType.Unloading => WorkerTaskHandleGroup.CargoHandle,
+
+				WorkerTask.TaskType.Picking or
+				WorkerTask.TaskType.Storing or
+				WorkerTask.TaskType.Water or
+				WorkerTask.TaskType.Packing or
+				WorkerTask.TaskType.Labeling => WorkerTaskHandleGroup.ItemHandle,
+
+				_ => WorkerTaskHandleGroup.Undefined,
+			};
+		}
+
+		private static bool IsTaskTypeVisibleInHandleGroup(WorkerTask.TaskType taskType, WorkerTaskHandleGroup group)
+		{
+			if (taskType == WorkerTask.TaskType.Undefined)
+				return true;
+
+			return GetHandleGroup(taskType) == group;
 		}
 
 		private Color GetFatigueColor(float fatigue)
