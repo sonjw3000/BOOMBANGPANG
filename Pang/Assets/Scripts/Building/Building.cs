@@ -368,7 +368,7 @@ public class Building
 
 		pendingInboundPorts.Remove(cargoPort);
 		queuedInboundPorts.Remove(cargoPort);
-		TaskManager?.CancelTaskBuildRequest(IBTaskBuildRequest.GetRequestKey(cargoPort));
+		TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetInboundRequestKey(cargoPort));
 	}
 
 	protected virtual void OnInboundCargoQuantityZero(InboundCargoPort cargoPort)
@@ -379,7 +379,7 @@ public class Building
 		pendingInboundPorts.Remove(cargoPort);
 		queuedInboundPorts.Remove(cargoPort);
 		queuedInboundTargets.Remove(cargoPort);
-		TaskManager?.CancelTaskBuildRequest(IBTaskBuildRequest.GetRequestKey(cargoPort));
+		TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetInboundRequestKey(cargoPort));
 	}
 
 	protected virtual void OnOutboundCargoUndocked(OutboundCargoPort cargoPort)
@@ -409,7 +409,7 @@ public class Building
 			return;
 
 		queuedOutboundBuffers.Remove(capsuleBuffer);
-		TaskManager?.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
+		TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetOutboundRequestKey(capsuleBuffer));
 		TryEnqueuePendingInboundTasks();
 	}
 
@@ -500,7 +500,11 @@ public class Building
 		if (cargoPort.IsCapsuleEmpty())
 			return;
 
-		TaskManager.EnqueueTaskBuildRequest(new IBTaskBuildRequest(cargoPort, RuntimeBuildingId));
+		TaskManager.EnqueueTaskBuildRequest(new CapsuleRelocationTaskBuildRequest(
+			cargoPort,
+			RuntimeBuildingId,
+			WorkerTask.TaskType.IB,
+			CapsuleRelocationReason.SourceMustClear));
 	}
 
 	private static int3 ResolveInteractionOrigin(BoxInteraction interactionTarget, InteractionKind interactionKind)
@@ -540,11 +544,15 @@ public class Building
 
 		if (IsBufferOutboundReady(capsuleBuffer) == false || queuedOutboundBuffers.Contains(capsuleBuffer))
 		{
-			TaskManager.CancelTaskBuildRequest(OBTaskBuildRequest.GetRequestKey(capsuleBuffer));
+			TaskManager.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetOutboundRequestKey(capsuleBuffer));
 			return;
 		}
 
-		TaskManager.EnqueueTaskBuildRequest(new OBTaskBuildRequest(capsuleBuffer, RuntimeBuildingId));
+		TaskManager.EnqueueTaskBuildRequest(new CapsuleRelocationTaskBuildRequest(
+			capsuleBuffer,
+			RuntimeBuildingId,
+			WorkerTask.TaskType.OB,
+			CapsuleRelocationReason.DestinationNeedsCapsule));
 	}
 
 	protected virtual void TryEvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
@@ -566,24 +574,31 @@ public class Building
 		return false;
 	}
 
-	internal void OnInboundTaskBuilt(IBTask task)
+	internal void OnCapsuleRelocationTaskBuilt(CapsuleRelocationTask task)
 	{
-		if (task?.SourcePort == null)
+		if (task == null)
 			return;
 
-		queuedInboundPorts.Add(task.SourcePort);
-		if (task.TargetBuffer != null)
-			queuedInboundTargets[task.SourcePort] = task.TargetBuffer;
-	}
+		switch (task.Type)
+		{
+			case WorkerTask.TaskType.IB:
+				if (task.SourceDock is not InboundCargoPort sourcePort)
+					return;
 
-	internal void OnOutboundTaskBuilt(OBTask task)
-	{
-		if (task?.SourceBuffer == null)
-			return;
+				queuedInboundPorts.Add(sourcePort);
+				if (task.TargetDock is CapsuleBuffer targetBuffer)
+					queuedInboundTargets[sourcePort] = targetBuffer;
+				break;
 
-		queuedOutboundBuffers.Add(task.SourceBuffer);
-		if (task.TargetPort != null)
-			queuedOutboundTargets[task.SourceBuffer] = task.TargetPort;
+			case WorkerTask.TaskType.OB:
+				if (task.SourceDock is not CapsuleBuffer sourceBuffer)
+					return;
+
+				queuedOutboundBuffers.Add(sourceBuffer);
+				if (task.TargetDock is OutboundCargoPort targetPort)
+					queuedOutboundTargets[sourceBuffer] = targetPort;
+				break;
+		}
 	}
 
 	private CapsuleBuffer FindClosestCapsuleBuffer(

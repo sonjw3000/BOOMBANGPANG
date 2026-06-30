@@ -328,11 +328,8 @@ public sealed class GameSaveService : MonoBehaviour
 					case StoringTask storing:
 						taskData.Storing = storing.CaptureState(GetPlaceableIdOrDefault, RegisterOrderLine);
 						break;
-					case IBTask inboundTransfer:
-						taskData.CapsuleTransfer = inboundTransfer.CaptureState(GetPlaceableIdOrDefault);
-						break;
-					case OBTask outboundTransfer:
-						taskData.CapsuleTransfer = outboundTransfer.CaptureState(GetPlaceableIdOrDefault);
+					case CapsuleRelocationTask capsuleRelocation:
+						taskData.CapsuleTransfer = capsuleRelocation.CaptureState(GetPlaceableIdOrDefault);
 						break;
 					case CargoTransferTask cargoTransfer:
 						taskData.CargoTransfer = cargoTransfer.CaptureState(GetPlaceableIdOrDefault);
@@ -559,18 +556,17 @@ public static class TaskSaveDataExtensions
 			return null;
 		}
 
-		if (data.IsInbound)
+		if (sourceObj.TryGetComponent<CapsuleDock>(out var sourceDock) == false ||
+			targetObj.TryGetComponent<CapsuleDock>(out var targetDock) == false)
 		{
-			return sourceObj.TryGetComponent<InboundCargoPort>(out var inboundCargoPort)
-				&& targetObj.TryGetComponent<CapsuleBuffer>(out var targetBuffer)
-				? new IBTask(inboundCargoPort, data.BuildingId, targetBuffer)
-				: null;
+			return null;
 		}
 
-		return sourceObj.TryGetComponent<CapsuleBuffer>(out var capsuleBuffer)
-			&& targetObj.TryGetComponent<OutboundCargoPort>(out var targetPort)
-			? new OBTask(capsuleBuffer, data.BuildingId, targetPort)
-			: null;
+		WorkerTask.TaskType taskType = data.IsInbound ? WorkerTask.TaskType.IB : WorkerTask.TaskType.OB;
+		CapsuleRelocationReason reason = data.IsInbound
+			? CapsuleRelocationReason.SourceMustClear
+			: CapsuleRelocationReason.DestinationNeedsCapsule;
+		return new CapsuleRelocationTask(taskType, sourceDock, targetDock, data.BuildingId, reason);
 	}
 
 	public static PackingTask Restore(this PackingTaskSaveData data, Dictionary<int, GameObject> placeables)
