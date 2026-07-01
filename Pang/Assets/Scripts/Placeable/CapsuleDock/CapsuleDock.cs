@@ -8,6 +8,7 @@ public enum CapsuleDockState
 	Empty = 2,
 	IBStandby = 3,
 	OB = 4,
+	InboundSource = 5,
 }
 
 public abstract class CapsuleDock : BoxInteraction

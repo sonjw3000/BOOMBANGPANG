@@ -22,6 +22,7 @@ public partial class Rocket : CapsuleDock
 	private RocketState state = RocketState.Landing;
 
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.Rocket;
+	public override CapsuleDockState DockState => CapsuleDockState.InboundSource;
 
 	private RocketService RocketSvc => GameContext.Instance.RocketSvc;
 	private InboundWorkflowService InboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;

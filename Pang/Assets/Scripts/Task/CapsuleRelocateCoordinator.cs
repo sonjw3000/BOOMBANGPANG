@@ -17,6 +17,7 @@ public readonly struct CapsuleRelocateSendRequest
 	public readonly CapsuleRelocateScope Scope;
 	public readonly uint SourceBuildingId;
 	public readonly uint RequiredTargetBuildingId;
+	public readonly Func<CapsuleRelocateMatch, bool> OnMatched;
 
 	public CapsuleRelocateSendRequest(
 		CapsuleDock sourceDock,
@@ -25,7 +26,8 @@ public readonly struct CapsuleRelocateSendRequest
 		CapsuleDockState wantedTargetDockState,
 		CapsuleRelocateScope scope,
 		uint sourceBuildingId,
-		uint requiredTargetBuildingId = 0)
+		uint requiredTargetBuildingId = 0,
+		Func<CapsuleRelocateMatch, bool> onMatched = null)
 	{
 		SourceDock = sourceDock;
 		RequiredSourceDockState = requiredSourceDockState;
@@ -34,6 +36,7 @@ public readonly struct CapsuleRelocateSendRequest
 		Scope = scope;
 		SourceBuildingId = sourceBuildingId;
 		RequiredTargetBuildingId = requiredTargetBuildingId;
+		OnMatched = onMatched;
 	}
 }
 
@@ -46,6 +49,7 @@ public readonly struct CapsuleRelocateDemand
 	public readonly CapsuleRelocateScope Scope;
 	public readonly uint TargetBuildingId;
 	public readonly uint RequiredSourceBuildingId;
+	public readonly Func<CapsuleRelocateMatch, bool> OnMatched;
 
 	public CapsuleRelocateDemand(
 		CapsuleDock targetDock,
@@ -54,7 +58,8 @@ public readonly struct CapsuleRelocateDemand
 		CapsuleLogisticsState requiredCapsuleState,
 		CapsuleRelocateScope scope,
 		uint targetBuildingId,
-		uint requiredSourceBuildingId = 0)
+		uint requiredSourceBuildingId = 0,
+		Func<CapsuleRelocateMatch, bool> onMatched = null)
 	{
 		TargetDock = targetDock;
 		RequiredTargetDockState = requiredTargetDockState;
@@ -63,6 +68,7 @@ public readonly struct CapsuleRelocateDemand
 		Scope = scope;
 		TargetBuildingId = targetBuildingId;
 		RequiredSourceBuildingId = requiredSourceBuildingId;
+		OnMatched = onMatched;
 	}
 }
 
@@ -107,61 +113,66 @@ public sealed class CapsuleRelocateCoordinator
 		this.canUseLinkedBuilding = canUseLinkedBuilding;
 	}
 
-	public bool RequestSend(CapsuleRelocateSendRequest request, out CapsuleRelocateMatch match)
+	public bool RequestSend(CapsuleRelocateSendRequest request)
 	{
-		match = default;
 		if (IsSendSourceValid(request) == false)
 			return false;
 
 		if (TryFindReceiver(request, out CapsuleDock targetDock, out uint targetBuildingId))
 		{
-			Reserve(request.SourceDock, targetDock);
-			match = new CapsuleRelocateMatch(request.SourceDock, targetDock, request.SourceBuildingId, targetBuildingId);
-			return true;
+			if (TryAcceptSendMatch(request, targetDock, targetBuildingId))
+				return true;
 		}
 
 		AddPendingSend(request);
 		return false;
 	}
 
-	public bool RequestDemand(CapsuleRelocateDemand demand, out CapsuleRelocateMatch match)
+	public bool RequestDemand(CapsuleRelocateDemand demand)
 	{
-		match = default;
 		if (IsDemandTargetValid(demand) == false)
 			return false;
 
 		if (TryFindSource(demand, out CapsuleDock sourceDock, out uint sourceBuildingId))
 		{
-			Reserve(sourceDock, demand.TargetDock);
-			match = new CapsuleRelocateMatch(sourceDock, demand.TargetDock, sourceBuildingId, demand.TargetBuildingId);
-			return true;
+			if (TryAcceptDemandMatch(demand, sourceDock, sourceBuildingId))
+				return true;
 		}
 
 		AddPendingDemand(demand);
 		return false;
 	}
 
-	public bool NotifyCapsuleDocked(CapsuleDock dock, out CapsuleRelocateMatch match)
+	public bool NotifyCapsuleDocked(CapsuleDock dock)
 	{
-		return TryMatchPendingDemand(out match) || TryMatchPendingSend(out match);
+		ReleaseReservation(dock);
+		return TryMatchPendingDemand() || TryMatchPendingSend();
 	}
 
-	public bool NotifyCapsuleUndocked(CapsuleDock dock, out CapsuleRelocateMatch match)
+	public bool NotifyCapsuleUndocked(CapsuleDock dock)
 	{
-		return TryMatchPendingSend(out match) || TryMatchPendingDemand(out match);
+		ReleaseReservation(dock);
+		return TryMatchPendingSend() || TryMatchPendingDemand();
 	}
 
-	public bool NotifyDockStateChanged(CapsuleDock dock, out CapsuleRelocateMatch match)
+	public bool NotifyDockStateChanged(CapsuleDock dock)
 	{
-		return TryMatchPendingSend(out match) || TryMatchPendingDemand(out match);
+		ReleaseReservation(dock);
+		return TryMatchPendingSend() || TryMatchPendingDemand();
 	}
 
 	public void ReleaseReservation(CapsuleDock sourceDock, CapsuleDock targetDock)
 	{
 		if (sourceDock != null)
-			reservedDocks.Remove(sourceDock);
+			ReleaseReservation(sourceDock);
 		if (targetDock != null)
-			reservedDocks.Remove(targetDock);
+			ReleaseReservation(targetDock);
+	}
+
+	public void ReleaseReservation(CapsuleDock dock)
+	{
+		if (dock != null)
+			reservedDocks.Remove(dock);
 	}
 
 	public void RemoveDock(CapsuleDock dock)
@@ -179,9 +190,8 @@ public sealed class CapsuleRelocateCoordinator
 		return dock != null && reservedDocks.Contains(dock);
 	}
 
-	private bool TryMatchPendingSend(out CapsuleRelocateMatch match)
+	private bool TryMatchPendingSend()
 	{
-		match = default;
 		LinkedListNode<CapsuleRelocateSendRequest> node = pendingSends.First;
 		while (node != null)
 		{
@@ -196,10 +206,11 @@ public sealed class CapsuleRelocateCoordinator
 
 			if (TryFindReceiver(request, out CapsuleDock targetDock, out uint targetBuildingId))
 			{
-				Reserve(request.SourceDock, targetDock);
-				RemovePendingSendNode(node);
-				match = new CapsuleRelocateMatch(request.SourceDock, targetDock, request.SourceBuildingId, targetBuildingId);
-				return true;
+				if (TryAcceptSendMatch(request, targetDock, targetBuildingId))
+				{
+					RemovePendingSendNode(node);
+					return true;
+				}
 			}
 
 			node = next;
@@ -208,9 +219,8 @@ public sealed class CapsuleRelocateCoordinator
 		return false;
 	}
 
-	private bool TryMatchPendingDemand(out CapsuleRelocateMatch match)
+	private bool TryMatchPendingDemand()
 	{
-		match = default;
 		LinkedListNode<CapsuleRelocateDemand> node = pendingDemands.First;
 		while (node != null)
 		{
@@ -225,10 +235,11 @@ public sealed class CapsuleRelocateCoordinator
 
 			if (TryFindSource(demand, out CapsuleDock sourceDock, out uint sourceBuildingId))
 			{
-				Reserve(sourceDock, demand.TargetDock);
-				RemovePendingDemandNode(node);
-				match = new CapsuleRelocateMatch(sourceDock, demand.TargetDock, sourceBuildingId, demand.TargetBuildingId);
-				return true;
+				if (TryAcceptDemandMatch(demand, sourceDock, sourceBuildingId))
+				{
+					RemovePendingDemandNode(node);
+					return true;
+				}
 			}
 
 			node = next;
@@ -325,7 +336,6 @@ public sealed class CapsuleRelocateCoordinator
 		{
 			CapsuleRelocateScope.SameBuilding => sourceBuildingId != 0 && sourceBuildingId == targetBuildingId,
 			CapsuleRelocateScope.LinkedBuilding =>
-				sourceBuildingId != 0 &&
 				targetBuildingId != 0 &&
 				sourceBuildingId != targetBuildingId &&
 				canUseLinkedBuilding != null &&
@@ -358,6 +368,34 @@ public sealed class CapsuleRelocateCoordinator
 			reservedDocks.Add(sourceDock);
 		if (targetDock != null)
 			reservedDocks.Add(targetDock);
+	}
+
+	private bool TryAcceptSendMatch(
+		CapsuleRelocateSendRequest request,
+		CapsuleDock targetDock,
+		uint targetBuildingId)
+	{
+		CapsuleRelocateMatch match = new(request.SourceDock, targetDock, request.SourceBuildingId, targetBuildingId);
+		Reserve(match.SourceDock, match.TargetDock);
+		if (request.OnMatched == null || request.OnMatched(match))
+			return true;
+
+		ReleaseReservation(match.SourceDock, match.TargetDock);
+		return false;
+	}
+
+	private bool TryAcceptDemandMatch(
+		CapsuleRelocateDemand demand,
+		CapsuleDock sourceDock,
+		uint sourceBuildingId)
+	{
+		CapsuleRelocateMatch match = new(sourceDock, demand.TargetDock, sourceBuildingId, demand.TargetBuildingId);
+		Reserve(match.SourceDock, match.TargetDock);
+		if (demand.OnMatched == null || demand.OnMatched(match))
+			return true;
+
+		ReleaseReservation(match.SourceDock, match.TargetDock);
+		return false;
 	}
 
 	private void AddPendingSend(CapsuleRelocateSendRequest request)
