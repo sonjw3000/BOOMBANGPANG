@@ -460,7 +460,7 @@ public class Building
 			case InboundCargoPort inboundPort:
 				pendingInboundPorts.Remove(inboundPort);
 				queuedInboundPorts.Remove(inboundPort);
-				TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetInboundRequestKey(inboundPort));
+				GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(inboundPort);
 				break;
 
 			case OutboundCargoPort outboundPort:
@@ -471,9 +471,7 @@ public class Building
 				queuedOutboundBuffers.Remove(capsuleBuffer);
 				queuedBufferRelocationSources.Remove(capsuleBuffer);
 				queuedBufferRelocationTargets.Remove(capsuleBuffer);
-				TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetOutboundRequestKey(capsuleBuffer));
-				TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetBufferRelocationRequestKey(WorkerTask.TaskType.CapsuleClear, capsuleBuffer));
-				TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetBufferRelocationRequestKey(WorkerTask.TaskType.CapsuleSupply, capsuleBuffer));
+				GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(capsuleBuffer);
 				TryEnqueuePendingInboundTasks();
 
 				if (capsuleBuffer.DockState == CapsuleDockState.OBStandby && capsuleBuffer.CanPutBox())
@@ -492,7 +490,7 @@ public class Building
 		queuedInboundPorts.Remove(inboundPort);
 		queuedInboundTargets.Remove(inboundPort);
 		inboundPort.DockedCapsule?.SetLogisticsState(CapsuleLogisticsState.Empty);
-		TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetInboundRequestKey(inboundPort));
+		GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(inboundPort);
 	}
 
 	protected virtual void OnCapsuleQuantityOverThreshold(CargoPort cargoPort)
@@ -774,7 +772,7 @@ public class Building
 
 		if (IsBufferOutboundReady(capsuleBuffer) == false || queuedOutboundBuffers.Contains(capsuleBuffer))
 		{
-			TaskManager.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetOutboundRequestKey(capsuleBuffer));
+			GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(capsuleBuffer);
 			return;
 		}
 
@@ -841,6 +839,7 @@ public class Building
 			targetBuffer.CanPutBox() == false ||
 			queuedBufferRelocationTargets.Contains(targetBuffer))
 		{
+			GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(targetBuffer);
 			return;
 		}
 
@@ -867,7 +866,7 @@ public class Building
 			sourceBuffer.IsCapsuleEmpty() == false ||
 			queuedBufferRelocationSources.Contains(sourceBuffer))
 		{
-			TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetBufferRelocationRequestKey(taskType, sourceBuffer));
+			GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(sourceBuffer);
 			return;
 		}
 

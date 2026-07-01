@@ -467,7 +467,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			case OutboundCargoPort outboundCargoPort:
 				queuedCargoTransferPorts.Remove(outboundCargoPort);
 				queuedCargoTransferTargets.Remove(outboundCargoPort);
-				TaskMgr?.CancelTaskBuildRequest(CargoTransferBuildRequest.GetRequestKey(outboundCargoPort));
+				GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(outboundCargoPort);
 				break;
 
 			case InboundCargoPort inboundCargoPort:

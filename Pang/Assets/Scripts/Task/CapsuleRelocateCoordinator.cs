@@ -175,14 +175,22 @@ public sealed class CapsuleRelocateCoordinator
 			reservedDocks.Remove(dock);
 	}
 
+	public void CancelPendingRequests(CapsuleDock dock)
+	{
+		if (dock == null)
+			return;
+
+		RemoveSendRequest(dock);
+		RemoveDemand(dock);
+	}
+
 	public void RemoveDock(CapsuleDock dock)
 	{
 		if (dock == null)
 			return;
 
 		reservedDocks.Remove(dock);
-		RemoveSendRequest(dock);
-		RemoveDemand(dock);
+		CancelPendingRequests(dock);
 	}
 
 	public bool IsReserved(CapsuleDock dock)
