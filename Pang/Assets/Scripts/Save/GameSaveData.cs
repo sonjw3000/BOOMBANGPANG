@@ -431,7 +431,7 @@ public sealed class BoxPoolSaveData
 public sealed class CapsuleBufferSaveData
 {
 	public BoxReferenceSaveData Box;
-	public CapsuleBufferState BufferState;
+	public CapsuleDockState DockState;
 }
 
 [Serializable]

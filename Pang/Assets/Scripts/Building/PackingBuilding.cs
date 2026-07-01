@@ -8,7 +8,7 @@ public sealed class PackingBuilding : Building
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
 	{
 		if (capsuleBuffer == null ||
-			capsuleBuffer.BufferState != CapsuleBufferState.OBOnly ||
+			capsuleBuffer.DockState != CapsuleDockState.OBStandby ||
 			capsuleBuffer.DockedCapsule == null ||
 			(capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby &&
 			 capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB))
@@ -24,13 +24,6 @@ public sealed class PackingBuilding : Building
 			: CapsuleThresholdPercent;
 		float threshold = OverrideCapsuleThreshold ? CapsuleThresholdPercent : workflowThreshold;
 		return capsuleBuffer.FilledPercent >= threshold;
-	}
-
-	protected override void OnCapsuleBufferUndocked(CapsuleBuffer capsuleBuffer)
-	{
-		base.OnCapsuleBufferUndocked(capsuleBuffer);
-		if (GameContext.HasInstance)
-			GameContext.Instance.TaskMgr?.CancelTaskBuildRequest(WaterTaskBuildRequest.GetRequestKey(capsuleBuffer));
 	}
 
 	protected override void TryEvaluatePackingIngress(CapsuleBuffer capsuleBuffer)

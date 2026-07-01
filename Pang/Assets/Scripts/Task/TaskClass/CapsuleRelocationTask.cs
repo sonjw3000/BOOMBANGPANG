@@ -129,8 +129,8 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		return Type switch
 		{
 			TaskType.IB when sourceDock is InboundCargoPort => sourceDock.IsCapsuleEmpty() == false && sourceDock.DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB,
-			TaskType.CapsuleClear when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleBufferState.IBOnly),
-			TaskType.CapsuleSupply when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleBufferState.Empty),
+			TaskType.CapsuleClear when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleDockState.IB),
+			TaskType.CapsuleSupply when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleDockState.Empty),
 			TaskType.OB when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanDispatchToOutbound(),
 			_ => true,
 		};
@@ -144,8 +144,8 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		return Type switch
 		{
 			TaskType.IB when targetDock is CapsuleBuffer targetBuffer => targetBuffer.CanReceiveFromInbound(),
-			TaskType.CapsuleClear when targetDock is CapsuleBuffer targetBuffer => targetBuffer.BufferState == CapsuleBufferState.Empty && targetBuffer.CanPutBox(),
-			TaskType.CapsuleSupply when targetDock is CapsuleBuffer targetBuffer => targetBuffer.BufferState == CapsuleBufferState.OBOnly && targetBuffer.CanPutBox(),
+			TaskType.CapsuleClear when targetDock is CapsuleBuffer targetBuffer => targetBuffer.DockState == CapsuleDockState.Empty && targetBuffer.CanPutBox(),
+			TaskType.CapsuleSupply when targetDock is CapsuleBuffer targetBuffer => targetBuffer.DockState == CapsuleDockState.OBStandby && targetBuffer.CanPutBox(),
 			_ => targetDock.CanPutBox(),
 		};
 	}

@@ -24,12 +24,12 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 		};
 	}
 
-	public bool SetBufferState(CapsuleBuffer facility, CapsuleBufferState newState)
+	public bool SetDockState(CapsuleBuffer facility, CapsuleDockState newState)
 	{
 		if (facility == null)
 			return false;
 
-		facility.SetBufferState(newState);
+		facility.SetDockState(newState);
 		return true;
 	}
 

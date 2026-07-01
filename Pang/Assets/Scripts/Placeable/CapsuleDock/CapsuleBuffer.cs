@@ -2,15 +2,9 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 // box base를 보관하는 타일 단 하나
-
-public enum CapsuleBufferState
-{
-	IBOnly,
-	OBOnly,
-	Empty,
-}
 
 public partial class CapsuleBuffer :
 	CapsuleDock,
@@ -20,32 +14,33 @@ public partial class CapsuleBuffer :
 	private static readonly IReadOnlyDictionary<uint, int> EmptyItemTotals = new Dictionary<uint, int>();
 
 	[SerializeField] private GameObject boxStackPos;
-	[SerializeField] private CapsuleBufferState bufferState = CapsuleBufferState.Empty;
+	[FormerlySerializedAs("bufferState")]
+	[SerializeField] private CapsuleDockState dockState = CapsuleDockState.Empty;
 
 	public event Action<CapsuleBuffer> OnCapsuleDocked;
 	public event Action<CapsuleBuffer, CargoCapsule> OnCapsuleUndocking;
 	public event Action<CapsuleBuffer> OnCapsuleUndocked;
 	public event Action<CapsuleBuffer> OnCapsuleContentChanged;
-	public event Action<CapsuleBuffer> OnBufferStateChanged;
+	public event Action<CapsuleBuffer> OnDockStateChanged;
 
-	public CapsuleBufferState BufferState => bufferState;
+	public override CapsuleDockState DockState => dockState;
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.CapsuleBuffer;
 	public IReadOnlyList<ItemStack> Stacks => DockedCapsule != null ? DockedCapsule.Stacks : EmptyStacks;
 	public IReadOnlyDictionary<uint, int> ItemTotals => DockedCapsule != null ? DockedCapsule.ItemTotals : EmptyItemTotals;
 	public ItemTag ItemTags => DockedCapsule != null ? DockedCapsule.ItemTags : ItemTag.None;
 
-	public bool CanReceiveFromInbound() => bufferState == CapsuleBufferState.IBOnly && CanPutBox();
+	public bool CanReceiveFromInbound() => dockState == CapsuleDockState.IB && CanPutBox();
 	public bool CanProvideInboundItems() =>
-		bufferState == CapsuleBufferState.IBOnly &&
+		dockState == CapsuleDockState.IB &&
 		DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB &&
 		IsCapsuleEmpty() == false;
 	public bool CanDispatchToOutbound() => CanGetBox() && DockedCapsule != null && DockedCapsule.LogisticsState == CapsuleLogisticsState.OB;
-	public bool CanRelocateEmptyCapsuleFrom(CapsuleBufferState requiredState) =>
-		bufferState == requiredState &&
+	public bool CanRelocateEmptyCapsuleFrom(CapsuleDockState requiredState) =>
+		dockState == requiredState &&
 		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Empty &&
 		IsCapsuleEmpty();
 	public bool CanReceiveOutboundItems() =>
-		bufferState == CapsuleBufferState.OBOnly &&
+		dockState == CapsuleDockState.OBStandby &&
 		DockedCapsule != null &&
 		DockedCapsule.LogisticsState == CapsuleLogisticsState.OBStandby;
 	public bool CanRegister() => DockedCapsule != null && DockedCapsule.CanRegister();
@@ -62,13 +57,13 @@ public partial class CapsuleBuffer :
 		return DockedCapsule != null && DockedCapsule.TryRemoveFromStack(stack, quantity, out removedStack);
 	}
 
-	public void SetBufferState(CapsuleBufferState newState)
+	public void SetDockState(CapsuleDockState newState)
 	{
-		if (bufferState == newState)
+		if (dockState == newState)
 			return;
 
-		bufferState = newState;
-		OnBufferStateChanged?.Invoke(this);
+		dockState = newState;
+		OnDockStateChanged?.Invoke(this);
 	}
 
 	public override void OnPositionSet(in int3 position, FacingDirection direction)

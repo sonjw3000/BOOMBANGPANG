@@ -1,10 +1,20 @@
 using UnityEngine;
 
+public enum CapsuleDockState
+{
+	IB = 0,
+	OBStandby = 1,
+	Empty = 2,
+	IBStandby = 3,
+	OB = 4,
+}
+
 public abstract class CapsuleDock : BoxInteraction
 {
 	protected CargoCapsule dockedCapsule = null;
 
 	public CargoCapsule DockedCapsule => dockedCapsule;
+	public virtual CapsuleDockState DockState => CapsuleDockState.Empty;
 	public bool HasCapsule => dockedCapsule != null;
 	public float TotalSize => dockedCapsule != null ? dockedCapsule.TotalSize : 0.0f;
 	public float MaxSize => dockedCapsule != null ? dockedCapsule.MaxSize : 0.0f;

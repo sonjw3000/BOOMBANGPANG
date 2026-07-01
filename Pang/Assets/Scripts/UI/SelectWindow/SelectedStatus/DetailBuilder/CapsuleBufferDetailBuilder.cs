@@ -42,9 +42,9 @@ public sealed class CapsuleBufferDetailBuilder : ShelfBaseDetailContent<CapsuleB
 		if (provider is not CapsuleBufferUIProvider capsuleBufferProvider || capsuleBufferProvider.Target == null)
 			return;
 
-		emptyStateButton = AddStateButton("Set Empty", capsuleBufferProvider, CapsuleBufferState.Empty);
-		inboundOnlyStateButton = AddStateButton("Set Inbound Only", capsuleBufferProvider, CapsuleBufferState.IBOnly);
-		outboundOnlyStateButton = AddStateButton("Set Outbound Only", capsuleBufferProvider, CapsuleBufferState.OBOnly);
+		emptyStateButton = AddStateButton("Set Empty", capsuleBufferProvider, CapsuleDockState.Empty);
+		inboundOnlyStateButton = AddStateButton("Set IB", capsuleBufferProvider, CapsuleDockState.IB);
+		outboundOnlyStateButton = AddStateButton("Set OB Standby", capsuleBufferProvider, CapsuleDockState.OBStandby);
 		purchaseEmptyCapsuleButton = AddActionButton("Purchase Empty Capsule", () => PurchaseEmptyCapsule(capsuleBufferProvider));
 		sellEmptyCapsuleButton = AddActionButton("Sell Empty Capsule", () => SellEmptyCapsule(capsuleBufferProvider));
 		UpdateActionButtons();
@@ -56,7 +56,7 @@ public sealed class CapsuleBufferDetailBuilder : ShelfBaseDetailContent<CapsuleB
 		UpdateActionButtons();
 	}
 
-	private Button AddStateButton(string label, CapsuleBufferUIProvider capsuleBufferProvider, CapsuleBufferState targetState)
+	private Button AddStateButton(string label, CapsuleBufferUIProvider capsuleBufferProvider, CapsuleDockState targetState)
 	{
 		return AddActionButton(label, () =>
 		{
@@ -65,11 +65,11 @@ public sealed class CapsuleBufferDetailBuilder : ShelfBaseDetailContent<CapsuleB
 
 			if (CapsuleBufferService != null)
 			{
-				CapsuleBufferService.SetBufferState(capsuleBufferProvider.Target, targetState);
+				CapsuleBufferService.SetDockState(capsuleBufferProvider.Target, targetState);
 				return;
 			}
 
-			capsuleBufferProvider.Target.SetBufferState(targetState);
+			capsuleBufferProvider.Target.SetDockState(targetState);
 		});
 	}
 
@@ -78,13 +78,13 @@ public sealed class CapsuleBufferDetailBuilder : ShelfBaseDetailContent<CapsuleB
 		if (provider is not CapsuleBufferUIProvider capsuleBufferProvider || capsuleBufferProvider.Target == null)
 			return;
 
-		CapsuleBufferState currentState = capsuleBufferProvider.Target.BufferState;
+		CapsuleDockState currentState = capsuleBufferProvider.Target.DockState;
 		if (emptyStateButton != null)
-			emptyStateButton.interactable = currentState != CapsuleBufferState.Empty;
+			emptyStateButton.interactable = currentState != CapsuleDockState.Empty;
 		if (inboundOnlyStateButton != null)
-			inboundOnlyStateButton.interactable = currentState != CapsuleBufferState.IBOnly;
+			inboundOnlyStateButton.interactable = currentState != CapsuleDockState.IB;
 		if (outboundOnlyStateButton != null)
-			outboundOnlyStateButton.interactable = currentState != CapsuleBufferState.OBOnly;
+			outboundOnlyStateButton.interactable = currentState != CapsuleDockState.OBStandby;
 		if (purchaseEmptyCapsuleButton != null)
 			purchaseEmptyCapsuleButton.interactable = CanPurchaseEmptyCapsule(capsuleBufferProvider.Target);
 		if (sellEmptyCapsuleButton != null)
@@ -94,7 +94,7 @@ public sealed class CapsuleBufferDetailBuilder : ShelfBaseDetailContent<CapsuleB
 	private static bool CanPurchaseEmptyCapsule(CapsuleBuffer target)
 	{
 		return target != null &&
-			target.BufferState == CapsuleBufferState.Empty &&
+			target.DockState == CapsuleDockState.Empty &&
 			target.HasCapsule == false &&
 			BoxMgr != null;
 	}
@@ -102,7 +102,7 @@ public sealed class CapsuleBufferDetailBuilder : ShelfBaseDetailContent<CapsuleB
 	private static bool CanSellEmptyCapsule(CapsuleBuffer target)
 	{
 		return target != null &&
-			target.BufferState == CapsuleBufferState.Empty &&
+			target.DockState == CapsuleDockState.Empty &&
 			target.DockedCapsule != null &&
 			target.DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty &&
 			target.IsCapsuleEmpty() &&

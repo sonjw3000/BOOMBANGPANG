@@ -8,7 +8,7 @@ public sealed class StorageBuilding : Building
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
 	{
 		if (capsuleBuffer == null ||
-			capsuleBuffer.BufferState != CapsuleBufferState.OBOnly ||
+			capsuleBuffer.DockState != CapsuleDockState.OBStandby ||
 			capsuleBuffer.DockedCapsule == null ||
 			(capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby &&
 			 capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB))

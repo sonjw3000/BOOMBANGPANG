@@ -8,7 +8,7 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 	public override string Subtitle => "Capsule Buffer";
 	public override Sprite Icon => null;
 
-	public string StateDisplay => currentTarget != null ? GetStateLabel(currentTarget.BufferState) : "Unknown";
+	public string StateDisplay => currentTarget != null ? GetStateLabel(currentTarget.DockState) : "Unknown";
 	public string CapsuleDisplay => currentTarget?.DockedCapsule != null
 		? $"Capsule #{currentTarget.DockedCapsule.BoxId}"
 		: "Empty";
@@ -50,13 +50,13 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(FilledPercentDisplay);
 	}
 
-	private static string GetStateLabel(CapsuleBufferState state)
+	private static string GetStateLabel(CapsuleDockState state)
 	{
 		return state switch
 		{
-			CapsuleBufferState.IBOnly => "Inbound Only",
-			CapsuleBufferState.OBOnly => "Outbound Only",
-			CapsuleBufferState.Empty => "Empty",
+			CapsuleDockState.IB => "IB",
+			CapsuleDockState.OBStandby => "OB Standby",
+			CapsuleDockState.Empty => "Empty",
 			_ => "Unknown",
 		};
 	}
