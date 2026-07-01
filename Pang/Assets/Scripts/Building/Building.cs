@@ -235,9 +235,9 @@ public class Building
 		if (cargoPort == null)
 			return;
 
-		cargoPort.OnCargoDocked += HandleCargoDocked;
+		cargoPort.OnCapsuleDocked += HandleCapsuleDocked;
 		cargoPort.OnCargoUndocking += HandleCargoUndocking;
-		cargoPort.OnCargoUndocked += HandleCargoUndocked;
+		cargoPort.OnCapsuleUndocked += HandleCapsuleDockUndocked;
 		if (cargoPort is InboundCargoPort)
 			cargoPort.OnCargoQuantityZero += HandleCargoQuantityZero;
 		else if (cargoPort is OutboundCargoPort)
@@ -260,9 +260,9 @@ public class Building
 		if (cargoPort == null)
 			return;
 
-		cargoPort.OnCargoDocked -= HandleCargoDocked;
+		cargoPort.OnCapsuleDocked -= HandleCapsuleDocked;
 		cargoPort.OnCargoUndocking -= HandleCargoUndocking;
-		cargoPort.OnCargoUndocked -= HandleCargoUndocked;
+		cargoPort.OnCapsuleUndocked -= HandleCapsuleDockUndocked;
 		if (cargoPort is InboundCargoPort)
 			cargoPort.OnCargoQuantityZero -= HandleCargoQuantityZero;
 		else if (cargoPort is OutboundCargoPort)
@@ -274,9 +274,9 @@ public class Building
 		if (capsuleBuffer == null)
 			return;
 
-		capsuleBuffer.OnCapsuleDocked += HandleCapsuleBufferDocked;
+		capsuleBuffer.OnCapsuleDocked += HandleCapsuleDocked;
 		capsuleBuffer.OnCapsuleUndocking += HandleCapsuleBufferUndocking;
-		capsuleBuffer.OnCapsuleUndocked += HandleCapsuleBufferUndocked;
+		capsuleBuffer.OnCapsuleUndocked += HandleCapsuleDockUndocked;
 		capsuleBuffer.OnCapsuleContentChanged += HandleCapsuleBufferContentChanged;
 		capsuleBuffer.OnDockStateChanged += HandleCapsuleDockStateChanged;
 	}
@@ -299,26 +299,16 @@ public class Building
 		if (capsuleBuffer == null)
 			return;
 
-		capsuleBuffer.OnCapsuleDocked -= HandleCapsuleBufferDocked;
+		capsuleBuffer.OnCapsuleDocked -= HandleCapsuleDocked;
 		capsuleBuffer.OnCapsuleUndocking -= HandleCapsuleBufferUndocking;
-		capsuleBuffer.OnCapsuleUndocked -= HandleCapsuleBufferUndocked;
+		capsuleBuffer.OnCapsuleUndocked -= HandleCapsuleDockUndocked;
 		capsuleBuffer.OnCapsuleContentChanged -= HandleCapsuleBufferContentChanged;
 		capsuleBuffer.OnDockStateChanged -= HandleCapsuleDockStateChanged;
-	}
-
-	private void HandleCargoDocked(CargoPort cargoPort)
-	{
-		OnCapsuleDocked(cargoPort);
 	}
 
 	private void HandleCargoUndocking(CargoPort cargoPort, CargoCapsule capsule)
 	{
 		OnCapsuleDockUndocking(cargoPort, capsule);
-	}
-
-	private void HandleCargoUndocked(CargoPort cargoPort)
-	{
-		OnCapsuleDockUndocked(cargoPort);
 	}
 
 	private void HandleCargoQuantityZero(CargoPort cargoPort)
@@ -331,9 +321,9 @@ public class Building
 		OnCapsuleQuantityOverThreshold(cargoPort);
 	}
 
-	private void HandleCapsuleBufferDocked(CapsuleBuffer capsuleBuffer)
+	private void HandleCapsuleDocked(CapsuleDock dock)
 	{
-		OnCapsuleDocked(capsuleBuffer);
+		OnCapsuleDocked(dock);
 	}
 
 	private void HandleCapsuleBufferUndocking(CapsuleBuffer capsuleBuffer, CargoCapsule capsule)
@@ -341,9 +331,9 @@ public class Building
 		OnCapsuleDockUndocking(capsuleBuffer, capsule);
 	}
 
-	private void HandleCapsuleBufferUndocked(CapsuleBuffer capsuleBuffer)
+	private void HandleCapsuleDockUndocked(CapsuleDock dock)
 	{
-		OnCapsuleDockUndocked(capsuleBuffer);
+		OnCapsuleDockUndocked(dock);
 	}
 
 	private void HandleCapsuleBufferContentChanged(CapsuleBuffer capsuleBuffer)

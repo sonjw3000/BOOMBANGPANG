@@ -434,10 +434,10 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (cargoPortService == null)
 			return;
 
-		cargoPortService.OnCargoDocked -= HandleCargoDocked;
-		cargoPortService.OnCargoUndocked -= HandleCargoUndocked;
-		cargoPortService.OnCargoDocked += HandleCargoDocked;
-		cargoPortService.OnCargoUndocked += HandleCargoUndocked;
+		cargoPortService.OnCapsuleDocked -= HandleCapsuleDocked;
+		cargoPortService.OnCapsuleUndocked -= HandleCapsuleUndocked;
+		cargoPortService.OnCapsuleDocked += HandleCapsuleDocked;
+		cargoPortService.OnCapsuleUndocked += HandleCapsuleUndocked;
 	}
 
 	private void UnsubscribeCargoPortEvents()
@@ -446,11 +446,11 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (cargoPortService == null)
 			return;
 
-		cargoPortService.OnCargoDocked -= HandleCargoDocked;
-		cargoPortService.OnCargoUndocked -= HandleCargoUndocked;
+		cargoPortService.OnCapsuleDocked -= HandleCapsuleDocked;
+		cargoPortService.OnCapsuleUndocked -= HandleCapsuleUndocked;
 	}
 
-	private void HandleCargoDocked(uint buildingId, CargoPort cargoPort)
+	private void HandleCapsuleDocked(uint buildingId, CargoPort cargoPort)
 	{
 		if (cargoPort is not OutboundCargoPort outboundCargoPort)
 			return;
@@ -458,7 +458,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		TryEnqueueCargoTransferTask(outboundCargoPort, buildingId);
 	}
 
-	private void HandleCargoUndocked(uint buildingId, CargoPort cargoPort)
+	private void HandleCapsuleUndocked(uint buildingId, CargoPort cargoPort)
 	{
 		switch (cargoPort)
 		{

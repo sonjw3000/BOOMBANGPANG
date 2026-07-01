@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 public enum CapsuleDockState
 {
@@ -12,6 +13,9 @@ public enum CapsuleDockState
 public abstract class CapsuleDock : BoxInteraction
 {
 	protected CargoCapsule dockedCapsule = null;
+
+	public event Action<CapsuleDock> OnCapsuleDocked;
+	public event Action<CapsuleDock> OnCapsuleUndocked;
 
 	public CargoCapsule DockedCapsule => dockedCapsule;
 	public virtual CapsuleDockState DockState => CapsuleDockState.Empty;
@@ -31,6 +35,7 @@ public abstract class CapsuleDock : BoxInteraction
 		capsule.transform.SetParent(transform, false);
 		capsule.transform.localPosition = Vector3.zero;
 		OnDockedCapsuleChanged();
+		OnCapsuleDocked?.Invoke(this);
 
 		dockedCapsule.OnQuantityChanged += OnCapsuleQuantityChanged;
 
@@ -53,6 +58,7 @@ public abstract class CapsuleDock : BoxInteraction
 		capsule.transform.SetParent(null, true);
 
 		OnDockedCapsuleChanged();
+		OnCapsuleUndocked?.Invoke(this);
 
 		return true;
 	}

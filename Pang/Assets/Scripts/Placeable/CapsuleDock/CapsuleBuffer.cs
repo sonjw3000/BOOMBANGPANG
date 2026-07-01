@@ -17,9 +17,7 @@ public partial class CapsuleBuffer :
 	[FormerlySerializedAs("bufferState")]
 	[SerializeField] private CapsuleDockState dockState = CapsuleDockState.Empty;
 
-	public event Action<CapsuleBuffer> OnCapsuleDocked;
 	public event Action<CapsuleBuffer, CargoCapsule> OnCapsuleUndocking;
-	public event Action<CapsuleBuffer> OnCapsuleUndocked;
 	public event Action<CapsuleBuffer> OnCapsuleContentChanged;
 	public event Action<CapsuleBuffer> OnDockStateChanged;
 
@@ -80,14 +78,6 @@ public partial class CapsuleBuffer :
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
 
-	}
-
-	protected override void OnDockedCapsuleChanged()
-	{
-		if (HasCapsule)
-			OnCapsuleDocked?.Invoke(this);
-		else
-			OnCapsuleUndocked?.Invoke(this);
 	}
 
 	protected override void OnBeforeCapsuleUndocked(CargoCapsule capsule)

@@ -27,7 +27,6 @@ public readonly struct CapsuleRelocateSendRequest
 	public readonly CapsuleLogisticsState RequiredCapsuleState;
 	public readonly uint SourceBuildingId;
 	public readonly uint RequiredTargetBuildingId;
-	public readonly int Priority;
 
 	public CapsuleRelocateSendRequest(
 		CapsuleDock sourceDock,
@@ -37,8 +36,7 @@ public readonly struct CapsuleRelocateSendRequest
 		CapsuleDockState requiredSourceDockState,
 		CapsuleLogisticsState requiredCapsuleState,
 		uint sourceBuildingId,
-		uint requiredTargetBuildingId = 0,
-		int priority = 0)
+		uint requiredTargetBuildingId = 0)
 	{
 		SourceDock = sourceDock;
 		WantedTargetDockState = wantedTargetDockState;
@@ -48,7 +46,6 @@ public readonly struct CapsuleRelocateSendRequest
 		RequiredCapsuleState = requiredCapsuleState;
 		SourceBuildingId = sourceBuildingId;
 		RequiredTargetBuildingId = requiredTargetBuildingId;
-		Priority = priority;
 	}
 }
 
@@ -61,7 +58,6 @@ public readonly struct CapsuleRelocateDemand
 	public readonly CapsuleRelocateScope Scope;
 	public readonly uint TargetBuildingId;
 	public readonly uint RequiredSourceBuildingId;
-	public readonly int Priority;
 
 	public CapsuleRelocateDemand(
 		CapsuleDock targetDock,
@@ -70,8 +66,7 @@ public readonly struct CapsuleRelocateDemand
 		CapsuleRelocateRouteKind routeKind,
 		CapsuleRelocateScope scope,
 		uint targetBuildingId,
-		uint requiredSourceBuildingId = 0,
-		int priority = 0)
+		uint requiredSourceBuildingId = 0)
 	{
 		TargetDock = targetDock;
 		RequiredSourceDockState = requiredSourceDockState;
@@ -80,7 +75,6 @@ public readonly struct CapsuleRelocateDemand
 		Scope = scope;
 		TargetBuildingId = targetBuildingId;
 		RequiredSourceBuildingId = requiredSourceBuildingId;
-		Priority = priority;
 	}
 }
 
@@ -109,45 +103,57 @@ public readonly struct CapsuleRelocateMatch
 
 public sealed class CapsuleRelocateCoordinator
 {
-	private readonly Dictionary<uint, Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateSendRequest>>> sameBuildingSends = new();
-	private readonly Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateSendRequest>> linkedBuildingSends = new();
-	private readonly Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateSendRequest>> globalSends = new();
-	private readonly Dictionary<CapsuleDock, LinkedListNode<CapsuleRelocateSendRequest>> sendNodeBySource = new();
+	// --------------------------------------------------------------
+	// pending requests
+	private readonly LinkedList<CapsuleRelocateSendRequest> pendingSends = new();
+	private readonly LinkedList<CapsuleRelocateDemand> pendingDemands = new();
+	private readonly Dictionary<CapsuleDock, LinkedListNode<CapsuleRelocateSendRequest>> pendingSendNodeBySource = new();
+	private readonly Dictionary<CapsuleDock, LinkedListNode<CapsuleRelocateDemand>> pendingDemandNodeByTarget = new();
 
-	private readonly Dictionary<uint, Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateDemand>>> sameBuildingDemands = new();
-	private readonly Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateDemand>> linkedBuildingDemands = new();
-	private readonly Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateDemand>> globalDemands = new();
-	private readonly Dictionary<CapsuleDock, LinkedListNode<CapsuleRelocateDemand>> demandNodeByTarget = new();
+	// --------------------------------------------------------------
+	// registered dock states
+	private readonly Dictionary<uint, Dictionary<CapsuleDockState, LinkedList<CapsuleDock>>> receiversByBuilding = new();
+	private readonly Dictionary<uint, Dictionary<CapsuleDockState, LinkedList<CapsuleDock>>> sourcesByBuilding = new();
 
-	private readonly Dictionary<CapsuleDock, uint> availableReceivers = new();
-	private readonly Dictionary<CapsuleDock, uint> availableSources = new();
 	private readonly HashSet<CapsuleDock> reservedDocks = new();
 	private readonly Func<uint, uint, bool> canUseLinkedBuilding;
 
-	public IReadOnlyDictionary<CapsuleDock, uint> AvailableReceivers => availableReceivers;
-	public IReadOnlyDictionary<CapsuleDock, uint> AvailableSources => availableSources;
-	public int PendingSendCount => sendNodeBySource.Count;
-	public int PendingDemandCount => demandNodeByTarget.Count;
+	public int PendingSendCount => pendingSendNodeBySource.Count;
+	public int PendingDemandCount => pendingDemandNodeByTarget.Count;
 
 	public CapsuleRelocateCoordinator(Func<uint, uint, bool> canUseLinkedBuilding = null)
 	{
 		this.canUseLinkedBuilding = canUseLinkedBuilding;
 	}
 
-	public void RegisterReceiver(CapsuleDock dock, uint buildingId)
+	public void RegisterReceiver(CapsuleDock dock, uint buildingId, CapsuleDockState dockState)
 	{
 		if (dock == null)
 			return;
 
-		availableReceivers[dock] = buildingId;
+		LinkedList<CapsuleDock> bucket = GetBuildingBucket(receiversByBuilding, buildingId, dockState);
+		if (ContainsDock(bucket, dock) == false)
+			bucket.AddLast(dock);
 	}
 
-	public void RegisterSource(CapsuleDock dock, uint buildingId)
+	public void RegisterSource(CapsuleDock dock, uint buildingId, CapsuleDockState dockState)
 	{
 		if (dock == null)
 			return;
 
-		availableSources[dock] = buildingId;
+		LinkedList<CapsuleDock> bucket = GetBuildingBucket(sourcesByBuilding, buildingId, dockState);
+		if (ContainsDock(bucket, dock) == false)
+			bucket.AddLast(dock);
+	}
+
+	public void UnregisterReceiver(CapsuleDock dock, uint buildingId, CapsuleDockState dockState)
+	{
+		RemoveDockFromBuildingStateBucket(receiversByBuilding, dock, buildingId, dockState);
+	}
+
+	public void UnregisterSource(CapsuleDock dock, uint buildingId, CapsuleDockState dockState)
+	{
+		RemoveDockFromBuildingStateBucket(sourcesByBuilding, dock, buildingId, dockState);
 	}
 
 	public void UnregisterDock(CapsuleDock dock)
@@ -155,8 +161,6 @@ public sealed class CapsuleRelocateCoordinator
 		if (dock == null)
 			return;
 
-		availableReceivers.Remove(dock);
-		availableSources.Remove(dock);
 		reservedDocks.Remove(dock);
 		RemoveSendRequests(dock);
 		RemoveDemands(dock);
@@ -220,17 +224,59 @@ public sealed class CapsuleRelocateCoordinator
 	private bool TryMatchPendingSend(out CapsuleRelocateMatch match)
 	{
 		match = default;
-		return TryMatchPendingSendBuckets(sameBuildingSends, out match) ||
-			TryMatchPendingSendBuckets(linkedBuildingSends, out match) ||
-			TryMatchPendingSendBuckets(globalSends, out match);
+		LinkedListNode<CapsuleRelocateSendRequest> node = pendingSends.First;
+		while (node != null)
+		{
+			LinkedListNode<CapsuleRelocateSendRequest> next = node.Next;
+			CapsuleRelocateSendRequest request = node.Value;
+			if (IsSendSourceValid(request) == false)
+			{
+				RemovePendingSendNode(node);
+				node = next;
+				continue;
+			}
+
+			if (TryFindReceiver(request, out CapsuleDock targetDock, out uint targetBuildingId))
+			{
+				Reserve(request.SourceDock, targetDock);
+				RemovePendingSendNode(node);
+				match = new CapsuleRelocateMatch(request.RouteKind, request.SourceDock, targetDock, request.SourceBuildingId, targetBuildingId);
+				return true;
+			}
+
+			node = next;
+		}
+
+		return false;
 	}
 
 	private bool TryMatchPendingDemand(out CapsuleRelocateMatch match)
 	{
 		match = default;
-		return TryMatchPendingDemandBuckets(sameBuildingDemands, out match) ||
-			TryMatchPendingDemandBuckets(linkedBuildingDemands, out match) ||
-			TryMatchPendingDemandBuckets(globalDemands, out match);
+		LinkedListNode<CapsuleRelocateDemand> node = pendingDemands.First;
+		while (node != null)
+		{
+			LinkedListNode<CapsuleRelocateDemand> next = node.Next;
+			CapsuleRelocateDemand demand = node.Value;
+			if (IsDemandTargetValid(demand) == false)
+			{
+				RemovePendingDemandNode(node);
+				node = next;
+				continue;
+			}
+
+			if (TryFindSource(demand, out CapsuleDock sourceDock, out uint sourceBuildingId))
+			{
+				Reserve(sourceDock, demand.TargetDock);
+				RemovePendingDemandNode(node);
+				match = new CapsuleRelocateMatch(demand.RouteKind, sourceDock, demand.TargetDock, sourceBuildingId, demand.TargetBuildingId);
+				return true;
+			}
+
+			node = next;
+		}
+
+		return false;
 	}
 
 	private bool TryFindReceiver(CapsuleRelocateSendRequest request, out CapsuleDock targetDock, out uint targetBuildingId)
@@ -238,17 +284,19 @@ public sealed class CapsuleRelocateCoordinator
 		targetDock = null;
 		targetBuildingId = 0;
 
-		foreach (var (candidate, buildingId) in availableReceivers)
+		if (request.RequiredTargetBuildingId != 0)
+			return TryFindReceiverInBuilding(request, request.RequiredTargetBuildingId, out targetDock, out targetBuildingId);
+
+		return request.Scope switch
 		{
-			if (CanMatch(request, candidate, buildingId) == false)
-				continue;
-
-			targetDock = candidate;
-			targetBuildingId = buildingId;
-			return true;
-		}
-
-		return false;
+			CapsuleRelocateScope.SameBuilding =>
+				TryFindReceiverInBuilding(request, request.SourceBuildingId, out targetDock, out targetBuildingId),
+			CapsuleRelocateScope.LinkedBuilding =>
+				TryFindReceiverInLinkedBuildings(request, out targetDock, out targetBuildingId),
+			CapsuleRelocateScope.GlobalAllowed =>
+				TryFindReceiverInAllBuildings(request, out targetDock, out targetBuildingId),
+			_ => false,
+		};
 	}
 
 	private bool TryFindSource(CapsuleRelocateDemand demand, out CapsuleDock sourceDock, out uint sourceBuildingId)
@@ -256,17 +304,19 @@ public sealed class CapsuleRelocateCoordinator
 		sourceDock = null;
 		sourceBuildingId = 0;
 
-		foreach (var (candidate, buildingId) in availableSources)
+		if (demand.RequiredSourceBuildingId != 0)
+			return TryFindSourceInBuilding(demand, demand.RequiredSourceBuildingId, out sourceDock, out sourceBuildingId);
+
+		return demand.Scope switch
 		{
-			if (CanMatch(candidate, buildingId, demand) == false)
-				continue;
-
-			sourceDock = candidate;
-			sourceBuildingId = buildingId;
-			return true;
-		}
-
-		return false;
+			CapsuleRelocateScope.SameBuilding =>
+				TryFindSourceInBuilding(demand, demand.TargetBuildingId, out sourceDock, out sourceBuildingId),
+			CapsuleRelocateScope.LinkedBuilding =>
+				TryFindSourceInLinkedBuildings(demand, out sourceDock, out sourceBuildingId),
+			CapsuleRelocateScope.GlobalAllowed =>
+				TryFindSourceInAllBuildings(demand, out sourceDock, out sourceBuildingId),
+			_ => false,
+		};
 	}
 
 	private bool CanMatch(CapsuleRelocateSendRequest request, CapsuleDock targetDock, uint targetBuildingId)
@@ -310,7 +360,8 @@ public sealed class CapsuleRelocateCoordinator
 				sourceBuildingId != 0 &&
 				targetBuildingId != 0 &&
 				sourceBuildingId != targetBuildingId &&
-				(canUseLinkedBuilding == null || canUseLinkedBuilding(sourceBuildingId, targetBuildingId)),
+				canUseLinkedBuilding != null &&
+				canUseLinkedBuilding(sourceBuildingId, targetBuildingId),
 			CapsuleRelocateScope.GlobalAllowed => true,
 			_ => false,
 		};
@@ -342,191 +393,205 @@ public sealed class CapsuleRelocateCoordinator
 
 	private void RemoveSendRequests(CapsuleDock sourceDock)
 	{
-		if (sourceDock == null || sendNodeBySource.TryGetValue(sourceDock, out LinkedListNode<CapsuleRelocateSendRequest> node) == false)
+		if (sourceDock == null ||
+			pendingSendNodeBySource.TryGetValue(sourceDock, out LinkedListNode<CapsuleRelocateSendRequest> node) == false)
+		{
 			return;
+		}
 
-		node.List?.Remove(node);
-		sendNodeBySource.Remove(sourceDock);
+		RemovePendingSendNode(node);
 	}
 
 	private void RemoveDemands(CapsuleDock targetDock)
 	{
-		if (targetDock == null || demandNodeByTarget.TryGetValue(targetDock, out LinkedListNode<CapsuleRelocateDemand> node) == false)
+		if (targetDock == null ||
+			pendingDemandNodeByTarget.TryGetValue(targetDock, out LinkedListNode<CapsuleRelocateDemand> node) == false)
+		{
 			return;
+		}
 
-		node.List?.Remove(node);
-		demandNodeByTarget.Remove(targetDock);
+		RemovePendingDemandNode(node);
 	}
 
 	private void AddPendingSend(CapsuleRelocateSendRequest request)
 	{
 		RemoveSendRequests(request.SourceDock);
-
-		LinkedList<CapsuleRelocateSendRequest> bucket = GetSendBucket(request);
-		LinkedListNode<CapsuleRelocateSendRequest> node = bucket.AddLast(request);
-		sendNodeBySource[request.SourceDock] = node;
+		LinkedListNode<CapsuleRelocateSendRequest> node = pendingSends.AddLast(request);
+		pendingSendNodeBySource[request.SourceDock] = node;
 	}
 
 	private void AddPendingDemand(CapsuleRelocateDemand demand)
 	{
 		RemoveDemands(demand.TargetDock);
-
-		LinkedList<CapsuleRelocateDemand> bucket = GetDemandBucket(demand);
-		LinkedListNode<CapsuleRelocateDemand> node = bucket.AddLast(demand);
-		demandNodeByTarget[demand.TargetDock] = node;
+		LinkedListNode<CapsuleRelocateDemand> node = pendingDemands.AddLast(demand);
+		pendingDemandNodeByTarget[demand.TargetDock] = node;
 	}
 
-	private LinkedList<CapsuleRelocateSendRequest> GetSendBucket(CapsuleRelocateSendRequest request)
+	private bool TryFindReceiverInBuilding(
+		CapsuleRelocateSendRequest request,
+		uint buildingId,
+		out CapsuleDock targetDock,
+		out uint targetBuildingId)
 	{
-		return request.Scope switch
-		{
-			CapsuleRelocateScope.SameBuilding => GetBuildingBucket(sameBuildingSends, request.SourceBuildingId, request.WantedTargetDockState),
-			CapsuleRelocateScope.LinkedBuilding => GetStateBucket(linkedBuildingSends, request.WantedTargetDockState),
-			CapsuleRelocateScope.GlobalAllowed => GetStateBucket(globalSends, request.WantedTargetDockState),
-			_ => GetStateBucket(globalSends, request.WantedTargetDockState),
-		};
+		targetDock = null;
+		targetBuildingId = 0;
+		if (TryGetBuildingStateBucket(receiversByBuilding, buildingId, request.WantedTargetDockState, out LinkedList<CapsuleDock> bucket) == false)
+			return false;
+
+		return TryFindReceiverInBucket(request, bucket, buildingId, out targetDock, out targetBuildingId);
 	}
 
-	private LinkedList<CapsuleRelocateDemand> GetDemandBucket(CapsuleRelocateDemand demand)
+	private bool TryFindReceiverInLinkedBuildings(
+		CapsuleRelocateSendRequest request,
+		out CapsuleDock targetDock,
+		out uint targetBuildingId)
 	{
-		return demand.Scope switch
+		targetDock = null;
+		targetBuildingId = 0;
+		foreach (uint buildingId in receiversByBuilding.Keys)
 		{
-			CapsuleRelocateScope.SameBuilding => GetBuildingBucket(sameBuildingDemands, demand.TargetBuildingId, demand.RequiredSourceDockState),
-			CapsuleRelocateScope.LinkedBuilding => GetStateBucket(linkedBuildingDemands, demand.RequiredSourceDockState),
-			CapsuleRelocateScope.GlobalAllowed => GetStateBucket(globalDemands, demand.RequiredSourceDockState),
-			_ => GetStateBucket(globalDemands, demand.RequiredSourceDockState),
-		};
-	}
+			if (CanUseBuilding(request.Scope, request.SourceBuildingId, buildingId) == false)
+				continue;
 
-	private bool TryMatchPendingSendBuckets(
-		Dictionary<uint, Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateSendRequest>>> buckets,
-		out CapsuleRelocateMatch match)
-	{
-		match = default;
-		foreach (Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateSendRequest>> stateBuckets in buckets.Values)
-		{
-			if (TryMatchPendingSendBuckets(stateBuckets, out match))
+			if (TryFindReceiverInBuilding(request, buildingId, out targetDock, out targetBuildingId))
 				return true;
 		}
 
 		return false;
 	}
 
-	private bool TryMatchPendingSendBuckets(
-		Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateSendRequest>> buckets,
-		out CapsuleRelocateMatch match)
+	private bool TryFindReceiverInAllBuildings(
+		CapsuleRelocateSendRequest request,
+		out CapsuleDock targetDock,
+		out uint targetBuildingId)
 	{
-		match = default;
-		foreach (LinkedList<CapsuleRelocateSendRequest> bucket in buckets.Values)
+		targetDock = null;
+		targetBuildingId = 0;
+		foreach (uint buildingId in receiversByBuilding.Keys)
 		{
-			if (TryMatchPendingSendBucket(bucket, out match))
+			if (TryFindReceiverInBuilding(request, buildingId, out targetDock, out targetBuildingId))
 				return true;
 		}
 
 		return false;
 	}
 
-	private bool TryMatchPendingSendBucket(LinkedList<CapsuleRelocateSendRequest> bucket, out CapsuleRelocateMatch match)
+	private bool TryFindReceiverInBucket(
+		CapsuleRelocateSendRequest request,
+		LinkedList<CapsuleDock> bucket,
+		uint buildingId,
+		out CapsuleDock targetDock,
+		out uint targetBuildingId)
 	{
-		match = default;
-		LinkedListNode<CapsuleRelocateSendRequest> node = bucket.First;
+		targetDock = null;
+		targetBuildingId = 0;
+		LinkedListNode<CapsuleDock> node = bucket.First;
 		while (node != null)
 		{
-			LinkedListNode<CapsuleRelocateSendRequest> next = node.Next;
-			CapsuleRelocateSendRequest request = node.Value;
-			if (IsSendSourceValid(request) == false)
+			CapsuleDock candidate = node.Value;
+			if (CanMatch(request, candidate, buildingId))
 			{
-				RemoveSendNode(node);
-				node = next;
+				targetDock = candidate;
+				targetBuildingId = buildingId;
+				return true;
+			}
+
+			node = node.Next;
+		}
+
+		return false;
+	}
+
+	private bool TryFindSourceInBuilding(
+		CapsuleRelocateDemand demand,
+		uint buildingId,
+		out CapsuleDock sourceDock,
+		out uint sourceBuildingId)
+	{
+		sourceDock = null;
+		sourceBuildingId = 0;
+		if (TryGetBuildingStateBucket(sourcesByBuilding, buildingId, demand.RequiredSourceDockState, out LinkedList<CapsuleDock> bucket) == false)
+			return false;
+
+		return TryFindSourceInBucket(demand, bucket, buildingId, out sourceDock, out sourceBuildingId);
+	}
+
+	private bool TryFindSourceInLinkedBuildings(
+		CapsuleRelocateDemand demand,
+		out CapsuleDock sourceDock,
+		out uint sourceBuildingId)
+	{
+		sourceDock = null;
+		sourceBuildingId = 0;
+		foreach (uint buildingId in sourcesByBuilding.Keys)
+		{
+			if (CanUseBuilding(demand.Scope, buildingId, demand.TargetBuildingId) == false)
 				continue;
-			}
 
-			if (TryFindReceiver(request, out CapsuleDock targetDock, out uint targetBuildingId))
-			{
-				Reserve(request.SourceDock, targetDock);
-				RemoveSendNode(node);
-				match = new CapsuleRelocateMatch(request.RouteKind, request.SourceDock, targetDock, request.SourceBuildingId, targetBuildingId);
+			if (TryFindSourceInBuilding(demand, buildingId, out sourceDock, out sourceBuildingId))
 				return true;
-			}
-
-			node = next;
 		}
 
 		return false;
 	}
 
-	private bool TryMatchPendingDemandBuckets(
-		Dictionary<uint, Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateDemand>>> buckets,
-		out CapsuleRelocateMatch match)
+	private bool TryFindSourceInAllBuildings(
+		CapsuleRelocateDemand demand,
+		out CapsuleDock sourceDock,
+		out uint sourceBuildingId)
 	{
-		match = default;
-		foreach (Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateDemand>> stateBuckets in buckets.Values)
+		sourceDock = null;
+		sourceBuildingId = 0;
+		foreach (uint buildingId in sourcesByBuilding.Keys)
 		{
-			if (TryMatchPendingDemandBuckets(stateBuckets, out match))
+			if (TryFindSourceInBuilding(demand, buildingId, out sourceDock, out sourceBuildingId))
 				return true;
 		}
 
 		return false;
 	}
 
-	private bool TryMatchPendingDemandBuckets(
-		Dictionary<CapsuleDockState, LinkedList<CapsuleRelocateDemand>> buckets,
-		out CapsuleRelocateMatch match)
+	private bool TryFindSourceInBucket(
+		CapsuleRelocateDemand demand,
+		LinkedList<CapsuleDock> bucket,
+		uint buildingId,
+		out CapsuleDock sourceDock,
+		out uint sourceBuildingId)
 	{
-		match = default;
-		foreach (LinkedList<CapsuleRelocateDemand> bucket in buckets.Values)
-		{
-			if (TryMatchPendingDemandBucket(bucket, out match))
-				return true;
-		}
-
-		return false;
-	}
-
-	private bool TryMatchPendingDemandBucket(LinkedList<CapsuleRelocateDemand> bucket, out CapsuleRelocateMatch match)
-	{
-		match = default;
-		LinkedListNode<CapsuleRelocateDemand> node = bucket.First;
+		sourceDock = null;
+		sourceBuildingId = 0;
+		LinkedListNode<CapsuleDock> node = bucket.First;
 		while (node != null)
 		{
-			LinkedListNode<CapsuleRelocateDemand> next = node.Next;
-			CapsuleRelocateDemand demand = node.Value;
-			if (IsDemandTargetValid(demand) == false)
+			CapsuleDock candidate = node.Value;
+			if (CanMatch(candidate, buildingId, demand))
 			{
-				RemoveDemandNode(node);
-				node = next;
-				continue;
-			}
-
-			if (TryFindSource(demand, out CapsuleDock sourceDock, out uint sourceBuildingId))
-			{
-				Reserve(sourceDock, demand.TargetDock);
-				RemoveDemandNode(node);
-				match = new CapsuleRelocateMatch(demand.RouteKind, sourceDock, demand.TargetDock, sourceBuildingId, demand.TargetBuildingId);
+				sourceDock = candidate;
+				sourceBuildingId = buildingId;
 				return true;
 			}
 
-			node = next;
+			node = node.Next;
 		}
 
 		return false;
 	}
 
-	private void RemoveSendNode(LinkedListNode<CapsuleRelocateSendRequest> node)
+	private void RemovePendingSendNode(LinkedListNode<CapsuleRelocateSendRequest> node)
 	{
 		if (node == null)
 			return;
 
-		sendNodeBySource.Remove(node.Value.SourceDock);
+		pendingSendNodeBySource.Remove(node.Value.SourceDock);
 		node.List?.Remove(node);
 	}
 
-	private void RemoveDemandNode(LinkedListNode<CapsuleRelocateDemand> node)
+	private void RemovePendingDemandNode(LinkedListNode<CapsuleRelocateDemand> node)
 	{
 		if (node == null)
 			return;
 
-		demandNodeByTarget.Remove(node.Value.TargetDock);
+		pendingDemandNodeByTarget.Remove(node.Value.TargetDock);
 		node.List?.Remove(node);
 	}
 
@@ -555,5 +620,59 @@ public sealed class CapsuleRelocateCoordinator
 		}
 
 		return bucket;
+	}
+
+	private static bool TryGetBuildingStateBucket<T>(
+		Dictionary<uint, Dictionary<CapsuleDockState, LinkedList<T>>> buckets,
+		uint buildingId,
+		CapsuleDockState dockState,
+		out LinkedList<T> bucket)
+	{
+		bucket = null;
+		return buckets.TryGetValue(buildingId, out Dictionary<CapsuleDockState, LinkedList<T>> stateBuckets) &&
+			stateBuckets.TryGetValue(dockState, out bucket);
+	}
+
+	private static bool ContainsDock(LinkedList<CapsuleDock> bucket, CapsuleDock dock)
+	{
+		if (bucket == null || dock == null)
+			return false;
+
+		LinkedListNode<CapsuleDock> node = bucket.First;
+		while (node != null)
+		{
+			if (node.Value == dock)
+				return true;
+
+			node = node.Next;
+		}
+
+		return false;
+	}
+
+	private static void RemoveDockFromBuildingStateBucket(
+		Dictionary<uint, Dictionary<CapsuleDockState, LinkedList<CapsuleDock>>> buckets,
+		CapsuleDock dock,
+		uint buildingId,
+		CapsuleDockState dockState)
+	{
+		if (dock == null ||
+			TryGetBuildingStateBucket(buckets, buildingId, dockState, out LinkedList<CapsuleDock> bucket) == false)
+		{
+			return;
+		}
+
+		LinkedListNode<CapsuleDock> node = bucket.First;
+		while (node != null)
+		{
+			LinkedListNode<CapsuleDock> next = node.Next;
+			if (node.Value == dock)
+			{
+				bucket.Remove(node);
+				return;
+			}
+
+			node = next;
+		}
 	}
 }

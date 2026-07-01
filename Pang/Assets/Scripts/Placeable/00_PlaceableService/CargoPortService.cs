@@ -5,8 +5,8 @@ using UnityEngine;
 
 public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 {
-	public event Action<uint, CargoPort> OnCargoDocked;
-	public event Action<uint, CargoPort> OnCargoUndocked;
+	public event Action<uint, CargoPort> OnCapsuleDocked;
+	public event Action<uint, CargoPort> OnCapsuleUndocked;
 	public event Action<uint, CargoPort> OnCargoQuantityZero;
 	public event Action<uint, CargoPort> OnCargoQuantityOverPercent;
 
@@ -16,8 +16,8 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 	protected override void OnRegisterFacility(uint buildingId, CargoPort facility)
 	{
 		registeredBuildingIds[facility] = buildingId;
-		facility.OnCargoDocked += HandleCargoDocked;
-		facility.OnCargoUndocked += HandleCargoUndocked;
+		facility.OnCapsuleDocked += HandleCapsuleDocked;
+		facility.OnCapsuleUndocked += HandleCapsuleUndocked;
 		if (facility is InboundCargoPort)
 			facility.OnCargoQuantityZero += HandleCargoQuantityZero;
 		else
@@ -27,8 +27,8 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 	protected override void OnUnregisterFacility(uint buildingId, CargoPort facility)
 	{
 		registeredBuildingIds.Remove(facility);
-		facility.OnCargoDocked -= HandleCargoDocked;
-		facility.OnCargoUndocked -= HandleCargoUndocked;
+		facility.OnCapsuleDocked -= HandleCapsuleDocked;
+		facility.OnCapsuleUndocked -= HandleCapsuleUndocked;
 		if (facility is InboundCargoPort)
 			facility.OnCargoQuantityZero -= HandleCargoQuantityZero;
 		else
@@ -36,16 +36,22 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 	}
 
 	// cargoport event handlers
-	private void HandleCargoDocked(CargoPort port)
+	private void HandleCapsuleDocked(CapsuleDock dock)
 	{
+		if (dock is not CargoPort port)
+			return;
+
 		if (TryGetRegisteredBuildingId(port, out uint buildingId))
-			OnCargoDocked?.Invoke(buildingId, port);
+			OnCapsuleDocked?.Invoke(buildingId, port);
 	}
 
-	private void HandleCargoUndocked(CargoPort port)
+	private void HandleCapsuleUndocked(CapsuleDock dock)
 	{
+		if (dock is not CargoPort port)
+			return;
+
 		if (TryGetRegisteredBuildingId(port, out uint buildingId))
-			OnCargoUndocked?.Invoke(buildingId, port);
+			OnCapsuleUndocked?.Invoke(buildingId, port);
 	}
 
 	private void HandleCargoQuantityZero(CargoPort port)
