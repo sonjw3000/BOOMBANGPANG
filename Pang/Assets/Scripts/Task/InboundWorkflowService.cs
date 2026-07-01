@@ -315,7 +315,30 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		if (rocket == null || TaskMgr == null)
 			return;
 
-		TaskMgr.EnqueueTaskBuildRequest(new UnloadingTaskBuildRequest(rocket, unloadingDestinationBuildingId));
+		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
+			rocket,
+			CapsuleDockState.InboundSource,
+			CapsuleLogisticsState.IB,
+			CapsuleDockState.IBStandby,
+			CapsuleRelocateScope.LinkedBuilding,
+			0,
+			unloadingDestinationBuildingId,
+			EnqueueRocketUnloadTask));
+	}
+
+	private bool EnqueueRocketUnloadTask(CapsuleRelocateMatch match)
+	{
+		if (TaskMgr == null || match.SourceDock == null || match.TargetDock == null)
+			return false;
+
+		CapsuleRelocationTask task = new(
+			Unloading,
+			match.SourceDock,
+			match.TargetDock,
+			match.TargetBuildingId,
+			CapsuleRelocationReason.SourceMustClear);
+		TaskMgr.EnqueueTask(task);
+		return true;
 	}
 
 	private bool TryGetLandingPoint(out int3 landingPoint)

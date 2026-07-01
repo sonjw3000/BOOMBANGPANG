@@ -128,6 +128,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 		return Type switch
 		{
+			TaskType.Unloading when sourceDock is Rocket => sourceDock.DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB,
 			TaskType.IB when sourceDock is InboundCargoPort => sourceDock.IsCapsuleEmpty() == false && sourceDock.DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB,
 			TaskType.CapsuleClear when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleDockState.IB),
 			TaskType.CapsuleSupply when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleDockState.Empty),
@@ -143,6 +144,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 		return Type switch
 		{
+			TaskType.Unloading when targetDock is InboundCargoPort => targetDock.CanPutBox(),
 			TaskType.IB when targetDock is CapsuleBuffer targetBuffer => targetBuffer.CanReceiveFromInbound(),
 			TaskType.CapsuleClear when targetDock is CapsuleBuffer targetBuffer => targetBuffer.DockState == CapsuleDockState.Empty && targetBuffer.CanPutBox(),
 			TaskType.CapsuleSupply when targetDock is CapsuleBuffer targetBuffer => targetBuffer.DockState == CapsuleDockState.OBStandby && targetBuffer.CanPutBox(),
@@ -184,6 +186,9 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			task.isTaskEnd = task.sourceDock.HasCapsule == false;
 			return Failure;
 		}
+
+		if (task.sourceDock is Rocket rocket && rocket.CanGetBox() == false)
+			GameContext.Instance.RocketSvc.DisableRocket(rocket);
 
 		return Success;
 	}

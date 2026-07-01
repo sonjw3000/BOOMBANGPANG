@@ -727,11 +727,14 @@ public class Building
 		if (cargoPort.IsCapsuleEmpty())
 			return;
 
-		TaskManager.EnqueueTaskBuildRequest(new CapsuleRelocationTaskBuildRequest(
+		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
 			cargoPort,
+			CapsuleDockState.IBStandby,
+			CapsuleLogisticsState.IB,
+			CapsuleDockState.IB,
+			CapsuleRelocateScope.SameBuilding,
 			RuntimeBuildingId,
-			WorkerTask.TaskType.IB,
-			CapsuleRelocationReason.SourceMustClear));
+			onMatched: match => EnqueueCapsuleRelocationTask(match, WorkerTask.TaskType.IB, CapsuleRelocationReason.SourceMustClear)));
 	}
 
 	private static int3 ResolveInteractionOrigin(BoxInteraction interactionTarget, InteractionKind interactionKind)
@@ -775,11 +778,14 @@ public class Building
 			return;
 		}
 
-		TaskManager.EnqueueTaskBuildRequest(new CapsuleRelocationTaskBuildRequest(
+		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
 			capsuleBuffer,
+			capsuleBuffer.DockState,
+			CapsuleLogisticsState.OB,
+			CapsuleDockState.OB,
+			CapsuleRelocateScope.SameBuilding,
 			RuntimeBuildingId,
-			WorkerTask.TaskType.OB,
-			CapsuleRelocationReason.DestinationNeedsCapsule));
+			onMatched: match => EnqueueCapsuleRelocationTask(match, WorkerTask.TaskType.OB, CapsuleRelocationReason.DestinationNeedsCapsule)));
 	}
 
 	private void TryEvaluateBufferRelocation(CapsuleBuffer capsuleBuffer)
@@ -838,23 +844,14 @@ public class Building
 			return;
 		}
 
-		CapsuleBuffer sourceBuffer = FindClosestCapsuleBuffer(
-			targetBuffer.GridPosition,
-			InteractionKind.Pick,
-			candidate =>
-				candidate != null &&
-				candidate.CanRelocateEmptyCapsuleFrom(CapsuleDockState.Empty) &&
-				queuedBufferRelocationSources.Contains(candidate) == false);
-
-		if (sourceBuffer == null)
-			return;
-
-		TaskManager.EnqueueTaskBuildRequest(new CapsuleRelocationTaskBuildRequest(
-			sourceBuffer,
+		GameContext.Instance.CapsuleRelocateCoordinator.RequestDemand(new CapsuleRelocateDemand(
+			targetBuffer,
+			CapsuleDockState.OBStandby,
+			CapsuleDockState.Empty,
+			CapsuleLogisticsState.Empty,
+			CapsuleRelocateScope.SameBuilding,
 			RuntimeBuildingId,
-			WorkerTask.TaskType.CapsuleSupply,
-			CapsuleRelocationReason.DestinationNeedsCapsule,
-			targetBuffer));
+			onMatched: match => EnqueueCapsuleRelocationTask(match, WorkerTask.TaskType.CapsuleSupply, CapsuleRelocationReason.DestinationNeedsCapsule)));
 	}
 
 	private void TryEnqueueBufferRelocation(
@@ -874,27 +871,28 @@ public class Building
 			return;
 		}
 
-		CapsuleBuffer targetBuffer = FindClosestCapsuleBuffer(
-			sourceBuffer.GridPosition,
-			InteractionKind.Put,
-			candidate =>
-				candidate != null &&
-				candidate.DockState == targetState &&
-				candidate.CanPutBox() &&
-				queuedBufferRelocationTargets.Contains(candidate) == false);
-
-		if (targetBuffer == null)
-		{
-			TaskManager?.CancelTaskBuildRequest(CapsuleRelocationTaskBuildRequest.GetBufferRelocationRequestKey(taskType, sourceBuffer));
-			return;
-		}
-
-		TaskManager.EnqueueTaskBuildRequest(new CapsuleRelocationTaskBuildRequest(
+		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
 			sourceBuffer,
+			sourceBuffer.DockState,
+			CapsuleLogisticsState.Empty,
+			targetState,
+			CapsuleRelocateScope.SameBuilding,
 			RuntimeBuildingId,
-			taskType,
-			reason,
-			targetBuffer));
+			onMatched: match => EnqueueCapsuleRelocationTask(match, taskType, reason)));
+	}
+
+	private bool EnqueueCapsuleRelocationTask(
+		CapsuleRelocateMatch match,
+		WorkerTask.TaskType taskType,
+		CapsuleRelocationReason reason)
+	{
+		if (TaskManager == null || match.SourceDock == null || match.TargetDock == null)
+			return false;
+
+		CapsuleRelocationTask task = new(taskType, match.SourceDock, match.TargetDock, RuntimeBuildingId, reason);
+		TaskManager.EnqueueTask(task);
+		OnCapsuleRelocationTaskBuilt(task);
+		return true;
 	}
 
 	protected virtual void TryEvaluatePackingIngress(CapsuleBuffer capsuleBuffer)

@@ -94,6 +94,7 @@ public class GameContext : MonoBehaviour
 	private DeliveryService deliveryService = new();
 	private GameSaveService saveService;
 	private DemoGoalService demoGoalService;
+	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
 
 	private InteractionContext interactionCtx;
 
@@ -238,6 +239,14 @@ public class GameContext : MonoBehaviour
 	public InteractionContext InteractionCtx => interactionCtx;
 	public GameSaveService SaveService => ResolveManager(ref saveService, nameof(GameSaveService));
 	public DemoGoalService DemoGoalService => ResolveManager(ref demoGoalService, nameof(DemoGoalService));
+	public CapsuleRelocateCoordinator CapsuleRelocateCoordinator
+	{
+		get
+		{
+			capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
+			return capsuleRelocateCoordinator;
+		}
+	}
 
 	private T ResolveManager<T>(ref T field, string componentName) where T : Component
 	{
@@ -265,6 +274,7 @@ public class GameContext : MonoBehaviour
 
 		instance = this;
 		interactionCtx = new InteractionContext();
+		capsuleRelocateCoordinator = new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
 		_ = FloatingTextManager;
 		_ = SaveService;
 		_ = DemoGoalService;
@@ -302,6 +312,13 @@ public class GameContext : MonoBehaviour
 
 	private void AddEvent()
 	{
+		if (CapsuleDockSvc != null)
+		{
+			CapsuleDockSvc.OnCapsuleDocked += HandleCapsuleRelocateDocked;
+			CapsuleDockSvc.OnCapsuleUndocked += HandleCapsuleRelocateUndocked;
+			CapsuleDockSvc.OnDockStateChanged += HandleCapsuleRelocateDockStateChanged;
+		}
+
 		// times to process
 		gameTime.OnWeekPassed += contractService.AdvanceWeek;
 		gameTime.OnWeekPassed += orderManager.CheckExpiredOrders;
@@ -314,10 +331,59 @@ public class GameContext : MonoBehaviour
 
 	private void RemoveEvent()
 	{
+		if (CapsuleDockSvc != null)
+		{
+			CapsuleDockSvc.OnCapsuleDocked -= HandleCapsuleRelocateDocked;
+			CapsuleDockSvc.OnCapsuleUndocked -= HandleCapsuleRelocateUndocked;
+			CapsuleDockSvc.OnDockStateChanged -= HandleCapsuleRelocateDockStateChanged;
+		}
+
 		gameTime.OnWeekPassed -= contractService.AdvanceWeek;
 		gameTime.OnWeekPassed -= orderManager.CheckExpiredOrders;
 		gameTime.OnMonthPassed -= economyService.ProcessMonthlyPayment;
 
 		gridService.OnPlaceableInstalled -= economyService.OnPlacement;
+	}
+
+	private void HandleCapsuleRelocateDocked(uint buildingId, CapsuleDock dock)
+	{
+		CapsuleRelocateCoordinator.NotifyCapsuleDocked(dock);
+	}
+
+	private void HandleCapsuleRelocateUndocked(uint buildingId, CapsuleDock dock)
+	{
+		CapsuleRelocateCoordinator.NotifyCapsuleUndocked(dock);
+	}
+
+	private void HandleCapsuleRelocateDockStateChanged(uint buildingId, CapsuleDock dock)
+	{
+		CapsuleRelocateCoordinator.NotifyDockStateChanged(dock);
+	}
+
+	private bool CanUseCapsuleRelocateLink(uint sourceBuildingId, uint targetBuildingId)
+	{
+		if (targetBuildingId == 0)
+			return false;
+
+		if (sourceBuildingId == 0)
+		{
+			if (inboundWorkflowService == null)
+				return false;
+
+			uint destinationBuildingId = inboundWorkflowService.UnloadingDestinationBuildingId;
+			if (destinationBuildingId != 0)
+				return destinationBuildingId == targetBuildingId;
+
+			return buildingManager != null && buildingManager.TryGetBuilding(targetBuildingId, out _);
+		}
+
+		if (buildingManager == null ||
+			buildingManager.TryGetBuilding(sourceBuildingId, out Building sourceBuilding) == false ||
+			sourceBuilding == null)
+		{
+			return false;
+		}
+
+		return sourceBuilding.HasOutputBuilding(targetBuildingId);
 	}
 }

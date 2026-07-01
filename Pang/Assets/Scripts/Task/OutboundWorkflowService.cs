@@ -48,6 +48,8 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			case TaskType.CargoTransfer:
 				if (task is CargoTransferTask cargoTransferTask)
 					OnCargoTransferTaskCompleted(cargoTransferTask);
+				else if (task is CapsuleRelocationTask capsuleTransferTask)
+					OnCargoTransferTaskCompleted(capsuleTransferTask);
 				break;
 			case TaskType.Picking:
 				break;
@@ -491,7 +493,34 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (sourcePort == null || queuedCargoTransferPorts.Contains(sourcePort) || TaskMgr == null || sourcePort.CanGetBox() == false)
 			return;
 
-		TaskMgr.EnqueueTaskBuildRequest(new CargoTransferBuildRequest(sourcePort, buildingId));
+		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
+			sourcePort,
+			CapsuleDockState.OB,
+			CapsuleLogisticsState.OB,
+			CapsuleDockState.IBStandby,
+			CapsuleRelocateScope.LinkedBuilding,
+			buildingId,
+			onMatched: EnqueueCargoTransferTask));
+	}
+
+	private bool EnqueueCargoTransferTask(CapsuleRelocateMatch match)
+	{
+		if (TaskMgr == null ||
+			match.SourceDock is not OutboundCargoPort sourcePort ||
+			match.TargetDock is not InboundCargoPort targetPort)
+		{
+			return false;
+		}
+
+		CapsuleRelocationTask task = new(
+			TaskType.CargoTransfer,
+			sourcePort,
+			targetPort,
+			match.SourceBuildingId,
+			CapsuleRelocationReason.SourceMustClear);
+		TaskMgr.EnqueueTask(task);
+		OnCargoTransferTaskBuilt(sourcePort, targetPort);
+		return true;
 	}
 
 	internal void OnCargoTransferTaskBuilt(CargoTransferTask task)
@@ -499,9 +528,29 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (task?.SourcePort == null)
 			return;
 
-		queuedCargoTransferPorts.Add(task.SourcePort);
-		if (task.TargetPort != null)
-			queuedCargoTransferTargets[task.SourcePort] = task.TargetPort;
+		OnCargoTransferTaskBuilt(task.SourcePort, task.TargetPort);
+	}
+
+	private void OnCargoTransferTaskBuilt(OutboundCargoPort sourcePort, InboundCargoPort targetPort)
+	{
+		if (sourcePort == null)
+			return;
+
+		queuedCargoTransferPorts.Add(sourcePort);
+		if (targetPort != null)
+			queuedCargoTransferTargets[sourcePort] = targetPort;
+	}
+
+	private void OnCargoTransferTaskCompleted(CapsuleRelocationTask task)
+	{
+		if (task?.SourceDock is not OutboundCargoPort sourcePort)
+			return;
+
+		queuedCargoTransferPorts.Remove(sourcePort);
+		queuedCargoTransferTargets.Remove(sourcePort);
+
+		if (task.TargetDock is InboundCargoPort targetPort)
+			RemoveQueuedCargoTransferTarget(targetPort);
 	}
 
 	internal LaunchStation ResolveLoadingTargetStation(CargoPort sourcePort)
