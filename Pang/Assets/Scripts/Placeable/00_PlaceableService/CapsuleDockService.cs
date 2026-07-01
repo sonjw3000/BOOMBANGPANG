@@ -65,14 +65,45 @@ public sealed class CapsuleDockService : FacilityService<CapsuleDock>
 		out CapsuleDock dock,
 		Predicate<CapsuleDock> predicate = null)
 	{
+		Func<CapsuleDock, uint, bool> buildingPredicate = predicate != null
+			? (candidate, _) => predicate(candidate)
+			: null;
+
+		return TryFindDock(
+			buildingId,
+			dockState,
+			hasCapsule,
+			out dock,
+			out _,
+			buildingPredicate);
+	}
+
+	public bool TryFindDock(
+		uint buildingId,
+		CapsuleDockState dockState,
+		bool hasCapsule,
+		out CapsuleDock dock,
+		out uint foundBuildingId,
+		Func<CapsuleDock, uint, bool> predicate = null)
+	{
 		dock = null;
+		foundBuildingId = 0;
 		if (buildingId != 0)
-			return TryFindDockInBuilding(buildingId, dockState, hasCapsule, out dock, predicate);
+		{
+			if (TryFindDockInBuilding(buildingId, dockState, hasCapsule, out dock, predicate) == false)
+				return false;
+
+			foundBuildingId = buildingId;
+			return true;
+		}
 
 		foreach (uint candidateBuildingId in docksByBuildingState.Keys)
 		{
 			if (TryFindDockInBuilding(candidateBuildingId, dockState, hasCapsule, out dock, predicate))
+			{
+				foundBuildingId = candidateBuildingId;
 				return true;
+			}
 		}
 
 		return false;
@@ -172,7 +203,7 @@ public sealed class CapsuleDockService : FacilityService<CapsuleDock>
 		CapsuleDockState dockState,
 		bool hasCapsule,
 		out CapsuleDock dock,
-		Predicate<CapsuleDock> predicate)
+		Func<CapsuleDock, uint, bool> predicate)
 	{
 		dock = null;
 		if (TryGetBucket(buildingId, dockState, out DockBucket bucket) == false)
@@ -183,7 +214,7 @@ public sealed class CapsuleDockService : FacilityService<CapsuleDock>
 		while (node != null)
 		{
 			CapsuleDock candidate = node.Value;
-			if (candidate != null && (predicate == null || predicate(candidate)))
+			if (candidate != null && (predicate == null || predicate(candidate, buildingId)))
 			{
 				dock = candidate;
 				return true;
