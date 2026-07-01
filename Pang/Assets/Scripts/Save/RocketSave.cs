@@ -14,6 +14,13 @@ public partial class Rocket
 			LaunchHeight = launchHeight,
 			WorldPosition = new Vector3SaveData(transform.position.x, transform.position.y, transform.position.z),
 			ForwardVector = new Vector3SaveData(forwardVector.x, forwardVector.y, forwardVector.z),
+			DockedCapsule = DockedCapsule != null
+				? new BoxReferenceSaveData
+				{
+					BoxType = DockedCapsule.Type,
+					BoxId = DockedCapsule.BoxId,
+				}
+				: null,
 		};
 	}
 
@@ -29,5 +36,13 @@ public partial class Rocket
 		launchHeight = data.LaunchHeight;
 		transform.position = new Vector3(data.WorldPosition.X, data.WorldPosition.Y, data.WorldPosition.Z);
 		forwardVector = new Vector3(data.ForwardVector.X, data.ForwardVector.Y, data.ForwardVector.Z);
+
+		if (data.DockedCapsule != null &&
+			DockedCapsule == null &&
+			GameContext.Instance.BoxMgr.TryGetBox(data.DockedCapsule.BoxType, data.DockedCapsule.BoxId, out var box) &&
+			box is CargoCapsule capsule)
+		{
+			TryDockCapsule(capsule);
+		}
 	}
 }

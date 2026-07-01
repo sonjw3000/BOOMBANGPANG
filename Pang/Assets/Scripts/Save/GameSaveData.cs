@@ -169,6 +169,8 @@ public sealed class BuildingSaveData
 	public BuildingType Type;
 	public BuildingState State;
 	public BuildingWorkScope WorkScope;
+	public bool OverrideCapsuleThreshold;
+	public float CapsuleThresholdPercent;
 	public List<uint> OutputBuildingIds = new();
 }
 
@@ -322,6 +324,7 @@ public sealed class DeliveryProgressSaveData
 public sealed class RocketServiceSaveData
 {
 	public float TimeSinceLastSpawn;
+	public List<RocketSaveData> ActiveRockets = new();
 }
 
 [Serializable]
@@ -453,6 +456,7 @@ public sealed class RocketSaveData
 	public float LaunchHeight;
 	public Vector3SaveData WorldPosition = new();
 	public Vector3SaveData ForwardVector = new();
+	public BoxReferenceSaveData DockedCapsule;
 }
 
 [Serializable]
