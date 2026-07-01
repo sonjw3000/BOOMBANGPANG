@@ -10,16 +10,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 {
 	protected override bool UseDefaultTabs => false;
 
-	private enum BuildingDetailTab
-	{
-		Overview,
-		Facilities,
-		Policy,
-		Zones,
-		Settings,
-		Action,
-	}
-
 	[SerializeField] private BuildingDetailLayoutView layoutPrefab = null;
 	[SerializeField] private DetailInfoRowView infoRowPrefab = null;
 	[SerializeField] private TextRowView summaryRowPrefab = null;
@@ -28,6 +18,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	private UIWindow window;
 	private BuildingDetailLayoutView layoutView;
 	private readonly List<GameObject> tabRoots = new();
+	private readonly List<WindowTabContentEntry> tabEntries = new();
 	private readonly List<GameObject> zoneListRows = new();
 	private readonly List<GameObject> facilitySummaryRows = new();
 
@@ -44,7 +35,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	private TextMeshProUGUI actionStateValue;
 	private Toggle overrideThresholdToggle;
 	private Slider thresholdSlider;
-	private GameObject settingsTabRoot;
 
 	private ZoneOverlayController zoneOverlayController;
 	private ZoneControlWindow zoneControlWindow;
@@ -75,7 +65,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		EnsureUi();
 		BindListeners();
 		SetupTabs();
-		SetTab((int)BuildingDetailTab.Overview);
+		SetTab(0);
 		RefreshAll();
 	}
 
@@ -111,14 +101,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		layoutView.name = "BuildingDetailLayout";
 		SetTopStretch(layoutView.GetComponent<RectTransform>(), 12f, 12f, 4f);
 
-		tabRoots.Clear();
-		tabRoots.Add(layoutView.OverviewTab);
-		tabRoots.Add(layoutView.FacilitiesTab);
-		tabRoots.Add(layoutView.PolicyTab);
-		tabRoots.Add(layoutView.ZonesTab);
-		settingsTabRoot = CreateSettingsTabRoot(layoutView.transform);
-		tabRoots.Add(settingsTabRoot);
-		tabRoots.Add(layoutView.ActionTab);
+		CollectTabEntries();
 
 		nameValue = CreateInfoLine(layoutView.OverviewTab.transform, "Name");
 		typeValue = CreateInfoLine(layoutView.OverviewTab.transform, "Type");
@@ -154,7 +137,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		if (layoutView.DemolitionNoteText != null)
 			layoutView.DemolitionNoteText.text = "Demolition flow is not wired yet. Use the actions below only to mark intent.";
 
-		BuildSettingsSection();
+		BindSettingsSection();
 		layoutView.WorkScopeButton?.Configure("Cycle Work Scope", HandleWorkScopeButtonClicked);
 		layoutView.ZoneOpenControlsButton?.Configure("Open Zone Controls", HandleZoneControlsButtonClicked);
 		layoutView.PendingDemolitionButton?.Configure("Mark Pending Demolition", HandleMarkPendingDemolitionClicked);
@@ -213,25 +196,42 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 			return;
 
 		window.ClearTabs();
-		window.AddTab("Overview", SetTab);
-		window.AddTab("Facilities", SetTab);
-		window.AddTab("Policy", SetTab);
-		window.AddTab("Zones", SetTab);
-		window.AddTab("Settings", SetTab);
-		window.AddTab("Action", SetTab);
+		for (int i = 0; i < tabEntries.Count; i++)
+			window.AddTab(tabEntries[i].Label, SetTab);
+
 		window.UpdateTabVisuals(currentTabIndex);
 	}
 
 	private void SetTab(int tabIndex)
 	{
+		if (tabRoots.Count == 0)
+			return;
+
+		tabIndex = Mathf.Clamp(tabIndex, 0, tabRoots.Count - 1);
 		currentTabIndex = tabIndex;
 		for (int i = 0; i < tabRoots.Count; i++)
-			tabRoots[i].SetActive(i == tabIndex);
+			tabRoots[i]?.SetActive(i == tabIndex);
 
 		window?.UpdateTabVisuals(tabIndex);
 		RefreshFacilitiesSection();
 		RefreshZoneSection();
 		RefreshSettingsSection();
+	}
+
+	private void CollectTabEntries()
+	{
+		tabRoots.Clear();
+		tabEntries.Clear();
+		IReadOnlyList<WindowTabContentEntry> entries = layoutView.GetTabContents();
+		for (int i = 0; i < entries.Count; i++)
+		{
+			WindowTabContentEntry entry = entries[i];
+			if (entry.ContentRoot == null)
+				continue;
+
+			tabEntries.Add(entry);
+			tabRoots.Add(entry.ContentRoot);
+		}
 	}
 
 	private void RefreshAll()
@@ -265,51 +265,15 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		RefreshSettingsSection();
 	}
 
-	private void BuildSettingsSection()
+	private void BindSettingsSection()
 	{
-		if (settingsTabRoot == null)
+		if (layoutView == null)
 			return;
 
-		settingsStatusText = CreateInlineText("SettingsStatus", settingsTabRoot.transform, string.Empty, 20f, TextAlignmentOptions.Left);
-		settingsStatusText.textWrappingMode = TextWrappingModes.Normal;
-
-		GameObject overrideRow = new("OverrideThresholdRow", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-		overrideRow.transform.SetParent(settingsTabRoot.transform, false);
-
-		HorizontalLayoutGroup overrideLayout = overrideRow.GetComponent<HorizontalLayoutGroup>();
-		overrideLayout.spacing = 10f;
-		overrideLayout.childAlignment = TextAnchor.MiddleLeft;
-		overrideLayout.childControlWidth = false;
-		overrideLayout.childControlHeight = true;
-		overrideLayout.childForceExpandWidth = false;
-		overrideLayout.childForceExpandHeight = false;
-
-		LayoutElement overrideElement = overrideRow.GetComponent<LayoutElement>();
-		overrideElement.preferredHeight = 34f;
-
-		overrideThresholdToggle = CreateInlineToggle(overrideRow.transform);
-		TextMeshProUGUI overrideLabel = CreateInlineText("Label", overrideRow.transform, "Override Threshold", 20f, TextAlignmentOptions.MidlineLeft);
-		overrideLabel.gameObject.GetComponent<LayoutElement>().flexibleWidth = 1f;
-
-		GameObject thresholdRow = new("ThresholdRow", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-		thresholdRow.transform.SetParent(settingsTabRoot.transform, false);
-
-		HorizontalLayoutGroup thresholdLayout = thresholdRow.GetComponent<HorizontalLayoutGroup>();
-		thresholdLayout.spacing = 10f;
-		thresholdLayout.childAlignment = TextAnchor.MiddleLeft;
-		thresholdLayout.childControlWidth = false;
-		thresholdLayout.childControlHeight = true;
-		thresholdLayout.childForceExpandWidth = false;
-		thresholdLayout.childForceExpandHeight = false;
-
-		LayoutElement thresholdElement = thresholdRow.GetComponent<LayoutElement>();
-		thresholdElement.preferredHeight = 36f;
-
-		CreateInlineText("Label", thresholdRow.transform, "Threshold", 20f, TextAlignmentOptions.MidlineLeft)
-			.gameObject.GetComponent<LayoutElement>().preferredWidth = 116f;
-		thresholdSlider = CreateInlineSlider(thresholdRow.transform);
-		thresholdValueText = CreateInlineText("Value", thresholdRow.transform, "80%", 20f, TextAlignmentOptions.MidlineRight);
-		thresholdValueText.gameObject.GetComponent<LayoutElement>().preferredWidth = 64f;
+		settingsStatusText = layoutView.SettingsStatusText;
+		overrideThresholdToggle = layoutView.OverrideThresholdToggle;
+		thresholdSlider = layoutView.ThresholdSlider;
+		thresholdValueText = layoutView.ThresholdValueText;
 
 		if (overrideThresholdToggle != null)
 			overrideThresholdToggle.onValueChanged.AddListener(HandleOverrideThresholdChanged);
@@ -770,126 +734,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	private static bool SupportsCapsuleThreshold(Building building)
 	{
 		return building != null && (building.Type == BuildingType.Storage || building.Type == BuildingType.Packing);
-	}
-
-	private static GameObject CreateSettingsTabRoot(Transform parent)
-	{
-		GameObject root = new("SettingsTab", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
-		root.transform.SetParent(parent, false);
-
-		VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
-		layout.spacing = 8f;
-		layout.childAlignment = TextAnchor.UpperLeft;
-		layout.childControlWidth = true;
-		layout.childControlHeight = true;
-		layout.childForceExpandWidth = true;
-		layout.childForceExpandHeight = false;
-
-		LayoutElement element = root.GetComponent<LayoutElement>();
-		element.flexibleWidth = 1f;
-
-		RectTransform rect = root.GetComponent<RectTransform>();
-		rect.anchorMin = Vector2.zero;
-		rect.anchorMax = Vector2.one;
-		rect.offsetMin = Vector2.zero;
-		rect.offsetMax = Vector2.zero;
-		return root;
-	}
-
-	private static Toggle CreateInlineToggle(Transform parent)
-	{
-		GameObject toggleObject = new("Toggle", typeof(RectTransform), typeof(Image), typeof(Toggle), typeof(LayoutElement));
-		toggleObject.transform.SetParent(parent, false);
-
-		Image image = toggleObject.GetComponent<Image>();
-		image.color = new Color(0.12f, 0.12f, 0.12f, 0.95f);
-
-		LayoutElement layout = toggleObject.GetComponent<LayoutElement>();
-		layout.preferredWidth = 28f;
-		layout.preferredHeight = 28f;
-
-		Toggle toggle = toggleObject.GetComponent<Toggle>();
-		toggle.targetGraphic = image;
-
-		GameObject checkmarkObject = new("Checkmark", typeof(RectTransform), typeof(Image));
-		checkmarkObject.transform.SetParent(toggleObject.transform, false);
-		Image checkmark = checkmarkObject.GetComponent<Image>();
-		checkmark.color = new Color(0.35f, 0.82f, 0.48f, 1f);
-
-		RectTransform checkmarkRect = checkmarkObject.GetComponent<RectTransform>();
-		checkmarkRect.anchorMin = new Vector2(0.22f, 0.22f);
-		checkmarkRect.anchorMax = new Vector2(0.78f, 0.78f);
-		checkmarkRect.offsetMin = Vector2.zero;
-		checkmarkRect.offsetMax = Vector2.zero;
-
-		toggle.graphic = checkmark;
-		return toggle;
-	}
-
-	private static Slider CreateInlineSlider(Transform parent)
-	{
-		GameObject sliderObject = new("ThresholdSlider", typeof(RectTransform), typeof(Slider), typeof(LayoutElement));
-		sliderObject.transform.SetParent(parent, false);
-
-		LayoutElement layout = sliderObject.GetComponent<LayoutElement>();
-		layout.flexibleWidth = 1f;
-		layout.preferredHeight = 30f;
-
-		GameObject backgroundObject = new("Background", typeof(RectTransform), typeof(Image));
-		backgroundObject.transform.SetParent(sliderObject.transform, false);
-		Image background = backgroundObject.GetComponent<Image>();
-		background.color = new Color(0.12f, 0.12f, 0.12f, 0.95f);
-
-		RectTransform backgroundRect = backgroundObject.GetComponent<RectTransform>();
-		backgroundRect.anchorMin = new Vector2(0f, 0.35f);
-		backgroundRect.anchorMax = new Vector2(1f, 0.65f);
-		backgroundRect.offsetMin = Vector2.zero;
-		backgroundRect.offsetMax = Vector2.zero;
-
-		GameObject fillAreaObject = new("Fill Area", typeof(RectTransform));
-		fillAreaObject.transform.SetParent(sliderObject.transform, false);
-		RectTransform fillAreaRect = fillAreaObject.GetComponent<RectTransform>();
-		fillAreaRect.anchorMin = new Vector2(0f, 0.35f);
-		fillAreaRect.anchorMax = new Vector2(1f, 0.65f);
-		fillAreaRect.offsetMin = Vector2.zero;
-		fillAreaRect.offsetMax = Vector2.zero;
-
-		GameObject fillObject = new("Fill", typeof(RectTransform), typeof(Image));
-		fillObject.transform.SetParent(fillAreaObject.transform, false);
-		Image fill = fillObject.GetComponent<Image>();
-		fill.color = new Color(0.35f, 0.82f, 0.48f, 1f);
-
-		RectTransform fillRect = fillObject.GetComponent<RectTransform>();
-		fillRect.anchorMin = Vector2.zero;
-		fillRect.anchorMax = Vector2.one;
-		fillRect.offsetMin = Vector2.zero;
-		fillRect.offsetMax = Vector2.zero;
-
-		GameObject handleAreaObject = new("Handle Slide Area", typeof(RectTransform));
-		handleAreaObject.transform.SetParent(sliderObject.transform, false);
-		RectTransform handleAreaRect = handleAreaObject.GetComponent<RectTransform>();
-		handleAreaRect.anchorMin = Vector2.zero;
-		handleAreaRect.anchorMax = Vector2.one;
-		handleAreaRect.offsetMin = new Vector2(10f, 0f);
-		handleAreaRect.offsetMax = new Vector2(-10f, 0f);
-
-		GameObject handleObject = new("Handle", typeof(RectTransform), typeof(Image));
-		handleObject.transform.SetParent(handleAreaObject.transform, false);
-		Image handle = handleObject.GetComponent<Image>();
-		handle.color = Color.white;
-
-		RectTransform handleRect = handleObject.GetComponent<RectTransform>();
-		handleRect.sizeDelta = new Vector2(18f, 26f);
-
-		Slider slider = sliderObject.GetComponent<Slider>();
-		slider.minValue = 0f;
-		slider.maxValue = 100f;
-		slider.wholeNumbers = true;
-		slider.targetGraphic = handle;
-		slider.fillRect = fillRect;
-		slider.handleRect = handleRect;
-		slider.direction = Slider.Direction.LeftToRight;
-		return slider;
 	}
 
 	private static TextMeshProUGUI CreateInlineText(string objectName, Transform parent, string value, float fontSize, TextAlignmentOptions alignment)

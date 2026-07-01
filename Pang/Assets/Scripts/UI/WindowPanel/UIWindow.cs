@@ -10,6 +10,37 @@ using System;
 
 namespace Assets.Scripts.UI
 {
+	public enum WindowTabKind
+	{
+		Custom = 0,
+		Overview = 1,
+		Info = 2,
+		Facilities = 3,
+		Policy = 4,
+		Zones = 5,
+		Settings = 6,
+		Action = 7,
+	}
+
+	[Serializable]
+	public struct WindowTabContentEntry
+	{
+		[SerializeField] private WindowTabKind kind;
+		[SerializeField] private string label;
+		[SerializeField] private GameObject contentRoot;
+
+		public WindowTabKind Kind => kind;
+		public string Label => string.IsNullOrWhiteSpace(label) ? kind.ToString() : label;
+		public GameObject ContentRoot => contentRoot;
+
+		public WindowTabContentEntry(WindowTabKind kind, string label, GameObject contentRoot)
+		{
+			this.kind = kind;
+			this.label = label;
+			this.contentRoot = contentRoot;
+		}
+	}
+
 	public class UIWindow : MonoBehaviour
 	{
 		[SerializeField] TMPro.TextMeshProUGUI titleText;
