@@ -66,7 +66,9 @@ public sealed partial class BuildingFootprintService
 				savedBuilding != null ? savedBuilding.Type : BuildingType.Generic,
 				string.IsNullOrWhiteSpace(savedBuilding?.Name) ? $"Building {savedFootprint.RuntimeBuildingId}" : savedBuilding.Name,
 				savedBuilding != null ? savedBuilding.State : BuildingState.Active,
-				savedBuilding != null ? savedBuilding.WorkScope : BuildingWorkScope.HomeOnly);
+				savedBuilding != null ? savedBuilding.WorkScope : BuildingWorkScope.HomeOnly,
+				savedBuilding != null && savedBuilding.OverrideCapsuleThreshold,
+				savedBuilding != null ? savedBuilding.CapsuleThresholdPercent : 80.0f);
 
 			if (restoredBuilding == null)
 			{

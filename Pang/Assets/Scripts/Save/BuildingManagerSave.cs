@@ -24,6 +24,8 @@ public sealed partial class BuildingManager
 				Type = building.Type,
 				State = building.State,
 				WorkScope = building.WorkScope,
+				OverrideCapsuleThreshold = building.OverrideCapsuleThreshold,
+				CapsuleThresholdPercent = building.CapsuleThresholdPercent,
 				OutputBuildingIds = new List<uint>(building.OutputBuildingIds),
 			});
 		}

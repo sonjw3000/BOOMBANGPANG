@@ -227,7 +227,9 @@ public sealed partial class BuildingManager : MonoBehaviour
 		BuildingType buildingType,
 		string displayName,
 		BuildingState state,
-		BuildingWorkScope workScope)
+		BuildingWorkScope workScope,
+		bool overrideCapsuleThreshold,
+		float capsuleThresholdPercent)
 	{
 		if (ownedCells == null || ownedCells.Count <= 0)
 			return null;
@@ -236,6 +238,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 		building.AssignRuntimeBuildingId(runtimeBuildingId);
 		building.SetState(state);
 		building.SetWorkScope(workScope);
+		building.SetOverrideCapsuleThreshold(overrideCapsuleThreshold);
+		building.SetCapsuleThresholdPercent(capsuleThresholdPercent);
 		Register(building);
 
 		for (int i = 0; i < ownedCells.Count; ++i)

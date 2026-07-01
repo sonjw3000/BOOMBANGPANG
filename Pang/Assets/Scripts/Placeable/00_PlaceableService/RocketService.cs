@@ -180,7 +180,8 @@ public partial class RocketService : FacilityService<Rocket>
 
 	public void OnRocketLanding(Rocket rocket)
 	{
-		activeRockets.Add(rocket);
+		if (activeRockets.Contains(rocket) == false)
+			activeRockets.Add(rocket);
 
 		RocketLandingOutcome landingOutcome = BuildLandingOutcome(rocket.LandingPos);
 		rocket.SetLandingOutcome(in landingOutcome);
