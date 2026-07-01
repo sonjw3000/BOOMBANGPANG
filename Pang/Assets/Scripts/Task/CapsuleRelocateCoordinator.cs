@@ -115,7 +115,7 @@ public sealed class CapsuleRelocateCoordinator
 
 	public bool RequestSend(CapsuleRelocateSendRequest request)
 	{
-		if (IsSendSourceValid(request) == false)
+		if (IsSendSourceValid(request, checkReservation: false) == false)
 			return false;
 
 		if (TryFindReceiver(request, out CapsuleDock targetDock, out uint targetBuildingId))
@@ -130,7 +130,7 @@ public sealed class CapsuleRelocateCoordinator
 
 	public bool RequestDemand(CapsuleRelocateDemand demand)
 	{
-		if (IsDemandTargetValid(demand) == false)
+		if (IsDemandTargetValid(demand, checkReservation: false) == false)
 			return false;
 
 		if (TryFindSource(demand, out CapsuleDock sourceDock, out uint sourceBuildingId))
@@ -353,19 +353,19 @@ public sealed class CapsuleRelocateCoordinator
 		};
 	}
 
-	private bool IsSendSourceValid(CapsuleRelocateSendRequest request)
+	private bool IsSendSourceValid(CapsuleRelocateSendRequest request, bool checkReservation = true)
 	{
 		return request.SourceDock != null &&
-			reservedDocks.Contains(request.SourceDock) == false &&
+			(checkReservation == false || reservedDocks.Contains(request.SourceDock) == false) &&
 			request.SourceDock.DockState == request.RequiredSourceDockState &&
 			request.SourceDock.DockedCapsule?.LogisticsState == request.RequiredCapsuleState &&
 			request.SourceDock.CanGetBox();
 	}
 
-	private bool IsDemandTargetValid(CapsuleRelocateDemand demand)
+	private bool IsDemandTargetValid(CapsuleRelocateDemand demand, bool checkReservation = true)
 	{
 		return demand.TargetDock != null &&
-			reservedDocks.Contains(demand.TargetDock) == false &&
+			(checkReservation == false || reservedDocks.Contains(demand.TargetDock) == false) &&
 			demand.TargetDock.DockState == demand.RequiredTargetDockState &&
 			demand.TargetDock.CanPutBox();
 	}

@@ -421,14 +421,14 @@ public sealed class GameSaveService : MonoBehaviour
 		switch (taskData.TaskType)
 		{
 			case WorkerTask.TaskType.Unloading:
-				return taskData.Unloading?.Restore(restoredPlaceables);
+				return taskData.CapsuleTransfer?.Restore(restoredPlaceables) ?? taskData.Unloading?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.IB:
 			case WorkerTask.TaskType.CapsuleClear:
 			case WorkerTask.TaskType.CapsuleSupply:
 			case WorkerTask.TaskType.OB:
 				return taskData.CapsuleTransfer?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.CargoTransfer:
-				return taskData.CargoTransfer?.Restore(restoredPlaceables);
+				return taskData.CapsuleTransfer?.Restore(restoredPlaceables) ?? taskData.CargoTransfer?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Loading:
 				return taskData.Loading?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Picking:
@@ -569,10 +569,12 @@ public static class TaskSaveDataExtensions
 			: data.IsInbound ? WorkerTask.TaskType.IB : WorkerTask.TaskType.OB;
 		CapsuleRelocationReason reason = taskType switch
 		{
+			WorkerTask.TaskType.Unloading => CapsuleRelocationReason.SourceMustClear,
 			WorkerTask.TaskType.IB => CapsuleRelocationReason.SourceMustClear,
 			WorkerTask.TaskType.OB => CapsuleRelocationReason.DestinationNeedsCapsule,
 			WorkerTask.TaskType.CapsuleClear => CapsuleRelocationReason.StateMismatch,
 			WorkerTask.TaskType.CapsuleSupply => CapsuleRelocationReason.DestinationNeedsCapsule,
+			WorkerTask.TaskType.CargoTransfer => CapsuleRelocationReason.SourceMustClear,
 			_ => CapsuleRelocationReason.StateMismatch,
 		};
 		return new CapsuleRelocationTask(taskType, sourceDock, targetDock, data.BuildingId, reason);

@@ -204,6 +204,7 @@ public partial class RocketService : FacilityService<Rocket>
 
 		rocket.enabled = false;
 		rocket.ApplyLandingOutcome();
+		rocket.DockedCapsule?.SetLogisticsState(CapsuleLogisticsState.IB);
 		ReportCrashLanding(rocket, placementEvent);
 		InboundRocketLanded?.Invoke(rocket);
 	}

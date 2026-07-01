@@ -516,7 +516,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			TaskType.CargoTransfer,
 			sourcePort,
 			targetPort,
-			match.SourceBuildingId,
+			0,
 			CapsuleRelocationReason.SourceMustClear);
 		TaskMgr.EnqueueTask(task);
 		OnCargoTransferTaskBuilt(sourcePort, targetPort);

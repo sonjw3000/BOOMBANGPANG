@@ -405,7 +405,8 @@ public class Building
 
 		if (capsule.LogisticsState != CapsuleLogisticsState.IB)
 			capsule.SetLogisticsState(CapsuleLogisticsState.IB);
-		else if (capsule.Stacks.Count > 0)
+
+		if (capsule.Stacks.Count > 0)
 		{
 			pendingInboundPorts.Add(inboundPort);
 			TryEnqueueInboundTask(inboundPort);

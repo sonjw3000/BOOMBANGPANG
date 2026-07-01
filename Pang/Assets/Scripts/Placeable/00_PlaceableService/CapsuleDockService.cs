@@ -45,6 +45,10 @@ public sealed class CapsuleDockService : FacilityService<CapsuleDock>
 			buffer.OnDockStateChanged += HandleBufferDockStateChanged;
 
 		AddOrMoveDock(buildingId, facility);
+		if (facility.HasCapsule)
+			OnCapsuleDocked?.Invoke(buildingId, facility);
+		else
+			OnCapsuleUndocked?.Invoke(buildingId, facility);
 	}
 
 	protected override void OnUnregisterFacility(uint buildingId, CapsuleDock facility)

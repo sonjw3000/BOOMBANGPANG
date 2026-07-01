@@ -132,6 +132,8 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		if (RocketService != null)
 			RocketService.InboundRocketLanded += OnInboundRocketLanded;
+
+		TryEnqueueActiveRocketUnloadingTasks();
 	}
 
 	private void OnEnable()
@@ -315,6 +317,8 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		if (rocket == null || TaskMgr == null)
 			return;
 
+		rocket.DockedCapsule?.SetLogisticsState(CapsuleLogisticsState.IB);
+
 		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
 			rocket,
 			CapsuleDockState.InboundSource,
@@ -335,10 +339,24 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			Unloading,
 			match.SourceDock,
 			match.TargetDock,
-			match.TargetBuildingId,
+			0,
 			CapsuleRelocationReason.SourceMustClear);
 		TaskMgr.EnqueueTask(task);
 		return true;
+	}
+
+	private void TryEnqueueActiveRocketUnloadingTasks()
+	{
+		if (RocketService == null)
+			return;
+
+		IReadOnlyList<Rocket> rockets = RocketService.Rockets;
+		for (int i = 0; i < rockets.Count; ++i)
+		{
+			Rocket rocket = rockets[i];
+			if (rocket != null && rocket.State == Rocket.RocketState.OnPad)
+				TryEnqueueUnloadingTask(rocket);
+		}
 	}
 
 	private bool TryGetLandingPoint(out int3 landingPoint)
