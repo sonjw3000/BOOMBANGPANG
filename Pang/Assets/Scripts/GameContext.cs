@@ -97,6 +97,7 @@ public class GameContext : MonoBehaviour
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
 
 	private InteractionContext interactionCtx;
+	private bool eventsBound;
 
 	//public Resources MapResources => mapResources;
 	public bool GameCheat => gameCheat;
@@ -264,32 +265,82 @@ public class GameContext : MonoBehaviour
 	{
 		Application.runInBackground = true;
 
-		Debug.Log("GameGlobalContext Online!");
-		if (instance != null && instance != this)
-		{
-			Destroy(gameObject);
-			Debug.Log("WARNNING!! GameGlobalContext Duplicated");
+		if (BindInstance() == false)
 			return;
-		}
 
-		instance = this;
-		interactionCtx = new InteractionContext();
-		capsuleRelocateCoordinator = new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
-		_ = FloatingTextManager;
-		_ = SaveService;
-		_ = DemoGoalService;
+		EnsureRuntimeState();
 		//DontDestroyOnLoad(gameObject);
+	}
+
+	private void OnEnable()
+	{
+		if (BindInstance() == false)
+			return;
+
+		EnsureRuntimeState();
+		BindEvents();
 	}
 
 	private void Start()
 	{
-		AddEvent();
 		LoadMap();
+	}
+
+	private void OnDisable()
+	{
+		UnbindEvents();
 	}
 
 	private void OnDestroy()
 	{
+		UnbindEvents();
+		if (instance == this)
+			instance = null;
+	}
+
+	private bool BindInstance()
+	{
+		if (instance == this)
+			return true;
+
+		if (instance == null)
+		{
+			instance = this;
+			Debug.Log("GameGlobalContext Online!");
+			return true;
+		}
+
+		Debug.LogWarning("WARNNING!! GameGlobalContext Duplicated");
+		Destroy(gameObject);
+		return false;
+	}
+
+	private void EnsureRuntimeState()
+	{
+		deliveryService ??= new DeliveryService();
+		interactionCtx ??= new InteractionContext();
+		capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
+		_ = FloatingTextManager;
+		_ = SaveService;
+		_ = DemoGoalService;
+	}
+
+	private void BindEvents()
+	{
+		if (eventsBound)
+			return;
+
+		AddEvent();
+		eventsBound = true;
+	}
+
+	private void UnbindEvents()
+	{
+		if (eventsBound == false)
+			return;
+
 		RemoveEvent();
+		eventsBound = false;
 	}
 
 	private void LoadMap()
