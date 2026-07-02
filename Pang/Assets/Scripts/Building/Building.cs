@@ -537,30 +537,6 @@ public class Building
 		GetCapsulesByState(newState).Add(capsule);
 	}
 
-	private bool TryFindDockedCapsule(
-		CapsuleLogisticsState state,
-		System.Predicate<CargoCapsule> predicate,
-		out CargoCapsule capsule)
-	{
-		capsule = null;
-		if (capsulesByState.TryGetValue(state, out HashSet<CargoCapsule> capsules) == false)
-			return false;
-
-		foreach (CargoCapsule candidate in capsules)
-		{
-			if (candidate == null || candidate.CurrentBuffer == null)
-				continue;
-
-			if (predicate != null && predicate(candidate) == false)
-				continue;
-
-			capsule = candidate;
-			return true;
-		}
-
-		return false;
-	}
-
 	protected virtual void OnCapsuleBufferContentChanged(CapsuleBuffer capsuleBuffer)
 	{
 		if (capsuleBuffer?.DockedCapsule != null)
@@ -662,22 +638,6 @@ public class Building
 			CapsuleRelocateScope.SameBuilding,
 			RuntimeBuildingId,
 			onMatched: match => EnqueueCapsuleRelocationTask(match, WorkerTask.TaskType.IB, CapsuleRelocationReason.SourceMustClear)));
-	}
-
-	private static int3 ResolveInteractionOrigin(BoxInteraction interactionTarget, InteractionKind interactionKind)
-	{
-		if (interactionTarget == null)
-			return default;
-
-		if (interactionTarget.InteractionPointMap != null &&
-			interactionTarget.InteractionPointMap.ContainsKey(interactionKind) &&
-			interactionTarget.InteractionPointMap[interactionKind] != null &&
-			interactionTarget.InteractionPointMap[interactionKind].Count > 0)
-		{
-			return interactionTarget.GetClosestInteractionPoint(interactionKind, interactionTarget.GridPosition);
-		}
-
-		return interactionTarget.GridPosition;
 	}
 
 	private void TryEnqueuePendingInboundTasks()
@@ -821,11 +781,6 @@ public class Building
 		TaskManager.EnqueueTask(task);
 		OnCapsuleRelocationTaskBuilt(task);
 		return true;
-	}
-
-	internal bool CanBuildOutboundTaskRequest(CapsuleBuffer capsuleBuffer)
-	{
-		return capsuleBuffer != null && capsuleBuffer.CanDispatchToOutbound() && IsBufferOutboundReady(capsuleBuffer);
 	}
 
 	internal void OnCapsuleRelocationTaskBuilt(CapsuleRelocationTask task)
