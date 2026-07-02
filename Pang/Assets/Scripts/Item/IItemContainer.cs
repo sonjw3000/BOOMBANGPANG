@@ -97,7 +97,7 @@ public class ItemStack
 	}
 
 	public bool HasItemID(uint itemID) => this.itemID == itemID;
-	public bool HasStatus(ItemStatus target) => (status & target) == target;
+	public bool HasStatus(ItemStatus target) => status == target;
 
 	public void SetFreshness(byte freshness)
 	{
@@ -112,16 +112,6 @@ public class ItemStack
 	public void SetStatus(ItemStatus status)
 	{
 		this.status = status;
-	}
-
-	public void AddStatus(ItemStatus status)
-	{
-		this.status |= status;
-	}
-
-	public void RemoveStatus(ItemStatus status)
-	{
-		this.status &= ~status;
 	}
 
 	public void SetOutboundStage(PackageOutboundStage outboundStage)
@@ -250,12 +240,11 @@ public class ItemStack
 	}
 }
 
-[System.Flags]
 public enum ItemStatus
 {
 	None = 0,
-	Labeled = 1 << 0,
-	Packed = 1 << 1,
+	Labeled = 1,
+	Packed = 2,
 }
 
 public enum PackageOutboundStage
