@@ -28,6 +28,7 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 			: "Docked Capsule",
 		HasContainer = currentTarget?.DockedCapsule != null,
 		Items = ItemContainerDisplayUtility.BuildItemRows(currentTarget?.DockedCapsule),
+		ManifestItems = ItemContainerDisplayUtility.BuildManifestRows(currentTarget?.DockedCapsule),
 	};
 
 	public override void BuildInfoBlocks()

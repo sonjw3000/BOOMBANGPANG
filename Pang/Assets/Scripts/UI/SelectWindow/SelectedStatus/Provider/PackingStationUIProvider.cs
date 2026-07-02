@@ -41,6 +41,7 @@ public sealed class PackingStationUIProvider : UIProvider<PackingStation>
 			ContainerName = box != null ? $"{box.Type} Box #{box.BoxId}" : "None",
 			HasContainer = box != null,
 			Items = ItemContainerDisplayUtility.BuildItemRows(box),
+			ManifestItems = ItemContainerDisplayUtility.BuildManifestRows(box),
 		};
 	}
 

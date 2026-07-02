@@ -83,6 +83,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 			: "None",
 		HasContainer = currentTarget?.CarryingAbility?.CarryingBox != null,
 		Items = ItemContainerDisplayUtility.BuildItemRows(currentTarget?.CarryingAbility?.CarryingBox),
+		ManifestItems = ItemContainerDisplayUtility.BuildManifestRows(currentTarget?.CarryingAbility?.CarryingBox),
 	};
 
 	public override void BuildInfoBlocks()

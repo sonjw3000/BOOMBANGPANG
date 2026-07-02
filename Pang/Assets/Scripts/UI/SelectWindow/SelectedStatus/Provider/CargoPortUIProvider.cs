@@ -26,6 +26,7 @@ public class CargoPortUIProvider : UIProvider<CargoPort>, IShelfBaseUIProvider
 			: "Docked Capsule",
 		HasContainer = currentTarget?.DockedCapsule != null,
 		Items = ItemContainerDisplayUtility.BuildItemRows(currentTarget?.DockedCapsule),
+		ManifestItems = ItemContainerDisplayUtility.BuildManifestRows(currentTarget?.DockedCapsule),
 	};
 
 	public override void BuildInfoBlocks()
