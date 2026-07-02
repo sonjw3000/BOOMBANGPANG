@@ -156,6 +156,19 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	public int TransferPickingManifest(BoxBase from, BoxBase to, uint itemId, int quantity)
 	{
+		return TransferPickingManifest(from, to, itemId, quantity, false);
+	}
+
+	public int TransferPickingManifest(BoxBase from, BoxBase to, ItemStack stack)
+	{
+		if (stack == null)
+			return 0;
+
+		return TransferPickingManifest(from, to, stack.ItemID, stack.Quantity, stack.HasStatus(ItemStatus.Packed));
+	}
+
+	public int TransferPickingManifest(BoxBase from, BoxBase to, uint itemId, int quantity, bool packed)
+	{
 		if (from == null || to == null || from.BoxId == to.BoxId || quantity <= 0)
 			return 0;
 
@@ -172,15 +185,23 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		for (int i = 0; i < snapshot.Count && remaining > 0; ++i)
 		{
 			PickingManifestLine line = snapshot[i];
-			if (line == null || line.ItemId != itemId || line.PackableQuantity <= 0 || line.OrderLine == null)
+			if (line == null || line.ItemId != itemId || line.OrderLine == null)
 				continue;
 
-			int requested = Mathf.Min(remaining, line.PackableQuantity);
-			int moved = sourceManifest.RemovePicked(line.OrderLine, itemId, requested);
+			int available = packed ? line.PackedQuantity : line.PackableQuantity;
+			if (available <= 0)
+				continue;
+
+			int requested = Mathf.Min(remaining, available);
+			int moved = packed
+				? sourceManifest.RemovePacked(line.OrderLine, itemId, requested)
+				: sourceManifest.RemovePicked(line.OrderLine, itemId, requested);
 			if (moved <= 0)
 				continue;
 
-			int added = targetManifest.AddPicked(line.OrderLine, itemId, moved);
+			int added = packed
+				? targetManifest.AddPacked(line.OrderLine, itemId, moved)
+				: targetManifest.AddPicked(line.OrderLine, itemId, moved);
 			if (added != moved)
 				Debug.LogWarning($"[OutboundWorkflowService] Picking manifest transfer mismatch. item={itemId}, moved={moved}, added={added}");
 

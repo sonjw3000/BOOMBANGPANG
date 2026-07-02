@@ -31,11 +31,27 @@ public sealed class PickingManifestLine
 		return actual;
 	}
 
+	public int AddPacked(int quantity)
+	{
+		int actual = Mathf.Max(0, quantity);
+		PickedQuantity += actual;
+		PackedQuantity += actual;
+		return actual;
+	}
+
 	public int RemovePicked(int quantity)
 	{
 		int actual = Mathf.Clamp(quantity, 0, PackableQuantity);
 		PickedQuantity -= actual;
 		PackedQuantity = Mathf.Min(PackedQuantity, PickedQuantity);
+		return actual;
+	}
+
+	public int RemovePacked(int quantity)
+	{
+		int actual = Mathf.Clamp(quantity, 0, PackedQuantity);
+		PickedQuantity -= actual;
+		PackedQuantity -= actual;
 		return actual;
 	}
 
@@ -116,6 +132,14 @@ public sealed class PickingManifest
 		return GetOrCreateLine(orderLine, itemId).AddPicked(quantity);
 	}
 
+	public int AddPacked(OrderLine orderLine, uint itemId, int quantity)
+	{
+		if (orderLine == null || quantity <= 0)
+			return 0;
+
+		return GetOrCreateLine(orderLine, itemId).AddPacked(quantity);
+	}
+
 	public int RemovePicked(OrderLine orderLine, uint itemId, int quantity)
 	{
 		PickingManifestLine line = FindLine(orderLine, itemId);
@@ -123,6 +147,17 @@ public sealed class PickingManifest
 			return 0;
 
 		int removed = line.RemovePicked(quantity);
+		RemoveLineIfEmpty(line);
+		return removed;
+	}
+
+	public int RemovePacked(OrderLine orderLine, uint itemId, int quantity)
+	{
+		PickingManifestLine line = FindLine(orderLine, itemId);
+		if (line == null)
+			return 0;
+
+		int removed = line.RemovePacked(quantity);
 		RemoveLineIfEmpty(line);
 		return removed;
 	}

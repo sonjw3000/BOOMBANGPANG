@@ -352,7 +352,7 @@ public partial class WaterTask : WorkerTask
 		if (sourceBox == null || targetBox == null || sourceBox.BoxId == targetBox.BoxId)
 			return;
 
-		GameContext.Instance.OBWorkflowSvc?.TransferPickingManifest(sourceBox, targetBox, movedStack.ItemID, movedStack.Quantity);
+		GameContext.Instance.OBWorkflowSvc?.TransferPickingManifest(sourceBox, targetBox, movedStack);
 	}
 
 	private static BoxBase ResolveManifestBox(IInteractionPoint interactionPoint)
