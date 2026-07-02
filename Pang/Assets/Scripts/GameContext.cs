@@ -66,7 +66,6 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private AirlockService airlockService;
 	[SerializeField] private BuildingManager buildingManager;
 	[SerializeField] private BuildingFootprintService buildingFootprintService;
-	[SerializeField] private WorkerStandbyService workerStandbyService;
 	[SerializeField] private TrafficCoordinator trafficCoordinator;
 
 	[Header("Workflow Managers")]
@@ -190,14 +189,6 @@ public class GameContext : MonoBehaviour
 			return ResolveManager(ref buildingFootprintService, nameof(BuildingFootprintService));
 		}
 	}
-	public WorkerStandbyService WorkerStandbyService
-	{
-		get
-		{
-			return ResolveManager(ref workerStandbyService, nameof(WorkerStandbyService));
-		}
-	}
-
 	public InboundWorkflowService IBWorkflowSvc => inboundWorkflowService;
 	public OutboundWorkflowService OBWorkflowSvc => outboundWorkflowService;
 

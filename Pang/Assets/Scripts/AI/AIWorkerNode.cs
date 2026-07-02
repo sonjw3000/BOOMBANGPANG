@@ -10,10 +10,8 @@ public abstract partial class AIWorker
 	static private WMSystem WMSys => GameContext.Instance.WMSys;
 	static private WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
 	static private HumanIncidentService HumanIncident => GameContext.Instance.HumanIncident;
-	static private WorkerStandbyService StandbyService => GameContext.Instance.WorkerStandbyService;
 	static private AirlockService AirlockService => GameContext.Instance.AirlockSvc;
 	private static readonly string RecoveryGoalKey = "RecoveryGoalPos";
-	private static readonly string StandbyGoalKey = "StandbyGoalPos";
 	private static readonly string TransitAirlockKey = "TransitAirlock";
 	private static readonly string TransitDirectionKey = "TransitDirection";
 	private static readonly string TransitStartedKey = "TransitStarted";
@@ -32,8 +30,7 @@ public abstract partial class AIWorker
 	protected static SequenceNode BuildStandbyNode()
 	{
 		SequenceNode root = new();
-		root.Add(new ActionNode(CheckStandbyNeeded));
-		root.Add(MoveToStandbyPoint());
+		root.Add(new ActionNode(CheckIdleNeeded));
 
 		return root;
 	}
@@ -506,14 +503,6 @@ public abstract partial class AIWorker
 
 	public static NodeState MoveToStandbyWhileWaiting(in BTContext ctx)
 	{
-		// Current behavior keeps the task alive and re-evaluates it after standby movement.
-		// Future: waiting managers should disable workers here and re-enable them when the target/resource becomes available.
-		if (StandbyService.TryFindStandbyPoint(ctx.Worker, out var standbyPoint) == StandbyPointResult.Success)
-		{
-			ctx.Worker.routeFinder.enabled = true;
-			ctx.Worker.routeFinder.SetGoalPosition(standbyPoint);
-		}
-
 		return Running;
 	}
 
@@ -530,31 +519,6 @@ public abstract partial class AIWorker
 			return Success;
 		}));
 		node.Add(new ActionNode(MoveTo));
-
-		return node;
-	}
-
-	private static SequenceNode MoveToStandbyPoint()
-	{
-		SequenceNode node = new();
-		node.Add(new ActionNode((in BTContext ctx) =>
-		{
-			if (ctx.LocalBlackBoard.TryGet(StandbyGoalKey, out int3 goalPos) == false)
-				return Failure;
-
-			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.StandbyZone);
-			ctx.Worker.routeFinder.enabled = true;
-			ctx.Worker.routeFinder.SetGoalPosition(goalPos);
-			return Success;
-		}));
-		node.Add(new ActionNode(MoveTo));
-		node.Add(new ActionNode((in BTContext ctx) =>
-		{
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.Idle);
-			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.StandbyZone);
-			ctx.LocalBlackBoard.Remove<int3>(StandbyGoalKey);
-			return Success;
-		}));
 
 		return node;
 	}
@@ -624,7 +588,7 @@ public abstract partial class AIWorker
 		return Success;
 	}
 
-	protected static NodeState CheckStandbyNeeded(in BTContext ctx)
+	protected static NodeState CheckIdleNeeded(in BTContext ctx)
 	{
 		if (ctx.Worker.CurrentTask != null)
 			return Failure;
@@ -632,22 +596,9 @@ public abstract partial class AIWorker
 		if (ctx.Worker.NeedsRecovery())
 			return Failure;
 
-		switch (StandbyService.TryFindStandbyPoint(ctx.Worker, out var standbyPoint))
-		{
-			case StandbyPointResult.Success:
-				ctx.LocalBlackBoard.Set(StandbyGoalKey, standbyPoint);
-				return Success;
-
-			case StandbyPointResult.NoZone:
-			case StandbyPointResult.NoAvailablePoint:
-				// todo worker를 off 후 대기시켜야함
-				ctx.Worker.SetWorkerTarget(WorkerStatusTarget.StandbyZone);
-				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-				return Running;
-
-			default:
-				return Failure;
-		}
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.None);
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.Idle);
+		return Running;
 	}
 
 	protected static NodeState Recover(in BTContext ctx)

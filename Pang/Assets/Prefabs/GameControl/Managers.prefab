@@ -771,7 +771,6 @@ Transform:
   - {fileID: 6514783859517015416}
   - {fileID: 8739494435866360622}
   - {fileID: 680594122109259380}
-  - {fileID: 6328270314332023916}
   - {fileID: 9151795679117194415}
   - {fileID: 979344057121546758}
   - {fileID: 7513515590255915669}
@@ -813,7 +812,6 @@ MonoBehaviour:
   airlockService: {fileID: 6100386177182458250}
   buildingManager: {fileID: 7596847546117217656}
   buildingFootprintService: {fileID: 3372337595302751063}
-  workerStandbyService: {fileID: 7104810535665933712}
   trafficCoordinator: {fileID: 9128034459082980668}
   inboundWorkflowService: {fileID: 2554155626171990247}
   outboundWorkflowService: {fileID: 5775960916622381912}
@@ -2084,50 +2082,6 @@ Transform:
   - {fileID: 2459041918844199633}
   m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &7525880423726861604
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 6328270314332023916}
-  - component: {fileID: 7104810535665933712}
-  m_Layer: 0
-  m_Name: WorkerStandbyService
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &6328270314332023916
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7525880423726861604}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 4930837203190484080}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7104810535665933712
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7525880423726861604}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e49839d9be628490081dc35fbfeb8791, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WorkerStandbyService
 --- !u!1 &7606174192997489002
 GameObject:
   m_ObjectHideFlags: 0
