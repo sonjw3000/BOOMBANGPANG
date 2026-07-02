@@ -27,59 +27,18 @@ public sealed class ItemTransferCollectedLine
 	}
 }
 
-public interface IItemTransferPlan
+public interface IItemTransferPlanner
 {
 	WorkPlanResult TryGetCollectLine(AIWorker worker, uint buildingId, out WorkLine line);
-	ItemTransferResult Collect(AIWorker worker, WorkLine line);
-	WorkPlanResult OnCollectLineCompleted(AIWorker worker, WorkLine line, ItemTransferResult result);
+	WorkPlanResult OnCollectCompleted(AIWorker worker, WorkLine line, ItemTransferResult result);
 
 	WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine collectedLine, int remainingQuantity, out WorkLine line);
-	ItemTransferResult Place(AIWorker worker, WorkLine collectedLine, WorkLine placeLine);
-	WorkPlanResult OnPlaceLineCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result);
-
-	WorkerStatusTarget GetWaitingTarget(ItemTransferPhase phase);
-}
-
-public abstract class ItemTransferPlanBase : IItemTransferPlan
-{
-	public abstract WorkPlanResult TryGetCollectLine(AIWorker worker, uint buildingId, out WorkLine line);
-	public abstract WorkPlanResult OnCollectLineCompleted(AIWorker worker, WorkLine line, ItemTransferResult result);
-	public abstract WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine collectedLine, int remainingQuantity, out WorkLine line);
-	public abstract WorkPlanResult OnPlaceLineCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result);
-
-	public virtual ItemTransferResult Collect(AIWorker worker, WorkLine line)
-	{
-		return MoveLine(worker, line?.Container, line);
-	}
-
-	public virtual ItemTransferResult Place(AIWorker worker, WorkLine collectedLine, WorkLine placeLine)
-	{
-		return MoveLine(worker, worker?.CarryingAbility?.CarryingBox, placeLine);
-	}
-
-	public virtual WorkerStatusTarget GetWaitingTarget(ItemTransferPhase phase)
-	{
-		return WorkerStatusTarget.WorkTarget;
-	}
-
-	protected static ItemTransferResult MoveLine(AIWorker worker, IItemContainer from, WorkLine line)
-	{
-		BoxBase box = worker?.CarryingAbility?.CarryingBox;
-		if (line == null || from == null || box == null || line.Quantity <= 0)
-			return new(new ItemTransferPayload(from, box, line != null ? line.ItemID : 0, 0), 0);
-
-		IItemContainer to = ReferenceEquals(from, box) ? line.Container : box;
-		int remainingQuantity = line.Quantity - line.CompleteQuantity;
-		if (to == null || remainingQuantity <= 0)
-			return new(new ItemTransferPayload(from, to, line.ItemID, remainingQuantity), 0);
-
-		return ItemTransferUtility.MoveItem(new(from, to, line.ItemID, remainingQuantity));
-	}
+	WorkPlanResult OnPlaceCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result);
 }
 
 public sealed class ItemTransferTask : WorkerTask
 {
-	private readonly IItemTransferPlan plan;
+	private readonly IItemTransferPlanner planner;
 	private readonly uint buildingId;
 	private readonly List<ItemTransferCollectedLine> collectedLines = new();
 
@@ -93,9 +52,9 @@ public sealed class ItemTransferTask : WorkerTask
 	public WorkLine CurrentLine => currentLine;
 	public IReadOnlyList<ItemTransferCollectedLine> CollectedLines => collectedLines;
 
-	public ItemTransferTask(TaskType taskType, IItemTransferPlan plan, uint buildingId = 0) : base(taskType)
+	public ItemTransferTask(TaskType taskType, IItemTransferPlanner planner, uint buildingId = 0) : base(taskType)
 	{
-		this.plan = plan;
+		this.planner = planner;
 		this.buildingId = buildingId;
 
 		if (IsSupportedTaskType(taskType) == false)
@@ -171,12 +130,12 @@ public sealed class ItemTransferTask : WorkerTask
 	public static NodeState SetCollectingPosition(in BTContext ctx)
 	{
 		ItemTransferTask task = ctx.Worker.CurrentTask as ItemTransferTask;
-		if (task == null || task.plan == null)
+		if (task == null || task.planner == null)
 			return Failure;
 
 		if (task.currentLine == null)
 		{
-			WorkPlanResult result = task.plan.TryGetCollectLine(ctx.Worker, task.buildingId, out WorkLine nextLine);
+			WorkPlanResult result = task.planner.TryGetCollectLine(ctx.Worker, task.buildingId, out WorkLine nextLine);
 			if (result == WorkPlanResult.Issued)
 			{
 				if (nextLine == null || nextLine.Action != WorkLineAction.Pick || nextLine.Target == null)
@@ -200,11 +159,11 @@ public sealed class ItemTransferTask : WorkerTask
 	public static NodeState CollectItems(in BTContext ctx)
 	{
 		ItemTransferTask task = ctx.Worker.CurrentTask as ItemTransferTask;
-		if (task == null || task.plan == null || task.currentLine == null)
+		if (task == null || task.planner == null || task.currentLine == null)
 			return Failure;
 
 		WorkLine line = task.currentLine;
-		ItemTransferResult result = task.plan.Collect(ctx.Worker, line);
+		ItemTransferResult result = MoveCollectLine(ctx.Worker, line);
 		if (result.Moved > 0)
 		{
 			WorkLine collectedLine = CopyLineWithQuantity(line, result.Moved);
@@ -214,14 +173,14 @@ public sealed class ItemTransferTask : WorkerTask
 		line.CompleteQuantity += result.Moved;
 		task.currentLine = null;
 
-		WorkPlanResult next = task.plan.OnCollectLineCompleted(ctx.Worker, line, result);
+		WorkPlanResult next = task.planner.OnCollectCompleted(ctx.Worker, line, result);
 		return task.ApplyPlanResult(ctx, next);
 	}
 
 	public static NodeState SetPlacingPosition(in BTContext ctx)
 	{
 		ItemTransferTask task = ctx.Worker.CurrentTask as ItemTransferTask;
-		if (task == null || task.plan == null)
+		if (task == null || task.planner == null)
 			return Failure;
 
 		if (task.currentLine == null)
@@ -229,7 +188,7 @@ public sealed class ItemTransferTask : WorkerTask
 			if (task.TryGetCurrentCollectedLine(out ItemTransferCollectedLine collectedLine) == false)
 				return task.ApplyPlanResult(ctx, WorkPlanResult.Completed);
 
-			WorkPlanResult result = task.plan.TryGetPlaceLine(
+			WorkPlanResult result = task.planner.TryGetPlaceLine(
 				ctx.Worker,
 				task.buildingId,
 				collectedLine.CollectLine,
@@ -263,14 +222,14 @@ public sealed class ItemTransferTask : WorkerTask
 	public static NodeState PlaceItems(in BTContext ctx)
 	{
 		ItemTransferTask task = ctx.Worker.CurrentTask as ItemTransferTask;
-		if (task == null || task.plan == null || task.currentLine == null)
+		if (task == null || task.planner == null || task.currentLine == null)
 			return Failure;
 
 		if (task.TryGetCurrentCollectedLine(out ItemTransferCollectedLine collectedLine) == false)
 			return task.ApplyPlanResult(ctx, WorkPlanResult.Completed);
 
 		WorkLine placeLine = task.currentLine;
-		ItemTransferResult result = task.plan.Place(ctx.Worker, collectedLine.CollectLine, placeLine);
+		ItemTransferResult result = MovePlaceLine(ctx.Worker, placeLine);
 		placeLine.CompleteQuantity += result.Moved;
 		collectedLine.ReportPlaced(result.Moved);
 
@@ -278,7 +237,7 @@ public sealed class ItemTransferTask : WorkerTask
 		if (collectedLine.IsPlaceComplete)
 			task.placingLineIndex += 1;
 
-		WorkPlanResult next = task.plan.OnPlaceLineCompleted(ctx.Worker, collectedLine.CollectLine, placeLine, result);
+		WorkPlanResult next = task.planner.OnPlaceCompleted(ctx.Worker, collectedLine.CollectLine, placeLine, result);
 		return task.ApplyPlanResult(ctx, next);
 	}
 
@@ -308,9 +267,40 @@ public sealed class ItemTransferTask : WorkerTask
 			case WorkPlanResult.Waiting:
 			default:
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-				ctx.Worker.SetWorkerTarget(plan?.GetWaitingTarget(phase) ?? WorkerStatusTarget.WorkTarget);
+				ctx.Worker.SetWorkerTarget(WorkerStatusTarget.WorkTarget);
 				return AIWorker.MoveToStandbyWhileWaiting(ctx);
 		}
+	}
+
+	private static ItemTransferResult MoveCollectLine(AIWorker worker, WorkLine line)
+	{
+		BoxBase box = worker?.CarryingAbility?.CarryingBox;
+		if (line == null || line.Container == null || box == null || line.Quantity <= 0)
+			return new(new ItemTransferPayload(line?.Container, box, line != null ? line.ItemID : 0, 0), 0);
+
+		int remainingQuantity = line.Quantity - line.CompleteQuantity;
+		if (remainingQuantity <= 0)
+			return new(new ItemTransferPayload(line.Container, box, line.ItemID, remainingQuantity), 0);
+
+		return ItemTransferUtility.MoveItem(new(
+			line.Container,
+			box,
+			line.ItemID,
+			remainingQuantity,
+			consumeSourcePickReservation: line.Container is ShelfBase));
+	}
+
+	private static ItemTransferResult MovePlaceLine(AIWorker worker, WorkLine line)
+	{
+		BoxBase box = worker?.CarryingAbility?.CarryingBox;
+		if (line == null || line.Container == null || box == null || line.Quantity <= 0)
+			return new(new ItemTransferPayload(box, line?.Container, line != null ? line.ItemID : 0, 0), 0);
+
+		int remainingQuantity = line.Quantity - line.CompleteQuantity;
+		if (remainingQuantity <= 0)
+			return new(new ItemTransferPayload(box, line.Container, line.ItemID, remainingQuantity), 0);
+
+		return ItemTransferUtility.MoveItem(new(box, line.Container, line.ItemID, remainingQuantity));
 	}
 
 	private void SwitchPhase()
