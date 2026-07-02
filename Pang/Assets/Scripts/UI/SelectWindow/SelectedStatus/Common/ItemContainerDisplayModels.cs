@@ -23,7 +23,7 @@ public sealed class ManifestContainerItemDisplayInfo
 	public string ItemName { get; set; }
 	public string InBoxQuantity { get; set; }
 	public string OrderProgress { get; set; }
-	public int WeeksLeft { get; set; }
+	public string WeeksLeft { get; set; }
 }
 
 public static class ItemContainerDisplayUtility
@@ -68,6 +68,7 @@ public static class ItemContainerDisplayUtility
 
 			int pickedWaiting = System.Math.Max(0, orderLine.PickingCompletedQuantity - orderLine.PackagingCompletedQuantity);
 			int packed = orderLine.PackagingCompletedQuantity;
+			int weeksLeft = orderLine.DueWeek - currentWeek;
 			rows.Add(new ManifestContainerItemDisplayInfo
 			{
 				OrderId = $"#{orderLine.ParentOrder?.OrderID ?? 0}",
@@ -75,12 +76,27 @@ public static class ItemContainerDisplayUtility
 				InBoxQuantity = line.PackableQuantity > 0
 					? $"{line.PackableQuantity} picked"
 					: $"{line.PackedQuantity} packed",
-				OrderProgress = $"Pick {pickedWaiting} / Pack {packed} / {orderLine.Quantity}",
-				WeeksLeft = System.Math.Max(0, orderLine.DueWeek - currentWeek),
+				OrderProgress = BuildOrderProgressText(pickedWaiting, packed, orderLine.Quantity),
+				WeeksLeft = weeksLeft < 0 ? "Delayed" : weeksLeft.ToString(),
 			});
 		}
 
 		return rows;
+	}
+
+	private static string BuildOrderProgressText(int pickedWaiting, int packed, int total)
+	{
+		List<string> parts = new();
+		if (pickedWaiting > 0)
+			parts.Add($"Pick {pickedWaiting}");
+		if (packed > 0)
+			parts.Add($"Pack {packed}");
+
+		if (parts.Count == 0)
+			parts.Add("0");
+
+		parts.Add(total.ToString());
+		return string.Join(" / ", parts);
 	}
 
 	private static string ResolveItemName(uint itemId)

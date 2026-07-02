@@ -18,8 +18,8 @@ public class ManifestContainerItemRowView : MonoBehaviour
 		orderIdText.text = itemInfo?.OrderId ?? "#0";
 		itemNameText.text = itemInfo?.ItemName ?? "Unknown Item";
 		inBoxText.text = itemInfo?.InBoxQuantity ?? "0 picked";
-		orderProgressText.text = itemInfo?.OrderProgress ?? "Pick 0 / Pack 0 / 0";
-		weeksLeftText.text = itemInfo != null ? itemInfo.WeeksLeft.ToString() : "0";
+		orderProgressText.text = itemInfo?.OrderProgress ?? "0 / 0";
+		weeksLeftText.text = itemInfo?.WeeksLeft ?? "0";
 		SetFontStyle(FontStyles.Normal);
 	}
 

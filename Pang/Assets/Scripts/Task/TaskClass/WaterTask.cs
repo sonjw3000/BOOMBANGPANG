@@ -285,7 +285,12 @@ public partial class WaterTask : WorkerTask
 				return Failure;
 			}
 
-			TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(task.WorkerCarryBox.CarryingBox, toContainer));
+			BoxBase sourceBox = task.WorkerCarryBox.CarryingBox;
+			BoxBase targetBox = ResolveManifestBox(task.to?.target);
+			TransferResultKind result = ItemTransferUtility.MoveAllStacks(new(
+				sourceBox,
+				toContainer,
+				movedStack => TransferPickingManifest(sourceBox, targetBox, movedStack)));
 			if (result == TransferResultKind.None)
 				return Failure;
 			if (result == TransferResultKind.Partial)
@@ -336,6 +341,14 @@ public partial class WaterTask : WorkerTask
 
 		BoxBase sourceBox = ResolveManifestBox(task.from?.target);
 		BoxBase targetBox = task.WorkerCarryBox?.CarryingBox;
+		TransferPickingManifest(sourceBox, targetBox, movedStack);
+	}
+
+	private static void TransferPickingManifest(BoxBase sourceBox, BoxBase targetBox, ItemStack movedStack)
+	{
+		if (movedStack == null || movedStack.Quantity <= 0 || GameContext.HasInstance == false)
+			return;
+
 		if (sourceBox == null || targetBox == null || sourceBox.BoxId == targetBox.BoxId)
 			return;
 
