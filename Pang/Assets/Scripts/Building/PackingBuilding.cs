@@ -26,7 +26,15 @@ public sealed class PackingBuilding : Building
 		return capsuleBuffer.FilledPercent >= threshold;
 	}
 
-	protected override void TryEvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
+	protected override void OnIBDockDocked(CapsuleDock dock, CargoCapsule capsule)
+	{
+		base.OnIBDockDocked(dock, capsule);
+
+		if (dock is CapsuleBuffer capsuleBuffer)
+			EvaluatePackingIngress(capsuleBuffer);
+	}
+
+	private void EvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
 	{
 		TaskManager taskManager = GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 		if (taskManager == null || capsuleBuffer == null)
@@ -41,7 +49,7 @@ public sealed class PackingBuilding : Building
 		taskManager.EnqueueTaskBuildRequest(new WaterTaskBuildRequest(capsuleBuffer, RuntimeBuildingId));
 	}
 
-	internal override bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
+	internal bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
 	{
 		return capsuleBuffer != null &&
 			capsuleBuffer.CanProvideInboundItems() &&
@@ -50,7 +58,7 @@ public sealed class PackingBuilding : Building
 			GameContext.Instance.OBWorkflowSvc.HasPackableManifest(capsuleBuffer.DockedCapsule);
 	}
 
-	internal override bool CanBuildWaterTaskRequest(PackingStation packingStation)
+	internal bool CanBuildWaterTaskRequest(PackingStation packingStation)
 	{
 		return packingStation != null && packingStation.EndPackingBox != null;
 	}

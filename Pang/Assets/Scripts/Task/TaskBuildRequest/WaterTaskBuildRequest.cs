@@ -43,7 +43,8 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WaterTask>
 	private bool TryBuildFromBuffer(Building building, CapsuleBuffer sourceBuffer, out WaterTask task)
 	{
 		task = null;
-		if (building.CanBuildWaterTaskRequest(sourceBuffer) == false)
+		if (building is not PackingBuilding packingBuilding ||
+			packingBuilding.CanBuildWaterTaskRequest(sourceBuffer) == false)
 			return false;
 
 		PackingStationService packingStationService = Ctx?.OBWorkflowSvc?.PackingStationService;
@@ -59,7 +60,8 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WaterTask>
 	private bool TryBuildFromStation(Building building, PackingStation sourceStation, out WaterTask task)
 	{
 		task = null;
-		if (building.CanBuildWaterTaskRequest(sourceStation) == false)
+		if (building is not PackingBuilding packingBuilding ||
+			packingBuilding.CanBuildWaterTaskRequest(sourceStation) == false)
 			return false;
 
 		PackingStationService packingStationService = Ctx?.OBWorkflowSvc?.PackingStationService;

@@ -382,13 +382,6 @@ public class Building
 		}
 
 		OnCapsuleStateChanged(capsule);
-
-		if (dock is CapsuleBuffer capsuleBuffer)
-		{
-			RemoveQueuedInboundTarget(capsuleBuffer);
-			queuedBufferRelocationTargets.Remove(capsuleBuffer);
-			TryEvaluatePackingIngress(capsuleBuffer);
-		}
 	}
 
 	protected virtual void OnIBStandbyDockDocked(CapsuleDock dock, CargoCapsule capsule)
@@ -418,6 +411,8 @@ public class Building
 		if (dock is not CapsuleBuffer buffer || capsule == null || buffer.IsCapsuleEmpty())
 			return;
 
+		RemoveQueuedInboundTarget(buffer);
+
 		if (capsule.LogisticsState != CapsuleLogisticsState.IB)
 			capsule.SetLogisticsState(CapsuleLogisticsState.IB);
 	}
@@ -427,6 +422,9 @@ public class Building
 		if (capsule == null)
 			return;
 
+		if (dock is CapsuleBuffer buffer)
+			queuedBufferRelocationTargets.Remove(buffer);
+
 		if (capsule.LogisticsState != CapsuleLogisticsState.Empty)
 			capsule.SetLogisticsState(CapsuleLogisticsState.Empty);
 	}
@@ -435,6 +433,9 @@ public class Building
 	{
 		if (capsule == null)
 			return;
+
+		if (dock is CapsuleBuffer buffer)
+			queuedBufferRelocationTargets.Remove(buffer);
 
 		if (capsule.LogisticsState == CapsuleLogisticsState.Empty)
 			capsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
@@ -477,7 +478,6 @@ public class Building
 
 				if (capsuleBuffer.DockState == CapsuleDockState.OBStandby && capsuleBuffer.CanPutBox())
 					TryRequestEmptyCapsuleForDock(capsuleBuffer);
-				TryEvaluatePackingIngress(capsuleBuffer);
 				break;
 		}
 	}
@@ -583,8 +583,6 @@ public class Building
 			else if (capsule.LogisticsState == CapsuleLogisticsState.OBStandby && IsBufferOutboundReady(capsuleBuffer))
 				OnCapsuleOverThreshold(capsuleBuffer);
 		}
-
-		TryEvaluatePackingIngress(capsuleBuffer);
 	}
 
 	protected virtual void OnCapsuleDockStateChanged(CapsuleBuffer capsuleBuffer)
@@ -600,8 +598,6 @@ public class Building
 
 		if (capsuleBuffer.DockState == CapsuleDockState.OBStandby && capsuleBuffer.CanPutBox())
 			TryRequestEmptyCapsuleForDock(capsuleBuffer);
-
-		TryEvaluatePackingIngress(capsuleBuffer);
 	}
 
 	protected virtual void OnCapsuleEmpty(CapsuleBuffer capsuleBuffer)
@@ -895,23 +891,9 @@ public class Building
 		return true;
 	}
 
-	protected virtual void TryEvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
-	{
-	}
-
 	internal bool CanBuildOutboundTaskRequest(CapsuleBuffer capsuleBuffer)
 	{
 		return capsuleBuffer != null && capsuleBuffer.CanDispatchToOutbound() && IsBufferOutboundReady(capsuleBuffer);
-	}
-
-	internal virtual bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
-	{
-		return false;
-	}
-
-	internal virtual bool CanBuildWaterTaskRequest(PackingStation packingStation)
-	{
-		return false;
 	}
 
 	internal void OnCapsuleRelocationTaskBuilt(CapsuleRelocationTask task)
