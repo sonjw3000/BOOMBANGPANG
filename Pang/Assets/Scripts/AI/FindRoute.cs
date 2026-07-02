@@ -463,6 +463,24 @@ public class FindRoute : MonoBehaviour
 		return true;
 	}
 
+	public bool RequestIdleYieldMove(in int3 yieldCell)
+	{
+		ClearWait();
+		stopAfterCurrentStep = false;
+		hasPendingGoal = false;
+		isYieldMove = true;
+		ResetCurrentPathPlan(true);
+
+		PathRequest request = new(this, worker.GridPosition, yieldCell, worker.Direction);
+		PathFinding.RequestRoute(request);
+
+		movementState = MovementState.PathPending;
+		worker.enabled = false;
+		enabled = false;
+
+		return true;
+	}
+
 	public void SuspendForTraffic()
 	{
 		ClearWait();
@@ -482,6 +500,21 @@ public class FindRoute : MonoBehaviour
 	{
 		worker?.EndTrafficBlock();
 	}
+
+	public void CompleteIdleYieldMove()
+	{
+		ClearWait();
+		worker?.EndTrafficBlock();
+		hasCurrentGoal = false;
+		hasPendingGoal = false;
+		isYieldMove = false;
+		ResetCurrentPathPlan(true);
+		movementState = MovementState.Idle;
+		if (worker != null)
+			worker.enabled = true;
+		enabled = false;
+	}
+
 	private void OnWaitTimeout()
 	{
 		Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} Wait timeout reached. Waking up to retry.");

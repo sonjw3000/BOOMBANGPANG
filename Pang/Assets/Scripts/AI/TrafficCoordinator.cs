@@ -16,6 +16,7 @@ public class TrafficCoordinator : MonoBehaviour
 		public float StartedAt;
 		public bool ArrivedAtYieldCell;
 		public bool PriorityEnteredOriginalCell;
+		public bool ClearOnly;
 	}
 
 	private struct TrafficWaitEntry
@@ -43,6 +44,13 @@ public class TrafficCoordinator : MonoBehaviour
 	private readonly HashSet<GridCell> subscribedWaitCells = new();
 	private readonly List<FindRoute> waitScanScratch = new();
 	private readonly List<YieldHold> yieldHoldScratch = new();
+	private static readonly int3[] CardinalDirections =
+	{
+		new(1, 0, 0),
+		new(-1, 0, 0),
+		new(0, 0, 1),
+		new(0, 0, -1),
+	};
 
 	public bool IsWaitingForTraffic(FindRoute route)
 	{
@@ -107,8 +115,13 @@ public class TrafficCoordinator : MonoBehaviour
 
 		if (yieldHolds.TryGetValue(route, out var hold))
 		{
-			Debug.LogWarning($"[TrafficCoordinator] Yield move failed. yielding={route.Worker.Name}, priority={hold.PriorityRoute.Worker.Name}, yieldCell={hold.YieldCell}");
+			Debug.LogWarning($"[TrafficCoordinator] Yield move failed. yielding={route.Worker.Name}, priority={hold.PriorityRoute?.Worker.Name}, yieldCell={hold.YieldCell}");
 			ClearYieldHold(hold);
+			if (hold.ClearOnly)
+			{
+				route.CompleteIdleYieldMove();
+				return;
+			}
 		}
 
 		if (route.RequestFreshRouteToCurrentGoal() == false)
@@ -193,6 +206,31 @@ public class TrafficCoordinator : MonoBehaviour
 
 	private void ResolveStaticBlocker(FindRoute requestedRoute, FindRoute blockedBy, in int3 desiredCell)
 	{
+		if (IsBlockerIdle(blockedBy))
+		{
+			if (IsDestinationBlockedBy(requestedRoute, blockedBy))
+			{
+				if (TryYieldIdleBlocker(blockedBy, requestedRoute))
+				{
+					RegisterWait(requestedRoute, desiredCell);
+					return;
+				}
+
+				RegisterWait(requestedRoute, desiredCell);
+				return;
+			}
+
+			if (requestedRoute.TryGetFutureToCell(out var idleFutureCell))
+			{
+				UnregisterWait(requestedRoute);
+				requestedRoute.RequestSubPath(idleFutureCell, blockedBy);
+				return;
+			}
+
+			RegisterWait(requestedRoute, desiredCell);
+			return;
+		}
+
 		if (requestedRoute.TryGetFutureToCell(out var futureCell))
 		{
 			UnregisterWait(requestedRoute);
@@ -330,6 +368,75 @@ public class TrafficCoordinator : MonoBehaviour
 		return true;
 	}
 
+	private bool TryYieldIdleBlocker(FindRoute blocker, FindRoute requestedRoute)
+	{
+		if (blocker == null || requestedRoute == null || yieldHolds.ContainsKey(blocker))
+			return false;
+
+		int3 origin = blocker.TrafficFromCell;
+		for (int i = 0; i < CardinalDirections.Length; ++i)
+		{
+			int3 yieldCell = origin + CardinalDirections[i];
+			if (CanUseAsIdleYieldCell(yieldCell, blocker, requestedRoute) == false)
+				continue;
+
+			var hold = new YieldHold
+			{
+				PriorityRoute = requestedRoute,
+				YieldingRoute = blocker,
+				YieldCell = yieldCell,
+				OriginalCell = origin,
+				OriginalGoal = yieldCell,
+				StartedAt = Time.time,
+				ArrivedAtYieldCell = false,
+				PriorityEnteredOriginalCell = false,
+				ClearOnly = true,
+			};
+
+			yieldHolds[blocker] = hold;
+			reservedYieldCells.Add(yieldCell);
+			RegisterClearingRoute(blocker, requestedRoute);
+			UnregisterWait(blocker);
+
+			if (blocker.RequestIdleYieldMove(yieldCell))
+			{
+				Debug.Log($"[TrafficCoordinator] Idle blocker yield started. yielding={blocker.Worker.Name}, priority={requestedRoute.Worker.Name}, yieldCell={yieldCell}");
+				return true;
+			}
+
+			ClearYieldHold(hold);
+		}
+
+		return false;
+	}
+
+	private bool CanUseAsIdleYieldCell(in int3 candidate, FindRoute blocker, FindRoute requestedRoute)
+	{
+		GridCell cell = GridService.GetCell(candidate);
+		if (cell == null)
+			return false;
+
+		if (GridService.IsBlocked(candidate))
+			return false;
+
+		if (GridService.GetReservedFindRoute(candidate) != null)
+			return false;
+
+		if (reservedYieldCells.Contains(candidate))
+			return false;
+
+		if (candidate.Equals(blocker.TrafficFromCell))
+			return false;
+
+		if (candidate.Equals(requestedRoute.TrafficFromCell))
+			return false;
+
+		if (requestedRoute.TryGetTrafficToCell(out var requestedToCell) && candidate.Equals(requestedToCell))
+			return false;
+
+		return true;
+	}
+
 	private bool TryFindOneTileYieldCell(FindRoute yieldingRoute, FindRoute priorityRoute, out int3 yieldCell)
 	{
 		yieldCell = default;
@@ -394,6 +501,12 @@ public class TrafficCoordinator : MonoBehaviour
 		if (hold.ArrivedAtYieldCell == false)
 			return;
 
+		if (hold.ClearOnly)
+		{
+			ReleaseYieldHold(hold);
+			return;
+		}
+
 		FindRoute originalCellReservedBy = GridService.GetReservedFindRoute(hold.OriginalCell);
 		if (originalCellReservedBy == hold.PriorityRoute)
 		{
@@ -428,6 +541,13 @@ public class TrafficCoordinator : MonoBehaviour
 			$"yielding={yieldingRoute.Worker.Name}, priority={priorityRoute.Worker.Name}, yieldCell={hold.YieldCell}");
 
 		ClearYieldHold(hold);
+		if (hold.ClearOnly)
+		{
+			yieldingRoute.CompleteIdleYieldMove();
+			RequestFreshRouteOrResume(priorityRoute);
+			return;
+		}
+
 		RequestFreshRouteOrResume(yieldingRoute);
 		RequestFreshRouteOrResume(priorityRoute);
 	}
@@ -440,6 +560,12 @@ public class TrafficCoordinator : MonoBehaviour
 		FindRoute yieldingRoute = hold.YieldingRoute;
 		Debug.Log($"[TrafficCoordinator] Yield released. yielding={yieldingRoute.Worker.Name}, originalGoal={hold.OriginalGoal}");
 		ClearYieldHold(hold);
+
+		if (hold.ClearOnly)
+		{
+			yieldingRoute.CompleteIdleYieldMove();
+			return;
+		}
 
 		RequestFreshRouteOrResume(yieldingRoute);
 	}
@@ -486,6 +612,35 @@ public class TrafficCoordinator : MonoBehaviour
 		return blocker.CurrentMovementState == FindRoute.MovementState.Idle ||
 			blocker.CurrentMovementState == FindRoute.MovementState.Arrived ||
 			blocker.CurrentMovementState == FindRoute.MovementState.Failed;
+	}
+
+	private bool IsBlockerIdle(FindRoute blocker)
+	{
+		AIWorker worker = blocker?.Worker;
+		if (worker == null)
+			return false;
+
+		if (worker.CurrentTask == null)
+			return true;
+
+		if (worker.WorkerState.Target == WorkerStatusTarget.StandbyZone)
+			return true;
+
+		WorkerStatusAction action = worker.EffectiveStatusAction;
+		return action == WorkerStatusAction.Idle ||
+			action == WorkerStatusAction.WaitingForItems ||
+			action == WorkerStatusAction.WaitingForTargetBuilding;
+	}
+
+	private bool IsDestinationBlockedBy(FindRoute requestedRoute, FindRoute blockedBy)
+	{
+		if (requestedRoute == null || blockedBy == null)
+			return false;
+
+		if (requestedRoute.TryGetCurrentGoalCell(out var destination) == false)
+			return false;
+
+		return destination.Equals(blockedBy.TrafficFromCell);
 	}
 
 	private void RegisterWait(FindRoute route, in int3 desiredCell)
