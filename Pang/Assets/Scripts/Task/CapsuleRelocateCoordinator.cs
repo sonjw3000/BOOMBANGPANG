@@ -100,6 +100,8 @@ public sealed class CapsuleRelocateCoordinator
 	private readonly Dictionary<CapsuleDock, LinkedListNode<CapsuleRelocateSendRequest>> pendingSendNodeBySource = new();
 	private readonly Dictionary<CapsuleDock, LinkedListNode<CapsuleRelocateDemand>> pendingDemandNodeByTarget = new();
 	private readonly HashSet<CapsuleDock> reservedDocks = new();
+	private readonly HashSet<CapsuleDock> activeRelocationSources = new();
+	private readonly HashSet<CapsuleDock> activeRelocationTargets = new();
 	private readonly Func<uint, uint, bool> canUseLinkedBuilding;
 
 	public int PendingSendCount => pendingSendNodeBySource.Count;
@@ -145,12 +147,14 @@ public sealed class CapsuleRelocateCoordinator
 
 	public bool NotifyCapsuleDocked(CapsuleDock dock)
 	{
+		activeRelocationTargets.Remove(dock);
 		ReleaseReservation(dock);
 		return TryMatchPendingDemand() || TryMatchPendingSend();
 	}
 
 	public bool NotifyCapsuleUndocked(CapsuleDock dock)
 	{
+		activeRelocationSources.Remove(dock);
 		ReleaseReservation(dock);
 		return TryMatchPendingSend() || TryMatchPendingDemand();
 	}
@@ -189,6 +193,8 @@ public sealed class CapsuleRelocateCoordinator
 		if (dock == null)
 			return;
 
+		activeRelocationSources.Remove(dock);
+		activeRelocationTargets.Remove(dock);
 		reservedDocks.Remove(dock);
 		CancelPendingRequests(dock);
 	}
@@ -196,6 +202,16 @@ public sealed class CapsuleRelocateCoordinator
 	public bool IsReserved(CapsuleDock dock)
 	{
 		return dock != null && reservedDocks.Contains(dock);
+	}
+
+	public bool IsRelocationSourceActive(CapsuleDock dock)
+	{
+		return dock != null && activeRelocationSources.Contains(dock);
+	}
+
+	public bool IsRelocationTargetActive(CapsuleDock dock)
+	{
+		return dock != null && activeRelocationTargets.Contains(dock);
 	}
 
 	private bool TryMatchPendingSend()
@@ -311,6 +327,8 @@ public sealed class CapsuleRelocateCoordinator
 		if (targetDock == null ||
 			reservedDocks.Contains(request.SourceDock) ||
 			reservedDocks.Contains(targetDock) ||
+			activeRelocationSources.Contains(request.SourceDock) ||
+			activeRelocationTargets.Contains(targetDock) ||
 			targetDock.DockState != request.WantedTargetDockState ||
 			targetDock.CanPutBox() == false)
 		{
@@ -326,6 +344,8 @@ public sealed class CapsuleRelocateCoordinator
 		if (sourceDock == null ||
 			reservedDocks.Contains(sourceDock) ||
 			reservedDocks.Contains(demand.TargetDock) ||
+			activeRelocationSources.Contains(sourceDock) ||
+			activeRelocationTargets.Contains(demand.TargetDock) ||
 			sourceDock.DockState != demand.RequiredSourceDockState ||
 			sourceDock.DockedCapsule?.LogisticsState != demand.RequiredCapsuleState ||
 			sourceDock.CanGetBox() == false ||
@@ -357,6 +377,7 @@ public sealed class CapsuleRelocateCoordinator
 	{
 		return request.SourceDock != null &&
 			(checkReservation == false || reservedDocks.Contains(request.SourceDock) == false) &&
+			activeRelocationSources.Contains(request.SourceDock) == false &&
 			request.SourceDock.DockState == request.RequiredSourceDockState &&
 			request.SourceDock.DockedCapsule?.LogisticsState == request.RequiredCapsuleState &&
 			request.SourceDock.CanGetBox();
@@ -366,6 +387,7 @@ public sealed class CapsuleRelocateCoordinator
 	{
 		return demand.TargetDock != null &&
 			(checkReservation == false || reservedDocks.Contains(demand.TargetDock) == false) &&
+			activeRelocationTargets.Contains(demand.TargetDock) == false &&
 			demand.TargetDock.DockState == demand.RequiredTargetDockState &&
 			demand.TargetDock.CanPutBox();
 	}
@@ -378,6 +400,14 @@ public sealed class CapsuleRelocateCoordinator
 			reservedDocks.Add(targetDock);
 	}
 
+	private void MarkActive(CapsuleDock sourceDock, CapsuleDock targetDock)
+	{
+		if (sourceDock != null)
+			activeRelocationSources.Add(sourceDock);
+		if (targetDock != null)
+			activeRelocationTargets.Add(targetDock);
+	}
+
 	private bool TryAcceptSendMatch(
 		CapsuleRelocateSendRequest request,
 		CapsuleDock targetDock,
@@ -385,8 +415,14 @@ public sealed class CapsuleRelocateCoordinator
 	{
 		CapsuleRelocateMatch match = new(request.SourceDock, targetDock, request.SourceBuildingId, targetBuildingId);
 		Reserve(match.SourceDock, match.TargetDock);
-		if (request.OnMatched == null || request.OnMatched(match))
+		if (request.OnMatched == null)
 			return true;
+
+		if (request.OnMatched(match))
+		{
+			MarkActive(match.SourceDock, match.TargetDock);
+			return true;
+		}
 
 		ReleaseReservation(match.SourceDock, match.TargetDock);
 		return false;
@@ -399,8 +435,14 @@ public sealed class CapsuleRelocateCoordinator
 	{
 		CapsuleRelocateMatch match = new(sourceDock, demand.TargetDock, sourceBuildingId, demand.TargetBuildingId);
 		Reserve(match.SourceDock, match.TargetDock);
-		if (demand.OnMatched == null || demand.OnMatched(match))
+		if (demand.OnMatched == null)
 			return true;
+
+		if (demand.OnMatched(match))
+		{
+			MarkActive(match.SourceDock, match.TargetDock);
+			return true;
+		}
 
 		ReleaseReservation(match.SourceDock, match.TargetDock);
 		return false;

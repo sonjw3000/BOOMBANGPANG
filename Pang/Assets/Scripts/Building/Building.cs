@@ -79,8 +79,6 @@ public class Building
 	private readonly HashSet<InboundCargoPort> pendingInboundPorts = new();
 	private readonly HashSet<InboundCargoPort> queuedInboundPorts = new();
 	private readonly HashSet<CapsuleBuffer> queuedOutboundBuffers = new();
-	private readonly HashSet<CapsuleBuffer> queuedBufferRelocationSources = new();
-	private readonly HashSet<CapsuleBuffer> queuedBufferRelocationTargets = new();
 	private readonly Dictionary<InboundCargoPort, CapsuleBuffer> queuedInboundTargets = new();
 	private readonly Dictionary<CapsuleBuffer, OutboundCargoPort> queuedOutboundTargets = new();
 	private readonly Dictionary<CapsuleLogisticsState, HashSet<CargoCapsule>> capsulesByState = new();
@@ -221,8 +219,6 @@ public class Building
 			UnsubscribeCapsuleBuffer(capsuleBuffer);
 			occupiedCapsuleBuffers.Remove(capsuleBuffer);
 			queuedOutboundBuffers.Remove(capsuleBuffer);
-			queuedBufferRelocationSources.Remove(capsuleBuffer);
-			queuedBufferRelocationTargets.Remove(capsuleBuffer);
 			RemoveQueuedInboundTarget(capsuleBuffer);
 			queuedOutboundTargets.Remove(capsuleBuffer);
 		}
@@ -422,9 +418,6 @@ public class Building
 		if (capsule == null)
 			return;
 
-		if (dock is CapsuleBuffer buffer)
-			queuedBufferRelocationTargets.Remove(buffer);
-
 		if (capsule.LogisticsState != CapsuleLogisticsState.Empty)
 			capsule.SetLogisticsState(CapsuleLogisticsState.Empty);
 	}
@@ -433,9 +426,6 @@ public class Building
 	{
 		if (capsule == null)
 			return;
-
-		if (dock is CapsuleBuffer buffer)
-			queuedBufferRelocationTargets.Remove(buffer);
 
 		if (capsule.LogisticsState == CapsuleLogisticsState.Empty)
 			capsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
@@ -471,8 +461,6 @@ public class Building
 
 			case CapsuleBuffer capsuleBuffer:
 				queuedOutboundBuffers.Remove(capsuleBuffer);
-				queuedBufferRelocationSources.Remove(capsuleBuffer);
-				queuedBufferRelocationTargets.Remove(capsuleBuffer);
 				GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(capsuleBuffer);
 				TryEnqueuePendingInboundTasks();
 
@@ -658,62 +646,6 @@ public class Building
 		return false;
 	}
 
-	internal CapsuleBuffer ResolveInboundBufferTarget(in int3 from, ZoneFilter zoneFilter = default)
-	{
-		return FindClosestCapsuleBuffer(
-			from,
-			InteractionKind.Put,
-			candidate =>
-				candidate != null &&
-				candidate.CanReceiveFromInbound() &&
-				queuedInboundTargets.ContainsValue(candidate) == false &&
-				zoneFilter.Matches(ZoneManager, candidate));
-	}
-
-	internal OutboundCargoPort ResolveOutboundPortTarget(in int3 from, ZoneFilter zoneFilter = default)
-	{
-		return FindClosestOutboundPort(
-			from,
-			candidate =>
-				candidate != null &&
-				candidate.CanPutBox() &&
-				queuedOutboundTargets.ContainsValue(candidate) == false &&
-				zoneFilter.Matches(ZoneManager, candidate));
-	}
-
-	internal InboundCargoPort ResolveLinkedInboundPortTarget(in int3 from, ZoneFilter zoneFilter = default)
-	{
-		if (GridService == null || BuildingManager == null || outputBuildingIds.Count <= 0)
-			return null;
-
-		InboundCargoPort bestCandidate = null;
-		int bestScore = int.MaxValue;
-		foreach (uint targetBuildingId in outputBuildingIds)
-		{
-			if (BuildingManager.TryGetBuilding(targetBuildingId, out Building targetBuilding) == false || targetBuilding == null)
-				continue;
-
-			for (int i = 0; i < targetBuilding.occupiedCargoPorts.Count; ++i)
-			{
-				if (targetBuilding.occupiedCargoPorts[i] is not InboundCargoPort candidate ||
-					candidate.CanPutBox() == false ||
-					zoneFilter.Matches(ZoneManager, candidate) == false)
-					continue;
-
-				if (InteractionPointSelector.TryGetInteractionPoint(candidate, InteractionKind.Put, from, out _, out int score) == false)
-					continue;
-
-				if (score >= bestScore)
-					continue;
-
-				bestScore = score;
-				bestCandidate = candidate;
-			}
-		}
-
-		return bestCandidate;
-	}
-
 	private void TryEnqueueInboundTask(InboundCargoPort cargoPort)
 	{
 		if (cargoPort == null || queuedInboundPorts.Contains(cargoPort) || TaskManager == null)
@@ -834,7 +766,7 @@ public class Building
 			targetBuffer == null ||
 			targetBuffer.DockState != CapsuleDockState.OBStandby ||
 			targetBuffer.CanPutBox() == false ||
-			queuedBufferRelocationTargets.Contains(targetBuffer))
+			GameContext.Instance.CapsuleRelocateCoordinator.IsRelocationTargetActive(targetBuffer))
 		{
 			GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(targetBuffer);
 			return;
@@ -861,7 +793,7 @@ public class Building
 			sourceBuffer.DockedCapsule == null ||
 			sourceBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.Empty ||
 			sourceBuffer.IsCapsuleEmpty() == false ||
-			queuedBufferRelocationSources.Contains(sourceBuffer))
+			GameContext.Instance.CapsuleRelocateCoordinator.IsRelocationSourceActive(sourceBuffer))
 		{
 			GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(sourceBuffer);
 			return;
@@ -914,10 +846,6 @@ public class Building
 
 			case WorkerTask.TaskType.CapsuleClear:
 			case WorkerTask.TaskType.CapsuleSupply:
-				if (task.SourceDock is CapsuleBuffer bufferSource)
-					queuedBufferRelocationSources.Add(bufferSource);
-				if (task.TargetDock is CapsuleBuffer bufferTarget)
-					queuedBufferRelocationTargets.Add(bufferTarget);
 				break;
 
 			case WorkerTask.TaskType.OB:
@@ -929,68 +857,6 @@ public class Building
 					queuedOutboundTargets[sourceBuffer] = targetPort;
 				break;
 		}
-	}
-
-	private CapsuleBuffer FindClosestCapsuleBuffer(
-		in int3 from,
-		InteractionKind interactionKind,
-		System.Predicate<CapsuleBuffer> predicate)
-	{
-		if (GridService == null)
-			return null;
-
-		CapsuleBuffer bestCandidate = null;
-		int bestScore = int.MaxValue;
-
-		for (int i = 0; i < occupiedCapsuleBuffers.Count; ++i)
-		{
-			CapsuleBuffer candidate = occupiedCapsuleBuffers[i];
-			if (candidate == null)
-				continue;
-
-			if (predicate != null && predicate(candidate) == false)
-				continue;
-
-			if (InteractionPointSelector.TryGetInteractionPoint(candidate, interactionKind, from, out _, out int score) == false)
-				continue;
-
-			if (score >= bestScore)
-				continue;
-
-			bestScore = score;
-			bestCandidate = candidate;
-		}
-
-		return bestCandidate;
-	}
-
-	private OutboundCargoPort FindClosestOutboundPort(in int3 from, System.Predicate<OutboundCargoPort> predicate)
-	{
-		if (GridService == null)
-			return null;
-
-		OutboundCargoPort bestCandidate = null;
-		int bestScore = int.MaxValue;
-
-		for (int i = 0; i < occupiedCargoPorts.Count; ++i)
-		{
-			if (occupiedCargoPorts[i] is not OutboundCargoPort candidate)
-				continue;
-
-			if (predicate != null && predicate(candidate) == false)
-				continue;
-
-			if (InteractionPointSelector.TryGetInteractionPoint(candidate, InteractionKind.Put, from, out _, out int score) == false)
-				continue;
-
-			if (score >= bestScore)
-				continue;
-
-			bestScore = score;
-			bestCandidate = candidate;
-		}
-
-		return bestCandidate;
 	}
 
 	private void RemoveQueuedInboundTarget(CapsuleBuffer capsuleBuffer)
