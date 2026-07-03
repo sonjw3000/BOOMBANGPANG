@@ -128,6 +128,88 @@ public class Building
 	internal bool HasOutputBuilding(uint buildingId) => buildingId != 0 && outputBuildingIds.Contains(buildingId);
 	public bool IsItemStatusInterested(ItemStatus status) => trackingItemStatus.Contains(status);
 
+	internal bool TryTakeDirtyItemContainer(out IItemContainer container)
+	{
+		foreach (IItemContainer candidate in dirtyItemStateContainers)
+		{
+			container = candidate;
+			dirtyItemStateContainers.Remove(candidate);
+			return true;
+		}
+
+		container = null;
+		return false;
+	}
+
+	internal void MarkItemContainerDirty(IItemContainer container)
+	{
+		if (container != null)
+			dirtyItemStateContainers.Add(container);
+	}
+
+	internal void ClearItemContainerDirty(IItemContainer container)
+	{
+		if (container != null)
+			dirtyItemStateContainers.Remove(container);
+	}
+
+	internal bool HasAvailableItemStatus(IItemContainer container, ItemStatus status)
+	{
+		return TryFindAvailableItem(container, status, out _, out _);
+	}
+
+	internal int GetAvailableItemQuantity(IItemContainer container, uint itemId, ItemStatus status)
+	{
+		if (container == null ||
+			ItemIndex.GetContainers(itemId, status).TryGetValue(container, out int quantity) == false)
+		{
+			return 0;
+		}
+
+		int reserved = GetReservedItemQuantity(container, itemId, status);
+		return UnityEngine.Mathf.Max(0, quantity - reserved);
+	}
+
+	internal bool TryFindAvailableItem(IItemContainer container, ItemStatus status, out uint itemId, out int quantity)
+	{
+		foreach (var entry in ItemIndex.QuantityByKeyAndContainer)
+		{
+			if (entry.Key.Status != status ||
+				entry.Value.TryGetValue(container, out int storedQuantity) == false)
+			{
+				continue;
+			}
+
+			int reserved = GetReservedItemQuantity(container, entry.Key.ItemId, status);
+			int available = UnityEngine.Mathf.Max(0, storedQuantity - reserved);
+			if (available <= 0)
+				continue;
+
+			itemId = entry.Key.ItemId;
+			quantity = available;
+			return true;
+		}
+
+		itemId = 0;
+		quantity = 0;
+		return false;
+	}
+
+	private int GetReservedItemQuantity(IItemContainer container, uint itemId, ItemStatus status)
+	{
+		int reserved = ItemIndex.GetReservedContainers(itemId, status).TryGetValue(container, out int reservedQuantity)
+			? reservedQuantity
+			: 0;
+
+		if (status != ItemStatus.None &&
+			ItemIndex.GetReservedContainers(itemId, ItemStatus.None).TryGetValue(container, out int itemOnlyReservedQuantity))
+		{
+			reserved += itemOnlyReservedQuantity;
+		}
+
+		return reserved;
+	}
+
 	public Building(string displayName, List<GridCell> occupiedCells, BuildingType buildingType = BuildingType.Generic)
 	{
 		this.displayName = displayName;
@@ -846,7 +928,14 @@ public class Building
 			return;
 
 		if (trackingItemStatus.Contains(status))
+		{
 			dirtyItemStateContainers.Add(container);
+			OnTrackedItemStatusAdded(itemId, status, container);
+		}
+	}
+
+	protected virtual void OnTrackedItemStatusAdded(uint itemId, ItemStatus status, IItemContainer container)
+	{
 	}
 
 }

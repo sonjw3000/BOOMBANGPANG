@@ -38,7 +38,7 @@ public partial class InboundRequestService : MonoBehaviour, ICollectRequestSourc
 	{
 	}
 
-	public void OnPortItemReservedChanged(ShelfBase port, uint itemId, int reservedQuantityDelta)
+	public void OnPortItemReservedChanged(IItemContainer port, uint itemId, int reservedQuantityDelta)
 	{
 	}
 

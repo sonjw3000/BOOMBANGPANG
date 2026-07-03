@@ -2,10 +2,15 @@ using System.Collections.Generic;
 
 public sealed class PackingBuilding : Building
 {
+	private readonly PackingInputPlanner inputPlanner;
+
+	internal PackingInputPlanner InputPlanner => inputPlanner;
+
 	public PackingBuilding(string displayName, List<GridCell> occupiedCells)
 		: base(displayName, occupiedCells, BuildingType.Packing)
 	{
 		trackingItemStatus.Add(ItemStatus.Labeled);
+		inputPlanner = new PackingInputPlanner(this);
 	}
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
@@ -37,6 +42,12 @@ public sealed class PackingBuilding : Building
 			EvaluatePackingIngress(capsuleBuffer);
 	}
 
+	protected override void OnTrackedItemStatusAdded(uint itemId, ItemStatus status, IItemContainer container)
+	{
+		if (status == ItemStatus.Labeled && container is CapsuleBuffer capsuleBuffer)
+			EvaluatePackingIngress(capsuleBuffer);
+	}
+
 	private void EvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
 	{
 		TaskManager taskManager = GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
@@ -56,6 +67,7 @@ public sealed class PackingBuilding : Building
 	{
 		return capsuleBuffer != null &&
 			capsuleBuffer.CanProvideInboundItems() &&
+			HasAvailableItemStatus(capsuleBuffer, ItemStatus.Labeled) &&
 			GameContext.HasInstance &&
 			GameContext.Instance.OBWorkflowSvc != null &&
 			GameContext.Instance.OBWorkflowSvc.HasPackableManifest(capsuleBuffer.DockedCapsule);

@@ -467,9 +467,9 @@ public static class ItemTransferUtility
 		if (consume == false || quantity <= 0)
 			return;
 
-		if (source is ShelfBase shelf)
+		if (source is IItemPickReservable reservable)
 		{
-			shelf.ConsumeReservedPick(itemId, quantity);
+			reservable.ConsumeReservedPick(itemId, quantity);
 			return;
 		}
 

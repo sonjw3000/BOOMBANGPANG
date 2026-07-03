@@ -1,4 +1,4 @@
-public sealed class WaterTaskBuildRequest : TaskBuildRequest<WaterTask>
+public sealed class WaterTaskBuildRequest : TaskBuildRequest<WorkerTask>
 {
 	private readonly IInteractionPoint source;
 
@@ -26,7 +26,7 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WaterTask>
 		return new TaskBuildRequestKey(WorkerTask.TaskType.Water, source);
 	}
 
-	protected override bool TryBuildTask(out WaterTask task)
+	protected override bool TryBuildTask(out WorkerTask task)
 	{
 		task = null;
 		if (IsStillValid == false || BuildingManager == null || BuildingManager.TryGetBuilding(RequestedBuildingID, out Building building) == false)
@@ -40,24 +40,29 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WaterTask>
 		};
 	}
 
-	private bool TryBuildFromBuffer(Building building, CapsuleBuffer sourceBuffer, out WaterTask task)
+	private bool TryBuildFromBuffer(Building building, CapsuleBuffer sourceBuffer, out WorkerTask task)
 	{
 		task = null;
 		if (building is not PackingBuilding packingBuilding ||
-			packingBuilding.CanBuildWaterTaskRequest(sourceBuffer) == false)
+			packingBuilding.CanBuildWaterTaskRequest(sourceBuffer) == false ||
+			packingBuilding.HasAvailableItemStatus(sourceBuffer, ItemStatus.Labeled) == false)
 			return false;
 
 		PackingStationService packingStationService = Ctx?.OBWorkflowSvc?.PackingStationService;
-		if (packingStationService == null || packingStationService.TryClaimWaitingStation(RequestedBuildingID, out PackingStation station) == false)
+		if (packingStationService == null)
 			return false;
 
-		task = new WaterTask(
-			new TransferContext(sourceBuffer, TransferObjectType.Item),
-			new TransferContext(station, TransferObjectType.Box));
+		task = new ItemTransferTask(
+			WorkerTask.TaskType.Water,
+			new ItemTransferJob(
+				packingBuilding.InputPlanner,
+				TransferObjectType.Item,
+				TransferObjectType.Box,
+				RequestedBuildingID));
 		return true;
 	}
 
-	private bool TryBuildFromStation(Building building, PackingStation sourceStation, out WaterTask task)
+	private bool TryBuildFromStation(Building building, PackingStation sourceStation, out WorkerTask task)
 	{
 		task = null;
 		if (building is not PackingBuilding packingBuilding ||

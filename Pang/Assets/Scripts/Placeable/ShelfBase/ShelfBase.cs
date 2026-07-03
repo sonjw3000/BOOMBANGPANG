@@ -8,7 +8,8 @@ using UnityEngine;
 
 public abstract partial class ShelfBase :
 	ItemInteraction,
-	IItemContainer
+	IItemContainer,
+	IItemPickReservable
 {
 	[SerializeField] protected int maxStacks = 16;
 	[SerializeField] protected float sizePerStack;
@@ -35,7 +36,7 @@ public abstract partial class ShelfBase :
 	public event Action<ShelfBase, uint, int> OnItemQuantityChanged;
 
 	// item의 picking이 예약되었을 때 (quantity는 예약된 수량)
-	public event Action<ShelfBase, uint, int> OnItemReservedPickChanged;
+	public event Action<IItemContainer, uint, int> OnItemReservedPickChanged;
 
 	public IReadOnlyList<ItemStack> Stacks => stacks;
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
@@ -412,6 +413,26 @@ public abstract partial class ShelfBase :
 		}
 
 		return consumed;
+	}
+
+	public int ReleaseReservedPick(uint itemId, int quantity)
+	{
+		if (quantity <= 0)
+			return 0;
+
+		int reserved = itemsReservedPick.GetValueOrDefault(itemId);
+		if (reserved <= 0)
+			return 0;
+
+		int released = math.min(quantity, reserved);
+		int remaining = reserved - released;
+		if (remaining > 0)
+			itemsReservedPick[itemId] = remaining;
+		else
+			itemsReservedPick.Remove(itemId);
+
+		OnItemReservedPickChanged?.Invoke(this, itemId, -released);
+		return released;
 	}
 
 }

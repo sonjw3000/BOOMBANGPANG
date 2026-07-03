@@ -34,6 +34,21 @@ public interface IItemContainer
 	public bool TryRemoveFromStack(ItemStack stack, int quantity, out ItemStack removedStack);
 }
 
+public interface IItemPickReservable
+{
+	public IReadOnlyDictionary<uint, int> ItemToBePicked { get; }
+
+	public event System.Action<IItemContainer, uint, int> OnItemReservedPickChanged;
+
+	public int GetPickableQuantity(uint itemId);
+
+	public int ReservePicking(uint itemId, int quantity);
+
+	public int ReleaseReservedPick(uint itemId, int quantity);
+
+	public int ConsumeReservedPick(uint itemId, int quantity);
+}
+
 // 실제 item 저장
 [System.Serializable]
 public class ItemStack

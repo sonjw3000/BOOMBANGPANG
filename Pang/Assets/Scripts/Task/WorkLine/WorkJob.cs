@@ -36,6 +36,7 @@ public sealed class WorkLine
 	public readonly uint ItemID;
 	public readonly int Quantity;
 	public readonly OrderLine RelatedOrderLine = null;
+	public readonly ItemStatus? RequiredStatus = null;
 	public int CompleteQuantity = 0;
 
 	public bool IsComplete => Quantity == CompleteQuantity;
@@ -47,7 +48,7 @@ public sealed class WorkLine
 	{
 	}
 
-	public WorkLine(WorkLineAction action, IItemContainer container, IGridPlaceable target, uint itemID, int quantity, OrderLine relatedOrderLine = null)
+	public WorkLine(WorkLineAction action, IItemContainer container, IGridPlaceable target, uint itemID, int quantity, OrderLine relatedOrderLine = null, ItemStatus? requiredStatus = null)
 	{
 		Action = action;
 		Container = container;
@@ -55,6 +56,7 @@ public sealed class WorkLine
 		ItemID = itemID;
 		Quantity = quantity;
 		RelatedOrderLine = relatedOrderLine;
+		RequiredStatus = requiredStatus;
 	}
 }
 

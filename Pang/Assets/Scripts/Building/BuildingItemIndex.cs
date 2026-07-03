@@ -154,9 +154,9 @@ public sealed class BuildingItemIndex
 			AddTo(snapshot.Quantities, new BuildingItemKey(stack.ItemID, stack.Status), stack.Quantity);
 		}
 
-		if (container is ShelfBase shelf)
+		if (container is IItemPickReservable reservable)
 		{
-			foreach (var reserved in shelf.ItemToBePicked)
+			foreach (var reserved in reservable.ItemToBePicked)
 			{
 				if (reserved.Value > 0)
 					AddTo(snapshot.ReservedQuantities, new BuildingItemKey(reserved.Key, ItemStatus.None), reserved.Value);
@@ -188,10 +188,19 @@ public sealed class BuildingItemIndex
 
 		foreach (var entry in snapshot.Quantities)
 		{
-			int reservedQuantity = snapshot.ReservedQuantities.GetValueOrDefault(entry.Key);
+			int reservedQuantity = GetReservedQuantity(snapshot, entry.Key);
 			if (entry.Value - reservedQuantity > 0)
 				OnItemStatusAdded.Invoke(entry.Key.ItemId, entry.Key.Status, container);
 		}
+	}
+
+	private static int GetReservedQuantity(ContainerSnapshot snapshot, BuildingItemKey key)
+	{
+		int reserved = snapshot.ReservedQuantities.GetValueOrDefault(key);
+		if (key.Status != ItemStatus.None)
+			reserved += snapshot.ReservedQuantities.GetValueOrDefault(new BuildingItemKey(key.ItemId, ItemStatus.None));
+
+		return reserved;
 	}
 
 	private void ApplyTotal(uint itemId, int delta)
@@ -252,11 +261,13 @@ public sealed class BuildingItemIndex
 
 	private void Subscribe(IItemContainer container)
 	{
+		if (container is IItemPickReservable reservable)
+			reservable.OnItemReservedPickChanged += HandleItemReservedChanged;
+
 		switch (container)
 		{
 			case ShelfBase shelf:
 				shelf.OnItemQuantityChanged += HandleShelfQuantityChanged;
-				shelf.OnItemReservedPickChanged += HandleShelfReservedChanged;
 				break;
 			case CapsuleBuffer capsuleBuffer:
 				capsuleBuffer.OnCapsuleDocked += HandleCapsuleBufferDocked;
@@ -272,11 +283,13 @@ public sealed class BuildingItemIndex
 
 	private void Unsubscribe(IItemContainer container)
 	{
+		if (container is IItemPickReservable reservable)
+			reservable.OnItemReservedPickChanged -= HandleItemReservedChanged;
+
 		switch (container)
 		{
 			case ShelfBase shelf:
 				shelf.OnItemQuantityChanged -= HandleShelfQuantityChanged;
-				shelf.OnItemReservedPickChanged -= HandleShelfReservedChanged;
 				break;
 			case CapsuleBuffer capsuleBuffer:
 				capsuleBuffer.OnCapsuleDocked -= HandleCapsuleBufferDocked;
@@ -295,9 +308,9 @@ public sealed class BuildingItemIndex
 		RefreshContainer(shelf);
 	}
 
-	private void HandleShelfReservedChanged(ShelfBase shelf, uint itemId, int reservedQuantityDelta)
+	private void HandleItemReservedChanged(IItemContainer container, uint itemId, int reservedQuantityDelta)
 	{
-		RefreshContainer(shelf);
+		RefreshContainer(container);
 	}
 
 	private void HandleCapsuleBufferDocked(CapsuleDock dock)

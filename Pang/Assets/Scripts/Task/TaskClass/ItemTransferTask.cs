@@ -101,7 +101,6 @@ public sealed class ItemTransferTask : WorkerTask
 	{
 		SequenceNode collect = new();
 		collect.Add(new ActionNode(CheckPhaseCollect));
-		collect.Add(new ActionNode(SetCollectingPosition));
 		collect.Add(new ActionNode((in BTContext ctx) => CheckTransferType(ctx, ItemTransferPhase.Collect, transferType)));
 
 		if (transferType == TransferObjectType.Item)
@@ -109,6 +108,7 @@ public sealed class ItemTransferTask : WorkerTask
 		else
 			collect.Add(AIWorker.ReturnBox());
 
+		collect.Add(new ActionNode(SetCollectingPosition));
 		collect.Add(AIWorker.MoveToTarget(WorkerStatusTarget.WorkTarget, InteractionKind.Pick));
 		collect.Add(AIWorker.BuildWorkTimeInteract(workActionType, Collect));
 		return collect;
@@ -352,7 +352,8 @@ public sealed class ItemTransferTask : WorkerTask
 			box,
 			line.ItemID,
 			remainingQuantity,
-			consumeSourcePickReservation: line.Container is ShelfBase));
+			consumeSourcePickReservation: line.Container is IItemPickReservable,
+			stackPredicate: stack => line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value)));
 	}
 
 	private static ItemTransferResult MovePlaceItem(AIWorker worker, WorkLine line)
@@ -491,7 +492,7 @@ public sealed class ItemTransferTask : WorkerTask
 
 	private static WorkLine CopyLineWithQuantity(WorkLine source, int quantity)
 	{
-		WorkLine line = new(source.Action, source.Container, source.Target, source.ItemID, quantity, source.RelatedOrderLine);
+		WorkLine line = new(source.Action, source.Container, source.Target, source.ItemID, quantity, source.RelatedOrderLine, source.RequiredStatus);
 		line.CompleteQuantity = quantity;
 		return line;
 	}
