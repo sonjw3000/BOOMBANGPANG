@@ -14,6 +14,7 @@ public sealed class PackingBuilding : Building
 	public PackingBuilding(string displayName, List<GridCell> occupiedCells)
 		: base(displayName, occupiedCells, BuildingType.Packing)
 	{
+		trackingItemStatus.Add(ItemStatus.None);
 		trackingItemStatus.Add(ItemStatus.Labeled);
 		inputPlanner = new PackingInputPlanner(this);
 		outputPlanner = new PackingOutputPlanner(this);
@@ -50,7 +51,7 @@ public sealed class PackingBuilding : Building
 
 	protected override void OnTrackedItemStatusAdded(uint itemId, ItemStatus status, IItemContainer container)
 	{
-		if (status == ItemStatus.Labeled && container is CapsuleBuffer capsuleBuffer)
+		if (IsPackingInputStatus(status) && container is CapsuleBuffer capsuleBuffer)
 			EvaluatePackingIngress(capsuleBuffer);
 	}
 
@@ -70,6 +71,8 @@ public sealed class PackingBuilding : Building
 			ItemTransferScheduleMode.PackingOutput,
 			WorkerTask.TaskType.Water,
 			TryBuildItemTransferTask);
+
+		RefreshPackingIngress();
 	}
 
 	protected override void OnUnregistered()
@@ -97,6 +100,12 @@ public sealed class PackingBuilding : Building
 
 		MarkItemContainerDirty(capsuleBuffer);
 		Scheduler.MarkDirty(RuntimeBuildingId, ItemTransferScheduleMode.PackingInput);
+	}
+
+	private void RefreshPackingIngress()
+	{
+		for (int i = 0; i < OccupiedCapsuleBuffers.Count; ++i)
+			EvaluatePackingIngress(OccupiedCapsuleBuffers[i]);
 	}
 
 	private ItemTransferScheduleResult TryBuildItemTransferTask(ItemTransferScheduleRequest request, out WorkerTask task)
@@ -151,7 +160,7 @@ public sealed class PackingBuilding : Building
 	{
 		return capsuleBuffer != null &&
 			capsuleBuffer.CanProvideInboundItems() &&
-			HasAvailableItemStatus(capsuleBuffer, ItemStatus.Labeled) &&
+			HasAvailablePackingInput(capsuleBuffer) &&
 			GameContext.HasInstance &&
 			GameContext.Instance.OBWorkflowSvc != null &&
 			GameContext.Instance.OBWorkflowSvc.HasPackableManifest(capsuleBuffer.DockedCapsule);
@@ -160,6 +169,46 @@ public sealed class PackingBuilding : Building
 	internal bool CanBuildWaterTaskRequest(PackingStation packingStation)
 	{
 		return packingStation != null && packingStation.EndPackingBox != null;
+	}
+
+	internal bool HasAvailablePackingInput(IItemContainer container)
+	{
+		return HasAvailableItemStatus(container, ItemStatus.Labeled) ||
+			HasAvailableItemStatus(container, ItemStatus.None);
+	}
+
+	internal bool TryFindAvailablePackingInput(
+		IItemContainer container,
+		uint itemId,
+		out ItemStatus status,
+		out int quantity)
+	{
+		if (TryFindAvailablePackingInput(container, itemId, ItemStatus.Labeled, out quantity))
+		{
+			status = ItemStatus.Labeled;
+			return true;
+		}
+
+		if (TryFindAvailablePackingInput(container, itemId, ItemStatus.None, out quantity))
+		{
+			status = ItemStatus.None;
+			return true;
+		}
+
+		status = ItemStatus.None;
+		quantity = 0;
+		return false;
+	}
+
+	private bool TryFindAvailablePackingInput(IItemContainer container, uint itemId, ItemStatus status, out int quantity)
+	{
+		quantity = GetAvailableItemQuantity(container, itemId, status);
+		return quantity > 0;
+	}
+
+	private static bool IsPackingInputStatus(ItemStatus status)
+	{
+		return status == ItemStatus.None || status == ItemStatus.Labeled;
 	}
 
 	internal bool TryTakeDirtyPackingOutputStation(out PackingStation station)

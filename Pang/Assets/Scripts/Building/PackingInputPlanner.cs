@@ -31,7 +31,7 @@ public sealed class PackingInputPlanner : IItemTransferPlanner
 
 		if (line?.Container != null)
 		{
-			if (building.HasAvailableItemStatus(line.Container, ItemStatus.Labeled))
+			if (building.HasAvailablePackingInput(line.Container))
 				building.MarkItemContainerDirty(line.Container);
 			else
 				building.ClearItemContainerDirty(line.Container);
@@ -82,8 +82,7 @@ public sealed class PackingInputPlanner : IItemTransferPlanner
 			if (manifestLine == null || manifestLine.PackableQuantity <= 0)
 				continue;
 
-			int available = building.GetAvailableItemQuantity(container, manifestLine.ItemId, ItemStatus.Labeled);
-			if (available <= 0)
+			if (building.TryFindAvailablePackingInput(container, manifestLine.ItemId, out ItemStatus sourceStatus, out int available) == false)
 				continue;
 
 			int acceptable = workerBox.GetAcceptableQuantity(manifestLine.ItemId, manifestLine.PackableQuantity);
@@ -102,9 +101,9 @@ public sealed class PackingInputPlanner : IItemTransferPlanner
 				manifestLine.ItemId,
 				reserved,
 				manifestLine.OrderLine,
-				ItemStatus.Labeled);
+				sourceStatus);
 
-			if (building.HasAvailableItemStatus(container, ItemStatus.Labeled))
+			if (building.HasAvailablePackingInput(container))
 				building.MarkItemContainerDirty(container);
 			else
 				building.ClearItemContainerDirty(container);

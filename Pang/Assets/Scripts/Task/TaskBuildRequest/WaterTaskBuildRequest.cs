@@ -45,8 +45,10 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WorkerTask>
 		task = null;
 		if (building is not PackingBuilding packingBuilding ||
 			packingBuilding.CanBuildWaterTaskRequest(sourceBuffer) == false ||
-			packingBuilding.HasAvailableItemStatus(sourceBuffer, ItemStatus.Labeled) == false)
+			packingBuilding.HasAvailablePackingInput(sourceBuffer) == false)
+		{
 			return false;
+		}
 
 		PackingStationService packingStationService = Ctx?.OBWorkflowSvc?.PackingStationService;
 		if (packingStationService == null)
