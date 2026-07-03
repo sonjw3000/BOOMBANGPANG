@@ -188,9 +188,8 @@ public partial class WorkerManager : MonoBehaviour
 			idleWorkersQueue[taskType].AddLast(worker);
 		}
 
-		// todo
-		// item transfer task type에 대해서
-		// item transfer Task scheduler를 통해서 할당이 가능한지 확인하여야함
+		if (GameContext.HasInstance)
+			GameContext.Instance.ItemTransferTaskScheduler.NotifyIdleWorker(worker);
 	}
 
 	public void RemoveIdleWorker(AIWorker worker)
@@ -205,6 +204,9 @@ public partial class WorkerManager : MonoBehaviour
 
 			idleWorkersQueue[taskType].Remove(worker);
 		}
+
+		if (GameContext.HasInstance)
+			GameContext.Instance.ItemTransferTaskScheduler.NotifyWorkerUnavailable(worker);
 	}
 
 	private void SyncWorkerAvailability(AIWorker worker)

@@ -3,14 +3,20 @@ using System.Collections.Generic;
 public sealed class PackingBuilding : Building
 {
 	private readonly PackingInputPlanner inputPlanner;
+	private readonly PackingOutputPlanner outputPlanner;
+	private readonly HashSet<PackingStation> dirtyOutputStations = new();
+
+	private ItemTransferTaskScheduler Scheduler => GameContext.Instance.ItemTransferTaskScheduler;
 
 	internal PackingInputPlanner InputPlanner => inputPlanner;
+	internal PackingOutputPlanner OutputPlanner => outputPlanner;
 
 	public PackingBuilding(string displayName, List<GridCell> occupiedCells)
 		: base(displayName, occupiedCells, BuildingType.Packing)
 	{
 		trackingItemStatus.Add(ItemStatus.Labeled);
 		inputPlanner = new PackingInputPlanner(this);
+		outputPlanner = new PackingOutputPlanner(this);
 	}
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
@@ -48,19 +54,97 @@ public sealed class PackingBuilding : Building
 			EvaluatePackingIngress(capsuleBuffer);
 	}
 
+	protected override void OnRegistered()
+	{
+		if (Scheduler == null)
+			return;
+
+		Scheduler.Register(
+			RuntimeBuildingId,
+			ItemTransferScheduleMode.PackingInput,
+			WorkerTask.TaskType.Water,
+			TryBuildItemTransferTask);
+
+		Scheduler.Register(
+			RuntimeBuildingId,
+			ItemTransferScheduleMode.PackingOutput,
+			WorkerTask.TaskType.Water,
+			TryBuildItemTransferTask);
+	}
+
+	protected override void OnUnregistered()
+	{
+		if (Scheduler == null)
+			return;
+
+		Scheduler.Unregister(RuntimeBuildingId, ItemTransferScheduleMode.PackingInput);
+		Scheduler.Unregister(RuntimeBuildingId, ItemTransferScheduleMode.PackingOutput);
+		dirtyOutputStations.Clear();
+	}
+
 	private void EvaluatePackingIngress(CapsuleBuffer capsuleBuffer)
 	{
-		TaskManager taskManager = GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
-		if (taskManager == null || capsuleBuffer == null)
+		if (Scheduler == null || capsuleBuffer == null)
 			return;
 
 		if (CanBuildWaterTaskRequest(capsuleBuffer) == false)
 		{
-			taskManager.CancelTaskBuildRequest(WaterTaskBuildRequest.GetRequestKey(capsuleBuffer));
+			ClearItemContainerDirty(capsuleBuffer);
+			if (dirtyItemStateContainers.Count <= 0)
+				Scheduler.ClearDirty(RuntimeBuildingId, ItemTransferScheduleMode.PackingInput);
 			return;
 		}
 
-		taskManager.EnqueueTaskBuildRequest(new WaterTaskBuildRequest(capsuleBuffer, RuntimeBuildingId));
+		MarkItemContainerDirty(capsuleBuffer);
+		Scheduler.MarkDirty(RuntimeBuildingId, ItemTransferScheduleMode.PackingInput);
+	}
+
+	private ItemTransferScheduleResult TryBuildItemTransferTask(ItemTransferScheduleRequest request, out WorkerTask task)
+	{
+		task = null;
+		if (request.Worker == null || request.Worker.CanAcceptGeneralTask(request.TaskType) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		return request.Mode switch
+		{
+			ItemTransferScheduleMode.PackingInput => TryBuildPackingInputTask(request.Worker, out task),
+			ItemTransferScheduleMode.PackingOutput => TryBuildPackingOutputTask(request.Worker, out task),
+			_ => ItemTransferScheduleResult.NoWork,
+		};
+	}
+
+	private ItemTransferScheduleResult TryBuildPackingInputTask(AIWorker worker, out WorkerTask task)
+	{
+		task = null;
+		if (dirtyItemStateContainers.Count <= 0)
+			return ItemTransferScheduleResult.NoWork;
+
+		task = new ItemTransferTask(
+			WorkerTask.TaskType.Water,
+			new ItemTransferJob(
+				inputPlanner,
+				TransferObjectType.Item,
+				TransferObjectType.Box,
+				RuntimeBuildingId,
+				worker));
+		return ItemTransferScheduleResult.Scheduled;
+	}
+
+	private ItemTransferScheduleResult TryBuildPackingOutputTask(AIWorker worker, out WorkerTask task)
+	{
+		task = null;
+		if (dirtyOutputStations.Count <= 0)
+			return ItemTransferScheduleResult.NoWork;
+
+		task = new ItemTransferTask(
+			WorkerTask.TaskType.Water,
+			new ItemTransferJob(
+				outputPlanner,
+				TransferObjectType.Box,
+				TransferObjectType.Item,
+				RuntimeBuildingId,
+				worker));
+		return ItemTransferScheduleResult.Scheduled;
 	}
 
 	internal bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
@@ -77,4 +161,36 @@ public sealed class PackingBuilding : Building
 	{
 		return packingStation != null && packingStation.EndPackingBox != null;
 	}
+
+	internal bool TryTakeDirtyPackingOutputStation(out PackingStation station)
+	{
+		foreach (PackingStation candidate in dirtyOutputStations)
+		{
+			station = candidate;
+			dirtyOutputStations.Remove(candidate);
+			return true;
+		}
+
+		station = null;
+		return false;
+	}
+
+	internal void MarkPackingOutputDirty(PackingStation station)
+	{
+		if (station == null)
+			return;
+
+		dirtyOutputStations.Add(station);
+		Scheduler?.MarkDirty(RuntimeBuildingId, ItemTransferScheduleMode.PackingOutput);
+	}
+
+	internal void ClearPackingOutputDirty(PackingStation station)
+	{
+		if (station != null)
+			dirtyOutputStations.Remove(station);
+
+		if (dirtyOutputStations.Count <= 0)
+			Scheduler?.ClearDirty(RuntimeBuildingId, ItemTransferScheduleMode.PackingOutput);
+	}
+
 }

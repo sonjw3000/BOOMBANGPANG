@@ -76,7 +76,7 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WorkerTask>
 		task = new ItemTransferTask(
 			WorkerTask.TaskType.Water,
 			new ItemTransferJob(
-				new PackingOutputPlanner(packingBuilding, sourceStation),
+				packingBuilding.OutputPlanner,
 				TransferObjectType.Box,
 				TransferObjectType.Item,
 				RequestedBuildingID));

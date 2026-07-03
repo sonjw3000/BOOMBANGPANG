@@ -132,6 +132,9 @@ public partial class TaskManager : MonoBehaviour
 		taskOnProgress[task.Type].Remove(task);
 		Stats.CompleteProcess(task.Type);
 
+		if (task is ItemTransferTask && GameContext.HasInstance)
+			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskCompleted(task);
+
 		// todo
 		//
 		switch (task.Type)

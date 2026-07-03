@@ -119,10 +119,23 @@ public class Building
 	public void SetOverrideCapsuleThreshold(bool value) => overrideCapsuleThreshold = value;
 	public void SetCapsuleThresholdPercent(float value) => capsuleThresholdPercent = UnityEngine.Mathf.Clamp(value, 0.0f, 100.0f);
 	internal void AssignRuntimeBuildingId(uint id) => runtimeBuildingId = id;
-	internal void SetRegistered(bool registered) =>	isRegistered = registered;
+	internal void SetRegistered(bool registered)
+	{
+		if (isRegistered == registered)
+			return;
+
+		isRegistered = registered;
+		if (registered)
+			OnRegistered();
+		else
+			OnUnregistered();
+	}
 	public void Rename(string newDisplayName) => displayName = newDisplayName;
 	public void SetState(BuildingState newState) => state = newState;
 	public void SetWorkScope(BuildingWorkScope newWorkScope) => workScope = newWorkScope;
+
+	protected virtual void OnRegistered() { }
+	protected virtual void OnUnregistered() { }
 
 	internal bool HasInputBuilding(uint buildingId) => buildingId != 0 && inputBuildingIds.Contains(buildingId);
 	internal bool HasOutputBuilding(uint buildingId) => buildingId != 0 && outputBuildingIds.Contains(buildingId);

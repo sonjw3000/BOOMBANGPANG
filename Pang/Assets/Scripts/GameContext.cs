@@ -94,6 +94,7 @@ public class GameContext : MonoBehaviour
 	private GameSaveService saveService;
 	private DemoGoalService demoGoalService;
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
+	private ItemTransferTaskScheduler itemTransferTaskScheduler;
 
 	private InteractionContext interactionCtx;
 	private bool eventsBound;
@@ -239,6 +240,7 @@ public class GameContext : MonoBehaviour
 			return capsuleRelocateCoordinator;
 		}
 	}
+	public ItemTransferTaskScheduler ItemTransferTaskScheduler => itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();
 
 	private T ResolveManager<T>(ref T field, string componentName) where T : Component
 	{
@@ -311,6 +313,7 @@ public class GameContext : MonoBehaviour
 		deliveryService ??= new DeliveryService();
 		interactionCtx ??= new InteractionContext();
 		capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
+		itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();
 		_ = FloatingTextManager;
 		_ = SaveService;
 		_ = DemoGoalService;

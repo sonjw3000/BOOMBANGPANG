@@ -21,20 +21,17 @@ public enum ItemTransferScheduleResult
 public readonly struct ItemTransferScheduleKey : IEquatable<ItemTransferScheduleKey>
 {
 	public readonly uint BuildingId;
-	public readonly WorkerTask.TaskType TaskType;
 	public readonly ItemTransferScheduleMode Mode;
 
-	public ItemTransferScheduleKey(uint buildingId, WorkerTask.TaskType taskType, ItemTransferScheduleMode mode)
+	public ItemTransferScheduleKey(uint buildingId, ItemTransferScheduleMode mode)
 	{
 		BuildingId = buildingId;
-		TaskType = taskType;
 		Mode = mode;
 	}
 
 	public bool Equals(ItemTransferScheduleKey other)
 	{
 		return BuildingId == other.BuildingId &&
-			TaskType == other.TaskType &&
 			Mode == other.Mode;
 	}
 
@@ -45,27 +42,28 @@ public readonly struct ItemTransferScheduleKey : IEquatable<ItemTransferSchedule
 
 	public override int GetHashCode()
 	{
-		return HashCode.Combine(BuildingId, TaskType, Mode);
+		return HashCode.Combine(BuildingId, Mode);
 	}
 
 	public override string ToString()
 	{
-		return $"{BuildingId}:{TaskType}:{Mode}";
+		return $"{BuildingId}:{Mode}";
 	}
 }
 
 public readonly struct ItemTransferScheduleRequest
 {
 	public readonly ItemTransferScheduleKey Key;
+	public readonly WorkerTask.TaskType TaskType;
 	public readonly AIWorker Worker;
 
 	public uint BuildingId => Key.BuildingId;
-	public WorkerTask.TaskType TaskType => Key.TaskType;
 	public ItemTransferScheduleMode Mode => Key.Mode;
 
-	public ItemTransferScheduleRequest(ItemTransferScheduleKey key, AIWorker worker)
+	public ItemTransferScheduleRequest(ItemTransferScheduleKey key, WorkerTask.TaskType taskType, AIWorker worker)
 	{
 		Key = key;
+		TaskType = taskType;
 		Worker = worker;
 	}
 }
@@ -76,13 +74,25 @@ public delegate ItemTransferScheduleResult ItemTransferTaskBuildHandler(
 
 public sealed class ItemTransferTaskScheduler
 {
+	private sealed class ScheduleEntry
+	{
+		public readonly WorkerTask.TaskType TaskType;
+		public readonly ItemTransferTaskBuildHandler Handler;
+
+		public ScheduleEntry(WorkerTask.TaskType taskType, ItemTransferTaskBuildHandler handler)
+		{
+			TaskType = taskType;
+			Handler = handler;
+		}
+	}
+
 	private sealed class WorkerQueue
 	{
 		public readonly LinkedList<AIWorker> Queue = new();
 		public readonly HashSet<AIWorker> Set = new();
 	}
 
-	private readonly Dictionary<ItemTransferScheduleKey, ItemTransferTaskBuildHandler> handlersByKey = new();
+	private readonly Dictionary<ItemTransferScheduleKey, ScheduleEntry> entriesByKey = new();
 	private readonly HashSet<ItemTransferScheduleKey> dirtyKeys = new();
 	private readonly Dictionary<WorkerTask.TaskType, WorkerQueue> idleWorkersByTaskType = new();
 	private readonly Dictionary<WorkerTask, ItemTransferScheduleKey> scheduledKeysByTask = new();
@@ -90,7 +100,7 @@ public sealed class ItemTransferTaskScheduler
 	private TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 
 	public int DirtyCount => dirtyKeys.Count;
-	public int HandlerCount => handlersByKey.Count;
+	public int HandlerCount => entriesByKey.Count;
 
 	public bool Register(
 		uint buildingId,
@@ -98,24 +108,32 @@ public sealed class ItemTransferTaskScheduler
 		WorkerTask.TaskType taskType,
 		ItemTransferTaskBuildHandler handler)
 	{
-		ItemTransferScheduleKey key = new(buildingId, taskType, mode);
-		if (buildingId == 0 || mode == ItemTransferScheduleMode.Undefined || handler == null)
+		ItemTransferScheduleKey key = new(buildingId, mode);
+		if (buildingId == 0 ||
+			mode == ItemTransferScheduleMode.Undefined ||
+			taskType == WorkerTask.TaskType.Undefined ||
+			handler == null)
+		{
 			return false;
+		}
 
-		handlersByKey[key] = handler;
+		entriesByKey[key] = new ScheduleEntry(taskType, handler);
+		if (dirtyKeys.Contains(key))
+			TrySchedule(key);
+
 		return true;
 	}
 
-	public bool Unregister(uint buildingId, ItemTransferScheduleMode mode, WorkerTask.TaskType taskType)
+	public bool Unregister(uint buildingId, ItemTransferScheduleMode mode)
 	{
-		ItemTransferScheduleKey key = new(buildingId, taskType, mode);
+		ItemTransferScheduleKey key = new(buildingId, mode);
 		dirtyKeys.Remove(key);
-		return handlersByKey.Remove(key);
+		return entriesByKey.Remove(key);
 	}
 
-	public void MarkDirty(uint buildingId, ItemTransferScheduleMode mode, WorkerTask.TaskType taskType)
+	public void MarkDirty(uint buildingId, ItemTransferScheduleMode mode)
 	{
-		ItemTransferScheduleKey key = new(buildingId, taskType, mode);
+		ItemTransferScheduleKey key = new(buildingId, mode);
 		if (IsValidKey(key) == false)
 			return;
 
@@ -123,9 +141,9 @@ public sealed class ItemTransferTaskScheduler
 		TrySchedule(key);
 	}
 
-	public void ClearDirty(uint buildingId, ItemTransferScheduleMode mode, WorkerTask.TaskType taskType)
+	public void ClearDirty(uint buildingId, ItemTransferScheduleMode mode)
 	{
-		dirtyKeys.Remove(new ItemTransferScheduleKey(buildingId, taskType, mode));
+		dirtyKeys.Remove(new ItemTransferScheduleKey(buildingId, mode));
 	}
 
 	public void NotifyIdleWorker(AIWorker worker)
@@ -165,14 +183,14 @@ public sealed class ItemTransferTaskScheduler
 			TrySchedule(key);
 	}
 
-	public bool HasDirty(uint buildingId, ItemTransferScheduleMode mode, WorkerTask.TaskType taskType)
+	public bool HasDirty(uint buildingId, ItemTransferScheduleMode mode)
 	{
-		return dirtyKeys.Contains(new ItemTransferScheduleKey(buildingId, taskType, mode));
+		return dirtyKeys.Contains(new ItemTransferScheduleKey(buildingId, mode));
 	}
 
-	public bool HasHandler(uint buildingId, ItemTransferScheduleMode mode, WorkerTask.TaskType taskType)
+	public bool HasHandler(uint buildingId, ItemTransferScheduleMode mode)
 	{
-		return handlersByKey.ContainsKey(new ItemTransferScheduleKey(buildingId, taskType, mode));
+		return entriesByKey.ContainsKey(new ItemTransferScheduleKey(buildingId, mode));
 	}
 
 	public int GetIdleWorkerCount(WorkerTask.TaskType taskType)
@@ -187,10 +205,11 @@ public sealed class ItemTransferTaskScheduler
 
 		foreach (ItemTransferScheduleKey key in CopyDirtyKeys())
 		{
-			if (CanWorkerTryKey(worker, key) == false)
+			if (entriesByKey.TryGetValue(key, out ScheduleEntry entry) == false ||
+				CanWorkerTryKey(worker, key, entry) == false)
 				continue;
 
-			if (TryBuildAndEnqueue(key, worker))
+			if (TryBuildAndEnqueue(key, entry, worker))
 				return true;
 		}
 
@@ -200,8 +219,8 @@ public sealed class ItemTransferTaskScheduler
 	private bool TrySchedule(ItemTransferScheduleKey key)
 	{
 		if (dirtyKeys.Contains(key) == false ||
-			handlersByKey.ContainsKey(key) == false ||
-			idleWorkersByTaskType.TryGetValue(key.TaskType, out WorkerQueue queue) == false)
+			entriesByKey.TryGetValue(key, out ScheduleEntry entry) == false ||
+			idleWorkersByTaskType.TryGetValue(entry.TaskType, out WorkerQueue queue) == false)
 		{
 			return false;
 		}
@@ -212,27 +231,27 @@ public sealed class ItemTransferTaskScheduler
 			queue.Queue.RemoveFirst();
 			queue.Set.Remove(worker);
 
-			if (CanWorkerTryKey(worker, key) == false)
+			if (CanWorkerTryKey(worker, key, entry) == false)
 				continue;
 
-			if (TryBuildAndEnqueue(key, worker))
+			if (TryBuildAndEnqueue(key, entry, worker))
 				return true;
 		}
 
 		return false;
 	}
 
-	private bool TryBuildAndEnqueue(ItemTransferScheduleKey key, AIWorker worker)
+	private bool TryBuildAndEnqueue(ItemTransferScheduleKey key, ScheduleEntry entry, AIWorker worker)
 	{
 		if (TaskManager == null ||
 			worker == null ||
-			handlersByKey.TryGetValue(key, out ItemTransferTaskBuildHandler handler) == false)
+			entry?.Handler == null)
 		{
 			return false;
 		}
 
-		ItemTransferScheduleRequest request = new(key, worker);
-		ItemTransferScheduleResult result = handler(request, out WorkerTask task);
+		ItemTransferScheduleRequest request = new(key, entry.TaskType, worker);
+		ItemTransferScheduleResult result = entry.Handler(request, out WorkerTask task);
 		switch (result)
 		{
 			case ItemTransferScheduleResult.Scheduled:
@@ -258,19 +277,19 @@ public sealed class ItemTransferTaskScheduler
 		}
 	}
 
-	private bool CanWorkerTryKey(AIWorker worker, ItemTransferScheduleKey key)
+	private bool CanWorkerTryKey(AIWorker worker, ItemTransferScheduleKey key, ScheduleEntry entry)
 	{
 		return IsValidKey(key) &&
+			entry != null &&
 			worker != null &&
 			worker.CurrentTask == null &&
-			worker.CanAcceptGeneralTask(key.TaskType);
+			worker.CanAcceptGeneralTask(entry.TaskType);
 	}
 
 	private static bool IsValidKey(ItemTransferScheduleKey key)
 	{
 		return key.BuildingId != 0 &&
-			key.Mode != ItemTransferScheduleMode.Undefined &&
-			key.TaskType != WorkerTask.TaskType.Undefined;
+			key.Mode != ItemTransferScheduleMode.Undefined;
 	}
 
 	private WorkerQueue GetOrCreateWorkerQueue(WorkerTask.TaskType taskType)

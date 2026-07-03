@@ -15,17 +15,20 @@ public sealed class ItemTransferJob
 	public readonly TransferObjectType CollectType;
 	public readonly TransferObjectType PlaceType;
 	public readonly uint BuildingId;
+	public readonly AIWorker PreferredWorker;
 
 	public ItemTransferJob(
 		IItemTransferPlanner planner,
 		TransferObjectType collectType,
 		TransferObjectType placeType,
-		uint buildingId = 0)
+		uint buildingId = 0,
+		AIWorker preferredWorker = null)
 	{
 		Planner = planner;
 		CollectType = collectType;
 		PlaceType = placeType;
 		BuildingId = buildingId;
+		PreferredWorker = preferredWorker;
 	}
 }
 
@@ -135,6 +138,12 @@ public sealed class ItemTransferTask : WorkerTask
 		return worker != null &&
 			(BuildingId == 0 || worker.PrimaryBuildingId == BuildingId) &&
 			CanDispatchToWorkerZones(worker, currentLine?.Target);
+	}
+
+	public override bool TryGetPreferredWorker(out AIWorker worker)
+	{
+		worker = job?.PreferredWorker;
+		return worker != null;
 	}
 
 #if UNITY_EDITOR

@@ -3,27 +3,42 @@ using UnityEngine;
 public sealed class PackingOutputPlanner : IItemTransferPlanner
 {
 	private readonly PackingBuilding building;
-	private readonly PackingStation sourceStation;
 
-	public PackingOutputPlanner(PackingBuilding building, PackingStation sourceStation)
+	public PackingOutputPlanner(PackingBuilding building)
 	{
 		this.building = building;
-		this.sourceStation = sourceStation;
 	}
 
 	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
 	{
 		line = null;
-		if (building == null || sourceStation == null || sourceStation.EndPackingBox == null)
+		if (building == null)
 			return WorkPlanResult.Completed;
 
-		line = new WorkLine(WorkLineAction.Pick, sourceStation, sourceStation, 0, 1);
-		return WorkPlanResult.Issued;
+		while (building.TryTakeDirtyPackingOutputStation(out PackingStation station))
+		{
+			if (building.CanBuildWaterTaskRequest(station) == false)
+				continue;
+
+			line = new WorkLine(WorkLineAction.Pick, station, station, 0, 1);
+			return WorkPlanResult.Issued;
+		}
+
+		return WorkPlanResult.Completed;
 	}
 
 	public WorkPlanResult OnCollectCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
 	{
-		return result.Moved > 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Completed;
+		if (result.Moved <= 0)
+		{
+			PackingStation sourceStation = line?.Target as PackingStation;
+			if (sourceStation != null && building.CanBuildWaterTaskRequest(sourceStation))
+				building.MarkPackingOutputDirty(sourceStation);
+
+			return WorkPlanResult.Completed;
+		}
+
+		return WorkPlanResult.SwitchPhase;
 	}
 
 	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine collectedLine, int remainingQuantity, out WorkLine line)
@@ -33,6 +48,7 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner
 		if (sourceBox == null)
 			return WorkPlanResult.Completed;
 
+		PackingStation sourceStation = collectedLine?.Target as PackingStation;
 		PackingStationService stationService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc?.PackingStationService : null;
 		if (stationService == null || stationService.TryResolveOutboundBuffer(sourceStation, out CapsuleBuffer targetBuffer) == false)
 			return WorkPlanResult.Waiting;
@@ -72,7 +88,10 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner
 			return WorkPlanResult.Waiting;
 
 		TransferPackedManifest(worker?.CarryingAbility?.CarryingBox, placeLine);
-		return IsWorkerCarryBoxEmpty(worker) ? WorkPlanResult.Completed : WorkPlanResult.Issued;
+		if (IsWorkerCarryBoxEmpty(worker) == false)
+			return WorkPlanResult.Issued;
+
+		return WorkPlanResult.Completed;
 	}
 
 	private static void TransferPackedManifest(BoxBase sourceBox, WorkLine placeLine)

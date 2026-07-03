@@ -120,7 +120,11 @@ public partial class PackingStationService : FacilityService<PackingStation>
 		if (packingStation == null || TryGetBuildingId(packingStation, out uint buildingId) == false)
 			return;
 
-		TaskManager.EnqueueTaskBuildRequest(new WaterTaskBuildRequest(packingStation, buildingId));
+		if (GameContext.Instance.BuildingMgr.TryGetBuilding(buildingId, out Building building) &&
+			building is PackingBuilding packingBuilding)
+		{
+			packingBuilding.MarkPackingOutputDirty(packingStation);
+		}
 	}
 
 	public bool TryClaimWaitingStation(uint buildingId, out PackingStation station)
