@@ -37,7 +37,6 @@ public static class WorkerTaskAssignmentPolicy
 		switch (taskType)
 		{
 			case WorkerTask.TaskType.Undefined:
-			case WorkerTask.TaskType.Water:
 				return true;
 
 			case WorkerTask.TaskType.IB:
@@ -61,6 +60,8 @@ public static class WorkerTaskAssignmentPolicy
 				return buildingType == BuildingType.Storage;
 
 			case WorkerTask.TaskType.Packing:
+			case WorkerTask.TaskType.PackingInput:
+			case WorkerTask.TaskType.PackingOutput:
 				return buildingType == BuildingType.Packing;
 
 			default:

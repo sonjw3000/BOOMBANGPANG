@@ -26,7 +26,7 @@ public class StatusTrackingUI : MonoBehaviour
 	[SerializeField] private TMP_Text taskPicking;
 	[SerializeField] private TMP_Text taskPacking;
 	[SerializeField] private TMP_Text taskLoad;
-	[SerializeField] private TMP_Text taskWater;
+	[SerializeField] private TMP_Text taskPackingTransfer;
 
 	[Header("Order Counts")]
 	[SerializeField] private TMP_Text orderPending;
@@ -47,7 +47,7 @@ public class StatusTrackingUI : MonoBehaviour
 		taskPicking.text = BuildTaskTrackingText(Picking, "Picking");
 		taskPacking.text = BuildTaskTrackingText(Packing, "Packing");
 		taskLoad.text = BuildTaskTrackingText(Loading, "Loading");
-		taskWater.text = BuildTaskTrackingText(Water, "Water");
+		taskPackingTransfer.text = $"{BuildTaskTrackingText(PackingInput, "PackingInput")}\n{BuildTaskTrackingText(PackingOutput, "PackingOutput")}";
 
 		orderPending.text =		$"Pending: {Metrics.GetOrderStatusLength(Pending)}";
 		orderInProgress.text =	$"InProgress: {Metrics.GetOrderStatusLength(InProgress)}";

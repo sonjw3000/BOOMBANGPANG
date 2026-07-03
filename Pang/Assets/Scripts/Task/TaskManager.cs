@@ -162,7 +162,8 @@ public partial class TaskManager : MonoBehaviour
 				OBService.OnTaskCompleted(task);
 				break;
 
-			case TaskType.Water:
+			case TaskType.PackingInput:
+			case TaskType.PackingOutput:
 				break;
 
 			default:

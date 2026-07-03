@@ -337,9 +337,6 @@ public sealed class GameSaveService : MonoBehaviour
 					case PackingTask packing:
 						taskData.Packing = packing.CaptureState(GetPlaceableIdOrDefault);
 						break;
-					case WaterTask water:
-						taskData.Water = water.CaptureState(GetPlaceableIdOrDefault);
-						break;
 				}
 
 				yield return taskData;
@@ -439,8 +436,6 @@ public sealed class GameSaveService : MonoBehaviour
 				return taskData.Packing?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Labeling:
 				return null;
-			case WorkerTask.TaskType.Water:
-				return taskData.Water?.Restore(restoredPlaceables);
 			default:
 				return null;
 		}
@@ -603,29 +598,6 @@ public static class TaskSaveDataExtensions
 		}
 
 		return new CargoTransferTask(sourcePort, targetPort);
-	}
-
-	public static WaterTask Restore(this WaterTaskSaveData data, Dictionary<int, GameObject> placeables)
-	{
-		if (data?.From == null || data.To == null)
-			return null;
-
-		TransferContext from = data.From.Restore(placeables);
-		TransferContext to = data.To.Restore(placeables);
-		if (from == null || to == null)
-			return null;
-
-		WaterTask task = new(from, to);
-		task.RestoreState(data.WorkPhase, data.HasPicked);
-		return task;
-	}
-
-	public static TransferContext Restore(this TransferContextSaveData data, Dictionary<int, GameObject> placeables)
-	{
-		if (data == null || placeables.TryGetValue(data.TargetPlaceableId, out var targetObj) == false || targetObj.TryGetComponent<IInteractionPoint>(out var target) == false)
-			return null;
-
-		return new TransferContext(target, data.TransferType);
 	}
 
 	public static WorkJob Restore(this WorkJobSaveData data, Dictionary<int, GameObject> placeables, Dictionary<int, OrderLine> orderLines)

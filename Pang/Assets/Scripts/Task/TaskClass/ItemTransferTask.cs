@@ -9,6 +9,12 @@ public enum ItemTransferPhase
 	Place,
 }
 
+public enum TransferObjectType
+{
+	Item,
+	Box,
+}
+
 public sealed class ItemTransferJob
 {
 	public readonly IItemTransferPlanner Planner;
@@ -526,6 +532,6 @@ public sealed class ItemTransferTask : WorkerTask
 
 	private static bool IsSupportedTaskType(TaskType taskType)
 	{
-		return taskType is TaskType.Picking or TaskType.Storing or TaskType.Water;
+		return taskType is TaskType.Picking or TaskType.Storing or TaskType.PackingInput or TaskType.PackingOutput;
 	}
 }

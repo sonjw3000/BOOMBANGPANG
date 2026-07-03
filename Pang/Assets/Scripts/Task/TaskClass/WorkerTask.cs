@@ -16,7 +16,8 @@ public static class WorkerTaskTypeRequirement
 			WorkerTask.TaskType.Picking => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Packing => WorkerAbility.Packing,
 			WorkerTask.TaskType.Loading => WorkerAbility.CargoHandling,
-			WorkerTask.TaskType.Water => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.PackingInput => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.PackingOutput => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Labeling => WorkerAbility.Labeling,
 			WorkerTask.TaskType.Undefined => WorkerAbility.None,
 			WorkerTask.TaskType.HandleMistake => WorkerAbility.None,
@@ -39,8 +40,9 @@ public abstract class WorkerTask
 		Picking,
 		Packing,
 		Loading,
-		Water,
 		CargoTransfer,
+		PackingInput,
+		PackingOutput,
 
 		
 		Undefined = 999,

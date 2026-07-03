@@ -516,7 +516,6 @@ public sealed class TaskSaveData
 	public CapsuleTransferTaskSaveData CapsuleTransfer;
 	public CargoTransferTaskSaveData CargoTransfer;
 	public PackingTaskSaveData Packing;
-	public WaterTaskSaveData Water;
 }
 
 [Serializable]
@@ -579,22 +578,6 @@ public sealed class PackingTaskSaveData
 {
 	public int TargetStationId;
 	public bool IsTaskEnd;
-}
-
-[Serializable]
-public sealed class WaterTaskSaveData
-{
-	public TransferContextSaveData From;
-	public TransferContextSaveData To;
-	public bool WorkPhase;
-	public bool HasPicked;
-}
-
-[Serializable]
-public sealed class TransferContextSaveData
-{
-	public int TargetPlaceableId;
-	public TransferObjectType TransferType;
 }
 
 [Serializable]

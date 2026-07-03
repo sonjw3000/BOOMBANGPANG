@@ -63,13 +63,13 @@ public sealed class PackingBuilding : Building
 		Scheduler.Register(
 			RuntimeBuildingId,
 			ItemTransferScheduleMode.PackingInput,
-			WorkerTask.TaskType.Water,
+			WorkerTask.TaskType.PackingInput,
 			TryBuildItemTransferTask);
 
 		Scheduler.Register(
 			RuntimeBuildingId,
 			ItemTransferScheduleMode.PackingOutput,
-			WorkerTask.TaskType.Water,
+			WorkerTask.TaskType.PackingOutput,
 			TryBuildItemTransferTask);
 
 		RefreshPackingIngress();
@@ -90,7 +90,7 @@ public sealed class PackingBuilding : Building
 		if (Scheduler == null || capsuleBuffer == null)
 			return;
 
-		if (CanBuildWaterTaskRequest(capsuleBuffer) == false)
+		if (CanBuildPackingInputTask(capsuleBuffer) == false)
 		{
 			ClearItemContainerDirty(capsuleBuffer);
 			if (dirtyItemStateContainers.Count <= 0)
@@ -129,7 +129,7 @@ public sealed class PackingBuilding : Building
 			return ItemTransferScheduleResult.NoWork;
 
 		task = new ItemTransferTask(
-			WorkerTask.TaskType.Water,
+			WorkerTask.TaskType.PackingInput,
 			new ItemTransferJob(
 				inputPlanner,
 				TransferObjectType.Item,
@@ -146,7 +146,7 @@ public sealed class PackingBuilding : Building
 			return ItemTransferScheduleResult.NoWork;
 
 		task = new ItemTransferTask(
-			WorkerTask.TaskType.Water,
+			WorkerTask.TaskType.PackingOutput,
 			new ItemTransferJob(
 				outputPlanner,
 				TransferObjectType.Box,
@@ -156,7 +156,7 @@ public sealed class PackingBuilding : Building
 		return ItemTransferScheduleResult.Scheduled;
 	}
 
-	internal bool CanBuildWaterTaskRequest(CapsuleBuffer capsuleBuffer)
+	internal bool CanBuildPackingInputTask(CapsuleBuffer capsuleBuffer)
 	{
 		return capsuleBuffer != null &&
 			capsuleBuffer.CanProvideInboundItems() &&
@@ -166,7 +166,7 @@ public sealed class PackingBuilding : Building
 			GameContext.Instance.OBWorkflowSvc.HasPackableManifest(capsuleBuffer.DockedCapsule);
 	}
 
-	internal bool CanBuildWaterTaskRequest(PackingStation packingStation)
+	internal bool CanBuildPackingOutputTask(PackingStation packingStation)
 	{
 		return packingStation != null && packingStation.EndPackingBox != null;
 	}

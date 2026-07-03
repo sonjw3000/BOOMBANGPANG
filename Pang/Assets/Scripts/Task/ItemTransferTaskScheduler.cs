@@ -96,6 +96,8 @@ public sealed class ItemTransferTaskScheduler
 	private readonly HashSet<ItemTransferScheduleKey> dirtyKeys = new();
 	private readonly Dictionary<WorkerTask.TaskType, WorkerQueue> idleWorkersByTaskType = new();
 	private readonly Dictionary<WorkerTask, ItemTransferScheduleKey> scheduledKeysByTask = new();
+	private readonly Dictionary<WorkerTask, AIWorker> scheduledWorkersByTask = new();
+	private readonly HashSet<AIWorker> reservedWorkers = new();
 
 	private TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 
@@ -119,7 +121,7 @@ public sealed class ItemTransferTaskScheduler
 
 		entriesByKey[key] = new ScheduleEntry(taskType, handler);
 		if (dirtyKeys.Contains(key))
-			TrySchedule(key);
+			TryScheduleDirtyKeys();
 
 		return true;
 	}
@@ -138,7 +140,7 @@ public sealed class ItemTransferTaskScheduler
 			return;
 
 		dirtyKeys.Add(key);
-		TrySchedule(key);
+		TryScheduleDirtyKeys();
 	}
 
 	public void ClearDirty(uint buildingId, ItemTransferScheduleMode mode)
@@ -148,7 +150,7 @@ public sealed class ItemTransferTaskScheduler
 
 	public void NotifyIdleWorker(AIWorker worker)
 	{
-		if (worker == null || worker.CurrentTask != null)
+		if (worker == null || worker.CurrentTask != null || reservedWorkers.Contains(worker))
 			return;
 
 		for (int i = 0; i < worker.AssignedTaskTypes.Count; ++i)
@@ -157,9 +159,7 @@ public sealed class ItemTransferTaskScheduler
 			if (worker.CanAcceptGeneralTask(taskType) == false)
 				continue;
 
-			WorkerQueue queue = GetOrCreateWorkerQueue(taskType);
-			if (queue.Set.Add(worker))
-				queue.Queue.AddLast(worker);
+			AddIdleWorker(worker, taskType);
 		}
 
 		TrySchedule(worker);
@@ -179,8 +179,14 @@ public sealed class ItemTransferTaskScheduler
 			return;
 
 		scheduledKeysByTask.Remove(task);
-		if (dirtyKeys.Contains(key))
-			TrySchedule(key);
+		if (scheduledWorkersByTask.TryGetValue(task, out AIWorker worker))
+		{
+			scheduledWorkersByTask.Remove(task);
+			reservedWorkers.Remove(worker);
+		}
+
+		if (dirtyKeys.Count > 0)
+			TryScheduleDirtyKeys();
 	}
 
 	public bool HasDirty(uint buildingId, ItemTransferScheduleMode mode)
@@ -200,7 +206,7 @@ public sealed class ItemTransferTaskScheduler
 
 	private bool TrySchedule(AIWorker worker)
 	{
-		if (worker == null || worker.CurrentTask != null)
+		if (worker == null || worker.CurrentTask != null || reservedWorkers.Contains(worker))
 			return false;
 
 		foreach (ItemTransferScheduleKey key in CopyDirtyKeys())
@@ -216,14 +222,28 @@ public sealed class ItemTransferTaskScheduler
 		return false;
 	}
 
+	private bool TryScheduleDirtyKeys()
+	{
+		foreach (ItemTransferScheduleKey key in CopyDirtyKeys())
+		{
+			if (TrySchedule(key))
+				return true;
+		}
+
+		return false;
+	}
+
 	private bool TrySchedule(ItemTransferScheduleKey key)
 	{
 		if (dirtyKeys.Contains(key) == false ||
-			entriesByKey.TryGetValue(key, out ScheduleEntry entry) == false ||
-			idleWorkersByTaskType.TryGetValue(entry.TaskType, out WorkerQueue queue) == false)
+			entriesByKey.TryGetValue(key, out ScheduleEntry entry) == false)
 		{
 			return false;
 		}
+
+		RefreshIdleWorkers(entry.TaskType);
+		if (idleWorkersByTaskType.TryGetValue(entry.TaskType, out WorkerQueue queue) == false)
+			return false;
 
 		while (dirtyKeys.Contains(key) && queue.Queue.Count > 0)
 		{
@@ -239,6 +259,33 @@ public sealed class ItemTransferTaskScheduler
 		}
 
 		return false;
+	}
+
+	private void RefreshIdleWorkers(WorkerTask.TaskType taskType)
+	{
+		WorkerManager workerManager = GameContext.HasInstance ? GameContext.Instance.WorkerMgr : null;
+		if (workerManager == null)
+			return;
+
+		foreach (AIWorker worker in workerManager.Workers)
+		{
+			if (worker == null ||
+				worker.CurrentTask != null ||
+				reservedWorkers.Contains(worker) ||
+				worker.CanAcceptGeneralTask(taskType) == false)
+			{
+				continue;
+			}
+
+			AddIdleWorker(worker, taskType);
+		}
+	}
+
+	private void AddIdleWorker(AIWorker worker, WorkerTask.TaskType taskType)
+	{
+		WorkerQueue queue = GetOrCreateWorkerQueue(taskType);
+		if (queue.Set.Add(worker))
+			queue.Queue.AddLast(worker);
 	}
 
 	private bool TryBuildAndEnqueue(ItemTransferScheduleKey key, ScheduleEntry entry, AIWorker worker)
@@ -260,6 +307,8 @@ public sealed class ItemTransferTaskScheduler
 
 				RemoveIdleWorker(worker);
 				scheduledKeysByTask[task] = key;
+				scheduledWorkersByTask[task] = worker;
+				reservedWorkers.Add(worker);
 				TaskManager.EnqueueTask(task);
 				return true;
 
@@ -283,6 +332,7 @@ public sealed class ItemTransferTaskScheduler
 			entry != null &&
 			worker != null &&
 			worker.CurrentTask == null &&
+			reservedWorkers.Contains(worker) == false &&
 			worker.CanAcceptGeneralTask(entry.TaskType);
 	}
 
@@ -318,6 +368,18 @@ public sealed class ItemTransferTaskScheduler
 
 	private List<ItemTransferScheduleKey> CopyDirtyKeys()
 	{
-		return new List<ItemTransferScheduleKey>(dirtyKeys);
+		List<ItemTransferScheduleKey> keys = new(dirtyKeys);
+		keys.Sort((left, right) => GetSchedulePriority(left.Mode).CompareTo(GetSchedulePriority(right.Mode)));
+		return keys;
+	}
+
+	private static int GetSchedulePriority(ItemTransferScheduleMode mode)
+	{
+		return mode switch
+		{
+			ItemTransferScheduleMode.PackingOutput => 0,
+			ItemTransferScheduleMode.PackingInput => 10,
+			_ => 100,
+		};
 	}
 }

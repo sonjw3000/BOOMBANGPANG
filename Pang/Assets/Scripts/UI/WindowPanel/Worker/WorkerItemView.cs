@@ -319,7 +319,8 @@ namespace Assets.Scripts.UI
 
 				WorkerTask.TaskType.Picking or
 				WorkerTask.TaskType.Storing or
-				WorkerTask.TaskType.Water or
+				WorkerTask.TaskType.PackingInput or
+				WorkerTask.TaskType.PackingOutput or
 				WorkerTask.TaskType.Packing or
 				WorkerTask.TaskType.Labeling => WorkerTaskHandleGroup.ItemHandle,
 

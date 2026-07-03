@@ -87,13 +87,12 @@ public abstract partial class AIWorker
 			for (int i = 0; i < data.AssignedTaskTypes.Count; ++i)
 			{
 				WorkerTask.TaskType taskType = data.AssignedTaskTypes[i];
-				if (taskType != WorkerTask.TaskType.Undefined && workerAssignedTaskTypes.Contains(taskType) == false)
-					workerAssignedTaskTypes.Add(taskType);
+				AddRestoredAssignedTaskType(taskType);
 			}
 		}
 		else if (workerMainTaskType != WorkerTask.TaskType.Undefined)
 		{
-			workerAssignedTaskTypes.Add(workerMainTaskType);
+			AddRestoredAssignedTaskType(workerMainTaskType);
 		}
 
 		workerMainTaskType = workerAssignedTaskTypes.Count > 0 ? workerAssignedTaskTypes[0] : WorkerTask.TaskType.Undefined;
@@ -110,6 +109,15 @@ public abstract partial class AIWorker
 
 		if (data.CarryingBox != null && GameContext.Instance.BoxMgr.TryGetBox(data.CarryingBox.BoxType, data.CarryingBox.BoxId, out var box))
 			TryAttachBox(box);
+	}
+
+	private void AddRestoredAssignedTaskType(WorkerTask.TaskType taskType)
+	{
+		if (taskType == WorkerTask.TaskType.Undefined)
+			return;
+
+		if (workerAssignedTaskTypes.Contains(taskType) == false)
+			workerAssignedTaskTypes.Add(taskType);
 	}
 
 	protected virtual void CaptureSubclassState(WorkerSaveData data) { }

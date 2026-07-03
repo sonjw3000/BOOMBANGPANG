@@ -458,8 +458,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		WorkerTask.TaskType previousTaskType = workerMainTaskType;
 		workerMainTaskType = taskType;
 		workerAssignedTaskTypes.Clear();
-		if (taskType != WorkerTask.TaskType.Undefined)
-			workerAssignedTaskTypes.Add(taskType);
+		AddAssignedTaskType(taskType);
+		workerMainTaskType = workerAssignedTaskTypes.Count > 0 ? workerAssignedTaskTypes[0] : WorkerTask.TaskType.Undefined;
 		OnTaskTypeChanged?.Invoke(this, previousTaskType, taskType);
 	}
 
@@ -470,10 +470,10 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public void EnsureAssignedTaskTypesInitialized()
 	{
-		if (workerAssignedTaskTypes.Count > 0 || workerMainTaskType == WorkerTask.TaskType.Undefined)
-			return;
+		if (workerAssignedTaskTypes.Count <= 0 && workerMainTaskType != WorkerTask.TaskType.Undefined)
+			workerAssignedTaskTypes.Add(workerMainTaskType);
 
-		workerAssignedTaskTypes.Add(workerMainTaskType);
+		NormalizeAssignedTaskTypes();
 	}
 
 	public void SetAssignedTaskTypes(IEnumerable<WorkerTask.TaskType> taskTypes)
@@ -485,16 +485,35 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		{
 			foreach (WorkerTask.TaskType taskType in taskTypes)
 			{
-				if (taskType == WorkerTask.TaskType.Undefined || workerAssignedTaskTypes.Contains(taskType))
-					continue;
-
-				workerAssignedTaskTypes.Add(taskType);
+				AddAssignedTaskType(taskType);
 			}
 		}
 
 		workerMainTaskType = workerAssignedTaskTypes.Count > 0 ? workerAssignedTaskTypes[0] : WorkerTask.TaskType.Undefined;
 		if (previousTaskType != workerMainTaskType)
 			OnTaskTypeChanged?.Invoke(this, previousTaskType, workerMainTaskType);
+	}
+
+	private void NormalizeAssignedTaskTypes()
+	{
+		if (workerAssignedTaskTypes.Count <= 0)
+			return;
+
+		List<WorkerTask.TaskType> assigned = new(workerAssignedTaskTypes);
+		workerAssignedTaskTypes.Clear();
+		for (int i = 0; i < assigned.Count; ++i)
+			AddAssignedTaskType(assigned[i]);
+
+		workerMainTaskType = workerAssignedTaskTypes.Count > 0 ? workerAssignedTaskTypes[0] : WorkerTask.TaskType.Undefined;
+	}
+
+	private void AddAssignedTaskType(WorkerTask.TaskType taskType)
+	{
+		if (taskType == WorkerTask.TaskType.Undefined)
+			return;
+
+		if (workerAssignedTaskTypes.Contains(taskType) == false)
+			workerAssignedTaskTypes.Add(taskType);
 	}
 
 	public void SetPrimaryBuildingId(uint buildingId)

@@ -17,7 +17,7 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner
 
 		while (building.TryTakeDirtyPackingOutputStation(out PackingStation station))
 		{
-			if (building.CanBuildWaterTaskRequest(station) == false)
+			if (building.CanBuildPackingOutputTask(station) == false)
 				continue;
 
 			line = new WorkLine(WorkLineAction.Pick, station, station, 0, 1);
@@ -32,7 +32,7 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner
 		if (result.Moved <= 0)
 		{
 			PackingStation sourceStation = line?.Target as PackingStation;
-			if (sourceStation != null && building.CanBuildWaterTaskRequest(sourceStation))
+			if (sourceStation != null && building.CanBuildPackingOutputTask(sourceStation))
 				building.MarkPackingOutputDirty(sourceStation);
 
 			return WorkPlanResult.Completed;
