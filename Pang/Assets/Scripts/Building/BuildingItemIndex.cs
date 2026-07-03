@@ -55,6 +55,8 @@ public sealed class BuildingItemIndex
 	public IReadOnlyDictionary<BuildingItemKey, Dictionary<IItemContainer, int>> QuantityByKeyAndContainer => quantityByKeyAndContainer;
 	public IReadOnlyDictionary<BuildingItemKey, Dictionary<IItemContainer, int>> ReservedByKeyAndContainer => reservedByKeyAndContainer;
 
+	public event Action<uint, ItemStatus, IItemContainer> OnItemStatusAdded;
+
 	public BuildingItemIndex(Building owner)
 	{
 		this.owner = owner;
@@ -67,6 +69,7 @@ public sealed class BuildingItemIndex
 
 		snapshots[container] = BuildSnapshot(container);
 		ApplySnapshot(container, snapshots[container], 1);
+		PublishItemStatusAdded(container, snapshots[container]);
 		Subscribe(container);
 		return true;
 	}
@@ -95,6 +98,7 @@ public sealed class BuildingItemIndex
 			ContainerSnapshot snapshot = BuildSnapshot(container);
 			snapshots[container] = snapshot;
 			ApplySnapshot(container, snapshot, 1);
+			PublishItemStatusAdded(container, snapshot);
 		}
 	}
 
@@ -132,6 +136,7 @@ public sealed class BuildingItemIndex
 		ContainerSnapshot newSnapshot = BuildSnapshot(container);
 		snapshots[container] = newSnapshot;
 		ApplySnapshot(container, newSnapshot, 1);
+		PublishItemStatusAdded(container, newSnapshot);
 	}
 
 	private ContainerSnapshot BuildSnapshot(IItemContainer container)
@@ -174,6 +179,19 @@ public sealed class BuildingItemIndex
 
 		foreach (var entry in snapshot.ReservedQuantities)
 			ApplyNested(reservedByKeyAndContainer, entry.Key, container, entry.Value * sign);
+	}
+
+	private void PublishItemStatusAdded(IItemContainer container, ContainerSnapshot snapshot)
+	{
+		if (container == null || snapshot == null || OnItemStatusAdded == null)
+			return;
+
+		foreach (var entry in snapshot.Quantities)
+		{
+			int reservedQuantity = snapshot.ReservedQuantities.GetValueOrDefault(entry.Key);
+			if (entry.Value - reservedQuantity > 0)
+				OnItemStatusAdded.Invoke(entry.Key.ItemId, entry.Key.Status, container);
+		}
 	}
 
 	private void ApplyTotal(uint itemId, int delta)

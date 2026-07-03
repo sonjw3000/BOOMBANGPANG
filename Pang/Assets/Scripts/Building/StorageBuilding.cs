@@ -3,6 +3,7 @@ public sealed class StorageBuilding : Building
 	public StorageBuilding(string displayName, System.Collections.Generic.List<GridCell> occupiedCells)
 		: base(displayName, occupiedCells, BuildingType.Storage)
 	{
+		trackingItemStatus.Add(ItemStatus.Labeled);
 	}
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)

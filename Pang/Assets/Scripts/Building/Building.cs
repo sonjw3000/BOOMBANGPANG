@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
+using System;
 
 public enum BuildingType
 {
@@ -84,6 +85,11 @@ public class Building
 	private readonly Dictionary<CapsuleBuffer, OutboundCargoPort> queuedOutboundTargets = new();
 	private readonly Dictionary<CapsuleLogisticsState, HashSet<CargoCapsule>> capsulesByState = new();
 	private readonly Dictionary<CargoCapsule, CapsuleLogisticsState> registeredCapsuleStates = new();
+
+	// item transfer for state
+	protected readonly HashSet<ItemStatus> trackingItemStatus = new();
+	protected readonly HashSet<IItemContainer> dirtyItemStateContainers = new();
+
 	// todo
 	// airlock 추가시에 적용
 	// private List<Airlock> airlocks = new List<Airlock>();
@@ -99,7 +105,7 @@ public class Building
 	public IReadOnlyList<CapsuleBuffer> OccupiedCapsuleBuffers => occupiedCapsuleBuffers;
 	public IReadOnlyCollection<uint> InputBuildingIds => inputBuildingIds;
 	public IReadOnlyCollection<uint> OutputBuildingIds => outputBuildingIds;
-	public BuildingItemIndex ItemIndex => itemIndex ??= new BuildingItemIndex(this);
+	public BuildingItemIndex ItemIndex => itemIndex;
 
 	public bool OverrideCapsuleThreshold => overrideCapsuleThreshold;
 	public float CapsuleThresholdPercent => capsuleThresholdPercent;
@@ -109,51 +115,28 @@ public class Building
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
 	private OutboundWorkflowService OutboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
-	
+
+	public void SetOverrideCapsuleThreshold(bool value) => overrideCapsuleThreshold = value;
+	public void SetCapsuleThresholdPercent(float value) => capsuleThresholdPercent = UnityEngine.Mathf.Clamp(value, 0.0f, 100.0f);
+	internal void AssignRuntimeBuildingId(uint id) => runtimeBuildingId = id;
+	internal void SetRegistered(bool registered) =>	isRegistered = registered;
+	public void Rename(string newDisplayName) => displayName = newDisplayName;
+	public void SetState(BuildingState newState) => state = newState;
+	public void SetWorkScope(BuildingWorkScope newWorkScope) => workScope = newWorkScope;
+
+	internal bool HasInputBuilding(uint buildingId) => buildingId != 0 && inputBuildingIds.Contains(buildingId);
+	internal bool HasOutputBuilding(uint buildingId) => buildingId != 0 && outputBuildingIds.Contains(buildingId);
+	public bool IsItemStatusInterested(ItemStatus status) => trackingItemStatus.Contains(status);
+
 	public Building(string displayName, List<GridCell> occupiedCells, BuildingType buildingType = BuildingType.Generic)
 	{
 		this.displayName = displayName;
 		this.buildingType = buildingType;
 		this.occupiedCells = occupiedCells ?? new List<GridCell>();
-	}
 
-	public void SetOverrideCapsuleThreshold(bool value)
-	{
-		overrideCapsuleThreshold = value;
+		itemIndex = new(this);
+		itemIndex.OnItemStatusAdded += HandleItemStatusAdded;
 	}
-
-	public void SetCapsuleThresholdPercent(float value)
-	{
-		capsuleThresholdPercent = UnityEngine.Mathf.Clamp(value, 0.0f, 100.0f);
-	}
-
-	internal void AssignRuntimeBuildingId(uint id)
-	{
-		runtimeBuildingId = id;
-	}
-
-	internal void SetRegistered(bool registered)
-	{
-		isRegistered = registered;
-	}
-
-	public void Rename(string newDisplayName)
-	{
-		displayName = newDisplayName;
-	}
-
-	public void SetState(BuildingState newState)
-	{
-		state = newState;
-	}
-
-	public void SetWorkScope(BuildingWorkScope newWorkScope)
-	{
-		workScope = newWorkScope;
-	}
-
-	internal bool HasInputBuilding(uint buildingId) => buildingId != 0 && inputBuildingIds.Contains(buildingId);
-	internal bool HasOutputBuilding(uint buildingId) => buildingId != 0 && outputBuildingIds.Contains(buildingId);
 
 	internal bool AddInputBuilding(uint buildingId)
 	{
@@ -855,4 +838,15 @@ public class Building
 			queuedOutboundTargets.Remove(buffer);
 		}
 	}
+
+	// for item transfer
+	private void HandleItemStatusAdded(uint itemId, ItemStatus status, IItemContainer container)
+	{
+		if (container == null)
+			return;
+
+		if (trackingItemStatus.Contains(status))
+			dirtyItemStateContainers.Add(container);
+	}
+
 }

@@ -4,6 +4,7 @@ public sealed class StagingBuilding : Building
 	public StagingBuilding(string displayName, System.Collections.Generic.List<GridCell> occupiedCells)
 		: base(displayName, occupiedCells, BuildingType.Staging)
 	{
+		trackingItemStatus.Add(ItemStatus.None);
 	}
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)

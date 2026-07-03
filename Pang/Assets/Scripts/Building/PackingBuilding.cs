@@ -1,8 +1,11 @@
+using System.Collections.Generic;
+
 public sealed class PackingBuilding : Building
 {
-	public PackingBuilding(string displayName, System.Collections.Generic.List<GridCell> occupiedCells)
+	public PackingBuilding(string displayName, List<GridCell> occupiedCells)
 		: base(displayName, occupiedCells, BuildingType.Packing)
 	{
+		trackingItemStatus.Add(ItemStatus.Labeled);
 	}
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
