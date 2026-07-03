@@ -187,6 +187,10 @@ public partial class WorkerManager : MonoBehaviour
 
 			idleWorkersQueue[taskType].AddLast(worker);
 		}
+
+		// todo
+		// item transfer task type에 대해서
+		// item transfer Task scheduler를 통해서 할당이 가능한지 확인하여야함
 	}
 
 	public void RemoveIdleWorker(AIWorker worker)
@@ -281,7 +285,7 @@ public partial class WorkerManager : MonoBehaviour
 		// 
 		foreach (var worker in workers)
 		{
-			SyncWorkerAvailability(worker);
+			// SyncWorkerAvailability(worker);
 
 			if (worker.enabled)
 				worker.RunBT(globalBlackboard);

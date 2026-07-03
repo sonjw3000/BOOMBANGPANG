@@ -390,6 +390,14 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private void Start()
 	{
 		InitializeForSaveLoad();
+		if (currentTask == null)
+		{
+			WorkerMgr.AddIdleWorker(this);
+		}
+		else
+		{
+			WorkerMgr.RemoveIdleWorker(this);
+		}
 	}
 
 	private void OnDestroy()
@@ -524,6 +532,10 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			WorkerMgr.RemoveIdleWorker(this);
 			if (workerState.Target == WorkerStatusTarget.StandbyZone)
 				routeFinder?.StopAfterCurrentStep();
+		}
+		else
+		{
+			WorkerMgr.AddIdleWorker(this);
 		}
 
 		task?.SetAIWorker(this);
