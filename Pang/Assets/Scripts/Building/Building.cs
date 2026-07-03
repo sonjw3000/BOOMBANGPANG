@@ -66,6 +66,7 @@ public class Building
 
 	private bool overrideCapsuleThreshold = false;
 	private float capsuleThresholdPercent = 80.0f;
+	private BuildingItemIndex itemIndex;
 
 	private bool isRegistered;
 
@@ -98,6 +99,7 @@ public class Building
 	public IReadOnlyList<CapsuleBuffer> OccupiedCapsuleBuffers => occupiedCapsuleBuffers;
 	public IReadOnlyCollection<uint> InputBuildingIds => inputBuildingIds;
 	public IReadOnlyCollection<uint> OutputBuildingIds => outputBuildingIds;
+	public BuildingItemIndex ItemIndex => itemIndex ??= new BuildingItemIndex(this);
 
 	public bool OverrideCapsuleThreshold => overrideCapsuleThreshold;
 	public float CapsuleThresholdPercent => capsuleThresholdPercent;
@@ -185,6 +187,9 @@ public class Building
 			return false;
 
 		occupiedFacilities.Add(facility);
+		if (facility is IItemContainer itemContainer)
+			ItemIndex.Register(itemContainer, facility);
+
 		if (facility is CargoPort cargoPort && occupiedCargoPorts.Contains(cargoPort) == false)
 		{
 			occupiedCargoPorts.Add(cargoPort);
@@ -207,6 +212,9 @@ public class Building
 			return false;
 
 		bool removed = occupiedFacilities.Remove(facility);
+		if (facility is IItemContainer itemContainer)
+			ItemIndex.Unregister(itemContainer);
+
 		if (facility is CargoPort cargoPort)
 		{
 			UnregisterCapsule(cargoPort.DockedCapsule);

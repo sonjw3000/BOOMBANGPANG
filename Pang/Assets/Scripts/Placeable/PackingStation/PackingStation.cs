@@ -42,6 +42,8 @@ public partial class PackingStation :
 	private float totalSize = 0.0f;
 	private ItemTag itemTags = ItemTag.None;
 
+	public event Action<PackingStation> OnItemContentChanged;
+
 	public IReadOnlyList<ItemStack> Stacks => packedItems;
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
 	public float TotalSize => totalSize;
@@ -290,6 +292,7 @@ public partial class PackingStation :
 
 		itemTotals[itemId] = itemTotals.GetValueOrDefault(itemId) + quantity;
 		UpdateSize();
+		OnItemContentChanged?.Invoke(this);
 		return true;
 	}
 
@@ -303,6 +306,7 @@ public partial class PackingStation :
 			itemTotals.Remove(stack.ItemID);
 
 		UpdateSize();
+		OnItemContentChanged?.Invoke(this);
 		return true;
 	}
 
@@ -329,6 +333,7 @@ public partial class PackingStation :
 		}
 
 		UpdateSize();
+		OnItemContentChanged?.Invoke(this);
 		return true;
 	}
 
