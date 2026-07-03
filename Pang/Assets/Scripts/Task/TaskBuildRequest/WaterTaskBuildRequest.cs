@@ -70,12 +70,16 @@ public sealed class WaterTaskBuildRequest : TaskBuildRequest<WorkerTask>
 			return false;
 
 		PackingStationService packingStationService = Ctx?.OBWorkflowSvc?.PackingStationService;
-		if (packingStationService == null || packingStationService.TryResolveOutboundBuffer(sourceStation, out CapsuleBuffer targetBuffer) == false)
+		if (packingStationService == null || packingStationService.TryResolveOutboundBuffer(sourceStation, out _) == false)
 			return false;
 
-		task = new WaterTask(
-			new TransferContext(sourceStation, TransferObjectType.Box),
-			new TransferContext(targetBuffer, TransferObjectType.Item));
+		task = new ItemTransferTask(
+			WorkerTask.TaskType.Water,
+			new ItemTransferJob(
+				new PackingOutputPlanner(packingBuilding, sourceStation),
+				TransferObjectType.Box,
+				TransferObjectType.Item,
+				RequestedBuildingID));
 		return true;
 	}
 }

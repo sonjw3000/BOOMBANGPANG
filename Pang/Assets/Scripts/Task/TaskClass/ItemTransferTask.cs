@@ -366,7 +366,12 @@ public sealed class ItemTransferTask : WorkerTask
 		if (remainingQuantity <= 0)
 			return new(new ItemTransferPayload(box, line.Container, line.ItemID, remainingQuantity), 0);
 
-		return ItemTransferUtility.MoveItem(new(box, line.Container, line.ItemID, remainingQuantity));
+		return ItemTransferUtility.MoveItem(new(
+			box,
+			line.Container,
+			line.ItemID,
+			remainingQuantity,
+			stackPredicate: stack => line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value)));
 	}
 
 	private static ItemTransferResult MoveCollectBox(AIWorker worker, WorkLine line)
