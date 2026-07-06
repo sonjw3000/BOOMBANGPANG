@@ -139,6 +139,13 @@ public partial class OrderLine
 		return actual;
 	}
 
+	public int ReleasePickingAllocation(int quantity)
+	{
+		int actual = ClampInt(quantity, 0, PickingAllocatedQuantity);
+		PickingAllocatedQuantity -= actual;
+		return actual;
+	}
+
 	public int ReportPickingCompleted(int quantity)
 	{
 		int actual = ClampInt(quantity, 0, PickingAllocatedQuantity);

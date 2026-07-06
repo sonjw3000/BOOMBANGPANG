@@ -22,6 +22,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private readonly HashSet<OutboundCargoPort> queuedCargoTransferPorts = new();
 	private readonly Dictionary<OutboundCargoPort, InboundCargoPort> queuedCargoTransferTargets = new();
 	private readonly Dictionary<uint, PickingManifest> pickingManifests = new();
+	private readonly List<PickingDispatchCandidate> pickingDispatchCandidates = new();
 
 	public PackingStationService PackingStationService => packingStationService;
 	public LaunchStationService LaunchStationService => launchStationService;
@@ -36,6 +37,18 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
 	private GridService GridService => GameContext.Instance.GridService;
 	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
+
+	private readonly struct PickingDispatchCandidate
+	{
+		public readonly StorageBuilding Building;
+		public readonly int PickableQuantity;
+
+		public PickingDispatchCandidate(StorageBuilding building, int pickableQuantity)
+		{
+			Building = building;
+			PickableQuantity = pickableQuantity;
+		}
+	}
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
@@ -324,7 +337,67 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			MakeOrder();
 		}
 
+		DispatchPickingRequests();
 		CheckPickingTaskAvailable();
+	}
+
+	private void DispatchPickingRequests()
+	{
+		if (OrderMgr == null || BuildingManager == null)
+			return;
+
+		foreach (uint itemId in OrderMgr.GetRequestedItemIds())
+		{
+			foreach (OrderLine orderLine in OrderMgr.GetRequestLines(itemId))
+				DispatchPickingRequest(orderLine);
+		}
+	}
+
+	private void DispatchPickingRequest(OrderLine orderLine)
+	{
+		if (orderLine == null || orderLine.CanAllocatePicking == false)
+			return;
+
+		int remaining = orderLine.GetPickingAllocatableQuantity();
+		if (remaining <= 0)
+			return;
+
+		BuildPickingDispatchCandidates(orderLine.ItemID);
+		pickingDispatchCandidates.Sort((left, right) => right.PickableQuantity.CompareTo(left.PickableQuantity));
+
+		for (int i = 0; i < pickingDispatchCandidates.Count && remaining > 0; ++i)
+		{
+			PickingDispatchCandidate candidate = pickingDispatchCandidates[i];
+			if (candidate.Building == null || candidate.PickableQuantity <= 0)
+				continue;
+
+			int quantity = Mathf.Min(remaining, candidate.PickableQuantity);
+			if (quantity <= 0)
+				continue;
+
+			int accepted = candidate.Building.AcceptPickingRequest(orderLine, quantity, out _);
+			if (accepted <= 0)
+				continue;
+
+			remaining -= accepted;
+		}
+	}
+
+	private void BuildPickingDispatchCandidates(uint itemId)
+	{
+		pickingDispatchCandidates.Clear();
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is not StorageBuilding storageBuilding || storageBuilding.RuntimeBuildingId == 0)
+				continue;
+
+			int pickable = storageBuilding.GetPickableQuantity(itemId);
+			if (pickable <= 0)
+				continue;
+
+			pickingDispatchCandidates.Add(new PickingDispatchCandidate(storageBuilding, pickable));
+		}
 	}
 
 	private void CheckPickingTaskAvailable()

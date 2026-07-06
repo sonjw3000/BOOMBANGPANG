@@ -1,38 +1,48 @@
 using System.Collections.Generic;
-using System;
 using UnityEngine;
 
 public sealed class PickingRequest
 {
 	public readonly OrderLine OrderLine;
+	public readonly ShelfBase Source;
 	public readonly uint ItemId;
-	public readonly int RequestedQuantity;
 
+	private int reservedQuantity;
 	private int allocatedQuantity;
 
 	public int AllocatedQuantity => allocatedQuantity;
-	public int RemainingQuantity => Mathf.Max(0, RequestedQuantity - allocatedQuantity);
+	public int RequestedQuantity => reservedQuantity;
+	public int RemainingQuantity => Mathf.Max(0, reservedQuantity - allocatedQuantity);
 	public bool IsComplete => RemainingQuantity <= 0 || OrderLine == null || OrderLine.IsFinal;
 
-	public PickingRequest(OrderLine orderLine, int quantity)
+	public PickingRequest(OrderLine orderLine, ShelfBase source, int reservedQuantity)
 	{
 		OrderLine = orderLine;
+		Source = source;
 		ItemId = orderLine != null ? orderLine.ItemID : 0;
-		RequestedQuantity = Mathf.Max(0, quantity);
+		this.reservedQuantity = Mathf.Max(0, reservedQuantity);
 	}
 
 	public int GetAllocatableQuantity()
 	{
-		if (OrderLine == null || OrderLine.CanAllocatePicking == false)
+		if (OrderLine == null || OrderLine.IsFinal)
 			return 0;
 
-		return Mathf.Min(RemainingQuantity, OrderLine.GetPickingAllocatableQuantity());
+		return RemainingQuantity;
 	}
 
 	public int ReportAllocated(int quantity)
 	{
 		int actual = Mathf.Clamp(quantity, 0, RemainingQuantity);
 		allocatedQuantity += actual;
+		return actual;
+	}
+
+	public int ReleaseReserved(int quantity)
+	{
+		int releasable = Mathf.Max(0, reservedQuantity - allocatedQuantity);
+		int actual = Mathf.Clamp(quantity, 0, releasable);
+		reservedQuantity -= actual;
 		return actual;
 	}
 }
@@ -42,7 +52,6 @@ public sealed class PickingPlanner : IItemTransferPlanner
 	private static int jobID = 1;
 
 	private readonly StorageBuilding ownerBuilding;
-	private readonly CollectPlanner<OrderLine> collectPlanner;
 	private readonly PickingRequestSource requestSource = new();
 	private ICollectingPolicy<PickingRequest> requestCollectingPolicy;
 	private CollectingPolicyType collectingPolicyType;
@@ -53,8 +62,6 @@ public sealed class PickingPlanner : IItemTransferPlanner
 	public CollectingPolicyType CollectingPolicyType => collectingPolicyType;
 	private uint BuildingId => ownerBuilding != null ? ownerBuilding.RuntimeBuildingId : 0;
 
-	private ICollectSupplySource CollectSupplySource => GameContext.Instance.StorageService;
-	private ICollectRequestSource<OrderLine> CollectRequestSource => GameContext.Instance.OrderMgr;
 	private CapsuleBufferService CapsuleBufferService => GameContext.Instance.CapsuleBufferSvc;
 
 	public PickingPlanner(
@@ -64,17 +71,12 @@ public sealed class PickingPlanner : IItemTransferPlanner
 	{
 		this.ownerBuilding = ownerBuilding;
 		this.boxFillLimitPercent = boxFillLimitPercent;
-		collectPlanner = new CollectPlanner<OrderLine>(
-			CollectSupplySource,
-			CollectRequestSource,
-			CollectingPolicyFactory.Create<OrderLine>(collectingPolicyType));
 		SetCollectingPolicy(collectingPolicyType);
 	}
 
 	public void SetCollectingPolicy(CollectingPolicyType policyType)
 	{
 		collectingPolicyType = policyType;
-		collectPlanner.SetCollectingPolicy(CollectingPolicyFactory.Create<OrderLine>(policyType));
 		requestCollectingPolicy = CollectingPolicyFactory.Create<PickingRequest>(policyType);
 	}
 
@@ -91,58 +93,33 @@ public sealed class PickingPlanner : IItemTransferPlanner
 	public bool HasPendingCollectWork(uint buildingId)
 	{
 		uint targetBuildingId = ResolveBuildingId(buildingId);
-		if (HasPendingCollect(targetBuildingId))
-			return true;
-
-		foreach (uint itemId in CollectRequestSource.GetRequestedItemIds())
-		{
-			foreach (OrderLine requestLine in CollectRequestSource.GetRequestLines(itemId))
-			{
-				if (CollectRequestSource.GetAllocatableQuantity(requestLine) <= 0)
-					continue;
-
-				IEnumerable<ShelfBase> sources = targetBuildingId != 0
-					? CollectSupplySource.GetSources(targetBuildingId, itemId)
-					: CollectSupplySource.GetSources(itemId);
-
-				foreach (ShelfBase _ in sources)
-					return true;
-			}
-		}
-
-		return false;
+		return HasPendingCollect(targetBuildingId);
 	}
 
 	public bool HasPendingCollect(uint buildingId)
 	{
-		uint targetBuildingId = ResolveBuildingId(buildingId);
 		foreach (PickingRequest request in requestSource.GetRequests())
 		{
-			if (request == null || request.GetAllocatableQuantity() <= 0)
-				continue;
-
-			IEnumerable<ShelfBase> sources = targetBuildingId != 0
-				? CollectSupplySource.GetSources(targetBuildingId, request.ItemId)
-				: CollectSupplySource.GetSources(request.ItemId);
-
-			foreach (ShelfBase _ in sources)
+			if (request?.Source != null && request.GetAllocatableQuantity() > 0)
 				return true;
 		}
 
 		return false;
 	}
 
-	public bool TryAcceptPickingRequest(OrderLine orderLine, int quantity, out PickingRequest request)
+	public bool AddReservedPickingRequest(OrderLine orderLine, ShelfBase source, int reservedQuantity, out PickingRequest request)
 	{
 		request = null;
-		if (BuildingId == 0 || orderLine == null || quantity <= 0 || orderLine.CanAllocatePicking == false)
+		if (BuildingId == 0 ||
+			orderLine == null ||
+			source == null ||
+			reservedQuantity <= 0 ||
+			orderLine.IsFinal)
+		{
 			return false;
+		}
 
-		int acceptedQuantity = Mathf.Min(quantity, orderLine.GetPickingAllocatableQuantity());
-		if (acceptedQuantity <= 0)
-			return false;
-
-		request = requestSource.Add(orderLine, acceptedQuantity);
+		request = requestSource.Add(orderLine, source, reservedQuantity);
 		return request != null;
 	}
 
@@ -211,9 +188,6 @@ public sealed class PickingPlanner : IItemTransferPlanner
 
 			return box.Stacks.Count > 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Completed;
 		}
-
-		if (collectPlanner.TryAllocateNextCollectLine(worker, targetBuildingId, out line))
-			return WorkPlanResult.Issued;
 
 		return box.Stacks.Count > 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Completed;
 	}
@@ -330,26 +304,25 @@ public sealed class PickingPlanner : IItemTransferPlanner
 
 	public float GetPickableOutstandingTotalSize(uint buildingId, ItemDatabase itemDatabase)
 	{
-		uint targetBuildingId = ResolveBuildingId(buildingId);
 		if (itemDatabase == null)
 			return 0.0f;
 
 		float totalSize = 0.0f;
-		foreach (uint itemId in CollectRequestSource.GetRequestedItemIds())
+		foreach (uint itemId in requestSource.GetRequestedItemIds())
 		{
-			int allocatable = GetAllocatableQuantity(itemId);
+			int allocatable = GetQueuedRequestQuantity(itemId);
 			if (allocatable <= 0)
 				continue;
 
-			int pickable = GetBuildingPickableQuantity(targetBuildingId, itemId);
-			int quantity = Mathf.Min(allocatable, pickable);
-			if (quantity <= 0)
-				continue;
-
-			totalSize += itemDatabase.GetItemSize(itemId) * quantity;
+			totalSize += itemDatabase.GetItemSize(itemId) * allocatable;
 		}
 
 		return totalSize;
+	}
+
+	private int GetQueuedRequestQuantity(uint itemId)
+	{
+		return requestSource.GetQueuedQuantity(itemId);
 	}
 
 	private bool HasReachedBoxFillLimit(BoxBase box)
@@ -361,41 +334,9 @@ public sealed class PickingPlanner : IItemTransferPlanner
 		return filledPercent >= boxFillLimitPercent;
 	}
 
-	private int GetAllocatableQuantity(uint itemId)
-	{
-		int dispatchedQuantity = 0;
-		foreach (PickingRequest request in requestSource.GetRequestLines(itemId))
-			dispatchedQuantity += requestSource.GetAllocatableQuantity(request);
-
-		if (dispatchedQuantity > 0)
-			return dispatchedQuantity;
-
-		int quantity = 0;
-		foreach (OrderLine requestLine in CollectRequestSource.GetRequestLines(itemId))
-			quantity += CollectRequestSource.GetAllocatableQuantity(requestLine);
-
-		return quantity;
-	}
-
 	public float GetPickableOutstandingTotalSize(ItemDatabase itemDatabase)
 	{
 		return GetPickableOutstandingTotalSize(BuildingId, itemDatabase);
-	}
-
-	private int GetBuildingPickableQuantity(uint buildingId, uint itemId)
-	{
-		int quantity = 0;
-		IEnumerable<ShelfBase> sources = buildingId != 0
-			? CollectSupplySource.GetSources(buildingId, itemId)
-			: CollectSupplySource.GetSources(itemId);
-
-		foreach (ShelfBase source in sources)
-		{
-			if (source != null)
-				quantity += source.GetPickableQuantity(itemId);
-		}
-
-		return quantity;
 	}
 
 	private bool TryAllocateNextCollect(AIWorker worker, uint buildingId, out WorkLine line)
@@ -423,28 +364,23 @@ public sealed class PickingPlanner : IItemTransferPlanner
 				continue;
 			}
 
-			int actualReserved = decision.Source.ReservePicking(decision.ItemId, decision.Quantity);
-			if (actualReserved <= 0)
-			{
-				RemoveDispatchedCandidate(candidates, decision);
-				continue;
-			}
-
-			int actualAllocated = requestSource.Allocate(decision.RequestLine, actualReserved);
+			int actualAllocated = requestSource.Allocate(decision.RequestLine, decision.Quantity);
 			if (actualAllocated <= 0)
 			{
-				decision.Source.ReleaseReservedPick(decision.ItemId, actualReserved);
 				RemoveDispatchedCandidate(candidates, decision);
 				continue;
 			}
 
-			if (actualAllocated != actualReserved)
+			if (actualAllocated != decision.Quantity)
 			{
-				int extraReservation = actualReserved - actualAllocated;
+				int extraReservation = decision.Quantity - actualAllocated;
 				if (extraReservation > 0)
+				{
 					decision.Source.ReleaseReservedPick(decision.ItemId, extraReservation);
+					decision.RequestLine.ReleaseReserved(extraReservation);
+				}
 
-				Debug.LogWarning($"[PickingPlanner] Reservation/allocation mismatch for item {decision.ItemId}. reserved={actualReserved}, allocated={actualAllocated}");
+				Debug.LogWarning($"[PickingPlanner] Reservation/allocation mismatch for item {decision.ItemId}. reserved={decision.Quantity}, allocated={actualAllocated}");
 			}
 
 			line = requestSource.CreateWorkLine(decision.Source, decision.ItemId, actualAllocated, decision.RequestLine);
@@ -470,25 +406,14 @@ public sealed class PickingPlanner : IItemTransferPlanner
 			if (acceptable <= 0)
 				continue;
 
-			IEnumerable<ShelfBase> sources = buildingId != 0
-				? CollectSupplySource.GetSources(buildingId, request.ItemId)
-				: CollectSupplySource.GetSources(request.ItemId);
+			if (request.Source == null)
+				continue;
 
-			foreach (ShelfBase source in sources)
-			{
-				if (source == null)
-					continue;
+			int quantity = Mathf.Min(acceptable, allocatable);
+			if (quantity <= 0)
+				continue;
 
-				int pickable = source.GetPickableQuantity(request.ItemId);
-				if (pickable <= 0)
-					continue;
-
-				int quantity = Mathf.Min(acceptable, pickable);
-				if (quantity <= 0)
-					continue;
-
-				candidates.Add(new CollectCandidate<PickingRequest>(source, request.ItemId, quantity, request));
-			}
+			candidates.Add(new CollectCandidate<PickingRequest>(request.Source, request.ItemId, quantity, request));
 		}
 
 		return candidates;
@@ -567,9 +492,9 @@ public sealed class PickingPlanner : IItemTransferPlanner
 		private readonly List<PickingRequest> requests = new();
 		private readonly Dictionary<uint, List<PickingRequest>> requestsByItem = new();
 
-		public PickingRequest Add(OrderLine orderLine, int quantity)
+		public PickingRequest Add(OrderLine orderLine, ShelfBase source, int reservedQuantity)
 		{
-			PickingRequest request = new(orderLine, quantity);
+			PickingRequest request = new(orderLine, source, reservedQuantity);
 			if (request.RequestedQuantity <= 0)
 				return null;
 
@@ -628,6 +553,22 @@ public sealed class PickingPlanner : IItemTransferPlanner
 			}
 		}
 
+		public int GetQueuedQuantity(uint itemId)
+		{
+			if (requestsByItem.TryGetValue(itemId, out List<PickingRequest> itemRequests) == false)
+				return 0;
+
+			int quantity = 0;
+			for (int i = 0; i < itemRequests.Count; ++i)
+			{
+				PickingRequest request = itemRequests[i];
+				if (request != null)
+					quantity += request.GetAllocatableQuantity();
+			}
+
+			return quantity;
+		}
+
 		public int GetAllocatableQuantity(PickingRequest requestLine)
 		{
 			return requestLine != null ? requestLine.GetAllocatableQuantity() : 0;
@@ -635,22 +576,20 @@ public sealed class PickingPlanner : IItemTransferPlanner
 
 		public int Allocate(PickingRequest requestLine, int quantity)
 		{
-			if (requestLine == null || quantity <= 0 || GameContext.HasInstance == false)
+			if (requestLine == null || quantity <= 0)
 				return 0;
 
-			OrderManager orderManager = GameContext.Instance.OrderMgr;
 			int requested = Mathf.Min(quantity, requestLine.GetAllocatableQuantity());
-			int allocated = orderManager != null
-				? orderManager.AllocatePicking(requestLine.OrderLine, requested)
-				: 0;
-			return requestLine.ReportAllocated(allocated);
+			return requestLine.ReportAllocated(requested);
 		}
 
 		public WorkLine CreateWorkLine(ShelfBase source, uint itemId, int quantity, PickingRequest requestLine)
 		{
-			return source == null || requestLine?.OrderLine == null
+			ShelfBase requestSource = requestLine?.Source;
+			ShelfBase resolvedSource = requestSource != null ? requestSource : source;
+			return resolvedSource == null || requestLine?.OrderLine == null
 				? null
-				: new WorkLine(source, itemId, quantity, requestLine.OrderLine);
+				: new WorkLine(resolvedSource, itemId, quantity, requestLine.OrderLine);
 		}
 
 		private static bool HasAllocatableRequest(List<PickingRequest> itemRequests)

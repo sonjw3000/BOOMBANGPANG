@@ -123,6 +123,11 @@ public partial class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLi
 		return ApplyLineProgress(targetOrder, () => targetOrder.TryAllocatePicking(quantity));
 	}
 
+	public int ReleasePickingAllocation(OrderLine targetOrder, int quantity)
+	{
+		return ApplyLineProgress(targetOrder, () => targetOrder.ReleasePickingAllocation(quantity));
+	}
+
 	public int ReportPickingCompleted(OrderLine targetOrder, int quantity)
 	{
 		return ApplyLineProgress(targetOrder, () => targetOrder.ReportPickingCompleted(quantity));
