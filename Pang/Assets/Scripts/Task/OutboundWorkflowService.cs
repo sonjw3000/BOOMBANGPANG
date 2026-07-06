@@ -19,25 +19,23 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	[SerializeField] private CollectingPolicyType defaultPickingCollectingPolicyType = DefaultCollectingPolicyType;
 
 	private float timeSinceLastOrder = 0.0f;
-	private PickingPlanner pickingPlanner;
 	private readonly HashSet<OutboundCargoPort> queuedCargoTransferPorts = new();
 	private readonly Dictionary<OutboundCargoPort, InboundCargoPort> queuedCargoTransferTargets = new();
 	private readonly Dictionary<uint, PickingManifest> pickingManifests = new();
 
 	public PackingStationService PackingStationService => packingStationService;
 	public LaunchStationService LaunchStationService => launchStationService;
-	public PickingPlanner PickingPlanner => pickingPlanner;
 	public IReadOnlyDictionary<uint, PickingManifest> PickingManifests => pickingManifests;
-	public CollectingPolicyType PickingCollectingPolicyType => pickingPlanner != null ? pickingPlanner.CollectingPolicyType : defaultPickingCollectingPolicyType;
+	public CollectingPolicyType PickingCollectingPolicyType => defaultPickingCollectingPolicyType;
+	public float PickingBoxFillLimitPercent => pickingBoxFillLimitPercent;
 	public float CargoPortThresholdPercent => cargoPortThresholdPercent;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private ItemDatabase ItemDB => GameContext.Instance.ItemDB;
 	private BoxManager BoxMgr => GameContext.Instance.BoxMgr;
-	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
-	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
-	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
-	private CapsuleBufferService CapsuleBufferService => GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
+	private CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
+	private GridService GridService => GameContext.Instance.GridService;
+	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
@@ -70,10 +68,15 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public void SetPickingCollectingPolicy(CollectingPolicyType policyType)
 	{
 		defaultPickingCollectingPolicyType = policyType;
-		if (pickingPlanner == null)
+		if (BuildingManager == null)
 			return;
 
-		pickingPlanner.SetCollectingPolicy(policyType);
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is StorageBuilding storageBuilding)
+				storageBuilding.PickingPlanner?.SetCollectingPolicy(policyType);
+		}
 	}
 
 	public PickingManifest GetPickingManifest(BoxBase box)
@@ -297,11 +300,6 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		TaskMgr.EnqueueTaskBuildRequest(new LoadingTaskBuildRequest(cargoPort, requestedBuildingId));
 	}
 
-	private void Awake()
-	{
-		RebuildPlanner();
-	}
-
 	private void Start()
 	{
 		SubscribeCargoPortEvents();
@@ -331,30 +329,20 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void CheckPickingTaskAvailable()
 	{
-		if (pickingPlanner == null || pickingPlanner.HasPendingCollectWork() == false)
-			return;
-
 		for (int i = 0; i < maxPickingTasksPerUpdate; ++i)
 		{
-			if (TrySelectPickingBuilding(out uint buildingId) == false)
+			if (TrySelectPickingBuilding(out StorageBuilding storageBuilding) == false)
 				break;
 
-			if (pickingPlanner.BuildPickingTask(buildingId, out var task) == false)
+			PickingPlanner planner = storageBuilding.PickingPlanner;
+			if (planner == null || planner.BuildPickingTask(out var task) == false)
+			{
 				break;
+			}
 
 			if (task != null)
 				TaskMgr.EnqueueTask(task);
 		}
-	}
-
-	private void RebuildPlanner()
-	{
-		pickingPlanner = new PickingPlanner(
-			GameContext.Instance.StorageService,
-			GameContext.Instance.OrderMgr,
-			CapsuleBufferService,
-			pickingBoxFillLimitPercent,
-			defaultPickingCollectingPolicyType);
 	}
 
 	private int GetCurrentPickingTaskCount()
@@ -371,19 +359,6 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			CountPickingTasks(TaskMgr.TaskOnProgress[TaskType.Picking], buildingId);
 	}
 
-	private int GetDesiredPickingTaskCount()
-	{
-		float effectiveBoxCapacity = GetEffectivePickingBoxCapacity();
-		if (effectiveBoxCapacity <= 0.0f)
-			return 0;
-
-		float totalOutstandingSize = OrderMgr != null ? OrderMgr.GetOutstandingPickingTotalSize(ItemDB) : 0.0f;
-		if (totalOutstandingSize <= 0.0f)
-			return 0;
-
-		return Mathf.CeilToInt(totalOutstandingSize / effectiveBoxCapacity);
-	}
-
 	private int GetDesiredPickingTaskCount(uint buildingId, float pickableOutstandingSize)
 	{
 		float effectiveBoxCapacity = GetEffectivePickingBoxCapacity();
@@ -393,22 +368,25 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		return Mathf.CeilToInt(pickableOutstandingSize / effectiveBoxCapacity);
 	}
 
-	private bool TrySelectPickingBuilding(out uint buildingId)
+	private bool TrySelectPickingBuilding(out StorageBuilding storageBuilding)
 	{
-		buildingId = 0;
-		if (BuildingManager == null || pickingPlanner == null || ItemDB == null)
+		storageBuilding = null;
+		if (BuildingManager == null || ItemDB == null)
 			return false;
 
 		float bestPickableSize = 0.0f;
 		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
 		for (int i = 0; i < buildings.Count; ++i)
 		{
-			Building building = buildings[i];
-			if (building == null || building.Type != BuildingType.Storage || building.RuntimeBuildingId == 0)
+			if (buildings[i] is not StorageBuilding candidate || candidate.RuntimeBuildingId == 0)
 				continue;
 
-			uint candidateBuildingId = building.RuntimeBuildingId;
-			float pickableSize = pickingPlanner.GetPickableOutstandingTotalSize(candidateBuildingId, ItemDB);
+			uint candidateBuildingId = candidate.RuntimeBuildingId;
+			PickingPlanner planner = candidate.PickingPlanner;
+			if (planner == null)
+				continue;
+
+			float pickableSize = planner.GetPickableOutstandingTotalSize(ItemDB);
 			if (pickableSize <= 0.0f)
 				continue;
 
@@ -421,10 +399,10 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 				continue;
 
 			bestPickableSize = pickableSize;
-			buildingId = candidateBuildingId;
+			storageBuilding = candidate;
 		}
 
-		return buildingId != 0;
+		return storageBuilding != null;
 	}
 
 	private float GetEffectivePickingBoxCapacity()

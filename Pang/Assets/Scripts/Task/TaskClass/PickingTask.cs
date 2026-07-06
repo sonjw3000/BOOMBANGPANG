@@ -38,10 +38,10 @@ public sealed partial class PickingTask : WorkerTask
 	private static CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
 	private static OutboundWorkflowService OutboundWorkflowService => GameContext.Instance.OBWorkflowSvc;
 	private static OrderManager OrderMgr => GameContext.Instance.OrderMgr;
-	private static PickingPlanner Planner => GameContext.Instance.OBWorkflowSvc.PickingPlanner;
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
 
 	internal uint BuildingId => buildingId;
+	private PickingPlanner Planner => ResolvePlanner(buildingId);
 
 	public PickingTask(WorkJob pickJob, uint buildingId = 0) : base(TaskType.Picking)
 	{
@@ -52,7 +52,7 @@ public sealed partial class PickingTask : WorkerTask
 	public override bool TryGetPreferredWorker(out AIWorker worker)
 	{
 		worker = null;
-		if (WorkerManager == null || Planner == null)
+		if (WorkerManager == null)
 			return true;
 
 		foreach (AIWorker candidate in WorkerManager.Workers)
@@ -67,7 +67,8 @@ public sealed partial class PickingTask : WorkerTask
 				continue;
 
 			uint candidateBuildingId = buildingId != 0 ? buildingId : candidate.PrimaryBuildingId;
-			if (Planner.HasPendingCollectWork(candidateBuildingId) == false)
+			PickingPlanner planner = ResolvePlanner(candidateBuildingId);
+			if (planner == null || planner.HasPendingCollectWork() == false)
 				continue;
 
 			worker = candidate;
@@ -226,8 +227,9 @@ public sealed partial class PickingTask : WorkerTask
 		if (task.CurrentLine == null)
 		{
 			WorkLine nextLine = null;
-			WorkPlanResult result = Planner != null
-				? Planner.TryGetCollectLine(ctx.Worker, task.buildingId, out nextLine)
+			PickingPlanner planner = task.Planner;
+			WorkPlanResult result = planner != null
+				? planner.TryGetCollectLine(ctx.Worker, out nextLine)
 				: WorkPlanResult.Waiting;
 
 			if (result == WorkPlanResult.Issued)
@@ -291,8 +293,9 @@ public sealed partial class PickingTask : WorkerTask
 			}
 
 			WorkLine nextLine = null;
-			WorkPlanResult result = Planner != null
-				? Planner.TryGetPlaceLine(ctx.Worker, task.buildingId, pickedLine, out nextLine)
+			PickingPlanner planner = task.Planner;
+			WorkPlanResult result = planner != null
+				? planner.TryGetPlaceLine(ctx.Worker, pickedLine, out nextLine)
 				: WorkPlanResult.Waiting;
 
 			if (result == WorkPlanResult.Issued)
@@ -347,7 +350,22 @@ public sealed partial class PickingTask : WorkerTask
 			return Success;
 		}
 
-		return task.ApplyPlanResult(ctx, Planner != null ? Planner.OnPlaceLineCompleted(ctx.Worker, line, result) : WorkPlanResult.Waiting);
+		PickingPlanner planner = task.Planner;
+		return task.ApplyPlanResult(ctx, planner != null ? planner.OnPlaceLineCompleted(ctx.Worker, line, result) : WorkPlanResult.Waiting);
+	}
+
+	private static PickingPlanner ResolvePlanner(uint buildingId)
+	{
+		if (buildingId == 0 ||
+			GameContext.HasInstance == false ||
+			GameContext.Instance.BuildingMgr == null ||
+			GameContext.Instance.BuildingMgr.TryGetBuilding(buildingId, out Building building) == false ||
+			building is not StorageBuilding storageBuilding)
+		{
+			return null;
+		}
+
+		return storageBuilding.PickingPlanner;
 	}
 
 	private bool TryGetNextPickedLine(out WorkLine pickedLine)

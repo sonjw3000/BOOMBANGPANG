@@ -2,35 +2,71 @@ using System.Collections.Generic;
 using System;
 using UnityEngine;
 
-public sealed class PickingPlanner
+public sealed class PickingRequest
+{
+	public readonly OrderLine OrderLine;
+	public readonly uint ItemId;
+	public readonly int RequestedQuantity;
+
+	private int allocatedQuantity;
+
+	public int AllocatedQuantity => allocatedQuantity;
+	public int RemainingQuantity => Mathf.Max(0, RequestedQuantity - allocatedQuantity);
+	public bool IsComplete => RemainingQuantity <= 0 || OrderLine == null || OrderLine.IsFinal;
+
+	public PickingRequest(OrderLine orderLine, int quantity)
+	{
+		OrderLine = orderLine;
+		ItemId = orderLine != null ? orderLine.ItemID : 0;
+		RequestedQuantity = Mathf.Max(0, quantity);
+	}
+
+	public int GetAllocatableQuantity()
+	{
+		if (OrderLine == null || OrderLine.CanAllocatePicking == false)
+			return 0;
+
+		return Mathf.Min(RemainingQuantity, OrderLine.GetPickingAllocatableQuantity());
+	}
+
+	public int ReportAllocated(int quantity)
+	{
+		int actual = Mathf.Clamp(quantity, 0, RemainingQuantity);
+		allocatedQuantity += actual;
+		return actual;
+	}
+}
+
+public sealed class PickingPlanner : IItemTransferPlanner
 {
 	private static int jobID = 1;
 
+	private readonly StorageBuilding ownerBuilding;
 	private readonly CollectPlanner<OrderLine> collectPlanner;
-	private readonly ICollectSupplySource collectSupplySource;
-	private readonly ICollectRequestSource<OrderLine> collectRequestSource;
-	private readonly CapsuleBufferService capsuleBufferService;
+	private readonly PickingRequestSource requestSource = new();
+	private ICollectingPolicy<PickingRequest> requestCollectingPolicy;
 	private CollectingPolicyType collectingPolicyType;
 	private float boxFillLimitPercent;
 
 	public static int GetNextJobId() => jobID;
 	public static void SetNextJobId(int nextJobId) => jobID = nextJobId;
 	public CollectingPolicyType CollectingPolicyType => collectingPolicyType;
+	private uint BuildingId => ownerBuilding != null ? ownerBuilding.RuntimeBuildingId : 0;
+
+	private ICollectSupplySource CollectSupplySource => GameContext.Instance.StorageService;
+	private ICollectRequestSource<OrderLine> CollectRequestSource => GameContext.Instance.OrderMgr;
+	private CapsuleBufferService CapsuleBufferService => GameContext.Instance.CapsuleBufferSvc;
 
 	public PickingPlanner(
-		ICollectSupplySource collectSupplySource,
-		ICollectRequestSource<OrderLine> collectRequestSource,
-		CapsuleBufferService capsuleBufferService,
+		StorageBuilding ownerBuilding,
 		float boxFillLimitPercent,
 		CollectingPolicyType collectingPolicyType = CollectingPolicyType.Nearest)
 	{
-		this.collectSupplySource = collectSupplySource;
-		this.collectRequestSource = collectRequestSource;
-		this.capsuleBufferService = capsuleBufferService;
+		this.ownerBuilding = ownerBuilding;
 		this.boxFillLimitPercent = boxFillLimitPercent;
 		collectPlanner = new CollectPlanner<OrderLine>(
-			collectSupplySource,
-			collectRequestSource,
+			CollectSupplySource,
+			CollectRequestSource,
 			CollectingPolicyFactory.Create<OrderLine>(collectingPolicyType));
 		SetCollectingPolicy(collectingPolicyType);
 	}
@@ -39,6 +75,7 @@ public sealed class PickingPlanner
 	{
 		collectingPolicyType = policyType;
 		collectPlanner.SetCollectingPolicy(CollectingPolicyFactory.Create<OrderLine>(policyType));
+		requestCollectingPolicy = CollectingPolicyFactory.Create<PickingRequest>(policyType);
 	}
 
 	public void SetBoxFillLimitPercent(float value)
@@ -48,21 +85,25 @@ public sealed class PickingPlanner
 
 	public bool HasPendingCollectWork()
 	{
-		return HasPendingCollectWork(0);
+		return HasPendingCollectWork(BuildingId);
 	}
 
 	public bool HasPendingCollectWork(uint buildingId)
 	{
-		foreach (uint itemId in collectRequestSource.GetRequestedItemIds())
+		uint targetBuildingId = ResolveBuildingId(buildingId);
+		if (HasPendingCollect(targetBuildingId))
+			return true;
+
+		foreach (uint itemId in CollectRequestSource.GetRequestedItemIds())
 		{
-			foreach (OrderLine requestLine in collectRequestSource.GetRequestLines(itemId))
+			foreach (OrderLine requestLine in CollectRequestSource.GetRequestLines(itemId))
 			{
-				if (collectRequestSource.GetAllocatableQuantity(requestLine) <= 0)
+				if (CollectRequestSource.GetAllocatableQuantity(requestLine) <= 0)
 					continue;
 
-				IEnumerable<ShelfBase> sources = buildingId != 0
-					? collectSupplySource.GetSources(buildingId, itemId)
-					: collectSupplySource.GetSources(itemId);
+				IEnumerable<ShelfBase> sources = targetBuildingId != 0
+					? CollectSupplySource.GetSources(targetBuildingId, itemId)
+					: CollectSupplySource.GetSources(itemId);
 
 				foreach (ShelfBase _ in sources)
 					return true;
@@ -72,25 +113,76 @@ public sealed class PickingPlanner
 		return false;
 	}
 
+	public bool HasPendingCollect(uint buildingId)
+	{
+		uint targetBuildingId = ResolveBuildingId(buildingId);
+		foreach (PickingRequest request in requestSource.GetRequests())
+		{
+			if (request == null || request.GetAllocatableQuantity() <= 0)
+				continue;
+
+			IEnumerable<ShelfBase> sources = targetBuildingId != 0
+				? CollectSupplySource.GetSources(targetBuildingId, request.ItemId)
+				: CollectSupplySource.GetSources(request.ItemId);
+
+			foreach (ShelfBase _ in sources)
+				return true;
+		}
+
+		return false;
+	}
+
+	public bool TryAcceptPickingRequest(OrderLine orderLine, int quantity, out PickingRequest request)
+	{
+		request = null;
+		if (BuildingId == 0 || orderLine == null || quantity <= 0 || orderLine.CanAllocatePicking == false)
+			return false;
+
+		int acceptedQuantity = Mathf.Min(quantity, orderLine.GetPickingAllocatableQuantity());
+		if (acceptedQuantity <= 0)
+			return false;
+
+		request = requestSource.Add(orderLine, acceptedQuantity);
+		return request != null;
+	}
+
 	public bool BuildPickingTask(out PickingTask task)
 	{
-		return BuildPickingTask(0, out task);
+		return BuildPickingTask(BuildingId, out task);
 	}
 
 	public bool BuildPickingTask(uint buildingId, out PickingTask task)
 	{
 		task = null;
-		if (HasPendingCollectWork(buildingId) == false)
+		uint targetBuildingId = ResolveBuildingId(buildingId);
+		if (HasPendingCollectWork(targetBuildingId) == false)
 			return false;
 
 		WorkJob job = new(jobID++, new List<WorkLine>(), WorkOp.Picking);
-		task = new PickingTask(job, buildingId);
+		task = new PickingTask(job, targetBuildingId);
+		return true;
+	}
+
+	public bool BuildItemTransferTask(AIWorker preferredWorker, out ItemTransferTask task)
+	{
+		task = null;
+		uint targetBuildingId = BuildingId;
+		if (HasPendingCollect(targetBuildingId) == false)
+			return false;
+
+		ItemTransferJob job = new(
+			this,
+			TransferObjectType.Item,
+			TransferObjectType.Item,
+			targetBuildingId,
+			preferredWorker);
+		task = new ItemTransferTask(WorkerTask.TaskType.Picking, job);
 		return true;
 	}
 
 	public bool TryAllocateNextCollectLine(AIWorker worker, out WorkLine line)
 	{
-		return TryAllocateNextCollectLine(worker, 0, out line);
+		return TryAllocateNextCollectLine(worker, BuildingId, out line);
 	}
 
 	public bool TryAllocateNextCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
@@ -100,6 +192,7 @@ public sealed class PickingPlanner
 
 	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
 	{
+		uint targetBuildingId = ResolveBuildingId(buildingId);
 		line = null;
 		if (worker == null)
 			return WorkPlanResult.Waiting;
@@ -111,16 +204,64 @@ public sealed class PickingPlanner
 		if (HasReachedBoxFillLimit(box))
 			return WorkPlanResult.SwitchPhase;
 
-		if (collectPlanner.TryAllocateNextCollectLine(worker, buildingId, out line))
+		if (requestSource.HasAny())
+		{
+			if (TryAllocateNextCollect(worker, targetBuildingId, out line))
+				return WorkPlanResult.Issued;
+
+			return box.Stacks.Count > 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Completed;
+		}
+
+		if (collectPlanner.TryAllocateNextCollectLine(worker, targetBuildingId, out line))
 			return WorkPlanResult.Issued;
 
 		return box.Stacks.Count > 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Completed;
 	}
 
+	public WorkPlanResult TryGetCollectLine(AIWorker worker, out WorkLine line)
+	{
+		return TryGetCollectLine(worker, BuildingId, out line);
+	}
+
+	public WorkPlanResult OnCollectCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
+	{
+		ReleaseUnmovedReservation(line, result);
+
+		if (line == null || result.Moved <= 0)
+			return WorkPlanResult.Waiting;
+
+		OrderManager orderManager = GameContext.HasInstance ? GameContext.Instance.OrderMgr : null;
+		int pickedQuantity = orderManager != null
+			? orderManager.ReportPickingCompleted(line.RelatedOrderLine, result.Moved)
+			: 0;
+		if (pickedQuantity != result.Moved)
+			Debug.LogWarning($"[PickingPlanner] Pick progress mismatch. requested={result.Moved}, applied={pickedQuantity}");
+
+		OutboundWorkflowService outboundWorkflowService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
+		outboundWorkflowService?.AddPickedToManifest(worker?.CarryingAbility?.CarryingBox, line.RelatedOrderLine, line.ItemID, result.Moved);
+
+		BoxBase box = worker?.CarryingAbility?.CarryingBox;
+		if (HasReachedBoxFillLimit(box))
+			return WorkPlanResult.SwitchPhase;
+
+		return WorkPlanResult.Issued;
+	}
+
 	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine pickedLine, out WorkLine line)
 	{
+		return TryGetPlaceLine(worker, buildingId, pickedLine, pickedLine != null ? pickedLine.Quantity : 0, out line);
+	}
+
+	public WorkPlanResult TryGetPlaceLine(AIWorker worker, WorkLine pickedLine, out WorkLine line)
+	{
+		return TryGetPlaceLine(worker, BuildingId, pickedLine, out line);
+	}
+
+	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine pickedLine, int remainingQuantity, out WorkLine line)
+	{
+		uint targetBuildingId = ResolveBuildingId(buildingId);
 		line = null;
-		if (worker == null || pickedLine == null || pickedLine.Quantity <= 0)
+		if (worker == null || pickedLine == null || remainingQuantity <= 0)
 			return WorkPlanResult.Waiting;
 
 		BoxBase box = worker.CarryingAbility?.CarryingBox;
@@ -129,21 +270,21 @@ public sealed class PickingPlanner
 
 		OutboundWorkflowService outboundWorkflowService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
 		if (outboundWorkflowService == null ||
-			outboundWorkflowService.GetPackableManifestQuantity(box, pickedLine.RelatedOrderLine, pickedLine.ItemID) < pickedLine.Quantity ||
-			ItemTransferUtility.GetMovableQuantity(box, box, pickedLine.ItemID, pickedLine.Quantity) < pickedLine.Quantity)
+			outboundWorkflowService.GetPackableManifestQuantity(box, pickedLine.RelatedOrderLine, pickedLine.ItemID) < remainingQuantity ||
+			ItemTransferUtility.GetMovableQuantity(box, box, pickedLine.ItemID, remainingQuantity) < remainingQuantity)
 		{
 			return WorkPlanResult.Completed;
 		}
 
 		CapsuleBuffer bestBuffer = null;
 		int bestDistance = int.MaxValue;
-		foreach (CapsuleBuffer buffer in EnumeratePlaceBuffers(buildingId))
+		foreach (CapsuleBuffer buffer in EnumeratePlaceBuffers(targetBuildingId))
 		{
 			if (buffer == null)
 				continue;
 
-			int movable = ItemTransferUtility.GetMovableQuantity(box, buffer, pickedLine.ItemID, pickedLine.Quantity);
-			if (movable < pickedLine.Quantity)
+			int movable = ItemTransferUtility.GetMovableQuantity(box, buffer, pickedLine.ItemID, remainingQuantity);
+			if (movable < remainingQuantity)
 				continue;
 
 			if (InteractionPointSelector.TryGetInteractionPoint(
@@ -166,8 +307,17 @@ public sealed class PickingPlanner
 		if (bestBuffer == null)
 			return WorkPlanResult.Waiting;
 
-		line = new WorkLine(WorkLineAction.Put, bestBuffer, bestBuffer, pickedLine.ItemID, pickedLine.Quantity, pickedLine.RelatedOrderLine);
+		line = new WorkLine(WorkLineAction.Put, bestBuffer, bestBuffer, pickedLine.ItemID, remainingQuantity, pickedLine.RelatedOrderLine);
 		return WorkPlanResult.Issued;
+	}
+
+	public WorkPlanResult OnPlaceCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result)
+	{
+		if (result.Kind == TransferResultKind.None)
+			return WorkPlanResult.Waiting;
+
+		TransferPickingManifest(worker?.CarryingAbility?.CarryingBox, placeLine, result.Moved);
+		return OnPlaceLineCompleted(worker, placeLine, result);
 	}
 
 	public WorkPlanResult OnPlaceLineCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
@@ -180,17 +330,18 @@ public sealed class PickingPlanner
 
 	public float GetPickableOutstandingTotalSize(uint buildingId, ItemDatabase itemDatabase)
 	{
+		uint targetBuildingId = ResolveBuildingId(buildingId);
 		if (itemDatabase == null)
 			return 0.0f;
 
 		float totalSize = 0.0f;
-		foreach (uint itemId in collectRequestSource.GetRequestedItemIds())
+		foreach (uint itemId in CollectRequestSource.GetRequestedItemIds())
 		{
 			int allocatable = GetAllocatableQuantity(itemId);
 			if (allocatable <= 0)
 				continue;
 
-			int pickable = GetBuildingPickableQuantity(buildingId, itemId);
+			int pickable = GetBuildingPickableQuantity(targetBuildingId, itemId);
 			int quantity = Mathf.Min(allocatable, pickable);
 			if (quantity <= 0)
 				continue;
@@ -212,19 +363,31 @@ public sealed class PickingPlanner
 
 	private int GetAllocatableQuantity(uint itemId)
 	{
+		int dispatchedQuantity = 0;
+		foreach (PickingRequest request in requestSource.GetRequestLines(itemId))
+			dispatchedQuantity += requestSource.GetAllocatableQuantity(request);
+
+		if (dispatchedQuantity > 0)
+			return dispatchedQuantity;
+
 		int quantity = 0;
-		foreach (OrderLine requestLine in collectRequestSource.GetRequestLines(itemId))
-			quantity += collectRequestSource.GetAllocatableQuantity(requestLine);
+		foreach (OrderLine requestLine in CollectRequestSource.GetRequestLines(itemId))
+			quantity += CollectRequestSource.GetAllocatableQuantity(requestLine);
 
 		return quantity;
+	}
+
+	public float GetPickableOutstandingTotalSize(ItemDatabase itemDatabase)
+	{
+		return GetPickableOutstandingTotalSize(BuildingId, itemDatabase);
 	}
 
 	private int GetBuildingPickableQuantity(uint buildingId, uint itemId)
 	{
 		int quantity = 0;
 		IEnumerable<ShelfBase> sources = buildingId != 0
-			? collectSupplySource.GetSources(buildingId, itemId)
-			: collectSupplySource.GetSources(itemId);
+			? CollectSupplySource.GetSources(buildingId, itemId)
+			: CollectSupplySource.GetSources(itemId);
 
 		foreach (ShelfBase source in sources)
 		{
@@ -235,15 +398,273 @@ public sealed class PickingPlanner
 		return quantity;
 	}
 
+	private bool TryAllocateNextCollect(AIWorker worker, uint buildingId, out WorkLine line)
+	{
+		line = null;
+		if (worker == null)
+			return false;
+
+		BoxBase box = worker.CarryingAbility?.CarryingBox;
+		if (box == null)
+			return false;
+
+		List<CollectCandidate<PickingRequest>> candidates = GetCollectableTargets(box, buildingId);
+		while (candidates.Count > 0)
+		{
+			if ((requestCollectingPolicy ?? new NearestCollectingPolicy<PickingRequest>())
+				.TryDecide(worker.GridPosition, candidates, out var decision) == false)
+			{
+				return false;
+			}
+
+			if (decision.Source == null || decision.Quantity <= 0)
+			{
+				RemoveDispatchedCandidate(candidates, decision);
+				continue;
+			}
+
+			int actualReserved = decision.Source.ReservePicking(decision.ItemId, decision.Quantity);
+			if (actualReserved <= 0)
+			{
+				RemoveDispatchedCandidate(candidates, decision);
+				continue;
+			}
+
+			int actualAllocated = requestSource.Allocate(decision.RequestLine, actualReserved);
+			if (actualAllocated <= 0)
+			{
+				decision.Source.ReleaseReservedPick(decision.ItemId, actualReserved);
+				RemoveDispatchedCandidate(candidates, decision);
+				continue;
+			}
+
+			if (actualAllocated != actualReserved)
+			{
+				int extraReservation = actualReserved - actualAllocated;
+				if (extraReservation > 0)
+					decision.Source.ReleaseReservedPick(decision.ItemId, extraReservation);
+
+				Debug.LogWarning($"[PickingPlanner] Reservation/allocation mismatch for item {decision.ItemId}. reserved={actualReserved}, allocated={actualAllocated}");
+			}
+
+			line = requestSource.CreateWorkLine(decision.Source, decision.ItemId, actualAllocated, decision.RequestLine);
+			return line != null;
+		}
+
+		return false;
+	}
+
+	private List<CollectCandidate<PickingRequest>> GetCollectableTargets(BoxBase box, uint buildingId)
+	{
+		List<CollectCandidate<PickingRequest>> candidates = new();
+		foreach (PickingRequest request in requestSource.GetRequests())
+		{
+			if (request == null)
+				continue;
+
+			int allocatable = request.GetAllocatableQuantity();
+			if (allocatable <= 0)
+				continue;
+
+			int acceptable = box.GetAcceptableQuantity(request.ItemId, allocatable);
+			if (acceptable <= 0)
+				continue;
+
+			IEnumerable<ShelfBase> sources = buildingId != 0
+				? CollectSupplySource.GetSources(buildingId, request.ItemId)
+				: CollectSupplySource.GetSources(request.ItemId);
+
+			foreach (ShelfBase source in sources)
+			{
+				if (source == null)
+					continue;
+
+				int pickable = source.GetPickableQuantity(request.ItemId);
+				if (pickable <= 0)
+					continue;
+
+				int quantity = Mathf.Min(acceptable, pickable);
+				if (quantity <= 0)
+					continue;
+
+				candidates.Add(new CollectCandidate<PickingRequest>(source, request.ItemId, quantity, request));
+			}
+		}
+
+		return candidates;
+	}
+
+	private uint ResolveBuildingId(uint buildingId)
+	{
+		return BuildingId != 0 ? BuildingId : buildingId;
+	}
+
+	private static void RemoveDispatchedCandidate(
+		List<CollectCandidate<PickingRequest>> candidates,
+		CollectCandidate<PickingRequest> decision)
+	{
+		for (int i = 0; i < candidates.Count; ++i)
+		{
+			CollectCandidate<PickingRequest> candidate = candidates[i];
+			if (candidate.RequestLine == decision.RequestLine &&
+				candidate.Source == decision.Source &&
+				candidate.ItemId == decision.ItemId &&
+				candidate.Quantity == decision.Quantity)
+			{
+				candidates.RemoveAt(i);
+				return;
+			}
+		}
+	}
+
 	private IEnumerable<CapsuleBuffer> EnumeratePlaceBuffers(uint buildingId)
 	{
-		if (capsuleBufferService == null)
+		if (CapsuleBufferService == null)
 			yield break;
 
-		foreach (CapsuleBuffer buffer in capsuleBufferService.GetBuffers(buildingId))
+		foreach (CapsuleBuffer buffer in CapsuleBufferService.GetBuffers(buildingId))
 			{
 				if (buffer != null && buffer.CanReceiveOutboundItems())
 					yield return buffer;
 			}
+	}
+
+	private static void ReleaseUnmovedReservation(WorkLine line, ItemTransferResult result)
+	{
+		if (line?.Container is not IItemPickReservable reservable)
+			return;
+
+		int remainingReservation = Mathf.Max(0, line.Quantity - result.Moved);
+		if (remainingReservation > 0)
+			reservable.ReleaseReservedPick(line.ItemID, remainingReservation);
+	}
+
+	private static void TransferPickingManifest(BoxBase sourceBox, WorkLine placeLine, int moved)
+	{
+		if (sourceBox == null ||
+			placeLine?.Target is not CapsuleBuffer targetBuffer ||
+			targetBuffer.DockedCapsule == null ||
+			GameContext.HasInstance == false ||
+			moved <= 0)
+		{
+			return;
+		}
+
+		int manifestMoved = GameContext.Instance.OBWorkflowSvc != null
+			? GameContext.Instance.OBWorkflowSvc.TransferPickingManifest(
+				sourceBox,
+				targetBuffer.DockedCapsule,
+				placeLine.RelatedOrderLine,
+				placeLine.ItemID,
+				moved)
+			: 0;
+		if (manifestMoved != moved)
+			Debug.LogWarning($"[PickingPlanner] Picking manifest place mismatch. item={placeLine.ItemID}, moved={moved}, manifestMoved={manifestMoved}");
+	}
+
+	private sealed class PickingRequestSource : ICollectRequestSource<PickingRequest>
+	{
+		private readonly List<PickingRequest> requests = new();
+		private readonly Dictionary<uint, List<PickingRequest>> requestsByItem = new();
+
+		public PickingRequest Add(OrderLine orderLine, int quantity)
+		{
+			PickingRequest request = new(orderLine, quantity);
+			if (request.RequestedQuantity <= 0)
+				return null;
+
+			requests.Add(request);
+			if (requestsByItem.TryGetValue(request.ItemId, out List<PickingRequest> itemRequests) == false)
+			{
+				itemRequests = new List<PickingRequest>();
+				requestsByItem[request.ItemId] = itemRequests;
+			}
+
+			itemRequests.Add(request);
+			return request;
+		}
+
+		public bool HasAny()
+		{
+			for (int i = 0; i < requests.Count; ++i)
+			{
+				PickingRequest request = requests[i];
+				if (request != null && request.GetAllocatableQuantity() > 0)
+					return true;
+			}
+
+			return false;
+		}
+
+		public IEnumerable<PickingRequest> GetRequests()
+		{
+			for (int i = 0; i < requests.Count; ++i)
+			{
+				PickingRequest request = requests[i];
+				if (request != null && request.GetAllocatableQuantity() > 0)
+					yield return request;
+			}
+		}
+
+		public IEnumerable<uint> GetRequestedItemIds()
+		{
+			foreach (var entry in requestsByItem)
+			{
+				if (HasAllocatableRequest(entry.Value))
+					yield return entry.Key;
+			}
+		}
+
+		public IEnumerable<PickingRequest> GetRequestLines(uint itemId)
+		{
+			if (requestsByItem.TryGetValue(itemId, out List<PickingRequest> itemRequests) == false)
+				yield break;
+
+			for (int i = 0; i < itemRequests.Count; ++i)
+			{
+				PickingRequest request = itemRequests[i];
+				if (request != null && request.GetAllocatableQuantity() > 0)
+					yield return request;
+			}
+		}
+
+		public int GetAllocatableQuantity(PickingRequest requestLine)
+		{
+			return requestLine != null ? requestLine.GetAllocatableQuantity() : 0;
+		}
+
+		public int Allocate(PickingRequest requestLine, int quantity)
+		{
+			if (requestLine == null || quantity <= 0 || GameContext.HasInstance == false)
+				return 0;
+
+			OrderManager orderManager = GameContext.Instance.OrderMgr;
+			int requested = Mathf.Min(quantity, requestLine.GetAllocatableQuantity());
+			int allocated = orderManager != null
+				? orderManager.AllocatePicking(requestLine.OrderLine, requested)
+				: 0;
+			return requestLine.ReportAllocated(allocated);
+		}
+
+		public WorkLine CreateWorkLine(ShelfBase source, uint itemId, int quantity, PickingRequest requestLine)
+		{
+			return source == null || requestLine?.OrderLine == null
+				? null
+				: new WorkLine(source, itemId, quantity, requestLine.OrderLine);
+		}
+
+		private static bool HasAllocatableRequest(List<PickingRequest> itemRequests)
+		{
+			if (itemRequests == null)
+				return false;
+
+			for (int i = 0; i < itemRequests.Count; ++i)
+			{
+				if (itemRequests[i] != null && itemRequests[i].GetAllocatableQuantity() > 0)
+					return true;
+			}
+
+			return false;
+		}
 	}
 }
