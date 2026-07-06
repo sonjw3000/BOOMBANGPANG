@@ -235,9 +235,18 @@ public sealed class PickingPlanner : IItemTransferPlanner
 
 		CapsuleBuffer bestBuffer = null;
 		int bestDistance = int.MaxValue;
+		FacilityFilter filter = FacilityFilter.ForTransfer(
+			box,
+			pickedLine.ItemID,
+			remainingQuantity,
+			stack => pickedLine.RequiredStatus.HasValue == false || stack.HasStatus(pickedLine.RequiredStatus.Value),
+			worker);
 		foreach (CapsuleBuffer buffer in EnumeratePlaceBuffers(targetBuildingId))
 		{
 			if (buffer == null)
+				continue;
+
+			if (filter.MatchesCurrentRules(buffer) == false)
 				continue;
 
 			int movable = ItemTransferUtility.GetMovableQuantity(box, buffer, pickedLine.ItemID, remainingQuantity);

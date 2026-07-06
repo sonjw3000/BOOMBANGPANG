@@ -50,13 +50,24 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner
 
 		PackingStation sourceStation = collectedLine?.Target as PackingStation;
 		PackingStationService stationService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc?.PackingStationService : null;
-		if (stationService == null || stationService.TryResolveOutboundBuffer(sourceStation, out CapsuleBuffer targetBuffer) == false)
+		if (stationService == null)
 			return WorkPlanResult.Waiting;
 
+		bool hasPackedPayload = false;
 		for (int i = 0; i < sourceBox.Stacks.Count; ++i)
 		{
 			ItemStack stack = sourceBox.Stacks[i];
 			if (stack == null || stack.Quantity <= 0 || stack.HasStatus(ItemStatus.Packed) == false)
+				continue;
+
+			hasPackedPayload = true;
+			FacilityFilter filter = FacilityFilter.ForTransfer(
+				sourceBox,
+				stack.ItemID,
+				stack.Quantity,
+				candidate => candidate.HasStatus(ItemStatus.Packed),
+				worker);
+			if (stationService.TryResolveOutboundBuffer(sourceStation, filter, out CapsuleBuffer targetBuffer) == false)
 				continue;
 
 			int movable = ItemTransferUtility.GetMovableQuantity(
@@ -79,7 +90,7 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner
 			return WorkPlanResult.Issued;
 		}
 
-		return WorkPlanResult.Completed;
+		return hasPackedPayload ? WorkPlanResult.Waiting : WorkPlanResult.Completed;
 	}
 
 	public WorkPlanResult OnPlaceCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result)

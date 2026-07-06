@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 public sealed class FacilityItemFilter
@@ -59,6 +60,18 @@ public readonly struct FacilityFilter
 		return ruleManager != null && ruleManager.IsFacilityAllowed(facility, this);
 	}
 
+	public bool MatchesCurrentRules(IFacility facility)
+	{
+		if (facility == null)
+			return false;
+
+		if (facility.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId)
+			return true;
+
+		FacilityRuleManager ruleManager = GameContext.HasInstance ? GameContext.Instance.FacilityRuleMgr : null;
+		return Matches(ruleManager, facility);
+	}
+
 	public static FacilityFilter ForWorker(AIWorker worker)
 	{
 		return worker == null
@@ -70,6 +83,22 @@ public readonly struct FacilityFilter
 	{
 		FacilityItemFilter itemFilter = null;
 		if (TryBuildItemFilter(container, out FacilityItemFilter builtFilter))
+			itemFilter = builtFilter;
+
+		return new FacilityFilter(
+			itemFilter,
+			worker != null ? new FacilityWorkerFilter(worker) : null);
+	}
+
+	public static FacilityFilter ForTransfer(
+		IItemContainer source,
+		uint itemId,
+		int quantity,
+		Predicate<ItemStack> stackPredicate = null,
+		AIWorker worker = null)
+	{
+		FacilityItemFilter itemFilter = null;
+		if (TryBuildTransferItemFilter(source, itemId, quantity, stackPredicate, out FacilityItemFilter builtFilter))
 			itemFilter = builtFilter;
 
 		return new FacilityFilter(
@@ -117,6 +146,58 @@ public readonly struct FacilityFilter
 			return false;
 
 		itemFilter = new FacilityItemFilter(container.ItemTags, itemSet, statusSet);
+		return true;
+	}
+
+	private static bool TryBuildTransferItemFilter(
+		IItemContainer source,
+		uint itemId,
+		int quantity,
+		Predicate<ItemStack> stackPredicate,
+		out FacilityItemFilter itemFilter)
+	{
+		itemFilter = null;
+		if (source == null || source.Stacks == null || itemId == 0 || quantity <= 0 ||
+			GameContext.HasInstance == false || GameContext.Instance.ItemDB == null)
+		{
+			return false;
+		}
+
+		HashSet<ItemDefinition> itemSet = null;
+		HashSet<ItemStatus> statusSet = null;
+		ItemTag tagFilter = ItemTag.None;
+		bool hasItems = false;
+		int remaining = quantity;
+
+		for (int i = source.Stacks.Count - 1; i >= 0 && remaining > 0; --i)
+		{
+			ItemStack stack = source.Stacks[i];
+			if (stack == null ||
+				stack.Quantity <= 0 ||
+				stack.HasItemID(itemId) == false ||
+				(stackPredicate != null && stackPredicate(stack) == false))
+			{
+				continue;
+			}
+
+			hasItems = true;
+			remaining -= Math.Min(stack.Quantity, remaining);
+
+			statusSet ??= new HashSet<ItemStatus>();
+			statusSet.Add(stack.Status);
+
+			if (GameContext.Instance.ItemDB.GetItemData(stack.ItemID, out ItemDefinition itemDefinition) == false || itemDefinition == null)
+				continue;
+
+			itemSet ??= new HashSet<ItemDefinition>();
+			itemSet.Add(itemDefinition);
+			tagFilter |= itemDefinition.Tag;
+		}
+
+		if (hasItems == false)
+			return false;
+
+		itemFilter = new FacilityItemFilter(tagFilter, itemSet, statusSet);
 		return true;
 	}
 }

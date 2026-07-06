@@ -139,6 +139,21 @@ public partial class PackingStationService : FacilityService<PackingStation>
 		return TryClaimWaitingStation(state, candidate => candidate.CurrentPackingWorker == null, out station);
 	}
 
+	public bool TryClaimWaitingStation(uint buildingId, FacilityFilter facilityFilter, out PackingStation station)
+	{
+		station = null;
+		if (statesByBuildingId.TryGetValue(buildingId, out BuildingPackingState state) == false)
+			return false;
+
+		bool MatchesRule(PackingStation candidate) =>
+			candidate != null && facilityFilter.MatchesCurrentRules(candidate);
+
+		if (TryClaimWaitingStation(state, candidate => MatchesRule(candidate) && candidate.CurrentPackingWorker != null, out station))
+			return true;
+
+		return TryClaimWaitingStation(state, candidate => MatchesRule(candidate) && candidate.CurrentPackingWorker == null, out station);
+	}
+
 	private BuildingPackingState GetOrCreateState(uint buildingId)
 	{
 		if (statesByBuildingId.TryGetValue(buildingId, out BuildingPackingState state) == false)
@@ -258,6 +273,30 @@ public partial class PackingStationService : FacilityService<PackingStation>
 		return best;
 	}
 
+	private CapsuleBuffer FindClosestOutboundBuffer(uint buildingId, in Unity.Mathematics.int3 from, FacilityFilter facilityFilter)
+	{
+		CapsuleBuffer best = null;
+		int bestDistance = int.MaxValue;
+
+		foreach (CapsuleBuffer buffer in CapsuleBufferService.GetBuffers(buildingId))
+			{
+				if (buffer == null || buffer.CanReceiveOutboundItems() == false)
+					continue;
+
+				if (facilityFilter.MatchesCurrentRules(buffer) == false)
+					continue;
+
+				int distance = (int)Unity.Mathematics.math.lengthsq(buffer.GridPosition - from);
+			if (distance >= bestDistance)
+				continue;
+
+			best = buffer;
+			bestDistance = distance;
+		}
+
+		return best;
+	}
+
 	public bool TryResolveOutboundBuffer(PackingStation sourceStation, out CapsuleBuffer targetBuffer)
 	{
 		targetBuffer = null;
@@ -265,6 +304,16 @@ public partial class PackingStationService : FacilityService<PackingStation>
 			return false;
 
 		targetBuffer = FindClosestOutboundBuffer(buildingId, sourceStation.GridPosition);
+		return targetBuffer != null;
+	}
+
+	public bool TryResolveOutboundBuffer(PackingStation sourceStation, FacilityFilter facilityFilter, out CapsuleBuffer targetBuffer)
+	{
+		targetBuffer = null;
+		if (sourceStation == null || TryGetBuildingId(sourceStation, out uint buildingId) == false)
+			return false;
+
+		targetBuffer = FindClosestOutboundBuffer(buildingId, sourceStation.GridPosition, facilityFilter);
 		return targetBuffer != null;
 	}
 

@@ -48,7 +48,16 @@ public sealed class PackingInputPlanner : IItemTransferPlanner
 	{
 		line = null;
 		PackingStationService stationService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc?.PackingStationService : null;
-		if (stationService == null || stationService.TryClaimWaitingStation(buildingId, out PackingStation station) == false)
+		BoxBase box = worker?.CarryingAbility?.CarryingBox;
+		FacilityFilter filter = FacilityFilter.ForTransfer(
+			box,
+			collectedLine != null ? collectedLine.ItemID : 0,
+			remainingQuantity,
+			stack => collectedLine == null ||
+				collectedLine.RequiredStatus.HasValue == false ||
+				stack.HasStatus(collectedLine.RequiredStatus.Value),
+			worker);
+		if (stationService == null || stationService.TryClaimWaitingStation(buildingId, filter, out PackingStation station) == false)
 			return WorkPlanResult.Waiting;
 
 		line = new WorkLine(WorkLineAction.Put, station, station, collectedLine != null ? collectedLine.ItemID : 0, 1);

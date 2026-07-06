@@ -257,6 +257,7 @@ public class ItemStack
 
 public enum ItemStatus
 {
+	NotDefined = -1,
 	None = 0,
 	Labeled = 1,
 	Packed = 2,

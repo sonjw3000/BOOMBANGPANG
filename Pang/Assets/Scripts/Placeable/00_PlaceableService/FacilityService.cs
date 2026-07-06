@@ -130,6 +130,16 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		return TryFindDestination(buildingId, from, interactionKind, zoneFilter, out facility, null);
 	}
 
+	public bool TryFindDestination(
+		uint buildingId,
+		in int3 from,
+		InteractionKind interactionKind,
+		FacilityFilter facilityFilter,
+		out T facility)
+	{
+		return TryFindDestination(buildingId, from, interactionKind, facilityFilter, out facility, null);
+	}
+
 	protected bool TryGetBuildingId(IFacility facility, out uint buildingId)
 	{
 		if (facility == null)
@@ -328,6 +338,56 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		return found;
 	}
 
+	protected bool TryFindDestination(
+		uint buildingId,
+		in int3 from,
+		InteractionKind interactionKind,
+		FacilityFilter facilityFilter,
+		out T facility,
+		Predicate<T> predicate)
+	{
+		facility = null;
+		bool found = false;
+		int bestScore = int.MaxValue;
+
+		if (buildingId != 0)
+		{
+			if (TryGetBuildingFacilities(buildingId, out var facilities) == false)
+				return false;
+
+			return TryFindDestination(
+				facilities,
+				buildingId,
+				from,
+				interactionKind,
+				facilityFilter,
+				predicate,
+				ref facility,
+				ref found,
+				ref bestScore);
+		}
+
+		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
+		for (int i = 0; i < buildingIds.Count; ++i)
+		{
+			if (TryGetBuildingFacilities(buildingIds[i], out var facilities) == false)
+				continue;
+
+			TryFindDestination(
+				facilities,
+				buildingIds[i],
+				from,
+				interactionKind,
+				facilityFilter,
+				predicate,
+				ref facility,
+				ref found,
+				ref bestScore);
+		}
+
+		return found;
+	}
+
 	private bool TryFindDestination(
 		IReadOnlyList<T> facilities,
 		uint buildingId,
@@ -349,6 +409,46 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 				continue;
 
 			if (IsDestinationCandidate(candidate, buildingId, interactionKind, zoneFilter) == false)
+				continue;
+
+			if (TryGetDestinationScore(candidate, from, interactionKind, out int candidateScore) == false)
+				continue;
+
+			if (found && candidateScore >= bestScore)
+				continue;
+
+			bestFacility = candidate;
+			bestScore = candidateScore;
+			found = true;
+		}
+
+		return found;
+	}
+
+	private bool TryFindDestination(
+		IReadOnlyList<T> facilities,
+		uint buildingId,
+		in int3 from,
+		InteractionKind interactionKind,
+		FacilityFilter facilityFilter,
+		Predicate<T> predicate,
+		ref T bestFacility,
+		ref bool found,
+		ref int bestScore)
+	{
+		if (facilities == null)
+			return false;
+
+		for (int i = 0; i < facilities.Count; ++i)
+		{
+			T candidate = facilities[i];
+			if (predicate != null && predicate(candidate) == false)
+				continue;
+
+			if (IsDestinationCandidate(candidate, buildingId, interactionKind, ZoneFilter.None) == false)
+				continue;
+
+			if (facilityFilter.MatchesCurrentRules(candidate) == false)
 				continue;
 
 			if (TryGetDestinationScore(candidate, from, interactionKind, out int candidateScore) == false)

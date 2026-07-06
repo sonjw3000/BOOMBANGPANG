@@ -199,8 +199,16 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		if (box.Stacks.Count <= 0)
 			return WorkPlanResult.SwitchPhase;
 
-		if (placingPolicy.TryDecide(worker.GridPosition, box, shelf => IsShelfInBuilding(shelf, buildingId), out var decision) == false)
+		ItemStack targetStack = box.Stacks[0];
+		FacilityFilter filter = FacilityFilter.ForTransfer(box, targetStack.ItemID, targetStack.Quantity, worker: worker);
+		if (placingPolicy.TryDecide(
+			worker.GridPosition,
+			box,
+			shelf => IsShelfInBuilding(shelf, buildingId) && filter.MatchesCurrentRules(shelf),
+			out var decision) == false)
+		{
 			return WorkPlanResult.Waiting;
+		}
 
 		if (decision.shelf == null || decision.Quantity <= 0)
 			return WorkPlanResult.Waiting;
@@ -275,11 +283,16 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		if (StorageService == null || worker == null || itemId == 0 || quantity <= 0)
 			return WorkPlanResult.Waiting;
 
+		BoxBase box = worker.CarryingAbility?.CarryingBox;
+		FacilityFilter filter = FacilityFilter.ForTransfer(box, itemId, quantity, worker: worker);
 		List<ShelfBase> candidates = new();
 		float filledPercentSum = 0.0f;
 		foreach (ShelfBase shelf in StorageService.QueryPlaceCandidate(itemId, quantity))
 		{
 			if (IsShelfInBuilding(shelf, buildingId) == false)
+				continue;
+
+			if (filter.MatchesCurrentRules(shelf) == false)
 				continue;
 
 			if (InteractionPointSelector.TryGetInteractionPoint(
