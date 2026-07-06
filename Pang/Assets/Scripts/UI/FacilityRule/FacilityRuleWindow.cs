@@ -9,6 +9,7 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 	[SerializeField] private UIWindow window = null;
 	[SerializeField] private FacilityRuleWindowView view = null;
 	[SerializeField] private FacilityRuleEditWindow editWindow = null;
+	[SerializeField] private FacilityRuleFacilityListWindow facilityListWindow = null;
 	[SerializeField] private Button controlButton = null;
 	[SerializeField] private TMP_Text controlButtonLabel = null;
 	[SerializeField] private string windowTitle = "Facility Rules";
@@ -103,6 +104,7 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 		window ??= GetComponentInChildren<UIWindow>(true);
 		view ??= GetComponentInChildren<FacilityRuleWindowView>(true);
 		editWindow ??= FindFirstObjectByType<FacilityRuleEditWindow>(FindObjectsInactive.Include);
+		facilityListWindow ??= FindFirstObjectByType<FacilityRuleFacilityListWindow>(FindObjectsInactive.Include);
 
 		if (window == null || view == null)
 			return;
@@ -217,6 +219,15 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 		editWindow?.OpenEdit(preset);
 	}
 
+	private void HandleListPresetRequested(uint presetId)
+	{
+		if (RuleManager == null || RuleManager.TryGetPreset(presetId, out FacilityRulePreset preset) == false)
+			return;
+
+		EnsureFacilityListWindow();
+		facilityListWindow?.OpenForPreset(preset);
+	}
+
 	private void HandleApplyPresetRequested(uint presetId)
 	{
 		if (RuleManager == null || RuleManager.TryGetPreset(presetId, out _) == false)
@@ -308,6 +319,7 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 			row.Configure(
 				preset,
 				manager.GetAppliedFacilityCount(preset.Id),
+				HandleListPresetRequested,
 				HandleEditPresetRequested,
 				HandleApplyPresetRequested);
 		}
@@ -347,6 +359,12 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 	{
 		if (editWindow == null)
 			editWindow = FindFirstObjectByType<FacilityRuleEditWindow>(FindObjectsInactive.Include);
+	}
+
+	private void EnsureFacilityListWindow()
+	{
+		if (facilityListWindow == null)
+			facilityListWindow = FindFirstObjectByType<FacilityRuleFacilityListWindow>(FindObjectsInactive.Include);
 	}
 
 	private static bool TryGetFacility(GameObject selectedObject, out IFacility facility)

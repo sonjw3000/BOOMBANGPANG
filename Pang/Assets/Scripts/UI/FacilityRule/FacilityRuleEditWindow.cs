@@ -17,6 +17,7 @@ public sealed class FacilityRuleEditWindow : MonoBehaviour
 
 	private static readonly ItemStatus[] ItemStatusOptions =
 	{
+		ItemStatus.NotDefined,
 		ItemStatus.None,
 		ItemStatus.Labeled,
 		ItemStatus.Packed,
