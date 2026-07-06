@@ -8,6 +8,10 @@ VAULT_PATH = Path(
 	os.getenv("OBSIDIAN_VAULT_PATH")
 ).expanduser()
 
+REPO_PATH = Path(
+	os.getenv("REPO_PATH")
+).expanduser()
+
 DOCS_PATH = VAULT_PATH / os.getenv(
 	"OBSIDIAN_DOCS_PATH",
 	"Docs"
