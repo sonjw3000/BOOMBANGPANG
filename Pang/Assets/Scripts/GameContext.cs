@@ -64,6 +64,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ZoneManager zoneManager;
 	[SerializeField] private FacilityManager facilityManager;
 	[SerializeField] private FacilityRuleManager facilityRuleManager;
+	[SerializeField] private FacilityRuleOverlayController facilityRuleOverlayController;
 	[SerializeField] private AirlockService airlockService;
 	[SerializeField] private BuildingManager buildingManager;
 	[SerializeField] private BuildingFootprintService buildingFootprintService;
@@ -189,6 +190,14 @@ public class GameContext : MonoBehaviour
 		get
 		{
 			return ResolveManager(ref facilityRuleManager, nameof(FacilityRuleManager));
+		}
+	}
+
+	public FacilityRuleOverlayController FacilityRuleOverlay
+	{
+		get
+		{
+			return facilityRuleOverlayController;
 		}
 	}
 
