@@ -6,9 +6,9 @@ public sealed partial class AirlockService : FacilityService<Airlock>
 		Airlock facility,
 		uint buildingId,
 		InteractionKind interactionKind,
-		ZoneFilter zoneFilter)
+		FacilityFilter facilityFilter)
 	{
-		return base.IsDestinationCandidate(facility, buildingId, interactionKind, zoneFilter)
+		return base.IsDestinationCandidate(facility, buildingId, interactionKind, facilityFilter)
 			&& facility.IsAvailable
 			&& facility.IsInteractionAvailable(interactionKind);
 	}

@@ -11,9 +11,9 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 		CapsuleBuffer facility,
 		uint buildingId,
 		InteractionKind interactionKind,
-		ZoneFilter zoneFilter)
+		FacilityFilter facilityFilter)
 	{
-		if (base.IsDestinationCandidate(facility, buildingId, interactionKind, zoneFilter) == false)
+		if (base.IsDestinationCandidate(facility, buildingId, interactionKind, facilityFilter) == false)
 			return false;
 
 		return interactionKind switch

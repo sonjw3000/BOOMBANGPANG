@@ -11,7 +11,6 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 
 	protected FacilityManager FacilityManager => GameContext.Instance.FacilityMgr;
 	protected GridService GridService => GameContext.Instance.GridService;
-	protected ZoneManager ZoneManager => GameContext.Instance.ZoneMgr;
 
 	protected IReadOnlyList<T> BuildingFacilities(uint buildingId) => FacilityManager.GetFacilities<T>(buildingId);
 	protected bool TryGetBuildingFacilities(uint buildingId, out IReadOnlyList<T> facilities) => FacilityManager.TryGetFacilities(buildingId, out facilities);
@@ -124,16 +123,6 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		uint buildingId,
 		in int3 from,
 		InteractionKind interactionKind,
-		ZoneFilter zoneFilter,
-		out T facility)
-	{
-		return TryFindDestination(buildingId, from, interactionKind, zoneFilter, out facility, null);
-	}
-
-	public bool TryFindDestination(
-		uint buildingId,
-		in int3 from,
-		InteractionKind interactionKind,
 		FacilityFilter facilityFilter,
 		out T facility)
 	{
@@ -162,7 +151,7 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		T facility,
 		uint buildingId,
 		InteractionKind interactionKind,
-		ZoneFilter zoneFilter)
+		FacilityFilter facilityFilter)
 	{
 		if (facility == null)
 			return false;
@@ -173,7 +162,7 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 				return false;
 		}
 
-		return zoneFilter.Matches(ZoneManager, facility);
+		return facilityFilter.MatchesCurrentRules(facility);
 	}
 
 	protected virtual bool TryGetDestinationScore(
@@ -292,56 +281,6 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		uint buildingId,
 		in int3 from,
 		InteractionKind interactionKind,
-		ZoneFilter zoneFilter,
-		out T facility,
-		Predicate<T> predicate)
-	{
-		facility = null;
-		bool found = false;
-		int bestScore = int.MaxValue;
-
-		if (buildingId != 0)
-		{
-			if (TryGetBuildingFacilities(buildingId, out var facilities) == false)
-				return false;
-
-			return TryFindDestination(
-				facilities,
-				buildingId,
-				from,
-				interactionKind,
-				zoneFilter,
-				predicate,
-				ref facility,
-				ref found,
-				ref bestScore);
-		}
-
-		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
-		for (int i = 0; i < buildingIds.Count; ++i)
-		{
-			if (TryGetBuildingFacilities(buildingIds[i], out var facilities) == false)
-				continue;
-
-			TryFindDestination(
-				facilities,
-				buildingIds[i],
-				from,
-				interactionKind,
-				zoneFilter,
-				predicate,
-				ref facility,
-				ref found,
-				ref bestScore);
-		}
-
-		return found;
-	}
-
-	protected bool TryFindDestination(
-		uint buildingId,
-		in int3 from,
-		InteractionKind interactionKind,
 		FacilityFilter facilityFilter,
 		out T facility,
 		Predicate<T> predicate)
@@ -393,43 +332,6 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		uint buildingId,
 		in int3 from,
 		InteractionKind interactionKind,
-		ZoneFilter zoneFilter,
-		Predicate<T> predicate,
-		ref T bestFacility,
-		ref bool found,
-		ref int bestScore)
-	{
-		if (facilities == null)
-			return false;
-
-		for (int i = 0; i < facilities.Count; ++i)
-		{
-			T candidate = facilities[i];
-			if (predicate != null && predicate(candidate) == false)
-				continue;
-
-			if (IsDestinationCandidate(candidate, buildingId, interactionKind, zoneFilter) == false)
-				continue;
-
-			if (TryGetDestinationScore(candidate, from, interactionKind, out int candidateScore) == false)
-				continue;
-
-			if (found && candidateScore >= bestScore)
-				continue;
-
-			bestFacility = candidate;
-			bestScore = candidateScore;
-			found = true;
-		}
-
-		return found;
-	}
-
-	private bool TryFindDestination(
-		IReadOnlyList<T> facilities,
-		uint buildingId,
-		in int3 from,
-		InteractionKind interactionKind,
 		FacilityFilter facilityFilter,
 		Predicate<T> predicate,
 		ref T bestFacility,
@@ -445,10 +347,7 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 			if (predicate != null && predicate(candidate) == false)
 				continue;
 
-			if (IsDestinationCandidate(candidate, buildingId, interactionKind, ZoneFilter.None) == false)
-				continue;
-
-			if (facilityFilter.MatchesCurrentRules(candidate) == false)
+			if (IsDestinationCandidate(candidate, buildingId, interactionKind, facilityFilter) == false)
 				continue;
 
 			if (TryGetDestinationScore(candidate, from, interactionKind, out int candidateScore) == false)

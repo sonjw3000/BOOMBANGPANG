@@ -181,13 +181,13 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		if (rocket == null || CargoPortService == null)
 			return null;
 
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(rocket.DockedCapsule);
+		FacilityFilter facilityFilter = FacilityFilter.ForContainer(rocket.DockedCapsule);
 
 		return CargoPortService.FindClosestAvailablePort(
 			rocket.GridPosition,
 			InteractionKind.Put,
 			requestedBuildingId,
-			zoneFilter,
+			facilityFilter,
 			predicate: candidate => candidate is InboundCargoPort);
 	}
 

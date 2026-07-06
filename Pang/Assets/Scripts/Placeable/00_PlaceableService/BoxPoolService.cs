@@ -11,9 +11,9 @@ public class BoxPoolService : FacilityService<BoxPool>
 		BoxPool facility,
 		uint buildingId,
 		InteractionKind interactionKind,
-		ZoneFilter zoneFilter)
+		FacilityFilter facilityFilter)
 	{
-		return base.IsDestinationCandidate(facility, buildingId, interactionKind, zoneFilter)
+		return base.IsDestinationCandidate(facility, buildingId, interactionKind, facilityFilter)
 			&& facility.IsInteractionAvailable(interactionKind);
 	}
 

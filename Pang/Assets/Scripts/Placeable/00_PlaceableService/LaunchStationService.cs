@@ -8,9 +8,9 @@ public class LaunchStationService : FacilityService<LaunchStation>
 		LaunchStation facility,
 		uint buildingId,
 		InteractionKind interactionKind,
-		ZoneFilter zoneFilter)
+		FacilityFilter facilityFilter)
 	{
-		return base.IsDestinationCandidate(facility, buildingId, interactionKind, zoneFilter)
+		return base.IsDestinationCandidate(facility, buildingId, interactionKind, facilityFilter)
 			&& facility.IsInteractionAvailable(interactionKind);
 	}
 }

@@ -525,14 +525,14 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			return null;
 
 		int3 sourcePoint = ResolveInteractionOrigin(sourcePort, InteractionKind.Pick);
-		ZoneFilter zoneFilter = ZoneFilter.ForContainer(sourcePort.DockedCapsule);
+		FacilityFilter facilityFilter = FacilityFilter.ForContainer(sourcePort.DockedCapsule);
 		if (ResolveSourceBuilding(sourcePort, out Building sourceBuilding) &&
-			launchStationService.TryFindDestination(sourceBuilding.RuntimeBuildingId, sourcePoint, InteractionKind.Put, zoneFilter, out LaunchStation localStation))
+			launchStationService.TryFindDestination(sourceBuilding.RuntimeBuildingId, sourcePoint, InteractionKind.Put, facilityFilter, out LaunchStation localStation))
 		{
 			return localStation;
 		}
 
-		return launchStationService.TryFindDestination(0, sourcePoint, InteractionKind.Put, zoneFilter, out LaunchStation globalStation)
+		return launchStationService.TryFindDestination(0, sourcePoint, InteractionKind.Put, facilityFilter, out LaunchStation globalStation)
 			? globalStation
 			: null;
 	}

@@ -62,7 +62,6 @@ public abstract class WorkerTask
 	}
 
 	private IBaseNode baseNode = null;
-	private static ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
 
 	protected CarryBoxAbility WorkerCarryBox => OccupyWorker != null ? OccupyWorker.CarryingAbility : null;
 
@@ -165,17 +164,13 @@ public abstract class WorkerTask
 		if (worker == null)
 			return false;
 
-		if (endpoint == null || ZoneManager == null)
+		if (endpoint == null)
 			return true;
 
-		if (ZoneManager.TryGetZoneAt(endpoint.GridPosition, out ZoneArea zone) == false || zone == null)
+		if (endpoint is not IFacility facility)
 			return true;
 
-		ZoneWorkerRule workerRule = zone.Rule?.WorkerRule;
-		if (workerRule == null)
-			return true;
-
-		return workerRule.IsWorkerCapable(new ZoneWorkerFilter(worker));
+		return FacilityFilter.ForWorker(worker).MatchesCurrentRules(facility);
 	}
 
 	//public static void SetTaskManager(TaskManager taskManager) { Manager = taskManager; }

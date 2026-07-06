@@ -10,6 +10,8 @@ public sealed class FacilityRuleManager : MonoBehaviour
 	[SerializeField] private List<FacilityRulePreset> presets = new();
 
 	private readonly Dictionary<uint, FacilityRulePreset> presetsById = new();
+	private readonly Dictionary<uint, List<IFacility>> facilitiesByPresetId = new();
+	private static readonly IReadOnlyList<IFacility> EmptyFacilities = Array.Empty<IFacility>();
 
 	public IReadOnlyList<FacilityRulePreset> Presets => presets;
 
@@ -22,6 +24,28 @@ public sealed class FacilityRuleManager : MonoBehaviour
 	private void Awake()
 	{
 		RebuildPresetLookup();
+	}
+
+	private void Start()
+	{
+		if (GameContext.HasInstance && GameContext.Instance.FacilityMgr != null)
+		{
+			GameContext.Instance.FacilityMgr.SubscribeFacilityRegister<IFacility>(
+				HandleFacilityRegistered,
+				HandleFacilityUnregistered);
+		}
+
+		RebuildAppliedFacilityLookup();
+	}
+
+	private void OnDestroy()
+	{
+		if (GameContext.HasInstance && GameContext.Instance.FacilityMgr != null)
+		{
+			GameContext.Instance.FacilityMgr.UnsubscribeFacilityRegister<IFacility>(
+				HandleFacilityRegistered,
+				HandleFacilityUnregistered);
+		}
 	}
 
 #if UNITY_EDITOR
@@ -53,6 +77,21 @@ public sealed class FacilityRuleManager : MonoBehaviour
 			nextPresetId = 1;
 
 		OnPresetsRebuilt?.Invoke();
+	}
+
+	public void RebuildAppliedFacilityLookup()
+	{
+		facilitiesByPresetId.Clear();
+		if (GameContext.HasInstance == false || GameContext.Instance.FacilityMgr == null)
+			return;
+
+		IReadOnlyList<uint> buildingIds = GameContext.Instance.FacilityMgr.GetBuildingIds();
+		for (int i = 0; i < buildingIds.Count; ++i)
+		{
+			IReadOnlyList<IFacility> facilities = GameContext.Instance.FacilityMgr.GetFacilities<IFacility>(buildingIds[i]);
+			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
+				AddFacilityToAppliedLookup(facilities[facilityIndex]);
+		}
 	}
 
 	public FacilityRulePreset CreatePreset(string displayName, FacilityRule rule = null, Color? color = null)
@@ -120,6 +159,8 @@ public sealed class FacilityRuleManager : MonoBehaviour
 		if (presetId == NoRulePresetId || presetsById.Remove(presetId) == false)
 			return false;
 
+		ClearPresetFromAppliedFacilities(presetId);
+
 		for (int i = presets.Count - 1; i >= 0; --i)
 		{
 			if (presets[i] != null && presets[i].Id == presetId)
@@ -140,11 +181,37 @@ public sealed class FacilityRuleManager : MonoBehaviour
 
 		uint previousPresetId = facility.FacilityRulePresetId;
 		if (previousPresetId == presetId)
+		{
+			AddFacilityToAppliedLookup(facility);
 			return true;
+		}
 
 		facility.SetFacilityRulePresetId(presetId);
+		MoveFacilityAppliedLookup(facility, previousPresetId);
 		OnFacilityRulePresetApplied?.Invoke(facility, previousPresetId, presetId);
 		return true;
+	}
+
+	public IReadOnlyList<IFacility> GetFacilitiesForPreset(uint presetId)
+	{
+		if (presetId == NoRulePresetId)
+			return EmptyFacilities;
+
+		if (facilitiesByPresetId.TryGetValue(presetId, out List<IFacility> facilities) == false)
+			return EmptyFacilities;
+
+		return facilities;
+	}
+
+	public bool TryGetFacilitiesForPreset(uint presetId, out IReadOnlyList<IFacility> facilities)
+	{
+		facilities = GetFacilitiesForPreset(presetId);
+		return facilities.Count > 0;
+	}
+
+	public int GetAppliedFacilityCount(uint presetId)
+	{
+		return GetFacilitiesForPreset(presetId).Count;
 	}
 
 	public bool IsFacilityAllowed(IFacility facility, in FacilityFilter filter)
@@ -185,5 +252,76 @@ public sealed class FacilityRuleManager : MonoBehaviour
 		uint id = nextPresetId;
 		nextPresetId += 1;
 		return id;
+	}
+
+	private void HandleFacilityRegistered(uint buildingId, IFacility facility)
+	{
+		AddFacilityToAppliedLookup(facility);
+	}
+
+	private void HandleFacilityUnregistered(uint buildingId, IFacility facility)
+	{
+		RemoveFacilityFromAppliedLookup(facility);
+	}
+
+	private void AddFacilityToAppliedLookup(IFacility facility)
+	{
+		if (facility == null || facility.FacilityRulePresetId == NoRulePresetId)
+			return;
+
+		if (facilitiesByPresetId.TryGetValue(facility.FacilityRulePresetId, out List<IFacility> facilities) == false)
+		{
+			facilities = new List<IFacility>();
+			facilitiesByPresetId[facility.FacilityRulePresetId] = facilities;
+		}
+
+		if (facilities.Contains(facility) == false)
+			facilities.Add(facility);
+	}
+
+	private void RemoveFacilityFromAppliedLookup(IFacility facility)
+	{
+		if (facility == null || facility.FacilityRulePresetId == NoRulePresetId)
+			return;
+
+		RemoveFacilityFromAppliedLookup(facility, facility.FacilityRulePresetId);
+	}
+
+	private void RemoveFacilityFromAppliedLookup(IFacility facility, uint presetId)
+	{
+		if (facility == null || presetId == NoRulePresetId)
+			return;
+
+		if (facilitiesByPresetId.TryGetValue(presetId, out List<IFacility> facilities) == false)
+			return;
+
+		facilities.Remove(facility);
+		if (facilities.Count <= 0)
+			facilitiesByPresetId.Remove(presetId);
+	}
+
+	private void MoveFacilityAppliedLookup(IFacility facility, uint previousPresetId)
+	{
+		RemoveFacilityFromAppliedLookup(facility, previousPresetId);
+		AddFacilityToAppliedLookup(facility);
+	}
+
+	private void ClearPresetFromAppliedFacilities(uint presetId)
+	{
+		if (facilitiesByPresetId.TryGetValue(presetId, out List<IFacility> facilities) == false)
+			return;
+
+		List<IFacility> affectedFacilities = new(facilities);
+		for (int i = 0; i < affectedFacilities.Count; ++i)
+		{
+			IFacility facility = affectedFacilities[i];
+			if (facility == null || facility.FacilityRulePresetId != presetId)
+				continue;
+
+			facility.SetFacilityRulePresetId(NoRulePresetId);
+			OnFacilityRulePresetApplied?.Invoke(facility, presetId, NoRulePresetId);
+		}
+
+		facilitiesByPresetId.Remove(presetId);
 	}
 }

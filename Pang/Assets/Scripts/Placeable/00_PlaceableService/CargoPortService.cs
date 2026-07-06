@@ -71,9 +71,9 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		CargoPort facility,
 		uint buildingId,
 		InteractionKind interactionKind,
-		ZoneFilter zoneFilter)
+		FacilityFilter facilityFilter)
 	{
-		return base.IsDestinationCandidate(facility, buildingId, interactionKind, zoneFilter)
+		return base.IsDestinationCandidate(facility, buildingId, interactionKind, facilityFilter)
 			&& facility.IsInteractionAvailable(interactionKind);
 	}
 
@@ -83,14 +83,14 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		uint buildingId = 0,
 		Predicate<CargoPort> predicate = null)
 	{
-		return FindClosestAvailablePort(pos, interactionKind, buildingId, ZoneFilter.None, predicate);
+		return FindClosestAvailablePort(pos, interactionKind, buildingId, FacilityFilter.None, predicate);
 	}
 
 	public CargoPort FindClosestAvailablePort(
 		in int3 pos,
 		InteractionKind interactionKind,
 		uint buildingId,
-		ZoneFilter zoneFilter,
+		FacilityFilter facilityFilter,
 		Predicate<CargoPort> predicate = null)
 	{
 		Predicate<CargoPort> combinedPredicate = candidate =>
@@ -99,18 +99,18 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 
 		if (buildingId != 0)
 		{
-			return TryFindDestination(buildingId, pos, interactionKind, zoneFilter, out CargoPort buildingTarget, combinedPredicate)
+			return TryFindDestination(buildingId, pos, interactionKind, facilityFilter, out CargoPort buildingTarget, combinedPredicate)
 				? buildingTarget
 				: null;
 		}
 
 		if (TryGetBuildingId(pos, out uint localBuildingId) &&
-			TryFindDestination(localBuildingId, pos, interactionKind, zoneFilter, out CargoPort localTarget, combinedPredicate))
+			TryFindDestination(localBuildingId, pos, interactionKind, facilityFilter, out CargoPort localTarget, combinedPredicate))
 		{
 			return localTarget;
 		}
 
-		return TryFindDestination(0, pos, interactionKind, zoneFilter, out CargoPort globalTarget, combinedPredicate)
+		return TryFindDestination(0, pos, interactionKind, facilityFilter, out CargoPort globalTarget, combinedPredicate)
 			? globalTarget
 			: null;
 	}
@@ -122,7 +122,7 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		uint buildingId = 0,
 		Predicate<CargoPort> predicate = null)
 	{
-		return FindClosestAvailablePortForBox(pos, interactionKind, box, buildingId, ZoneFilter.None, predicate);
+		return FindClosestAvailablePortForBox(pos, interactionKind, box, buildingId, FacilityFilter.None, predicate);
 	}
 
 	public CargoPort FindClosestAvailablePortForBox(
@@ -130,14 +130,14 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		InteractionKind interactionKind,
 		BoxBase box,
 		uint buildingId,
-		ZoneFilter zoneFilter,
+		FacilityFilter facilityFilter,
 		Predicate<CargoPort> predicate = null)
 	{
 		return FindClosestAvailablePort(
 			pos,
 			interactionKind,
 			buildingId,
-			zoneFilter,
+			facilityFilter,
 			candidate =>
 				CanAcceptBox(candidate, box, interactionKind) &&
 				(predicate == null || predicate(candidate)));
