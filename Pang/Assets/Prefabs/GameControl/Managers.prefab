@@ -361,6 +361,7 @@ Transform:
   - {fileID: 7760474397633390356}
   - {fileID: 67814135564016526}
   - {fileID: 3445841064235547811}
+  - {fileID: 1540438912511343504}
   m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &883947193075033641
@@ -898,6 +899,7 @@ MonoBehaviour:
   pathFindingService: {fileID: 2045873797293161509}
   zoneManager: {fileID: 3365747867954475864}
   facilityManager: {fileID: 474663047469881703}
+  facilityRuleManager: {fileID: 1297588356517447750}
   airlockService: {fileID: 6100386177182458250}
   buildingManager: {fileID: 7596847546117217656}
   buildingFootprintService: {fileID: 3372337595302751063}
@@ -1610,7 +1612,6 @@ MonoBehaviour:
   orderInterval: 10
   cargoPortThresholdPercent: 80
   pickingBoxFillLimitPercent: 80
-  maxPickingTasksPerUpdate: 64
   defaultPickingCollectingPolicyType: 0
 --- !u!1 &5289011257717044783
 GameObject:
@@ -1667,7 +1668,6 @@ MonoBehaviour:
   damageRate: 30
   damagePercent: 50
   unloadingDestinationBuildingId: 0
-  maxStoreTasksPerUpdate: 64
   storingBoxFillLimitPercent: 80
   defaultStoringCollectingPolicyType: 0
   defaultStoringPlacingPolicyType: 0
@@ -2129,6 +2129,52 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f443c556603cc1c4589d4d727d9abd91, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &8299142367322082639
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1540438912511343504}
+  - component: {fileID: 1297588356517447750}
+  m_Layer: 0
+  m_Name: FacilityRuleManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1540438912511343504
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8299142367322082639}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7908985302895797192}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1297588356517447750
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8299142367322082639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bb58caf645d40229a9edbff245131f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FacilityRuleManager
+  nextPresetId: 1
+  presets: []
 --- !u!1 &8315817353861705290
 GameObject:
   m_ObjectHideFlags: 0
