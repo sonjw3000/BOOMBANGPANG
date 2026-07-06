@@ -2,6 +2,8 @@ public sealed class StorageBuilding : Building
 {
 	private PickingPlanner pickingPlanner;
 
+	private ItemTransferTaskScheduler Scheduler => GameContext.Instance.ItemTransferTaskScheduler;
+
 	public PickingPlanner PickingPlanner => pickingPlanner;
 
 	public StorageBuilding(string displayName, System.Collections.Generic.List<GridCell> occupiedCells)
@@ -71,6 +73,9 @@ public sealed class StorageBuilding : Building
 			remaining -= reserved;
 		}
 
+		if (accepted > 0)
+			Scheduler?.MarkDirty(RuntimeBuildingId, ItemTransferScheduleMode.Picking);
+
 		return accepted;
 	}
 
@@ -94,10 +99,10 @@ public sealed class StorageBuilding : Building
 		return pickingPlanner.HasPendingCollect(RuntimeBuildingId);
 	}
 
-	public bool TryBuildPickingItemTransferTask(AIWorker worker, out ItemTransferTask task)
+	public bool HasPendingStoringRequest()
 	{
-		task = null;
-		return pickingPlanner.BuildItemTransferTask(worker, out task);
+		StoringPlanner storingPlanner = GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc?.StoringPlanner : null;
+		return storingPlanner != null && storingPlanner.HasPendingCollectWork(RuntimeBuildingId);
 	}
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
@@ -119,5 +124,102 @@ public sealed class StorageBuilding : Building
 			: CapsuleThresholdPercent;
 		float threshold = OverrideCapsuleThreshold ? CapsuleThresholdPercent : workflowThreshold;
 		return capsuleBuffer.FilledPercent >= threshold;
+	}
+
+	protected override void OnIBDockDocked(CapsuleDock dock, CargoCapsule capsule)
+	{
+		base.OnIBDockDocked(dock, capsule);
+
+		if (dock is CapsuleBuffer capsuleBuffer)
+			EvaluateStoringIngress(capsuleBuffer);
+	}
+
+	protected override void OnRegistered()
+	{
+		Scheduler?.Register(
+			RuntimeBuildingId,
+			ItemTransferScheduleMode.Picking,
+			WorkerTask.TaskType.Picking,
+			TryBuildPickingItemTransferTask);
+
+		Scheduler?.Register(
+			RuntimeBuildingId,
+			ItemTransferScheduleMode.Storing,
+			WorkerTask.TaskType.Storing,
+			TryBuildStoringItemTransferTask);
+
+		RefreshStoringIngress();
+	}
+
+	protected override void OnUnregistered()
+	{
+		Scheduler?.Unregister(RuntimeBuildingId, ItemTransferScheduleMode.Picking);
+		Scheduler?.Unregister(RuntimeBuildingId, ItemTransferScheduleMode.Storing);
+	}
+
+	private ItemTransferScheduleResult TryBuildPickingItemTransferTask(
+		ItemTransferScheduleRequest request,
+		out WorkerTask task)
+	{
+		task = null;
+		if (request.Worker == null || request.Worker.CanAcceptGeneralTask(request.TaskType) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		if (HasPendingPickingRequest() == false ||
+			pickingPlanner.BuildItemTransferTask(request.Worker, out ItemTransferTask itemTransferTask) == false)
+		{
+			return ItemTransferScheduleResult.NoWork;
+		}
+
+		task = itemTransferTask;
+		return ItemTransferScheduleResult.Scheduled;
+	}
+
+	private ItemTransferScheduleResult TryBuildStoringItemTransferTask(
+		ItemTransferScheduleRequest request,
+		out WorkerTask task)
+	{
+		task = null;
+		if (request.Worker == null || request.Worker.CanAcceptGeneralTask(request.TaskType) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		StoringPlanner storingPlanner = GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc?.StoringPlanner : null;
+		if (storingPlanner == null ||
+			HasPendingStoringRequest() == false ||
+			storingPlanner.BuildItemTransferTask(request.Worker, RuntimeBuildingId, out ItemTransferTask itemTransferTask) == false)
+		{
+			return ItemTransferScheduleResult.NoWork;
+		}
+
+		task = itemTransferTask;
+		return ItemTransferScheduleResult.Scheduled;
+	}
+
+	private void EvaluateStoringIngress(CapsuleBuffer capsuleBuffer)
+	{
+		if (Scheduler == null || capsuleBuffer == null)
+			return;
+
+		if (CanBuildStoringTask(capsuleBuffer))
+		{
+			Scheduler.MarkDirty(RuntimeBuildingId, ItemTransferScheduleMode.Storing);
+			return;
+		}
+
+		if (HasPendingStoringRequest() == false)
+			Scheduler.ClearDirty(RuntimeBuildingId, ItemTransferScheduleMode.Storing);
+	}
+
+	private void RefreshStoringIngress()
+	{
+		for (int i = 0; i < OccupiedCapsuleBuffers.Count; ++i)
+			EvaluateStoringIngress(OccupiedCapsuleBuffers[i]);
+	}
+
+	private static bool CanBuildStoringTask(CapsuleBuffer capsuleBuffer)
+	{
+		return capsuleBuffer != null &&
+			capsuleBuffer.CanProvideInboundItems() &&
+			capsuleBuffer.ItemTotals.Count > 0;
 	}
 }

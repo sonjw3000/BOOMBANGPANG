@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-public sealed class StoringPlanner
+public sealed class StoringPlanner : IItemTransferPlanner
 {
 	private static int jobID = 1;
 
@@ -10,7 +10,9 @@ public sealed class StoringPlanner
 	private CollectingPolicyType collectingPolicyType;
 	private PlacingPolicyType placingPolicyType;
 	private IPlacingPolicy placingPolicy;
+	private float boxFillLimitPercent;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
+	private ShelfStorageService StorageService => GameContext.HasInstance ? GameContext.Instance.StorageService : null;
 
 	public static int GetNextJobId() => jobID;
 	public static void SetNextJobId(int nextJobId) => jobID = nextJobId;
@@ -20,9 +22,11 @@ public sealed class StoringPlanner
 	public StoringPlanner(
 		CapsuleBufferService capsuleBufferService,
 		CollectingPolicyType collectingPolicyType = CollectingPolicyType.Nearest,
-		PlacingPolicyType placingPolicyType = PlacingPolicyType.BelowAverageFilledNearest)
+		PlacingPolicyType placingPolicyType = PlacingPolicyType.BelowAverageFilledNearest,
+		float boxFillLimitPercent = 80.0f)
 	{
 		this.capsuleBufferService = capsuleBufferService;
+		this.boxFillLimitPercent = boxFillLimitPercent;
 		SetCollectingPolicy(collectingPolicyType);
 		SetPlacingPolicy(placingPolicyType);
 	}
@@ -36,6 +40,11 @@ public sealed class StoringPlanner
 	{
 		placingPolicyType = policyType;
 		placingPolicy = PlacingPolicyFactory.Create(policyType);
+	}
+
+	public void SetBoxFillLimitPercent(float value)
+	{
+		boxFillLimitPercent = value;
 	}
 
 	public bool HasPendingCollectWork()
@@ -54,19 +63,19 @@ public sealed class StoringPlanner
 		return false;
 	}
 
-	public bool BuildStoreTask(out StoringTask task)
-	{
-		return BuildStoreTask(0, out task);
-	}
-
-	public bool BuildStoreTask(uint buildingId, out StoringTask task)
+	public bool BuildItemTransferTask(AIWorker preferredWorker, uint buildingId, out ItemTransferTask task)
 	{
 		task = null;
 		if (HasPendingCollectWork(buildingId) == false)
 			return false;
 
-		WorkJob job = new(jobID++, new List<WorkLine>(), WorkOp.Storing);
-		task = new StoringTask(job, buildingId);
+		ItemTransferJob job = new(
+			this,
+			TransferObjectType.Item,
+			TransferObjectType.Item,
+			buildingId,
+			preferredWorker);
+		task = new ItemTransferTask(WorkerTask.TaskType.Storing, job);
 		return true;
 	}
 
@@ -87,7 +96,7 @@ public sealed class StoringPlanner
 		if (worker == null || box == null)
 			return WorkPlanResult.Waiting;
 
-		if (box.TotalSize >= box.MaxSize)
+		if (HasReachedBoxFillLimit(box))
 			return WorkPlanResult.SwitchPhase;
 
 		CapsuleBuffer bestBuffer = null;
@@ -150,10 +159,15 @@ public sealed class StoringPlanner
 		if (box == null)
 			return WorkPlanResult.Waiting;
 
-		if (box.TotalSize >= box.MaxSize)
+		if (HasReachedBoxFillLimit(box))
 			return WorkPlanResult.SwitchPhase;
 
 		return WorkPlanResult.Issued;
+	}
+
+	public WorkPlanResult OnCollectCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
+	{
+		return OnCollectLineCompleted(worker, line, result);
 	}
 
 	public bool TryDecideNextPlacingLine(AIWorker worker, out WorkLine line)
@@ -195,6 +209,23 @@ public sealed class StoringPlanner
 		return WorkPlanResult.Issued;
 	}
 
+	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine collectedLine, int remainingQuantity, out WorkLine line)
+	{
+		line = null;
+		if (worker == null || collectedLine == null || remainingQuantity <= 0)
+			return WorkPlanResult.Waiting;
+
+		BoxBase box = worker.CarryingAbility?.CarryingBox;
+		if (box == null)
+			return WorkPlanResult.Waiting;
+
+		if (box.ItemTotals.TryGetValue(collectedLine.ItemID, out int carriedQuantity) == false || carriedQuantity <= 0)
+			return box.Stacks.Count <= 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Completed;
+
+		int quantity = Mathf.Min(remainingQuantity, carriedQuantity);
+		return TryGetPlaceLine(worker, buildingId, collectedLine.ItemID, quantity, out line);
+	}
+
 	public WorkPlanResult OnPlaceLineCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
 	{
 		if (result.Kind == TransferResultKind.None)
@@ -207,27 +238,9 @@ public sealed class StoringPlanner
 		return box.Stacks.Count <= 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Issued;
 	}
 
-	public float GetCollectOutstandingTotalSize(uint buildingId, ItemDatabase itemDatabase)
+	public WorkPlanResult OnPlaceCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result)
 	{
-		if (itemDatabase == null)
-			return 0.0f;
-
-		float totalSize = 0.0f;
-		foreach (CapsuleBuffer buffer in EnumerateCollectBuffers(buildingId))
-		{
-			if (HasCollectableItem(buffer) == false)
-				continue;
-
-			foreach (var itemTotal in buffer.ItemTotals)
-			{
-				if (itemTotal.Value <= 0)
-					continue;
-
-				totalSize += itemDatabase.GetItemSize(itemTotal.Key) * itemTotal.Value;
-			}
-		}
-
-		return totalSize;
+		return OnPlaceLineCompleted(worker, placeLine, result);
 	}
 
 	private IEnumerable<CapsuleBuffer> EnumerateCollectBuffers(uint buildingId)
@@ -254,5 +267,80 @@ public sealed class StoringPlanner
 
 		GridCell cell = GridService.GetCell(shelf.GridPosition);
 		return cell != null && cell.BuildingId == buildingId;
+	}
+
+	private WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, uint itemId, int quantity, out WorkLine line)
+	{
+		line = null;
+		if (StorageService == null || worker == null || itemId == 0 || quantity <= 0)
+			return WorkPlanResult.Waiting;
+
+		List<ShelfBase> candidates = new();
+		float filledPercentSum = 0.0f;
+		foreach (ShelfBase shelf in StorageService.QueryPlaceCandidate(itemId, quantity))
+		{
+			if (IsShelfInBuilding(shelf, buildingId) == false)
+				continue;
+
+			if (InteractionPointSelector.TryGetInteractionPoint(
+				shelf,
+				InteractionKind.Put,
+				worker.GridPosition,
+				out _,
+				out _) == false)
+			{
+				continue;
+			}
+
+			candidates.Add(shelf);
+			filledPercentSum += shelf.FilledPercent;
+		}
+
+		if (candidates.Count <= 0)
+			return WorkPlanResult.Waiting;
+
+		float averageFilledPercent = filledPercentSum / candidates.Count;
+		ShelfBase best = null;
+		int bestDistance = int.MaxValue;
+		for (int i = 0; i < candidates.Count; ++i)
+		{
+			ShelfBase shelf = candidates[i];
+			if (placingPolicyType == PlacingPolicyType.BelowAverageFilledNearest &&
+				shelf.FilledPercent > averageFilledPercent)
+			{
+				continue;
+			}
+
+			if (InteractionPointSelector.TryGetInteractionPoint(
+				shelf,
+				InteractionKind.Put,
+				worker.GridPosition,
+				out _,
+				out int distance) == false)
+			{
+				continue;
+			}
+
+			if (distance >= bestDistance)
+				continue;
+
+			best = shelf;
+			bestDistance = distance;
+		}
+
+		if (best == null)
+			return WorkPlanResult.Waiting;
+
+		line = new WorkLine(WorkLineAction.Put, best, best, itemId, quantity);
+		return WorkPlanResult.Issued;
+	}
+
+	private bool HasReachedBoxFillLimit(BoxBase box)
+	{
+		if (box == null || box.MaxSize <= 0.0f)
+			return false;
+
+		float filledPercent = (box.TotalSize / box.MaxSize) * 100.0f;
+		return filledPercent >= boxFillLimitPercent;
 	}
 }

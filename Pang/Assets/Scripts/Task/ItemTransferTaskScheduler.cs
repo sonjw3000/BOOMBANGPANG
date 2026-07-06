@@ -5,6 +5,8 @@ using UnityEngine;
 public enum ItemTransferScheduleMode
 {
 	Undefined = 0,
+	Picking,
+	Storing,
 	PackingInput,
 	PackingOutput,
 }
@@ -378,6 +380,8 @@ public sealed class ItemTransferTaskScheduler
 		return mode switch
 		{
 			ItemTransferScheduleMode.PackingOutput => 0,
+			ItemTransferScheduleMode.Picking => 5,
+			ItemTransferScheduleMode.Storing => 6,
 			ItemTransferScheduleMode.PackingInput => 10,
 			_ => 100,
 		};

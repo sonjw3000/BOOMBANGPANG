@@ -123,23 +123,6 @@ public sealed class PickingPlanner : IItemTransferPlanner
 		return request != null;
 	}
 
-	public bool BuildPickingTask(out PickingTask task)
-	{
-		return BuildPickingTask(BuildingId, out task);
-	}
-
-	public bool BuildPickingTask(uint buildingId, out PickingTask task)
-	{
-		task = null;
-		uint targetBuildingId = ResolveBuildingId(buildingId);
-		if (HasPendingCollectWork(targetBuildingId) == false)
-			return false;
-
-		WorkJob job = new(jobID++, new List<WorkLine>(), WorkOp.Picking);
-		task = new PickingTask(job, targetBuildingId);
-		return true;
-	}
-
 	public bool BuildItemTransferTask(AIWorker preferredWorker, out ItemTransferTask task)
 	{
 		task = null;
@@ -302,29 +285,6 @@ public sealed class PickingPlanner : IItemTransferPlanner
 		return WorkPlanResult.Issued;
 	}
 
-	public float GetPickableOutstandingTotalSize(uint buildingId, ItemDatabase itemDatabase)
-	{
-		if (itemDatabase == null)
-			return 0.0f;
-
-		float totalSize = 0.0f;
-		foreach (uint itemId in requestSource.GetRequestedItemIds())
-		{
-			int allocatable = GetQueuedRequestQuantity(itemId);
-			if (allocatable <= 0)
-				continue;
-
-			totalSize += itemDatabase.GetItemSize(itemId) * allocatable;
-		}
-
-		return totalSize;
-	}
-
-	private int GetQueuedRequestQuantity(uint itemId)
-	{
-		return requestSource.GetQueuedQuantity(itemId);
-	}
-
 	private bool HasReachedBoxFillLimit(BoxBase box)
 	{
 		if (box == null || box.MaxSize <= 0.0f)
@@ -332,11 +292,6 @@ public sealed class PickingPlanner : IItemTransferPlanner
 
 		float filledPercent = (box.TotalSize / box.MaxSize) * 100.0f;
 		return filledPercent >= boxFillLimitPercent;
-	}
-
-	public float GetPickableOutstandingTotalSize(ItemDatabase itemDatabase)
-	{
-		return GetPickableOutstandingTotalSize(BuildingId, itemDatabase);
 	}
 
 	private bool TryAllocateNextCollect(AIWorker worker, uint buildingId, out WorkLine line)
@@ -487,7 +442,7 @@ public sealed class PickingPlanner : IItemTransferPlanner
 			Debug.LogWarning($"[PickingPlanner] Picking manifest place mismatch. item={placeLine.ItemID}, moved={moved}, manifestMoved={manifestMoved}");
 	}
 
-	private sealed class PickingRequestSource : ICollectRequestSource<PickingRequest>
+	private sealed class PickingRequestSource
 	{
 		private readonly List<PickingRequest> requests = new();
 		private readonly Dictionary<uint, List<PickingRequest>> requestsByItem = new();
@@ -531,44 +486,6 @@ public sealed class PickingPlanner : IItemTransferPlanner
 			}
 		}
 
-		public IEnumerable<uint> GetRequestedItemIds()
-		{
-			foreach (var entry in requestsByItem)
-			{
-				if (HasAllocatableRequest(entry.Value))
-					yield return entry.Key;
-			}
-		}
-
-		public IEnumerable<PickingRequest> GetRequestLines(uint itemId)
-		{
-			if (requestsByItem.TryGetValue(itemId, out List<PickingRequest> itemRequests) == false)
-				yield break;
-
-			for (int i = 0; i < itemRequests.Count; ++i)
-			{
-				PickingRequest request = itemRequests[i];
-				if (request != null && request.GetAllocatableQuantity() > 0)
-					yield return request;
-			}
-		}
-
-		public int GetQueuedQuantity(uint itemId)
-		{
-			if (requestsByItem.TryGetValue(itemId, out List<PickingRequest> itemRequests) == false)
-				return 0;
-
-			int quantity = 0;
-			for (int i = 0; i < itemRequests.Count; ++i)
-			{
-				PickingRequest request = itemRequests[i];
-				if (request != null)
-					quantity += request.GetAllocatableQuantity();
-			}
-
-			return quantity;
-		}
-
 		public int GetAllocatableQuantity(PickingRequest requestLine)
 		{
 			return requestLine != null ? requestLine.GetAllocatableQuantity() : 0;
@@ -592,18 +509,5 @@ public sealed class PickingPlanner : IItemTransferPlanner
 				: new WorkLine(resolvedSource, itemId, quantity, requestLine.OrderLine);
 		}
 
-		private static bool HasAllocatableRequest(List<PickingRequest> itemRequests)
-		{
-			if (itemRequests == null)
-				return false;
-
-			for (int i = 0; i < itemRequests.Count; ++i)
-			{
-				if (itemRequests[i] != null && itemRequests[i].GetAllocatableQuantity() > 0)
-					return true;
-			}
-
-			return false;
-		}
 	}
 }
