@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-public sealed class ZoneItemRule
+public sealed class FacilityItemRule
 {
 	[SerializeField] private ItemTag requiredItemTags = ItemTag.None;
 	[SerializeField] private ItemTag forbiddenItemTags = ItemTag.None;
@@ -11,11 +11,11 @@ public sealed class ZoneItemRule
 	[SerializeField] private List<ItemDefinition> whiteList = new();
 	[SerializeField] private List<ItemDefinition> blackList = new();
 
-	public ZoneItemRule()
+	public FacilityItemRule()
 	{
 	}
 
-	public ZoneItemRule(ZoneItemRule source)
+	public FacilityItemRule(FacilityItemRule source)
 	{
 		if (source == null)
 			return;
@@ -36,11 +36,13 @@ public sealed class ZoneItemRule
 	public bool IsEmpty =>
 		requiredItemTags == ItemTag.None &&
 		forbiddenItemTags == ItemTag.None &&
+		requiredItemStatus == ItemStatus.None &&
 		(whiteList == null || whiteList.Count == 0) &&
 		(blackList == null || blackList.Count == 0);
 
 	public void SetRequiredItemTags(ItemTag tags) => requiredItemTags = tags;
 	public void SetForbiddenItemTags(ItemTag tags) => forbiddenItemTags = tags;
+	public void SetRequiredItemStatus(ItemStatus status) => requiredItemStatus = status;
 
 	public void SetWhiteList(IEnumerable<ItemDefinition> items)
 	{
@@ -56,11 +58,12 @@ public sealed class ZoneItemRule
 	{
 		requiredItemTags = ItemTag.None;
 		forbiddenItemTags = ItemTag.None;
+		requiredItemStatus = ItemStatus.None;
 		whiteList?.Clear();
 		blackList?.Clear();
 	}
 
-	public bool IsItemCapable(ZoneItemFilter filter)
+	public bool IsItemCapable(FacilityItemFilter filter)
 	{
 		if (IsEmpty || filter == null)
 			return true;
@@ -89,12 +92,15 @@ public sealed class ZoneItemRule
 		if ((filter.TagFilter & forbiddenItemTags) != ItemTag.None)
 			return false;
 
+		if (requiredItemStatus != ItemStatus.None && filter.ContainsStatus(requiredItemStatus) == false)
+			return false;
+
 		return true;
 	}
 }
 
 [Serializable]
-public sealed class ZoneWorkerRule
+public sealed class FacilityWorkerRule
 {
 	[SerializeField] private WorkerKind requiredWorkerKind = WorkerKind.None;
 	[SerializeField] private List<HumanType> requiredHumanTypes = new();
@@ -103,11 +109,11 @@ public sealed class ZoneWorkerRule
 	[SerializeField] private List<RobotType> forbiddenRobotTypes = new();
 	[SerializeField] private WorkerAbility requiredWorkerAbility = WorkerAbility.None;
 
-	public ZoneWorkerRule()
+	public FacilityWorkerRule()
 	{
 	}
 
-	public ZoneWorkerRule(ZoneWorkerRule source)
+	public FacilityWorkerRule(FacilityWorkerRule source)
 	{
 		if (source == null)
 			return;
@@ -168,7 +174,7 @@ public sealed class ZoneWorkerRule
 		forbiddenRobotTypes?.Clear();
 	}
 
-	public bool IsWorkerCapable(ZoneWorkerFilter filter)
+	public bool IsWorkerCapable(FacilityWorkerFilter filter)
 	{
 		if (IsEmpty || filter == null || filter.Worker == null)
 			return true;
@@ -205,29 +211,29 @@ public sealed class ZoneWorkerRule
 }
 
 [Serializable]
-public sealed class ZoneRule
+public sealed class FacilityRule
 {
 	[SerializeField] private int priority;
-	[SerializeField] private ZoneItemRule itemRule = new();
-	[SerializeField] private ZoneWorkerRule workerRule = new();
+	[SerializeField] private FacilityItemRule itemRule = new();
+	[SerializeField] private FacilityWorkerRule workerRule = new();
 
-	public ZoneRule()
+	public FacilityRule()
 	{
 	}
 
-	public ZoneRule(ZoneRule source)
+	public FacilityRule(FacilityRule source)
 	{
 		if (source == null)
 			return;
 
 		priority = source.priority;
-		itemRule = source.itemRule != null ? new ZoneItemRule(source.itemRule) : new ZoneItemRule();
-		workerRule = source.workerRule != null ? new ZoneWorkerRule(source.workerRule) : new ZoneWorkerRule();
+		itemRule = source.itemRule != null ? new FacilityItemRule(source.itemRule) : new FacilityItemRule();
+		workerRule = source.workerRule != null ? new FacilityWorkerRule(source.workerRule) : new FacilityWorkerRule();
 	}
 
 	public int Priority => priority;
-	public ZoneItemRule ItemRule => itemRule;
-	public ZoneWorkerRule WorkerRule => workerRule;
+	public FacilityItemRule ItemRule => itemRule;
+	public FacilityWorkerRule WorkerRule => workerRule;
 
 	public bool IsEmpty =>
 		(itemRule == null || itemRule.IsEmpty) &&
@@ -235,26 +241,26 @@ public sealed class ZoneRule
 
 	public void SetPriority(int newPriority) => priority = newPriority;
 
-	public void SetItemRule(ZoneItemRule rule)
+	public void SetItemRule(FacilityItemRule rule)
 	{
-		itemRule = rule != null ? new ZoneItemRule(rule) : new ZoneItemRule();
+		itemRule = rule != null ? new FacilityItemRule(rule) : new FacilityItemRule();
 	}
 
-	public void SetWorkerRule(ZoneWorkerRule rule)
+	public void SetWorkerRule(FacilityWorkerRule rule)
 	{
-		workerRule = rule != null ? new ZoneWorkerRule(rule) : new ZoneWorkerRule();
+		workerRule = rule != null ? new FacilityWorkerRule(rule) : new FacilityWorkerRule();
 	}
 
 	public void Clear()
 	{
 		priority = 0;
-		itemRule ??= new ZoneItemRule();
-		workerRule ??= new ZoneWorkerRule();
+		itemRule ??= new FacilityItemRule();
+		workerRule ??= new FacilityWorkerRule();
 		itemRule.Clear();
 		workerRule.Clear();
 	}
 
-	public bool IsFilterCapable(in ZoneFilter filter)
+	public bool IsFilterCapable(in FacilityFilter filter)
 	{
 		if (itemRule != null && itemRule.IsItemCapable(filter.ItemFilter) == false)
 			return false;

@@ -9,6 +9,8 @@ public abstract class ItemInteraction :
 	IGridPlacementEffect,
 	IInteractionPoint
 {
+	[SerializeField] private uint facilityRulePresetId;
+
 	protected int3 position;
 	protected FacingDirection facingDirection;
 
@@ -22,6 +24,12 @@ public abstract class ItemInteraction :
 
 	public int3 GridPosition => position;
 	public FacingDirection Direction => facingDirection;
+	public uint FacilityRulePresetId => facilityRulePresetId;
+
+	public void SetFacilityRulePresetId(uint presetId)
+	{
+		facilityRulePresetId = presetId;
+	}
 
 	// grid placement effect
 	public abstract void OnPositionSet(in int3 pos, FacingDirection direction);

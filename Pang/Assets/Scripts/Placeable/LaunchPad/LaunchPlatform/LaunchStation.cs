@@ -13,6 +13,7 @@ public partial class LaunchStation
 	, IGridPlacementEffect
 	, IInteractionPoint
 {
+	[SerializeField] private uint facilityRulePresetId;
 	[SerializeField] private List<PlatformAddon> addons = new();
 
 	private int3 gridPosition;
@@ -23,8 +24,14 @@ public partial class LaunchStation
 
 	public int3 GridPosition => gridPosition;
 	public FacingDirection Direction => facingDirection;
+	public uint FacilityRulePresetId => facilityRulePresetId;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.LaunchStation;
 	public IReadOnlyList<InteractionPoint> InteractionPoints => interactionPoints;
+
+	public void SetFacilityRulePresetId(uint presetId)
+	{
+		facilityRulePresetId = presetId;
+	}
 	
 	private void Awake()
 	{
