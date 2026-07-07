@@ -230,7 +230,10 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 
 	private void HandleApplyPresetRequested(uint presetId)
 	{
-		if (RuleManager == null || RuleManager.TryGetPreset(presetId, out _) == false)
+		if (RuleManager == null)
+			return;
+
+		if (presetId != FacilityRuleManager.NoRulePresetId && RuleManager.TryGetPreset(presetId, out _) == false)
 			return;
 
 		BeginApplyMode(presetId);
@@ -287,9 +290,7 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 		}
 
 		string facilityName = selectedObject.name;
-		string presetName = RuleManager.TryGetPreset(applyingPresetId, out FacilityRulePreset preset)
-			? preset.DisplayName
-			: applyingPresetId.ToString();
+		string presetName = GetApplyingPresetName();
 		SetStatus($"Applied {presetName} to {facilityName}. Right click to finish.");
 	}
 
@@ -307,7 +308,17 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 			if (row == null)
 				continue;
 
-			bool hasPreset = presets != null && i < presets.Count && presets[i] != null;
+			if (i == 0 && manager != null)
+			{
+				row.gameObject.SetActive(true);
+				row.ConfigureNoRule(
+					manager.GetNoRuleFacilityCount(),
+					HandleApplyPresetRequested);
+				continue;
+			}
+
+			int presetIndex = i - 1;
+			bool hasPreset = presets != null && presetIndex >= 0 && presetIndex < presets.Count && presets[presetIndex] != null;
 			row.gameObject.SetActive(hasPreset);
 			if (hasPreset == false)
 			{
@@ -315,7 +326,7 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 				continue;
 			}
 
-			FacilityRulePreset preset = presets[i];
+			FacilityRulePreset preset = presets[presetIndex];
 			row.Configure(
 				preset,
 				manager.GetAppliedFacilityCount(preset.Id),
@@ -335,9 +346,7 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 
 		if (applyModeActive)
 		{
-			string presetName = RuleManager.TryGetPreset(applyingPresetId, out FacilityRulePreset preset)
-				? preset.DisplayName
-				: applyingPresetId.ToString();
+			string presetName = GetApplyingPresetName();
 			SetStatus($"Applying {presetName}. Left click a Facility. Right click to cancel.");
 		}
 		else
@@ -365,6 +374,16 @@ public sealed class FacilityRuleWindow : MonoBehaviour
 	{
 		if (facilityListWindow == null)
 			facilityListWindow = FindFirstObjectByType<FacilityRuleFacilityListWindow>(FindObjectsInactive.Include);
+	}
+
+	private string GetApplyingPresetName()
+	{
+		if (applyingPresetId == FacilityRuleManager.NoRulePresetId)
+			return "No Rule";
+
+		return RuleManager != null && RuleManager.TryGetPreset(applyingPresetId, out FacilityRulePreset preset)
+			? preset.DisplayName
+			: applyingPresetId.ToString();
 	}
 
 	private static bool TryGetFacility(GameObject selectedObject, out IFacility facility)

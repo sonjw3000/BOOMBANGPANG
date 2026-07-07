@@ -19,6 +19,36 @@ public sealed class FacilityRulePresetRowView : MonoBehaviour
 
 	public uint PresetId => presetId;
 
+	public void ConfigureNoRule(
+		int appliedCount,
+		Action<uint> onApplyRequested)
+	{
+		presetId = FacilityRuleManager.NoRulePresetId;
+		listRequested = null;
+		editRequested = null;
+		applyRequested = onApplyRequested;
+
+		if (nameText != null)
+			nameText.text = "No Rule";
+
+		if (countText != null)
+			countText.text = appliedCount.ToString();
+
+		if (colorImage != null)
+			colorImage.color = Color.clear;
+
+		listButton?.Configure("List", HandleListClicked);
+		editButton?.Configure("Edit", HandleEditClicked);
+		applyButton?.Configure("Apply", HandleApplyClicked);
+
+		if (listButton?.Button != null)
+			listButton.Button.interactable = false;
+		if (editButton?.Button != null)
+			editButton.Button.interactable = false;
+		if (applyButton?.Button != null)
+			applyButton.Button.interactable = true;
+	}
+
 	public void Configure(
 		FacilityRulePreset preset,
 		int appliedCount,
@@ -83,7 +113,6 @@ public sealed class FacilityRulePresetRowView : MonoBehaviour
 
 	private void HandleApplyClicked()
 	{
-		if (presetId != FacilityRuleManager.NoRulePresetId)
-			applyRequested?.Invoke(presetId);
+		applyRequested?.Invoke(presetId);
 	}
 }

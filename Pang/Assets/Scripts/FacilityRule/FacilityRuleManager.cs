@@ -214,6 +214,27 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 		return GetFacilitiesForPreset(presetId).Count;
 	}
 
+	public int GetNoRuleFacilityCount()
+	{
+		int count = 0;
+		if (GameContext.HasInstance == false || GameContext.Instance.FacilityMgr == null)
+			return count;
+
+		IReadOnlyList<uint> buildingIds = GameContext.Instance.FacilityMgr.GetBuildingIds();
+		for (int i = 0; i < buildingIds.Count; ++i)
+		{
+			IReadOnlyList<IFacility> facilities = GameContext.Instance.FacilityMgr.GetFacilities<IFacility>(buildingIds[i]);
+			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
+			{
+				IFacility facility = facilities[facilityIndex];
+				if (facility != null && facility.FacilityRulePresetId == NoRulePresetId)
+					count += 1;
+			}
+		}
+
+		return count;
+	}
+
 	public bool IsFacilityAllowed(IFacility facility, in FacilityFilter filter)
 	{
 		if (facility == null)
