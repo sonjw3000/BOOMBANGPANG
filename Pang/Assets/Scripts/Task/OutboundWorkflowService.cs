@@ -16,6 +16,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	[SerializeField] private float cargoPortThresholdPercent = 80.0f;
 	[SerializeField] [Range(1f, 100f)] private float pickingBoxFillLimitPercent = 80.0f;
 	[SerializeField] private CollectingPolicyType defaultPickingCollectingPolicyType = DefaultCollectingPolicyType;
+	[SerializeField] private uint loadingDestinationBuildingId = 0;
 
 	private float timeSinceLastOrder = 0.0f;
 	private readonly HashSet<OutboundCargoPort> queuedCargoTransferPorts = new();
@@ -29,6 +30,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public CollectingPolicyType PickingCollectingPolicyType => defaultPickingCollectingPolicyType;
 	public float PickingBoxFillLimitPercent => pickingBoxFillLimitPercent;
 	public float CargoPortThresholdPercent => cargoPortThresholdPercent;
+	public uint LoadingDestinationBuildingId => loadingDestinationBuildingId;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
@@ -87,6 +89,31 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			if (buildings[i] is StorageBuilding storageBuilding)
 				storageBuilding.PickingPlanner?.SetCollectingPolicy(policyType);
 		}
+	}
+
+	public bool TryGetLoadingDestinationBuilding(out Building building)
+	{
+		building = null;
+		return loadingDestinationBuildingId != 0
+			&& GameContext.HasInstance
+			&& GameContext.Instance.BuildingMgr != null
+			&& GameContext.Instance.BuildingMgr.TryGetBuilding(loadingDestinationBuildingId, out building)
+			&& building != null;
+	}
+
+	public void SetLoadingDestinationBuilding(Building building)
+	{
+		SetLoadingDestinationBuilding(building != null ? building.RuntimeBuildingId : 0);
+	}
+
+	public void SetLoadingDestinationBuilding(uint buildingId)
+	{
+		loadingDestinationBuildingId = buildingId;
+	}
+
+	public void ClearLoadingDestinationBuilding()
+	{
+		loadingDestinationBuildingId = 0;
 	}
 
 	public PickingManifest GetPickingManifest(BoxBase box)
@@ -526,6 +553,13 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 		int3 sourcePoint = ResolveInteractionOrigin(sourcePort, InteractionKind.Pick);
 		FacilityFilter facilityFilter = FacilityFilter.ForContainer(sourcePort.DockedCapsule);
+		if (loadingDestinationBuildingId != 0)
+		{
+			return launchStationService.TryFindDestination(loadingDestinationBuildingId, sourcePoint, InteractionKind.Put, facilityFilter, out LaunchStation selectedStation)
+				? selectedStation
+				: null;
+		}
+
 		if (ResolveSourceBuilding(sourcePort, out Building sourceBuilding) &&
 			launchStationService.TryFindDestination(sourceBuilding.RuntimeBuildingId, sourcePoint, InteractionKind.Put, facilityFilter, out LaunchStation localStation))
 		{

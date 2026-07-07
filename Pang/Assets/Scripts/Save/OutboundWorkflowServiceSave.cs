@@ -8,12 +8,14 @@ public partial class OutboundWorkflowService
 		return new OutboundWorkflowPolicySaveData
 		{
 			PickingCollectingPolicy = PickingCollectingPolicyType,
+			LoadingDestinationBuildingId = loadingDestinationBuildingId,
 		};
 	}
 
 	public void RestorePolicyState(OutboundWorkflowPolicySaveData data)
 	{
 		CollectingPolicyType policyType = data != null ? data.PickingCollectingPolicy : DefaultCollectingPolicyType;
+		loadingDestinationBuildingId = data != null ? data.LoadingDestinationBuildingId : 0;
 		SetPickingCollectingPolicy(policyType);
 	}
 

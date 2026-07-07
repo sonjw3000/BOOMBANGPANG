@@ -28,6 +28,14 @@ public class LaunchVendorPickupService : VendorProcessor
 			return;
 		}
 
+		uint destinationBuildingId = Context.OBWorkflowSvc.LoadingDestinationBuildingId;
+		if (destinationBuildingId != 0)
+		{
+			pickedCount += PickFromBuilding(launchVendor, destinationBuildingId, ref remainingCapacity);
+			Debug.Log($"[LaunchVendorPickupService] {launchVendor.VendorName} picked up {pickedCount} capsule(s). Capacity left: {remainingCapacity}.");
+			return;
+		}
+
 		IReadOnlyList<Building> buildings = Context.BuildingMgr.RegisteredBuildings;
 		for (int i = 0; i < buildings.Count && remainingCapacity > 0; ++i)
 		{

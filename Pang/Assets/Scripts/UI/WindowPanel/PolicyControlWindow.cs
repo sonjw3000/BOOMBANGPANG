@@ -43,13 +43,18 @@ namespace Assets.Scripts.UI
 		private GameObject outboundTabRoot;
 		private TMP_Text unloadingDestinationSummaryText;
 		private TMP_Text unloadingSelectionStatusText;
+		private TMP_Text loadingDestinationSummaryText;
+		private TMP_Text loadingSelectionStatusText;
 		private TMP_Text outboundPlaceholderText;
 		private ActionButtonControls landingZoneButton;
 		private ActionButtonControls unloadingDestinationButton;
+		private ActionButtonControls loadingDestinationButton;
 		private TabType currentTab;
 		private bool initialized;
 		private bool isSelectingUnloadingDestination;
+		private bool isSelectingLoadingDestination;
 		private string unloadingSelectionStatusMessage = string.Empty;
+		private string loadingSelectionStatusMessage = string.Empty;
 
 		private readonly List<GameObject> overlayObjects = new();
 		private GameObject overlayRoot;
@@ -155,6 +160,8 @@ namespace Assets.Scripts.UI
 
 			Interaction.OnHandleBuildingLinkSelection -= HandleUnloadingDestinationSelection;
 			Interaction.OnHandleBuildingLinkSelection += HandleUnloadingDestinationSelection;
+			Interaction.OnHandleBuildingLinkSelection -= HandleLoadingDestinationSelection;
+			Interaction.OnHandleBuildingLinkSelection += HandleLoadingDestinationSelection;
 			Interaction.OnModeChanged -= HandleInteractionModeChanged;
 			Interaction.OnModeChanged += HandleInteractionModeChanged;
 		}
@@ -165,6 +172,7 @@ namespace Assets.Scripts.UI
 				return;
 
 			Interaction.OnHandleBuildingLinkSelection -= HandleUnloadingDestinationSelection;
+			Interaction.OnHandleBuildingLinkSelection -= HandleLoadingDestinationSelection;
 			Interaction.OnModeChanged -= HandleInteractionModeChanged;
 		}
 
@@ -176,11 +184,12 @@ namespace Assets.Scripts.UI
 		private void HandleWindowClosed()
 		{
 			EndUnloadingDestinationSelection(true);
+			EndLoadingDestinationSelection(true);
 		}
 
 		private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
 		{
-			if (isSelectingUnloadingDestination == false)
+			if (isSelectingUnloadingDestination == false && isSelectingLoadingDestination == false)
 				return;
 
 			if (Interaction == null || Interaction.Mode != InteractionContext.InteractionMode.BuildingLinkEdit)
@@ -191,6 +200,7 @@ namespace Assets.Scripts.UI
 
 			RefreshOverlay();
 			UpdateInboundStatusText();
+			UpdateOutboundStatusText();
 		}
 
 		private bool HandleUnloadingDestinationSelection(Unity.Mathematics.int3 pos)
@@ -211,6 +221,28 @@ namespace Assets.Scripts.UI
 			InboundWorkflowService?.SetUnloadingDestinationBuilding(building);
 			unloadingSelectionStatusMessage = $"Unloading destination set to {building.DisplayName}.";
 			EndUnloadingDestinationSelection(true);
+			RefreshFromState();
+			return true;
+		}
+
+		private bool HandleLoadingDestinationSelection(Unity.Mathematics.int3 pos)
+		{
+			if (isSelectingLoadingDestination == false || Interaction == null || Interaction.Mode != InteractionContext.InteractionMode.BuildingLinkEdit)
+				return false;
+
+			if (TryGetBuildingAt(pos, out Building building) == false || building == null)
+				return false;
+
+			if (HasOutboundPorts(building) == false)
+			{
+				loadingSelectionStatusMessage = $"{building.DisplayName} has no outbound cargo ports.";
+				UpdateOutboundStatusText();
+				return true;
+			}
+
+			OutboundWorkflowService?.SetLoadingDestinationBuilding(building);
+			loadingSelectionStatusMessage = $"Loading destination set to {building.DisplayName}.";
+			EndLoadingDestinationSelection(true);
 			RefreshFromState();
 			return true;
 		}
@@ -281,8 +313,13 @@ namespace Assets.Scripts.UI
 
 		private void BuildOutboundTab(Transform parent)
 		{
-			CreateSectionHeader(parent, "Outbound");
-			outboundPlaceholderText = CreateBodyText("OutboundPlaceholder", parent, "Outbound workflow settings will be added here.");
+			CreateSectionHeader(parent, "Outbound Routing");
+			CreateHelpText(parent, "Configure which building receives outbound loading for launch.");
+
+			loadingDestinationButton = CreateButtonRow(parent, "Loading Destination", "Select Building", HandleLoadingDestinationButtonClicked);
+			loadingDestinationSummaryText = CreateBodyText("LoadingDestinationSummary", parent, string.Empty);
+			loadingSelectionStatusText = CreateBodyText("LoadingSelectionStatus", parent, string.Empty);
+			outboundPlaceholderText = CreateBodyText("OutboundPlaceholder", parent, string.Empty);
 		}
 
 		private void RefreshFromState()
@@ -309,9 +346,13 @@ namespace Assets.Scripts.UI
 				unloadingDestinationSummaryText.text = BuildUnloadingDestinationSummary();
 
 			UpdateInboundStatusText();
+			if (loadingDestinationSummaryText != null)
+				loadingDestinationSummaryText.text = BuildLoadingDestinationSummary();
+
+			UpdateOutboundStatusText();
 
 			if (outboundPlaceholderText != null)
-				outboundPlaceholderText.text = "Outbound workflow settings will be added here.";
+				outboundPlaceholderText.text = string.Empty;
 		}
 
 		private void HandleLandingZoneButtonClicked()
@@ -336,6 +377,7 @@ namespace Assets.Scripts.UI
 			if (Interaction == null)
 				return;
 
+			EndLoadingDestinationSelection(false);
 			isSelectingUnloadingDestination = true;
 			unloadingSelectionStatusMessage = "Select a building with inbound cargo ports. Right click to cancel.";
 			Interaction.EnterBuildingLinkMode();
@@ -356,6 +398,43 @@ namespace Assets.Scripts.UI
 			UpdateInboundStatusText();
 		}
 
+		private void HandleLoadingDestinationButtonClicked()
+		{
+			if (isSelectingLoadingDestination)
+			{
+				EndLoadingDestinationSelection(true);
+				return;
+			}
+
+			BeginLoadingDestinationSelection();
+		}
+
+		private void BeginLoadingDestinationSelection()
+		{
+			if (Interaction == null)
+				return;
+
+			EndUnloadingDestinationSelection(false);
+			isSelectingLoadingDestination = true;
+			loadingSelectionStatusMessage = "Select a building with outbound cargo ports. Right click to cancel.";
+			Interaction.EnterBuildingLinkMode();
+			RefreshOverlay();
+			UpdateOutboundStatusText();
+		}
+
+		private void EndLoadingDestinationSelection(bool exitInteractionMode)
+		{
+			if (isSelectingLoadingDestination == false)
+				return;
+
+			isSelectingLoadingDestination = false;
+			ClearOverlay();
+			if (exitInteractionMode && Interaction != null && Interaction.Mode == InteractionContext.InteractionMode.BuildingLinkEdit)
+				Interaction.ExitBuildingLinkMode();
+
+			UpdateOutboundStatusText();
+		}
+
 		private void UpdateInboundStatusText()
 		{
 			if (unloadingSelectionStatusText == null)
@@ -372,6 +451,24 @@ namespace Assets.Scripts.UI
 			unloadingSelectionStatusText.text = string.IsNullOrWhiteSpace(unloadingSelectionStatusMessage)
 				? "Choose which building should receive unloading from landed rockets."
 				: unloadingSelectionStatusMessage;
+		}
+
+		private void UpdateOutboundStatusText()
+		{
+			if (loadingSelectionStatusText == null)
+				return;
+
+			if (isSelectingLoadingDestination)
+			{
+				loadingSelectionStatusText.text = string.IsNullOrWhiteSpace(loadingSelectionStatusMessage)
+					? "Select a building with outbound cargo ports. Right click to cancel."
+					: loadingSelectionStatusMessage;
+				return;
+			}
+
+			loadingSelectionStatusText.text = string.IsNullOrWhiteSpace(loadingSelectionStatusMessage)
+				? "Choose which building should receive loading for launch."
+				: loadingSelectionStatusMessage;
 		}
 
 		private void HandlePlacingPolicyChanged(int optionIndex)
@@ -401,6 +498,17 @@ namespace Assets.Scripts.UI
 			return "Unloading destination building: automatic (nearest valid inbound cargo port)";
 		}
 
+		private string BuildLoadingDestinationSummary()
+		{
+			if (OutboundWorkflowService == null)
+				return "Loading destination building: unavailable.";
+
+			if (OutboundWorkflowService.TryGetLoadingDestinationBuilding(out Building building) && building != null)
+				return $"Loading destination building: {building.DisplayName}";
+
+			return "Loading destination building: automatic (nearest valid launch station)";
+		}
+
 		private bool TryGetBuildingAt(Unity.Mathematics.int3 pos, out Building building)
 		{
 			building = null;
@@ -421,6 +529,15 @@ namespace Assets.Scripts.UI
 
 			List<CargoPort> ports = new();
 			return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port != null && port is InboundCargoPort);
+		}
+
+		private bool HasOutboundPorts(Building building)
+		{
+			if (building == null || CargoPortService == null)
+				return false;
+
+			List<CargoPort> ports = new();
+			return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port != null && port is OutboundCargoPort);
 		}
 
 		private void EnsureZoneControlWindow()
@@ -449,15 +566,23 @@ namespace Assets.Scripts.UI
 		private void RefreshOverlay()
 		{
 			ClearOverlay();
-			if (isSelectingUnloadingDestination == false || BuildingManager == null || BuildingFootprintService == null)
+			if ((isSelectingUnloadingDestination == false && isSelectingLoadingDestination == false) ||
+				BuildingManager == null ||
+				BuildingFootprintService == null)
 				return;
 
 			IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
-			uint selectedBuildingId = InboundWorkflowService != null ? InboundWorkflowService.UnloadingDestinationBuildingId : 0;
+			uint selectedBuildingId = isSelectingLoadingDestination
+				? (OutboundWorkflowService != null ? OutboundWorkflowService.LoadingDestinationBuildingId : 0)
+				: (InboundWorkflowService != null ? InboundWorkflowService.UnloadingDestinationBuildingId : 0);
 			for (int i = 0; i < buildings.Count; ++i)
 			{
 				Building building = buildings[i];
-				if (building == null || HasInboundPorts(building) == false)
+				if (building == null)
+					continue;
+
+				bool isValid = isSelectingLoadingDestination ? HasOutboundPorts(building) : HasInboundPorts(building);
+				if (isValid == false)
 					continue;
 
 				bool isSelected = selectedBuildingId != 0 && building.RuntimeBuildingId == selectedBuildingId;

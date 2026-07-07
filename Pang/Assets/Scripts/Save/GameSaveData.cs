@@ -108,6 +108,7 @@ public sealed class InboundWorkflowPolicySaveData
 public sealed class OutboundWorkflowPolicySaveData
 {
 	public CollectingPolicyType PickingCollectingPolicy = CollectingPolicyType.Nearest;
+	public uint LoadingDestinationBuildingId;
 }
 
 [Serializable]
