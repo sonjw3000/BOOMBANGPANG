@@ -125,7 +125,7 @@ public sealed class BuildingItemIndex
 
 	private static readonly IReadOnlyDictionary<IItemContainer, int> EmptyContainerQuantities = new Dictionary<IItemContainer, int>();
 
-	private void RefreshContainer(IItemContainer container)
+	internal void RefreshContainer(IItemContainer container)
 	{
 		if (container == null || containers.Contains(container) == false)
 			return;

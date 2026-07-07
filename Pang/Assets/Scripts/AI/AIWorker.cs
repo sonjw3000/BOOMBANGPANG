@@ -19,13 +19,14 @@ public enum WorkerAbility
 
 public enum WorkActionType
 {
-	PickItem,
-	PutItem,
-	PickBox,
-	PutBox,
-	PackItem,
-	MoveBox,
-	HandleMistake
+	PickItem = 0,
+	PutItem = 1,
+	PickBox = 2,
+	PutBox = 3,
+	PackItem = 4,
+	MoveBox = 5,
+	HandleMistake = 6,
+	LabelItem = 7,
 }
 
 public enum WorkerStatusAction

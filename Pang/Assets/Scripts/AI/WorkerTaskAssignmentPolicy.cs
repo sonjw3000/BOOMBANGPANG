@@ -24,7 +24,7 @@ public static class WorkerTaskAssignmentPolicy
 
 		foreach (WorkerTask.TaskType taskType in System.Enum.GetValues(typeof(WorkerTask.TaskType)))
 		{
-			if (taskType > WorkerTask.TaskType.Undefined)
+			if (taskType == WorkerTask.TaskType.HandleMistake)
 				continue;
 
 			if (CanAssign(worker, taskType))
