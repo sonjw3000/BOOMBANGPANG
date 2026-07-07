@@ -12,6 +12,7 @@ public sealed class FacilityRuleEditorView : MonoBehaviour
 	[SerializeField] private MultiSelectDropdownRowView forbiddenHumanTypesDropdown = null;
 	[SerializeField] private MultiSelectDropdownRowView requiredRobotTypesDropdown = null;
 	[SerializeField] private MultiSelectDropdownRowView forbiddenRobotTypesDropdown = null;
+	[SerializeField] private MultiSelectDropdownRowView requiredDestinationsDropdown = null;
 
 	[SerializeField] private TextRowView whiteListSummaryRow = null;
 	[SerializeField] private TextRowView blackListSummaryRow = null;
@@ -29,6 +30,7 @@ public sealed class FacilityRuleEditorView : MonoBehaviour
 	public MultiSelectDropdownRowView ForbiddenHumanTypesDropdown => forbiddenHumanTypesDropdown;
 	public MultiSelectDropdownRowView RequiredRobotTypesDropdown => requiredRobotTypesDropdown;
 	public MultiSelectDropdownRowView ForbiddenRobotTypesDropdown => forbiddenRobotTypesDropdown;
+	public MultiSelectDropdownRowView RequiredDestinationsDropdown => requiredDestinationsDropdown;
 	public TextRowView WhiteListSummaryRow => whiteListSummaryRow;
 	public TextRowView BlackListSummaryRow => blackListSummaryRow;
 	public TextButtonView ClearWhiteListButton => clearWhiteListButton;

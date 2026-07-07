@@ -51,6 +51,13 @@ public sealed class FacilityRuleEditWindow : MonoBehaviour
 		RobotType.Transfer,
 	};
 
+	private static readonly OrderDestination[] OrderDestinationOptions =
+	{
+		OrderDestination.None,
+		OrderDestination.Mars,
+		OrderDestination.Titan,
+	};
+
 	private const int DefaultPriorityOptionMax = 10;
 
 	[SerializeField] private UIWindow window = null;
@@ -197,6 +204,7 @@ public sealed class FacilityRuleEditWindow : MonoBehaviour
 		BindMultiSelectDropdown(editorView.ForbiddenHumanTypesDropdown, HumanTypeOptions, HandleForbiddenHumanTypeChanged);
 		BindMultiSelectDropdown(editorView.RequiredRobotTypesDropdown, RobotTypeOptions, HandleRequiredRobotTypeChanged);
 		BindMultiSelectDropdown(editorView.ForbiddenRobotTypesDropdown, RobotTypeOptions, HandleForbiddenRobotTypeChanged);
+		BindMultiSelectDropdown(editorView.RequiredDestinationsDropdown, OrderDestinationOptions, HandleRequiredDestinationChanged);
 
 		editorView.ClearWhiteListButton?.Configure("Clear White List", HandleClearWhiteListClicked);
 		editorView.ClearBlackListButton?.Configure("Clear Black List", HandleClearBlackListClicked);
@@ -270,6 +278,7 @@ public sealed class FacilityRuleEditWindow : MonoBehaviour
 
 		FacilityItemRule itemRule = workingRule.ItemRule ?? new FacilityItemRule();
 		FacilityWorkerRule workerRule = workingRule.WorkerRule ?? new FacilityWorkerRule();
+		FacilityManifestRule manifestRule = workingRule.ManifestRule ?? new FacilityManifestRule();
 
 		suppressRuleEvents = true;
 		try
@@ -286,6 +295,7 @@ public sealed class FacilityRuleEditWindow : MonoBehaviour
 			ApplyListDropdown(editorView.ForbiddenHumanTypesDropdown, HumanTypeOptions, workerRule.ForbiddenHumanTypes);
 			ApplyListDropdown(editorView.RequiredRobotTypesDropdown, RobotTypeOptions, workerRule.RequiredRobotTypes);
 			ApplyListDropdown(editorView.ForbiddenRobotTypesDropdown, RobotTypeOptions, workerRule.ForbiddenRobotTypes);
+			ApplyListDropdown(editorView.RequiredDestinationsDropdown, OrderDestinationOptions, manifestRule.RequiredDestinations);
 
 			if (editorView.WhiteListSummaryRow?.Text != null)
 				editorView.WhiteListSummaryRow.Text.text = BuildItemListSummary("White List", itemRule.WhiteList);
@@ -440,6 +450,19 @@ public sealed class FacilityRuleEditWindow : MonoBehaviour
 		SetListValue(values, robotType, isOn);
 		workerRule.SetForbiddenRobotTypes(values);
 		workingRule.SetWorkerRule(workerRule);
+		RefreshRuleEditor();
+	}
+
+	private void HandleRequiredDestinationChanged(OrderDestination destination, bool isOn)
+	{
+		if (suppressRuleEvents)
+			return;
+
+		FacilityManifestRule manifestRule = new(workingRule.ManifestRule);
+		List<OrderDestination> values = new(manifestRule.RequiredDestinations);
+		SetListValue(values, destination, isOn);
+		manifestRule.SetRequiredDestinations(values);
+		workingRule.SetManifestRule(manifestRule);
 		RefreshRuleEditor();
 	}
 
