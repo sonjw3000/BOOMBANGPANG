@@ -92,6 +92,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ProcessStatsCollector processStats;
 	[SerializeField] private MetricsService metrics;
 	[SerializeField] private FloatingTextManager floatingTextManager;
+	[SerializeField] private HudEventManager hudEventManager;
 
 	private DeliveryService deliveryService = new();
 	private GameSaveService saveService;
@@ -184,6 +185,13 @@ public class GameContext : MonoBehaviour
 			return ResolveManager(ref floatingTextManager, nameof(FloatingTextManager));
 		}
 	}
+	public HudEventManager HudEventManager
+	{
+		get
+		{
+			return ResolveOrCreateHudEventManager();
+		}
+	}
 	public DeliveryService DeliveryService => deliveryService;
 	public InteractionContext InteractionCtx => interactionCtx;
 	public GameSaveService SaveService => ResolveManager(ref saveService, nameof(GameSaveService));
@@ -271,8 +279,24 @@ public class GameContext : MonoBehaviour
 		capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
 		itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();
 		_ = FloatingTextManager;
+		_ = HudEventManager;
 		_ = SaveService;
 		_ = DemoGoalService;
+	}
+
+	private HudEventManager ResolveOrCreateHudEventManager()
+	{
+		if (hudEventManager != null)
+			return hudEventManager;
+
+		hudEventManager = GetComponentInChildren<HudEventManager>(true);
+		if (hudEventManager != null)
+			return hudEventManager;
+
+		GameObject managerObject = new("HudEventManager");
+		managerObject.transform.SetParent(transform, false);
+		hudEventManager = managerObject.AddComponent<HudEventManager>();
+		return hudEventManager;
 	}
 
 	private void BindEvents()

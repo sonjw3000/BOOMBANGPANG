@@ -57,7 +57,43 @@ public class HumanIncidentService : MonoBehaviour
 		}
 
 		HumanIncidentPayload result = new HumanIncidentPayload(incidentType, responseType);
+		PublishHudEvent(worker, action, result);
 		return result;
+	}
+
+	private static void PublishHudEvent(AIWorker worker, WorkActionType action, HumanIncidentPayload payload)
+	{
+		if (payload == null || GameContext.HasInstance == false)
+			return;
+
+		string workerName = worker != null && string.IsNullOrWhiteSpace(worker.Name) == false
+			? worker.Name
+			: "Worker";
+		string incidentLabel = payload.type == HumanIncidentType.Collapse ? "collapsed" : "made a work mistake";
+		string actionLabel = FormatEnumLabel(action.ToString());
+
+		GameContext.Instance.HudEventManager?.Publish(
+			HudEventType.Warning,
+			$"{workerName} {incidentLabel} during {actionLabel}",
+			worker);
+	}
+
+	private static string FormatEnumLabel(string raw)
+	{
+		if (string.IsNullOrWhiteSpace(raw))
+			return string.Empty;
+
+		System.Text.StringBuilder builder = new(raw.Length + 8);
+		for (int i = 0; i < raw.Length; ++i)
+		{
+			char current = raw[i];
+			if (i > 0 && char.IsUpper(current) && char.IsLower(raw[i - 1]))
+				builder.Append(' ');
+
+			builder.Append(current);
+		}
+
+		return builder.ToString();
 	}
 
 	private float GetIncidenceChance(AIWorker worker, WorkActionType workType)

@@ -40,14 +40,44 @@ public partial class EconomyService : MonoBehaviour
 	}
 	public void ApplyTransaction(EconomyTransaction transaction)
 	{
+		if (transaction == null)
+			return;
+
 		float previousReputation = reputation;
 		money += transaction.moneyDelta;
 		reputation += transaction.reputationDelta;
 
 		history.Add(transaction);
+		PublishHudEvent(transaction);
 
 		if (Mathf.Approximately(previousReputation, reputation) == false)
 			OnReputationChanged?.Invoke(reputation);
+	}
+
+	private void PublishHudEvent(EconomyTransaction transaction)
+	{
+		if (GameContext.HasInstance == false || GameContext.Instance.HudEventManager == null)
+			return;
+
+		string reason = FormatReason(transaction.reason);
+		if (transaction.moneyDelta != 0)
+			GameContext.Instance.HudEventManager.PublishMoney(transaction.moneyDelta, reason, this);
+
+		if (Mathf.Approximately(transaction.reputationDelta, 0f) == false)
+			GameContext.Instance.HudEventManager.PublishReputation(transaction.reputationDelta, reason, this);
+	}
+
+	private static string FormatReason(EconomyTransaction.Reason reason)
+	{
+		return reason switch
+		{
+			EconomyTransaction.Reason.Place => "Placement",
+			EconomyTransaction.Reason.Remove => "Removal",
+			EconomyTransaction.Reason.Payday => "Payday",
+			EconomyTransaction.Reason.MontlyContract => "Monthly Contract",
+			EconomyTransaction.Reason.OrderSettlement => "Order Settlement",
+			_ => reason.ToString(),
+		};
 	}
 
 	public void OnPlacement(PlacementContext context)

@@ -32,7 +32,7 @@ public class LaunchVendorPickupService : VendorProcessor
 		if (destinationBuildingId != 0)
 		{
 			pickedCount += PickFromBuilding(launchVendor, destinationBuildingId, ref remainingCapacity);
-			Debug.Log($"[LaunchVendorPickupService] {launchVendor.VendorName} picked up {pickedCount} capsule(s). Capacity left: {remainingCapacity}.");
+			ReportPickupResult(launchVendor, pickedCount, remainingCapacity);
 			return;
 		}
 
@@ -46,7 +46,18 @@ public class LaunchVendorPickupService : VendorProcessor
 			pickedCount += PickFromBuilding(launchVendor, building.RuntimeBuildingId, ref remainingCapacity);
 		}
 
-		Debug.Log($"[LaunchVendorPickupService] {launchVendor.VendorName} picked up {pickedCount} capsule(s). Capacity left: {remainingCapacity}.");
+		ReportPickupResult(launchVendor, pickedCount, remainingCapacity);
+	}
+
+	private static void ReportPickupResult(LaunchServiceVendor launchVendor, int pickedCount, int remainingCapacity)
+	{
+		string vendorName = launchVendor != null && string.IsNullOrWhiteSpace(launchVendor.VendorName) == false
+			? launchVendor.VendorName
+			: "Launch Vendor";
+
+		string message = $"{vendorName} picked up {pickedCount} capsule(s). Capacity left: {remainingCapacity}.";
+		Debug.Log($"[LaunchVendorPickupService] {message}");
+		Context.HudEventManager?.Publish(HudEventType.Info, message);
 	}
 
 	private int PickFromBuilding(LaunchServiceVendor vendor, uint buildingId, ref int remainingCapacity)
