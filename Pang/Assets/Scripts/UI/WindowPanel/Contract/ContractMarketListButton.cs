@@ -1,7 +1,7 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
-using Assets.Scripts.Contract;
+using Assets.Scripts.Contract.ItemContract;
 
 namespace Assets.Scripts.UI
 {

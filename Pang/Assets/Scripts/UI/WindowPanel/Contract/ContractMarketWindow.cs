@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
-using Assets.Scripts.Contract;
 using System.Linq;
+using Assets.Scripts.Contract.ItemContract;
 
 namespace Assets.Scripts.UI
 {

@@ -1,8 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Assets.Scripts.Contract;
 using System.Collections.Generic;
+using Assets.Scripts.Contract.ItemContract;
 
 namespace Assets.Scripts.UI
 {

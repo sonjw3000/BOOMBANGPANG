@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace Assets.Scripts.Contract
+namespace Assets.Scripts.Contract.ItemContract
 {
 	[CreateAssetMenu(menuName = "Contract/Contract Catalog")]
 	public class ContractCatalog : ScriptableObject

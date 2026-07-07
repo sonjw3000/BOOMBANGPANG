@@ -1,3 +1,4 @@
+using Assets.Scripts.Contract.ItemContract;
 using System;
 using System.Collections.Generic;
 
@@ -274,7 +275,7 @@ public sealed class ContractServiceSaveData
 public sealed class ContractRuntimeSaveData
 {
 	public uint ContractId;
-	public Assets.Scripts.Contract.ContractType Type;
+	public ContractType Type;
 	public int RemainingDuration;
 	public int DeliveryDelta;
 	public bool AutoRenewal;

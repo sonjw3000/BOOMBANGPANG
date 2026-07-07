@@ -69,6 +69,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private BuildingManager buildingManager;
 	[SerializeField] private BuildingFootprintService buildingFootprintService;
 	[SerializeField] private TrafficCoordinator trafficCoordinator;
+	[SerializeField] private VendorService vendorService;
 
 	[Header("Workflow Managers")]
 	// workflow managers
@@ -143,86 +144,22 @@ public class GameContext : MonoBehaviour
 	public WMSystem WMSys => warehouseManagement;
 	public ContractService ContractMgr => contractService;
 	public PathFindingService PathFinding => pathFindingService;
-	public TrafficCoordinator TrafficCoordinator
-	{
-		get
-		{
-			return ResolveManager(ref trafficCoordinator, nameof(TrafficCoordinator));
-		}
-	}
-	public ZoneManager ZoneMgr
-	{
-		get
-		{
-			if (zoneManager == null)
-				zoneManager = FindFirstObjectByType<ZoneManager>();
+	public TrafficCoordinator TrafficCoordinator => trafficCoordinator;
+	public VendorService VendeorService => vendorService;
+	public ZoneManager ZoneMgr => zoneManager;
+	public AirlockService AirlockSvc => airlockService;
+	public BuildingManager BuildingMgr => buildingManager;
+	public FacilityManager FacilityMgr => facilityManager;
+	public FacilityRuleManager FacilityRuleMgr => facilityRuleManager;
+	public FacilityRuleOverlayController FacilityRuleOverlay => facilityRuleOverlayController;
 
-			return zoneManager;
-		}
-	}
-
-	public AirlockService AirlockSvc
-	{
-		get
-		{
-			return ResolveManager(ref airlockService, nameof(AirlockService));
-		}
-	}
-
-	public BuildingManager BuildingMgr
-	{
-		get
-		{
-			return ResolveManager(ref buildingManager, nameof(BuildingManager));
-		}
-	}
-
-	public FacilityManager FacilityMgr
-	{
-		get
-		{
-			return ResolveManager(ref facilityManager, nameof(FacilityManager));
-		}
-	}
-
-	public FacilityRuleManager FacilityRuleMgr
-	{
-		get
-		{
-			return ResolveManager(ref facilityRuleManager, nameof(FacilityRuleManager));
-		}
-	}
-
-	public FacilityRuleOverlayController FacilityRuleOverlay
-	{
-		get
-		{
-			return facilityRuleOverlayController;
-		}
-	}
-
-	public BuildingFootprintService BuildingFootprintService
-	{
-		get
-		{
-			return ResolveManager(ref buildingFootprintService, nameof(BuildingFootprintService));
-		}
-	}
+	public BuildingFootprintService BuildingFootprintService => buildingFootprintService;
 	public InboundWorkflowService IBWorkflowSvc => inboundWorkflowService;
 	public OutboundWorkflowService OBWorkflowSvc => outboundWorkflowService;
 
 	public PlaceableCatalog PlaceableCatalog => catalog;
 	public PlaceableCatalog PlaceableDefinitionRegistry => catalog;
-	public BuildPlaceableCatalog BuildPlaceableCatalog
-	{
-		get
-		{
-			if (buildCatalog == null)
-				buildCatalog = Resources.Load<BuildPlaceableCatalog>("BuildCatalogs/DefaultBuildPlaceableCatalog");
-
-			return buildCatalog;
-		}
-	}
+	public BuildPlaceableCatalog BuildPlaceableCatalog => buildCatalog;
 	public TileCatalog BaseTiles => baseTiles;
 
 	public HumanIncidentService HumanIncident => humanIncidentService;
@@ -385,6 +322,7 @@ public class GameContext : MonoBehaviour
 		// times to process
 		gameTime.OnWeekPassed += contractService.AdvanceWeek;
 		gameTime.OnWeekPassed += orderManager.CheckExpiredOrders;
+		gameTime.OnWeekPassed += vendorService.OnWeekPass;
 
 		// times for payments
 		gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
@@ -403,6 +341,8 @@ public class GameContext : MonoBehaviour
 
 		gameTime.OnWeekPassed -= contractService.AdvanceWeek;
 		gameTime.OnWeekPassed -= orderManager.CheckExpiredOrders;
+		gameTime.OnWeekPassed -= vendorService.OnWeekPass;
+
 		gameTime.OnMonthPassed -= economyService.ProcessMonthlyPayment;
 
 		gridService.OnPlaceableInstalled -= economyService.OnPlacement;

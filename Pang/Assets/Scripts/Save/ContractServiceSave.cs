@@ -1,4 +1,5 @@
 using Assets.Scripts.Contract;
+using Assets.Scripts.Contract.ItemContract;
 using UnityEngine;
 
 public partial class ContractService

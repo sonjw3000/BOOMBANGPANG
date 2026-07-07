@@ -2,6 +2,7 @@ using AYellowpaper.SerializedCollections;
 using UnityEngine;
 using System.Collections.Generic;
 using static WorkerTask;
+using Assets.Scripts.Contract.ItemContract;
 
 public partial class WorkPolicyService : MonoBehaviour
 {
@@ -146,7 +147,7 @@ public partial class WorkPolicyService : MonoBehaviour
 		if (lines == null) return false;
 		foreach (var line in lines)
 		{
-			if (line.RelatedOrderLine?.SourceContract?.Type == Assets.Scripts.Contract.ContractType.Express)
+			if (line.RelatedOrderLine?.SourceContract?.Type == ContractType.Express)
 				return true;
 		}
 		return false;

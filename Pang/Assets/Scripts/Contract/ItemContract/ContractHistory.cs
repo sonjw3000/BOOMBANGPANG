@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Assets.Scripts.Contract
+namespace Assets.Scripts.Contract.ItemContract
 {
 	// 계약 만료시 결과를 기록하는 클래스
 	// 월별 토탈 결과를 나중에 보여주어야할지 고려해보자

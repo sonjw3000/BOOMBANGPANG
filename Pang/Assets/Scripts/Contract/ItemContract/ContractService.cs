@@ -4,6 +4,7 @@ using System;
 
 using Assets.Scripts.Contract;
 using Assets.Scripts.UI;
+using Assets.Scripts.Contract.ItemContract;
 
 
 public partial class ContractService : MonoBehaviour

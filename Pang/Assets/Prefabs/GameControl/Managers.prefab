@@ -214,6 +214,54 @@ Transform:
   - {fileID: 3141209299861845252}
   m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &839031205673828253
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8503167749643488415}
+  - component: {fileID: 1311799558366903411}
+  m_Layer: 0
+  m_Name: VendorService
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8503167749643488415
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 839031205673828253}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7908985302895797192}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1311799558366903411
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 839031205673828253}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff93e7b714e811043b870a706ee055d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VendorService
+  catalogs:
+    _serializedList:
+    - Key: 0
+      Value: {fileID: 11400000, guid: ae8f2f9087de0394ebdd81046fe29575, type: 2}
 --- !u!1 &854969722951095675
 GameObject:
   m_ObjectHideFlags: 0
@@ -362,6 +410,7 @@ Transform:
   - {fileID: 67814135564016526}
   - {fileID: 3445841064235547811}
   - {fileID: 1540438912511343504}
+  - {fileID: 8503167749643488415}
   m_Father: {fileID: 4930837203190484080}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &883947193075033641
@@ -906,6 +955,7 @@ MonoBehaviour:
   buildingManager: {fileID: 7596847546117217656}
   buildingFootprintService: {fileID: 3372337595302751063}
   trafficCoordinator: {fileID: 9128034459082980668}
+  vendorService: {fileID: 1311799558366903411}
   inboundWorkflowService: {fileID: 2554155626171990247}
   outboundWorkflowService: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}

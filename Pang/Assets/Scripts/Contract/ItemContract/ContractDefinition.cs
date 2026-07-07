@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Assets.Scripts.Contract
+namespace Assets.Scripts.Contract.ItemContract
 {
 
 	public enum ContractType
