@@ -36,17 +36,80 @@ public sealed class FacilityWorkerFilter
 	}
 }
 
+public sealed class FacilityManifestFilter
+{
+	private readonly HashSet<OrderDestination> destinations;
+
+	public IReadOnlyCollection<OrderDestination> Destinations => destinations;
+
+	public FacilityManifestFilter(IEnumerable<OrderDestination> destinations = null)
+	{
+		this.destinations = destinations != null ? new HashSet<OrderDestination>(destinations) : null;
+	}
+
+	public bool ContainsDestination(OrderDestination destination)
+	{
+		return destinations != null && destinations.Contains(destination);
+	}
+
+	public static FacilityManifestFilter FromOrderLine(OrderLine orderLine)
+	{
+		return new FacilityManifestFilter(new[]
+		{
+			ResolveDestination(orderLine),
+		});
+	}
+
+	public static FacilityManifestFilter FromManifest(PickingManifest manifest, uint itemId = 0)
+	{
+		HashSet<OrderDestination> resolvedDestinations = null;
+		IReadOnlyList<PickingManifestLine> lines = manifest?.Lines;
+		if (lines != null)
+		{
+			for (int i = 0; i < lines.Count; ++i)
+			{
+				PickingManifestLine line = lines[i];
+				if (line == null || line.PickedQuantity <= 0)
+					continue;
+
+				if (itemId != 0 && line.ItemId != itemId)
+					continue;
+
+				resolvedDestinations ??= new HashSet<OrderDestination>();
+				resolvedDestinations.Add(ResolveDestination(line.OrderLine));
+			}
+		}
+
+		return new FacilityManifestFilter(resolvedDestinations ?? new HashSet<OrderDestination>
+		{
+			OrderDestination.None,
+		});
+	}
+
+	private static OrderDestination ResolveDestination(OrderLine orderLine)
+	{
+		return orderLine?.ParentOrder != null
+			? orderLine.ParentOrder.Destination
+			: OrderDestination.None;
+	}
+}
+
 public readonly struct FacilityFilter
 {
 	public static FacilityFilter None => default;
 
 	public FacilityItemFilter ItemFilter { get; }
 	public FacilityWorkerFilter WorkerFilter { get; }
+	public FacilityManifestFilter ManifestFilter { get; }
 
-	public FacilityFilter(FacilityItemFilter itemFilter = null, FacilityWorkerFilter workerFilter = null)
+	public FacilityFilter(
+		FacilityItemFilter itemFilter = null,
+		FacilityWorkerFilter workerFilter = null,
+		FacilityManifestFilter manifestFilter = null)
 	{
 		ItemFilter = itemFilter;
 		WorkerFilter = workerFilter;
+		ManifestFilter = manifestFilter;
 	}
 
 	public bool Matches(FacilityRuleManager ruleManager, IFacility facility)
@@ -104,6 +167,26 @@ public readonly struct FacilityFilter
 		return new FacilityFilter(
 			itemFilter,
 			worker != null ? new FacilityWorkerFilter(worker) : null);
+	}
+
+	public static FacilityFilter ForManifestTransfer(
+		IItemContainer source,
+		PickingManifest manifest,
+		uint itemId,
+		int quantity,
+		Predicate<ItemStack> stackPredicate = null,
+		AIWorker worker = null)
+	{
+		return WithManifest(
+			ForTransfer(source, itemId, quantity, stackPredicate, worker),
+			FacilityManifestFilter.FromManifest(manifest, itemId));
+	}
+
+	public static FacilityFilter WithManifest(
+		FacilityFilter source,
+		FacilityManifestFilter manifestFilter)
+	{
+		return new FacilityFilter(source.ItemFilter, source.WorkerFilter, manifestFilter);
 	}
 
 	private static bool TryBuildItemFilter(IItemContainer container, out FacilityItemFilter itemFilter)

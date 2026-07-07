@@ -74,6 +74,7 @@ public sealed partial class FacilityRuleManager
 		data.Priority = rule.Priority;
 		data.ItemRule = CaptureItemRule(rule.ItemRule);
 		data.WorkerRule = CaptureWorkerRule(rule.WorkerRule);
+		data.ManifestRule = CaptureManifestRule(rule.ManifestRule);
 		return data;
 	}
 
@@ -106,6 +107,16 @@ public sealed partial class FacilityRuleManager
 		return data;
 	}
 
+	private static FacilityManifestRuleSaveData CaptureManifestRule(FacilityManifestRule rule)
+	{
+		FacilityManifestRuleSaveData data = new();
+		if (rule == null)
+			return data;
+
+		data.RequiredDestinations.AddRange(rule.RequiredDestinations);
+		return data;
+	}
+
 	private static void CaptureItemIds(IReadOnlyList<ItemDefinition> items, List<uint> targetIds)
 	{
 		targetIds.Clear();
@@ -129,6 +140,7 @@ public sealed partial class FacilityRuleManager
 		rule.SetPriority(data.Priority);
 		rule.SetItemRule(RestoreItemRule(data.ItemRule));
 		rule.SetWorkerRule(RestoreWorkerRule(data.WorkerRule));
+		rule.SetManifestRule(RestoreManifestRule(data.ManifestRule));
 		return rule;
 	}
 
@@ -158,6 +170,16 @@ public sealed partial class FacilityRuleManager
 		rule.SetForbiddenHumanTypes(data.ForbiddenHumanTypes);
 		rule.SetRequiredRobotTypes(data.RequiredRobotTypes);
 		rule.SetForbiddenRobotTypes(data.ForbiddenRobotTypes);
+		return rule;
+	}
+
+	private static FacilityManifestRule RestoreManifestRule(FacilityManifestRuleSaveData data)
+	{
+		FacilityManifestRule rule = new();
+		if (data == null)
+			return rule;
+
+		rule.SetRequiredDestinations(data.RequiredDestinations);
 		return rule;
 	}
 

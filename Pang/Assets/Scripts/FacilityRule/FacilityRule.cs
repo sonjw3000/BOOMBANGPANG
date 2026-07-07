@@ -211,11 +211,65 @@ public sealed class FacilityWorkerRule
 }
 
 [Serializable]
+public sealed class FacilityManifestRule
+{
+	[SerializeField] private List<OrderDestination> requiredDestinations = new();
+
+	public FacilityManifestRule()
+	{
+	}
+
+	public FacilityManifestRule(FacilityManifestRule source)
+	{
+		if (source == null)
+			return;
+
+		requiredDestinations = source.requiredDestinations != null
+			? new List<OrderDestination>(source.requiredDestinations)
+			: new List<OrderDestination>();
+	}
+
+	public IReadOnlyList<OrderDestination> RequiredDestinations => requiredDestinations;
+
+	public bool IsEmpty => requiredDestinations == null || requiredDestinations.Count == 0;
+
+	public void SetRequiredDestinations(IEnumerable<OrderDestination> destinations)
+	{
+		requiredDestinations = destinations != null
+			? new List<OrderDestination>(destinations)
+			: new List<OrderDestination>();
+	}
+
+	public void Clear()
+	{
+		requiredDestinations?.Clear();
+	}
+
+	public bool IsManifestCapable(FacilityManifestFilter filter)
+	{
+		if (IsEmpty)
+			return true;
+
+		if (filter?.Destinations == null || filter.Destinations.Count == 0)
+			return false;
+
+		for (int i = 0; i < requiredDestinations.Count; ++i)
+		{
+			if (filter.ContainsDestination(requiredDestinations[i]))
+				return true;
+		}
+
+		return false;
+	}
+}
+
+[Serializable]
 public sealed class FacilityRule
 {
 	[SerializeField] private int priority;
 	[SerializeField] private FacilityItemRule itemRule = new();
 	[SerializeField] private FacilityWorkerRule workerRule = new();
+	[SerializeField] private FacilityManifestRule manifestRule = new();
 
 	public FacilityRule()
 	{
@@ -229,15 +283,18 @@ public sealed class FacilityRule
 		priority = source.priority;
 		itemRule = source.itemRule != null ? new FacilityItemRule(source.itemRule) : new FacilityItemRule();
 		workerRule = source.workerRule != null ? new FacilityWorkerRule(source.workerRule) : new FacilityWorkerRule();
+		manifestRule = source.manifestRule != null ? new FacilityManifestRule(source.manifestRule) : new FacilityManifestRule();
 	}
 
 	public int Priority => priority;
 	public FacilityItemRule ItemRule => itemRule;
 	public FacilityWorkerRule WorkerRule => workerRule;
+	public FacilityManifestRule ManifestRule => manifestRule;
 
 	public bool IsEmpty =>
 		(itemRule == null || itemRule.IsEmpty) &&
-		(workerRule == null || workerRule.IsEmpty);
+		(workerRule == null || workerRule.IsEmpty) &&
+		(manifestRule == null || manifestRule.IsEmpty);
 
 	public void SetPriority(int newPriority) => priority = newPriority;
 
@@ -251,13 +308,20 @@ public sealed class FacilityRule
 		workerRule = rule != null ? new FacilityWorkerRule(rule) : new FacilityWorkerRule();
 	}
 
+	public void SetManifestRule(FacilityManifestRule rule)
+	{
+		manifestRule = rule != null ? new FacilityManifestRule(rule) : new FacilityManifestRule();
+	}
+
 	public void Clear()
 	{
 		priority = 0;
 		itemRule ??= new FacilityItemRule();
 		workerRule ??= new FacilityWorkerRule();
+		manifestRule ??= new FacilityManifestRule();
 		itemRule.Clear();
 		workerRule.Clear();
+		manifestRule.Clear();
 	}
 
 	public bool IsFilterCapable(in FacilityFilter filter)
@@ -266,6 +330,9 @@ public sealed class FacilityRule
 			return false;
 
 		if (workerRule != null && workerRule.IsWorkerCapable(filter.WorkerFilter) == false)
+			return false;
+
+		if (manifestRule != null && manifestRule.IsManifestCapable(filter.ManifestFilter) == false)
 			return false;
 
 		return true;

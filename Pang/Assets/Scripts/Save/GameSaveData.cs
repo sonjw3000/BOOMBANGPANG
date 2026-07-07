@@ -227,6 +227,7 @@ public sealed class FacilityRuleSaveData
 	public int Priority;
 	public FacilityItemRuleSaveData ItemRule = new();
 	public FacilityWorkerRuleSaveData WorkerRule = new();
+	public FacilityManifestRuleSaveData ManifestRule = new();
 }
 
 [Serializable]
@@ -248,6 +249,12 @@ public sealed class FacilityWorkerRuleSaveData
 	public List<RobotType> RequiredRobotTypes = new();
 	public List<RobotType> ForbiddenRobotTypes = new();
 	public WorkerAbility RequiredWorkerAbility = WorkerAbility.None;
+}
+
+[Serializable]
+public sealed class FacilityManifestRuleSaveData
+{
+	public List<OrderDestination> RequiredDestinations = new();
 }
 
 [Serializable]
@@ -285,6 +292,7 @@ public sealed class OrderSaveData
 {
 	public int OrderId;
 	public OrderTotalStatus Status;
+	public OrderDestination Destination = OrderDestination.None;
 	public List<OrderLineSaveData> Lines = new();
 }
 
