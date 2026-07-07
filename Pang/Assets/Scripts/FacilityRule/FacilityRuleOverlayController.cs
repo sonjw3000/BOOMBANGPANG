@@ -14,7 +14,7 @@ public sealed class FacilityRuleOverlayController : MonoBehaviour
 	[SerializeField] private float overlayHeight = 0.025f;
 	[SerializeField, Range(0f, 1f)] private float glowAlpha = 1f;
 
-	private readonly MaterialPropertyBlock propertyBlock = new();
+	private MaterialPropertyBlock propertyBlock;
 	private GameObjectPool tilePool;
 	private GameObject overlayRoot;
 	private bool initialized;
@@ -79,6 +79,8 @@ public sealed class FacilityRuleOverlayController : MonoBehaviour
 			overlayRoot.transform.SetParent(transform, false);
 			overlayRoot.transform.localScale = Vector3.one;
 		}
+
+		propertyBlock ??= new MaterialPropertyBlock();
 
 		if (tilePool == null && coloredFloorPrefab != null)
 			tilePool = new GameObjectPool(preloadCount, CreateTile);
@@ -192,6 +194,7 @@ public sealed class FacilityRuleOverlayController : MonoBehaviour
 
 	private void SetTileColor(GameObject tile, Color color)
 	{
+		propertyBlock ??= new MaterialPropertyBlock();
 		color.a = glowAlpha;
 
 		Renderer[] renderers = tile.GetComponentsInChildren<Renderer>(true);
