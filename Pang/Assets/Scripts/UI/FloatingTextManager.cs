@@ -114,7 +114,7 @@ public sealed class FloatingTextManager : MonoBehaviour
 		for (int i = activeEntries.Count - 1; i >= 0; --i)
 		{
 			Entry entry = activeEntries[i];
-			entry.Elapsed += Time.deltaTime;
+			entry.Elapsed += Time.unscaledDeltaTime;
 
 			float duration = Mathf.Max(0.01f, entry.Duration);
 			float t = Mathf.Clamp01(entry.Elapsed / duration);
