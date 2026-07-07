@@ -56,7 +56,7 @@ public sealed partial class LabelingTask : WorkerTask
 	protected override IBaseNode BuildWorkNode()
 	{
 		SequenceNode root = new();
-		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CapsuleBuffer, InteractionKind.Work, SetLabelingTarget));
+		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CapsuleBuffer, InteractionKind.Pick, SetLabelingTarget));
 		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.LabelItem, ApplyLabel));
 		return root;
 	}

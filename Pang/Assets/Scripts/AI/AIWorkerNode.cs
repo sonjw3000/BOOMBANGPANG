@@ -467,21 +467,7 @@ public abstract partial class AIWorker
 
 	private static bool HasCompletedTransit(AIWorker worker, Airlock airlock, AirlockDirection direction)
 	{
-		if (worker == null || airlock == null)
-			return false;
-
-		if (TryGetBuildingId(airlock.GridPosition, out uint airlockBuildingId) == false)
-			airlockBuildingId = 0;
-
-		if (TryGetBuildingId(worker.GridPosition, out uint workerBuildingId) == false)
-			workerBuildingId = 0;
-
-		return direction switch
-		{
-			AirlockDirection.InsideToOutside => workerBuildingId == 0,
-			AirlockDirection.OutsideToInside => airlockBuildingId != 0 && workerBuildingId == airlockBuildingId,
-			_ => false,
-		};
+		return airlock != null && airlock.HasCompletedTransit(worker, direction);
 	}
 
 	private static bool TryGetBuildingId(in int3 position, out uint buildingId)

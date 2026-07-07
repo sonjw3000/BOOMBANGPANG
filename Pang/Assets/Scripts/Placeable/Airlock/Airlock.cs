@@ -62,6 +62,15 @@ public sealed class Airlock : ItemInteraction
 		return true;
 	}
 
+	public bool HasCompletedTransit(AIWorker worker, AirlockDirection direction)
+	{
+		if (worker == null)
+			return false;
+
+		return TryResolveTransitPoints(direction, out _, out _, out int3 exitPoint) &&
+			worker.GridPosition.Equals(exitPoint);
+	}
+
 	public void Release(AIWorker worker)
 	{
 		if (worker != null && reservedWorker != null && worker != reservedWorker)
