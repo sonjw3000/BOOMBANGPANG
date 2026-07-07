@@ -534,6 +534,7 @@ public sealed class TaskSaveData
 	public CapsuleTransferTaskSaveData CapsuleTransfer;
 	public CargoTransferTaskSaveData CargoTransfer;
 	public PackingTaskSaveData Packing;
+	public LabelingTaskSaveData Labeling;
 }
 
 [Serializable]
@@ -595,6 +596,14 @@ public sealed class CargoTransferTaskSaveData
 public sealed class PackingTaskSaveData
 {
 	public int TargetStationId;
+	public bool IsTaskEnd;
+}
+
+[Serializable]
+public sealed class LabelingTaskSaveData
+{
+	public uint BuildingId;
+	public int TargetContainerId = -1;
 	public bool IsTaskEnd;
 }
 

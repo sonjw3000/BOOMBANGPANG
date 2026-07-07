@@ -344,6 +344,9 @@ public sealed class GameSaveService : MonoBehaviour
 					case PackingTask packing:
 						taskData.Packing = packing.CaptureState(GetPlaceableIdOrDefault);
 						break;
+					case LabelingTask labeling:
+						taskData.Labeling = labeling.CaptureState(GetPlaceableIdOrDefault);
+						break;
 				}
 
 				yield return taskData;
@@ -455,7 +458,7 @@ public sealed class GameSaveService : MonoBehaviour
 			case WorkerTask.TaskType.Packing:
 				return taskData.Packing?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Labeling:
-				return null;
+				return taskData.Labeling?.Restore(restoredPlaceables);
 			default:
 				return null;
 		}

@@ -47,13 +47,13 @@ public partial class WorkPolicyService : MonoBehaviour
 		* targetWorker.GetMoveSpeedMultiplier();
 
 	public float GetWorkTime(AIWorker targetWorker, WorkActionType actionType)
-		=> workPolicy.workerWorkTime[targetWorker.WorkerPolicyType][actionType].WorkDuration
+		=> GetWorkProfile(targetWorker.WorkerPolicyType, actionType).WorkDuration
 		/ GetWorkBoost(targetWorker.WorkerPolicyType, actionType)
 		/ GetWorkSpeedMultiplier(targetWorker.WorkerPolicyType)
 		/ Mathf.Max(targetWorker.GetWorkSpeedMultiplier(), 0.01f);
 
 	public float GetWorkFatigue(AIWorker targetWorker, WorkActionType actionType)
-		=> workPolicy.workerWorkTime[targetWorker.WorkerPolicyType][actionType].FatiguePerTask
+		=> GetWorkProfile(targetWorker.WorkerPolicyType, actionType).FatiguePerTask
 		* GetWorkBoost(targetWorker.WorkerPolicyType, actionType)
 		* GetWorkSpeedMultiplier(targetWorker.WorkerPolicyType);
 
@@ -190,6 +190,28 @@ public partial class WorkPolicyService : MonoBehaviour
 		}
 
 		return 1.0f;
+	}
+
+	private WorkProfile GetWorkProfile(WorkerPolicyType workerPolicyType, WorkActionType actionType)
+	{
+		if (workPolicy != null &&
+			workPolicy.workerWorkTime != null &&
+			workPolicy.workerWorkTime.TryGetValue(workerPolicyType, out SerializedDictionary<WorkActionType, WorkProfile> profiles) &&
+			profiles != null)
+		{
+			if (profiles.TryGetValue(actionType, out WorkProfile profile) && profile != null)
+				return profile;
+
+			if (actionType == WorkActionType.LabelItem &&
+				profiles.TryGetValue(WorkActionType.PackItem, out WorkProfile fallbackProfile) &&
+				fallbackProfile != null)
+			{
+				return fallbackProfile;
+			}
+		}
+
+		Debug.LogWarning($"[WorkPolicyService] Missing work profile. worker={workerPolicyType}, action={actionType}");
+		return new WorkProfile();
 	}
 
 }

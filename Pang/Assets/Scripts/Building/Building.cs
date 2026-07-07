@@ -110,7 +110,7 @@ public class Building
 	public bool OverrideCapsuleThreshold => overrideCapsuleThreshold;
 	public float CapsuleThresholdPercent => capsuleThresholdPercent;
 
-	private TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
+	protected TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
