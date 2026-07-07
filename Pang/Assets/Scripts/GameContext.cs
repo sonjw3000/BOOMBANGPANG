@@ -145,7 +145,8 @@ public class GameContext : MonoBehaviour
 	public ContractService ContractMgr => contractService;
 	public PathFindingService PathFinding => pathFindingService;
 	public TrafficCoordinator TrafficCoordinator => trafficCoordinator;
-	public VendorService VendeorService => vendorService;
+	public VendorService VendorService => ResolveManager(ref vendorService, nameof(VendorService));
+	public VendorService VendeorService => VendorService;
 	public ZoneManager ZoneMgr => zoneManager;
 	public AirlockService AirlockSvc => airlockService;
 	public BuildingManager BuildingMgr => buildingManager;
@@ -322,7 +323,8 @@ public class GameContext : MonoBehaviour
 		// times to process
 		gameTime.OnWeekPassed += contractService.AdvanceWeek;
 		gameTime.OnWeekPassed += orderManager.CheckExpiredOrders;
-		gameTime.OnWeekPassed += vendorService.OnWeekPass;
+		if (VendorService != null)
+			gameTime.OnWeekPassed += VendorService.OnWeekPass;
 
 		// times for payments
 		gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
@@ -341,7 +343,8 @@ public class GameContext : MonoBehaviour
 
 		gameTime.OnWeekPassed -= contractService.AdvanceWeek;
 		gameTime.OnWeekPassed -= orderManager.CheckExpiredOrders;
-		gameTime.OnWeekPassed -= vendorService.OnWeekPass;
+		if (VendorService != null)
+			gameTime.OnWeekPassed -= VendorService.OnWeekPass;
 
 		gameTime.OnMonthPassed -= economyService.ProcessMonthlyPayment;
 

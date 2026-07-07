@@ -24,8 +24,17 @@ namespace Assets.Scripts.UI
 		[SerializeField] private Sprite icon;
 
 		private ContractService contractService => GameContext.Instance.ContractMgr;
+		private VendorService vendorService => GameContext.Instance.VendorService;
 		private GameObjectPool itemPool;
 		private bool initialized;
+		private MarketMode currentMode = MarketMode.Item;
+		private VendorType currentVendorType;
+
+		private enum MarketMode
+		{
+			Item,
+			Vendor
+		}
 
 		private void Awake()
 		{
@@ -33,6 +42,26 @@ namespace Assets.Scripts.UI
 		}
 
 		public void Open()
+		{
+			OpenItem();
+		}
+
+		public void OpenItem()
+		{
+			currentMode = MarketMode.Item;
+			title = "Item Contract Market";
+			OpenCurrentMode();
+		}
+
+		public void OpenVendor(VendorType vendorType)
+		{
+			currentMode = MarketMode.Vendor;
+			currentVendorType = vendorType;
+			title = $"{vendorType} Vendor Market";
+			OpenCurrentMode();
+		}
+
+		private void OpenCurrentMode()
 		{
 			gameObject.SetActive(true);
 			EnsureInitialized();
@@ -42,6 +71,7 @@ namespace Assets.Scripts.UI
 			if (listRoot == null)
 				listRoot = FindListRoot();
 
+			window.SetTitle(title);
 			EnsureLayout();
 			window.Open();
 			RefreshList();
@@ -60,7 +90,8 @@ namespace Assets.Scripts.UI
 		private void RefreshList()
 		{
 			EnsureInitialized();
-			if (contractService == null) return;
+			if (currentMode == MarketMode.Item && contractService == null) return;
+			if (currentMode == MarketMode.Vendor && vendorService == null) return;
 
 			if (listRoot == null)
 				listRoot = FindListRoot();
@@ -78,6 +109,12 @@ namespace Assets.Scripts.UI
 			}
 
 			itemPool.ReleaseAll();
+			if (currentMode == MarketMode.Vendor)
+			{
+				RefreshVendorList();
+				return;
+			}
+
 			var definitions = contractService.ContractDefinitions;
 
 			for (int i = 0; i < definitions.Count; i++)
@@ -90,6 +127,30 @@ namespace Assets.Scripts.UI
 			{
 				OnContractSelected(0, definitions[0]);
 			}
+			else if (detailView != null)
+			{
+				detailView.gameObject.SetActive(false);
+			}
+		}
+
+		private void RefreshVendorList()
+		{
+			var vendors = vendorService.GetCatalog(currentVendorType);
+
+			for (int i = 0; i < vendors.Count; i++)
+			{
+				var item = itemPool.Get().GetComponent<ContractMarketListButton>();
+				item.Setup(i, vendors[i], OnVendorSelected);
+			}
+
+			if (vendors.Count > 0)
+			{
+				OnVendorSelected(0, vendors[0]);
+			}
+			else if (detailView != null)
+			{
+				detailView.gameObject.SetActive(false);
+			}
 		}
 
 		private void OnContractSelected(int index, ContractDefinition def)
@@ -98,6 +159,15 @@ namespace Assets.Scripts.UI
 			{
 				detailView.gameObject.SetActive(true);
 				detailView.Setup(index, def);
+			}
+		}
+
+		private void OnVendorSelected(int index, Vendor vendor)
+		{
+			if (detailView != null)
+			{
+				detailView.gameObject.SetActive(true);
+				detailView.Setup(index, vendor);
 			}
 		}
 

@@ -12,7 +12,9 @@ namespace Assets.Scripts.UI
 
 		private int index;
 		private ContractDefinition definition;
+		private Vendor vendor;
 		private System.Action<int, ContractDefinition> onSelected;
+		private System.Action<int, Vendor> onVendorSelected;
 
 		public void Setup(int index, ContractDefinition def, System.Action<int, ContractDefinition> onSelected)
 		{
@@ -24,6 +26,20 @@ namespace Assets.Scripts.UI
 			
 			button.onClick.RemoveAllListeners();
 			button.onClick.AddListener(() => onSelected?.Invoke(index, def));
+		}
+
+		public void Setup(int index, Vendor vendor, System.Action<int, Vendor> onSelected)
+		{
+			this.index = index;
+			this.vendor = vendor;
+			this.onVendorSelected = onSelected;
+			definition = null;
+			this.onSelected = null;
+
+			if (label != null) label.text = vendor != null ? vendor.VendorName : "Unknown Vendor";
+
+			button.onClick.RemoveAllListeners();
+			button.onClick.AddListener(() => onVendorSelected?.Invoke(index, vendor));
 		}
 	}
 }

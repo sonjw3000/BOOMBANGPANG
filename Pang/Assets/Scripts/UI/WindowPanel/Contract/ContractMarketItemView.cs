@@ -32,7 +32,9 @@ namespace Assets.Scripts.UI
 		[SerializeField] private Button signButton;
 
 		private ContractDefinition definition;
+		private Vendor vendor;
 		private int definitionIndex;
+		private VendorType vendorType;
 		private Sprite defaultItemButtonSprite;
 		private Color defaultItemButtonColor = Color.white;
 		private bool controlsConfigured;
@@ -58,8 +60,10 @@ namespace Assets.Scripts.UI
 		{
 			definitionIndex = index;
 			definition = def;
+			vendor = null;
 			AutoBindReferences();
 			ConfigureControls();
+			SetItemControlsVisible(true);
 
 			if (priceLabelText != null)
 				priceLabelText.text = "Reward";
@@ -73,14 +77,48 @@ namespace Assets.Scripts.UI
 			RefreshItemButton();
 		}
 
+		public void Setup(int index, Vendor vendor)
+		{
+			definitionIndex = index;
+			definition = null;
+			this.vendor = vendor;
+			vendorType = vendor != null ? vendor.Type : default;
+			AutoBindReferences();
+			ConfigureControls();
+			SetItemControlsVisible(false);
+
+			if (priceLabelText != null)
+				priceLabelText.text = "Fee";
+
+			if (itemNameText != null)
+				itemNameText.text = vendor != null ? vendor.VendorName : "Unknown Vendor";
+
+			RefreshVendorSummary();
+			RefreshVendorButton();
+		}
+
 		private void SignContract()
 		{
+			if (vendor != null)
+			{
+				SignVendor();
+				return;
+			}
+
 			if (definition == null || GameContext.Instance == null || GameContext.Instance.ContractMgr == null)
 				return;
 
 			ContractType type = GetSelectedType();
 			int duration = GetSelectedDuration();
 			GameContext.Instance.ContractMgr.AddContract(definitionIndex, duration, type);
+		}
+
+		private void SignVendor()
+		{
+			if (vendor == null || GameContext.Instance == null || GameContext.Instance.VendorService == null)
+				return;
+
+			GameContext.Instance.VendorService.TryActivateVendor(vendor);
 		}
 
 		private void OnDurationChanged(int _)
@@ -114,6 +152,24 @@ namespace Assets.Scripts.UI
 				amountText.text = definition.ItemCountsPerDelivery.ToString();
 		}
 
+		private void RefreshVendorSummary()
+		{
+			if (vendor == null)
+				return;
+
+			if (priceValueText != null)
+				priceValueText.text = FormatVendorFee(vendor);
+
+			if (totalWeekText != null)
+				totalWeekText.text = FormatWeeks(vendor.ServiceInterval);
+
+			if (deliveryIntervalText != null)
+				deliveryIntervalText.text = vendor.Type.ToString();
+
+			if (amountText != null)
+				amountText.text = FormatVendorCapacity(vendor);
+		}
+
 		private void RefreshItemButton()
 		{
 			if (itemButton == null || itemButton.image == null)
@@ -124,6 +180,17 @@ namespace Assets.Scripts.UI
 			itemButton.image.color = itemSprite != null ? Color.white : defaultItemButtonColor;
 			itemButton.image.preserveAspect = itemSprite != null;
 			itemButton.onClick.RemoveAllListeners();
+		}
+
+		private void RefreshVendorButton()
+		{
+			if (itemButton != null && itemButton.image != null)
+			{
+				itemButton.image.sprite = defaultItemButtonSprite;
+				itemButton.image.color = defaultItemButtonColor;
+				itemButton.image.preserveAspect = false;
+				itemButton.onClick.RemoveAllListeners();
+			}
 		}
 
 		private ContractType GetSelectedType()
@@ -166,6 +233,15 @@ namespace Assets.Scripts.UI
 				return;
 
 			typeDropdown.SetValueWithoutNotify(type == ContractType.Express ? 1 : 0);
+		}
+
+		private void SetItemControlsVisible(bool visible)
+		{
+			if (durationDropdown != null)
+				durationDropdown.gameObject.SetActive(visible);
+
+			if (typeDropdown != null)
+				typeDropdown.gameObject.SetActive(visible);
 		}
 
 		private void ConfigureControls()
@@ -243,6 +319,22 @@ namespace Assets.Scripts.UI
 		private static string FormatWeeks(int weeks)
 		{
 			return weeks == 1 ? "1 week" : $"{weeks} weeks";
+		}
+
+		private static string FormatVendorFee(Vendor vendor)
+		{
+			if (vendor is LaunchServiceVendor launchVendor)
+				return $"{launchVendor.LaunchCost:0.##}%";
+
+			return "-";
+		}
+
+		private static string FormatVendorCapacity(Vendor vendor)
+		{
+			if (vendor is LaunchServiceVendor launchVendor)
+				return $"{launchVendor.CapsuleCapacity} Capsules";
+
+			return "-";
 		}
 	}
 }
