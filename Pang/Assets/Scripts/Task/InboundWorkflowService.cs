@@ -34,11 +34,11 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	private float timeSinceLastInboundRocketSpawn = 0.0f;
 	public InboundRequestService RequestService => requestService;
 	public StoringPlanner StoringPlanner => storingPlanner;
-	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
+	private TaskManager TaskMgr => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 	private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 	private CapsuleBufferService CapsuleBufferService => GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
-	private RocketService RocketService => GameContext.Instance.RocketSvc;
-	private DeliveryService DeliveryService => GameContext.Instance.DeliveryService;
+	private RocketService RocketService => GameContext.HasInstance ? GameContext.Instance.RocketSvc : null;
+	private DeliveryService DeliveryService => GameContext.HasInstance ? GameContext.Instance.DeliveryService : null;
 	private ZoneManager ZoneManager
 	{
 		get
@@ -153,17 +153,22 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void CheckInboundRocketSpawn()
 	{
+		DeliveryService deliveryService = DeliveryService;
+		RocketService rocketService = RocketService;
+		if (deliveryService == null || rocketService == null)
+			return;
+
 		timeSinceLastInboundRocketSpawn += Time.deltaTime;
 		if (timeSinceLastInboundRocketSpawn < inboundRocketSpawnInterval)
 			return;
 
-		if (DeliveryService.TryPeek(out var _) == false)
+		if (deliveryService.TryPeek(out var _) == false)
 			return;
 
-		if (TryGetLandingPoint(out var landingPoint) == false)
+		if (TryGetLandingPoint(rocketService, out var landingPoint) == false)
 			return;
 
-		if (RocketService != null && RocketService.TrySpawnInboundRocket(landingPoint))
+		if (rocketService.TrySpawnInboundRocket(landingPoint))
 			timeSinceLastInboundRocketSpawn = 0.0f;
 	}
 
@@ -226,10 +231,11 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void TryEnqueueActiveRocketUnloadingTasks()
 	{
-		if (RocketService == null)
+		RocketService rocketService = RocketService;
+		if (rocketService == null)
 			return;
 
-		IReadOnlyList<Rocket> rockets = RocketService.Rockets;
+		IReadOnlyList<Rocket> rockets = rocketService.Rockets;
 		for (int i = 0; i < rockets.Count; ++i)
 		{
 			Rocket rocket = rockets[i];
@@ -238,10 +244,10 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		}
 	}
 
-	private bool TryGetLandingPoint(out int3 landingPoint)
+	private bool TryGetLandingPoint(RocketService rocketService, out int3 landingPoint)
 	{
 		landingPoint = default;
-		if (ZoneManager == null || RocketService == null)
+		if (ZoneManager == null || rocketService == null)
 			return false;
 
 		if (ZoneManager.TryGetZones(out var zones, landingZoneFloor, landingZoneType) == false)
@@ -251,19 +257,19 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		for (int i = 0; i < zones.Count; ++i)
 		{
 			ZoneArea zone = zones[(startIndex + i) % zones.Count];
-			if (TryFindLandingPoint(zone, out landingPoint))
+			if (TryFindLandingPoint(rocketService, zone, out landingPoint))
 				return true;
 		}
 
 		return false;
 	}
 
-	private bool TryFindLandingPoint(ZoneArea zone, out int3 landingPoint)
+	private bool TryFindLandingPoint(RocketService rocketService, ZoneArea zone, out int3 landingPoint)
 	{
 		for (int i = 0; i < Mathf.Max(1, randomSearchCountPerZone); ++i)
 		{
 			zone.GetRandomPoint(out int3 candidatePoint);
-			if (RocketService.CanLandAt(candidatePoint))
+			if (rocketService.CanLandAt(candidatePoint))
 			{
 				landingPoint = candidatePoint;
 				return true;
@@ -275,7 +281,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			for (int x = zone.Bounds.xMin; x < zone.Bounds.xMax; ++x)
 			{
 				int3 candidatePoint = new(x, zone.Floor, z);
-				if (RocketService.CanLandAt(candidatePoint))
+				if (rocketService.CanLandAt(candidatePoint))
 				{
 					landingPoint = candidatePoint;
 					return true;

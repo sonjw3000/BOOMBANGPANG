@@ -52,12 +52,7 @@ public partial class RocketService : FacilityService<Rocket>
 
 	public bool TrySpawnInboundRocket(in int3 landingPoint)
 	{
-		if (rocketPool.Count <= 0)
-			InstantiateNewRocket();
-
-		rocketPool.TryDequeue(out Rocket rocket);
-
-		if (rocket == null)
+		if (TryGetPooledRocket(out Rocket rocket) == false)
 		{
 			Debug.LogError("RocketService: Failed to dequeue rocket from pool.");
 			return false;
@@ -94,12 +89,7 @@ public partial class RocketService : FacilityService<Rocket>
 
 	public Rocket GetRocketForLaunch(Vector3 position)
 	{
-		if (rocketPool.Count <= 0)
-			InstantiateNewRocket();
-
-		rocketPool.TryDequeue(out Rocket rocket);
-
-		if (rocket != null)
+		if (TryGetPooledRocket(out Rocket rocket))
 		{
 			rocket.transform.position = position;
 			rocket.transform.rotation = Quaternion.identity;
@@ -108,6 +98,21 @@ public partial class RocketService : FacilityService<Rocket>
 		}
 
 		return rocket;
+	}
+
+	private bool TryGetPooledRocket(out Rocket rocket)
+	{
+		rocket = null;
+		while (rocketPool.Count > 0 && rocket == null)
+			rocketPool.TryDequeue(out rocket);
+
+		if (rocket == null)
+			InstantiateNewRocket();
+
+		while (rocketPool.Count > 0 && rocket == null)
+			rocketPool.TryDequeue(out rocket);
+
+		return rocket != null;
 	}
 
 	public void DisableRocket(Rocket rocket)
