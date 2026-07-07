@@ -25,7 +25,7 @@ public class VendorRuntime
 		Vendor = vendor;
 	}
 
-	public void OnWeekPassed()
+	public bool OnWeekPassed()
 	{
 		++weeksSinceLastAction;
 
@@ -34,22 +34,10 @@ public class VendorRuntime
 			weeksSinceLastAction = 0;
 			// Trigger service event or logic here
 			Debug.Log($"{Name} is ready for service.");
-			switch (Vendor.Type)
-			{
-				case VendorType.Launch:
-					// Handle launch service logic
-					break;
-				case VendorType.Power:
-					// Handle power service logic
-					break;
-				case VendorType.Maintenance:
-					// Handle maintenance service logic
-					break;
-				default:
-					Debug.LogWarning($"Unhandled vendor type: {Vendor.Type}");
-					break;
-			}
+			return true;
 		}
+
+		return false;
 	}
 }
 
@@ -57,11 +45,17 @@ public class VendorService : MonoBehaviour
 {
 	[SerializedDictionary("VendorType", "VendorCatalog")]
 	[SerializeField] private SerializedDictionary<VendorType,VendorCatalog> catalogs;
+	
 	private readonly Dictionary<VendorType, List<VendorRuntime>> activeVendors = new();
+	private readonly Dictionary<VendorType, VendorProcessor> vendorProcessor = new()
+	{
+		{ VendorType.Launch, new LaunchVendorPickupService() },
+		{ VendorType.Power, null },
+		{ VendorType.Maintenance, null }
+	};
 
 	public IReadOnlyList<VendorRuntime> GetActiveVendors(VendorType vendorType)
 	{
-		EnsureRuntimeLists();
 		return activeVendors[vendorType];
 	}
 
@@ -78,7 +72,6 @@ public class VendorService : MonoBehaviour
 		if (vendor == null)
 			return false;
 
-		EnsureRuntimeLists();
 		List<VendorRuntime> vendorList = activeVendors[vendor.Type];
 		if (vendorList.Exists(runtime => runtime.Vendor == vendor))
 			return false;
@@ -107,11 +100,6 @@ public class VendorService : MonoBehaviour
 
 	private void Start()
 	{
-		EnsureRuntimeLists();
-	}
-
-	private void EnsureRuntimeLists()
-	{
 		foreach (VendorType vendorType in Enum.GetValues(typeof(VendorType)))
 		{
 			if (activeVendors.ContainsKey(vendorType) == false)
@@ -121,13 +109,21 @@ public class VendorService : MonoBehaviour
 
 	public void OnWeekPass()
 	{
-		EnsureRuntimeLists();
-
 		foreach (var vendorList in activeVendors.Values)
 		{
 			foreach (var vendor in vendorList)
 			{
-				vendor.OnWeekPassed();
+				if (vendor.OnWeekPassed())
+				{
+					if (vendorProcessor.TryGetValue(vendor.Vendor.Type, out VendorProcessor processor) && processor != null)
+					{
+						processor.ProcessVendor(vendor);
+					}
+					else
+					{
+						Debug.LogWarning($"[VendorService] No processor registered for vendor type: {vendor.Vendor.Type}");
+					}
+				}
 			}
 		}
 	}
