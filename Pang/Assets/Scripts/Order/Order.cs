@@ -23,12 +23,20 @@ public enum OrderTotalStatus
 	Cancelled,
 }
 
+public enum OrderDestination
+{
+	None,
+	Mars,
+	Titan,
+}
+
 public class Order
 {
 	public int OrderID;
 	public List<OrderLine> Lines;
 	public Tuple<int, int> DeadLine;
 	public int Priority;
+	public OrderDestination Destination = OrderDestination.None;
 
 	private OrderTotalStatus status = OrderTotalStatus.Pending;
 

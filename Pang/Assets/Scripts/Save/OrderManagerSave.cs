@@ -16,6 +16,7 @@ public partial class OrderManager
 			{
 				OrderId = order.OrderID,
 				Status = order.Status,
+				Destination = order.Destination,
 			};
 
 			foreach (OrderLine line in order.Lines)
@@ -61,6 +62,7 @@ public partial class OrderManager
 			{
 				OrderID = orderData.OrderId,
 				Lines = new List<OrderLine>(),
+				Destination = orderData.Destination,
 			};
 
 			foreach (OrderLineSaveData lineData in orderData.Lines)

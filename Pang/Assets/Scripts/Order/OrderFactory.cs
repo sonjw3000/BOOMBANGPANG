@@ -25,9 +25,12 @@ public class OrderFactory
 		// 랜덤하게 선택하기 위해 셔플
 		var shuffledContracts = activeContracts.OrderBy(x => UnityEngine.Random.value).Take(numTypes).ToList();
 
-		Order order = new();
-		order.OrderID = orderIDCounter++;
-		order.Lines = new List<OrderLine>();
+		Order order = new()
+		{
+			OrderID = orderIDCounter++,
+			Lines = new List<OrderLine>(),
+			Destination = RollDestination(),
+		};
 
 		foreach (var contract in shuffledContracts)
 		{
@@ -62,5 +65,12 @@ public class OrderFactory
 		}
 
 		return createdOrders;
+	}
+
+	private static OrderDestination RollDestination()
+	{
+		return UnityEngine.Random.value < 0.5f
+			? OrderDestination.Mars
+			: OrderDestination.Titan;
 	}
 }
