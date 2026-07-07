@@ -25,6 +25,12 @@ public class VendorRuntime
 		Vendor = vendor;
 	}
 
+	public VendorRuntime(Vendor vendor, int weeksSinceLastAction)
+	{
+		Vendor = vendor;
+		this.weeksSinceLastAction = Mathf.Max(0, weeksSinceLastAction);
+	}
+
 	public bool OnWeekPassed()
 	{
 		++weeksSinceLastAction;
@@ -41,7 +47,7 @@ public class VendorRuntime
 	}
 }
 
-public class VendorService : MonoBehaviour
+public partial class VendorService : MonoBehaviour
 {
 	[SerializedDictionary("VendorType", "VendorCatalog")]
 	[SerializeField] private SerializedDictionary<VendorType,VendorCatalog> catalogs;
@@ -65,6 +71,25 @@ public class VendorService : MonoBehaviour
 			return catalog.Vendors;
 
 		return Array.Empty<Vendor>();
+	}
+
+	public bool TryGetVendor(VendorType vendorType, uint vendorId, out Vendor vendor)
+	{
+		vendor = null;
+
+		if (catalogs == null || catalogs.TryGetValue(vendorType, out VendorCatalog catalog) == false || catalog == null)
+			return false;
+
+		foreach (Vendor candidate in catalog.Vendors)
+		{
+			if (candidate == null || candidate.VendorId != vendorId)
+				continue;
+
+			vendor = candidate;
+			return true;
+		}
+
+		return false;
 	}
 
 	public bool TryActivateVendor(Vendor vendor)

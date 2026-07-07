@@ -61,6 +61,7 @@ public sealed class GameSaveData
 	public FacilityRuleManagerSaveData FacilityRules = new();
 	public GridMapSaveData Grid = new();
 	public ContractServiceSaveData Contracts = new();
+	public VendorServiceSaveData Vendors = new();
 	public OrderManagerSaveData Orders = new();
 	public OutboundPickingManifestSaveData OutboundPickingManifests = new();
 	public DeliveryQueueSaveData DeliveryQueue = new();
@@ -280,6 +281,20 @@ public sealed class ContractRuntimeSaveData
 	public int RemainingDuration;
 	public int DeliveryDelta;
 	public bool AutoRenewal;
+}
+
+[Serializable]
+public sealed class VendorServiceSaveData
+{
+	public List<VendorRuntimeSaveData> ActiveVendors = new();
+}
+
+[Serializable]
+public sealed class VendorRuntimeSaveData
+{
+	public VendorType VendorType;
+	public uint VendorId;
+	public int WeeksSinceLastAction;
 }
 
 [Serializable]

@@ -135,6 +135,7 @@ public sealed class GameSaveService : MonoBehaviour
 		data.FacilityRules = Ctx.FacilityRuleMgr.CaptureState();
 		data.Grid = Ctx.GridService.CaptureState();
 		data.Contracts = Ctx.ContractMgr.CaptureState();
+		data.Vendors = Ctx.VendorService.CaptureState();
 		data.Orders = Ctx.OrderMgr.CaptureState(RegisterOrderLine);
 		data.OutboundPickingManifests = Ctx.OBWorkflowSvc.CapturePickingManifestState(RegisterOrderLine);
 		data.DeliveryQueue = Ctx.DeliveryService.CaptureState();
@@ -164,6 +165,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.TaskMgr.ResetRuntimeState();
 		Ctx.OrderDelivery.ResetRuntimeState();
 		Ctx.ContractMgr.ResetRuntimeState();
+		Ctx.VendorService.ResetRuntimeState();
 		Ctx.OrderMgr.ResetRuntimeState();
 		Ctx.DeliveryService.ResetRuntimeState();
 		Ctx.IBWorkflowSvc.ResetRuntimeState();
@@ -194,6 +196,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.GameTime.RestoreState(data.Time);
 		Ctx.EconomyService.RestoreState(data.Economy);
 		Ctx.ContractMgr.RestoreState(data.Contracts);
+		Ctx.VendorService.RestoreState(data.Vendors);
 		Ctx.OrderMgr.RestoreState(data.Orders, Ctx.ContractMgr, restoredOrderLines);
 		Ctx.BoxMgr.RestoreSaveData(data.BoxRegistry, restoredOrderLines);
 		Ctx.OBWorkflowSvc.RestorePickingManifestState(data.OutboundPickingManifests, restoredOrderLines);
