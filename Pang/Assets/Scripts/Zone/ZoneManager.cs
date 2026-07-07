@@ -318,16 +318,6 @@ public partial class ZoneManager : MonoBehaviour
 		return true;
 	}
 
-	public bool SetZoneRule(ZoneArea zone, ZoneRule rule)
-	{
-		if (CheckHavingZone(zone) == false)
-			return false;
-
-		zone.SetRule(rule);
-		OnZoneChanged?.Invoke(zone);
-		return true;
-	}
-
 	public bool TryGetZones(out IReadOnlyList<ZoneArea> result, int floor, ZoneType zoneType)
 	{
 		result = null;

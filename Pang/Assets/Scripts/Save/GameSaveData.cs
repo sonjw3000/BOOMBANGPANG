@@ -47,7 +47,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 2;
+	public int Version = 3;
 	public string SavedAtUtc;
 
 	public PolicyStateSaveData Policy = new();
@@ -57,6 +57,7 @@ public sealed class GameSaveData
 	public BuildingManagerSaveData Buildings = new();
 	public BuildingFootprintServiceSaveData BuildingFootprints = new();
 	public ZoneManagerSaveData Zones = new();
+	public FacilityRuleManagerSaveData FacilityRules = new();
 	public GridMapSaveData Grid = new();
 	public ContractServiceSaveData Contracts = new();
 	public OrderManagerSaveData Orders = new();
@@ -202,28 +203,44 @@ public sealed class ZoneSaveData
 	public uint RuntimeBuildingId;
 	public int Floor;
 	public RectIntSaveData Bounds = new();
-	public ZoneRuleSaveData Rule = new();
 }
 
 [Serializable]
-public sealed class ZoneRuleSaveData
+public sealed class FacilityRuleManagerSaveData
+{
+	public uint NextPresetId = 1;
+	public List<FacilityRulePresetSaveData> Presets = new();
+}
+
+[Serializable]
+public sealed class FacilityRulePresetSaveData
+{
+	public uint Id;
+	public string DisplayName;
+	public ColorSaveData Color = new();
+	public FacilityRuleSaveData Rule = new();
+}
+
+[Serializable]
+public sealed class FacilityRuleSaveData
 {
 	public int Priority;
-	public ZoneItemRuleSaveData ItemRule = new();
-	public ZoneWorkerRuleSaveData WorkerRule = new();
+	public FacilityItemRuleSaveData ItemRule = new();
+	public FacilityWorkerRuleSaveData WorkerRule = new();
 }
 
 [Serializable]
-public sealed class ZoneItemRuleSaveData
+public sealed class FacilityItemRuleSaveData
 {
 	public ItemTag RequiredItemTags = ItemTag.None;
 	public ItemTag ForbiddenItemTags = ItemTag.None;
+	public ItemStatus RequiredItemStatus = ItemStatus.None;
 	public List<uint> WhiteListItemIds = new();
 	public List<uint> BlackListItemIds = new();
 }
 
 [Serializable]
-public sealed class ZoneWorkerRuleSaveData
+public sealed class FacilityWorkerRuleSaveData
 {
 	public WorkerKind RequiredWorkerKind = WorkerKind.None;
 	public List<HumanType> RequiredHumanTypes = new();
@@ -369,6 +386,7 @@ public sealed class PlaceableSaveData
 	public FacingDirection FacingDirection;
 	public Int3SaveData GridPosition = new();
 	public bool IsWorker;
+	public uint FacilityRulePresetId;
 
 	public WorkerSaveData Worker;
 	public ShelfContainerSaveData Shelf;
@@ -644,5 +662,22 @@ public struct Vector3SaveData
 		X = x;
 		Y = y;
 		Z = z;
+	}
+}
+
+[Serializable]
+public struct ColorSaveData
+{
+	public float R;
+	public float G;
+	public float B;
+	public float A;
+
+	public ColorSaveData(float r, float g, float b, float a)
+	{
+		R = r;
+		G = g;
+		B = b;
+		A = a;
 	}
 }

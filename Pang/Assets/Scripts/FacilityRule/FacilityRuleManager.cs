@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class FacilityRuleManager : MonoBehaviour
+public sealed partial class FacilityRuleManager : MonoBehaviour
 {
 	public const uint NoRulePresetId = 0;
 
@@ -324,4 +324,5 @@ public sealed class FacilityRuleManager : MonoBehaviour
 
 		facilitiesByPresetId.Remove(presetId);
 	}
+
 }

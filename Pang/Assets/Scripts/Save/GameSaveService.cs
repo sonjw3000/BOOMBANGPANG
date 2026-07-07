@@ -132,6 +132,7 @@ public sealed class GameSaveService : MonoBehaviour
 		data.Buildings = Ctx.BuildingMgr.CaptureState();
 		data.BuildingFootprints = Ctx.BuildingFootprintService.CaptureState();
 		data.Zones = Ctx.ZoneMgr.CaptureState();
+		data.FacilityRules = Ctx.FacilityRuleMgr.CaptureState();
 		data.Grid = Ctx.GridService.CaptureState();
 		data.Contracts = Ctx.ContractMgr.CaptureState();
 		data.Orders = Ctx.OrderMgr.CaptureState(RegisterOrderLine);
@@ -169,6 +170,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.OBWorkflowSvc.ResetRuntimeState();
 		Ctx.WorkerMgr.ResetRuntimeState();
 		Ctx.ZoneMgr.ResetRuntimeState();
+		Ctx.FacilityRuleMgr.ResetRuntimeState();
 		Ctx.BuildingMgr.ResetRuntimeState();
 		Ctx.AirlockSvc.ResetRuntimeState();
 		Ctx.FacilityMgr.ResetRuntimeState();
@@ -185,6 +187,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.GridService.RestoreState(data.Grid);
 		Ctx.BuildingFootprintService.RestoreState(data.Buildings, data.BuildingFootprints);
 		Ctx.ZoneMgr.RestoreState(data.Zones);
+		Ctx.FacilityRuleMgr.RestoreState(data.FacilityRules);
 		Ctx.WMSys.WorkPolicyService.RestoreState(data.Policy != null ? data.Policy.WorkSpeed : null);
 		Ctx.IBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);
 		Ctx.OBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.OutboundWorkApproach : null);
@@ -249,6 +252,8 @@ public sealed class GameSaveService : MonoBehaviour
 		}
 
 		Ctx.WorkerMgr.RebuildWorkerStatusCaches();
+		Ctx.FacilityRuleMgr.RebuildAppliedFacilityLookup();
+		Ctx.FacilityRuleOverlay?.RefreshOverlay();
 	}
 
 	private PlaceableSaveData CapturePlaceable(GameObject obj, PlacementContext ctx)
@@ -258,6 +263,8 @@ public sealed class GameSaveService : MonoBehaviour
 		data.PlaceableId = ctx.placeableDefinition != null ? ctx.placeableDefinition.placeableID : string.Empty;
 		data.FacingDirection = ctx.facingDirection;
 		data.GridPosition = ToSave(ctx.center);
+		if (obj.TryGetComponent<IFacility>(out var facility))
+			data.FacilityRulePresetId = facility.FacilityRulePresetId;
 
 		if (obj.TryGetComponent<AIWorker>(out var worker))
 		{
@@ -367,6 +374,19 @@ public sealed class GameSaveService : MonoBehaviour
 		}
 
 		restoredPlaceables[save.SaveId] = obj;
+
+		if (obj.TryGetComponent<IFacility>(out var facility))
+		{
+			if (save.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId)
+			{
+				facility.SetFacilityRulePresetId(FacilityRuleManager.NoRulePresetId);
+			}
+			else if (Ctx.FacilityRuleMgr.ApplyPreset(facility, save.FacilityRulePresetId) == false)
+			{
+				facility.SetFacilityRulePresetId(FacilityRuleManager.NoRulePresetId);
+				Debug.LogWarning($"[Save] Missing facility rule preset {save.FacilityRulePresetId} for {save.PlaceableId}.");
+			}
+		}
 
 		if (obj.TryGetComponent<ShelfBase>(out var shelf) && save.Shelf != null)
 		{
