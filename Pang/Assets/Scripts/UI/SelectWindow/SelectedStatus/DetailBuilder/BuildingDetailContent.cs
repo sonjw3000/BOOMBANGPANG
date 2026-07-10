@@ -26,6 +26,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	private TextMeshProUGUI typeValue;
 	private TextMeshProUGUI stateValue;
 	private TextMeshProUGUI workScopeValue;
+	private TextMeshProUGUI averageTemperatureValue;
 	private TextMeshProUGUI cellCountValue;
 	private TextMeshProUGUI facilityCountValue;
 	private TextMeshProUGUI cargoPortCountValue;
@@ -107,6 +108,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		typeValue = CreateInfoLine(layoutView.OverviewTab.transform, "Type");
 		stateValue = CreateInfoLine(layoutView.OverviewTab.transform, "State");
 		workScopeValue = CreateInfoLine(layoutView.OverviewTab.transform, "Work Scope");
+		averageTemperatureValue = CreateInfoLine(layoutView.OverviewTab.transform, "Average Temperature");
 		cellCountValue = CreateInfoLine(layoutView.OverviewTab.transform, "Cells");
 		facilityCountValue = CreateInfoLine(layoutView.OverviewTab.transform, "Facilities");
 		cargoPortCountValue = CreateInfoLine(layoutView.OverviewTab.transform, "Cargo Ports");
@@ -251,6 +253,7 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		typeValue.text = buildingProvider.Subtitle;
 		stateValue.text = buildingProvider.StateDisplay;
 		workScopeValue.text = buildingProvider.WorkScopeDisplay;
+		averageTemperatureValue.text = buildingProvider.AverageTemperatureDisplay;
 		cellCountValue.text = buildingProvider.CellCount.ToString();
 		facilityCountValue.text = buildingProvider.FacilityCount.ToString();
 		cargoPortCountValue.text = buildingProvider.CargoPortCount.ToString();

@@ -25,6 +25,7 @@ namespace Assets.Scripts.Save
 		{
 			public int X, Y, Z;
 			public int[] Tiles;
+			public float[] Temperatures;
 		}
 
 		[System.Serializable]
@@ -268,6 +269,7 @@ public sealed class GridMapSaveData
 {
 	public Int3SaveData MapSize = new();
 	public int[] Tiles;
+	public float[] Temperatures;
 }
 
 [Serializable]

@@ -72,6 +72,8 @@ public class Building
 	private int currentPowerConsumption;
 
 	private bool isRegistered;
+	private bool isTrackingTemperature;
+	private float occupiedCellTemperatureSum;
 
 	private readonly List<GridCell> occupiedCells;
 
@@ -111,6 +113,9 @@ public class Building
 	public PowerPort PowerPort => powerPort;
 	public int CurrentPowerConsumption => currentPowerConsumption;
 	public float PowerEfficiency => powerPort != null ? powerPort.PowerEfficiency : 0f;
+	public float AverageTemperatureCelsius => occupiedCells.Count > 0
+		? occupiedCellTemperatureSum / occupiedCells.Count
+		: GridCell.DefaultTemperatureCelsius;
 
 	public bool OverrideCapsuleThreshold => overrideCapsuleThreshold;
 	public float CapsuleThresholdPercent => capsuleThresholdPercent;
@@ -131,9 +136,15 @@ public class Building
 
 		isRegistered = registered;
 		if (registered)
+		{
+			StartTemperatureTracking();
 			OnRegistered();
+		}
 		else
+		{
 			OnUnregistered();
+			StopTemperatureTracking();
+		}
 	}
 	public void Rename(string newDisplayName) => displayName = newDisplayName;
 	public void SetState(BuildingState newState) => state = newState;
@@ -141,6 +152,36 @@ public class Building
 
 	protected virtual void OnRegistered() { }
 	protected virtual void OnUnregistered() { }
+
+	private void StartTemperatureTracking()
+	{
+		if (isTrackingTemperature) return;
+		occupiedCellTemperatureSum = 0.0f;
+		for (int i = 0; i < occupiedCells.Count; ++i)
+		{
+			GridCell cell = occupiedCells[i];
+			if (cell == null) continue;
+			occupiedCellTemperatureSum += cell.TemperatureCelsius;
+			cell.OnTemperatureChanged += HandleOccupiedCellTemperatureChanged;
+		}
+		isTrackingTemperature = true;
+	}
+
+	private void StopTemperatureTracking()
+	{
+		if (isTrackingTemperature == false) return;
+		for (int i = 0; i < occupiedCells.Count; ++i)
+		{
+			GridCell cell = occupiedCells[i];
+			if (cell != null) cell.OnTemperatureChanged -= HandleOccupiedCellTemperatureChanged;
+		}
+		isTrackingTemperature = false;
+	}
+
+	private void HandleOccupiedCellTemperatureChanged(GridCell cell, float previous, float current)
+	{
+		occupiedCellTemperatureSum += current - previous;
+	}
 
 	internal bool HasInputBuilding(uint buildingId) => buildingId != 0 && inputBuildingIds.Contains(buildingId);
 	internal bool HasOutputBuilding(uint buildingId) => buildingId != 0 && outputBuildingIds.Contains(buildingId);

@@ -33,10 +33,13 @@ public class PlacementContext
 
 public class GridCell
 {
+	public const float DefaultTemperatureCelsius = 20.0f;
+
 	private int tile = 0;
 	private GridFlags flags = GridFlags.None;
 	private int regionId = 0;
 	private uint buildingId = 0;
+	private float temperatureCelsius = DefaultTemperatureCelsius;
 	private readonly Dictionary<GameObject, GridFlags> flagsByObject = new();
 
 	private GameObject objectRef = null;
@@ -50,6 +53,7 @@ public class GridCell
 	public GridFlags Flags => flags;
 	public int RegionId => regionId;
 	public uint BuildingId => buildingId;
+	public float TemperatureCelsius => temperatureCelsius;
 	public GridOccupancyCategory OccupancyCategory => occupancyCategory;
 
 	public bool IsPassable => Flags.HasFlag(GridFlags.BlockMovement | GridFlags.DynamicObstacle);
@@ -65,10 +69,12 @@ public class GridCell
 	public IReadOnlyCollection<FindRoute> PlannedRoutes => plannedRoutes;
 
 	public event System.Action<GridCell> OnGridUnReserved;
+	public event System.Action<GridCell, float, float> OnTemperatureChanged;
 
-	public GridCell(int tileType)
+	public GridCell(int tileType, float temperatureCelsius = DefaultTemperatureCelsius)
 	{
 		tile = tileType;
+		this.temperatureCelsius = temperatureCelsius;
 	}
 
 	public void Set(in FootprintCell cellFootprint, GameObject obj)
@@ -141,6 +147,17 @@ public class GridCell
 	public void SetBuildingId(uint value)
 	{
 		buildingId = value;
+	}
+
+	internal bool SetTemperature(float value)
+	{
+		if (float.IsNaN(value) || float.IsInfinity(value) || temperatureCelsius == value)
+			return false;
+
+		float previous = temperatureCelsius;
+		temperatureCelsius = value;
+		OnTemperatureChanged?.Invoke(this, previous, temperatureCelsius);
+		return true;
 	}
 
 	private void RebuildFlags()
@@ -224,7 +241,10 @@ public class GridMap
 				{
 					int idx = x + mapSize.x * (y + mapSize.y * z);
 
-					map[x, y, z] = new GridCell(data.Tiles[idx]);
+					float temperature = data.Temperatures != null && idx < data.Temperatures.Length
+						? data.Temperatures[idx]
+						: GridCell.DefaultTemperatureCelsius;
+					map[x, y, z] = new GridCell(data.Tiles[idx], temperature);
 				}
 			}
 		}

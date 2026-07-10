@@ -69,6 +69,21 @@ public partial class GridService : MonoBehaviour
 		return gridMap.Map[x, y, z];
 	}
 
+	public bool TrySetTemperature(in int3 pos, float temperatureCelsius)
+	{
+		GridCell cell = GetCell(pos);
+		return cell != null && cell.SetTemperature(temperatureCelsius);
+	}
+
+	public bool TryAdjustTemperature(in int3 pos, float deltaCelsius)
+	{
+		GridCell cell = GetCell(pos);
+		if (cell == null || float.IsNaN(deltaCelsius) || float.IsInfinity(deltaCelsius) || deltaCelsius == 0.0f)
+			return false;
+
+		return cell.SetTemperature(cell.TemperatureCelsius + deltaCelsius);
+	}
+
 	public bool IsPassable(in int3 pos)
 	{
 		if (gridMap.IsInBound(pos) == false)

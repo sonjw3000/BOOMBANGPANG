@@ -8,6 +8,7 @@ public partial class GridService
 		GridMapSaveData data = new();
 		data.MapSize = new Int3SaveData(MapSize.x, MapSize.y, MapSize.z);
 		data.Tiles = new int[MapSize.x * MapSize.y * MapSize.z];
+		data.Temperatures = new float[data.Tiles.Length];
 
 		for (int x = 0; x < MapSize.x; ++x)
 		{
@@ -16,7 +17,9 @@ public partial class GridService
 				for (int z = 0; z < MapSize.z; ++z)
 				{
 					int idx = x + MapSize.x * (y + MapSize.y * z);
-					data.Tiles[idx] = 0;
+					GridCell cell = Map[x, y, z];
+					data.Tiles[idx] = cell != null ? cell.Tile : 0;
+					data.Temperatures[idx] = cell != null ? cell.TemperatureCelsius : GridCell.DefaultTemperatureCelsius;
 				}
 			}
 		}
@@ -39,6 +42,7 @@ public partial class GridService
 			Y = data.MapSize.Y,
 			Z = data.MapSize.Z,
 			Tiles = data.Tiles,
+			Temperatures = data.Temperatures,
 		};
 
 		gridMap.LoadByData(gridData);

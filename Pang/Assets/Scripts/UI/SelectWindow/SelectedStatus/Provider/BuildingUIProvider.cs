@@ -15,24 +15,27 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>
 	public int FacilityCount => Building != null ? Building.OccupiedFacilities.Count : 0;
 	public int CargoPortCount => Building != null ? Building.OccupiedCargoPorts.Count : 0;
 	public int ZoneCount => Building != null && ZoneManager != null ? ZoneManager.GetZoneCountForBuilding(Building.RuntimeBuildingId) : 0;
+	public string AverageTemperatureDisplay => Building != null ? $"{Building.AverageTemperatureCelsius:F1} °C" : "Unknown";
 
 	public override void BuildInfoBlocks()
 	{
 		infoBlocks.Clear();
 		infoBlocks.Add(new KeyValueBlock("State", StateDisplay));
 		infoBlocks.Add(new KeyValueBlock("WorkScope", WorkScopeDisplay));
+		infoBlocks.Add(new KeyValueBlock("Temperature", AverageTemperatureDisplay));
 		infoBlocks.Add(new KeyValueBlock("Facilities", FacilityCount.ToString()));
 		infoBlocks.Add(new KeyValueBlock("Zones", ZoneCount.ToString()));
 	}
 
 	public override void OnUpdate()
 	{
-		if (infoBlocks.Count < 4)
+		if (infoBlocks.Count < 5)
 			return;
 
 		(infoBlocks[0] as KeyValueBlock)?.UpdateValue(StateDisplay);
 		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(WorkScopeDisplay);
-		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(FacilityCount.ToString());
-		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(ZoneCount.ToString());
+		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(AverageTemperatureDisplay);
+		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(FacilityCount.ToString());
+		(infoBlocks[4] as KeyValueBlock)?.UpdateValue(ZoneCount.ToString());
 	}
 }
