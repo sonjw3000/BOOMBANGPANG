@@ -15,6 +15,7 @@ public class PowerHub : MonoBehaviour, IFacility
 
 	public int3 GridPosition => gridPosition;
 	public uint FacilityRulePresetId => facilityRulePresetId;
+	public int PowerConsumption => 0;
 	public FacingDirection Direction => facingDirection;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.PowerHub;
 	public uint PowerVendorId => powerVendorId;

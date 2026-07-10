@@ -63,6 +63,18 @@ public sealed class PowerService : MonoBehaviour
 		return vendor.WeeklyPowerCost * activeHubCount;
 	}
 
+	public float GetPowerEfficiency(IFacility facility)
+	{
+		if (facility == null ||
+			FacilityManager == null ||
+			FacilityManager.TryGetBuildingId(facility, out uint buildingId) == false ||
+			BuildingManager == null ||
+			BuildingManager.TryGetBuilding(buildingId, out Building building) == false)
+			return 0f;
+
+		return building.PowerEfficiency;
+	}
+
 	public void ResetRuntimeState()
 	{
 		for (int i = 0; i < installedPorts.Count; ++i)

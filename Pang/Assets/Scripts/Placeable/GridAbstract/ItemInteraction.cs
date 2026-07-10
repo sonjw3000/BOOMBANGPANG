@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
@@ -10,6 +10,7 @@ public abstract class ItemInteraction :
 	IInteractionPoint
 {
 	[SerializeField] private uint facilityRulePresetId;
+	[SerializeField, Min(0)] private int powerConsumption;
 
 	protected int3 position;
 	protected FacingDirection facingDirection;
@@ -25,6 +26,7 @@ public abstract class ItemInteraction :
 	public int3 GridPosition => position;
 	public FacingDirection Direction => facingDirection;
 	public uint FacilityRulePresetId => facilityRulePresetId;
+	public int PowerConsumption => powerConsumption;
 
 	public void SetFacilityRulePresetId(uint presetId)
 	{

@@ -52,6 +52,7 @@ public partial class FacilityManager : MonoBehaviour
 {
 	// if uid == 0, outside of buildingß
 	private readonly Dictionary<uint, BuildingFacilityIndex> buildingFacilities = new();
+	private readonly Dictionary<IFacility, uint> facilityBuildingIds = new();
 
 	
 	public delegate void OnRegisterFacilityCallback(uint buildingId, IFacility facility);
@@ -108,6 +109,8 @@ public partial class FacilityManager : MonoBehaviour
 		if (facilityIndex.RegisterFacility(facility) == false)
 			return;
 
+		facilityBuildingIds[facility] = buildingId;
+
 		Type runtimeType = facility.GetType();
 
 		foreach (var (subscribedType, callback) in registerCallbacks)
@@ -125,6 +128,8 @@ public partial class FacilityManager : MonoBehaviour
 
 		if (facilityIndex.UnregisterFacility(facility) == false)
 			return;
+
+		facilityBuildingIds.Remove(facility);
 
 		Type runtimeType = facility.GetType();
 
@@ -146,6 +151,17 @@ public partial class FacilityManager : MonoBehaviour
 			buildingIds.Add(buildingId);
 
 		return buildingIds;
+	}
+
+	public bool TryGetBuildingId(IFacility facility, out uint buildingId)
+	{
+		if (facility == null)
+		{
+			buildingId = 0;
+			return false;
+		}
+
+		return facilityBuildingIds.TryGetValue(facility, out buildingId);
 	}
 
 	public IReadOnlyList<T> GetFacilities<T>(uint buildingId) where T : class, IFacility

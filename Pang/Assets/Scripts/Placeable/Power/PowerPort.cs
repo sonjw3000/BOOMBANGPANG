@@ -11,6 +11,7 @@ public class PowerPort : MonoBehaviour, IFacility
 
 	public int3 GridPosition => gridPosition;
 	public uint FacilityRulePresetId => facilityRulePresetId;
+	public int PowerConsumption => 0;
 	public FacingDirection Direction => facingDirection;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.PowerPort;
 	public PowerHub ConnectedHub => connectedHub;

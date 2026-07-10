@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
@@ -14,6 +14,7 @@ public partial class LaunchStation
 	, IInteractionPoint
 {
 	[SerializeField] private uint facilityRulePresetId;
+	[SerializeField, Min(0)] private int powerConsumption;
 	[SerializeField] private List<PlatformAddon> addons = new();
 
 	private int3 gridPosition;
@@ -25,6 +26,7 @@ public partial class LaunchStation
 	public int3 GridPosition => gridPosition;
 	public FacingDirection Direction => facingDirection;
 	public uint FacilityRulePresetId => facilityRulePresetId;
+	public int PowerConsumption => powerConsumption;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.LaunchStation;
 	public IReadOnlyList<InteractionPoint> InteractionPoints => interactionPoints;
 

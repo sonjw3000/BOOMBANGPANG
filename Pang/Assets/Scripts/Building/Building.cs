@@ -328,10 +328,7 @@ public class Building
 		int totalConsumption = 0;
 		for (int i = 0; i < occupiedFacilities.Count; ++i)
 		{
-			if (occupiedFacilities[i] is not IPowerConsumer consumer || consumer.IsPowerActive == false)
-				continue;
-
-			totalConsumption += UnityEngine.Mathf.Max(0, consumer.PowerConsumption);
+			totalConsumption += UnityEngine.Mathf.Max(0, occupiedFacilities[i].PowerConsumption);
 		}
 
 		currentPowerConsumption = totalConsumption;
