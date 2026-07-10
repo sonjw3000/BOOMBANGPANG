@@ -177,6 +177,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.AirlockSvc.ResetRuntimeState();
 		Ctx.FacilityMgr.ResetRuntimeState();
 		Ctx.PowerSvc.ResetRuntimeState();
+		Ctx.TemperatureSvc.ResetRuntimeState();
 		Ctx.StorageService.ResetRuntimeState();
 		Ctx.BuildingFootprintService.ResetRuntimeState();
 		Ctx.WMSys.WorkPolicyService.ResetRuntimeState();
@@ -258,6 +259,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.WorkerMgr.RebuildWorkerStatusCaches();
 		Ctx.FacilityRuleMgr.RebuildAppliedFacilityLookup();
 		Ctx.FacilityRuleOverlay?.RefreshOverlay();
+		Ctx.TemperatureSvc.RebuildRuntimeState();
 	}
 
 	private PlaceableSaveData CapturePlaceable(GameObject obj, PlacementContext ctx)

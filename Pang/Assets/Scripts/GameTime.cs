@@ -1,5 +1,17 @@
-﻿using System;
+using System;
 using UnityEngine;
+
+public readonly struct SimulationTickContext
+{
+	public readonly ulong Tick;
+	public readonly float ElapsedWeeks;
+
+	public SimulationTickContext(ulong tick, float elapsedWeeks)
+	{
+		Tick = tick;
+		ElapsedWeeks = elapsedWeeks;
+	}
+}
 
 public partial class GameTime : MonoBehaviour
 {
@@ -12,8 +24,13 @@ public partial class GameTime : MonoBehaviour
 	[Tooltip("최대 배속 지수. 3이면 2^3 = 8배속까지 허용한다.")]
 	[SerializeField, Min(0)] private int maxSpeedExponent = 3;
 
+	public const float SimulationTickWeeks = 0.25f;
+
 	private float SecondsPerWeek => secondsPerMonth / 4.0f;
+	private float SecondsPerSimulationTick => SecondsPerWeek * SimulationTickWeeks;
 	private float timeElapsed = 0f;
+	private float simulationTickElapsed = 0f;
+	private ulong simulationTicksPassed;
 	private float preservedPauseTimeScale = 1.0f;
 	private int preservedPauseCount;
 
@@ -30,7 +47,9 @@ public partial class GameTime : MonoBehaviour
 	public int MaxSpeedExponent => maxSpeedExponent;
 	public int MaxTimeScale => 1 << Mathf.Max(0, maxSpeedExponent);
 	public bool IsPaused => Mathf.Approximately(timeScale, 0.0f);
+	public ulong SimulationTicksPassed => simulationTicksPassed;
 
+	public event Action<SimulationTickContext> OnSimulationTick;
 	public event Action OnWeekPassed;
 	public event Action OnMonthPassed;
 	public event Action OnYearPassed;
@@ -44,9 +63,18 @@ public partial class GameTime : MonoBehaviour
 
 	private void Update()
 	{
-		timeElapsed += Time.deltaTime;
+		float elapsed = Time.deltaTime;
+		timeElapsed += elapsed;
+		simulationTickElapsed += elapsed;
 
-		if (timeElapsed >= SecondsPerWeek)
+		while (simulationTickElapsed >= SecondsPerSimulationTick)
+		{
+			simulationTickElapsed -= SecondsPerSimulationTick;
+			++simulationTicksPassed;
+			OnSimulationTick?.Invoke(new SimulationTickContext(simulationTicksPassed, SimulationTickWeeks));
+		}
+
+		while (timeElapsed >= SecondsPerWeek)
 		{
 			timeElapsed -= SecondsPerWeek;
 			PassWeek();

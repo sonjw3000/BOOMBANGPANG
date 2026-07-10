@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ea39cd9d2906294b915277300334413, type: 3}
+  m_Name: RefrigerationUnit
+  m_EditorClassIdentifier: Assembly-CSharp::PlaceableDefinition
+  placeableID: refrigeration_unit_00
+  displayName: Refrigeration Unit
+  icon: {fileID: 0}
+  prefab: {fileID: 9168192839953191520, guid: 8fcdab72f5676b34c95d350a3bc28f0a, type: 3}
+  gridFootprint: {fileID: 11400000, guid: be92e5ebb0f0bd5408e60450a820ec07, type: 2}
+  definitionType: 5
+  placementEnvironment: 1
+  Cost: 100

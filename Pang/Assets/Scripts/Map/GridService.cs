@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using Assets.Scripts.Save.JsonData;
@@ -72,7 +72,15 @@ public partial class GridService : MonoBehaviour
 	public bool TrySetTemperature(in int3 pos, float temperatureCelsius)
 	{
 		GridCell cell = GetCell(pos);
-		return cell != null && cell.SetTemperature(temperatureCelsius);
+		if (cell == null)
+			return false;
+
+		float previous = cell.TemperatureCelsius;
+		if (cell.SetTemperature(temperatureCelsius) == false)
+			return false;
+
+		OnCellTemperatureChanged?.Invoke(pos, previous, cell.TemperatureCelsius);
+		return true;
 	}
 
 	public bool TryAdjustTemperature(in int3 pos, float deltaCelsius)
@@ -81,7 +89,7 @@ public partial class GridService : MonoBehaviour
 		if (cell == null || float.IsNaN(deltaCelsius) || float.IsInfinity(deltaCelsius) || deltaCelsius == 0.0f)
 			return false;
 
-		return cell.SetTemperature(cell.TemperatureCelsius + deltaCelsius);
+		return TrySetTemperature(pos, cell.TemperatureCelsius + deltaCelsius);
 	}
 
 	public bool IsPassable(in int3 pos)
@@ -119,6 +127,7 @@ public partial class GridService : MonoBehaviour
 	private readonly Dictionary<GameObject, PlacementContext> placedObjects = new();
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
+	public event System.Action<int3, float, float> OnCellTemperatureChanged;
 	public event System.Action OnSpaceRegionsChanged;
 
 	public bool IsPlacedObject(GameObject targetObj) => targetObj != null && placedObjects.ContainsKey(targetObj);

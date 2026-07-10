@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 using UnityEngine.Serialization;
 
@@ -71,6 +71,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private TrafficCoordinator trafficCoordinator;
 	[SerializeField] private VendorService vendorService;
 	[SerializeField] private PowerService powerService;
+	[SerializeField] private TemperatureService temperatureService;
 
 	[Header("Workflow Managers")]
 	// workflow managers
@@ -150,6 +151,7 @@ public class GameContext : MonoBehaviour
 	public VendorService VendorService => ResolveManager(ref vendorService, nameof(VendorService));
 	public VendorService VendeorService => VendorService;
 	public PowerService PowerSvc => ResolveOrCreatePowerService();
+	public TemperatureService TemperatureSvc => ResolveOrCreateTemperatureService();
 	public ZoneManager ZoneMgr => zoneManager;
 	public AirlockService AirlockSvc => airlockService;
 	public BuildingManager BuildingMgr => buildingManager;
@@ -285,6 +287,7 @@ public class GameContext : MonoBehaviour
 		_ = SaveService;
 		_ = DemoGoalService;
 		_ = PowerSvc;
+		_ = TemperatureSvc;
 	}
 
 	private PowerService ResolveOrCreatePowerService()
@@ -297,6 +300,18 @@ public class GameContext : MonoBehaviour
 			powerService = gameObject.AddComponent<PowerService>();
 
 		return powerService;
+	}
+
+	private TemperatureService ResolveOrCreateTemperatureService()
+	{
+		if (temperatureService != null)
+			return temperatureService;
+
+		temperatureService = GetComponentInChildren<TemperatureService>(true);
+		if (temperatureService == null)
+			temperatureService = gameObject.AddComponent<TemperatureService>();
+
+		return temperatureService;
 	}
 
 	private HudEventManager ResolveOrCreateHudEventManager()
