@@ -30,12 +30,11 @@ public class BuildingControlWindow : MonoBehaviour
 		BuildingType.Launch,
 	};
 
-	private static Font defaultFont;
-
 	private bool initialized;
 	private int currentTabIndex;
 	private readonly List<GameObject> tabRoots = new();
 	private readonly List<GameObject> buildingRows = new();
+	private readonly List<BuildingFootprintPreset> footprintPresetOptions = new();
 	private SelectionUIMaster selectionUIMaster;
 	private BuildingControlWindowContentView contentView;
 
@@ -48,9 +47,11 @@ public class BuildingControlWindow : MonoBehaviour
 	private TextButtonView createButton;
 	private TextButtonView linkCargoPortButton;
 	private Dropdown buildingTypeDropdown;
+	private Dropdown footprintPresetDropdown;
 
 	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+	private BuildingFootprintService BuildingFootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
 
 	private void Awake()
 	{
@@ -76,6 +77,9 @@ public class BuildingControlWindow : MonoBehaviour
 
 		if (GameContext.HasInstance && GameContext.Instance.InteractionCtx != null)
 			Interaction.OnBuildingPlacementChanged -= HandleBuildingPlacementChanged;
+
+		buildingTypeDropdown?.onValueChanged.RemoveListener(HandleBuildingTypeChanged);
+		footprintPresetDropdown?.onValueChanged.RemoveListener(HandleFootprintPresetChanged);
 	}
 
 	public void ToggleWindow()
@@ -172,6 +176,8 @@ public class BuildingControlWindow : MonoBehaviour
 		buildingListRoot = contentView.BuildingListRoot;
 		buildingListEmptyText = contentView.BuildingListEmptyText;
 		actionStatusText = contentView.ActionStatusText;
+		buildingTypeDropdown = contentView.BuildingTypeDropdown;
+		footprintPresetDropdown = contentView.FootprintPresetDropdown;
 		createButton = contentView.CreateButton;
 		linkCargoPortButton = contentView.LinkCargoPortsButton;
 
@@ -185,7 +191,7 @@ public class BuildingControlWindow : MonoBehaviour
 		if (linkCargoPortButton != null)
 			linkCargoPortButton.Configure("Link Buildings", HandleLinkCargoPortsButtonClicked);
 
-		BuildActionTypeDropdown();
+		ConfigureActionDropdowns();
 	}
 
 	private void SetupTabs()
@@ -234,6 +240,9 @@ public class BuildingControlWindow : MonoBehaviour
 
 	private void HandleCreateButtonClicked()
 	{
+		if (BuildingFootprintService == null || BuildingFootprintService.ActivePreset == null)
+			return;
+
 		cargoPortLinkModeController?.EndLinkEdit();
 		overlayController?.BeginCreate();
 		RefreshAll();
@@ -263,6 +272,15 @@ public class BuildingControlWindow : MonoBehaviour
 			return;
 
 		overlayController?.SetSelectedBuildingType(BuildingTypeOptions[optionIndex]);
+		RefreshAll();
+	}
+
+	private void HandleFootprintPresetChanged(int optionIndex)
+	{
+		if (optionIndex < 0 || optionIndex >= footprintPresetOptions.Count || BuildingFootprintService == null)
+			return;
+
+		BuildingFootprintService.SetActivePreset(footprintPresetOptions[optionIndex]);
 		RefreshAll();
 	}
 
@@ -310,11 +328,15 @@ public class BuildingControlWindow : MonoBehaviour
 		int buildingCount = BuildingManager != null ? BuildingManager.RegisteredBuildings.Count : 0;
 		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement;
 		BuildingType selectedType = overlayController != null ? overlayController.SelectedBuildingType : BuildingType.Staging;
+		BuildingFootprintPreset selectedPreset = BuildingFootprintService != null ? BuildingFootprintService.ActivePreset : null;
 
 		overviewStatusText.text = isCreating
-			? $"{BuildingTypeUtility.ToDisplayString(selectedType)} building placement is active. Left click start/end cells, right click to cancel."
+			? $"{BuildingTypeUtility.ToDisplayString(selectedType)} building placement is active. Left click a center cell, right click to cancel."
 			: "Use this window to create buildings and manage each building's worker scope.";
-		overviewSummaryText.text = $"Registered Buildings: {buildingCount}\nSelected Build Type: {BuildingTypeUtility.ToDisplayString(selectedType)}";
+		overviewSummaryText.text =
+			$"Registered Buildings: {buildingCount}\n" +
+			$"Selected Build Type: {BuildingTypeUtility.ToDisplayString(selectedType)}\n" +
+			$"Selected Footprint: {(selectedPreset != null ? selectedPreset.DisplayName : "None")}";
 	}
 
 	private void RefreshOperations()
@@ -367,6 +389,7 @@ public class BuildingControlWindow : MonoBehaviour
 		EnsureZoneOverlayController();
 		Building activeBuilding = zoneOverlayController != null ? zoneOverlayController.CurrentBuilding : null;
 		BuildingType selectedType = overlayController != null ? overlayController.SelectedBuildingType : BuildingType.Staging;
+		BuildingFootprintPreset selectedPreset = BuildingFootprintService != null ? BuildingFootprintService.ActivePreset : null;
 
 		if (buildingTypeDropdown != null)
 		{
@@ -375,8 +398,15 @@ public class BuildingControlWindow : MonoBehaviour
 			buildingTypeDropdown.interactable = isCreating == false && isLinkEditing == false;
 		}
 
+		if (footprintPresetDropdown != null)
+		{
+			int selectedIndex = footprintPresetOptions.IndexOf(selectedPreset);
+			footprintPresetDropdown.SetValueWithoutNotify(Mathf.Max(0, selectedIndex));
+			footprintPresetDropdown.interactable = isCreating == false && isLinkEditing == false && footprintPresetOptions.Count > 0;
+		}
+
 		if (createButton.Button != null)
-			createButton.Button.interactable = isCreating == false && isLinkEditing == false;
+			createButton.Button.interactable = isCreating == false && isLinkEditing == false && selectedPreset != null;
 		if (createButton.LabelText != null)
 			createButton.LabelText.text = isCreating ? "Creating..." : "Create Building";
 
@@ -387,7 +417,9 @@ public class BuildingControlWindow : MonoBehaviour
 
 		if (isCreating)
 		{
-			actionStatusText.text = $"Drag a rectangle to create a {BuildingTypeUtility.ToDisplayString(selectedType)} building footprint.";
+			actionStatusText.text = selectedPreset != null
+				? $"Click a center cell to place a diameter {selectedPreset.Diameter} {BuildingTypeUtility.ToDisplayString(selectedType)} building."
+				: "No valid building footprint preset is selected.";
 			return;
 		}
 
@@ -403,9 +435,10 @@ public class BuildingControlWindow : MonoBehaviour
 			return;
 		}
 
+		string footprintName = selectedPreset != null ? selectedPreset.DisplayName : "None";
 		actionStatusText.text = activeBuilding != null
-			? $"Selected build type: {BuildingTypeUtility.ToDisplayString(selectedType)}. Create a building or link this building to another building."
-			: $"Selected build type: {BuildingTypeUtility.ToDisplayString(selectedType)}. Start a new building footprint creation, or select a building to link buildings.";
+			? $"Selected: {BuildingTypeUtility.ToDisplayString(selectedType)}, {footprintName}. Create a building or link this building to another building."
+			: $"Selected: {BuildingTypeUtility.ToDisplayString(selectedType)}, {footprintName}. Start building creation, or select a building to link buildings.";
 	}
 
 	private void CreateBuildingRow(Building building)
@@ -454,28 +487,49 @@ public class BuildingControlWindow : MonoBehaviour
 			zoneOverlayController = FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
 	}
 
-	private void BuildActionTypeDropdown()
+	private void ConfigureActionDropdowns()
 	{
-		if (contentView == null || contentView.ActionTab == null)
+		if (buildingTypeDropdown != null)
+		{
+			buildingTypeDropdown.onValueChanged.RemoveListener(HandleBuildingTypeChanged);
+			buildingTypeDropdown.ClearOptions();
+			List<string> typeOptions = new();
+			for (int i = 0; i < BuildingTypeOptions.Length; ++i)
+				typeOptions.Add(BuildingTypeUtility.ToDisplayString(BuildingTypeOptions[i]));
+			buildingTypeDropdown.AddOptions(typeOptions);
+			buildingTypeDropdown.onValueChanged.AddListener(HandleBuildingTypeChanged);
+
+			int selectedIndex = overlayController != null
+				? Array.IndexOf(BuildingTypeOptions, overlayController.SelectedBuildingType)
+				: Array.IndexOf(BuildingTypeOptions, BuildingType.Staging);
+			buildingTypeDropdown.SetValueWithoutNotify(Mathf.Max(0, selectedIndex));
+		}
+
+		footprintPresetOptions.Clear();
+		if (BuildingFootprintService != null)
+		{
+			IReadOnlyList<BuildingFootprintPreset> availablePresets = BuildingFootprintService.AvailablePresets;
+			for (int i = 0; i < availablePresets.Count; ++i)
+			{
+				BuildingFootprintPreset preset = availablePresets[i];
+				if (preset != null && preset.IsValid && footprintPresetOptions.Contains(preset) == false)
+					footprintPresetOptions.Add(preset);
+			}
+		}
+
+		if (footprintPresetDropdown == null)
 			return;
 
-		buildingTypeDropdown = CreateDropdownRow(contentView.ActionTab.transform, "Building Type", HandleBuildingTypeChanged);
-		if (buildingTypeDropdown == null)
-			return;
+		footprintPresetDropdown.onValueChanged.RemoveListener(HandleFootprintPresetChanged);
+		footprintPresetDropdown.ClearOptions();
+		List<string> footprintOptions = new();
+		for (int i = 0; i < footprintPresetOptions.Count; ++i)
+			footprintOptions.Add(footprintPresetOptions[i].DisplayName);
+		footprintPresetDropdown.AddOptions(footprintOptions);
+		footprintPresetDropdown.onValueChanged.AddListener(HandleFootprintPresetChanged);
 
-		buildingTypeDropdown.ClearOptions();
-		List<string> options = new();
-		for (int i = 0; i < BuildingTypeOptions.Length; ++i)
-			options.Add(BuildingTypeUtility.ToDisplayString(BuildingTypeOptions[i]));
-		buildingTypeDropdown.AddOptions(options);
-
-		if (actionStatusText != null && actionStatusText.transform.parent == contentView.ActionTab.transform)
-			buildingTypeDropdown.transform.SetSiblingIndex(actionStatusText.transform.GetSiblingIndex() + 1);
-
-		int selectedIndex = overlayController != null
-			? Array.IndexOf(BuildingTypeOptions, overlayController.SelectedBuildingType)
-			: Array.IndexOf(BuildingTypeOptions, BuildingType.Staging);
-		buildingTypeDropdown.SetValueWithoutNotify(Mathf.Max(0, selectedIndex));
+		BuildingFootprintPreset activePreset = BuildingFootprintService != null ? BuildingFootprintService.ActivePreset : null;
+		footprintPresetDropdown.SetValueWithoutNotify(Mathf.Max(0, footprintPresetOptions.IndexOf(activePreset)));
 	}
 
 	private static BuildingWorkScope GetNextWorkScope(BuildingWorkScope currentScope)
@@ -485,190 +539,4 @@ public class BuildingControlWindow : MonoBehaviour
 		return (BuildingWorkScope)nextIndex;
 	}
 
-	private static Dropdown CreateDropdownRow(Transform parent, string label, UnityEngine.Events.UnityAction<int> onChanged)
-	{
-		GameObject row = new($"{label}Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-		row.transform.SetParent(parent, false);
-
-		HorizontalLayoutGroup rowLayout = row.GetComponent<HorizontalLayoutGroup>();
-		rowLayout.spacing = 12f;
-		rowLayout.childAlignment = TextAnchor.MiddleLeft;
-		rowLayout.childControlHeight = true;
-		rowLayout.childControlWidth = true;
-		rowLayout.childForceExpandWidth = false;
-		rowLayout.childForceExpandHeight = false;
-
-		row.GetComponent<LayoutElement>().preferredHeight = 42f;
-
-		TextMeshProUGUI labelText = CreateText("Label", row.transform, label);
-		labelText.fontSize = 19f;
-		labelText.GetComponent<LayoutElement>().preferredWidth = 180f;
-
-		GameObject dropdownObject = new("Dropdown", typeof(RectTransform), typeof(Image), typeof(Dropdown), typeof(LayoutElement));
-		dropdownObject.transform.SetParent(row.transform, false);
-
-		Image dropdownImage = dropdownObject.GetComponent<Image>();
-		dropdownImage.color = new Color(0.2f, 0.2f, 0.2f, 0.95f);
-
-		LayoutElement dropdownLayout = dropdownObject.GetComponent<LayoutElement>();
-		dropdownLayout.preferredHeight = 36f;
-		dropdownLayout.preferredWidth = 320f;
-
-		Dropdown dropdown = dropdownObject.GetComponent<Dropdown>();
-
-		Text captionText = CreateLegacyText("Label", dropdownObject.transform, "Option");
-		captionText.alignment = TextAnchor.MiddleLeft;
-		captionText.rectTransform.offsetMin = new Vector2(10f, 0f);
-		captionText.rectTransform.offsetMax = new Vector2(-30f, 0f);
-
-		Text arrowText = CreateLegacyText("Arrow", dropdownObject.transform, "v");
-		arrowText.alignment = TextAnchor.MiddleCenter;
-		arrowText.rectTransform.anchorMin = new Vector2(1f, 0f);
-		arrowText.rectTransform.anchorMax = new Vector2(1f, 1f);
-		arrowText.rectTransform.pivot = new Vector2(1f, 0.5f);
-		arrowText.rectTransform.sizeDelta = new Vector2(24f, 0f);
-		arrowText.rectTransform.anchoredPosition = new Vector2(-6f, 0f);
-
-		GameObject templateObject = new("Template", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
-		templateObject.transform.SetParent(dropdownObject.transform, false);
-		templateObject.SetActive(false);
-
-		RectTransform templateRect = templateObject.GetComponent<RectTransform>();
-		templateRect.anchorMin = new Vector2(0f, 0f);
-		templateRect.anchorMax = new Vector2(1f, 0f);
-		templateRect.pivot = new Vector2(0.5f, 1f);
-		templateRect.anchoredPosition = new Vector2(0f, 2f);
-		templateRect.sizeDelta = new Vector2(0f, 150f);
-
-		Image templateImage = templateObject.GetComponent<Image>();
-		templateImage.color = new Color(0.18f, 0.18f, 0.18f, 1f);
-
-		ScrollRect scrollRect = templateObject.GetComponent<ScrollRect>();
-		scrollRect.horizontal = false;
-		scrollRect.movementType = ScrollRect.MovementType.Clamped;
-
-		GameObject viewportObject = new("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
-		viewportObject.transform.SetParent(templateObject.transform, false);
-
-		RectTransform viewportRect = viewportObject.GetComponent<RectTransform>();
-		viewportRect.anchorMin = Vector2.zero;
-		viewportRect.anchorMax = Vector2.one;
-		viewportRect.offsetMin = Vector2.zero;
-		viewportRect.offsetMax = Vector2.zero;
-
-		Image viewportImage = viewportObject.GetComponent<Image>();
-		viewportImage.color = new Color(1f, 1f, 1f, 0.02f);
-		Mask viewportMask = viewportObject.GetComponent<Mask>();
-		viewportMask.showMaskGraphic = false;
-
-		GameObject contentObject = new("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-		contentObject.transform.SetParent(viewportObject.transform, false);
-
-		RectTransform contentRect = contentObject.GetComponent<RectTransform>();
-		contentRect.anchorMin = new Vector2(0f, 1f);
-		contentRect.anchorMax = new Vector2(1f, 1f);
-		contentRect.pivot = new Vector2(0.5f, 1f);
-		contentRect.offsetMin = Vector2.zero;
-		contentRect.offsetMax = Vector2.zero;
-
-		VerticalLayoutGroup contentLayout = contentObject.GetComponent<VerticalLayoutGroup>();
-		contentLayout.childForceExpandHeight = false;
-		contentLayout.childForceExpandWidth = true;
-		contentLayout.childControlHeight = true;
-		contentLayout.childControlWidth = true;
-		contentLayout.spacing = 2f;
-
-		ContentSizeFitter contentFitter = contentObject.GetComponent<ContentSizeFitter>();
-		contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-		contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-
-		GameObject itemObject = new("Item", typeof(RectTransform), typeof(Toggle), typeof(Image), typeof(LayoutElement));
-		itemObject.transform.SetParent(contentObject.transform, false);
-
-		LayoutElement itemLayout = itemObject.GetComponent<LayoutElement>();
-		itemLayout.preferredHeight = 28f;
-
-		Image itemImage = itemObject.GetComponent<Image>();
-		itemImage.color = new Color(0.25f, 0.25f, 0.25f, 1f);
-
-		Toggle itemToggle = itemObject.GetComponent<Toggle>();
-		itemToggle.targetGraphic = itemImage;
-		itemToggle.isOn = true;
-
-		Text itemLabel = CreateLegacyText("Item Label", itemObject.transform, "Option");
-		itemLabel.alignment = TextAnchor.MiddleLeft;
-		itemLabel.rectTransform.offsetMin = new Vector2(10f, 0f);
-		itemLabel.rectTransform.offsetMax = new Vector2(-10f, 0f);
-
-		scrollRect.viewport = viewportRect;
-		scrollRect.content = contentRect;
-
-		dropdown.targetGraphic = dropdownImage;
-		dropdown.captionText = captionText;
-		dropdown.template = templateRect;
-		dropdown.itemText = itemLabel;
-
-		dropdown.onValueChanged.RemoveAllListeners();
-		if (onChanged != null)
-			dropdown.onValueChanged.AddListener(onChanged);
-
-		return dropdown;
-	}
-
-	private static TextMeshProUGUI CreateText(string objectName, Transform parent, string value)
-	{
-		GameObject textObject = new(objectName, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
-		textObject.transform.SetParent(parent, false);
-
-		LayoutElement layout = textObject.GetComponent<LayoutElement>();
-		layout.preferredHeight = 28f;
-
-		TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
-		text.text = value;
-		text.fontSize = 20f;
-		text.color = Color.white;
-		text.alignment = TextAlignmentOptions.MidlineLeft;
-		text.textWrappingMode = TextWrappingModes.NoWrap;
-		text.overflowMode = TextOverflowModes.Ellipsis;
-
-		RectTransform rect = text.rectTransform;
-		rect.anchorMin = Vector2.zero;
-		rect.anchorMax = Vector2.one;
-		rect.offsetMin = Vector2.zero;
-		rect.offsetMax = Vector2.zero;
-
-		return text;
-	}
-
-	private static Text CreateLegacyText(string objectName, Transform parent, string value)
-	{
-		GameObject textObject = new(objectName, typeof(RectTransform), typeof(Text));
-		textObject.transform.SetParent(parent, false);
-
-		Text text = textObject.GetComponent<Text>();
-		text.font = GetDefaultFont();
-		text.text = value;
-		text.color = Color.white;
-		text.alignment = TextAnchor.MiddleLeft;
-
-		RectTransform rect = text.rectTransform;
-		rect.anchorMin = Vector2.zero;
-		rect.anchorMax = Vector2.one;
-		rect.offsetMin = Vector2.zero;
-		rect.offsetMax = Vector2.zero;
-
-		return text;
-	}
-
-	private static Font GetDefaultFont()
-	{
-		if (defaultFont == null)
-		{
-			defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-			if (defaultFont == null)
-				defaultFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
-		}
-
-		return defaultFont;
-	}
 }

@@ -188,7 +188,10 @@ public sealed class BuildingFootprintServiceSaveData
 public sealed class BuildingFootprintSaveData
 {
 	public uint RuntimeBuildingId;
+	public string PresetId;
 	public int Floor;
+	public int CenterX;
+	public int CenterZ;
 	public RectIntSaveData Bounds = new();
 }
 

@@ -6,35 +6,64 @@ using UnityEngine;
 public sealed class BuildingFootprintRecord
 {
 	public uint RuntimeBuildingId;
+	public string PresetId;
 	public int Floor;
+	public Vector2Int Center;
 	public RectInt Bounds;
 }
 
 public sealed partial class BuildingFootprintService : MonoBehaviour
 {
+	[SerializeField] private List<BuildingFootprintPreset> footprintPresets = new();
+	[SerializeField] private BuildingFootprintPreset footprintPreset;
 	[SerializeField] private string wallPlaceableId = "wall_00";
 	[SerializeField] private FacingDirection wallFacingDirection = FacingDirection.North;
 	[SerializeField] private List<BuildingFootprintRecord> registeredFootprints = new();
 
+	public IReadOnlyList<BuildingFootprintPreset> AvailablePresets => footprintPresets;
+	public BuildingFootprintPreset ActivePreset => ResolveActivePreset();
 	public IReadOnlyList<BuildingFootprintRecord> RegisteredFootprints => registeredFootprints;
 
 	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
 	private GridService GridService => GameContext.Instance.GridService;
 	private PlaceableCatalog PlaceableCatalog => GameContext.Instance.PlaceableCatalog;
 
-	public bool CanCreateFootprint(int floor, in RectInt bounds, out string reason)
+	public bool SetActivePreset(BuildingFootprintPreset preset)
+	{
+		if (preset == null || preset.IsValid == false || footprintPresets.Contains(preset) == false)
+			return false;
+
+		footprintPreset = preset;
+		return true;
+	}
+
+	public bool TryGetPreset(string presetId, out BuildingFootprintPreset preset)
+	{
+		preset = null;
+		if (string.IsNullOrWhiteSpace(presetId))
+			return false;
+
+		for (int i = 0; i < footprintPresets.Count; ++i)
+		{
+			BuildingFootprintPreset candidate = footprintPresets[i];
+			if (candidate == null || candidate.IsValid == false || candidate.PresetId != presetId)
+				continue;
+
+			preset = candidate;
+			return true;
+		}
+
+		return false;
+	}
+
+	public bool CanCreateFootprint(int floor, in int3 center, out string reason)
 	{
 		reason = string.Empty;
 
-		if (bounds.width <= 0 || bounds.height <= 0)
+		BuildingFootprintPreset preset = ActivePreset;
+		if (preset == null)
 		{
-			reason = "Building area must have positive size.";
-			return false;
-		}
-
-		if (bounds.width < 3 || bounds.height < 3)
-		{
-			reason = "Building area must include at least one interior cell.";
+			reason = "No valid building footprint preset is selected.";
 			return false;
 		}
 
@@ -45,49 +74,45 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 			return false;
 		}
 
-		foreach (var footprint in registeredFootprints)
+		List<int3> wallPositions = new();
+		for (int z = 0; z < preset.Height; ++z)
 		{
-			if (footprint == null || footprint.Floor != floor)
-				continue;
-
-			if (footprint.Bounds.Overlaps(bounds))
+			for (int x = 0; x < preset.Width; ++x)
 			{
-				reason = "Building area overlaps another building footprint.";
-				return false;
-			}
-		}
+				BuildingFootprintCell footprintCell = preset.Get(x, z);
+				if (footprintCell.IsOwned == false)
+					continue;
 
-		for (int z = bounds.yMin; z < bounds.yMax; ++z)
-		{
-			for (int x = bounds.xMin; x < bounds.xMax; ++x)
-			{
-				int3 cellPos = new(x, floor, z);
+				int3 cellPos = ToWorldPosition(center, preset, x, z, floor);
 				GridCell cell = GridService.GetCell(cellPos);
 				if (cell == null)
 				{
-					reason = "Building area is out of bounds.";
+					reason = "Building footprint is out of bounds.";
 					return false;
 				}
 
-				if (cell.OccupancyObjectOnGrid != null)
+				if (cell.BuildingId != 0 || cell.OccupancyObjectOnGrid != null || cell.CanPlaceObject == false)
 				{
-					reason = "Building area is already occupied.";
+					reason = "Building footprint contains an occupied cell.";
 					return false;
 				}
+
+				if (footprintCell.IsWall)
+					wallPositions.Add(cellPos);
 			}
 		}
 
 		List<int3> possible = new();
 		List<int3> blocked = new();
-		foreach (var cellPos in BuildPerimeterCells(bounds, floor))
+		for (int i = 0; i < wallPositions.Count; ++i)
 		{
 			possible.Clear();
 			blocked.Clear();
 
-			PlacementContext context = new(cellPos, wallFacingDirection, wallDefinition);
+			PlacementContext context = new(wallPositions[i], wallFacingDirection, wallDefinition);
 			if (GridService.OnCheckInstallable(context, possible, blocked) == false || blocked.Count > 0)
 			{
-				reason = "Walls cannot be placed on the selected building border.";
+				reason = "Walls cannot be placed on the building footprint boundary.";
 				return false;
 			}
 		}
@@ -95,14 +120,15 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 		return true;
 	}
 
-	public bool TryCreateFootprint(int floor, in RectInt bounds, out string reason)
+	public bool TryCreateFootprint(int floor, in int3 center, out string reason)
 	{
-		return TryCreateFootprint(floor, bounds, BuildingType.Generic, out reason);
+		return TryCreateFootprint(floor, center, BuildingType.Generic, out reason);
 	}
 
-	public bool TryCreateFootprint(int floor, in RectInt bounds, BuildingType buildingType, out string reason)
+	public bool TryCreateFootprint(int floor, in int3 center, BuildingType buildingType, out string reason)
 	{
-		if (CanCreateFootprint(floor, bounds, out reason) == false)
+		BuildingFootprintPreset preset = ActivePreset;
+		if (CanCreateFootprint(floor, center, out reason) == false)
 			return false;
 
 		PlaceableDefinition wallDefinition = ResolveWallDefinition();
@@ -113,22 +139,30 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 		}
 
 		List<GameObject> createdWalls = new();
-		foreach (var cellPos in BuildPerimeterCells(bounds, floor))
+		for (int z = 0; z < preset.Height; ++z)
 		{
-			GameObject wallObject = Instantiate(wallDefinition.prefab);
-			PlacementContext context = new(cellPos, wallFacingDirection, wallDefinition, PlacementEvent.Normal, wallObject);
-			if (GridService.OnInstall(context) == false)
+			for (int x = 0; x < preset.Width; ++x)
 			{
-				Destroy(wallObject);
-				RollbackCreatedWalls(createdWalls);
-				reason = "Failed to place one or more wall tiles for the building border.";
-				return false;
-			}
+				BuildingFootprintCell footprintCell = preset.Get(x, z);
+				if (footprintCell.IsWall == false)
+					continue;
 
-			createdWalls.Add(wallObject);
+				int3 cellPos = ToWorldPosition(center, preset, x, z, floor);
+				GameObject wallObject = Instantiate(wallDefinition.prefab);
+				PlacementContext context = new(cellPos, wallFacingDirection, wallDefinition, PlacementEvent.Normal, wallObject);
+				if (GridService.OnInstall(context) == false)
+				{
+					Destroy(wallObject);
+					RollbackCreatedWalls(createdWalls);
+					reason = "Failed to place one or more wall tiles for the building boundary.";
+					return false;
+				}
+
+				createdWalls.Add(wallObject);
+			}
 		}
 
-		List<GridCell> ownedCells = BuildOwnedCells(bounds, floor);
+		List<GridCell> ownedCells = BuildOwnedCells(center, preset, floor);
 		Building createdBuilding = BuildingManager.CreateBuilding(ownedCells, buildingType);
 		if (createdBuilding == null)
 		{
@@ -137,11 +171,14 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 			return false;
 		}
 
+		Vector2Int center2D = new(center.x, center.z);
 		registeredFootprints.Add(new BuildingFootprintRecord
 		{
 			RuntimeBuildingId = createdBuilding.RuntimeBuildingId,
+			PresetId = preset.PresetId,
 			Floor = floor,
-			Bounds = bounds,
+			Center = center2D,
+			Bounds = preset.GetBounds(center2D),
 		});
 
 		reason = string.Empty;
@@ -196,28 +233,43 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 		return definition;
 	}
 
-	private static IEnumerable<int3> BuildPerimeterCells(in RectInt bounds, int floor)
+	private BuildingFootprintPreset ResolveActivePreset()
 	{
-		HashSet<Vector2Int> emitted = new();
-		List<int3> result = new();
+		if (footprintPreset != null && footprintPreset.IsValid && footprintPresets.Contains(footprintPreset))
+			return footprintPreset;
 
-		void AddCell(int x, int z)
+		for (int i = 0; i < footprintPresets.Count; ++i)
 		{
-			Vector2Int key = new(x, z);
-			if (emitted.Add(key))
-				result.Add(new int3(x, floor, z));
+			BuildingFootprintPreset candidate = footprintPresets[i];
+			if (candidate != null && candidate.IsValid)
+				return candidate;
 		}
 
-		for (int x = bounds.xMin; x < bounds.xMax; ++x)
-		{
-			AddCell(x, bounds.yMin);
-			AddCell(x, bounds.yMax - 1);
-		}
+		return null;
+	}
 
-		for (int z = bounds.yMin; z < bounds.yMax; ++z)
+	private static int3 ToWorldPosition(in int3 center, BuildingFootprintPreset preset, int x, int z, int floor)
+	{
+		return new int3(
+			center.x + x - preset.Pivot.x,
+			floor,
+			center.z + z - preset.Pivot.y);
+	}
+
+	private List<GridCell> BuildOwnedCells(in int3 center, BuildingFootprintPreset preset, int floor)
+	{
+		List<GridCell> result = new();
+		for (int z = 0; z < preset.Height; ++z)
 		{
-			AddCell(bounds.xMin, z);
-			AddCell(bounds.xMax - 1, z);
+			for (int x = 0; x < preset.Width; ++x)
+			{
+				if (preset.Get(x, z).IsOwned == false)
+					continue;
+
+				GridCell cell = GridService.GetCell(ToWorldPosition(center, preset, x, z, floor));
+				if (cell != null)
+					result.Add(cell);
+			}
 		}
 
 		return result;
@@ -226,7 +278,6 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 	private List<GridCell> BuildOwnedCells(in RectInt bounds, int floor)
 	{
 		List<GridCell> result = new(bounds.width * bounds.height);
-
 		for (int z = bounds.yMin; z < bounds.yMax; ++z)
 		{
 			for (int x = bounds.xMin; x < bounds.xMax; ++x)

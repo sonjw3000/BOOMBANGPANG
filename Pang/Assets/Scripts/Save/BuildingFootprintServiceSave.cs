@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public sealed partial class BuildingFootprintService
@@ -19,7 +20,10 @@ public sealed partial class BuildingFootprintService
 			data.Footprints.Add(new BuildingFootprintSaveData
 			{
 				RuntimeBuildingId = footprint.RuntimeBuildingId,
+				PresetId = footprint.PresetId,
 				Floor = footprint.Floor,
+				CenterX = footprint.Center.x,
+				CenterZ = footprint.Center.y,
 				Bounds = new RectIntSaveData(footprint.Bounds.x, footprint.Bounds.y, footprint.Bounds.width, footprint.Bounds.height),
 			});
 		}
@@ -50,12 +54,34 @@ public sealed partial class BuildingFootprintService
 			if (savedFootprint == null || savedFootprint.RuntimeBuildingId == 0)
 				continue;
 
-			RectInt bounds = new(savedFootprint.Bounds.X, savedFootprint.Bounds.Y, savedFootprint.Bounds.Width, savedFootprint.Bounds.Height);
-			List<GridCell> ownedCells = BuildOwnedCells(bounds, savedFootprint.Floor);
-			if (ownedCells.Count != bounds.width * bounds.height)
+			RectInt bounds;
+			Vector2Int center;
+			List<GridCell> ownedCells;
+			if (string.IsNullOrWhiteSpace(savedFootprint.PresetId))
 			{
-				Debug.LogWarning($"[Save] Failed to rebuild building footprint {savedFootprint.RuntimeBuildingId}: owned cell count mismatch.");
-				continue;
+				bounds = new RectInt(savedFootprint.Bounds.X, savedFootprint.Bounds.Y, savedFootprint.Bounds.Width, savedFootprint.Bounds.Height);
+				center = new Vector2Int(
+					bounds.xMin + ((bounds.width - 1) / 2),
+					bounds.yMin + ((bounds.height - 1) / 2));
+				ownedCells = BuildOwnedCells(bounds, savedFootprint.Floor);
+				if (ownedCells.Count != bounds.width * bounds.height)
+				{
+					Debug.LogWarning($"[Save] Failed to rebuild legacy building footprint {savedFootprint.RuntimeBuildingId}: owned cell count mismatch.");
+					continue;
+				}
+			}
+			else
+			{
+				if (TryGetPreset(savedFootprint.PresetId, out BuildingFootprintPreset preset) == false)
+				{
+					Debug.LogWarning($"[Save] Missing building footprint preset {savedFootprint.PresetId} for building {savedFootprint.RuntimeBuildingId}.");
+					continue;
+				}
+
+				center = new Vector2Int(savedFootprint.CenterX, savedFootprint.CenterZ);
+				bounds = preset.GetBounds(center);
+				int3 centerPosition = new(center.x, savedFootprint.Floor, center.y);
+				ownedCells = BuildOwnedCells(centerPosition, preset, savedFootprint.Floor);
 			}
 
 			buildingsById.TryGetValue(savedFootprint.RuntimeBuildingId, out BuildingSaveData savedBuilding);
@@ -79,7 +105,9 @@ public sealed partial class BuildingFootprintService
 			registeredFootprints.Add(new BuildingFootprintRecord
 			{
 				RuntimeBuildingId = restoredBuilding.RuntimeBuildingId,
+				PresetId = savedFootprint.PresetId,
 				Floor = savedFootprint.Floor,
+				Center = center,
 				Bounds = bounds,
 			});
 		}

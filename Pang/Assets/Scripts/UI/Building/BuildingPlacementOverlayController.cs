@@ -1,7 +1,7 @@
+using System.Collections.Generic;
 using TMPro;
 using Unity.Mathematics;
 using UnityEngine;
-using System.Collections.Generic;
 
 public sealed class BuildingPlacementOverlayController : MonoBehaviour
 {
@@ -18,9 +18,10 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 	[SerializeField] private GameObject overlayLabelPrefab;
 
 	private GameObject previewRoot;
-	private GameObject previewQuad;
 	private GameObject previewLabel;
 	private GameObject proxyRoot;
+	private readonly List<GameObject> previewCells = new();
+	private readonly List<MeshRenderer> previewRenderers = new();
 	private readonly Dictionary<Building, BuildingSelectionProxy> proxies = new();
 	private bool isVisible;
 
@@ -51,10 +52,10 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		proxyRoot.transform.localScale = Vector3.one;
 		proxyRoot.hideFlags = HideFlags.HideInHierarchy;
 
-		previewQuad = CreateQuad("BuildingPreviewQuad", previewRoot.transform);
 		previewLabel = CreateLabel("BuildingPreviewLabel", previewRoot.transform);
-		previewQuad.SetActive(false);
-		previewLabel.SetActive(false);
+		if (previewLabel != null)
+			previewLabel.SetActive(false);
+
 		previewRoot.SetActive(false);
 
 		Interaction.OnBuildingPlacementPreviewChanged += HandleBuildingPlacementPreviewChanged;
@@ -78,15 +79,15 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		if (previewRoot != null)
 			previewRoot.SetActive(visible);
 
-		if (visible == false)
-		{
-			HidePreview();
-			if (Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement)
-				Interaction.ExitBuildingPlacementMode();
+		if (visible)
+			return;
 
-			if (Interaction.SelectedObject != null && Interaction.SelectedObject.TryGetComponent<BuildingSelectionProxy>(out _))
-				Interaction.ClearSelection();
-		}
+		HidePreview();
+		if (Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement)
+			Interaction.ExitBuildingPlacementMode();
+
+		if (Interaction.SelectedObject != null && Interaction.SelectedObject.TryGetComponent<BuildingSelectionProxy>(out _))
+			Interaction.ClearSelection();
 	}
 
 	public void BeginCreate()
@@ -115,29 +116,35 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 	private void HandleBuildingPlacementPreviewChanged(InteractionContext.BuildingPlacementPreview preview)
 	{
-		if (isVisible == false || Interaction.Mode != InteractionContext.InteractionMode.BuildingPlacement || preview.HasStart == false)
+		BuildingFootprintPreset preset = FootprintService != null ? FootprintService.ActivePreset : null;
+		if (isVisible == false ||
+			Interaction.Mode != InteractionContext.InteractionMode.BuildingPlacement ||
+			preview.IsActive == false ||
+			preset == null ||
+			preset.IsValid == false)
 		{
 			HidePreview();
 			return;
 		}
 
-		RectInt bounds = BuildRect(preview.Start, preview.End);
-		bool canCreate = FootprintService != null && FootprintService.CanCreateFootprint(preview.Floor, bounds, out _);
-		Color color = canCreate ? previewColor : invalidPreviewColor;
-		color.a = canCreate ? overlayAlpha : invalidPreviewColor.a;
-
-		previewQuad.SetActive(true);
-		previewLabel.SetActive(true);
-		ConfigureQuad(previewQuad, bounds, color);
-		ConfigureLabel(previewLabel, bounds, $"{BuildingTypeUtility.ToDisplayString(selectedBuildingType)}\n{bounds.width} x {bounds.height}", color);
+		bool canCreate = FootprintService.CanCreateFootprint(preview.Floor, preview.Center, out _);
+		Color cellColor = canCreate ? previewColor : invalidPreviewColor;
+		cellColor.a = canCreate ? overlayAlpha : invalidPreviewColor.a;
+		ShowPreviewCells(preset, preview.Center, cellColor);
+		ConfigureLabel(
+			previewLabel,
+			preview.Center,
+			$"{BuildingTypeUtility.ToDisplayString(selectedBuildingType)}\nDiameter {preset.Width}",
+			cellColor,
+			preset.Width);
 	}
 
-	private void HandleBuildingPlacementConfirmed(RectInt bounds, int floor)
+	private void HandleBuildingPlacementConfirmed(int3 center, int floor)
 	{
 		if (FootprintService == null)
 			return;
 
-		if (FootprintService.TryCreateFootprint(floor, bounds, selectedBuildingType, out string reason) == false)
+		if (FootprintService.TryCreateFootprint(floor, center, selectedBuildingType, out string reason) == false)
 		{
 			if (string.IsNullOrWhiteSpace(reason) == false)
 			{
@@ -155,10 +162,58 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		Interaction.ClearSelection();
 	}
 
+	private void ShowPreviewCells(BuildingFootprintPreset preset, in int3 center, Color color)
+	{
+		int visibleCellIndex = 0;
+		for (int z = 0; z < preset.Height; ++z)
+		{
+			for (int x = 0; x < preset.Width; ++x)
+			{
+				BuildingFootprintCell footprintCell = preset.Get(x, z);
+				if (footprintCell.IsOwned == false)
+					continue;
+
+				EnsurePreviewCellCount(visibleCellIndex + 1);
+				if (visibleCellIndex >= previewCells.Count)
+					return;
+
+				GameObject quad = previewCells[visibleCellIndex];
+				MeshRenderer quadRenderer = previewRenderers[visibleCellIndex];
+				quad.SetActive(true);
+				quad.transform.position = new Vector3(
+					center.x + x - preset.Pivot.x,
+					previewHeight,
+					center.z + z - preset.Pivot.y);
+				quad.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+				quad.transform.localScale = Vector3.one;
+				quadRenderer.material.color = footprintCell.IsWall
+					? Color.Lerp(color, Color.black, 0.28f)
+					: color;
+				visibleCellIndex += 1;
+			}
+		}
+
+		for (int i = visibleCellIndex; i < previewCells.Count; ++i)
+			previewCells[i].SetActive(false);
+	}
+
+	private void EnsurePreviewCellCount(int count)
+	{
+		while (previewCells.Count < count)
+		{
+			GameObject quad = CreateQuad($"BuildingPreviewCell_{previewCells.Count}", previewRoot.transform);
+			if (quad == null)
+				return;
+
+			previewCells.Add(quad);
+			previewRenderers.Add(quad.GetComponent<MeshRenderer>());
+		}
+	}
+
 	private void HidePreview()
 	{
-		if (previewQuad != null)
-			previewQuad.SetActive(false);
+		for (int i = 0; i < previewCells.Count; ++i)
+			previewCells[i].SetActive(false);
 
 		if (previewLabel != null)
 			previewLabel.SetActive(false);
@@ -173,7 +228,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		if (cell == null || cell.BuildingId == 0)
 			return null;
 
-		if (BuildingManager.TryGetBuilding(cell.BuildingId, out var building) == false || building == null)
+		if (BuildingManager.TryGetBuilding(cell.BuildingId, out Building building) == false || building == null)
 			return null;
 
 		return GetOrCreateProxy(building).gameObject;
@@ -181,7 +236,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 	private BuildingSelectionProxy GetOrCreateProxy(Building building)
 	{
-		if (proxies.TryGetValue(building, out var proxy) && proxy != null)
+		if (proxies.TryGetValue(building, out BuildingSelectionProxy proxy) && proxy != null)
 		{
 			proxy.Bind(BuildingManager, building);
 			return proxy;
@@ -195,9 +250,6 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 		proxy = Instantiate(selectionProxyPrefab, proxyRoot.transform);
 		proxy.name = $"BuildingSelection_{building.DisplayName}";
-		if (proxy == null)
-			return null;
-
 		proxy.gameObject.hideFlags = HideFlags.HideInHierarchy;
 		proxy.Bind(BuildingManager, building);
 		proxies[building] = proxy;
@@ -227,53 +279,25 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 		GameObject label = Instantiate(overlayLabelPrefab, parent);
 		label.name = objectName;
-		if (label == null)
-			return null;
-
-		var text = label.GetComponent<TextMeshPro>();
+		TextMeshPro text = label.GetComponent<TextMeshPro>();
 		text.fontSize = 5f;
 		text.color = Color.white;
 		return label;
 	}
 
-	private void ConfigureQuad(GameObject quad, RectInt bounds, Color color)
+	private void ConfigureLabel(GameObject label, in int3 center, string textValue, Color backgroundColor, int diameter)
 	{
-		quad.transform.position = new Vector3(
-			bounds.xMin + (bounds.width * 0.5f) - 0.5f,
-			previewHeight,
-			bounds.yMin + (bounds.height * 0.5f) - 0.5f
-		);
-		quad.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-		quad.transform.localScale = new Vector3(bounds.width, bounds.height, 1f);
+		if (label == null)
+			return;
 
-		var renderer = quad.GetComponent<MeshRenderer>();
-		renderer.material.color = color;
-	}
-
-	private void ConfigureLabel(GameObject label, RectInt bounds, string textValue, Color backgroundColor)
-	{
-		var text = label.GetComponent<TextMeshPro>();
+		TextMeshPro text = label.GetComponent<TextMeshPro>();
 		text.text = textValue;
 		text.color = GetReadableTextColor(backgroundColor);
-
-		label.transform.position = new Vector3(
-			bounds.xMin + (bounds.width * 0.5f) - 0.5f,
-			labelHeight,
-			bounds.yMin + (bounds.height * 0.5f) - 0.5f
-		);
+		label.transform.position = new Vector3(center.x, labelHeight, center.z);
 		label.transform.rotation = Quaternion.Euler(90f, 180f, 0f);
-
-		float scale = Mathf.Clamp(Mathf.Min(bounds.width, bounds.height) / 3f, 0.35f, 1.5f);
+		float scale = Mathf.Clamp(diameter / 3f, 0.35f, 1.5f);
 		label.transform.localScale = Vector3.one * scale;
-	}
-
-	private static RectInt BuildRect(in int3 start, in int3 end)
-	{
-		int minX = Mathf.Min(start.x, end.x);
-		int minZ = Mathf.Min(start.z, end.z);
-		int maxX = Mathf.Max(start.x, end.x);
-		int maxZ = Mathf.Max(start.z, end.z);
-		return new RectInt(minX, minZ, (maxX - minX) + 1, (maxZ - minZ) + 1);
+		label.SetActive(true);
 	}
 
 	private static Color GetReadableTextColor(Color background)

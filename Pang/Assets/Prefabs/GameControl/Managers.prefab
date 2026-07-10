@@ -2112,6 +2112,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8724b4ab17254c9f861a856de37f9af2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuildingFootprintService
+  footprintPresets:
+  - {fileID: 11400000, guid: 3ffc3a8a68a8c4e1295f4b4cfc623d28, type: 2}
+  - {fileID: 11400000, guid: 489f5ab4ec32047c0b193a3352f47b3b, type: 2}
+  - {fileID: 11400000, guid: 13faff55ce067412ba888cc6123ad48d, type: 2}
+  footprintPreset: {fileID: 11400000, guid: 489f5ab4ec32047c0b193a3352f47b3b, type: 2}
   wallPlaceableId: wall_00
   wallFacingDirection: 0
   registeredFootprints: []

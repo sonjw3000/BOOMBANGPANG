@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public sealed class BuildingControlWindowContentView : MonoBehaviour
 {
@@ -12,6 +13,8 @@ public sealed class BuildingControlWindowContentView : MonoBehaviour
 	[SerializeField] private RectTransform buildingListRoot = null;
 	[SerializeField] private TextMeshProUGUI buildingListEmptyText = null;
 	[SerializeField] private TextMeshProUGUI actionStatusText = null;
+	[SerializeField] private Dropdown buildingTypeDropdown = null;
+	[SerializeField] private Dropdown footprintPresetDropdown = null;
 	[SerializeField] private TextButtonView createButton = null;
 	[SerializeField] private TextButtonView linkCargoPortsButton = null;
 
@@ -24,6 +27,8 @@ public sealed class BuildingControlWindowContentView : MonoBehaviour
 	public RectTransform BuildingListRoot => buildingListRoot;
 	public TextMeshProUGUI BuildingListEmptyText => buildingListEmptyText;
 	public TextMeshProUGUI ActionStatusText => actionStatusText;
+	public Dropdown BuildingTypeDropdown => buildingTypeDropdown;
+	public Dropdown FootprintPresetDropdown => footprintPresetDropdown;
 	public TextButtonView CreateButton => createButton;
 	public TextButtonView LinkCargoPortsButton => linkCargoPortsButton;
 }

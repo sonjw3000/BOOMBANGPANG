@@ -48,16 +48,14 @@ public class InteractionContext
 	public readonly struct BuildingPlacementPreview
 	{
 		public readonly int Floor;
-		public readonly int3 Start;
-		public readonly int3 End;
-		public readonly bool HasStart;
+		public readonly int3 Center;
+		public readonly bool IsActive;
 
-		public BuildingPlacementPreview(int floor, in int3 start, in int3 end, bool hasStart)
+		public BuildingPlacementPreview(int floor, in int3 center, bool isActive)
 		{
 			Floor = floor;
-			Start = start;
-			End = end;
-			HasStart = hasStart;
+			Center = center;
+			IsActive = isActive;
 		}
 	}
 
@@ -80,9 +78,7 @@ public class InteractionContext
 	private int3 zonePlacementStart;
 
 	// building placement
-	private bool hasBuildingPlacementStart;
 	private int buildingPlacementFloor;
-	private int3 buildingPlacementStart;
 
 	// placement mouse move event
 	public event System.Action<int3> OnMouseChangedOnPlacement;
@@ -100,7 +96,7 @@ public class InteractionContext
 	public event System.Action<ZoneType, RectInt, int> OnZonePlacementConfirmed;
 	public event System.Action<BuildingPlacementPreview> OnBuildingPlacementPreviewChanged;
 	public event System.Action<int> OnBuildingPlacementChanged;
-	public event System.Action<RectInt, int> OnBuildingPlacementConfirmed;
+	public event System.Action<int3, int> OnBuildingPlacementConfirmed;
 	public event System.Action<InteractionDomain, InteractionAction> OnModeChanged;
 
 	public PlaceableDefinition ToBePlaced => toBePlaced;
@@ -177,9 +173,8 @@ public class InteractionContext
 	{
 		OnBuildingPlacementPreviewChanged?.Invoke(new BuildingPlacementPreview(
 			buildingPlacementFloor,
-			buildingPlacementStart,
 			currentPos,
-			hasBuildingPlacementStart
+			Mode == InteractionMode.BuildingPlacement
 		));
 	}
 
@@ -190,7 +185,6 @@ public class InteractionContext
 		toBePlaced = pd;
 		selectedObject = null;
 		hasZonePlacementStart = false;
-		hasBuildingPlacementStart = false;
 
 		OnItemSelected?.Invoke(null);
 		OnPlacementChanged?.Invoke(toBePlaced);
@@ -212,7 +206,6 @@ public class InteractionContext
 		zoneToBePlaced = zoneType;
 		zonePlacementFloor = floor;
 		hasZonePlacementStart = false;
-		hasBuildingPlacementStart = false;
 		selectedObject = null;
 
 		OnItemSelected?.Invoke(null);
@@ -227,7 +220,6 @@ public class InteractionContext
 		toBePlaced = null;
 		buildingPlacementFloor = floor;
 		hasZonePlacementStart = false;
-		hasBuildingPlacementStart = false;
 		selectedObject = null;
 
 		OnItemSelected?.Invoke(null);
@@ -241,7 +233,6 @@ public class InteractionContext
 		SetMode(InteractionDomain.Building, InteractionAction.LinkEdit);
 		toBePlaced = null;
 		hasZonePlacementStart = false;
-		hasBuildingPlacementStart = false;
 		selectedObject = null;
 
 		OnItemSelected?.Invoke(null);
@@ -252,7 +243,6 @@ public class InteractionContext
 		SetMode(InteractionDomain.Facility, InteractionAction.Select);
 		toBePlaced = null;
 		hasZonePlacementStart = false;
-		hasBuildingPlacementStart = false;
 
 		OnPlacementChanged?.Invoke(null);
 	}
@@ -275,12 +265,10 @@ public class InteractionContext
 	public void ExitBuildingPlacementMode()
 	{
 		SetMode(InteractionDomain.Building, InteractionAction.Select);
-		hasBuildingPlacementStart = false;
 
 		OnBuildingPlacementChanged?.Invoke(buildingPlacementFloor);
 		OnBuildingPlacementPreviewChanged?.Invoke(new BuildingPlacementPreview(
 			buildingPlacementFloor,
-			buildingPlacementStart,
 			mousePos,
 			false
 		));
@@ -407,21 +395,7 @@ public class InteractionContext
 				break;
 
 			case InteractionMode.BuildingPlacement:
-				if (hasBuildingPlacementStart == false)
-				{
-					hasBuildingPlacementStart = true;
-					buildingPlacementStart = pos;
-					RaiseBuildingPlacementPreview(pos);
-					break;
-				}
-
-				int buildingMinX = Mathf.Min(buildingPlacementStart.x, pos.x);
-				int buildingMinZ = Mathf.Min(buildingPlacementStart.z, pos.z);
-				int buildingMaxX = Mathf.Max(buildingPlacementStart.x, pos.x);
-				int buildingMaxZ = Mathf.Max(buildingPlacementStart.z, pos.z);
-				var buildingBound = new RectInt(buildingMinX, buildingMinZ, (buildingMaxX - buildingMinX) + 1, (buildingMaxZ - buildingMinZ) + 1);
-
-				OnBuildingPlacementConfirmed?.Invoke(buildingBound, buildingPlacementFloor);
+				OnBuildingPlacementConfirmed?.Invoke(pos, buildingPlacementFloor);
 				break;
 		}
 	}
