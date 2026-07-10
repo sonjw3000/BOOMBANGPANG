@@ -176,6 +176,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.BuildingMgr.ResetRuntimeState();
 		Ctx.AirlockSvc.ResetRuntimeState();
 		Ctx.FacilityMgr.ResetRuntimeState();
+		Ctx.PowerSvc.ResetRuntimeState();
 		Ctx.StorageService.ResetRuntimeState();
 		Ctx.BuildingFootprintService.ResetRuntimeState();
 		Ctx.WMSys.WorkPolicyService.ResetRuntimeState();

@@ -10,7 +10,7 @@ public abstract class Vendor : ScriptableObject
 
 	public string VendorName => vendorName;
 	public uint VendorId => vendorId;
-	public int ServiceInterval => serviceInterval;
+	public virtual int ServiceInterval => serviceInterval;
 	
 	public abstract VendorType Type { get; }
 }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 
 [System.Serializable]
@@ -6,10 +7,12 @@ using UnityEngine;
 public class PowerVendor : Vendor
 {
 	[SerializeField] private int powerCapacity;
-	[SerializeField] private float powerCostPerMonth;
+	[FormerlySerializedAs("powerCostPerMonth")]
+	[SerializeField] private int weeklyPowerCost;
 
 	public override VendorType Type => VendorType.Power;
+	public override int ServiceInterval => 1;
 
-	public float PowerCost => powerCostPerMonth;
+	public int WeeklyPowerCost => weeklyPowerCost;
 	public int PowerCapacity => powerCapacity;
 }

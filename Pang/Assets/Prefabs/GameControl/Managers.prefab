@@ -315,6 +315,8 @@ MonoBehaviour:
     _serializedList:
     - Key: 0
       Value: {fileID: 11400000, guid: ae8f2f9087de0394ebdd81046fe29575, type: 2}
+    - Key: 1
+      Value: {fileID: 11400000, guid: 6838e1a48b664ffbaae758d7a8551a93, type: 2}
 --- !u!1 &854969722951095675
 GameObject:
   m_ObjectHideFlags: 0
@@ -934,6 +936,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4930837203190484080}
   - component: {fileID: 6016985861769816228}
+  - component: {fileID: 910556871236450999}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -1009,6 +1012,7 @@ MonoBehaviour:
   buildingFootprintService: {fileID: 3372337595302751063}
   trafficCoordinator: {fileID: 9128034459082980668}
   vendorService: {fileID: 1311799558366903411}
+  powerService: {fileID: 910556871236450999}
   inboundWorkflowService: {fileID: 2554155626171990247}
   outboundWorkflowService: {fileID: 5775960916622381912}
   catalog: {fileID: 11400000, guid: 310a4fb6daeeead489c9d9054d91b24e, type: 2}
@@ -1020,6 +1024,18 @@ MonoBehaviour:
   metrics: {fileID: 2607858685587643834}
   floatingTextManager: {fileID: 9034432874096220707}
   hudEventManager: {fileID: 3719491221927169559}
+--- !u!114 &910556871236450999
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2435145271861946170}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4edc1d3e96544616b144a46fb001ee94, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PowerService
 --- !u!1 &2697779351811629630
 GameObject:
   m_ObjectHideFlags: 0

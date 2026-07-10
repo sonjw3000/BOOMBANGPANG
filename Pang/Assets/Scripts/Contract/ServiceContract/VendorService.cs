@@ -60,9 +60,14 @@ public partial class VendorService : MonoBehaviour
 		{ VendorType.Maintenance, null }
 	};
 
+	public event Action OnVendorsChanged;
+
 	public IReadOnlyList<VendorRuntime> GetActiveVendors(VendorType vendorType)
 	{
-		return activeVendors[vendorType];
+		EnsureRuntimeCollections();
+		return activeVendors.TryGetValue(vendorType, out List<VendorRuntime> vendors)
+			? vendors
+			: Array.Empty<VendorRuntime>();
 	}
 
 	public IReadOnlyList<Vendor> GetCatalog(VendorType vendorType)
@@ -97,11 +102,13 @@ public partial class VendorService : MonoBehaviour
 		if (vendor == null)
 			return false;
 
+		EnsureRuntimeCollections();
 		List<VendorRuntime> vendorList = activeVendors[vendor.Type];
 		if (vendorList.Exists(runtime => runtime.Vendor == vendor))
 			return false;
 
 		vendorList.Add(new VendorRuntime(vendor));
+		OnVendorsChanged?.Invoke();
 		return true;
 	}
 
@@ -123,7 +130,12 @@ public partial class VendorService : MonoBehaviour
 		}
 	}
 
-	private void Start()
+	private void Awake()
+	{
+		EnsureRuntimeCollections();
+	}
+
+	private void EnsureRuntimeCollections()
 	{
 		foreach (VendorType vendorType in Enum.GetValues(typeof(VendorType)))
 		{
@@ -134,6 +146,7 @@ public partial class VendorService : MonoBehaviour
 
 	public void OnWeekPass()
 	{
+		EnsureRuntimeCollections();
 		foreach (var vendorList in activeVendors.Values)
 		{
 			foreach (var vendor in vendorList)

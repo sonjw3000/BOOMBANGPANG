@@ -325,6 +325,8 @@ namespace Assets.Scripts.UI
 		{
 			if (vendor is LaunchServiceVendor launchVendor)
 				return $"{launchVendor.LaunchCost:0.##}%";
+			if (vendor is PowerVendor powerVendor)
+				return $"{powerVendor.WeeklyPowerCost}/week";
 
 			return "-";
 		}
@@ -333,6 +335,8 @@ namespace Assets.Scripts.UI
 		{
 			if (vendor is LaunchServiceVendor launchVendor)
 				return $"{launchVendor.CapsuleCapacity} Capsules";
+			if (vendor is PowerVendor powerVendor)
+				return powerVendor.PowerCapacity.ToString();
 
 			return "-";
 		}

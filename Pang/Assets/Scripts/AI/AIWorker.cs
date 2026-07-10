@@ -65,6 +65,8 @@ public enum WorkerStatusTarget
 	WorkTarget,
 	Airlock,
 	CapsuleBuffer,
+	PowerPort,
+	PowerHub,
 }
 
 public struct WorkerStatusInfo

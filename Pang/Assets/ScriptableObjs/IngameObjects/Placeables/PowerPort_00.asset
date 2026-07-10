@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ea39cd9d2906294b915277300334413, type: 3}
+  m_Name: PowerPort_00
+  m_EditorClassIdentifier: 
+  placeableID: power_port_00
+  displayName: PowerPort
+  icon: {fileID: 8488313772735436221, guid: 32fb0e71e5c2dfc4f8f275025f792fc6, type: 3}
+  prefab: {fileID: 5025620230531576925, guid: aecf4dea86bd34aa187636b1ffb88dce, type: 3}
+  gridFootprint: {fileID: 11400000, guid: 2fb8cc68a65f243f9b73983afc173977, type: 2}
+  definitionType: 0
+  placementEnvironment: 3
+  Cost: 10

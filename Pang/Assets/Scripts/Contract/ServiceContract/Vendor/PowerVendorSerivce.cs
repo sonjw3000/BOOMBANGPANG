@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using UnityEngine;
-
 public class PowerVendorService : VendorProcessor
 {
 	public override VendorType Type => VendorType.Power;
@@ -10,7 +7,7 @@ public class PowerVendorService : VendorProcessor
 		if (vendor?.Vendor is not PowerVendor powerVendor)
 			return;
 
-		// Implementation for processing power vendor
-        
+		if (GameContext.HasInstance)
+			GameContext.Instance.PowerSvc?.ProcessWeeklyVendor(powerVendor);
 	}
 }

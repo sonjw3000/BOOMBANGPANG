@@ -38,11 +38,16 @@ public partial class VendorService
 
 			activeVendors[vendorData.VendorType].Add(new VendorRuntime(vendor, vendorData.WeeksSinceLastAction));
 		}
+
+		OnVendorsChanged?.Invoke();
 	}
 
 	public void ResetRuntimeState()
 	{
+		EnsureRuntimeCollections();
 		foreach (List<VendorRuntime> vendors in activeVendors.Values)
 			vendors.Clear();
+
+		OnVendorsChanged?.Invoke();
 	}
 }

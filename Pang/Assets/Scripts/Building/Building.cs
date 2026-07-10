@@ -68,6 +68,8 @@ public class Building
 	private bool overrideCapsuleThreshold = false;
 	private float capsuleThresholdPercent = 80.0f;
 	private BuildingItemIndex itemIndex;
+	private PowerPort powerPort;
+	private int currentPowerConsumption;
 
 	private bool isRegistered;
 
@@ -106,6 +108,9 @@ public class Building
 	public IReadOnlyCollection<uint> InputBuildingIds => inputBuildingIds;
 	public IReadOnlyCollection<uint> OutputBuildingIds => outputBuildingIds;
 	public BuildingItemIndex ItemIndex => itemIndex;
+	public PowerPort PowerPort => powerPort;
+	public int CurrentPowerConsumption => currentPowerConsumption;
+	public float PowerEfficiency => powerPort != null ? powerPort.PowerEfficiency : 0f;
 
 	public bool OverrideCapsuleThreshold => overrideCapsuleThreshold;
 	public float CapsuleThresholdPercent => capsuleThresholdPercent;
@@ -265,6 +270,9 @@ public class Building
 			return false;
 
 		occupiedFacilities.Add(facility);
+		if (powerPort == null && facility is PowerPort registeredPowerPort)
+			powerPort = registeredPowerPort;
+		RecalculatePowerConsumption();
 		if (facility is IItemContainer itemContainer)
 			ItemIndex.Register(itemContainer, facility);
 
@@ -290,6 +298,9 @@ public class Building
 			return false;
 
 		bool removed = occupiedFacilities.Remove(facility);
+		if (facility == powerPort)
+			powerPort = FindFirstPowerPort();
+		RecalculatePowerConsumption();
 		if (facility is IItemContainer itemContainer)
 			ItemIndex.Unregister(itemContainer);
 
@@ -310,6 +321,32 @@ public class Building
 		}
 
 		return removed;
+	}
+
+	public int RecalculatePowerConsumption()
+	{
+		int totalConsumption = 0;
+		for (int i = 0; i < occupiedFacilities.Count; ++i)
+		{
+			if (occupiedFacilities[i] is not IPowerConsumer consumer || consumer.IsPowerActive == false)
+				continue;
+
+			totalConsumption += UnityEngine.Mathf.Max(0, consumer.PowerConsumption);
+		}
+
+		currentPowerConsumption = totalConsumption;
+		return currentPowerConsumption;
+	}
+
+	private PowerPort FindFirstPowerPort()
+	{
+		for (int i = 0; i < occupiedFacilities.Count; ++i)
+		{
+			if (occupiedFacilities[i] is PowerPort candidate)
+				return candidate;
+		}
+
+		return null;
 	}
 
 	private void SubscribeCargoPort(CargoPort cargoPort)

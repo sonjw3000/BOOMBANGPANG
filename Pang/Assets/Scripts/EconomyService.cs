@@ -10,6 +10,7 @@ public class EconomyTransaction
 		Remove,
 		Payday,
 		MontlyContract,
+		PowerService,
 		OrderSettlement,
 		}
 
@@ -75,6 +76,7 @@ public partial class EconomyService : MonoBehaviour
 			EconomyTransaction.Reason.Remove => "Removal",
 			EconomyTransaction.Reason.Payday => "Payday",
 			EconomyTransaction.Reason.MontlyContract => "Monthly Contract",
+			EconomyTransaction.Reason.PowerService => "Power Service",
 			EconomyTransaction.Reason.OrderSettlement => "Order Settlement",
 			_ => reason.ToString(),
 		};

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ea39cd9d2906294b915277300334413, type: 3}
+  m_Name: PowerHub_00
+  m_EditorClassIdentifier: 
+  placeableID: power_hub_00
+  displayName: PowerHub
+  icon: {fileID: 7609811419394783740, guid: 12c7ee7a153b80e459933263e2a26be6, type: 3}
+  prefab: {fileID: 3053223650934147882, guid: 88a1ba38a07284f0ab8f7fd9b7b324f3, type: 3}
+  gridFootprint: {fileID: 11400000, guid: 369857a15c064154098397fb13efe7ad, type: 2}
+  definitionType: 0
+  placementEnvironment: 2
+  Cost: 10

@@ -57,6 +57,8 @@ namespace Assets.Scripts.UI
 		{
 			if (vendor is LaunchServiceVendor launchVendor)
 				return $"Capacity: {launchVendor.CapsuleCapacity} Capsules / Fee: {launchVendor.LaunchCost:0.##}%";
+			if (vendor is PowerVendor powerVendor)
+				return $"Capacity: {powerVendor.PowerCapacity} / Fee: {powerVendor.WeeklyPowerCost}/week";
 
 			return "Service Terms: -";
 		}

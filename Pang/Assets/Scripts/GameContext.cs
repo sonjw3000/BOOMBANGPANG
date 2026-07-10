@@ -70,6 +70,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private BuildingFootprintService buildingFootprintService;
 	[SerializeField] private TrafficCoordinator trafficCoordinator;
 	[SerializeField] private VendorService vendorService;
+	[SerializeField] private PowerService powerService;
 
 	[Header("Workflow Managers")]
 	// workflow managers
@@ -148,6 +149,7 @@ public class GameContext : MonoBehaviour
 	public TrafficCoordinator TrafficCoordinator => trafficCoordinator;
 	public VendorService VendorService => ResolveManager(ref vendorService, nameof(VendorService));
 	public VendorService VendeorService => VendorService;
+	public PowerService PowerSvc => ResolveOrCreatePowerService();
 	public ZoneManager ZoneMgr => zoneManager;
 	public AirlockService AirlockSvc => airlockService;
 	public BuildingManager BuildingMgr => buildingManager;
@@ -282,6 +284,19 @@ public class GameContext : MonoBehaviour
 		_ = HudEventManager;
 		_ = SaveService;
 		_ = DemoGoalService;
+		_ = PowerSvc;
+	}
+
+	private PowerService ResolveOrCreatePowerService()
+	{
+		if (powerService != null)
+			return powerService;
+
+		powerService = GetComponentInChildren<PowerService>(true);
+		if (powerService == null)
+			powerService = gameObject.AddComponent<PowerService>();
+
+		return powerService;
 	}
 
 	private HudEventManager ResolveOrCreateHudEventManager()
