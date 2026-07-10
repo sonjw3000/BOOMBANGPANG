@@ -56,7 +56,7 @@ public partial class VendorService : MonoBehaviour
 	private readonly Dictionary<VendorType, VendorProcessor> vendorProcessor = new()
 	{
 		{ VendorType.Launch, new LaunchVendorPickupService() },
-		{ VendorType.Power, null },
+		{ VendorType.Power, new PowerVendorService() },
 		{ VendorType.Maintenance, null }
 	};
 
