@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="UIWindow.uss" />
+	<ui:VisualElement name="ui-window" class="ui-window">
+		<ui:VisualElement name="window-title-bar" class="ui-window__title-bar">
+			<ui:VisualElement name="window-title-left" class="ui-window__title-left">
+				<ui:VisualElement name="window-icon" class="ui-window__icon" />
+				<ui:Label name="window-title" text="Window" class="ui-window__title" />
+			</ui:VisualElement>
+			<ui:Button name="window-close-button" text="×" tooltip="Close" class="ui-window__close-button" />
+		</ui:VisualElement>
+		<ui:VisualElement name="window-tab-bar" class="ui-window__tab-bar" />
+		<ui:VisualElement name="window-content-root" class="ui-window__content-root" />
+	</ui:VisualElement>
+</ui:UXML>
