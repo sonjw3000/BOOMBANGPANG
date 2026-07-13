@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: PowerHub
   icon: {fileID: 7609811419394783740, guid: 12c7ee7a153b80e459933263e2a26be6, type: 3}
   prefab: {fileID: 3053223650934147882, guid: 88a1ba38a07284f0ab8f7fd9b7b324f3, type: 3}
-  gridFootprint: {fileID: 11400000, guid: 369857a15c064154098397fb13efe7ad, type: 2}
+  gridFootprint: {fileID: 11400000, guid: 2fb8cc68a65f243f9b73983afc173977, type: 2}
   definitionType: 0
   placementEnvironment: 2
   Cost: 10
