@@ -5,6 +5,7 @@ Shader "Custom/GridBoundaryShader"
 		_GridTex ("GridTex", 2D) = "black" {}
 		_UseDirectColor ("Use Direct Color", Float) = 0
 		_OverlayAlpha ("Overlay Alpha", Range(0, 1)) = 0.45
+		_HideZeroAlphaPixels ("Hide Zero Alpha Pixels", Float) = 0
 	}
 
 	SubShader
@@ -48,6 +49,7 @@ Shader "Custom/GridBoundaryShader"
 				float4 _GridColors[16];
 				float _UseDirectColor;
 				float _OverlayAlpha;
+				float _HideZeroAlphaPixels;
 			CBUFFER_END
 
 			Varyings vert(Attributes IN)
@@ -62,7 +64,10 @@ Shader "Custom/GridBoundaryShader"
 			{
 				float4 sampled = SAMPLE_TEXTURE2D(_GridTex, sampler_GridTex, IN.uv);
 				if (_UseDirectColor > 0.5)
-					return float4(sampled.rgb, _OverlayAlpha);
+				{
+					float visibility = _HideZeroAlphaPixels > 0.5 && sampled.a <= 0.0 ? 0.0 : 1.0;
+					return float4(sampled.rgb, _OverlayAlpha * visibility);
+				}
 
 				float raw = sampled.r;
 				uint index = (uint)round(raw * 65535.0);

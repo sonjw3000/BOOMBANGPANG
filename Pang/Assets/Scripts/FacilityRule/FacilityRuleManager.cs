@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed partial class FacilityRuleManager : MonoBehaviour
+public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayProvider
 {
 	public const uint NoRulePresetId = 0;
 
@@ -11,6 +11,7 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 
 	private readonly Dictionary<uint, FacilityRulePreset> presetsById = new();
 	private readonly Dictionary<uint, List<IFacility>> facilitiesByPresetId = new();
+	private readonly Dictionary<GameObject, IFacility> facilitiesByObject = new();
 	private static readonly IReadOnlyList<IFacility> EmptyFacilities = Array.Empty<IFacility>();
 
 	public IReadOnlyList<FacilityRulePreset> Presets => presets;
@@ -20,6 +21,8 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 	public event Action<uint> OnPresetDeleted;
 	public event Action<IFacility, uint, uint> OnFacilityRulePresetApplied;
 	public event Action OnPresetsRebuilt;
+	public event Action OnGridOverlayRefreshRequested;
+	public bool HideZeroAlphaPixels => true;
 
 	private void Awake()
 	{
@@ -77,13 +80,17 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 			nextPresetId = 1;
 
 		OnPresetsRebuilt?.Invoke();
+		OnGridOverlayRefreshRequested?.Invoke();
 	}
 
 	public void RebuildAppliedFacilityLookup()
 	{
 		facilitiesByPresetId.Clear();
 		if (GameContext.HasInstance == false || GameContext.Instance.FacilityMgr == null)
+		{
+			OnGridOverlayRefreshRequested?.Invoke();
 			return;
+		}
 
 		IReadOnlyList<uint> buildingIds = GameContext.Instance.FacilityMgr.GetBuildingIds();
 		for (int i = 0; i < buildingIds.Count; ++i)
@@ -92,6 +99,8 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
 				AddFacilityToAppliedLookup(facilities[facilityIndex]);
 		}
+
+		OnGridOverlayRefreshRequested?.Invoke();
 	}
 
 	public FacilityRulePreset CreatePreset(string displayName, FacilityRule rule = null, Color? color = null)
@@ -106,6 +115,7 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 		presets.Add(preset);
 		presetsById[id] = preset;
 		OnPresetCreated?.Invoke(preset);
+		OnGridOverlayRefreshRequested?.Invoke();
 		return preset;
 	}
 
@@ -141,6 +151,7 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 
 		preset.SetColor(color);
 		OnPresetChanged?.Invoke(preset);
+		OnGridOverlayRefreshRequested?.Invoke();
 		return true;
 	}
 
@@ -168,6 +179,7 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 		}
 
 		OnPresetDeleted?.Invoke(presetId);
+		OnGridOverlayRefreshRequested?.Invoke();
 		return true;
 	}
 
@@ -189,7 +201,66 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 		facility.SetFacilityRulePresetId(presetId);
 		MoveFacilityAppliedLookup(facility, previousPresetId);
 		OnFacilityRulePresetApplied?.Invoke(facility, previousPresetId, presetId);
+		OnGridOverlayRefreshRequested?.Invoke();
 		return true;
+	}
+
+	public bool TryFillGridOverlay(Color32[] buffer, int floor)
+	{
+		if (GameContext.HasInstance == false || GameContext.Instance.GridService == null ||
+			GameContext.Instance.GridService.IsReady == false || GameContext.Instance.FacilityMgr == null)
+		{
+			return false;
+		}
+
+		GridService gridService = GameContext.Instance.GridService;
+		Unity.Mathematics.int3 size = gridService.MapSize;
+		if (buffer == null || buffer.Length < size.x * size.z || floor < 0 || floor >= size.y)
+			return false;
+
+		RebuildFacilityObjectLookup();
+
+		for (int z = 0; z < size.z; ++z)
+		{
+			for (int x = 0; x < size.x; ++x)
+			{
+				int index = z * size.x + x;
+				buffer[index] = default;
+
+				GridCell cell = gridService.GetCell(x, floor, z);
+				GameObject occupancyObject = cell?.OccupancyObjectOnGrid;
+				if (occupancyObject == null || facilitiesByObject.TryGetValue(occupancyObject, out IFacility facility) == false)
+					continue;
+
+				uint presetId = facility.FacilityRulePresetId;
+				if (presetId == NoRulePresetId || presetsById.TryGetValue(presetId, out FacilityRulePreset preset) == false)
+					continue;
+
+				Color32 color = preset.Color;
+				color.a = 1;
+				buffer[index] = color;
+			}
+		}
+
+		return true;
+	}
+
+	private void RebuildFacilityObjectLookup()
+	{
+		facilitiesByObject.Clear();
+		FacilityManager facilityManager = GameContext.Instance.FacilityMgr;
+		IReadOnlyList<uint> buildingIds = facilityManager.GetBuildingIds();
+
+		for (int i = 0; i < buildingIds.Count; ++i)
+		{
+			IReadOnlyList<IFacility> facilities = facilityManager.GetFacilities<IFacility>(buildingIds[i]);
+			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
+			{
+				IFacility facility = facilities[facilityIndex];
+				if (facility is Component component && component != null)
+					facilitiesByObject[component.gameObject] = facility;
+			}
+		}
 	}
 
 	public IReadOnlyList<IFacility> GetFacilitiesForPreset(uint presetId)
@@ -278,11 +349,13 @@ public sealed partial class FacilityRuleManager : MonoBehaviour
 	private void HandleFacilityRegistered(uint buildingId, IFacility facility)
 	{
 		AddFacilityToAppliedLookup(facility);
+		OnGridOverlayRefreshRequested?.Invoke();
 	}
 
 	private void HandleFacilityUnregistered(uint buildingId, IFacility facility)
 	{
 		RemoveFacilityFromAppliedLookup(facility);
+		OnGridOverlayRefreshRequested?.Invoke();
 	}
 
 	private void AddFacilityToAppliedLookup(IFacility facility)

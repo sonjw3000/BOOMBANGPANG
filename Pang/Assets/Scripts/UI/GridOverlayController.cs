@@ -6,6 +6,7 @@ public sealed class GridOverlayController : MonoBehaviour
 	private static readonly int GridTextureId = Shader.PropertyToID("_GridTex");
 	private static readonly int UseDirectColorId = Shader.PropertyToID("_UseDirectColor");
 	private static readonly int OverlayAlphaId = Shader.PropertyToID("_OverlayAlpha");
+	private static readonly int HideZeroAlphaPixelsId = Shader.PropertyToID("_HideZeroAlphaPixels");
 
 	[SerializeField, Range(0f, 1f)] private float overlayAlpha = 0.45f;
 	[SerializeField] private float overlayHeight = 0.03f;
@@ -17,15 +18,19 @@ public sealed class GridOverlayController : MonoBehaviour
 	private Material material;
 	private GameObject overlayQuad;
 	private bool isHolding;
+	private KeyCode activeKey = KeyCode.None;
 
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 
 	private void Update()
 	{
 		if (Input.GetKeyDown(KeyCode.Keypad1))
-			BeginHold();
+			BeginHold(KeyCode.Keypad1, GameContext.Instance.TemperatureSvc);
 
-		if (Input.GetKeyUp(KeyCode.Keypad1))
+		if (Input.GetKeyDown(KeyCode.Keypad2))
+			BeginHold(KeyCode.Keypad2, GameContext.Instance.FacilityRuleMgr);
+
+		if (isHolding && Input.GetKey(activeKey) == false)
 			EndHold();
 	}
 
@@ -46,12 +51,13 @@ public sealed class GridOverlayController : MonoBehaviour
 			Destroy(material);
 	}
 
-	private void BeginHold()
+	private void BeginHold(KeyCode key, IGridOverlayProvider nextProvider)
 	{
-		if (isHolding || GridService == null || GridService.IsReady == false)
+		if (GridService == null || GridService.IsReady == false || nextProvider == null)
 			return;
 
-		provider = GameContext.Instance.TemperatureSvc;
+		EndHold();
+		provider = nextProvider;
 		if (provider == null || EnsureRenderResources() == false)
 		{
 			provider = null;
@@ -59,6 +65,8 @@ public sealed class GridOverlayController : MonoBehaviour
 		}
 
 		provider.OnGridOverlayRefreshRequested += HandleProviderRefreshRequested;
+		material.SetFloat(HideZeroAlphaPixelsId, provider.HideZeroAlphaPixels ? 1f : 0f);
+		activeKey = key;
 		isHolding = true;
 		RefreshTexture();
 		overlayQuad.SetActive(true);
@@ -70,6 +78,7 @@ public sealed class GridOverlayController : MonoBehaviour
 			provider.OnGridOverlayRefreshRequested -= HandleProviderRefreshRequested;
 
 		provider = null;
+		activeKey = KeyCode.None;
 		isHolding = false;
 		if (overlayQuad != null)
 			overlayQuad.SetActive(false);

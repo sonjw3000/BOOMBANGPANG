@@ -33,6 +33,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	private bool rebuildMapOnNextTick = true;
 
 	public event System.Action OnGridOverlayRefreshRequested;
+	public bool HideZeroAlphaPixels => false;
 
 	public float AmbientTemperatureCelsius => ambientTemperatureCelsius;
 	public float DegreesPerTick => degreesPerTick;
