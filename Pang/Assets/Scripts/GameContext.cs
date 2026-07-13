@@ -60,6 +60,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private OrderDeliveryService orderDelivery;
 	[SerializeField] private WMSystem warehouseManagement;
 	[SerializeField] private ContractService contractService;
+	[SerializeField] private LicenseService licenseService;
 	[SerializeField] private PathFindingService pathFindingService;
 	[SerializeField] private ZoneManager zoneManager;
 	[SerializeField] private FacilityManager facilityManager;
@@ -146,6 +147,7 @@ public class GameContext : MonoBehaviour
 	public OrderDeliveryService OrderDelivery => orderDelivery;
 	public WMSystem WMSys => warehouseManagement;
 	public ContractService ContractMgr => contractService;
+	public LicenseService LicenseService => ResolveManager(ref licenseService, nameof(LicenseService));
 	public PathFindingService PathFinding => pathFindingService;
 	public TrafficCoordinator TrafficCoordinator => trafficCoordinator;
 	public VendorService VendorService => ResolveManager(ref vendorService, nameof(VendorService));
@@ -288,6 +290,7 @@ public class GameContext : MonoBehaviour
 		_ = DemoGoalService;
 		_ = PowerSvc;
 		_ = TemperatureSvc;
+		_ = LicenseService;
 	}
 
 	private PowerService ResolveOrCreatePowerService()

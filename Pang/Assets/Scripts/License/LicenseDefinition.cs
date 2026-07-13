@@ -31,4 +31,41 @@ public sealed class LicenseDefinition : ScriptableObject
 	public string LicenseId => licenseId;
 	public string DisplayName => displayName;
 	public IReadOnlyList<LicenseGradeDefinition> Grades => grades;
+
+	public bool HasGrade(LicenseGrade grade)
+	{
+		if (grade == LicenseGrade.None || grades == null)
+			return false;
+
+		return grades.Exists(gradeDefinition =>
+			gradeDefinition != null && gradeDefinition.Grade == grade);
+	}
+
+	private void OnValidate()
+	{
+		if (string.IsNullOrWhiteSpace(licenseId))
+			Debug.LogError($"[LicenseDefinition] LicenseId is empty on {name}.", this);
+
+		if (grades == null)
+			return;
+
+		HashSet<LicenseGrade> registeredGrades = new();
+		foreach (LicenseGradeDefinition gradeDefinition in grades)
+		{
+			if (gradeDefinition == null)
+			{
+				Debug.LogError($"[LicenseDefinition] Null grade definition found on {name}.", this);
+				continue;
+			}
+
+			if (gradeDefinition.Grade == LicenseGrade.None)
+			{
+				Debug.LogError($"[LicenseDefinition] None cannot be defined as a grade on {name}.", this);
+				continue;
+			}
+
+			if (registeredGrades.Add(gradeDefinition.Grade) == false)
+				Debug.LogError($"[LicenseDefinition] Duplicate grade {gradeDefinition.Grade} found on {name}.", this);
+		}
+	}
 }

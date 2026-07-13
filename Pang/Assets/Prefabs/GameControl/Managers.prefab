@@ -42,7 +42,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 52a08941e95041d4daf8ac8f79e1a46c, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::OrderDeliveryManager
 --- !u!1 &82313128406166632
 GameObject:
@@ -937,6 +937,7 @@ GameObject:
   - component: {fileID: 4930837203190484080}
   - component: {fileID: 6016985861769816228}
   - component: {fileID: 910556871236450999}
+  - component: {fileID: 7873461287562190481}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -1002,6 +1003,7 @@ MonoBehaviour:
   orderDelivery: {fileID: 8556695168460380719}
   warehouseManagement: {fileID: 4181363907245693410}
   contractService: {fileID: 1422058608903141302}
+  licenseService: {fileID: 7873461287562190481}
   pathFindingService: {fileID: 2045873797293161509}
   zoneManager: {fileID: 3365747867954475864}
   facilityManager: {fileID: 474663047469881703}
@@ -1024,6 +1026,20 @@ MonoBehaviour:
   metrics: {fileID: 2607858685587643834}
   floatingTextManager: {fileID: 9034432874096220707}
   hudEventManager: {fileID: 3719491221927169559}
+--- !u!114 &7873461287562190481
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2435145271861946170}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64bb1ed0ab2343c388f594bd3aa9857b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::LicenseService
+  catalogs:
+  - {fileID: 11400000, guid: 1eb969f98fa0487e83b42ac1c7caf890, type: 2}
 --- !u!114 &910556871236450999
 MonoBehaviour:
   m_ObjectHideFlags: 0

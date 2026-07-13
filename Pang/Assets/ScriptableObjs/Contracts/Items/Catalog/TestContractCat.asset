@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 542d0f0995213784086e5ac05e2e9a9e, type: 3}
   m_Name: TestContractCat
   m_EditorClassIdentifier: Assembly-CSharp::Contract.ContractCategory
+  requiredLicenses: []
   Contracts:
   - {fileID: 11400000, guid: a55da1f3be640a9458fb6f202992a451, type: 2}
   - {fileID: 11400000, guid: dea26c58694f6474db5ccd18194f7d9d, type: 2}
