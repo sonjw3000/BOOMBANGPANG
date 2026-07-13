@@ -10,6 +10,25 @@ public enum LicenseGrade
 	None = 3,
 }
 
+public static class LicenseGradeUtility
+{
+	public static bool MeetsRequirement(LicenseGrade acquiredGrade, LicenseGrade minimumGrade)
+	{
+		if (acquiredGrade == LicenseGrade.None || minimumGrade == LicenseGrade.None)
+			return false;
+
+		return acquiredGrade <= minimumGrade;
+	}
+
+	public static bool IsUpgrade(LicenseGrade acquiredGrade, LicenseGrade requestedGrade)
+	{
+		if (requestedGrade == LicenseGrade.None)
+			return false;
+
+		return acquiredGrade == LicenseGrade.None || requestedGrade < acquiredGrade;
+	}
+}
+
 [Serializable]
 public sealed class LicenseGradeDefinition
 {
@@ -39,6 +58,13 @@ public sealed class LicenseDefinition : ScriptableObject
 
 		return grades.Exists(gradeDefinition =>
 			gradeDefinition != null && gradeDefinition.Grade == grade);
+	}
+
+	public bool TryGetGradeDefinition(LicenseGrade grade, out LicenseGradeDefinition result)
+	{
+		result = grades?.Find(gradeDefinition =>
+			gradeDefinition != null && gradeDefinition.Grade == grade);
+		return result != null;
 	}
 
 	private void OnValidate()

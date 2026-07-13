@@ -385,6 +385,8 @@ public class GameContext : MonoBehaviour
 
 		// times for payments
 		gameTime.OnMonthPassed += economyService.ProcessMonthlyPayment;
+		if (LicenseService != null)
+			gameTime.OnMonthPassed += LicenseService.ReevaluateAcquiredLicenses;
 
 		gridService.OnPlaceableInstalled += economyService.OnPlacement;
 	}
@@ -404,6 +406,8 @@ public class GameContext : MonoBehaviour
 			gameTime.OnWeekPassed -= VendorService.OnWeekPass;
 
 		gameTime.OnMonthPassed -= economyService.ProcessMonthlyPayment;
+		if (LicenseService != null)
+			gameTime.OnMonthPassed -= LicenseService.ReevaluateAcquiredLicenses;
 
 		gridService.OnPlaceableInstalled -= economyService.OnPlacement;
 	}

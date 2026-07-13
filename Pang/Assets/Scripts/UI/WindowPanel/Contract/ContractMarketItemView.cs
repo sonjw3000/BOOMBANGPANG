@@ -110,7 +110,7 @@ namespace Assets.Scripts.UI
 
 			ContractType type = GetSelectedType();
 			int duration = GetSelectedDuration();
-			GameContext.Instance.ContractMgr.AddContract(definitionIndex, duration, type);
+			GameContext.Instance.ContractMgr.TryAddContract(definition, duration, type);
 		}
 
 		private void SignVendor()

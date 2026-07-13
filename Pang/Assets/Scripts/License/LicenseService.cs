@@ -2,13 +2,42 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class LicenseService : MonoBehaviour
+public enum LicenseComplianceState
+{
+	Compliant = 0,
+	NonCompliant = 1,
+}
+
+public sealed class AcquiredLicenseState
+{
+	public LicenseDefinition Definition { get; }
+	public LicenseGrade Grade { get; internal set; }
+	public LicenseComplianceState ComplianceState { get; internal set; }
+	public bool IsCompliant => ComplianceState == LicenseComplianceState.Compliant;
+
+	internal AcquiredLicenseState(
+		LicenseDefinition definition,
+		LicenseGrade grade,
+		LicenseComplianceState complianceState)
+	{
+		Definition = definition;
+		Grade = grade;
+		ComplianceState = complianceState;
+	}
+}
+
+public sealed partial class LicenseService : MonoBehaviour
 {
 	[SerializeField] private List<LicenseCatalog> catalogs = new();
 
 	private readonly List<LicenseDefinition> definitions = new();
 	private readonly Dictionary<string, LicenseDefinition> definitionsById = new(StringComparer.Ordinal);
+	private readonly List<AcquiredLicenseState> acquiredLicenses = new();
+	private readonly Dictionary<string, AcquiredLicenseState> acquiredLicensesById = new(StringComparer.Ordinal);
+	private readonly List<AcquiredLicenseState> nonCompliantLicenses = new();
 	private bool definitionsLoaded;
+
+	public event Action OnLicensesChanged;
 
 	public IReadOnlyList<LicenseDefinition> Definitions
 	{
@@ -18,6 +47,8 @@ public sealed class LicenseService : MonoBehaviour
 			return definitions;
 		}
 	}
+	public IReadOnlyList<AcquiredLicenseState> AcquiredLicenses => acquiredLicenses;
+	public IReadOnlyList<AcquiredLicenseState> NonCompliantLicenses => nonCompliantLicenses;
 
 	private void Awake()
 	{
@@ -49,6 +80,104 @@ public sealed class LicenseService : MonoBehaviour
 
 		return TryGetDefinition(definition.LicenseId, out LicenseDefinition registeredDefinition) &&
 			registeredDefinition == definition;
+	}
+
+	public LicenseEvaluationResult Evaluate(LicenseDefinition definition, LicenseGrade grade)
+	{
+		return LicenseConditionEvaluator.Evaluate(definition, grade, CompanyStateSnapshot.Capture());
+	}
+
+	public bool TryAcquireLicense(
+		LicenseDefinition definition,
+		LicenseGrade grade,
+		out LicenseEvaluationResult evaluation)
+	{
+		evaluation = null;
+		if (ContainsDefinition(definition) == false || definition.HasGrade(grade) == false)
+			return false;
+
+		LicenseGrade currentGrade = TryGetAcquiredState(definition.LicenseId, out AcquiredLicenseState current)
+			? current.Grade
+			: LicenseGrade.None;
+		if (LicenseGradeUtility.IsUpgrade(currentGrade, grade) == false)
+			return false;
+
+		evaluation = Evaluate(definition, grade);
+		if (evaluation.IsSatisfied == false)
+			return false;
+
+		SetAcquiredState(definition, grade, LicenseComplianceState.Compliant);
+		OnLicensesChanged?.Invoke();
+		return true;
+	}
+
+	public bool TryReturnLicense(string licenseId)
+	{
+		if (TryGetAcquiredState(licenseId, out AcquiredLicenseState state) == false)
+			return false;
+
+		acquiredLicensesById.Remove(licenseId);
+		acquiredLicenses.Remove(state);
+		nonCompliantLicenses.Remove(state);
+		OnLicensesChanged?.Invoke();
+		return true;
+	}
+
+	public bool TryGetAcquiredState(string licenseId, out AcquiredLicenseState state)
+	{
+		if (string.IsNullOrWhiteSpace(licenseId))
+		{
+			state = null;
+			return false;
+		}
+
+		return acquiredLicensesById.TryGetValue(licenseId, out state);
+	}
+
+	public bool TryGetAcquiredGrade(string licenseId, out LicenseGrade grade)
+	{
+		if (TryGetAcquiredState(licenseId, out AcquiredLicenseState state))
+		{
+			grade = state.Grade;
+			return true;
+		}
+
+		grade = LicenseGrade.None;
+		return false;
+	}
+
+	public bool MeetsRequirement(string licenseId, LicenseGrade minimumGrade)
+	{
+		return TryGetAcquiredGrade(licenseId, out LicenseGrade acquiredGrade) &&
+			LicenseGradeUtility.MeetsRequirement(acquiredGrade, minimumGrade);
+	}
+
+	public void ReevaluateAcquiredLicenses()
+	{
+		if (acquiredLicenses.Count == 0)
+			return;
+
+		CompanyStateSnapshot snapshot = CompanyStateSnapshot.Capture();
+		bool changed = false;
+		foreach (AcquiredLicenseState state in acquiredLicenses)
+		{
+			LicenseEvaluationResult evaluation = LicenseConditionEvaluator.Evaluate(
+				state.Definition,
+				state.Grade,
+				snapshot);
+			LicenseComplianceState nextState = evaluation.IsSatisfied
+				? LicenseComplianceState.Compliant
+				: LicenseComplianceState.NonCompliant;
+			if (state.ComplianceState == nextState)
+				continue;
+
+			state.ComplianceState = nextState;
+			UpdateNonCompliantRegistration(state);
+			changed = true;
+		}
+
+		if (changed)
+			OnLicensesChanged?.Invoke();
 	}
 
 	private void EnsureDefinitionsLoaded()
@@ -131,5 +260,38 @@ public sealed class LicenseService : MonoBehaviour
 				registeredDefinitions.Add(definition.LicenseId, definition);
 			}
 		}
+	}
+
+	private void SetAcquiredState(
+		LicenseDefinition definition,
+		LicenseGrade grade,
+		LicenseComplianceState complianceState)
+	{
+		if (acquiredLicensesById.TryGetValue(definition.LicenseId, out AcquiredLicenseState state))
+		{
+			state.Grade = grade;
+			state.ComplianceState = complianceState;
+			UpdateNonCompliantRegistration(state);
+			return;
+		}
+
+		state = new AcquiredLicenseState(definition, grade, complianceState);
+		acquiredLicensesById.Add(definition.LicenseId, state);
+		acquiredLicenses.Add(state);
+		acquiredLicenses.Sort((left, right) =>
+			StringComparer.Ordinal.Compare(left.Definition.LicenseId, right.Definition.LicenseId));
+		UpdateNonCompliantRegistration(state);
+	}
+
+	private void UpdateNonCompliantRegistration(AcquiredLicenseState state)
+	{
+		if (state.ComplianceState == LicenseComplianceState.NonCompliant)
+		{
+			if (nonCompliantLicenses.Contains(state) == false)
+				nonCompliantLicenses.Add(state);
+			return;
+		}
+
+		nonCompliantLicenses.Remove(state);
 	}
 }

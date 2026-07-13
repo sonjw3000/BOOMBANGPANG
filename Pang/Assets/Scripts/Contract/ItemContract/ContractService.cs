@@ -23,6 +23,7 @@ public partial class ContractService : MonoBehaviour
 			return definitions;
 		}
 	}
+	public IReadOnlyList<ContractCatalog> ContractCatalogs => contractCatalogs ?? Array.Empty<ContractCatalog>();
 	public IReadOnlyList<ContractRuntime> ActiveContracts => currentActiveContracts;
 	// rocket item queue
 	private readonly Queue<ItemStack> itemsToBeDelivered = new();
@@ -65,7 +66,65 @@ public partial class ContractService : MonoBehaviour
 	public void AddContract(int index, int duration, ContractType type = ContractType.Standard)
 	{
 		EnsureDefinitionsLoaded();
-		currentActiveContracts.Add(new ContractRuntime(definitions[index], duration, type));
+		if (index < 0 || index >= definitions.Count)
+			return;
+
+		TryAddContract(definitions[index], duration, type);
+	}
+
+	public bool TryAddContract(ContractDefinition definition, int duration, ContractType type = ContractType.Standard)
+	{
+		if (definition == null || duration <= 0 || TryGetCatalog(definition, out ContractCatalog catalog) == false)
+			return false;
+
+		if (IsCatalogUnlocked(catalog) == false)
+			return false;
+
+		currentActiveContracts.Add(new ContractRuntime(definition, duration, type));
+		return true;
+	}
+
+	public bool IsCatalogUnlocked(ContractCatalog catalog)
+	{
+		if (catalog == null)
+			return false;
+
+		IReadOnlyList<ContractLicenseRequirement> requirements = catalog.RequiredLicenses;
+		if (requirements == null || requirements.Count == 0)
+			return true;
+
+		LicenseService licenseService = GameContext.HasInstance ? GameContext.Instance.LicenseService : null;
+		if (licenseService == null)
+			return false;
+
+		foreach (ContractLicenseRequirement requirement in requirements)
+		{
+			if (requirement?.License == null ||
+				licenseService.MeetsRequirement(requirement.LicenseId, requirement.MinimumGrade) == false)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	public bool TryGetCatalog(ContractDefinition definition, out ContractCatalog result)
+	{
+		result = null;
+		if (definition == null || contractCatalogs == null)
+			return false;
+
+		foreach (ContractCatalog catalog in contractCatalogs)
+		{
+			if (catalog?.Contracts == null || Array.IndexOf(catalog.Contracts, definition) < 0)
+				continue;
+
+			result = catalog;
+			return true;
+		}
+
+		return false;
 	}
 
 	public bool TryExtendExpiredContract(ContractRuntime contract, int durationMonths)

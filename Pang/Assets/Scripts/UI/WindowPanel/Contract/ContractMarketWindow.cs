@@ -1,44 +1,61 @@
+using Assets.Scripts.Contract.ItemContract;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Linq;
-using Assets.Scripts.Contract.ItemContract;
 
 namespace Assets.Scripts.UI
 {
-	public class ContractMarketWindow : MonoBehaviour
+	public sealed class ContractMarketWindow : MonoBehaviour
 	{
-		private const float MinimumWindowWidth = 600f;
-		private const float MinimumDetailWidth = 320f;
-
 		[SerializeField] private UIWindow window;
-		
-		[Header("Left List")]
-		[SerializeField] private ContractMarketListButton listButtonPrefab;
-		[SerializeField] private Transform listRoot;
 
-		[Header("Right Detail")]
-		[SerializeField] private ContractMarketItemView detailView;
+		[Header("Catalog List")]
+		[SerializeField] private Transform categoryListRoot;
+		[SerializeField] private GameObject categoryItemPrefab;
+
+		[Header("Item List")]
+		[SerializeField] private Transform itemListRoot;
+		[SerializeField] private ContractMarketItemView itemPrefab;
 
 		[Header("Window MetaData")]
 		[SerializeField] private string title = "Contract Market";
 		[SerializeField] private Sprite icon;
 
-		private ContractService contractService => GameContext.Instance.ContractMgr;
-		private VendorService vendorService => GameContext.Instance.VendorService;
-		private GameObjectPool itemPool;
-		private bool initialized;
 		private MarketMode currentMode = MarketMode.Item;
 		private VendorType currentVendorType;
+		private ContractCatalog selectedCatalog;
+
+		private ContractService ContractService => GameContext.HasInstance ? GameContext.Instance.ContractMgr : null;
+		private VendorService VendorService => GameContext.HasInstance ? GameContext.Instance.VendorService : null;
+		private LicenseService LicenseService => GameContext.HasInstance ? GameContext.Instance.LicenseService : null;
 
 		private enum MarketMode
 		{
 			Item,
-			Vendor
+			Vendor,
 		}
 
 		private void Awake()
 		{
-			EnsureInitialized();
+			window ??= GetComponentInChildren<UIWindow>(true);
+			if (window != null)
+			{
+				window.SetTitle(title);
+				window.SetIcon(icon);
+				window.Close();
+			}
+		}
+
+		private void OnEnable()
+		{
+			if (LicenseService != null)
+				LicenseService.OnLicensesChanged += HandleLicensesChanged;
+		}
+
+		private void OnDisable()
+		{
+			if (GameContext.HasInstance && GameContext.Instance.LicenseService != null)
+				GameContext.Instance.LicenseService.OnLicensesChanged -= HandleLicensesChanged;
 		}
 
 		public void Open()
@@ -61,178 +78,196 @@ namespace Assets.Scripts.UI
 			OpenCurrentMode();
 		}
 
-		private void OpenCurrentMode()
-		{
-			gameObject.SetActive(true);
-			EnsureInitialized();
-			if (window == null)
-				return;
-
-			if (listRoot == null)
-				listRoot = FindListRoot();
-
-			window.SetTitle(title);
-			EnsureLayout();
-			window.Open();
-			RefreshList();
-		}
-
 		public void Close()
 		{
-			EnsureInitialized();
-			if (window == null)
-				return;
-
-			window.Close();
+			window?.Close();
 			gameObject.SetActive(false);
 		}
 
-		private void RefreshList()
+		private void OpenCurrentMode()
 		{
-			EnsureInitialized();
-			if (currentMode == MarketMode.Item && contractService == null) return;
-			if (currentMode == MarketMode.Vendor && vendorService == null) return;
+			gameObject.SetActive(true);
+			window ??= GetComponentInChildren<UIWindow>(true);
+			window?.SetTitle(title);
+			window?.Open();
+			RefreshMarket();
+		}
 
-			if (listRoot == null)
-				listRoot = FindListRoot();
+		private void RefreshMarket()
+		{
+			ClearChildren(categoryListRoot);
+			ClearChildren(itemListRoot);
 
-			if (itemPool == null)
-			{
-				if (listButtonPrefab != null && listRoot != null)
-				{
-					itemPool = new GameObjectPool(10, () => Instantiate(listButtonPrefab.gameObject, listRoot));
-				}
-				else
-				{
-					return;
-				}
-			}
-
-			itemPool.ReleaseAll();
 			if (currentMode == MarketMode.Vendor)
 			{
-				RefreshVendorList();
+				RefreshVendorMarket();
 				return;
 			}
 
-			var definitions = contractService.ContractDefinitions;
-
-			for (int i = 0; i < definitions.Count; i++)
-			{
-				var item = itemPool.Get().GetComponent<ContractMarketListButton>();
-				item.Setup(i, definitions[i], OnContractSelected);
-			}
-
-			if (definitions.Count > 0)
-			{
-				OnContractSelected(0, definitions[0]);
-			}
-			else if (detailView != null)
-			{
-				detailView.gameObject.SetActive(false);
-			}
+			RefreshContractCatalogs();
 		}
 
-		private void RefreshVendorList()
+		private void RefreshContractCatalogs()
 		{
-			var vendors = vendorService.GetCatalog(currentVendorType);
-
-			for (int i = 0; i < vendors.Count; i++)
-			{
-				var item = itemPool.Get().GetComponent<ContractMarketListButton>();
-				item.Setup(i, vendors[i], OnVendorSelected);
-			}
-
-			if (vendors.Count > 0)
-			{
-				OnVendorSelected(0, vendors[0]);
-			}
-			else if (detailView != null)
-			{
-				detailView.gameObject.SetActive(false);
-			}
-		}
-
-		private void OnContractSelected(int index, ContractDefinition def)
-		{
-			if (detailView != null)
-			{
-				detailView.gameObject.SetActive(true);
-				detailView.Setup(index, def);
-			}
-		}
-
-		private void OnVendorSelected(int index, Vendor vendor)
-		{
-			if (detailView != null)
-			{
-				detailView.gameObject.SetActive(true);
-				detailView.Setup(index, vendor);
-			}
-		}
-
-		private void EnsureInitialized()
-		{
-			window ??= GetComponentInChildren<UIWindow>(true);
-			detailView ??= GetComponentInChildren<ContractMarketItemView>(true);
-			if (listRoot == null)
-				listRoot = FindListRoot();
-
-			EnsureLayout();
-
-			if (initialized == false && window != null)
-			{
-				window.SetTitle(title);
-				window.SetIcon(icon);
-				window.Close();
-				initialized = true;
-			}
-
-			if (itemPool == null && listButtonPrefab != null && listRoot != null)
-			{
-				itemPool = new GameObjectPool(10, () => Instantiate(listButtonPrefab.gameObject, listRoot));
-			}
-		}
-
-		private Transform FindListRoot()
-		{
-			Transform exactPath = transform.Find("WindowBase/ContentRoot/LeftPanel/ListRoot");
-			if (exactPath != null)
-				return exactPath;
-
-			return GetComponentsInChildren<Transform>(true)
-				.FirstOrDefault(child => child.name == "ListRoot" && child.parent != null && child.parent.name == "LeftPanel");
-		}
-
-		private void EnsureLayout()
-		{
-			RectTransform windowRect = GetComponent<RectTransform>();
-			if (windowRect != null && windowRect.sizeDelta.x < MinimumWindowWidth)
-			{
-				windowRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, MinimumWindowWidth);
-			}
-
-			if (detailView == null)
+			ContractService service = ContractService;
+			if (service == null)
 				return;
 
-			LayoutElement detailLayout = detailView.GetComponent<LayoutElement>();
-			if (detailLayout != null)
+			foreach (ContractCatalog catalog in service.ContractCatalogs)
 			{
-				if (detailLayout.minWidth < MinimumDetailWidth)
-					detailLayout.minWidth = MinimumDetailWidth;
+				if (catalog == null)
+					continue;
 
-				if (detailLayout.preferredWidth < MinimumDetailWidth)
-					detailLayout.preferredWidth = MinimumDetailWidth;
-
-				if (detailLayout.flexibleWidth < 1f)
-					detailLayout.flexibleWidth = 1f;
+				bool unlocked = service.IsCatalogUnlocked(catalog);
+				string label = unlocked ? catalog.DisplayName : $"{catalog.DisplayName} [LOCKED]";
+				CreateCategoryButton(label, () => SelectCatalog(catalog));
 			}
 
-			RectTransform detailRect = detailView.GetComponent<RectTransform>();
-			if (detailRect != null && detailRect.sizeDelta.x < MinimumDetailWidth)
+			if (selectedCatalog == null || ContainsCatalog(service, selectedCatalog) == false)
 			{
-				detailRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, MinimumDetailWidth);
+				foreach (ContractCatalog catalog in service.ContractCatalogs)
+				{
+					if (catalog == null)
+						continue;
+
+					selectedCatalog = catalog;
+					break;
+				}
 			}
+
+			DisplayCatalog(selectedCatalog);
+		}
+
+		private void SelectCatalog(ContractCatalog catalog)
+		{
+			selectedCatalog = catalog;
+			DisplayCatalog(catalog);
+		}
+
+		private void DisplayCatalog(ContractCatalog catalog)
+		{
+			ClearChildren(itemListRoot);
+			ContractService service = ContractService;
+			if (catalog == null || service == null)
+				return;
+
+			if (service.IsCatalogUnlocked(catalog) == false)
+			{
+				CreateInformationRow($"{catalog.DisplayName} is locked.", true);
+				foreach (ContractLicenseRequirement requirement in catalog.RequiredLicenses)
+				{
+					if (requirement?.License == null)
+						continue;
+
+					string currentGrade = LicenseService != null &&
+						LicenseService.TryGetAcquiredGrade(requirement.LicenseId, out LicenseGrade grade)
+						? grade.ToString()
+						: "None";
+					CreateInformationRow(
+						$"Requires {requirement.License.DisplayName} Grade {requirement.MinimumGrade} / Current {currentGrade}",
+						true);
+				}
+				return;
+			}
+
+			if (catalog.Contracts == null || itemPrefab == null || itemListRoot == null)
+				return;
+
+			for (int i = 0; i < catalog.Contracts.Length; ++i)
+			{
+				ContractDefinition definition = catalog.Contracts[i];
+				if (definition == null)
+					continue;
+
+				ContractMarketItemView item = Instantiate(itemPrefab, itemListRoot);
+				item.Setup(i, definition);
+			}
+		}
+
+		private void RefreshVendorMarket()
+		{
+			VendorService service = VendorService;
+			if (service == null)
+				return;
+
+			CreateCategoryButton($"{currentVendorType} Vendors", RefreshVendorItems);
+			RefreshVendorItems();
+		}
+
+		private void RefreshVendorItems()
+		{
+			ClearChildren(itemListRoot);
+			if (VendorService == null || itemPrefab == null || itemListRoot == null)
+				return;
+
+			var vendors = VendorService.GetCatalog(currentVendorType);
+			for (int i = 0; i < vendors.Count; ++i)
+			{
+				ContractMarketItemView item = Instantiate(itemPrefab, itemListRoot);
+				item.Setup(i, vendors[i]);
+			}
+		}
+
+		private void CreateCategoryButton(string label, UnityEngine.Events.UnityAction onClick)
+		{
+			if (categoryListRoot == null || categoryItemPrefab == null)
+				return;
+
+			GameObject item = Instantiate(categoryItemPrefab, categoryListRoot);
+			TMP_Text text = item.GetComponentInChildren<TMP_Text>(true);
+			if (text != null)
+				text.text = label;
+
+			Button button = item.GetComponent<Button>();
+			if (button == null)
+				return;
+
+			button.onClick.RemoveAllListeners();
+			button.onClick.AddListener(onClick);
+		}
+
+		private void CreateInformationRow(string label, bool warning)
+		{
+			if (itemListRoot == null || categoryItemPrefab == null)
+				return;
+
+			GameObject item = Instantiate(categoryItemPrefab, itemListRoot);
+			TMP_Text text = item.GetComponentInChildren<TMP_Text>(true);
+			if (text != null)
+			{
+				text.text = label;
+				text.color = warning ? new Color(1.0f, 0.45f, 0.25f) : Color.white;
+			}
+
+			Button button = item.GetComponent<Button>();
+			if (button != null)
+				button.interactable = false;
+		}
+
+		private void HandleLicensesChanged()
+		{
+			if (isActiveAndEnabled && currentMode == MarketMode.Item)
+				RefreshMarket();
+		}
+
+		private static bool ContainsCatalog(ContractService service, ContractCatalog target)
+		{
+			foreach (ContractCatalog catalog in service.ContractCatalogs)
+			{
+				if (catalog == target)
+					return true;
+			}
+
+			return false;
+		}
+
+		private static void ClearChildren(Transform root)
+		{
+			if (root == null)
+				return;
+
+			foreach (Transform child in root)
+				Destroy(child.gameObject);
 		}
 	}
 }

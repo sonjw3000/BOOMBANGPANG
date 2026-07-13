@@ -18,6 +18,9 @@ namespace Assets.Scripts.Contract.ItemContract
 	[CreateAssetMenu(menuName = "Contract/Contract Catalog")]
 	public class ContractCatalog : ScriptableObject
 	{
+		[Header("Catalog Info")]
+		[SerializeField] private string displayName = string.Empty;
+
 		[Header("License Requirements")]
 		[Tooltip("Empty means every contract in this catalog is available without a license.")]
 		[SerializeField] private ContractLicenseRequirement[] requiredLicenses = Array.Empty<ContractLicenseRequirement>();
@@ -25,6 +28,7 @@ namespace Assets.Scripts.Contract.ItemContract
 		[Header("Contracts")]
 		public ContractDefinition[] Contracts;
 
+		public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
 		public IReadOnlyList<ContractLicenseRequirement> RequiredLicenses =>
 			requiredLicenses ?? Array.Empty<ContractLicenseRequirement>();
 		public bool RequiresLicense => requiredLicenses != null && requiredLicenses.Length > 0;

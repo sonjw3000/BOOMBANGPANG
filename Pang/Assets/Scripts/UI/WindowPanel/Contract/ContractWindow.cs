@@ -12,8 +12,9 @@ namespace Assets.Scripts.UI
 		[SerializeField] private ContractItemView itemPrefab;
 		[SerializeField] private Transform listRoot;
 		[SerializeField] private UnityEngine.UI.Button openMarketButton;
-		[SerializeField] private UnityEngine.UI.Button historyButton; // Placeholder for now
+		[SerializeField] private UnityEngine.UI.Button historyButton;
 		[SerializeField] private ContractMarketWindow marketWindow;
+		[SerializeField] private LicenseWindow licenseWindow;
 
 		[Header("Window MetaData")]
 		[SerializeField] private string title = "Contract Management";
@@ -64,6 +65,16 @@ namespace Assets.Scripts.UI
 				openMarketButton.onClick.AddListener(OpenMarket);
 			}
 
+			licenseWindow ??= FindFirstObjectByType<LicenseWindow>(FindObjectsInactive.Include);
+			if (historyButton != null)
+			{
+				historyButton.onClick.RemoveListener(OpenLicenseWindow);
+				historyButton.onClick.AddListener(OpenLicenseWindow);
+				TMP_Text licenseButtonText = historyButton.GetComponentInChildren<TMP_Text>(true);
+				if (licenseButtonText != null)
+					licenseButtonText.text = "Licenses";
+			}
+
 			BuildTabs();
 			SelectTab(0);
 			gameObject.SetActive(false);
@@ -71,6 +82,7 @@ namespace Assets.Scripts.UI
 
 		private void OpenMarket()
 		{
+			marketWindow ??= FindFirstObjectByType<ContractMarketWindow>(FindObjectsInactive.Include);
 			if (marketWindow == null)
 				return;
 
@@ -78,6 +90,21 @@ namespace Assets.Scripts.UI
 				marketWindow.OpenItem();
 			else
 				marketWindow.OpenVendor(currentTab.VendorType);
+		}
+
+		private void OpenLicenseWindow()
+		{
+			licenseWindow ??= FindFirstObjectByType<LicenseWindow>(FindObjectsInactive.Include);
+			licenseWindow?.Open();
+		}
+
+		private void OnDestroy()
+		{
+			if (openMarketButton != null)
+				openMarketButton.onClick.RemoveListener(OpenMarket);
+
+			if (historyButton != null)
+				historyButton.onClick.RemoveListener(OpenLicenseWindow);
 		}
 
 		private void OnEnable()

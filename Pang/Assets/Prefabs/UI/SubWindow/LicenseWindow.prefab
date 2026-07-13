@@ -312,7 +312,7 @@ GameObject:
   - component: {fileID: 5987482305494110627}
   - component: {fileID: 2472277635178639764}
   m_Layer: 0
-  m_Name: ContractMarketWindow
+  m_Name: LicenseWindow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -336,7 +336,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 850, y: 600}
+  m_SizeDelta: {x: 700, y: 500}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2472277635178639764
 MonoBehaviour:
@@ -347,15 +347,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 6547876402607870678}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 81dcd4c2ac0e62a4ab9219635854902d, type: 3}
+  m_Script: {fileID: 11500000, guid: ac45f18255dd4fb6aac67c191493dd6e, type: 3}
   m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.UI.ContractMarketWindow
+  m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.UI.LicenseWindow
   window: {fileID: 1840033130058677978}
-  categoryListRoot: {fileID: 4496559353054607718}
-  categoryItemPrefab: {fileID: 4722794910495463552, guid: 6e98510b7adc67f4f9297017e4b98cc6, type: 3}
-  itemListRoot: {fileID: 8830218611398539160}
-  itemPrefab: {fileID: 6215056447813735960, guid: 4f320fe7e38fae64db99266577f7787e, type: 3}
-  title: Contract Market
+  licenseListRoot: {fileID: 4496559353054607718}
+  detailListRoot: {fileID: 8830218611398539160}
+  listItemPrefab: {fileID: 4722794910495463552, guid: 6e98510b7adc67f4f9297017e4b98cc6, type: 3}
+  title: License Management
   icon: {fileID: 0}
 --- !u!1 &8836559798215587866
 GameObject:

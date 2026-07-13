@@ -49,7 +49,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 3;
+	public int Version = 4;
 	public string SavedAtUtc;
 
 	public PolicyStateSaveData Policy = new();
@@ -62,6 +62,7 @@ public sealed class GameSaveData
 	public FacilityRuleManagerSaveData FacilityRules = new();
 	public GridMapSaveData Grid = new();
 	public ContractServiceSaveData Contracts = new();
+	public LicenseServiceSaveData Licenses = new();
 	public VendorServiceSaveData Vendors = new();
 	public OrderManagerSaveData Orders = new();
 	public OutboundPickingManifestSaveData OutboundPickingManifests = new();
@@ -276,6 +277,20 @@ public sealed class GridMapSaveData
 public sealed class ContractServiceSaveData
 {
 	public List<ContractRuntimeSaveData> ActiveContracts = new();
+}
+
+[Serializable]
+public sealed class LicenseServiceSaveData
+{
+	public List<LicenseRuntimeSaveData> AcquiredLicenses = new();
+}
+
+[Serializable]
+public sealed class LicenseRuntimeSaveData
+{
+	public string LicenseId;
+	public LicenseGrade Grade = LicenseGrade.None;
+	public LicenseComplianceState ComplianceState = LicenseComplianceState.Compliant;
 }
 
 [Serializable]
