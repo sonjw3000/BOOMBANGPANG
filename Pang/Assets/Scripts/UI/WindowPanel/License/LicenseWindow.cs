@@ -133,15 +133,30 @@ namespace Assets.Scripts.UI
 				if (group.Conditions.Count == 0)
 				{
 					string buildingLabel = group.IsSatisfied
-						? $"  ✓ Active building #{group.BuildingId}"
-						: "  ✗ Active building required";
+						? $"  [OK] Active building #{group.BuildingId}"
+						: "  [X] Active building required";
 					CreateRow(detailListRoot, buildingLabel, false, null, group.IsSatisfied == false);
+
+					if (group.IsSatisfied == false && group.Group?.Conditions != null)
+					{
+						foreach (LicenseCondition requiredCondition in group.Group.Conditions)
+						{
+							if (requiredCondition == null)
+								continue;
+
+							string comparison = FormatComparison(requiredCondition.Comparison);
+							string label = $"  [X] {requiredCondition.Metric} {comparison} " +
+								$"{requiredCondition.TargetValue:0.##} (Current unavailable)";
+							CreateRow(detailListRoot, label, false, null, true);
+						}
+					}
+
 					continue;
 				}
 
 				foreach (LicenseConditionEvaluation condition in group.Conditions)
 				{
-					string marker = condition.IsSatisfied ? "✓" : "✗";
+					string marker = condition.IsSatisfied ? "[OK]" : "[X]";
 					string comparison = FormatComparison(condition.Condition.Comparison);
 					string label = $"  {marker} {condition.Condition.Metric} {comparison} {condition.Condition.TargetValue:0.##} " +
 						$"(Current {condition.ObservedValue:0.##}, Building #{group.BuildingId})";
@@ -201,7 +216,7 @@ namespace Assets.Scripts.UI
 			if (service.TryGetAcquiredState(definition.LicenseId, out AcquiredLicenseState state) == false)
 				return definition.DisplayName;
 
-			string warning = state.IsCompliant ? string.Empty : " ⚠";
+			string warning = state.IsCompliant ? string.Empty : " [!]";
 			return $"{definition.DisplayName} [{state.Grade}]{warning}";
 		}
 
