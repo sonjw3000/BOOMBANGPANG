@@ -101,6 +101,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private bool identityInitialized;
 	[SerializeField] private WorkerAbility abilities;
 	[SerializeField] private int monthlyCost;
+	[SerializeField] private int hiredAtElapsedWeek = -1;
+	[SerializeField] private int itemDamageIncidentCount;
 
 	// base stat
 	[SerializeField] private float baseMoveSpeedMultiplier = 1.0f;
@@ -198,6 +200,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	}
 	public WorkerAbility Ability => abilities;
 	public int MonthlyCost => monthlyCost;
+	public int HiredAtElapsedWeek => Mathf.Max(0, hiredAtElapsedWeek);
+	public int ItemDamageIncidentCount => itemDamageIncidentCount;
 
 	// stat
 	public float BaseMoveSpeedMultiplier => baseMoveSpeedMultiplier;
@@ -393,6 +397,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	private void Start()
 	{
+		EnsureEmploymentInitialized();
 		InitializeForSaveLoad();
 		if (currentTask == null)
 		{
@@ -402,6 +407,39 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		{
 			WorkerMgr.RemoveIdleWorker(this);
 		}
+	}
+
+	public void MarkHired(int elapsedWeek)
+	{
+		hiredAtElapsedWeek = Mathf.Max(0, elapsedWeek);
+		itemDamageIncidentCount = 0;
+	}
+
+	public void ReportItemDamageIncident()
+	{
+		if (itemDamageIncidentCount < int.MaxValue)
+			++itemDamageIncidentCount;
+	}
+
+	public int GetEmploymentWeekCount(int currentElapsedWeek)
+	{
+		return Mathf.Max(1, currentElapsedWeek - HiredAtElapsedWeek + 1);
+	}
+
+	public float GetAverageItemDamageIncidentsPerWeek(int currentElapsedWeek)
+	{
+		return itemDamageIncidentCount / (float)GetEmploymentWeekCount(currentElapsedWeek);
+	}
+
+	private void EnsureEmploymentInitialized()
+	{
+		if (hiredAtElapsedWeek >= 0)
+			return;
+
+		int currentWeek = GameContext.HasInstance && GameContext.Instance.GameTime != null
+			? GameContext.Instance.GameTime.WeeksPassed
+			: 0;
+		hiredAtElapsedWeek = Mathf.Max(0, currentWeek);
 	}
 
 	private void OnDestroy()

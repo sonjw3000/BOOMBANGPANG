@@ -193,6 +193,11 @@ public class WorkerSpawnManager : MonoBehaviour
 			return false;
 		}
 
+		int currentWeek = GameContext.Instance.GameTime != null
+			? GameContext.Instance.GameTime.WeeksPassed
+			: 0;
+		spawnedWorker.MarkHired(currentWeek);
+
 		return true;
 	}
 }

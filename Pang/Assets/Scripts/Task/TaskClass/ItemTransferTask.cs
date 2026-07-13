@@ -386,7 +386,8 @@ public sealed class ItemTransferTask : WorkerTask
 			line.Container,
 			line.ItemID,
 			remainingQuantity,
-			stackPredicate: stack => line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value)));
+			stackPredicate: stack => line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value),
+			handlingWorker: worker));
 	}
 
 	private static ItemTransferResult MoveCollectBox(AIWorker worker, WorkLine line)

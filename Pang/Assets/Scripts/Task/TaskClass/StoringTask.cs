@@ -247,7 +247,12 @@ public partial class StoringTask : WorkerTask
 		}
 		
 		int remainingQuantity = line.Quantity - line.CompleteQuantity;
-		ItemTransferResult result = ItemTransferUtility.MoveItem(new(box, line.Container, line.ItemID, remainingQuantity));
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(
+			box,
+			line.Container,
+			line.ItemID,
+			remainingQuantity,
+			handlingWorker: ctx.Worker));
 		line.CompleteQuantity += result.Moved;
 
 		if (result.Kind != TransferResultKind.Complete)

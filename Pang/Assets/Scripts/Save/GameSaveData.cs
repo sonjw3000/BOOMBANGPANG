@@ -456,6 +456,8 @@ public sealed class WorkerSaveData
 	public RobotType RobotType;
 	public WorkerAbility Abilities;
 	public int MonthlyCost;
+	public int HiredAtElapsedWeek;
+	public int ItemDamageIncidentCount;
 	public float BaseMoveSpeedMultiplier;
 	public float MinimumMoveSpeedMultiplier;
 	public float BaseWorkSpeedMultiplier;

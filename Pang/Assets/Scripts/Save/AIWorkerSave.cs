@@ -35,6 +35,8 @@ public abstract partial class AIWorker
 			RobotType = RobotType,
 			Abilities = abilities,
 			MonthlyCost = monthlyCost,
+			HiredAtElapsedWeek = HiredAtElapsedWeek,
+			ItemDamageIncidentCount = itemDamageIncidentCount,
 			VisualId = currentVisualDefinition != null ? currentVisualDefinition.VisualId : string.Empty,
 			BaseMoveSpeedMultiplier = baseMoveSpeedMultiplier,
 			MinimumMoveSpeedMultiplier = minimumMoveSpeedMultiplier,
@@ -76,6 +78,8 @@ public abstract partial class AIWorker
 			SetHumanIdentity(data.HumanType);
 		abilities = data.Abilities;
 		monthlyCost = data.MonthlyCost;
+		hiredAtElapsedWeek = Mathf.Max(0, data.HiredAtElapsedWeek);
+		itemDamageIncidentCount = Mathf.Max(0, data.ItemDamageIncidentCount);
 		baseMoveSpeedMultiplier = data.BaseMoveSpeedMultiplier;
 		minimumMoveSpeedMultiplier = data.MinimumMoveSpeedMultiplier;
 		baseWorkSpeedMultiplier = data.BaseWorkSpeedMultiplier;

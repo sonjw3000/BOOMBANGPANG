@@ -324,7 +324,8 @@ public sealed partial class PickingTask : WorkerTask
 			box,
 			line.Container,
 			line.ItemID,
-			remainingQuantity));
+			remainingQuantity,
+			handlingWorker: ctx.Worker));
 		line.CompleteQuantity += result.Moved;
 
 		if (line.IsComplete == false)

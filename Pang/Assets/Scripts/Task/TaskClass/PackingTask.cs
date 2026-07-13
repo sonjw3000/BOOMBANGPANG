@@ -180,7 +180,11 @@ public partial class PackingTask : WorkerTask
 			return quantityToPack <= 0 ? Failure : Running;
 		}
 
-		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(box.Box, station, packedStack);
+		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(
+			box.Box,
+			station,
+			packedStack,
+			handlingWorker: ctx.Worker);
 		if (result.Kind != TransferResultKind.Complete)
 		{
 			if (packedStack.Quantity > 0)

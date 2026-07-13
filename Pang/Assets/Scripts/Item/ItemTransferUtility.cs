@@ -16,13 +16,15 @@ public readonly struct ItemTransferResult
 	public readonly int Moved;
 	public readonly int Remaining;
 	public readonly TransferResultKind Kind;
+	public readonly bool HandlingDamageOccurred;
 
-	public ItemTransferResult(in ItemTransferPayload payload, int moved)
+	public ItemTransferResult(in ItemTransferPayload payload, int moved, bool handlingDamageOccurred = false)
 	{
 		ItemId = payload.ItemID;
 		Requested = payload.Quantity;
 		Moved = moved;
 		Remaining = Math.Max(0, payload.Quantity - moved);
+		HandlingDamageOccurred = handlingDamageOccurred;
 
 		Kind = moved <= 0 ?
 			TransferResultKind.None :
@@ -38,6 +40,7 @@ public readonly struct ItemTransferPayload
 	public readonly int Quantity;
 	public readonly bool ConsumeSourcePickReservation;
 	public readonly Predicate<ItemStack> StackPredicate;
+	public readonly AIWorker HandlingWorker;
 
 	public ItemTransferPayload(
 		IItemContainer from,
@@ -45,7 +48,8 @@ public readonly struct ItemTransferPayload
 		uint itemID,
 		int quantity,
 		bool consumeSourcePickReservation = false,
-		Predicate<ItemStack> stackPredicate = null)
+		Predicate<ItemStack> stackPredicate = null,
+		AIWorker handlingWorker = null)
 	{
 		From = from;
 		To = to;
@@ -53,6 +57,7 @@ public readonly struct ItemTransferPayload
 		Quantity = quantity;
 		ConsumeSourcePickReservation = consumeSourcePickReservation;
 		StackPredicate = stackPredicate;
+		HandlingWorker = handlingWorker;
 	}
 }
 
@@ -93,21 +98,26 @@ public static class ItemTransferUtility
 
 		int remaining = payload.Quantity;
 		int moved = 0;
+		bool handlingDamageOccurred = false;
 		for (int i = payload.From.Stacks.Count - 1; i >= 0 && remaining > 0; --i)
 		{
 			ItemStack stack = payload.From.Stacks[i];
 			if (CanMoveStack(stack, payload.ItemID, payload.StackPredicate) == false)
 				continue;
 
-			int movedFromStack = TryMoveStackQuantity(payload, stack, remaining);
+			int movedFromStack = TryMoveStackQuantity(payload, stack, remaining, out bool stackDamaged);
 			if (movedFromStack <= 0)
 				continue;
 
 			moved += movedFromStack;
 			remaining -= movedFromStack;
+			handlingDamageOccurred |= stackDamaged;
 		}
 
-		return new(payload, moved);
+		if (moved > 0 && handlingDamageOccurred)
+			payload.HandlingWorker?.ReportItemDamageIncident();
+
+		return new(payload, moved, handlingDamageOccurred);
 	}
 
 	public static ItemTransferResult MoveItemAsStack(
@@ -115,7 +125,8 @@ public static class ItemTransferUtility
 		IItemContainer to,
 		ItemStack stack,
 		bool consumeSourcePickReservation = false,
-		Predicate<ItemStack> sourceStackPredicate = null)
+		Predicate<ItemStack> sourceStackPredicate = null,
+		AIWorker handlingWorker = null)
 	{
 		if (from == null || to == null || stack == null || stack.Quantity <= 0)
 			return new(new ItemTransferPayload(from, to, stack != null ? stack.ItemID : 0, 0), 0);
@@ -126,18 +137,28 @@ public static class ItemTransferUtility
 			stack.ItemID,
 			stack.Quantity,
 			consumeSourcePickReservation,
-			sourceStackPredicate);
+			sourceStackPredicate,
+			handlingWorker);
 
-		if (to.CanAcceptStack(stack) == false)
+		ItemStack damagedStack = CreateDamagedTransferStack(payload, stack, stack.Quantity);
+		ItemStack transferStack = damagedStack ?? stack;
+		if (to.CanAcceptStack(transferStack) == false)
+		{
+			damagedStack?.Recycle();
 			return new(payload, 0);
+		}
 
 		int available = GetMatchingQuantity(from, stack.ItemID, stack.Quantity, sourceStackPredicate);
 		if (available < stack.Quantity)
+		{
+			damagedStack?.Recycle();
 			return new(payload, 0);
+		}
 
 		int removed = RemoveMatchingQuantity(from, stack.ItemID, stack.Quantity, sourceStackPredicate, consumeSourcePickReservation);
 		if (removed != stack.Quantity)
 		{
+			damagedStack?.Recycle();
 			Debug.LogError($"[ItemTransferUtility] MoveItemAsStack removed an unexpected amount. item={stack.ItemID}, requested={stack.Quantity}, removed={removed}");
 			if (removed > 0)
 				from.AddItem(stack.ItemID, removed);
@@ -145,17 +166,25 @@ public static class ItemTransferUtility
 			return new(payload, removed);
 		}
 
-		if (to.AddStack(stack) == false)
+		if (to.AddStack(transferStack) == false)
 		{
 			Debug.LogError("[ItemTransferUtility] MoveItemAsStack failed after CanAcceptStack returned true.");
 			from.AddItem(stack.ItemID, removed);
+			damagedStack?.Recycle();
 			return new(payload, 0);
 		}
 
-		if (stack.Quantity <= 0)
+		bool handlingDamageOccurred = damagedStack != null;
+		if (handlingDamageOccurred)
+		{
 			stack.Recycle();
+			handlingWorker?.ReportItemDamageIncident();
+		}
 
-		return new(payload, removed);
+		if (transferStack.Quantity <= 0)
+			transferStack.Recycle();
+
+		return new(payload, removed, handlingDamageOccurred);
 	}
 
 	public static int GetMovableQuantity(
@@ -350,58 +379,142 @@ public static class ItemTransferUtility
 		return removed;
 	}
 
-	private static int TryMoveStackQuantity(in ItemTransferPayload payload, ItemStack stack, int requested)
+	private static int TryMoveStackQuantity(
+		in ItemTransferPayload payload,
+		ItemStack stack,
+		int requested,
+		out bool handlingDamageOccurred)
 	{
+		handlingDamageOccurred = false;
 		int quantity = GetStackTransferQuantity(payload.To, stack, requested);
 		if (quantity <= 0)
 			return 0;
 
 		if (quantity >= stack.Quantity)
-			return MoveWholeStack(payload, stack);
+			return MoveWholeStack(payload, stack, out handlingDamageOccurred);
 
-		return MovePartialStack(payload, stack, quantity);
+		return MovePartialStack(payload, stack, quantity, out handlingDamageOccurred);
 	}
 
-	private static int MoveWholeStack(in ItemTransferPayload payload, ItemStack stack)
+	private static int MoveWholeStack(
+		in ItemTransferPayload payload,
+		ItemStack stack,
+		out bool handlingDamageOccurred)
 	{
+		handlingDamageOccurred = false;
 		int movedQuantity = stack.Quantity;
-		if (payload.From.RemoveStack(stack) == false)
-			return 0;
-
-		if (payload.To.AddStack(stack) == false)
+		ItemStack damagedStack = CreateDamagedTransferStack(payload, stack, movedQuantity);
+		if (damagedStack != null && payload.To.CanAcceptStack(damagedStack) == false)
 		{
-			Debug.LogError("[ItemTransferUtility] MoveItem failed after destination acceptance was calculated.");
-			RestoreStack(payload.From, stack);
+			damagedStack.Recycle();
 			return 0;
 		}
 
-		ConsumeSourcePickReservation(payload.From, stack.ItemID, movedQuantity, payload.ConsumeSourcePickReservation);
+		if (payload.From.RemoveStack(stack) == false)
+		{
+			damagedStack?.Recycle();
+			return 0;
+		}
 
-		if (stack.Quantity <= 0)
+		ItemStack transferStack = damagedStack ?? stack;
+		if (payload.To.AddStack(transferStack) == false)
+		{
+			Debug.LogError("[ItemTransferUtility] MoveItem failed after destination acceptance was calculated.");
+			RestoreStack(payload.From, stack);
+			if (damagedStack != null)
+				damagedStack.Recycle();
+			return 0;
+		}
+
+		if (damagedStack != null)
+		{
 			stack.Recycle();
+			handlingDamageOccurred = true;
+		}
+
+		ConsumeSourcePickReservation(payload.From, transferStack.ItemID, movedQuantity, payload.ConsumeSourcePickReservation);
+
+		if (transferStack.Quantity <= 0)
+			transferStack.Recycle();
 
 		return movedQuantity;
 	}
 
-	private static int MovePartialStack(in ItemTransferPayload payload, ItemStack stack, int quantity)
+	private static int MovePartialStack(
+		in ItemTransferPayload payload,
+		ItemStack stack,
+		int quantity,
+		out bool handlingDamageOccurred)
 	{
+		handlingDamageOccurred = false;
 		if (payload.From.TryRemoveFromStack(stack, quantity, out ItemStack movedStack) == false)
 			return 0;
 
 		int movedQuantity = movedStack.Quantity;
-		if (payload.To.AddStack(movedStack) == false)
+		ItemStack damagedStack = CreateDamagedTransferStack(payload, movedStack, movedQuantity);
+		if (damagedStack != null && payload.To.CanAcceptStack(damagedStack) == false)
 		{
-			Debug.LogError("[ItemTransferUtility] MoveItem partial transfer failed after destination acceptance was calculated.");
+			damagedStack.Recycle();
 			RestoreStack(payload.From, movedStack);
 			return 0;
 		}
 
-		ConsumeSourcePickReservation(payload.From, movedStack.ItemID, movedQuantity, payload.ConsumeSourcePickReservation);
+		ItemStack transferStack = damagedStack ?? movedStack;
+		if (payload.To.AddStack(transferStack) == false)
+		{
+			Debug.LogError("[ItemTransferUtility] MoveItem partial transfer failed after destination acceptance was calculated.");
+			RestoreStack(payload.From, movedStack);
+			if (damagedStack != null)
+				damagedStack.Recycle();
+			return 0;
+		}
 
-		if (movedStack.Quantity <= 0)
+		if (damagedStack != null)
+		{
 			movedStack.Recycle();
+			handlingDamageOccurred = true;
+		}
+
+		ConsumeSourcePickReservation(payload.From, transferStack.ItemID, movedQuantity, payload.ConsumeSourcePickReservation);
+
+		if (transferStack.Quantity <= 0)
+			transferStack.Recycle();
 
 		return movedQuantity;
+	}
+
+	private static ItemStack CreateDamagedTransferStack(
+		in ItemTransferPayload payload,
+		ItemStack sourceStack,
+		int quantity)
+	{
+		if (payload.HandlingWorker == null ||
+			sourceStack == null ||
+			sourceStack.Damage >= 100 ||
+			quantity <= 0 ||
+			GameContext.HasInstance == false)
+			return null;
+
+		ItemHandlingDamageService damageService = GameContext.Instance.ItemHandlingDamage;
+		if (damageService == null ||
+			damageService.TryRollDamage(payload.HandlingWorker, sourceStack, payload.To, out byte damageIncrease) == false)
+		{
+			return null;
+		}
+
+		ItemStack damagedStack = sourceStack.CloneWithQuantity(quantity);
+		if (damagedStack == null)
+			return null;
+
+		int appliedDamage = Mathf.Clamp(damagedStack.Damage + damageIncrease, 0, 100);
+		if (appliedDamage <= damagedStack.Damage)
+		{
+			damagedStack.Recycle();
+			return null;
+		}
+
+		damagedStack.SetDamage((byte)appliedDamage);
+		return damagedStack;
 	}
 
 	private static int GetStackTransferQuantity(IItemContainer to, ItemStack stack, int requested)
