@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 95aa5b641d514327a8f7f037419a830e, type: 3}
+  m_Name: ColdHandling
+  m_EditorClassIdentifier: 
+  licenseId: cold_handling
+  displayName: Cold Handling
+  grades:
+  - grade: 0
+    requiredConditionGroups:
+    - scope: 1
+      matchMode: 0
+      requireActiveBuilding: 1
+      conditions:
+      - metric: 0
+        comparison: 4
+        targetValue: 0
+      - metric: 0
+        comparison: 2
+        targetValue: 10
+      - metric: 1
+        comparison: 4
+        targetValue: 0.8
+  - grade: 1
+    requiredConditionGroups:
+    - scope: 1
+      matchMode: 0
+      requireActiveBuilding: 1
+      conditions:
+      - metric: 0
+        comparison: 4
+        targetValue: 0
+      - metric: 0
+        comparison: 2
+        targetValue: 10
+      - metric: 1
+        comparison: 4
+        targetValue: 0.6
+  - grade: 2
+    requiredConditionGroups:
+    - scope: 1
+      matchMode: 0
+      requireActiveBuilding: 1
+      conditions:
+      - metric: 0
+        comparison: 4
+        targetValue: 0
+      - metric: 0
+        comparison: 2
+        targetValue: 10
+      - metric: 1
+        comparison: 4
+        targetValue: 0.3
