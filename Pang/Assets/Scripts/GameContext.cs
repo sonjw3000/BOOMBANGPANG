@@ -73,6 +73,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private VendorService vendorService;
 	[SerializeField] private PowerService powerService;
 	[SerializeField] private TemperatureService temperatureService;
+	[SerializeField] private GridOverlayController gridOverlayController;
 
 	[Header("Workflow Managers")]
 	// workflow managers
@@ -290,6 +291,7 @@ public class GameContext : MonoBehaviour
 		_ = DemoGoalService;
 		_ = PowerSvc;
 		_ = TemperatureSvc;
+		_ = ResolveOrCreateGridOverlayController();
 		_ = LicenseService;
 	}
 
@@ -315,6 +317,18 @@ public class GameContext : MonoBehaviour
 			temperatureService = gameObject.AddComponent<TemperatureService>();
 
 		return temperatureService;
+	}
+
+	private GridOverlayController ResolveOrCreateGridOverlayController()
+	{
+		if (gridOverlayController != null)
+			return gridOverlayController;
+
+		gridOverlayController = GetComponentInChildren<GridOverlayController>(true);
+		if (gridOverlayController == null)
+			gridOverlayController = gameObject.AddComponent<GridOverlayController>();
+
+		return gridOverlayController;
 	}
 
 	private HudEventManager ResolveOrCreateHudEventManager()

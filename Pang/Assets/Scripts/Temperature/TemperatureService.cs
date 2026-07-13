@@ -8,7 +8,7 @@ public interface ITemperatureModifier : IFacility
 	float TemperatureOffsetCelsius { get; }
 }
 
-public sealed class TemperatureService : MonoBehaviour
+public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 {
 	private sealed class ModifierState
 	{
@@ -31,6 +31,8 @@ public sealed class TemperatureService : MonoBehaviour
 	private readonly List<int3> cellScratch = new();
 	private bool eventsBound;
 	private bool rebuildMapOnNextTick = true;
+
+	public event System.Action OnGridOverlayRefreshRequested;
 
 	public float AmbientTemperatureCelsius => ambientTemperatureCelsius;
 	public float DegreesPerTick => degreesPerTick;
@@ -164,6 +166,45 @@ public sealed class TemperatureService : MonoBehaviour
 		RefreshModifierStates();
 		RecalculateDirtyTargets();
 		AdvanceActiveTemperatures();
+		OnGridOverlayRefreshRequested?.Invoke();
+	}
+
+	public bool TryFillGridOverlay(Color32[] buffer, int floor)
+	{
+		if (GridService == null || GridService.IsReady == false)
+			return false;
+
+		int3 size = GridService.MapSize;
+		if (buffer == null || buffer.Length < size.x * size.z || floor < 0 || floor >= size.y)
+			return false;
+
+		for (int z = 0; z < size.z; ++z)
+		{
+			for (int x = 0; x < size.x; ++x)
+			{
+				GridCell cell = GridService.GetCell(x, floor, z);
+				buffer[z * size.x + x] = GetOverlayColor(cell != null
+					? cell.TemperatureCelsius
+					: ambientTemperatureCelsius);
+			}
+		}
+
+		return true;
+	}
+
+	private static Color32 GetOverlayColor(float temperatureCelsius)
+	{
+		float clamped = Mathf.Clamp(temperatureCelsius, -100f, 100f);
+		if (clamped <= 0f)
+		{
+			byte blue = (byte)Mathf.RoundToInt(Mathf.InverseLerp(-100f, 0f, clamped) * byte.MaxValue);
+			return new Color32(0, 0, blue, 0);
+		}
+
+		float normalized = Mathf.InverseLerp(0f, 100f, clamped);
+		byte red = (byte)Mathf.RoundToInt(normalized * byte.MaxValue);
+		byte blueToRed = (byte)Mathf.RoundToInt((1f - normalized) * byte.MaxValue);
+		return new Color32(red, 0, blueToRed, 0);
 	}
 
 	private void RefreshModifierStates()
