@@ -143,12 +143,12 @@
 	left: 50%;
 	bottom: 12px;
 	translate: -50% 0;
-	width: 270px;
-	height: 42px;
+	width: 405px;
+	height: 63px;
 	flex-direction: row;
 	align-items: center;
-	padding-left: 8px;
-	padding-right: 6px;
+	padding-left: 12px;
+	padding-right: 9px;
 	background-color: rgba(12, 20, 29, 0.95);
 	border-top-width: 1px;
 	border-right-width: 1px;
@@ -165,29 +165,34 @@
 }
 
 .date-block {
-	width: 105px;
+	width: 158px;
+}
+
+.date-block .status-label {
+	font-size: 10px;
+	letter-spacing: 1.8px;
 }
 
 .date-value {
-	font-size: 10px;
+	font-size: 15px;
 	-unity-font-style: bold;
 	color: rgb(224, 235, 240);
 }
 
 .time-divider {
 	width: 1px;
-	height: 22px;
-	margin-left: 6px;
-	margin-right: 5px;
+	height: 33px;
+	margin-left: 9px;
+	margin-right: 8px;
 	background-color: rgba(93, 127, 143, 0.4);
 }
 
 .speed-button {
-	width: 25px;
-	height: 23px;
-	margin-left: 2px;
+	width: 38px;
+	height: 35px;
+	margin-left: 3px;
 	padding: 0;
-	font-size: 10px;
+	font-size: 15px;
 	color: rgb(191, 211, 220);
 	background-color: rgb(30, 47, 61);
 	border-top-width: 1px;
@@ -198,10 +203,10 @@
 	border-right-color: rgb(58, 89, 105);
 	border-bottom-color: rgb(58, 89, 105);
 	border-left-color: rgb(58, 89, 105);
-	border-top-left-radius: 3px;
-	border-top-right-radius: 3px;
-	border-bottom-left-radius: 3px;
-	border-bottom-right-radius: 3px;
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
 }
 
 .speed-button:hover {
@@ -222,9 +227,9 @@
 }
 
 .speed-value {
-	min-width: 36px;
-	margin-left: 4px;
-	font-size: 10px;
+	min-width: 54px;
+	margin-left: 6px;
+	font-size: 15px;
 	-unity-font-style: bold;
 	-unity-text-align: middle-center;
 	color: rgb(95, 206, 229);

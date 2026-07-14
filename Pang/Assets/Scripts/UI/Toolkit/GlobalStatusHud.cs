@@ -11,6 +11,9 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string ContractDocumentObjectName = "ContractManagementWindowDocument";
 		private const int MaxVisibleEvents = 5;
 		private const float EventFadeSeconds = 0.8f;
+		private const float ReferenceWidth = 1920f;
+		private const float ReferenceHeight = 1080f;
+		private const float ReferenceUiScale = 1.0f;
 
 		[SerializeField] private VisualTreeAsset visualTreeAsset;
 		[SerializeField] private VisualTreeAsset hudEventEntryTemplate;
@@ -26,6 +29,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private readonly List<ActiveHudEvent> activeEvents = new();
 		private UIDocument uiDocument;
+		private UnityEngine.UI.CanvasScaler legacyCanvasScaler;
 		private VisualElement hudRoot;
 		private VisualElement leftHud;
 		private VisualElement timeCluster;
@@ -49,6 +53,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private GameTime gameTime;
 		private bool started;
 		private bool? timeHudDockedRight;
+		private int scaledScreenWidth = -1;
+		private int scaledScreenHeight = -1;
 
 		private sealed class ActiveHudEvent
 		{
@@ -59,6 +65,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnEnable()
 		{
+			ApplyPanelScale();
 			EnsureDocument();
 			EnsureHistoryWindow();
 			EnsureContractManagementWindow();
@@ -76,6 +83,8 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void Update()
 		{
+			ApplyPanelScale();
+
 			for (int i = activeEvents.Count - 1; i >= 0; --i)
 			{
 				ActiveHudEvent activeEvent = activeEvents[i];
@@ -88,6 +97,33 @@ namespace UniverseLogistics.UI.Toolkit
 
 				activeEvent.Root.RemoveFromHierarchy();
 				activeEvents.RemoveAt(i);
+			}
+		}
+
+		private void ApplyPanelScale()
+		{
+			legacyCanvasScaler ??= GetComponentInChildren<UnityEngine.UI.CanvasScaler>(true);
+			if ((panelSettings == null && legacyCanvasScaler == null) ||
+				(scaledScreenWidth == Screen.width && scaledScreenHeight == Screen.height))
+			{
+				return;
+			}
+
+			scaledScreenWidth = Screen.width;
+			scaledScreenHeight = Screen.height;
+			float widthScale = Screen.width / ReferenceWidth;
+			float heightScale = Screen.height / ReferenceHeight;
+			float uiScale = Mathf.Max(0.01f, ReferenceUiScale * Mathf.Min(widthScale, heightScale));
+			if (panelSettings != null)
+			{
+				panelSettings.scaleMode = PanelScaleMode.ConstantPixelSize;
+				panelSettings.scale = uiScale;
+			}
+
+			if (legacyCanvasScaler != null)
+			{
+				legacyCanvasScaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ConstantPixelSize;
+				legacyCanvasScaler.scaleFactor = uiScale;
 			}
 		}
 
