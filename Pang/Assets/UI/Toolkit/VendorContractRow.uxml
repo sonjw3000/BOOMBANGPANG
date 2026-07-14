@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="ContractManagement.uss" />
+	<ui:VisualElement class="contract-row vendor-row">
+		<ui:VisualElement class="vendor-row__summary">
+			<ui:Label name="vendor-name" text="Vendor" class="contract-row__name" />
+			<ui:Label name="vendor-terms" text="Service terms" class="contract-row__subtext" />
+		</ui:VisualElement>
+		<ui:Button name="vendor-sign-button" text="Activate" class="contract-action-button" />
+	</ui:VisualElement>
+</ui:UXML>

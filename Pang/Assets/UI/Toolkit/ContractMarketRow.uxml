@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="ContractManagement.uss" />
+	<ui:VisualElement class="contract-row contract-offer-row">
+		<ui:VisualElement class="contract-offer-row__summary">
+			<ui:Label name="offer-name" text="Contract" class="contract-row__name" />
+			<ui:Label name="offer-terms" text="Every 4 weeks · 100 items" class="contract-row__subtext" />
+			<ui:Label name="offer-reward" text="Reward 10" class="contract-offer-row__reward" />
+		</ui:VisualElement>
+		<ui:DropdownField name="offer-type" class="contract-offer-row__field" />
+		<ui:DropdownField name="offer-duration" class="contract-offer-row__field" />
+		<ui:Button name="offer-sign-button" text="Sign" class="contract-action-button" />
+	</ui:VisualElement>
+</ui:UXML>

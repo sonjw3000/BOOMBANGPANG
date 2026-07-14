@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<ui:VisualElement class="workforce-candidate-row">
+		<ui:VisualElement class="workforce-candidate-row__identity">
+			<ui:Label name="candidate-name" text="Candidate" class="workforce-candidate-row__name" />
+			<ui:Label name="candidate-kind" text="Human" class="workforce-candidate-row__subtext" />
+		</ui:VisualElement>
+		<ui:Label name="candidate-ability" text="Abilities" class="workforce-candidate-row__ability" />
+		<ui:Label name="candidate-stats" text="Move 1.0 / Work 1.0" class="workforce-candidate-row__stats" />
+		<ui:Label name="candidate-cost" text="$0 + $0/mo" class="workforce-candidate-row__cost" />
+		<ui:Button name="candidate-hire-button" text="Hire" class="workforce-action-button" />
+	</ui:VisualElement>
+</ui:UXML>

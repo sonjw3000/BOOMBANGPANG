@@ -4181,6 +4181,19 @@ MonoBehaviour:
   windowVisualTreeAsset: {fileID: 9197481963319205126, guid: 8697a5359d5e0402c95f680b02a44eb6, type: 3}
   historyContentTemplate: {fileID: 9197481963319205126, guid: fcc952a83083404b9aaba29160e39e77, type: 3}
   historyRowTemplate: {fileID: 9197481963319205126, guid: 5c4a0a6a12f04fbdb9525176e6f7ad4a, type: 3}
+  contractContentTemplate: {fileID: 9197481963319205126, guid: 20ab53e9d52e4cf79f85dac22a617f71, type: 3}
+  activeContractRowTemplate: {fileID: 9197481963319205126, guid: bf60daa2a49344abb0267af12a25793c, type: 3}
+  contractMarketRowTemplate: {fileID: 9197481963319205126, guid: 4e74d2e832744c79a6288cd245668f5e, type: 3}
+  vendorContractRowTemplate: {fileID: 9197481963319205126, guid: 30d024f30ee24d2ab83a424867cfb135, type: 3}
+  workforceContentTemplate: {fileID: 9197481963319205126, guid: ba65ed6996704405ba140af1e1fbee04, type: 3}
+  workforceRosterRowTemplate: {fileID: 9197481963319205126, guid: ebbd4bbb6b0e4cb380e91cdfe0fe542d, type: 3}
+  workforceCandidateRowTemplate: {fileID: 9197481963319205126, guid: 2ba2c3e8181c468f962c7ef36779197f, type: 3}
+  workforceHumanMarkets:
+  - {fileID: 11400000, guid: 108bbc4cb52654340aa1b49a9a0ccb5a, type: 2}
+  - {fileID: 11400000, guid: ee258fa8d1b70984c90daaa12308f6b3, type: 2}
+  - {fileID: 11400000, guid: a2d2bad0fac024440a9b808cf524322a, type: 2}
+  workforceRobotMarkets:
+  - {fileID: 11400000, guid: 22073902b8aebe84b87b86d28df81eee, type: 2}
   panelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
   sortingOrder: 100
 --- !u!114 &7714475366775286390

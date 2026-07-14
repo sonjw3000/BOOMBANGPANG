@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="ContractManagement.uss" />
+	<ui:VisualElement class="contract-row contract-row--active">
+		<ui:VisualElement class="contract-row__identity">
+			<ui:Label name="contract-name" text="Contract" class="contract-row__name" />
+			<ui:Label name="contract-item" text="Item" class="contract-row__subtext" />
+		</ui:VisualElement>
+		<ui:Label name="contract-type" text="Standard" class="contract-row__value contract-row__value--type" />
+		<ui:Label name="contract-duration" text="48 / 48 weeks" class="contract-row__value" />
+		<ui:Label name="contract-delivery" text="0 / 4 weeks" class="contract-row__value" />
+		<ui:Label name="contract-quantity" text="100 items" class="contract-row__value contract-row__value--right" />
+	</ui:VisualElement>
+</ui:UXML>

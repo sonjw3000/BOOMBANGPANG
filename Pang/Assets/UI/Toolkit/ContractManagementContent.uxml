@@ -1,0 +1,45 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="ContractManagement.uss" />
+	<ui:VisualElement class="contract-management-content">
+		<ui:VisualElement class="contract-section-tabs">
+			<ui:VisualElement class="contract-section-tabs__separator" picking-mode="Ignore" />
+			<ui:Button name="contract-active-button" text="Active" class="contract-section-button" />
+			<ui:Button name="contract-market-button" text="Market" class="contract-section-button" />
+			<ui:Button name="contract-vendors-button" text="Vendors" class="contract-section-button" />
+		</ui:VisualElement>
+	<ui:VisualElement name="contract-active-tab" class="contract-tab">
+		<ui:Label text="Active item contracts" class="contract-heading" />
+		<ui:Label text="Select contracts here to compare duration, cadence, and delivery quantity." class="contract-caption" />
+		<ui:ScrollView name="active-contract-list" class="contract-list" />
+		<ui:Label name="active-contract-empty" text="No active item contracts." class="contract-empty" />
+	</ui:VisualElement>
+	<ui:VisualElement name="contract-market-tab" class="contract-tab contract-market">
+		<ui:VisualElement class="contract-sidebar">
+			<ui:Label text="CATALOGS" class="contract-column-label" />
+			<ui:ScrollView name="contract-catalog-list" class="contract-catalog-list" />
+		</ui:VisualElement>
+		<ui:VisualElement class="contract-main-column">
+			<ui:Label name="contract-market-title" text="Contract offers" class="contract-heading" />
+			<ui:Label name="contract-market-message" text="Select a catalog." class="contract-caption" />
+			<ui:ScrollView name="contract-market-list" class="contract-list" />
+		</ui:VisualElement>
+	</ui:VisualElement>
+	<ui:VisualElement name="contract-vendors-tab" class="contract-tab">
+		<ui:VisualElement class="vendor-toolbar">
+			<ui:Label text="Vendor type" class="contract-column-label" />
+			<ui:DropdownField name="vendor-type-field" class="vendor-type-field" />
+		</ui:VisualElement>
+		<ui:VisualElement class="vendor-columns">
+			<ui:VisualElement class="vendor-column">
+				<ui:Label text="ACTIVE VENDORS" class="contract-column-label" />
+				<ui:ScrollView name="active-vendor-list" class="contract-list" />
+				<ui:Label name="active-vendor-empty" text="No active vendors of this type." class="contract-empty contract-empty--vendor" />
+			</ui:VisualElement>
+			<ui:VisualElement class="vendor-column vendor-column--right">
+				<ui:Label text="AVAILABLE VENDORS" class="contract-column-label" />
+				<ui:ScrollView name="vendor-market-list" class="contract-list" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+	</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

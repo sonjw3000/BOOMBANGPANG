@@ -1,0 +1,248 @@
+.contract-management-content {
+	flex-grow: 1;
+}
+
+.contract-section-tabs {
+	position: relative;
+	height: 30px;
+	flex-direction: row;
+	align-items: flex-end;
+	margin-bottom: 9px;
+}
+
+.contract-section-tabs__separator {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 1px;
+	background-color: rgb(65, 78, 88);
+}
+
+.contract-section-button {
+	width: 90px;
+	height: 29px;
+	margin-right: 3px;
+	font-size: 10px;
+	color: rgb(145, 163, 173);
+	background-color: rgba(0, 0, 0, 0);
+	border-left-width: 0;
+	border-right-width: 0;
+	border-top-width: 0;
+	border-bottom-width: 2px;
+	border-bottom-color: rgba(0, 0, 0, 0);
+}
+
+.contract-section-button--selected {
+	color: rgb(232, 243, 247);
+	border-bottom-color: rgb(74, 186, 218);
+}
+
+.contract-tab {
+	position: relative;
+	flex-grow: 1;
+}
+
+.contract-heading {
+	font-size: 14px;
+	-unity-font-style: bold;
+	color: rgb(231, 240, 243);
+}
+
+.contract-caption {
+	margin-top: 2px;
+	margin-bottom: 8px;
+	font-size: 9px;
+	color: rgb(125, 148, 160);
+}
+
+.contract-column-label {
+	height: 22px;
+	font-size: 8px;
+	-unity-font-style: bold;
+	letter-spacing: 1px;
+	color: rgb(113, 154, 173);
+}
+
+.contract-list {
+	flex-grow: 1;
+}
+
+.contract-empty {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 72px;
+	font-size: 10px;
+	-unity-text-align: middle-center;
+	color: rgb(112, 132, 143);
+}
+
+.contract-market {
+	flex-direction: row;
+}
+
+.contract-sidebar {
+	width: 150px;
+	margin-right: 10px;
+	padding-right: 9px;
+	border-right-width: 1px;
+	border-right-color: rgb(65, 78, 88);
+}
+
+.contract-catalog-list {
+	flex-grow: 1;
+}
+
+.contract-catalog-button {
+	height: 28px;
+	margin-bottom: 3px;
+	padding-left: 8px;
+	font-size: 9px;
+	-unity-text-align: middle-left;
+	color: rgb(184, 204, 213);
+	background-color: rgb(29, 39, 47);
+	border-top-width: 0;
+	border-right-width: 0;
+	border-bottom-width: 0;
+	border-left-width: 2px;
+	border-left-color: rgb(74, 104, 119);
+}
+
+.contract-catalog-button:hover,
+.contract-catalog-button--selected {
+	color: rgb(237, 247, 250);
+	background-color: rgb(38, 60, 71);
+	border-left-color: rgb(74, 186, 218);
+}
+
+.contract-catalog-button--locked {
+	color: rgb(159, 118, 91);
+}
+
+.contract-main-column {
+	flex-grow: 1;
+}
+
+.contract-row {
+	min-height: 45px;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 3px;
+	padding-left: 9px;
+	padding-right: 7px;
+	background-color: rgb(32, 42, 50);
+	border-left-width: 2px;
+	border-left-color: rgb(74, 136, 158);
+}
+
+.contract-row__identity {
+	width: 165px;
+}
+
+.contract-row__name {
+	font-size: 11px;
+	-unity-font-style: bold;
+	color: rgb(224, 235, 240);
+}
+
+.contract-row__subtext {
+	margin-top: 2px;
+	font-size: 8px;
+	color: rgb(126, 150, 162);
+}
+
+.contract-row__value {
+	width: 105px;
+	font-size: 9px;
+	color: rgb(188, 207, 216);
+}
+
+.contract-row__value--type {
+	width: 70px;
+	color: rgb(103, 196, 220);
+}
+
+.contract-row__value--right {
+	flex-grow: 1;
+	-unity-text-align: middle-right;
+}
+
+.contract-offer-row__summary {
+	flex-grow: 1;
+}
+
+.contract-offer-row__reward {
+	margin-top: 2px;
+	font-size: 9px;
+	color: rgb(101, 213, 171);
+}
+
+.contract-offer-row__field {
+	width: 100px;
+	margin-left: 5px;
+	font-size: 9px;
+}
+
+.contract-action-button {
+	width: 70px;
+	height: 25px;
+	margin-left: 6px;
+	font-size: 9px;
+	-unity-font-style: bold;
+	color: rgb(225, 239, 244);
+	background-color: rgb(31, 89, 108);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgb(65, 151, 177);
+	border-right-color: rgb(65, 151, 177);
+	border-bottom-color: rgb(65, 151, 177);
+	border-left-color: rgb(65, 151, 177);
+}
+
+.contract-action-button:hover {
+	background-color: rgb(39, 119, 142);
+}
+
+.vendor-toolbar {
+	height: 34px;
+	flex-direction: row;
+	align-items: center;
+}
+
+.vendor-toolbar .contract-column-label {
+	width: 80px;
+	-unity-text-align: middle-left;
+}
+
+.vendor-type-field {
+	width: 140px;
+	font-size: 9px;
+}
+
+.vendor-columns {
+	flex-grow: 1;
+	flex-direction: row;
+}
+
+.vendor-column {
+	position: relative;
+	width: 50%;
+}
+
+.vendor-column--right {
+	margin-left: 10px;
+	padding-left: 10px;
+	border-left-width: 1px;
+	border-left-color: rgb(65, 78, 88);
+}
+
+.contract-empty--vendor {
+	top: 54px;
+}
+
+.vendor-row__summary {
+	flex-grow: 1;
+}

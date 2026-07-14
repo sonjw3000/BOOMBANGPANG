@@ -8,19 +8,34 @@ namespace UniverseLogistics.UI.Toolkit
 	{
 		private const string DocumentObjectName = "GlobalStatusHudDocument";
 		private const string HistoryDocumentObjectName = "GlobalHistoryWindowDocument";
+		private const string ContractDocumentObjectName = "ContractManagementWindowDocument";
+		private const string WorkforceDocumentObjectName = "WorkforceManagementWindowDocument";
 		private const int MaxVisibleEvents = 5;
 		private const float EventFadeSeconds = 0.8f;
+		private const float ReferenceWidth = 1920f;
+		private const float ReferenceHeight = 1080f;
+		private const float ReferenceUiScale = 1.0f;
 
 		[SerializeField] private VisualTreeAsset visualTreeAsset;
 		[SerializeField] private VisualTreeAsset hudEventEntryTemplate;
 		[SerializeField] private VisualTreeAsset windowVisualTreeAsset;
 		[SerializeField] private VisualTreeAsset historyContentTemplate;
 		[SerializeField] private VisualTreeAsset historyRowTemplate;
+		[SerializeField] private VisualTreeAsset contractContentTemplate;
+		[SerializeField] private VisualTreeAsset activeContractRowTemplate;
+		[SerializeField] private VisualTreeAsset contractMarketRowTemplate;
+		[SerializeField] private VisualTreeAsset vendorContractRowTemplate;
+		[SerializeField] private VisualTreeAsset workforceContentTemplate;
+		[SerializeField] private VisualTreeAsset workforceRosterRowTemplate;
+		[SerializeField] private VisualTreeAsset workforceCandidateRowTemplate;
+		[SerializeField] private List<WorkforceMarketData_SO> workforceHumanMarkets = new();
+		[SerializeField] private List<WorkforceMarketData_SO> workforceRobotMarkets = new();
 		[SerializeField] private PanelSettings panelSettings;
 		[SerializeField] private int sortingOrder = 100;
 
 		private readonly List<ActiveHudEvent> activeEvents = new();
 		private UIDocument uiDocument;
+		private UnityEngine.UI.CanvasScaler legacyCanvasScaler;
 		private VisualElement hudRoot;
 		private VisualElement leftHud;
 		private VisualElement timeCluster;
@@ -34,12 +49,20 @@ namespace UniverseLogistics.UI.Toolkit
 		private Button pauseButton;
 		private Button normalSpeedButton;
 		private Button doubleSpeedButton;
+		private Button managementButton;
+		private Button contractManagementButton;
+		private Button workforceManagementButton;
+		private VisualElement managementMenu;
 		private GlobalHistoryWindow historyWindow;
+		private ContractManagementWindow contractManagementWindow;
+		private WorkforceManagementWindow workforceManagementWindow;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
 		private bool started;
 		private bool? timeHudDockedRight;
+		private int scaledScreenWidth = -1;
+		private int scaledScreenHeight = -1;
 
 		private sealed class ActiveHudEvent
 		{
@@ -50,8 +73,11 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnEnable()
 		{
+			ApplyPanelScale();
 			EnsureDocument();
 			EnsureHistoryWindow();
+			EnsureContractManagementWindow();
+			EnsureWorkforceManagementWindow();
 			BindControls();
 
 			if (started)
@@ -66,6 +92,8 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void Update()
 		{
+			ApplyPanelScale();
+
 			for (int i = activeEvents.Count - 1; i >= 0; --i)
 			{
 				ActiveHudEvent activeEvent = activeEvents[i];
@@ -78,6 +106,33 @@ namespace UniverseLogistics.UI.Toolkit
 
 				activeEvent.Root.RemoveFromHierarchy();
 				activeEvents.RemoveAt(i);
+			}
+		}
+
+		private void ApplyPanelScale()
+		{
+			legacyCanvasScaler ??= GetComponentInChildren<UnityEngine.UI.CanvasScaler>(true);
+			if ((panelSettings == null && legacyCanvasScaler == null) ||
+				(scaledScreenWidth == Screen.width && scaledScreenHeight == Screen.height))
+			{
+				return;
+			}
+
+			scaledScreenWidth = Screen.width;
+			scaledScreenHeight = Screen.height;
+			float widthScale = Screen.width / ReferenceWidth;
+			float heightScale = Screen.height / ReferenceHeight;
+			float uiScale = Mathf.Max(0.01f, ReferenceUiScale * Mathf.Min(widthScale, heightScale));
+			if (panelSettings != null)
+			{
+				panelSettings.scaleMode = PanelScaleMode.ConstantPixelSize;
+				panelSettings.scale = uiScale;
+			}
+
+			if (legacyCanvasScaler != null)
+			{
+				legacyCanvasScaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ConstantPixelSize;
+				legacyCanvasScaler.scaleFactor = uiScale;
 			}
 		}
 
@@ -136,6 +191,64 @@ namespace UniverseLogistics.UI.Toolkit
 			documentObject.SetActive(true);
 		}
 
+		private void EnsureContractManagementWindow()
+		{
+			if (contractManagementWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || contractContentTemplate == null || activeContractRowTemplate == null ||
+				contractMarketRowTemplate == null || vendorContractRowTemplate == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Contract management window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(ContractDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument contractDocument = documentObject.AddComponent<UIDocument>();
+			contractDocument.panelSettings = panelSettings;
+			contractDocument.visualTreeAsset = windowVisualTreeAsset;
+			contractDocument.sortingOrder = sortingOrder + 20;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			contractManagementWindow = documentObject.AddComponent<ContractManagementWindow>();
+			contractManagementWindow.Configure(window, contractContentTemplate, activeContractRowTemplate,
+				contractMarketRowTemplate, vendorContractRowTemplate);
+			documentObject.SetActive(true);
+		}
+
+		private void EnsureWorkforceManagementWindow()
+		{
+			if (workforceManagementWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || workforceContentTemplate == null || workforceRosterRowTemplate == null ||
+				workforceCandidateRowTemplate == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Workforce management window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(WorkforceDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument workforceDocument = documentObject.AddComponent<UIDocument>();
+			workforceDocument.panelSettings = panelSettings;
+			workforceDocument.visualTreeAsset = windowVisualTreeAsset;
+			workforceDocument.sortingOrder = sortingOrder + 30;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			workforceManagementWindow = documentObject.AddComponent<WorkforceManagementWindow>();
+			workforceManagementWindow.Configure(window, workforceContentTemplate, workforceRosterRowTemplate,
+				workforceCandidateRowTemplate, workforceHumanMarkets, workforceRobotMarkets);
+			documentObject.SetActive(true);
+		}
+
 		private void BindControls()
 		{
 			if (uiDocument == null)
@@ -156,11 +269,17 @@ namespace UniverseLogistics.UI.Toolkit
 			pauseButton = root.Q<Button>("pause-button");
 			normalSpeedButton = root.Q<Button>("normal-speed-button");
 			doubleSpeedButton = root.Q<Button>("double-speed-button");
+			managementButton = root.Q<Button>("management-button");
+			contractManagementButton = root.Q<Button>("contract-management-button");
+			workforceManagementButton = root.Q<Button>("workforce-management-button");
+			managementMenu = root.Q<VisualElement>("management-menu");
 
 			if (leftHud == null || timeCluster == null || economySummary == null || hudEventArea == null ||
 				hudEventList == null || moneyValue == null ||
 				reputationValue == null || dateValue == null || speedValue == null || pauseButton == null ||
-				normalSpeedButton == null || doubleSpeedButton == null)
+				normalSpeedButton == null || doubleSpeedButton == null || managementButton == null || contractManagementButton == null ||
+				workforceManagementButton == null ||
+				managementMenu == null)
 			{
 				Debug.LogError("[GlobalStatusHud] Required UXML elements are missing.", this);
 				return;
@@ -176,6 +295,13 @@ namespace UniverseLogistics.UI.Toolkit
 			normalSpeedButton.clicked += SetNormalSpeed;
 			doubleSpeedButton.clicked -= DoubleSpeed;
 			doubleSpeedButton.clicked += DoubleSpeed;
+			managementButton.clicked -= ToggleManagementMenu;
+			managementButton.clicked += ToggleManagementMenu;
+			contractManagementButton.clicked -= OpenContractManagement;
+			contractManagementButton.clicked += OpenContractManagement;
+			workforceManagementButton.clicked -= OpenWorkforceManagement;
+			workforceManagementButton.clicked += OpenWorkforceManagement;
+			ShowManagementMenu(false);
 			hudRoot.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
 			hudRoot.RegisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
 			timeCluster.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
@@ -195,6 +321,12 @@ namespace UniverseLogistics.UI.Toolkit
 				normalSpeedButton.clicked -= SetNormalSpeed;
 			if (doubleSpeedButton != null)
 				doubleSpeedButton.clicked -= DoubleSpeed;
+			if (managementButton != null)
+				managementButton.clicked -= ToggleManagementMenu;
+			if (contractManagementButton != null)
+				contractManagementButton.clicked -= OpenContractManagement;
+			if (workforceManagementButton != null)
+				workforceManagementButton.clicked -= OpenWorkforceManagement;
 		}
 
 		private void BindServices()
@@ -308,6 +440,35 @@ namespace UniverseLogistics.UI.Toolkit
 		private void DoubleSpeed()
 		{
 			gameTime?.DoubleSpeed();
+		}
+
+		private void ToggleManagementMenu()
+		{
+			if (managementMenu == null)
+				return;
+
+			ShowManagementMenu(managementMenu.resolvedStyle.display == DisplayStyle.None);
+		}
+
+		private void ShowManagementMenu(bool visible)
+		{
+			if (managementMenu == null || managementButton == null)
+				return;
+
+			managementMenu.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+			managementButton.EnableInClassList("management-button--open", visible);
+		}
+
+		private void OpenContractManagement()
+		{
+			ShowManagementMenu(false);
+			contractManagementWindow?.Open();
+		}
+
+		private void OpenWorkforceManagement()
+		{
+			ShowManagementMenu(false);
+			workforceManagementWindow?.Open();
 		}
 
 		private void OnMoneyChanged(int value)

@@ -13,6 +13,7 @@ public class EconomyTransaction
 		PowerService,
 		ResearchInvestment,
 		OrderSettlement,
+		WorkerHire,
 		}
 
 	public int moneyDelta;
@@ -88,6 +89,7 @@ public partial class EconomyService : MonoBehaviour
 			EconomyTransaction.Reason.PowerService => "Power Service",
 			EconomyTransaction.Reason.ResearchInvestment => "Research Investment",
 			EconomyTransaction.Reason.OrderSettlement => "Order Settlement",
+			EconomyTransaction.Reason.WorkerHire => "Worker Hire",
 			_ => reason.ToString(),
 		};
 	}
