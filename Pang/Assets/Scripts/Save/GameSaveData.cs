@@ -26,6 +26,10 @@ namespace Assets.Scripts.Save
 			public int X, Y, Z;
 			public int[] Tiles;
 			public float[] Temperatures;
+			public float[] FireIntensities;
+			public float[] ContaminationLevels;
+			public float[] CorrosiveLevels;
+			public float[] RadiationLevels;
 		}
 
 		[System.Serializable]
@@ -271,6 +275,10 @@ public sealed class GridMapSaveData
 	public Int3SaveData MapSize = new();
 	public int[] Tiles;
 	public float[] Temperatures;
+	public float[] FireIntensities;
+	public float[] ContaminationLevels;
+	public float[] CorrosiveLevels;
+	public float[] RadiationLevels;
 }
 
 [Serializable]

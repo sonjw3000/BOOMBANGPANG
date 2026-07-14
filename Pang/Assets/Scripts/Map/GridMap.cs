@@ -13,6 +13,14 @@ public enum PlacementEvent
 	RocketCrashLanding,
 }
 
+public enum GridHazardType
+{
+	Fire,
+	Contamination,
+	Corrosive,
+	Radiation,
+}
+
 public class PlacementContext
 {
 	public int3 center;
@@ -34,12 +42,18 @@ public class PlacementContext
 public class GridCell
 {
 	public const float DefaultTemperatureCelsius = 20.0f;
+	public const float MinimumHazardLevel = 0.0f;
+	public const float MaximumHazardLevel = 100.0f;
 
 	private int tile = 0;
 	private GridFlags flags = GridFlags.None;
 	private int regionId = 0;
 	private uint buildingId = 0;
 	private float temperatureCelsius = DefaultTemperatureCelsius;
+	private float fireIntensity;
+	private float contaminationLevel;
+	private float corrosiveLevel;
+	private float radiationLevel;
 	private readonly Dictionary<GameObject, GridFlags> flagsByObject = new();
 
 	private GameObject objectRef = null;
@@ -54,6 +68,10 @@ public class GridCell
 	public int RegionId => regionId;
 	public uint BuildingId => buildingId;
 	public float TemperatureCelsius => temperatureCelsius;
+	public float FireIntensity => fireIntensity;
+	public float ContaminationLevel => contaminationLevel;
+	public float CorrosiveLevel => corrosiveLevel;
+	public float RadiationLevel => radiationLevel;
 	public GridOccupancyCategory OccupancyCategory => occupancyCategory;
 
 	public bool IsPassable => Flags.HasFlag(GridFlags.BlockMovement | GridFlags.DynamicObstacle);
@@ -71,10 +89,20 @@ public class GridCell
 	public event System.Action<GridCell> OnGridUnReserved;
 	public event System.Action<GridCell, float, float> OnTemperatureChanged;
 
-	public GridCell(int tileType, float temperatureCelsius = DefaultTemperatureCelsius)
+	public GridCell(
+		int tileType,
+		float temperatureCelsius = DefaultTemperatureCelsius,
+		float fireIntensity = MinimumHazardLevel,
+		float contaminationLevel = MinimumHazardLevel,
+		float corrosiveLevel = MinimumHazardLevel,
+		float radiationLevel = MinimumHazardLevel)
 	{
 		tile = tileType;
 		this.temperatureCelsius = temperatureCelsius;
+		this.fireIntensity = ClampHazardLevel(fireIntensity);
+		this.contaminationLevel = ClampHazardLevel(contaminationLevel);
+		this.corrosiveLevel = ClampHazardLevel(corrosiveLevel);
+		this.radiationLevel = ClampHazardLevel(radiationLevel);
 	}
 
 	public void Set(in FootprintCell cellFootprint, GameObject obj)
@@ -157,6 +185,56 @@ public class GridCell
 		float previous = temperatureCelsius;
 		temperatureCelsius = value;
 		OnTemperatureChanged?.Invoke(this, previous, temperatureCelsius);
+		return true;
+	}
+
+	public float GetHazardLevel(GridHazardType hazardType)
+	{
+		return hazardType switch
+		{
+			GridHazardType.Fire => fireIntensity,
+			GridHazardType.Contamination => contaminationLevel,
+			GridHazardType.Corrosive => corrosiveLevel,
+			GridHazardType.Radiation => radiationLevel,
+			_ => MinimumHazardLevel,
+		};
+	}
+
+	internal bool SetHazardLevel(GridHazardType hazardType, float value)
+	{
+		if (float.IsNaN(value) || float.IsInfinity(value))
+			return false;
+
+		float clamped = ClampHazardLevel(value);
+		switch (hazardType)
+		{
+			case GridHazardType.Fire:
+				return TrySetHazardLevel(ref fireIntensity, clamped);
+			case GridHazardType.Contamination:
+				return TrySetHazardLevel(ref contaminationLevel, clamped);
+			case GridHazardType.Corrosive:
+				return TrySetHazardLevel(ref corrosiveLevel, clamped);
+			case GridHazardType.Radiation:
+				return TrySetHazardLevel(ref radiationLevel, clamped);
+			default:
+				return false;
+		}
+	}
+
+	private static float ClampHazardLevel(float value)
+	{
+		if (float.IsNaN(value) || float.IsInfinity(value))
+			return MinimumHazardLevel;
+
+		return Mathf.Clamp(value, MinimumHazardLevel, MaximumHazardLevel);
+	}
+
+	private static bool TrySetHazardLevel(ref float current, float value)
+	{
+		if (Mathf.Approximately(current, value))
+			return false;
+
+		current = value;
 		return true;
 	}
 
@@ -244,10 +322,27 @@ public class GridMap
 					float temperature = data.Temperatures != null && idx < data.Temperatures.Length
 						? data.Temperatures[idx]
 						: GridCell.DefaultTemperatureCelsius;
-					map[x, y, z] = new GridCell(data.Tiles[idx], temperature);
+					float fireIntensity = ReadHazardLevel(data.FireIntensities, idx);
+					float contaminationLevel = ReadHazardLevel(data.ContaminationLevels, idx);
+					float corrosiveLevel = ReadHazardLevel(data.CorrosiveLevels, idx);
+					float radiationLevel = ReadHazardLevel(data.RadiationLevels, idx);
+					map[x, y, z] = new GridCell(
+						data.Tiles[idx],
+						temperature,
+						fireIntensity,
+						contaminationLevel,
+						corrosiveLevel,
+						radiationLevel);
 				}
 			}
 		}
+	}
+
+	private static float ReadHazardLevel(float[] values, int index)
+	{
+		return values != null && index >= 0 && index < values.Length
+			? values[index]
+			: GridCell.MinimumHazardLevel;
 	}
 
 	public bool IsInBound(in int3 pos)

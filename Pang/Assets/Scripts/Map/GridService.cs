@@ -92,6 +92,53 @@ public partial class GridService : MonoBehaviour
 		return TrySetTemperature(pos, cell.TemperatureCelsius + deltaCelsius);
 	}
 
+	public bool TrySetFireIntensity(in int3 pos, float intensity) =>
+		TrySetHazardLevel(pos, GridHazardType.Fire, intensity);
+
+	public bool TryAdjustFireIntensity(in int3 pos, float delta) =>
+		TryAdjustHazardLevel(pos, GridHazardType.Fire, delta);
+
+	public bool TrySetContaminationLevel(in int3 pos, float level) =>
+		TrySetHazardLevel(pos, GridHazardType.Contamination, level);
+
+	public bool TryAdjustContaminationLevel(in int3 pos, float delta) =>
+		TryAdjustHazardLevel(pos, GridHazardType.Contamination, delta);
+
+	public bool TrySetCorrosiveLevel(in int3 pos, float level) =>
+		TrySetHazardLevel(pos, GridHazardType.Corrosive, level);
+
+	public bool TryAdjustCorrosiveLevel(in int3 pos, float delta) =>
+		TryAdjustHazardLevel(pos, GridHazardType.Corrosive, delta);
+
+	public bool TrySetRadiationLevel(in int3 pos, float level) =>
+		TrySetHazardLevel(pos, GridHazardType.Radiation, level);
+
+	public bool TryAdjustRadiationLevel(in int3 pos, float delta) =>
+		TryAdjustHazardLevel(pos, GridHazardType.Radiation, delta);
+
+	public bool TrySetHazardLevel(in int3 pos, GridHazardType hazardType, float level)
+	{
+		GridCell cell = GetCell(pos);
+		if (cell == null)
+			return false;
+
+		float previous = cell.GetHazardLevel(hazardType);
+		if (cell.SetHazardLevel(hazardType, level) == false)
+			return false;
+
+		OnCellHazardChanged?.Invoke(pos, hazardType, previous, cell.GetHazardLevel(hazardType));
+		return true;
+	}
+
+	public bool TryAdjustHazardLevel(in int3 pos, GridHazardType hazardType, float delta)
+	{
+		GridCell cell = GetCell(pos);
+		if (cell == null || float.IsNaN(delta) || float.IsInfinity(delta) || delta == 0.0f)
+			return false;
+
+		return TrySetHazardLevel(pos, hazardType, cell.GetHazardLevel(hazardType) + delta);
+	}
+
 	public bool IsPassable(in int3 pos)
 	{
 		if (gridMap.IsInBound(pos) == false)
@@ -128,6 +175,7 @@ public partial class GridService : MonoBehaviour
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
 	public event System.Action<int3, float, float> OnCellTemperatureChanged;
+	public event System.Action<int3, GridHazardType, float, float> OnCellHazardChanged;
 	public event System.Action OnSpaceRegionsChanged;
 
 	public bool IsPlacedObject(GameObject targetObj) => targetObj != null && placedObjects.ContainsKey(targetObj);

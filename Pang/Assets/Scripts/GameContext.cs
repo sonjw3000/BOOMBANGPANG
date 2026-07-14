@@ -90,6 +90,8 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private HumanIncidentService humanIncidentService;
 	[SerializeField] private ItemHandlingDamageService itemHandlingDamageService;
 	[SerializeField] private ItemDamageService itemDamageService;
+	[SerializeField] private FireService fireService;
+	[SerializeField] private ExplosionService explosionService;
 
 	[Header("Worker Visuals")]
 	[SerializeField] private WorkerVisualCatalog workerVisualCatalog;
@@ -176,6 +178,8 @@ public class GameContext : MonoBehaviour
 	public HumanIncidentService HumanIncident => humanIncidentService;
 	public ItemHandlingDamageService ItemHandlingDamage => ResolveOrCreateItemHandlingDamageService();
 	public ItemDamageService ItemDamage => ResolveOrCreateItemDamageService();
+	public FireService FireSvc => ResolveOrCreateFireService();
+	public ExplosionService ExplosionSvc => ResolveOrCreateExplosionService();
 	public WorkerVisualCatalog WorkerVisualCatalog
 	{
 		get
@@ -297,6 +301,8 @@ public class GameContext : MonoBehaviour
 		_ = TemperatureSvc;
 		_ = ItemHandlingDamage;
 		_ = ItemDamage;
+		_ = FireSvc;
+		_ = ExplosionSvc;
 		_ = ResolveOrCreateGridOverlayController();
 		_ = LicenseService;
 	}
@@ -347,6 +353,30 @@ public class GameContext : MonoBehaviour
 			itemDamageService = gameObject.AddComponent<ItemDamageService>();
 
 		return itemDamageService;
+	}
+
+	private FireService ResolveOrCreateFireService()
+	{
+		if (fireService != null)
+			return fireService;
+
+		fireService = GetComponentInChildren<FireService>(true);
+		if (fireService == null)
+			fireService = gameObject.AddComponent<FireService>();
+
+		return fireService;
+	}
+
+	private ExplosionService ResolveOrCreateExplosionService()
+	{
+		if (explosionService != null)
+			return explosionService;
+
+		explosionService = GetComponentInChildren<ExplosionService>(true);
+		if (explosionService == null)
+			explosionService = gameObject.AddComponent<ExplosionService>();
+
+		return explosionService;
 	}
 
 	private GridOverlayController ResolveOrCreateGridOverlayController()

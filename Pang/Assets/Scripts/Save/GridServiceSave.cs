@@ -9,6 +9,10 @@ public partial class GridService
 		data.MapSize = new Int3SaveData(MapSize.x, MapSize.y, MapSize.z);
 		data.Tiles = new int[MapSize.x * MapSize.y * MapSize.z];
 		data.Temperatures = new float[data.Tiles.Length];
+		data.FireIntensities = new float[data.Tiles.Length];
+		data.ContaminationLevels = new float[data.Tiles.Length];
+		data.CorrosiveLevels = new float[data.Tiles.Length];
+		data.RadiationLevels = new float[data.Tiles.Length];
 
 		for (int x = 0; x < MapSize.x; ++x)
 		{
@@ -20,6 +24,10 @@ public partial class GridService
 					GridCell cell = Map[x, y, z];
 					data.Tiles[idx] = cell != null ? cell.Tile : 0;
 					data.Temperatures[idx] = cell != null ? cell.TemperatureCelsius : GridCell.DefaultTemperatureCelsius;
+					data.FireIntensities[idx] = cell != null ? cell.FireIntensity : GridCell.MinimumHazardLevel;
+					data.ContaminationLevels[idx] = cell != null ? cell.ContaminationLevel : GridCell.MinimumHazardLevel;
+					data.CorrosiveLevels[idx] = cell != null ? cell.CorrosiveLevel : GridCell.MinimumHazardLevel;
+					data.RadiationLevels[idx] = cell != null ? cell.RadiationLevel : GridCell.MinimumHazardLevel;
 				}
 			}
 		}
@@ -43,6 +51,10 @@ public partial class GridService
 			Z = data.MapSize.Z,
 			Tiles = data.Tiles,
 			Temperatures = data.Temperatures,
+			FireIntensities = data.FireIntensities,
+			ContaminationLevels = data.ContaminationLevels,
+			CorrosiveLevels = data.CorrosiveLevels,
+			RadiationLevels = data.RadiationLevels,
 		};
 
 		gridMap.LoadByData(gridData);

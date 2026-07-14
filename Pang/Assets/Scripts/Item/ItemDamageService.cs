@@ -140,7 +140,29 @@ public class ItemDamageService : MonoBehaviour
 			}
 
 			ItemDamageIncidentTrigger trigger = new(incident, in damageChange, in originCell, container);
+			RouteIncident(in trigger);
 			OnIncidentTriggered?.Invoke(trigger);
+		}
+	}
+
+	private static void RouteIncident(in ItemDamageIncidentTrigger trigger)
+	{
+		if (GameContext.HasInstance == false)
+			return;
+
+		switch (trigger.IncidentType)
+		{
+			case ItemDamageIncidentType.Fire:
+				FireService fireService = GameContext.Instance.FireSvc;
+				if (fireService != null)
+					fireService.ReportTrigger(in trigger);
+				break;
+
+			case ItemDamageIncidentType.Explosion:
+				ExplosionService explosionService = GameContext.Instance.ExplosionSvc;
+				if (explosionService != null)
+					explosionService.ReportTrigger(in trigger);
+				break;
 		}
 	}
 
