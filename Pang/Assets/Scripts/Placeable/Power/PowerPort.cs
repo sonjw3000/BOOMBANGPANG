@@ -3,6 +3,7 @@ using Unity.Mathematics;
 
 public class PowerPort : MonoBehaviour, IFacility
 {
+	[SerializeField] private HealthState health = new();
 	private int3 gridPosition;
 	private FacingDirection facingDirection;
 	private uint facilityRulePresetId;
@@ -18,6 +19,11 @@ public class PowerPort : MonoBehaviour, IFacility
 	public uint ConnectedBuildingId => connectedBuilding != null ? connectedBuilding.RuntimeBuildingId : 0;
 	public int CurrentPowerUsage => connectedBuilding != null ? connectedBuilding.CurrentPowerConsumption : 0;
 	public float PowerEfficiency => connectedHub != null ? connectedHub.PowerEfficiency : 0f;
+	public float Health => health.Health;
+	public float MaxHealth => health.MaxHealth;
+
+	public float ApplyDamage(float amount) => health.ApplyDamage(amount);
+	public void RestoreHealth(float value) => health.RestoreHealth(value);
 
 	internal void SetConnectedBuilding(Building building)
 	{

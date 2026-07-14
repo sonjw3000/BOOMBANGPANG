@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 public class PowerHub : MonoBehaviour, IFacility
 {
+	[SerializeField] private HealthState health = new();
 	private int3 gridPosition;
 	private FacingDirection facingDirection;
 	private uint facilityRulePresetId;
@@ -23,6 +24,11 @@ public class PowerHub : MonoBehaviour, IFacility
 	public int PowerCapacity => activeVendor != null ? activeVendor.PowerCapacity : 0;
 	public bool HasPower => activeVendor != null;
 	public int ConnectedBuildingCount => connectedPorts.Count;
+	public float Health => health.Health;
+	public float MaxHealth => health.MaxHealth;
+
+	public float ApplyDamage(float amount) => health.ApplyDamage(amount);
+	public void RestoreHealth(float value) => health.RestoreHealth(value);
 
 	public int CurrentPowerUsage
 	{

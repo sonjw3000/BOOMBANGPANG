@@ -85,7 +85,7 @@ public struct WorkerStatusInfo
 }
 
 [System.Serializable]
-public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect
+public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPlacementEffect, IHealth
 {
 	// worker identity
 	[SerializeField] private string workerFirstName;
@@ -103,6 +103,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private int monthlyCost;
 	[SerializeField] private int hiredAtElapsedWeek = -1;
 	[SerializeField] private int itemDamageIncidentCount;
+	[SerializeField] private HealthState health = new();
 
 	// base stat
 	[SerializeField] private float baseMoveSpeedMultiplier = 1.0f;
@@ -202,6 +203,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public int MonthlyCost => monthlyCost;
 	public int HiredAtElapsedWeek => Mathf.Max(0, hiredAtElapsedWeek);
 	public int ItemDamageIncidentCount => itemDamageIncidentCount;
+	public float Health => health.Health;
+	public float MaxHealth => health.MaxHealth;
+
+	public float ApplyDamage(float amount) => health.ApplyDamage(amount);
+	public void RestoreHealth(float value) => health.RestoreHealth(value);
 
 	// stat
 	public float BaseMoveSpeedMultiplier => baseMoveSpeedMultiplier;

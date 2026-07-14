@@ -180,6 +180,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.FacilityMgr.ResetRuntimeState();
 		Ctx.PowerSvc.ResetRuntimeState();
 		Ctx.TemperatureSvc.ResetRuntimeState();
+		Ctx.ExplosionSvc.ResetRuntimeState();
 		Ctx.StorageService.ResetRuntimeState();
 		Ctx.BuildingFootprintService.ResetRuntimeState();
 		Ctx.WMSys.WorkPolicyService.ResetRuntimeState();
@@ -274,6 +275,11 @@ public sealed class GameSaveService : MonoBehaviour
 		data.GridPosition = ToSave(ctx.center);
 		if (obj.TryGetComponent<IFacility>(out var facility))
 			data.FacilityRulePresetId = facility.FacilityRulePresetId;
+		if (obj.TryGetComponent<IHealth>(out var healthOwner))
+		{
+			data.HasHealth = true;
+			data.Health = healthOwner.Health;
+		}
 
 		if (obj.TryGetComponent<AIWorker>(out var worker))
 		{
@@ -386,6 +392,9 @@ public sealed class GameSaveService : MonoBehaviour
 		}
 
 		restoredPlaceables[save.SaveId] = obj;
+
+		if (save.HasHealth && obj.TryGetComponent<IHealth>(out var healthOwner))
+			healthOwner.RestoreHealth(save.Health);
 
 		if (obj.TryGetComponent<IFacility>(out var facility))
 		{

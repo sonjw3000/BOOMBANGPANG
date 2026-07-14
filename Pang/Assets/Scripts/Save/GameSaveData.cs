@@ -440,6 +440,8 @@ public sealed class PlaceableSaveData
 	public Int3SaveData GridPosition = new();
 	public bool IsWorker;
 	public uint FacilityRulePresetId;
+	public bool HasHealth;
+	public float Health;
 
 	public WorkerSaveData Worker;
 	public ShelfContainerSaveData Shelf;

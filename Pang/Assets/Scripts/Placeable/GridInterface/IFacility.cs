@@ -1,4 +1,4 @@
-public interface IFacility : IGridPlaceable
+public interface IFacility : IGridPlaceable, IHealth
 {
 	public uint FacilityRulePresetId { get; }
 	public int PowerConsumption { get; }
