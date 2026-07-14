@@ -67,6 +67,7 @@ public sealed class GameSaveData
 	public GridMapSaveData Grid = new();
 	public ContractServiceSaveData Contracts = new();
 	public LicenseServiceSaveData Licenses = new();
+	public ResearchServiceSaveData Research = new();
 	public VendorServiceSaveData Vendors = new();
 	public OrderManagerSaveData Orders = new();
 	public OutboundPickingManifestSaveData OutboundPickingManifests = new();
@@ -79,6 +80,14 @@ public sealed class GameSaveData
 	public WorkJobCounterSaveData WorkJobCounters = new();
 	public List<PlaceableSaveData> Placeables = new();
 	public List<TaskSaveData> Tasks = new();
+}
+
+[Serializable]
+public sealed class ResearchServiceSaveData
+{
+	public List<string> ResearchedIds = new();
+	public string ActiveResearchId;
+	public int RemainingWeeks;
 }
 
 [Serializable]

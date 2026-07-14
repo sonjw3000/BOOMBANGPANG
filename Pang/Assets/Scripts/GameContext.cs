@@ -61,6 +61,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private WMSystem warehouseManagement;
 	[SerializeField] private ContractService contractService;
 	[SerializeField] private LicenseService licenseService;
+	[SerializeField] private ResearchCatalog researchCatalog;
 	[SerializeField] private PathFindingService pathFindingService;
 	[FormerlySerializedAs("zoneManager")]
 	[SerializeField] private AreaManager areaManager;
@@ -107,6 +108,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private HudEventManager hudEventManager;
 
 	private DeliveryService deliveryService = new();
+	private readonly ResearchService researchService = new();
 	private GameSaveService saveService;
 	private DemoGoalService demoGoalService;
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
@@ -115,10 +117,16 @@ public class GameContext : MonoBehaviour
 	private InteractionContext interactionCtx;
 	private bool eventsBound;
 
+	private void OnValidate()
+	{
+		researchCatalog?.ValidateKeys();
+	}
+
 	//public Resources MapResources => mapResources;
 	public bool GameCheat => gameCheat;
 	public GameTime GameTime => gameTime;
 	public EconomyService EconomyService => economyService;
+	public ResearchService ResearchService => researchService;
 	public ItemDatabase ItemDB => itemDB;
 	//public GridMap GridMap => gridMap;
 	public GridService GridService => gridService;
@@ -306,6 +314,7 @@ public class GameContext : MonoBehaviour
 	private void EnsureRuntimeState()
 	{
 		deliveryService ??= new DeliveryService();
+		researchService.Initialize(researchCatalog, economyService, gameTime);
 		interactionCtx ??= new InteractionContext();
 		capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
 		itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();
@@ -412,6 +421,8 @@ public class GameContext : MonoBehaviour
 
 	private void UnbindEvents()
 	{
+		researchService.Unbind();
+
 		if (eventsBound == false)
 			return;
 

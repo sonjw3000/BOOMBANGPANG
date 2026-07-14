@@ -1005,6 +1005,7 @@ MonoBehaviour:
   warehouseManagement: {fileID: 4181363907245693410}
   contractService: {fileID: 1422058608903141302}
   licenseService: {fileID: 7873461287562190481}
+  researchCatalog: {fileID: 11400000, guid: 27902f5ae47f46508dc6698254f64c10, type: 2}
   pathFindingService: {fileID: 2045873797293161509}
   areaManager: {fileID: 3365747867954475864}
   facilityManager: {fileID: 474663047469881703}

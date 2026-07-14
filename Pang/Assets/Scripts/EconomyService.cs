@@ -11,6 +11,7 @@ public class EconomyTransaction
 		Payday,
 		MontlyContract,
 		PowerService,
+		ResearchInvestment,
 		OrderSettlement,
 		}
 
@@ -85,6 +86,7 @@ public partial class EconomyService : MonoBehaviour
 			EconomyTransaction.Reason.Payday => "Payday",
 			EconomyTransaction.Reason.MontlyContract => "Monthly Contract",
 			EconomyTransaction.Reason.PowerService => "Power Service",
+			EconomyTransaction.Reason.ResearchInvestment => "Research Investment",
 			EconomyTransaction.Reason.OrderSettlement => "Order Settlement",
 			_ => reason.ToString(),
 		};

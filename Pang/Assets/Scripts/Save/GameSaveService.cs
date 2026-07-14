@@ -136,6 +136,7 @@ public sealed class GameSaveService : MonoBehaviour
 		data.Grid = Ctx.GridService.CaptureState();
 		data.Contracts = Ctx.ContractMgr.CaptureState();
 		data.Licenses = Ctx.LicenseService.CaptureState();
+		data.Research = Ctx.ResearchService.CaptureState();
 		data.Vendors = Ctx.VendorService.CaptureState();
 		data.Orders = Ctx.OrderMgr.CaptureState(RegisterOrderLine);
 		data.OutboundPickingManifests = Ctx.OBWorkflowSvc.CapturePickingManifestState(RegisterOrderLine);
@@ -167,6 +168,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.OrderDelivery.ResetRuntimeState();
 		Ctx.ContractMgr.ResetRuntimeState();
 		Ctx.LicenseService.ResetRuntimeState();
+		Ctx.ResearchService.ResetRuntimeState();
 		Ctx.VendorService.ResetRuntimeState();
 		Ctx.OrderMgr.ResetRuntimeState();
 		Ctx.DeliveryService.ResetRuntimeState();
@@ -200,6 +202,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.OBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.OutboundWorkApproach : null);
 		Ctx.GameTime.RestoreState(data.Time);
 		Ctx.EconomyService.RestoreState(data.Economy);
+		Ctx.ResearchService.RestoreState(data.Research);
 		Ctx.LicenseService.RestoreState(data.Licenses);
 		Ctx.ContractMgr.RestoreState(data.Contracts);
 		Ctx.VendorService.RestoreState(data.Vendors);
