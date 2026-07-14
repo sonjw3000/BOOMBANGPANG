@@ -161,7 +161,7 @@ public class ItemDamageService : MonoBehaviour
 			case ItemDamageIncidentType.Explosion:
 				ExplosionService explosionService = GameContext.Instance.ExplosionSvc;
 				if (explosionService != null)
-					explosionService.ReportTrigger(in trigger);
+					explosionService.Enqueue(in trigger);
 				break;
 
 			case ItemDamageIncidentType.Contamination:

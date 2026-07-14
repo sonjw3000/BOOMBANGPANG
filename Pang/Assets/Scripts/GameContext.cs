@@ -182,7 +182,15 @@ public class GameContext : MonoBehaviour
 	public ItemHandlingDamageService ItemHandlingDamage => ResolveOrCreateItemHandlingDamageService();
 	public ItemDamageService ItemDamage => ResolveOrCreateItemDamageService();
 	public FireService FireSvc => fireService ??= new FireService();
-	public ExplosionService ExplosionSvc => explosionService ??= new ExplosionService();
+	public ExplosionService ExplosionSvc
+	{
+		get
+		{
+			explosionService ??= new ExplosionService();
+			explosionService.Bind(gameTime);
+			return explosionService;
+		}
+	}
 	public ContaminationService ContaminationSvc => contaminationService ??= new ContaminationService();
 	public CorrosionService CorrosionSvc => corrosionService ??= new CorrosionService();
 	public RadiationService RadiationSvc => radiationService ??= new RadiationService();
@@ -266,6 +274,7 @@ public class GameContext : MonoBehaviour
 
 	private void OnDisable()
 	{
+		explosionService?.Unbind();
 		UnbindEvents();
 	}
 
