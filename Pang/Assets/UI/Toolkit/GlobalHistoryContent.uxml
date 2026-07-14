@@ -2,6 +2,7 @@
 	<Style src="GlobalHistoryContent.uss" />
 	<ui:VisualElement class="history-content">
 		<ui:VisualElement class="history-section-tabs">
+			<ui:VisualElement class="history-section-tabs__separator" picking-mode="Ignore" />
 			<ui:Button name="economy-history-button" text="Economy" class="history-section-button" />
 			<ui:Button name="event-history-button" text="Events" class="history-section-button" />
 		</ui:VisualElement>

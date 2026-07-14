@@ -10,7 +10,7 @@
 	position: absolute;
 	left: 12px;
 	bottom: 12px;
-	width: 330px;
+	width: 235px;
 }
 
 .hud-event-area {
@@ -24,7 +24,7 @@
 }
 
 .hud-event-entry {
-	height: 28px;
+	height: 23px;
 	flex-direction: row;
 	align-items: center;
 	margin-top: 3px;
@@ -41,15 +41,15 @@
 
 .hud-event-entry__indicator {
 	width: 3px;
-	height: 26px;
+	height: 21px;
 	background-color: rgb(123, 169, 191);
 }
 
 .hud-event-entry__message {
 	flex-grow: 1;
-	padding-left: 8px;
-	padding-right: 8px;
-	font-size: 11px;
+	padding-left: 6px;
+	padding-right: 6px;
+	font-size: 9px;
 	color: rgb(222, 233, 238);
 }
 
@@ -70,11 +70,12 @@
 }
 
 .economy-summary {
-	height: 52px;
+	height: 42px;
 	flex-direction: row;
 	align-items: center;
-	padding-left: 12px;
-	padding-right: 10px;
+	padding-left: 8px;
+	padding-right: 7px;
+	overflow: hidden;
 	background-color: rgba(12, 20, 29, 0.95);
 	border-top-width: 1px;
 	border-right-width: 1px;
@@ -99,19 +100,20 @@
 }
 
 .status-item {
-	min-width: 88px;
+	width: 82px;
+	overflow: hidden;
 }
 
 .status-label {
-	margin-bottom: 2px;
-	font-size: 8px;
+	margin-bottom: 1px;
+	font-size: 7px;
 	-unity-font-style: bold;
 	letter-spacing: 1.2px;
 	color: rgb(126, 153, 166);
 }
 
 .status-value {
-	font-size: 16px;
+	font-size: 13px;
 	-unity-font-style: bold;
 	color: rgb(231, 240, 243);
 }
@@ -126,18 +128,14 @@
 
 .status-divider {
 	width: 1px;
-	height: 28px;
-	margin-left: 5px;
-	margin-right: 12px;
+	height: 22px;
+	margin-left: 3px;
+	margin-right: 7px;
 	background-color: rgba(93, 127, 143, 0.4);
 }
 
 .history-hint {
-	margin-left: auto;
-	font-size: 8px;
-	-unity-font-style: bold;
-	letter-spacing: 0.8px;
-	color: rgb(88, 158, 184);
+	display: none;
 }
 
 .time-cluster {
@@ -145,11 +143,12 @@
 	left: 50%;
 	bottom: 12px;
 	translate: -50% 0;
-	height: 52px;
+	width: 270px;
+	height: 42px;
 	flex-direction: row;
 	align-items: center;
-	padding-left: 12px;
-	padding-right: 8px;
+	padding-left: 8px;
+	padding-right: 6px;
 	background-color: rgba(12, 20, 29, 0.95);
 	border-top-width: 1px;
 	border-right-width: 1px;
@@ -166,29 +165,29 @@
 }
 
 .date-block {
-	min-width: 145px;
+	width: 105px;
 }
 
 .date-value {
-	font-size: 13px;
+	font-size: 10px;
 	-unity-font-style: bold;
 	color: rgb(224, 235, 240);
 }
 
 .time-divider {
 	width: 1px;
-	height: 28px;
-	margin-left: 10px;
-	margin-right: 8px;
+	height: 22px;
+	margin-left: 6px;
+	margin-right: 5px;
 	background-color: rgba(93, 127, 143, 0.4);
 }
 
 .speed-button {
-	width: 30px;
-	height: 28px;
+	width: 25px;
+	height: 23px;
 	margin-left: 2px;
 	padding: 0;
-	font-size: 12px;
+	font-size: 10px;
 	color: rgb(191, 211, 220);
 	background-color: rgb(30, 47, 61);
 	border-top-width: 1px;
@@ -223,9 +222,9 @@
 }
 
 .speed-value {
-	min-width: 50px;
-	margin-left: 6px;
-	font-size: 12px;
+	min-width: 36px;
+	margin-left: 4px;
+	font-size: 10px;
 	-unity-font-style: bold;
 	-unity-text-align: middle-center;
 	color: rgb(95, 206, 229);

@@ -21,6 +21,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private readonly List<ActiveHudEvent> activeEvents = new();
 		private UIDocument uiDocument;
+		private VisualElement hudRoot;
+		private VisualElement leftHud;
+		private VisualElement timeCluster;
 		private VisualElement economySummary;
 		private VisualElement hudEventArea;
 		private VisualElement hudEventList;
@@ -36,6 +39,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
 		private bool started;
+		private bool? timeHudDockedRight;
 
 		private sealed class ActiveHudEvent
 		{
@@ -139,6 +143,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 			VisualElement root = uiDocument.rootVisualElement;
 			root.pickingMode = PickingMode.Ignore;
+			hudRoot = root;
+			leftHud = root.Q<VisualElement>(className: "left-hud");
+			timeCluster = root.Q<VisualElement>(className: "time-cluster");
 			economySummary = root.Q<VisualElement>("economy-summary");
 			hudEventArea = root.Q<VisualElement>("hud-event-area");
 			hudEventList = root.Q<VisualElement>("hud-event-list");
@@ -150,7 +157,8 @@ namespace UniverseLogistics.UI.Toolkit
 			normalSpeedButton = root.Q<Button>("normal-speed-button");
 			doubleSpeedButton = root.Q<Button>("double-speed-button");
 
-			if (economySummary == null || hudEventArea == null || hudEventList == null || moneyValue == null ||
+			if (leftHud == null || timeCluster == null || economySummary == null || hudEventArea == null ||
+				hudEventList == null || moneyValue == null ||
 				reputationValue == null || dateValue == null || speedValue == null || pauseButton == null ||
 				normalSpeedButton == null || doubleSpeedButton == null)
 			{
@@ -168,12 +176,19 @@ namespace UniverseLogistics.UI.Toolkit
 			normalSpeedButton.clicked += SetNormalSpeed;
 			doubleSpeedButton.clicked -= DoubleSpeed;
 			doubleSpeedButton.clicked += DoubleSpeed;
+			hudRoot.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
+			hudRoot.RegisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
+			timeCluster.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
+			timeCluster.RegisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
+			hudRoot.schedule.Execute(UpdateTimeHudPlacement);
 		}
 
 		private void UnbindControls()
 		{
 			economySummary?.UnregisterCallback<ClickEvent>(OnEconomySummaryClicked);
 			hudEventArea?.UnregisterCallback<ClickEvent>(OnHudEventAreaClicked);
+			hudRoot?.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
+			timeCluster?.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
 			if (pauseButton != null)
 				pauseButton.clicked -= Pause;
 			if (normalSpeedButton != null)
@@ -244,6 +259,40 @@ namespace UniverseLogistics.UI.Toolkit
 		private void OnHudEventAreaClicked(ClickEvent _)
 		{
 			historyWindow?.OpenEvents();
+		}
+
+		private void OnHudGeometryChanged(GeometryChangedEvent _)
+		{
+			UpdateTimeHudPlacement();
+		}
+
+		private void UpdateTimeHudPlacement()
+		{
+			if (hudRoot == null || leftHud == null || timeCluster == null)
+				return;
+
+			float panelWidth = hudRoot.resolvedStyle.width;
+			float timeWidth = timeCluster.resolvedStyle.width;
+			if (float.IsNaN(panelWidth) || float.IsNaN(timeWidth) || panelWidth <= 0f || timeWidth <= 0f)
+				return;
+
+			float centeredLeft = (panelWidth - timeWidth) * 0.5f;
+			bool shouldDockRight = leftHud.worldBound.xMax + 10f > centeredLeft;
+			if (timeHudDockedRight == shouldDockRight)
+				return;
+
+			timeHudDockedRight = shouldDockRight;
+			if (shouldDockRight)
+			{
+				timeCluster.style.left = StyleKeyword.Auto;
+				timeCluster.style.right = 12f;
+				timeCluster.style.translate = new Translate(0f, 0f);
+				return;
+			}
+
+			timeCluster.style.left = new Length(50f, LengthUnit.Percent);
+			timeCluster.style.right = StyleKeyword.Auto;
+			timeCluster.style.translate = new Translate(new Length(-50f, LengthUnit.Percent), 0f);
 		}
 
 		private void Pause()
