@@ -35,6 +35,8 @@ public partial class WorkerManager : MonoBehaviour
 	public int CostPerMonth => monthlyCost;
 	public uint NextWorkerId => nextWorkerID;
 	public int TrafficBlockedCount => trafficBlockedCount;
+	public event Action OnWorkersChanged;
+	public event Action<AIWorker> OnWorkerChanged;
 	// todo
 	// 전역 블랙보드의 관리는 다른곳에 넘겨야함
 	private BlackBoard globalBlackboard;
@@ -73,6 +75,7 @@ public partial class WorkerManager : MonoBehaviour
 		monthlyCost += worker.MonthlyCost;
 		SubscribeWorker(worker);
 		RegisterWorkerStatus(worker);
+		OnWorkersChanged?.Invoke();
 	}
 
 	public void UnregisterWorker(AIWorker worker)
@@ -86,6 +89,7 @@ public partial class WorkerManager : MonoBehaviour
 		RemoveIdleWorker(worker);
 
 		monthlyCost -= worker.MonthlyCost;
+		OnWorkersChanged?.Invoke();
 	}
 
 	static public bool CanChangeType(AIWorker worker, TaskType type) => WorkerTaskAssignmentPolicy.CanAssign(worker, type);
@@ -141,6 +145,39 @@ public partial class WorkerManager : MonoBehaviour
 		RemoveIdleWorker(worker);
 		worker.SetAssignedTaskTypes(validTypes);
 		RegisterWorkerTaskTypes(worker);
+		OnWorkerChanged?.Invoke(worker);
+	}
+
+	public bool TrySetWorkerPrimaryBuilding(AIWorker worker, uint buildingId)
+	{
+		if (worker == null || workers.Contains(worker) == false)
+			return false;
+
+		if (buildingId != 0)
+		{
+			BuildingManager buildingManager = GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+			bool buildingExists = false;
+			if (buildingManager != null)
+			{
+				foreach (Building building in buildingManager.RegisteredBuildings)
+				{
+					if (building != null && building.RuntimeBuildingId == buildingId)
+					{
+						buildingExists = true;
+						break;
+					}
+				}
+			}
+
+			if (buildingExists == false)
+			{
+				return false;
+			}
+		}
+
+		worker.SetPrimaryBuildingId(buildingId);
+		SetWorkerAssignedTaskTypes(worker, Array.Empty<TaskType>());
+		return true;
 	}
 
 	public AIWorker GetAvailableWorkers(WorkerTask taskData)
@@ -348,6 +385,7 @@ public partial class WorkerManager : MonoBehaviour
 			return;
 
 		MoveStatusCount(worker.TaskType, oldStatus, newStatus);
+		OnWorkerChanged?.Invoke(worker);
 	}
 
 	private void OnWorkerTaskTypeChanged(AIWorker worker, TaskType oldTaskType, TaskType newTaskType)
@@ -364,6 +402,7 @@ public partial class WorkerManager : MonoBehaviour
 			AdjustTrafficBlockedCount(oldTaskType, -1);
 			AdjustTrafficBlockedCount(newTaskType, 1);
 		}
+		OnWorkerChanged?.Invoke(worker);
 	}
 
 	private void OnWorkerTrafficBlockChanged(AIWorker worker, bool isBlocked)
@@ -372,6 +411,7 @@ public partial class WorkerManager : MonoBehaviour
 			return;
 
 		AdjustTrafficBlockedCount(worker.TaskType, isBlocked ? 1 : -1);
+		OnWorkerChanged?.Invoke(worker);
 	}
 
 	private void RegisterWorkerStatus(AIWorker worker)

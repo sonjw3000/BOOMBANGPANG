@@ -29,6 +29,29 @@ public class WorkerSpawnManager : MonoBehaviour
 
 	public Transform SpawnedWorkerRoot => spawnedWorkerRoot;
 
+	public bool TryHireWorker(WorkerArchetype archetype, UnityEngine.Object requester, out AIWorker spawnedWorker)
+	{
+		spawnedWorker = null;
+		if (archetype == null || GameContext.HasInstance == false)
+			return false;
+
+		EconomyService economy = GameContext.Instance.EconomyService;
+		int hireCost = Mathf.Max(0, archetype.AbilityDefinition.installCost);
+		if (economy == null || economy.CanAfford(hireCost) == false)
+			return false;
+
+		if (TrySpawnWorker(archetype, requester, out spawnedWorker) == false)
+			return false;
+
+		economy.ApplyTransaction(new EconomyTransaction
+		{
+			moneyDelta = -hireCost,
+			reputationDelta = 0f,
+			reason = EconomyTransaction.Reason.WorkerHire,
+		});
+		return true;
+	}
+
 	private GridService GridService => GameContext.Instance.GridService;
 	private AreaManager AreaManager
 	{

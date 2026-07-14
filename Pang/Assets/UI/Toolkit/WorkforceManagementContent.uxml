@@ -1,0 +1,64 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="WorkforceManagement.uss" />
+	<ui:VisualElement class="workforce-content">
+		<ui:VisualElement class="workforce-tabs">
+			<ui:VisualElement class="workforce-tabs__separator" picking-mode="Ignore" />
+			<ui:Button name="workforce-roster-button" text="Roster" class="workforce-tab-button" />
+			<ui:Button name="workforce-hiring-button" text="Hiring" class="workforce-tab-button" />
+		</ui:VisualElement>
+		<ui:VisualElement name="workforce-roster-tab" class="workforce-tab">
+			<ui:VisualElement class="workforce-summary">
+				<ui:Label name="workforce-total" text="TOTAL 0" class="workforce-summary__item" />
+				<ui:Label name="workforce-unassigned" text="UNASSIGNED 0" class="workforce-summary__item" />
+				<ui:Label name="workforce-working" text="WORKING 0" class="workforce-summary__item" />
+				<ui:Label name="workforce-blocked" text="BLOCKED 0" class="workforce-summary__item workforce-summary__item--warning" />
+				<ui:Label name="workforce-payroll" text="PAYROLL $0 / MONTH" class="workforce-summary__item workforce-summary__item--payroll" />
+			</ui:VisualElement>
+			<ui:VisualElement class="workforce-columns">
+				<ui:VisualElement class="workforce-roster-column">
+					<ui:VisualElement class="workforce-toolbar">
+						<ui:Label text="WORKERS" class="workforce-column-label" />
+						<ui:DropdownField name="worker-filter-field" class="workforce-filter" />
+					</ui:VisualElement>
+					<ui:ScrollView name="worker-list" class="workforce-list" />
+					<ui:Label name="worker-list-empty" text="No workers match this filter." class="workforce-empty" />
+				</ui:VisualElement>
+				<ui:VisualElement class="workforce-detail-column">
+					<ui:Label text="SELECTED WORKER" class="workforce-column-label" />
+					<ui:VisualElement name="worker-detail-empty" class="workforce-detail-empty">
+						<ui:Label text="Select a worker to inspect and configure." />
+					</ui:VisualElement>
+					<ui:VisualElement name="worker-detail" class="workforce-detail">
+						<ui:Label name="worker-detail-name" text="Worker" class="workforce-detail__name" />
+						<ui:Label name="worker-detail-kind" text="Human" class="workforce-detail__subtext" />
+						<ui:VisualElement class="workforce-detail__facts">
+							<ui:Label name="worker-detail-status" text="STATUS Idle" class="workforce-detail__fact" />
+							<ui:Label name="worker-detail-condition" text="FATIGUE 0%" class="workforce-detail__fact" />
+							<ui:Label name="worker-detail-pay" text="$0 / MONTH" class="workforce-detail__fact" />
+						</ui:VisualElement>
+						<ui:Label text="PRIMARY BUILDING" class="workforce-field-label" />
+						<ui:DropdownField name="worker-building-field" class="workforce-field" />
+						<ui:Label text="HANDLE GROUP" class="workforce-field-label" />
+						<ui:DropdownField name="worker-handle-field" class="workforce-field" />
+						<ui:Label text="ALLOWED TASKS" class="workforce-field-label" />
+						<ui:ScrollView name="worker-task-toggles" class="workforce-task-list" />
+					</ui:VisualElement>
+				</ui:VisualElement>
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:VisualElement name="workforce-hiring-tab" class="workforce-tab workforce-hiring">
+			<ui:VisualElement class="workforce-category-column">
+				<ui:Label text="MARKETS" class="workforce-column-label" />
+				<ui:ScrollView name="workforce-category-list" class="workforce-list" />
+			</ui:VisualElement>
+			<ui:VisualElement class="workforce-candidate-column">
+				<ui:VisualElement class="workforce-hiring-toolbar">
+					<ui:Label text="CANDIDATES" class="workforce-column-label" />
+					<ui:Button name="create-worker-spawn-area-button" text="Create Spawn Area" class="workforce-create-area-button" />
+				</ui:VisualElement>
+				<ui:Label name="workforce-hiring-message" text="Select a workforce market." class="workforce-message" />
+				<ui:ScrollView name="workforce-candidate-list" class="workforce-list" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

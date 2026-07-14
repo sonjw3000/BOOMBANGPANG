@@ -35,7 +35,7 @@ namespace Assets.Scripts.UI
 				return;
 			}
 
-			if (workerSpawnMgr.TrySpawnWorker(CurrentArchetype, this, out var spawnedWorker) == false)
+			if (workerSpawnMgr.TryHireWorker(CurrentArchetype, this, out var spawnedWorker) == false)
 			{
 				Debug.LogWarning($"Failed to hire {CurrentArchetype.WorkerNameDefinition.WorkerFirstName} {CurrentArchetype.WorkerNameDefinition.WorkerLastName}");
 				return;

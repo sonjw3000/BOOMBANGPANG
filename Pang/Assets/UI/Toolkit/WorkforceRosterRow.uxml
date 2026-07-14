@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<ui:VisualElement class="workforce-worker-row">
+		<ui:VisualElement class="workforce-worker-row__identity">
+			<ui:Label name="worker-row-name" text="Worker" class="workforce-worker-row__name" />
+			<ui:Label name="worker-row-kind" text="Human" class="workforce-worker-row__subtext" />
+		</ui:VisualElement>
+		<ui:Label name="worker-row-status" text="Idle" class="workforce-worker-row__value" />
+		<ui:Label name="worker-row-condition" text="0%" class="workforce-worker-row__value" />
+		<ui:Label name="worker-row-building" text="Outdoor" class="workforce-worker-row__building" />
+	</ui:VisualElement>
+</ui:UXML>

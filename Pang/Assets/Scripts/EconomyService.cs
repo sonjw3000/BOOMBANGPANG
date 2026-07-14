@@ -12,6 +12,7 @@ public class EconomyTransaction
 		MontlyContract,
 		PowerService,
 		OrderSettlement,
+		WorkerHire,
 		}
 
 	public int moneyDelta;
@@ -86,6 +87,7 @@ public partial class EconomyService : MonoBehaviour
 			EconomyTransaction.Reason.MontlyContract => "Monthly Contract",
 			EconomyTransaction.Reason.PowerService => "Power Service",
 			EconomyTransaction.Reason.OrderSettlement => "Order Settlement",
+			EconomyTransaction.Reason.WorkerHire => "Worker Hire",
 			_ => reason.ToString(),
 		};
 	}

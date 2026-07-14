@@ -1,0 +1,51 @@
+.workforce-content { flex-grow: 1; }
+.workforce-tabs { position: relative; height: 30px; flex-direction: row; align-items: flex-end; margin-bottom: 8px; }
+.workforce-tabs__separator { position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background-color: rgb(65, 78, 88); }
+.workforce-tab-button { width: 90px; height: 29px; margin-right: 3px; font-size: 10px; color: rgb(145, 163, 173); background-color: rgba(0,0,0,0); border-left-width: 0; border-right-width: 0; border-top-width: 0; border-bottom-width: 2px; border-bottom-color: rgba(0,0,0,0); }
+.workforce-tab-button--selected { color: rgb(232, 243, 247); border-bottom-color: rgb(74, 186, 218); }
+.workforce-tab { position: relative; flex-grow: 1; }
+.workforce-summary { height: 38px; flex-direction: row; align-items: center; margin-bottom: 7px; padding-left: 8px; padding-right: 8px; background-color: rgb(28, 38, 46); }
+.workforce-summary__item { margin-right: 18px; font-size: 8px; -unity-font-style: bold; color: rgb(162, 186, 197); }
+.workforce-summary__item--warning { color: rgb(225, 151, 97); }
+.workforce-summary__item--payroll { flex-grow: 1; margin-right: 0; -unity-text-align: middle-right; color: rgb(101, 213, 171); }
+.workforce-columns, .workforce-hiring { flex-direction: row; flex-grow: 1; }
+.workforce-roster-column { position: relative; width: 57%; padding-right: 10px; border-right-width: 1px; border-right-color: rgb(65, 78, 88); }
+.workforce-detail-column { position: relative; flex-grow: 1; padding-left: 10px; }
+.workforce-toolbar { height: 29px; flex-direction: row; align-items: center; }
+.workforce-column-label { height: 22px; flex-grow: 1; font-size: 8px; -unity-font-style: bold; letter-spacing: 1px; color: rgb(113, 154, 173); }
+.workforce-filter { width: 120px; font-size: 9px; }
+.workforce-list { flex-grow: 1; }
+.workforce-empty, .workforce-detail-empty { position: absolute; left: 0; right: 10px; top: 90px; font-size: 10px; -unity-text-align: middle-center; color: rgb(112, 132, 143); }
+.workforce-detail-empty { right: 0; top: 75px; }
+.workforce-detail__name { font-size: 14px; -unity-font-style: bold; color: rgb(231, 240, 243); }
+.workforce-detail__subtext { margin-top: 2px; font-size: 9px; color: rgb(125, 148, 160); }
+.workforce-detail__facts { height: 36px; flex-direction: row; align-items: center; margin-top: 7px; margin-bottom: 7px; padding-left: 7px; background-color: rgb(29, 39, 47); }
+.workforce-detail__fact { flex-grow: 1; font-size: 8px; color: rgb(178, 199, 208); }
+.workforce-field-label { margin-top: 6px; margin-bottom: 2px; font-size: 8px; -unity-font-style: bold; color: rgb(113, 154, 173); }
+.workforce-field { height: 25px; font-size: 9px; }
+.workforce-task-list { height: 125px; padding: 5px; background-color: rgb(27, 36, 43); }
+.workforce-task-toggle { height: 23px; font-size: 9px; color: rgb(187, 207, 216); }
+.workforce-worker-row { min-height: 42px; flex-direction: row; align-items: center; margin-bottom: 3px; padding-left: 8px; padding-right: 7px; background-color: rgb(32, 42, 50); border-left-width: 2px; border-left-color: rgb(62, 91, 104); }
+.workforce-worker-row:hover, .workforce-worker-row--selected { background-color: rgb(38, 60, 71); border-left-color: rgb(74, 186, 218); }
+.workforce-worker-row__identity { width: 145px; }
+.workforce-worker-row__name { font-size: 10px; -unity-font-style: bold; color: rgb(224, 235, 240); }
+.workforce-worker-row__subtext { margin-top: 2px; font-size: 8px; color: rgb(126, 150, 162); }
+.workforce-worker-row__value { width: 72px; font-size: 8px; color: rgb(181, 201, 210); }
+.workforce-worker-row__building { flex-grow: 1; font-size: 8px; -unity-text-align: middle-right; color: rgb(103, 196, 220); }
+.workforce-category-column { width: 150px; margin-right: 10px; padding-right: 9px; border-right-width: 1px; border-right-color: rgb(65, 78, 88); }
+.workforce-candidate-column { flex-grow: 1; }
+.workforce-hiring-toolbar { height: 28px; flex-direction: row; align-items: flex-start; }
+.workforce-create-area-button { width: 118px; height: 24px; font-size: 8px; -unity-font-style: bold; color: rgb(225, 239, 244); background-color: rgb(43, 70, 82); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(74, 136, 158); border-right-color: rgb(74, 136, 158); border-top-color: rgb(74, 136, 158); border-bottom-color: rgb(74, 136, 158); }
+.workforce-create-area-button:hover { background-color: rgb(48, 94, 111); border-left-color: rgb(74, 186, 218); border-right-color: rgb(74, 186, 218); border-top-color: rgb(74, 186, 218); border-bottom-color: rgb(74, 186, 218); }
+.workforce-category-button { height: 28px; margin-bottom: 3px; padding-left: 8px; font-size: 9px; -unity-text-align: middle-left; color: rgb(184, 204, 213); background-color: rgb(29, 39, 47); border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 2px; border-left-color: rgb(74, 104, 119); }
+.workforce-category-button:hover, .workforce-category-button--selected { color: rgb(237, 247, 250); background-color: rgb(38, 60, 71); border-left-color: rgb(74, 186, 218); }
+.workforce-message { height: 22px; font-size: 9px; color: rgb(125, 148, 160); }
+.workforce-candidate-row { min-height: 48px; flex-direction: row; align-items: center; margin-bottom: 3px; padding-left: 8px; padding-right: 7px; background-color: rgb(32, 42, 50); border-left-width: 2px; border-left-color: rgb(74, 136, 158); }
+.workforce-candidate-row__identity { width: 120px; }
+.workforce-candidate-row__name { font-size: 10px; -unity-font-style: bold; color: rgb(224, 235, 240); }
+.workforce-candidate-row__subtext { margin-top: 2px; font-size: 8px; color: rgb(126, 150, 162); }
+.workforce-candidate-row__ability { width: 135px; font-size: 8px; color: rgb(181, 201, 210); }
+.workforce-candidate-row__stats { width: 115px; font-size: 8px; color: rgb(145, 170, 181); }
+.workforce-candidate-row__cost { flex-grow: 1; font-size: 9px; color: rgb(101, 213, 171); }
+.workforce-action-button { width: 58px; height: 25px; font-size: 9px; -unity-font-style: bold; color: rgb(225, 239, 244); background-color: rgb(31, 89, 108); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(65, 151, 177); border-right-color: rgb(65, 151, 177); border-top-color: rgb(65, 151, 177); border-bottom-color: rgb(65, 151, 177); }
+.workforce-action-button:hover { background-color: rgb(39, 119, 142); }
