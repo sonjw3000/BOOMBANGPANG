@@ -34,6 +34,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private Button pauseButton;
 		private Button normalSpeedButton;
 		private Button doubleSpeedButton;
+		private Button managementButton;
+		private VisualElement managementMenu;
 		private GlobalHistoryWindow historyWindow;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
@@ -156,11 +158,14 @@ namespace UniverseLogistics.UI.Toolkit
 			pauseButton = root.Q<Button>("pause-button");
 			normalSpeedButton = root.Q<Button>("normal-speed-button");
 			doubleSpeedButton = root.Q<Button>("double-speed-button");
+			managementButton = root.Q<Button>("management-button");
+			managementMenu = root.Q<VisualElement>("management-menu");
 
 			if (leftHud == null || timeCluster == null || economySummary == null || hudEventArea == null ||
 				hudEventList == null || moneyValue == null ||
 				reputationValue == null || dateValue == null || speedValue == null || pauseButton == null ||
-				normalSpeedButton == null || doubleSpeedButton == null)
+				normalSpeedButton == null || doubleSpeedButton == null || managementButton == null ||
+				managementMenu == null)
 			{
 				Debug.LogError("[GlobalStatusHud] Required UXML elements are missing.", this);
 				return;
@@ -176,6 +181,9 @@ namespace UniverseLogistics.UI.Toolkit
 			normalSpeedButton.clicked += SetNormalSpeed;
 			doubleSpeedButton.clicked -= DoubleSpeed;
 			doubleSpeedButton.clicked += DoubleSpeed;
+			managementButton.clicked -= ToggleManagementMenu;
+			managementButton.clicked += ToggleManagementMenu;
+			ShowManagementMenu(false);
 			hudRoot.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
 			hudRoot.RegisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
 			timeCluster.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
@@ -195,6 +203,8 @@ namespace UniverseLogistics.UI.Toolkit
 				normalSpeedButton.clicked -= SetNormalSpeed;
 			if (doubleSpeedButton != null)
 				doubleSpeedButton.clicked -= DoubleSpeed;
+			if (managementButton != null)
+				managementButton.clicked -= ToggleManagementMenu;
 		}
 
 		private void BindServices()
@@ -308,6 +318,23 @@ namespace UniverseLogistics.UI.Toolkit
 		private void DoubleSpeed()
 		{
 			gameTime?.DoubleSpeed();
+		}
+
+		private void ToggleManagementMenu()
+		{
+			if (managementMenu == null)
+				return;
+
+			ShowManagementMenu(managementMenu.resolvedStyle.display == DisplayStyle.None);
+		}
+
+		private void ShowManagementMenu(bool visible)
+		{
+			if (managementMenu == null || managementButton == null)
+				return;
+
+			managementMenu.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+			managementButton.EnableInClassList("management-button--open", visible);
 		}
 
 		private void OnMoneyChanged(int value)

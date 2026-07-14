@@ -29,5 +29,14 @@
 			<ui:Button name="double-speed-button" text="»" tooltip="Increase speed" class="speed-button" />
 			<ui:Label name="speed-value" text="1x" class="speed-value" />
 		</ui:VisualElement>
+		<ui:VisualElement class="management-cluster" picking-mode="Position">
+			<ui:Button name="management-button" text="Management" tooltip="Open management menu" class="management-button" />
+			<ui:VisualElement name="management-menu" class="management-menu">
+				<ui:Button name="contract-management-button" text="Contract" class="management-menu__button" />
+				<ui:Button name="build-management-button" text="Build" class="management-menu__button" />
+				<ui:Button name="workforce-management-button" text="Workforce" class="management-menu__button" />
+				<ui:Button name="company-management-button" text="Company" class="management-menu__button" />
+			</ui:VisualElement>
+		</ui:VisualElement>
 	</ui:VisualElement>
 </ui:UXML>
