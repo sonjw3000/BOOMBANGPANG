@@ -111,7 +111,7 @@ public partial class WorkPolicyService : MonoBehaviour
 		if (targetDist != otherDist) return targetDist < otherDist;
 
 		// 4. ID 기반 결정론적 선택
-		return targetWorker.gameObject.GetInstanceID() < other.gameObject.GetInstanceID();
+		return targetWorker.WorkerID < other.WorkerID;
 	}
 
 	private bool IsEmergency(AIWorker worker)
