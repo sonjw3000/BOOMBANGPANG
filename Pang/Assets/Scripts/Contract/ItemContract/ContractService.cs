@@ -14,6 +14,7 @@ public partial class ContractService : MonoBehaviour
 	private readonly List<ContractRuntime> currentActiveContracts = new();
 	private readonly ContractHistory contractHistory = new();
 	private bool definitionsLoaded;
+	public event Action OnContractsChanged;
 
 	public IReadOnlyList<ContractDefinition> ContractDefinitions
 	{
@@ -53,6 +54,7 @@ public partial class ContractService : MonoBehaviour
 		// todo
 		// 지우기 전에 계약 보상을 저거해야함
 		currentActiveContracts.RemoveAll(c => expiredContracts.Contains(c));
+		OnContractsChanged?.Invoke();
 	}
 
 	public Tuple<int, float> GetMonthlyReward()
@@ -81,6 +83,7 @@ public partial class ContractService : MonoBehaviour
 			return false;
 
 		currentActiveContracts.Add(new ContractRuntime(definition, duration, type));
+		OnContractsChanged?.Invoke();
 		return true;
 	}
 
@@ -138,6 +141,7 @@ public partial class ContractService : MonoBehaviour
 		contractHistory.RemoveContractResult(contract);
 		contract.Restart(durationMonths);
 		currentActiveContracts.Add(contract);
+		OnContractsChanged?.Invoke();
 		return true;
 	}
 

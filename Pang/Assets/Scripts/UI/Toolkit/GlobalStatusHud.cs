@@ -8,6 +8,7 @@ namespace UniverseLogistics.UI.Toolkit
 	{
 		private const string DocumentObjectName = "GlobalStatusHudDocument";
 		private const string HistoryDocumentObjectName = "GlobalHistoryWindowDocument";
+		private const string ContractDocumentObjectName = "ContractManagementWindowDocument";
 		private const int MaxVisibleEvents = 5;
 		private const float EventFadeSeconds = 0.8f;
 
@@ -16,6 +17,10 @@ namespace UniverseLogistics.UI.Toolkit
 		[SerializeField] private VisualTreeAsset windowVisualTreeAsset;
 		[SerializeField] private VisualTreeAsset historyContentTemplate;
 		[SerializeField] private VisualTreeAsset historyRowTemplate;
+		[SerializeField] private VisualTreeAsset contractContentTemplate;
+		[SerializeField] private VisualTreeAsset activeContractRowTemplate;
+		[SerializeField] private VisualTreeAsset contractMarketRowTemplate;
+		[SerializeField] private VisualTreeAsset vendorContractRowTemplate;
 		[SerializeField] private PanelSettings panelSettings;
 		[SerializeField] private int sortingOrder = 100;
 
@@ -35,8 +40,10 @@ namespace UniverseLogistics.UI.Toolkit
 		private Button normalSpeedButton;
 		private Button doubleSpeedButton;
 		private Button managementButton;
+		private Button contractManagementButton;
 		private VisualElement managementMenu;
 		private GlobalHistoryWindow historyWindow;
+		private ContractManagementWindow contractManagementWindow;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
@@ -54,6 +61,7 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			EnsureDocument();
 			EnsureHistoryWindow();
+			EnsureContractManagementWindow();
 			BindControls();
 
 			if (started)
@@ -138,6 +146,35 @@ namespace UniverseLogistics.UI.Toolkit
 			documentObject.SetActive(true);
 		}
 
+		private void EnsureContractManagementWindow()
+		{
+			if (contractManagementWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || contractContentTemplate == null || activeContractRowTemplate == null ||
+				contractMarketRowTemplate == null || vendorContractRowTemplate == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Contract management window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(ContractDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument contractDocument = documentObject.AddComponent<UIDocument>();
+			contractDocument.panelSettings = panelSettings;
+			contractDocument.visualTreeAsset = windowVisualTreeAsset;
+			contractDocument.sortingOrder = sortingOrder + 20;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			contractManagementWindow = documentObject.AddComponent<ContractManagementWindow>();
+			contractManagementWindow.Configure(window, contractContentTemplate, activeContractRowTemplate,
+				contractMarketRowTemplate, vendorContractRowTemplate);
+			documentObject.SetActive(true);
+		}
+
 		private void BindControls()
 		{
 			if (uiDocument == null)
@@ -159,12 +196,13 @@ namespace UniverseLogistics.UI.Toolkit
 			normalSpeedButton = root.Q<Button>("normal-speed-button");
 			doubleSpeedButton = root.Q<Button>("double-speed-button");
 			managementButton = root.Q<Button>("management-button");
+			contractManagementButton = root.Q<Button>("contract-management-button");
 			managementMenu = root.Q<VisualElement>("management-menu");
 
 			if (leftHud == null || timeCluster == null || economySummary == null || hudEventArea == null ||
 				hudEventList == null || moneyValue == null ||
 				reputationValue == null || dateValue == null || speedValue == null || pauseButton == null ||
-				normalSpeedButton == null || doubleSpeedButton == null || managementButton == null ||
+				normalSpeedButton == null || doubleSpeedButton == null || managementButton == null || contractManagementButton == null ||
 				managementMenu == null)
 			{
 				Debug.LogError("[GlobalStatusHud] Required UXML elements are missing.", this);
@@ -183,6 +221,8 @@ namespace UniverseLogistics.UI.Toolkit
 			doubleSpeedButton.clicked += DoubleSpeed;
 			managementButton.clicked -= ToggleManagementMenu;
 			managementButton.clicked += ToggleManagementMenu;
+			contractManagementButton.clicked -= OpenContractManagement;
+			contractManagementButton.clicked += OpenContractManagement;
 			ShowManagementMenu(false);
 			hudRoot.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
 			hudRoot.RegisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
@@ -205,6 +245,8 @@ namespace UniverseLogistics.UI.Toolkit
 				doubleSpeedButton.clicked -= DoubleSpeed;
 			if (managementButton != null)
 				managementButton.clicked -= ToggleManagementMenu;
+			if (contractManagementButton != null)
+				contractManagementButton.clicked -= OpenContractManagement;
 		}
 
 		private void BindServices()
@@ -335,6 +377,12 @@ namespace UniverseLogistics.UI.Toolkit
 
 			managementMenu.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
 			managementButton.EnableInClassList("management-button--open", visible);
+		}
+
+		private void OpenContractManagement()
+		{
+			ShowManagementMenu(false);
+			contractManagementWindow?.Open();
 		}
 
 		private void OnMoneyChanged(int value)

@@ -164,5 +164,7 @@ public partial class VendorService : MonoBehaviour
 				}
 			}
 		}
+
+		OnVendorsChanged?.Invoke();
 	}
 }

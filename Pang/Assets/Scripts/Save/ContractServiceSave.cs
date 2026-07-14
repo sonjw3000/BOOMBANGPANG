@@ -30,10 +30,13 @@ public partial class ContractService
 			contract.RestoreState(contractData.RemainingDuration, contractData.DeliveryDelta, contractData.AutoRenewal);
 			currentActiveContracts.Add(contract);
 		}
+
+		OnContractsChanged?.Invoke();
 	}
 
 	public void ResetRuntimeState()
 	{
 		currentActiveContracts.Clear();
+		OnContractsChanged?.Invoke();
 	}
 }
