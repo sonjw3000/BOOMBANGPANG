@@ -42,6 +42,11 @@ namespace UniverseLogistics.UI.Toolkit
 		public int TabCount => tabs.Count;
 		public VisualElement ContentRoot => contentRoot;
 
+		public void SetOpenOnEnable(bool value)
+		{
+			openOnEnable = value;
+		}
+
 		private void Reset()
 		{
 			uiDocument = GetComponent<UIDocument>();
@@ -85,6 +90,7 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			VisualElement documentRoot = uiDocument.rootVisualElement;
+			documentRoot.pickingMode = PickingMode.Ignore;
 			windowRoot = documentRoot.Q<VisualElement>(RootName);
 			iconElement = documentRoot.Q<VisualElement>(IconName);
 			titleLabel = documentRoot.Q<Label>(TitleName);

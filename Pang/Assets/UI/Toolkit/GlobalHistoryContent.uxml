@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="GlobalHistoryContent.uss" />
+	<ui:VisualElement class="history-content">
+		<ui:VisualElement class="history-section-tabs">
+			<ui:Button name="economy-history-button" text="Economy" class="history-section-button" />
+			<ui:Button name="event-history-button" text="Events" class="history-section-button" />
+		</ui:VisualElement>
+		<ui:VisualElement name="economy-history-section" class="history-section">
+			<ui:Label text="Money &amp; Reputation" class="history-section-title" />
+			<ui:Label text="Runtime transactions recorded during the current session." class="history-section-caption" />
+			<ui:ScrollView name="economy-history-list" class="history-list" />
+			<ui:Label name="economy-history-empty" text="No transactions recorded." class="history-empty" />
+		</ui:VisualElement>
+		<ui:VisualElement name="event-history-section" class="history-section">
+			<ui:Label text="HUD Events" class="history-section-title" />
+			<ui:Label text="Most recent notifications are shown first." class="history-section-caption" />
+			<ui:ScrollView name="event-history-list" class="history-list" />
+			<ui:Label name="event-history-empty" text="No HUD events recorded." class="history-empty" />
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

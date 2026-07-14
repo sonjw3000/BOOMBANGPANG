@@ -1,4 +1,8 @@
 .ui-window {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	translate: -50% -50%;
 	width: 720px;
 	height: 520px;
 	background-color: rgb(28, 31, 38);

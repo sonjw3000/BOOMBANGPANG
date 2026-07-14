@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 public enum HudEventType
 {
@@ -46,8 +48,9 @@ public sealed class HudEventRecord
 	public float ReputationDelta { get; }
 	public Object Source { get; }
 	public float Time { get; }
+	public float VisibleSeconds { get; }
 
-	public HudEventRecord(HudEventRequest request, float time)
+	public HudEventRecord(HudEventRequest request, float time, float visibleSeconds)
 	{
 		Type = request.Type;
 		Message = request.Message;
@@ -55,6 +58,7 @@ public sealed class HudEventRecord
 		ReputationDelta = request.ReputationDelta;
 		Source = request.Source;
 		Time = time;
+		VisibleSeconds = visibleSeconds;
 	}
 }
 
@@ -64,6 +68,7 @@ public sealed class HudEventManager : MonoBehaviour
 	private const string EntryResourcePath = "UI/HudEventEntry";
 
 	[SerializeField, Min(1)] private int maxHistoryCount = 100;
+	[SerializeField] private bool legacyViewEnabled;
 	[SerializeField, Min(1)] private int maxVisibleCount = 5;
 	[SerializeField, Min(0.1f)] private float defaultVisibleSeconds = 4f;
 	[SerializeField, Min(0.1f)] private float fadeSeconds = 0.8f;
@@ -82,6 +87,7 @@ public sealed class HudEventManager : MonoBehaviour
 	private RectTransform entryRoot;
 
 	public IReadOnlyCollection<HudEventRecord> History => history;
+	public event Action<HudEventRecord> OnRecordPublished;
 
 	private sealed class Entry
 	{
@@ -94,11 +100,15 @@ public sealed class HudEventManager : MonoBehaviour
 
 	private void Awake()
 	{
-		EnsureView();
+		if (legacyViewEnabled)
+			EnsureView();
 	}
 
 	private void Update()
 	{
+		if (legacyViewEnabled == false)
+			return;
+
 		for (int i = activeEntries.Count - 1; i >= 0; --i)
 		{
 			Entry entry = activeEntries[i];
@@ -121,14 +131,17 @@ public sealed class HudEventManager : MonoBehaviour
 		if (string.IsNullOrWhiteSpace(request.Message))
 			return;
 
-		HudEventRecord record = new(request, Time.time);
+		float visibleSeconds = request.Duration > 0f ? request.Duration : defaultVisibleSeconds;
+		HudEventRecord record = new(request, Time.time, visibleSeconds);
 		history.Enqueue(record);
 		while (history.Count > maxHistoryCount)
 		{
 			history.Dequeue();
 		}
 
-		ShowRecord(record, request.Duration > 0f ? request.Duration : defaultVisibleSeconds);
+		OnRecordPublished?.Invoke(record);
+		if (legacyViewEnabled)
+			ShowRecord(record, visibleSeconds);
 	}
 
 	public void Publish(HudEventType type, string message, Object source = null, float duration = 0f)

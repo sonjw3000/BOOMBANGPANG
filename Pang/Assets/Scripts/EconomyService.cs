@@ -30,9 +30,11 @@ public partial class EconomyService : MonoBehaviour
 
 	public event Action<float> OnReputationChanged;
 	public event Action<int> OnMoneyChanged;
+	public event Action<EconomyTransaction> OnTransactionApplied;
 
 	public int Money => money;
 	public float Reputation => reputation;
+	public IReadOnlyList<EconomyTransaction> History => history;
 
 	public bool CanAfford(int cost)
 	{
@@ -52,6 +54,7 @@ public partial class EconomyService : MonoBehaviour
 
 		history.Add(transaction);
 		PublishHudEvent(transaction);
+		OnTransactionApplied?.Invoke(transaction);
 
 		if (previousMoney != money)
 			OnMoneyChanged?.Invoke(money);
@@ -73,7 +76,7 @@ public partial class EconomyService : MonoBehaviour
 			GameContext.Instance.HudEventManager.PublishReputation(transaction.reputationDelta, reason, this);
 	}
 
-	private static string FormatReason(EconomyTransaction.Reason reason)
+	public static string FormatReason(EconomyTransaction.Reason reason)
 	{
 		return reason switch
 		{

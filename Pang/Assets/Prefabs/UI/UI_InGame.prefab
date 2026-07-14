@@ -4177,6 +4177,10 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::UniverseLogistics.UI.Toolkit.GlobalStatusHud
   visualTreeAsset: {fileID: 9197481963319205126, guid: 1bd3b60676094fa8a0d6b3cdbd43e983, type: 3}
+  hudEventEntryTemplate: {fileID: 9197481963319205126, guid: 64475ecdba43456a8e3e9bf3df86b7df, type: 3}
+  windowVisualTreeAsset: {fileID: 9197481963319205126, guid: 8697a5359d5e0402c95f680b02a44eb6, type: 3}
+  historyContentTemplate: {fileID: 9197481963319205126, guid: fcc952a83083404b9aaba29160e39e77, type: 3}
+  historyRowTemplate: {fileID: 9197481963319205126, guid: 5c4a0a6a12f04fbdb9525176e6f7ad4a, type: 3}
   panelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
   sortingOrder: 100
 --- !u!114 &7714475366775286390
