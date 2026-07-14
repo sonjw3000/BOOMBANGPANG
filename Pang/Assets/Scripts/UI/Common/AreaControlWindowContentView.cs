@@ -1,7 +1,7 @@
 using TMPro;
 using UnityEngine;
 
-public sealed class ZoneControlWindowContentView : MonoBehaviour
+public sealed class AreaControlWindowContentView : MonoBehaviour
 {
 	[SerializeField] private TextMeshProUGUI statusText = null;
 	[SerializeField] private TextButtonView createButton = null;

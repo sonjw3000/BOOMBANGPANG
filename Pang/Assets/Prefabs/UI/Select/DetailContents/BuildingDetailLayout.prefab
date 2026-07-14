@@ -626,7 +626,6 @@ MonoBehaviour:
   overviewTab: {fileID: 2804447681479908569}
   facilitiesTab: {fileID: 5907054354989568618}
   policyTab: {fileID: 5514990507682320155}
-  zonesTab: {fileID: 8171508641013783274}
   settingsTab: {fileID: 445890310000000001}
   actionTab: {fileID: 7275841454106436444}
   tabContents:
@@ -639,9 +638,6 @@ MonoBehaviour:
   - kind: 4
     label: Policy
     contentRoot: {fileID: 5514990507682320155}
-  - kind: 5
-    label: Zones
-    contentRoot: {fileID: 8171508641013783274}
   - kind: 6
     label: Settings
     contentRoot: {fileID: 445890310000000001}
@@ -652,10 +648,6 @@ MonoBehaviour:
   facilitiesSummaryText: {fileID: 2766041945647638255}
   policyHelpText: {fileID: 4819806789058890693}
   workScopeButton: {fileID: 6507551696209909737}
-  zoneStatusText: {fileID: 6542742476144632519}
-  zoneOpenControlsButton: {fileID: 6566616979453023135}
-  zoneListRoot: {fileID: 8931102955855267438}
-  zoneEmptyText: {fileID: 8765224766222252522}
   demolitionNoteText: {fileID: 4082030098830167543}
   pendingDemolitionButton: {fileID: 2552682896023508310}
   restoreActiveButton: {fileID: 6166869473333674689}
@@ -3731,7 +3723,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6157757155788971077
 RectTransform:
   m_ObjectHideFlags: 0

@@ -888,7 +888,7 @@ GameObject:
   - component: {fileID: 8073648915749291926}
   - component: {fileID: 3731397248711819518}
   m_Layer: 0
-  m_Name: ZoneDetailLayout
+  m_Name: AreaDetailLayout
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -970,7 +970,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a1d3767fadc69bb45a42bdbebbf10fce, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneDetailLayoutView
+  m_EditorClassIdentifier: Assembly-CSharp::AreaDetailLayoutView
   nameText: {fileID: 9102511754526232795}
   typeText: {fileID: 4937774573587443923}
   boundsText: {fileID: 6438322463299030809}

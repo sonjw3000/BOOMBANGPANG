@@ -183,7 +183,6 @@ public partial class GridService : MonoBehaviour
 	private EconomyService Economy => GameContext.Instance.EconomyService;
 	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
 	private FacilityManager FacilityManager => GameContext.Instance.FacilityMgr;
-	private ZoneManager ZoneManager => GameContext.Instance.ZoneMgr;
 	private WorkerSpawnManager WorkerSpawnMgr => GameContext.Instance.WorkerSpawnMgr;
 
 	public void OnGameStart()
@@ -384,7 +383,6 @@ public partial class GridService : MonoBehaviour
 				BuildingManager.TryRegisterFacility(owningBuildingId, facility);
 
 			FacilityManager?.RegisterFacility(owningBuildingId, facility);
-			ZoneManager?.TryRegisterFacility(facility);
 		}
 
 		if (ctx.placeableDefinition.gridFootprint.IsNeedToRefresh)
@@ -473,9 +471,6 @@ public partial class GridService : MonoBehaviour
 
 		if (facility != null)
 			FacilityManager?.UnregisterFacility(owningBuildingId, facility);
-
-		if (facility != null)
-			ZoneManager?.TryUnregisterFacility(facility);
 
 		if (destroyObject)
 			Destroy(targetObj);

@@ -11,30 +11,11 @@ public abstract partial class AIWorker
 	static private WorkPolicyService WorkPolicyService => GameContext.Instance.WMSys.WorkPolicyService;
 	static private HumanIncidentService HumanIncident => GameContext.Instance.HumanIncident;
 	static private AirlockService AirlockService => GameContext.Instance.AirlockSvc;
-	private static readonly string RecoveryGoalKey = "RecoveryGoalPos";
 	private static readonly string TransitAirlockKey = "TransitAirlock";
 	private static readonly string TransitDirectionKey = "TransitDirection";
 	private static readonly string TransitStartedKey = "TransitStarted";
 
 	protected virtual IBaseNode BuildWorkerBaseNode() { return null; }
-	protected static SequenceNode BuildRecoveryNode()
-	{
-		SequenceNode root = new();
-		root.Add(new ActionNode(CheckRecoveryNeeded));
-		root.Add(MoveToRecoveryPoint());
-		root.Add(new ActionNode(Recover));
-
-		return root;
-	}
-
-	protected static SequenceNode BuildStandbyNode()
-	{
-		SequenceNode root = new();
-		root.Add(new ActionNode(CheckIdleNeeded));
-
-		return root;
-	}
-
 	// AI's basic actions
 	public static NodeState CheckFulfilled(in BTContext ctx)
 	{
@@ -121,7 +102,7 @@ public abstract partial class AIWorker
 		if (pool == null)
 		{
 			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return MoveToStandbyWhileWaiting(context);
+			return KeepTaskWaiting(context);
 		}
 
 		pool.GetBox(out var box);
@@ -140,7 +121,7 @@ public abstract partial class AIWorker
 			// pool에 사용 가능한 박스가 없다는 점을 플레이어에게 알려줘야함
 			// todo worker를 off 후 대기시켜야함
 			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return MoveToStandbyWhileWaiting(context);
+			return KeepTaskWaiting(context);
 		}
 
 		context.LocalBlackBoard.RemoveTargetBuilding();
@@ -168,7 +149,7 @@ public abstract partial class AIWorker
 			// pool이 가득 찼다는 것을 플레이어에게 알려야함
 			// todo worker를 off 후 대기시켜야함
 			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return MoveToStandbyWhileWaiting(context);
+			return KeepTaskWaiting(context);
 		}
 
 		return Success;
@@ -256,7 +237,7 @@ public abstract partial class AIWorker
 				// todo worker를 off 후 대기시켜야함
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 				ctx.LocalBlackBoard.RemoveTargetBuilding();
-				return MoveToStandbyWhileWaiting(ctx);
+				return KeepTaskWaiting(ctx);
 			}
 
 			bool hasTransit = ctx.LocalBlackBoard.TryGet(TransitAirlockKey, out Airlock airlock) && airlock != null;
@@ -319,7 +300,7 @@ public abstract partial class AIWorker
 		if (targetPlaceable == null)
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return MoveToStandbyWhileWaiting(ctx);
+			return KeepTaskWaiting(ctx);
 		}
 
 		if (TryGetBuildingId(ctx.Worker.GridPosition, out uint currentBuildingId) == false)
@@ -360,7 +341,7 @@ public abstract partial class AIWorker
 		}
 
 		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-		return MoveToStandbyWhileWaiting(ctx);
+		return KeepTaskWaiting(ctx);
 	}
 
 	private static bool TryRouteToInteractionPoint(
@@ -442,7 +423,7 @@ public abstract partial class AIWorker
 			{
 				ClearTransitState(ctx.LocalBlackBoard);
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-				return MoveToStandbyWhileWaiting(ctx);
+				return KeepTaskWaiting(ctx);
 			}
 
 			return Running;
@@ -451,14 +432,14 @@ public abstract partial class AIWorker
 		if (AirlockService.TryReserve(airlock, ctx.Worker, direction) == false)
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return MoveToStandbyWhileWaiting(ctx);
+			return KeepTaskWaiting(ctx);
 		}
 
 		if (AirlockService.TryBeginEntry(airlock, ctx.Worker) == false)
 		{
 			AirlockService.Release(airlock, ctx.Worker);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return MoveToStandbyWhileWaiting(ctx);
+			return KeepTaskWaiting(ctx);
 		}
 
 		ctx.LocalBlackBoard.Set(TransitStartedKey, true);
@@ -487,26 +468,9 @@ public abstract partial class AIWorker
 		blackBoard.Remove<bool>(TransitStartedKey);
 	}
 
-	public static NodeState MoveToStandbyWhileWaiting(in BTContext ctx)
+	public static NodeState KeepTaskWaiting(in BTContext ctx)
 	{
 		return Running;
-	}
-
-	private static SequenceNode MoveToRecoveryPoint()
-	{
-		SequenceNode node = new();
-		node.Add(new ActionNode((in BTContext ctx) =>
-		{
-			if (ctx.LocalBlackBoard.TryGet(RecoveryGoalKey, out int3 goalPos) == false)
-				return Failure;
-
-			ctx.Worker.routeFinder.enabled = true;
-			ctx.Worker.routeFinder.SetGoalPosition(goalPos);
-			return Success;
-		}));
-		node.Add(new ActionNode(MoveTo));
-
-		return node;
 	}
 
 	public static SelectorNode CheckBoxAndGet(BoxType boxRequirement)
@@ -559,45 +523,6 @@ public abstract partial class AIWorker
 		}));
 
 		return node;
-	}
-
-	protected static NodeState CheckRecoveryNeeded(in BTContext ctx)
-	{
-		if (ctx.Worker.CurrentTask != null)
-			return Failure;
-
-		if (ctx.Worker.TryCanBeginRecovery(out var recoveryPoint) == false)
-			return Failure;
-
-		ctx.Worker.BeginRecovery();
-		ctx.LocalBlackBoard.Set(RecoveryGoalKey, recoveryPoint);
-		return Success;
-	}
-
-	protected static NodeState CheckIdleNeeded(in BTContext ctx)
-	{
-		if (ctx.Worker.CurrentTask != null)
-			return Failure;
-
-		if (ctx.Worker.NeedsRecovery())
-			return Failure;
-
-		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.None);
-		ctx.Worker.SetWorkerAction(WorkerStatusAction.Idle);
-		return Running;
-	}
-
-	protected static NodeState Recover(in BTContext ctx)
-	{
-		ctx.Worker.SetWorkerAction(ctx.Worker.GetRecoveryAction());
-		ctx.Worker.TickRecovery(ctx.DeltaTime);
-
-		if (ctx.Worker.IsRecoveryComplete() == false)
-			return Running;
-
-		ctx.Worker.SetWorkerAction(WorkerStatusAction.None);
-		ctx.LocalBlackBoard.Remove<int3>(RecoveryGoalKey);
-		return Success;
 	}
 
 	// for incident

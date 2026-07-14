@@ -1,7 +1,7 @@
 using TMPro;
 using UnityEngine;
 
-public sealed class ZoneDetailLayoutView : MonoBehaviour
+public sealed class AreaDetailLayoutView : MonoBehaviour
 {
 	[SerializeField] private TextMeshProUGUI nameText = null;
 	[SerializeField] private TextMeshProUGUI typeText = null;
@@ -18,4 +18,11 @@ public sealed class ZoneDetailLayoutView : MonoBehaviour
 	public RectTransform FacilitiesListRoot => facilitiesListRoot;
 	public LabelButtonRowView[] FacilityRows => facilityRows;
 	public TextMeshProUGUI FacilitiesPlaceholderText => facilitiesPlaceholderText;
+
+	public void HideLegacyFacilitySection()
+	{
+		facilitiesHeaderText?.gameObject.SetActive(false);
+		facilitiesListRoot?.gameObject.SetActive(false);
+		facilitiesPlaceholderText?.gameObject.SetActive(false);
+	}
 }

@@ -62,7 +62,6 @@ public class SelectionUIMaster : MonoBehaviour
 	private TextMeshProUGUI modeActionText = null;
 	private Button buildingDetailsButton = null;
 	private TextMeshProUGUI buildingDetailsButtonText = null;
-	[SerializeField] private ZoneOverlayController zoneOverlayController = null;
 	[SerializeField] private BuildingPlacementOverlayController buildingPlacementOverlayController = null;
 
 	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
@@ -80,7 +79,7 @@ public class SelectionUIMaster : MonoBehaviour
 		providerTypes.Add(typeof(BoxPoolUIProvider));
 		providerTypes.Add(typeof(RobotWorkerUIProvider));
 		providerTypes.Add(typeof(HumanWorkerUIProvider));
-		providerTypes.Add(typeof(ZoneUIProvider));
+		providerTypes.Add(typeof(AreaUIProvider));
 		providerTypes.Add(typeof(BuildingUIProvider));
 
 		EnsureRuntimeCapsuleBufferDetailContent();
@@ -119,12 +118,6 @@ public class SelectionUIMaster : MonoBehaviour
 		{
 			Interaction.OnItemSelected -= OnSelected;
 			Interaction.OnModeChanged -= HandleInteractionModeChanged;
-		}
-
-		if (zoneOverlayController != null)
-		{
-			zoneOverlayController.ActiveBuildingChanged -= HandleActiveBuildingChanged;
-			zoneOverlayController.BuildingModeChanged -= HandleBuildingModeChanged;
 		}
 
 		HideWorldHighlights();
@@ -319,17 +312,7 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void EnsureModeDependencies()
 	{
-		if (zoneOverlayController == null)
-		{
-			zoneOverlayController = FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
-			if (zoneOverlayController != null)
-			{
-				zoneOverlayController.ActiveBuildingChanged -= HandleActiveBuildingChanged;
-				zoneOverlayController.ActiveBuildingChanged += HandleActiveBuildingChanged;
-				zoneOverlayController.BuildingModeChanged -= HandleBuildingModeChanged;
-				zoneOverlayController.BuildingModeChanged += HandleBuildingModeChanged;
-			}
-		}
+		buildingPlacementOverlayController ??= FindFirstObjectByType<BuildingPlacementOverlayController>(FindObjectsInactive.Include);
 	}
 
 	private void EnsureModeHud()
@@ -368,27 +351,17 @@ public class SelectionUIMaster : MonoBehaviour
 		RefreshModeHud();
 	}
 
-	private void HandleActiveBuildingChanged(Building building)
-	{
-		RefreshModeHud();
-	}
-
-	private void HandleBuildingModeChanged(bool active)
-	{
-		RefreshModeHud();
-	}
-
 	private void HandleBuildingDetailsClicked()
 	{
 		EnsureModeDependencies();
-		if (zoneOverlayController == null || buildingPlacementOverlayController == null)
+		if (buildingPlacementOverlayController == null || currentObj == null)
 			return;
 
-		Building activeBuilding = zoneOverlayController.CurrentBuilding;
-		if (activeBuilding == null)
+		if (currentObj.TryGetComponent<BuildingSelectionProxy>(out BuildingSelectionProxy selectedProxy) == false
+			|| selectedProxy.Building == null)
 			return;
 
-		BuildingSelectionProxy proxy = buildingPlacementOverlayController.GetSelectionProxy(activeBuilding);
+		BuildingSelectionProxy proxy = buildingPlacementOverlayController.GetSelectionProxy(selectedProxy.Building);
 		if (proxy == null)
 			return;
 
@@ -414,7 +387,7 @@ public class SelectionUIMaster : MonoBehaviour
 			modeActionText.text = Interaction.Action switch
 			{
 				InteractionContext.InteractionAction.Install => "Install",
-				InteractionContext.InteractionAction.ZoneEdit => "Zone Edit",
+				InteractionContext.InteractionAction.AreaEdit => "Area Edit",
 				InteractionContext.InteractionAction.LinkEdit => "Link Edit",
 				_ => "Select",
 			};
@@ -423,7 +396,7 @@ public class SelectionUIMaster : MonoBehaviour
 		if (buildingDetailsButton != null)
 		{
 			bool isBuildingMode = Interaction.Domain == InteractionContext.InteractionDomain.Building;
-			bool hasActiveBuilding = zoneOverlayController != null && zoneOverlayController.CurrentBuilding != null;
+			bool hasActiveBuilding = currentObj != null && currentObj.TryGetComponent<BuildingSelectionProxy>(out _);
 			buildingDetailsButton.interactable = isBuildingMode && hasActiveBuilding;
 			buildingDetailsButton.gameObject.SetActive(true);
 		}

@@ -2,10 +2,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class ZoneControlButton : MonoBehaviour
+public class AreaControlButton : MonoBehaviour
 {
 	[SerializeField] private Button button;
-	[SerializeField] private ZoneControlWindow targetWindow;
+	[SerializeField] private AreaControlWindow targetWindow;
 	[SerializeField] private TMP_Text label;
 	[SerializeField] private string buttonText = "Z";
 
@@ -21,7 +21,7 @@ public class ZoneControlButton : MonoBehaviour
 			button = GetComponent<Button>();
 
 		if (targetWindow == null)
-			targetWindow = FindFirstObjectByType<ZoneControlWindow>(FindObjectsInactive.Include);
+			targetWindow = FindFirstObjectByType<AreaControlWindow>(FindObjectsInactive.Include);
 
 		if (label == null)
 			label = GetComponentInChildren<TMP_Text>(true);

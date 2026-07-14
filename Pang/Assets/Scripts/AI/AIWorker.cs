@@ -61,7 +61,6 @@ public enum WorkerStatusTarget
 	PackingStation,
 	LaunchStation,
 	Charger,
-	StandbyZone,
 	WorkTarget,
 	Airlock,
 	CapsuleBuffer,
@@ -248,8 +247,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	static private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 	static private GridService GridService => GameContext.Instance.GridService;
-	static private ZoneManager ZoneManager => GameContext.Instance.ZoneMgr;
-
 	// worker show stat setting
 	public void SetWorkerAction(WorkerStatusAction action) 
 	{
@@ -595,11 +592,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public void SetTask(WorkerTask task)
 	{
 		if (GameContext.HasInstance && task != null)
-		{
 			WorkerMgr.RemoveIdleWorker(this);
-			if (workerState.Target == WorkerStatusTarget.StandbyZone)
-				routeFinder?.StopAfterCurrentStep();
-		}
 		else
 		{
 			WorkerMgr.AddIdleWorker(this);
@@ -695,9 +688,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		if (IsAssignedToPackingStation)
 			return false;
 
-		if (NeedsRecovery() && TryFindRecoveryPoint(out _))
-			return false;
-
 		return true;
 	}
 
@@ -737,49 +727,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		return station.CanAssignedWorkerLeaveForRecovery();
 	}
 
-	public bool TryCanBeginRecovery(out int3 recoveryPoint)
-	{
-		recoveryPoint = default;
-
-		if (NeedsRecovery() == false)
-			return false;
-
-		if (CanLeaveAssignedStationForRecovery() == false)
-			return false;
-
-		return TryFindRecoveryPoint(out recoveryPoint);
-	}
-
-	public void BeginRecovery()
-	{
-		if (CurrentWorkingBuilding is PackingStation station)
-		{
-			station.CurrentPackingWorker = null;
-			station.RefreshWaitingState();
-		}
-	}
-
-	public bool TryFindRecoveryPoint(out int3 recoveryPoint)
-	{
-		recoveryPoint = default;
-
-		if (ZoneManager == null)
-			return false;
-
-		if (ZoneManager.TryGetZones(out var zones, GridPosition.y, GetRecoveryZoneType()) == false)
-			return false;
-
-		int startIndex = UnityEngine.Random.Range(0, zones.Count);
-		for (int i = 0; i < zones.Count; ++i)
-		{
-			var zone = zones[(startIndex + i) % zones.Count];
-			if (TryFindPointInZone(zone, out recoveryPoint))
-				return true;
-		}
-
-		return false;
-	}
-
 	public bool TryGetCurrentDestination(out string destinationName, out int3 destinationPosition)
 	{
 		destinationName = string.Empty;
@@ -801,7 +748,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		destinationPosition = routeFinder.CurrentGoalPosition;
 		destinationName = workerState.Target switch
 		{
-			WorkerStatusTarget.StandbyZone => "Standby Zone",
 			WorkerStatusTarget.Charger => "Charger",
 			WorkerStatusTarget.Airlock => "Airlock",
 			_ when workerState.Action == WorkerStatusAction.Resting || workerState.Action == WorkerStatusAction.Charging => "Recovery Point",
@@ -811,44 +757,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		return true;
 	}
 
-	private bool TryFindPointInZone(ZoneArea zone, out int3 recoveryPoint)
-	{
-		for (int i = 0; i < 8; ++i)
-		{
-			zone.GetRandomPoint(out var candidate);
-			if (IsRecoveryPointAvailable(candidate))
-			{
-				recoveryPoint = candidate;
-				return true;
-			}
-		}
-
-		for (int z = zone.Bounds.yMin; z < zone.Bounds.yMax; ++z)
-		{
-			for (int x = zone.Bounds.xMin; x < zone.Bounds.xMax; ++x)
-			{
-				var candidate = new int3(x, zone.Floor, z);
-				if (IsRecoveryPointAvailable(candidate))
-				{
-					recoveryPoint = candidate;
-					return true;
-				}
-			}
-		}
-
-		recoveryPoint = default;
-		return false;
-	}
-
-	private bool IsRecoveryPointAvailable(in int3 candidate)
-	{
-		var cell = GridService?.GetCell(candidate);
-		if (cell == null || cell.IsBlocked)
-			return false;
-
-		return cell.CanPlaceObject || candidate.Equals(GridPosition);
-	}
-
 	public virtual float GetWorkSpeedMultiplier() { return 1.0f; }
 	public virtual float GetMoveSpeedMultiplier() { return 1.0f; }
 	public virtual void OnTaskCompleted() { }
@@ -856,9 +764,6 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public abstract bool NeedsRecovery();
 	public abstract bool IsRecoveryComplete();
 	public abstract void TickRecovery(float deltaTime);
-	public abstract WorkerStatusAction GetRecoveryAction();
-	public abstract ZoneType GetRecoveryZoneType();
-
 	public abstract void AddFatigue(float fatigue);
 	public abstract float GetFatigue();
 

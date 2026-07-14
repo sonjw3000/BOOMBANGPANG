@@ -17,7 +17,6 @@ namespace Assets.Scripts.UI
 		Info = 2,
 		Facilities = 3,
 		Policy = 4,
-		Zones = 5,
 		Settings = 6,
 		Action = 7,
 	}

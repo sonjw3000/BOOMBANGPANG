@@ -16,7 +16,6 @@ public class BuildingControlWindow : MonoBehaviour
 
 	[SerializeField] private UIWindow window;
 	[SerializeField] private BuildingPlacementOverlayController overlayController;
-	[SerializeField] private ZoneOverlayController zoneOverlayController;
 	[SerializeField] private CargoPortLinkModeController cargoPortLinkModeController;
 	[SerializeField] private string windowTitle = "Building Control";
 	[SerializeField] private BuildingControlWindowContentView contentPrefab;
@@ -122,7 +121,6 @@ public class BuildingControlWindow : MonoBehaviour
 		window ??= GetComponentInChildren<UIWindow>(true);
 		overlayController ??= GetComponent<BuildingPlacementOverlayController>();
 		cargoPortLinkModeController ??= GetComponent<CargoPortLinkModeController>();
-		zoneOverlayController ??= FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
 
 		if (window == null)
 			return;
@@ -219,8 +217,7 @@ public class BuildingControlWindow : MonoBehaviour
 	private void HandleWindowOpened()
 	{
 		Interaction.EnterBuildingSelectMode();
-		overlayController?.SetOverlayVisible(false);
-		zoneOverlayController?.SetBuildingModeActive(true);
+		overlayController?.SetOverlayVisible(true);
 		RefreshAll();
 	}
 
@@ -228,7 +225,6 @@ public class BuildingControlWindow : MonoBehaviour
 	{
 		overlayController?.SetOverlayVisible(false);
 		cargoPortLinkModeController?.EndLinkEdit();
-		zoneOverlayController?.SetBuildingModeActive(false);
 		Interaction.ExitBuildingMode();
 		RefreshAll();
 	}
@@ -260,8 +256,7 @@ public class BuildingControlWindow : MonoBehaviour
 			return;
 		}
 
-		EnsureZoneOverlayController();
-		Building activeBuilding = zoneOverlayController != null ? zoneOverlayController.CurrentBuilding : null;
+		Building activeBuilding = GetSelectedBuilding();
 		cargoPortLinkModeController.BeginLinkEdit(activeBuilding);
 		RefreshAll();
 	}
@@ -386,8 +381,7 @@ public class BuildingControlWindow : MonoBehaviour
 
 		bool isCreating = Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement;
 		bool isLinkEditing = cargoPortLinkModeController != null && cargoPortLinkModeController.IsEditing;
-		EnsureZoneOverlayController();
-		Building activeBuilding = zoneOverlayController != null ? zoneOverlayController.CurrentBuilding : null;
+		Building activeBuilding = GetSelectedBuilding();
 		BuildingType selectedType = overlayController != null ? overlayController.SelectedBuildingType : BuildingType.Staging;
 		BuildingFootprintPreset selectedPreset = BuildingFootprintService != null ? BuildingFootprintService.ActivePreset : null;
 
@@ -481,10 +475,15 @@ public class BuildingControlWindow : MonoBehaviour
 			selectionUIMaster = FindFirstObjectByType<SelectionUIMaster>(FindObjectsInactive.Include);
 	}
 
-	private void EnsureZoneOverlayController()
+	private Building GetSelectedBuilding()
 	{
-		if (zoneOverlayController == null)
-			zoneOverlayController = FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
+		if (Interaction.SelectedObject == null
+			|| Interaction.SelectedObject.TryGetComponent<BuildingSelectionProxy>(out BuildingSelectionProxy proxy) == false)
+		{
+			return null;
+		}
+
+		return proxy.Building;
 	}
 
 	private void ConfigureActionDropdowns()

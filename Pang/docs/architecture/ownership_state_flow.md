@@ -72,7 +72,6 @@ Building systems should own:
 - building type and process role
 - building-owned interior space
 - building-level logistics purpose
-- the list or registry of zones that belong to the building
 
 Buildings define `what` the player built into the logistics network.
 
@@ -85,30 +84,15 @@ Region classification such as indoor / outdoor should support placement and spat
 
 ---
 
-## 6 Zone
+## 6 FacilityRule & Area
 
-Zones are subordinate to buildings.
+`FacilityRuleManager` owns building-scoped rule presets and their facility assignments. Rules provide explicit logistics filters and operating policy without owning physical space.
 
-Zone systems should own:
-- zone rule data
-- zone-local filters
-- worker eligibility rules
-- item handling restrictions
-- internal operating policies for part of a building
+`AreaManager` owns outdoor rectangular areas used by:
+- `WorkerSpawnManager` for `WorkerSpawn` candidates
+- inbound rocket flow for `RocketLanding` candidates
 
-Zones define `how` a part of a building should operate.
-
-Zone ownership rules:
-- every zone must belong to exactly one building
-- zones should exist only inside building-owned space
-- one building may contain multiple zones
-- zone logic should not define a standalone logistics process role outside of a building
-
-Examples:
-- fragile-only handling
-- hazard restrictions
-- temperature handling
-- worker-type-only rules
+Areas do not belong to buildings, register facilities, or own logistics policy.
 
 ---
 
@@ -124,6 +108,7 @@ UI should not:
 
 UI should request:
 - building creation and building edits through the owning building system
-- zone creation and zone edits through the owning building or zone system
+- area creation and area edits through `AreaManager`
+- facility-rule changes through `FacilityRuleManager`
 
 ---

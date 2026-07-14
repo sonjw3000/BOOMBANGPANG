@@ -88,7 +88,7 @@ public partial class LoadingTask : WorkerTask
 			Debug.LogError("No available load port found!");
 			// todo worker를 off 후 대기시켜야함
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
 		if (ctx.Worker.CarryingAbility == null || ctx.Worker.CarryingAbility.CarryingBox != null)
@@ -101,7 +101,7 @@ public partial class LoadingTask : WorkerTask
 
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.Box);
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
 		return Success;
@@ -114,7 +114,7 @@ public partial class LoadingTask : WorkerTask
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.targetStation);
@@ -130,7 +130,7 @@ public partial class LoadingTask : WorkerTask
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 			Debug.LogError("No available launch station found!");
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
 		if (carryAbility == null || carryAbility.CarryingBox == null)
@@ -148,7 +148,7 @@ public partial class LoadingTask : WorkerTask
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
 			// Future: cargo storage/launch station service should disable and re-enable this worker when capacity opens.
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
 		if (carryAbility.GetBox(out var box) == false || pad.TryStoreCargo(box) == false)
@@ -158,7 +158,7 @@ public partial class LoadingTask : WorkerTask
 
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
 		task.isLoadEnd = true;

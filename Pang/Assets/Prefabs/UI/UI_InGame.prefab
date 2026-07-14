@@ -11301,7 +11301,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5397d07e2baa25e48bcf2562857dd805, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneControlButton
+  m_EditorClassIdentifier: Assembly-CSharp::AreaControlButton
   button: {fileID: 9150000000000000004}
   targetWindow: {fileID: 0}
   label: {fileID: 9150000000000000011}
@@ -19017,7 +19017,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
       propertyPath: m_Name
-      value: ZoneControlWindow
+      value: AreaControlWindow
       objectReference: {fileID: 0}
     - target: {fileID: 6260270067711176661, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}
       propertyPath: m_IsActive
@@ -19114,13 +19114,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ac64ab7247e8e634aaef70fcf8afe5af, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneControlWindow
+  m_EditorClassIdentifier: Assembly-CSharp::AreaControlWindow
   window: {fileID: 456097316855778123}
   overlayController: {fileID: 0}
-  windowTitle: Zone Control
-  defaultZoneType: 5
+  windowTitle: Area Control
+  defaultAreaType: 0
   contentPrefab: {fileID: 490911659738468065, guid: 140e35a3b97b16f4db1c566176a121ad, type: 3}
-  toggleRowPrefab: {fileID: 5490472040542546100, guid: 7c0cae4103ebcc24b9623f4c36d733e8, type: 3}
 --- !u!224 &6845538881237770396 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2324525076195074205, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Mathematics;
 using static WorkerTask.TaskType;
+using UnityEngine.Serialization;
 
 // inbound 작업 흐름을 관리
 // 깨차
@@ -17,10 +18,12 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	private const PlacingPolicyType DefaultPlacingPolicyType = PlacingPolicyType.BelowAverageFilledNearest;
 
 	[SerializeField] private InboundRequestService requestService;
-	[SerializeField] private ZoneManager zoneManager;
-	[SerializeField] private ZoneType landingZoneType = ZoneType.RocketLanding;
-	[SerializeField] private int landingZoneFloor = 0;
-	[SerializeField] private int randomSearchCountPerZone = 12;
+	[FormerlySerializedAs("zoneManager")]
+	[SerializeField] private AreaManager areaManager;
+	[FormerlySerializedAs("landingZoneFloor")]
+	[SerializeField] private int landingAreaFloor = 0;
+	[FormerlySerializedAs("randomSearchCountPerZone")]
+	[SerializeField] private int randomSearchCountPerArea = 12;
 	[SerializeField] private float inboundRocketSpawnInterval = 10.0f;
 	[SerializeField] [Range(0, 100)] private int hardLandingChange = 30;
 	[SerializeField] [Range(0, 100)] private int damageRate = 30;
@@ -39,14 +42,14 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	private CapsuleBufferService CapsuleBufferService => GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
 	private RocketService RocketService => GameContext.HasInstance ? GameContext.Instance.RocketSvc : null;
 	private DeliveryService DeliveryService => GameContext.HasInstance ? GameContext.Instance.DeliveryService : null;
-	private ZoneManager ZoneManager
+	private AreaManager AreaManager
 	{
 		get
 		{
-			if (zoneManager == null && GameContext.HasInstance)
-				zoneManager = GameContext.Instance.ZoneMgr;
+			if (areaManager == null && GameContext.HasInstance)
+				areaManager = GameContext.Instance.AreaMgr;
 
-			return zoneManager;
+			return areaManager;
 		}
 	}
 	public CollectingPolicyType StoringCollectingPolicyType => storingPlanner != null ? storingPlanner.CollectingPolicyType : defaultStoringCollectingPolicyType;
@@ -247,28 +250,28 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	private bool TryGetLandingPoint(RocketService rocketService, out int3 landingPoint)
 	{
 		landingPoint = default;
-		if (ZoneManager == null || rocketService == null)
+		if (AreaManager == null || rocketService == null)
 			return false;
 
-		if (ZoneManager.TryGetZones(out var zones, landingZoneFloor, landingZoneType) == false)
+		if (AreaManager.TryGetAreas(out var areas, landingAreaFloor, AreaType.RocketLanding) == false)
 			return false;
 
-		int startIndex = UnityEngine.Random.Range(0, zones.Count);
-		for (int i = 0; i < zones.Count; ++i)
+		int startIndex = UnityEngine.Random.Range(0, areas.Count);
+		for (int i = 0; i < areas.Count; ++i)
 		{
-			ZoneArea zone = zones[(startIndex + i) % zones.Count];
-			if (TryFindLandingPoint(rocketService, zone, out landingPoint))
+			Area area = areas[(startIndex + i) % areas.Count];
+			if (TryFindLandingPoint(rocketService, area, out landingPoint))
 				return true;
 		}
 
 		return false;
 	}
 
-	private bool TryFindLandingPoint(RocketService rocketService, ZoneArea zone, out int3 landingPoint)
+	private bool TryFindLandingPoint(RocketService rocketService, Area area, out int3 landingPoint)
 	{
-		for (int i = 0; i < Mathf.Max(1, randomSearchCountPerZone); ++i)
+		for (int i = 0; i < Mathf.Max(1, randomSearchCountPerArea); ++i)
 		{
-			zone.GetRandomPoint(out int3 candidatePoint);
+			area.GetRandomPoint(out int3 candidatePoint);
 			if (rocketService.CanLandAt(candidatePoint))
 			{
 				landingPoint = candidatePoint;
@@ -276,11 +279,11 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			}
 		}
 
-		for (int z = zone.Bounds.yMin; z < zone.Bounds.yMax; ++z)
+		for (int z = area.Bounds.yMin; z < area.Bounds.yMax; ++z)
 		{
-			for (int x = zone.Bounds.xMin; x < zone.Bounds.xMax; ++x)
+			for (int x = area.Bounds.xMin; x < area.Bounds.xMax; ++x)
 			{
-				int3 candidatePoint = new(x, zone.Floor, z);
+				int3 candidatePoint = new(x, area.Floor, z);
 				if (rocketService.CanLandAt(candidatePoint))
 				{
 					landingPoint = candidatePoint;

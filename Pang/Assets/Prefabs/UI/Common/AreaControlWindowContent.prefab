@@ -465,7 +465,7 @@ GameObject:
   - component: {fileID: 7113631694007984246}
   - component: {fileID: 490911659738468065}
   m_Layer: 0
-  m_Name: ZoneControlWindowContent
+  m_Name: AreaControlWindowContent
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -545,7 +545,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c5863fe7f803b484aba6057eb79c2035, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneControlWindowContentView
+  m_EditorClassIdentifier: Assembly-CSharp::AreaControlWindowContentView
   statusText: {fileID: 8453625898209074307}
   createButton: {fileID: 9069718165372573537}
   toggleRoot: {fileID: 3332282264163636187}
@@ -562,7 +562,7 @@ GameObject:
   - component: {fileID: 79866538510513602}
   - component: {fileID: 6337711205318040085}
   m_Layer: 0
-  m_Name: ZoneTypeToggleRoot
+  m_Name: AreaTypeToggleRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -706,7 +706,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Zone Type
+  m_text: Area Type
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 2e498d1c8094910479dc3e1b768306a4, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 2e498d1c8094910479dc3e1b768306a4, type: 2}

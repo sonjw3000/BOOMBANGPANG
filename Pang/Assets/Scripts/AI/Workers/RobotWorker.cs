@@ -12,11 +12,7 @@ public class RobotWorker : AIWorker
 
 	protected override IBaseNode BuildWorkerBaseNode()
 	{
-		SelectorNode root = new();
-		root.Add(BuildRecoveryNode());
-		root.Add(BuildStandbyNode());
-
-		return root;
+		return null;
 	}
 
 	public override void TickVitals(float deltaTime)
@@ -43,10 +39,6 @@ public class RobotWorker : AIWorker
 	{
 		batteryLevel = Mathf.Min(100.0f, batteryLevel + WorkPolicy.RobotChargeRecoveryPerSecond * deltaTime);
 	}
-
-	public override WorkerStatusAction GetRecoveryAction() => WorkerStatusAction.Charging;
-
-	public override ZoneType GetRecoveryZoneType() => ZoneType.Charge;
 
 	protected override void CaptureSubclassState(WorkerSaveData data)
 	{

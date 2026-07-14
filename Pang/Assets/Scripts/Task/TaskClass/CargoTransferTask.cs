@@ -105,7 +105,7 @@ public sealed partial class CargoTransferTask : WorkerTask
 		{
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.targetPort);
@@ -130,6 +130,6 @@ public sealed partial class CargoTransferTask : WorkerTask
 		task.WorkerCarryBox.PutBox(box);
 		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-		return AIWorker.MoveToStandbyWhileWaiting(ctx);
+		return AIWorker.KeepTaskWaiting(ctx);
 	}
 }

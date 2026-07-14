@@ -131,7 +131,7 @@ public sealed class GameSaveService : MonoBehaviour
 		data.ItemLedger = Ctx.WMSys.ItemLedger.CaptureState();
 		data.Buildings = Ctx.BuildingMgr.CaptureState();
 		data.BuildingFootprints = Ctx.BuildingFootprintService.CaptureState();
-		data.Zones = Ctx.ZoneMgr.CaptureState();
+		data.Areas = Ctx.AreaMgr.CaptureState();
 		data.FacilityRules = Ctx.FacilityRuleMgr.CaptureState();
 		data.Grid = Ctx.GridService.CaptureState();
 		data.Contracts = Ctx.ContractMgr.CaptureState();
@@ -173,7 +173,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.IBWorkflowSvc.ResetRuntimeState();
 		Ctx.OBWorkflowSvc.ResetRuntimeState();
 		Ctx.WorkerMgr.ResetRuntimeState();
-		Ctx.ZoneMgr.ResetRuntimeState();
+		Ctx.AreaMgr.ResetRuntimeState();
 		Ctx.FacilityRuleMgr.ResetRuntimeState();
 		Ctx.BuildingMgr.ResetRuntimeState();
 		Ctx.AirlockSvc.ResetRuntimeState();
@@ -193,7 +193,7 @@ public sealed class GameSaveService : MonoBehaviour
 
 		Ctx.GridService.RestoreState(data.Grid);
 		Ctx.BuildingFootprintService.RestoreState(data.Buildings, data.BuildingFootprints);
-		Ctx.ZoneMgr.RestoreState(data.Zones);
+		Ctx.AreaMgr.RestoreState(data.Areas);
 		Ctx.FacilityRuleMgr.RestoreState(data.FacilityRules);
 		Ctx.WMSys.WorkPolicyService.RestoreState(data.Policy != null ? data.Policy.WorkSpeed : null);
 		Ctx.IBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);

@@ -6777,7 +6777,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3218245806074030121, guid: d5a0464e365ebc9458982c327c652ef6, type: 3}
       propertyPath: m_Name
-      value: ZoneDetailContent
+      value: AreaDetailContent
       objectReference: {fileID: 0}
     - target: {fileID: 3218245806074030121, guid: d5a0464e365ebc9458982c327c652ef6, type: 3}
       propertyPath: m_IsActive
@@ -6835,7 +6835,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 83376d0cf3e08294bbb6c2759637c01a, type: 3}
   m_Name: ''
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneDetailContent
+  m_EditorClassIdentifier: Assembly-CSharp::AreaDetailContent
 --- !u!224 &930377078952926434 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2324525076195074205, guid: 9c6cea9ed6bf61c42a784dc1d25edc4e, type: 3}

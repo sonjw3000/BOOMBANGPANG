@@ -123,7 +123,6 @@ public class Building
 	protected TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
-	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
 	private OutboundWorkflowService OutboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
 
 	public void SetOverrideCapsuleThreshold(bool value) => overrideCapsuleThreshold = value;

@@ -13,7 +13,7 @@ public class InteractionContext
 	{
 		Select,
 		Install,
-		ZoneEdit,
+		AreaEdit,
 		LinkEdit,
 	}
 
@@ -23,21 +23,21 @@ public class InteractionContext
 		FacilityPlacement,
 		BuildingSelect,
 		BuildingPlacement,
-		BuildingZoneEdit,
+		AreaEdit,
 		BuildingLinkEdit,
 	}
 
-	public readonly struct ZonePlacementPreview
+	public readonly struct AreaPlacementPreview
 	{
-		public readonly ZoneType ZoneType;
+		public readonly AreaType AreaType;
 		public readonly int Floor;
 		public readonly int3 Start;
 		public readonly int3 End;
 		public readonly bool HasStart;
 
-		public ZonePlacementPreview(ZoneType zoneType, int floor, in int3 start, in int3 end, bool hasStart)
+		public AreaPlacementPreview(AreaType areaType, int floor, in int3 start, in int3 end, bool hasStart)
 		{
-			ZoneType = zoneType;
+			AreaType = areaType;
 			Floor = floor;
 			Start = start;
 			End = end;
@@ -71,11 +71,11 @@ public class InteractionContext
 	private FacingDirection direction = FacingDirection.North;
 	private PlaceableDefinition toBePlaced;
 
-	// zone placement
-	private ZoneType zoneToBePlaced;
-	private bool hasZonePlacementStart;
-	private int zonePlacementFloor;
-	private int3 zonePlacementStart;
+	// area placement
+	private AreaType areaToBePlaced;
+	private bool hasAreaPlacementStart;
+	private int areaPlacementFloor;
+	private int3 areaPlacementStart;
 
 	// building placement
 	private int buildingPlacementFloor;
@@ -90,10 +90,10 @@ public class InteractionContext
 	public event System.Func<int3, bool> OnHandleBuildingSelection;
 	public event System.Func<int3, bool> OnHandleBuildingLinkSelection;
 
-	// zone placement event
-	public event System.Action<ZonePlacementPreview> OnZonePlacementPreviewChanged;
-	public event System.Action<ZoneType> OnZonePlacementChanged;
-	public event System.Action<ZoneType, RectInt, int> OnZonePlacementConfirmed;
+	// area placement event
+	public event System.Action<AreaPlacementPreview> OnAreaPlacementPreviewChanged;
+	public event System.Action<AreaType> OnAreaPlacementChanged;
+	public event System.Action<AreaType, RectInt, int> OnAreaPlacementConfirmed;
 	public event System.Action<BuildingPlacementPreview> OnBuildingPlacementPreviewChanged;
 	public event System.Action<int> OnBuildingPlacementChanged;
 	public event System.Action<int3, int> OnBuildingPlacementConfirmed;
@@ -114,7 +114,7 @@ public class InteractionContext
 			(InteractionDomain.Facility, InteractionAction.Install) => InteractionMode.FacilityPlacement,
 			(InteractionDomain.Building, InteractionAction.Select) => InteractionMode.BuildingSelect,
 			(InteractionDomain.Building, InteractionAction.Install) => InteractionMode.BuildingPlacement,
-			(InteractionDomain.Building, InteractionAction.ZoneEdit) => InteractionMode.BuildingZoneEdit,
+			(InteractionDomain.Facility, InteractionAction.AreaEdit) => InteractionMode.AreaEdit,
 			(InteractionDomain.Building, InteractionAction.LinkEdit) => InteractionMode.BuildingLinkEdit,
 			_ => InteractionMode.FacilitySelect,
 		};
@@ -148,8 +148,8 @@ public class InteractionContext
 				ExitBuildingPlacementMode();
 				break;
 
-			case InteractionMode.BuildingZoneEdit:
-				ExitZonePlacementMode();
+			case InteractionMode.AreaEdit:
+				ExitAreaPlacementMode();
 				break;
 
 			case InteractionMode.BuildingLinkEdit:
@@ -158,14 +158,14 @@ public class InteractionContext
 		}
 	}
 
-	private void RaiseZonePlacementPreview(in int3 currentPos)
+	private void RaiseAreaPlacementPreview(in int3 currentPos)
 	{
-		OnZonePlacementPreviewChanged?.Invoke(new ZonePlacementPreview(
-			zoneToBePlaced,
-			zonePlacementFloor,
-			zonePlacementStart,
+		OnAreaPlacementPreviewChanged?.Invoke(new AreaPlacementPreview(
+			areaToBePlaced,
+			areaPlacementFloor,
+			areaPlacementStart,
 			currentPos,
-			hasZonePlacementStart
+			hasAreaPlacementStart
 		));
 	}
 
@@ -184,7 +184,7 @@ public class InteractionContext
 		SetMode(InteractionDomain.Facility, InteractionAction.Install);
 		toBePlaced = pd;
 		selectedObject = null;
-		hasZonePlacementStart = false;
+		hasAreaPlacementStart = false;
 
 		OnItemSelected?.Invoke(null);
 		OnPlacementChanged?.Invoke(toBePlaced);
@@ -198,19 +198,19 @@ public class InteractionContext
 		OnItemSelected?.Invoke(null);
 	}
 
-	public void EnterZonePlacementMode(ZoneType zoneType, int floor)
+	public void EnterAreaPlacementMode(AreaType areaType, int floor)
 	{
 		CancelActivePlacementMode();
-		SetMode(InteractionDomain.Building, InteractionAction.ZoneEdit);
+		SetMode(InteractionDomain.Facility, InteractionAction.AreaEdit);
 		toBePlaced = null;
-		zoneToBePlaced = zoneType;
-		zonePlacementFloor = floor;
-		hasZonePlacementStart = false;
+		areaToBePlaced = areaType;
+		areaPlacementFloor = floor;
+		hasAreaPlacementStart = false;
 		selectedObject = null;
 
 		OnItemSelected?.Invoke(null);
-		OnZonePlacementChanged?.Invoke(zoneType);
-		RaiseZonePlacementPreview(mousePos);
+		OnAreaPlacementChanged?.Invoke(areaType);
+		RaiseAreaPlacementPreview(mousePos);
 	}
 
 	public void EnterBuildingPlacementMode(int floor)
@@ -219,7 +219,7 @@ public class InteractionContext
 		SetMode(InteractionDomain.Building, InteractionAction.Install);
 		toBePlaced = null;
 		buildingPlacementFloor = floor;
-		hasZonePlacementStart = false;
+		hasAreaPlacementStart = false;
 		selectedObject = null;
 
 		OnItemSelected?.Invoke(null);
@@ -232,7 +232,7 @@ public class InteractionContext
 		CancelActivePlacementMode();
 		SetMode(InteractionDomain.Building, InteractionAction.LinkEdit);
 		toBePlaced = null;
-		hasZonePlacementStart = false;
+		hasAreaPlacementStart = false;
 		selectedObject = null;
 
 		OnItemSelected?.Invoke(null);
@@ -242,21 +242,21 @@ public class InteractionContext
 	{
 		SetMode(InteractionDomain.Facility, InteractionAction.Select);
 		toBePlaced = null;
-		hasZonePlacementStart = false;
+		hasAreaPlacementStart = false;
 
 		OnPlacementChanged?.Invoke(null);
 	}
 
-	public void ExitZonePlacementMode()
+	public void ExitAreaPlacementMode()
 	{
-		SetMode(InteractionDomain.Building, InteractionAction.Select);
-		hasZonePlacementStart = false;
+		SetMode(InteractionDomain.Facility, InteractionAction.Select);
+		hasAreaPlacementStart = false;
 
-		OnZonePlacementChanged?.Invoke(zoneToBePlaced);
-		OnZonePlacementPreviewChanged?.Invoke(new ZonePlacementPreview(
-			zoneToBePlaced,
-			zonePlacementFloor,
-			zonePlacementStart,
+		OnAreaPlacementChanged?.Invoke(areaToBePlaced);
+		OnAreaPlacementPreviewChanged?.Invoke(new AreaPlacementPreview(
+			areaToBePlaced,
+			areaPlacementFloor,
+			areaPlacementStart,
 			mousePos,
 			false
 		));
@@ -309,8 +309,8 @@ public class InteractionContext
 				OnMouseChangedOnPlacement?.Invoke(mousePos);
 				break;
 
-			case InteractionMode.BuildingZoneEdit:
-				RaiseZonePlacementPreview(mousePos);
+			case InteractionMode.AreaEdit:
+				RaiseAreaPlacementPreview(mousePos);
 				break;
 
 			case InteractionMode.BuildingPlacement:
@@ -376,22 +376,22 @@ public class InteractionContext
 				GridService.OnInstall(ctx);
 				break;
 
-			case InteractionMode.BuildingZoneEdit:
-				if (hasZonePlacementStart == false)
+			case InteractionMode.AreaEdit:
+				if (hasAreaPlacementStart == false)
 				{
-					hasZonePlacementStart = true;
-					zonePlacementStart = pos;
-					RaiseZonePlacementPreview(pos);
+					hasAreaPlacementStart = true;
+					areaPlacementStart = pos;
+					RaiseAreaPlacementPreview(pos);
 					break;
 				}
 
-				int minX = Mathf.Min(zonePlacementStart.x, pos.x);
-				int minZ = Mathf.Min(zonePlacementStart.z, pos.z);
-				int maxX = Mathf.Max(zonePlacementStart.x, pos.x);
-				int maxZ = Mathf.Max(zonePlacementStart.z, pos.z);
+				int minX = Mathf.Min(areaPlacementStart.x, pos.x);
+				int minZ = Mathf.Min(areaPlacementStart.z, pos.z);
+				int maxX = Mathf.Max(areaPlacementStart.x, pos.x);
+				int maxZ = Mathf.Max(areaPlacementStart.z, pos.z);
 				var bound = new RectInt(minX, minZ, (maxX - minX) + 1, (maxZ - minZ) + 1);
 
-				OnZonePlacementConfirmed?.Invoke(zoneToBePlaced, bound, zonePlacementFloor);
+				OnAreaPlacementConfirmed?.Invoke(areaToBePlaced, bound, areaPlacementFloor);
 				break;
 
 			case InteractionMode.BuildingPlacement:
@@ -412,8 +412,8 @@ public class InteractionContext
 				ExitPlacementMode();
 				break;
 
-			case InteractionMode.BuildingZoneEdit:
-				ExitZonePlacementMode();
+			case InteractionMode.AreaEdit:
+				ExitAreaPlacementMode();
 				break;
 
 			case InteractionMode.BuildingPlacement:

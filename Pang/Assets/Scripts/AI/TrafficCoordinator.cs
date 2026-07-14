@@ -623,9 +623,6 @@ public class TrafficCoordinator : MonoBehaviour
 		if (worker.CurrentTask == null)
 			return true;
 
-		if (worker.WorkerState.Target == WorkerStatusTarget.StandbyZone)
-			return true;
-
 		WorkerStatusAction action = worker.EffectiveStatusAction;
 		return action == WorkerStatusAction.Idle ||
 			action == WorkerStatusAction.WaitingForItems ||

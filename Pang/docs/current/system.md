@@ -51,7 +51,7 @@
 - break rooms
 - charging stations
 
-## Zones & Policies
+## Facility Rules
 - fragile handling
 - hazard handling
 - refrigerated handling
@@ -92,12 +92,13 @@
 Current terminology should distinguish:
 - `Building` as physical space
 - `Facility` as installed equipment or room function
-- `Zone` as an operational policy layer
+- `FacilityRule` as an operational policy assigned to facilities
+- `Area` as an outdoor worker-spawn or rocket-landing rectangle
 
 Examples:
-- `Worker Bay` is a facility, not a policy zone
-- `Break Room` and `Charging Station` are facilities, not generic zones
-- `Fragile` or `Hazard` rules are policy zones, not buildings
+- worker standby zones are no longer used
+- `Break Room` and `Charging Station` are facilities, not generic areas
+- `Fragile` or `Hazard` rules are facility rules, not buildings or areas
 
 See `docs/current/hub_structure.md` for the current interpretation and refactoring direction.
 

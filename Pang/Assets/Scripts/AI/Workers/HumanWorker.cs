@@ -13,13 +13,7 @@ public class HumanWorker : AIWorker
 	protected override IBaseNode BuildWorkerBaseNode()
 	{
 		SelectorNode root = new SelectorNode();
-
-		var incident = BuildHumanIncidentNode();
-		var recovery = BuildRecoveryNode();
-		var standby = BuildStandbyNode();
-		root.Add(incident);
-		root.Add(recovery);
-		root.Add(standby);
+		root.Add(BuildHumanIncidentNode());
 
 		return root;
 	}
@@ -63,10 +57,6 @@ public class HumanWorker : AIWorker
 	{
 		fatigue = Mathf.Max(0.0f, fatigue - WorkPolicy.WorkerRestRecoveryPerSecond * deltaTime);
 	}
-
-	public override WorkerStatusAction GetRecoveryAction() => WorkerStatusAction.Resting;
-
-	public override ZoneType GetRecoveryZoneType() => ZoneType.Resting;
 
 	protected override void CaptureSubclassState(WorkerSaveData data)
 	{

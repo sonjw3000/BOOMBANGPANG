@@ -61,6 +61,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		Interaction.OnBuildingPlacementPreviewChanged += HandleBuildingPlacementPreviewChanged;
 		Interaction.OnBuildingPlacementConfirmed += HandleBuildingPlacementConfirmed;
 		Interaction.OnResolveSelectionFallback += ResolveBuildingSelection;
+		Interaction.OnHandleBuildingSelection += HandleBuildingSelection;
 	}
 
 	private void OnDestroy()
@@ -71,6 +72,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		Interaction.OnBuildingPlacementPreviewChanged -= HandleBuildingPlacementPreviewChanged;
 		Interaction.OnBuildingPlacementConfirmed -= HandleBuildingPlacementConfirmed;
 		Interaction.OnResolveSelectionFallback -= ResolveBuildingSelection;
+		Interaction.OnHandleBuildingSelection -= HandleBuildingSelection;
 	}
 
 	public void SetOverlayVisible(bool visible)
@@ -232,6 +234,20 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 			return null;
 
 		return GetOrCreateProxy(building).gameObject;
+	}
+
+	private bool HandleBuildingSelection(int3 position)
+	{
+		if (isVisible == false)
+			return false;
+
+		GameObject resolved = ResolveBuildingSelection(position);
+		if (resolved != null)
+			Interaction.SelectObject(resolved);
+		else
+			Interaction.ClearSelection();
+
+		return true;
 	}
 
 	private BuildingSelectionProxy GetOrCreateProxy(Building building)

@@ -16,7 +16,9 @@ namespace Assets.Scripts.UI
 		[SerializeField] private WorkerItemView itemPrefab;
 		[SerializeField] private Transform listRoot;
 		[SerializeField] private UnityEngine.UI.Button openMarketButton;
+		[SerializeField] private UnityEngine.UI.Button openSpawnAreaButton;
 		[SerializeField] private WorkforceMarketWindow marketWindow;
+		[SerializeField] private AreaControlWindow areaControlWindow;
 
 		[Header("Window MetaData")]
 		[SerializeField] private string title = "Worker Management";
@@ -40,6 +42,8 @@ namespace Assets.Scripts.UI
 			{
 				openMarketButton.onClick.AddListener(OpenMarket);
 			}
+			if (openSpawnAreaButton != null)
+				openSpawnAreaButton.onClick.AddListener(OpenSpawnAreas);
 
 			gameObject.SetActive(false);
 		}
@@ -50,6 +54,18 @@ namespace Assets.Scripts.UI
 			{
 				marketWindow.Open();
 			}
+		}
+
+		private void OpenSpawnAreas()
+		{
+			areaControlWindow ??= FindFirstObjectByType<AreaControlWindow>(FindObjectsInactive.Include);
+			areaControlWindow?.OpenForAreaType(AreaType.WorkerSpawn);
+		}
+
+		private void OnDestroy()
+		{
+			openMarketButton?.onClick.RemoveListener(OpenMarket);
+			openSpawnAreaButton?.onClick.RemoveListener(OpenSpawnAreas);
 		}
 
 		private void SetupTabs()

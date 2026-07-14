@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 5094289559954612207}
   - component: {fileID: 3594198035925878770}
   m_Layer: 0
-  m_Name: ZoneSelectionProxy
+  m_Name: AreaSelectionProxy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -43,4 +43,4 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 384fdab90d3540e4a83d430ac1ab119e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneSelectionProxy
+  m_EditorClassIdentifier: Assembly-CSharp::AreaSelectionProxy

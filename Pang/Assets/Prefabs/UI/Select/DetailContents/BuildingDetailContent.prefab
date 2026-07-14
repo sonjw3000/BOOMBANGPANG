@@ -55,4 +55,3 @@ MonoBehaviour:
   layoutPrefab: {fileID: 4744282411169958920, guid: 3a84004e4a15fad439a570d80153ae8d, type: 3}
   infoRowPrefab: {fileID: 595189549680675276, guid: fffa656d7515c70488733056f6730808, type: 3}
   summaryRowPrefab: {fileID: 7915257163456888659, guid: b33bbc9fd451d9449af4d69daac0d4fe, type: 3}
-  zoneRowPrefab: {fileID: 6105142253797418356, guid: ad8ca4554ac43494f945e1597107229d, type: 3}

@@ -288,7 +288,7 @@ public partial class StoringTask : WorkerTask
 			default:
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 				ctx.Worker.SetWorkerTarget(CurrentPhase == Phase.Collect ? WorkerStatusTarget.CapsuleBuffer : WorkerStatusTarget.Shelf);
-				return AIWorker.MoveToStandbyWhileWaiting(ctx);
+				return AIWorker.KeepTaskWaiting(ctx);
 		}
 	}
 }

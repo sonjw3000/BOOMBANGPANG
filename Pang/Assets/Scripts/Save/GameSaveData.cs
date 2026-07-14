@@ -62,7 +62,7 @@ public sealed class GameSaveData
 	public ItemLedgerSaveData ItemLedger = new();
 	public BuildingManagerSaveData Buildings = new();
 	public BuildingFootprintServiceSaveData BuildingFootprints = new();
-	public ZoneManagerSaveData Zones = new();
+	public AreaManagerSaveData Areas = new();
 	public FacilityRuleManagerSaveData FacilityRules = new();
 	public GridMapSaveData Grid = new();
 	public ContractServiceSaveData Contracts = new();
@@ -202,17 +202,16 @@ public sealed class BuildingFootprintSaveData
 }
 
 [Serializable]
-public sealed class ZoneManagerSaveData
+public sealed class AreaManagerSaveData
 {
-	public List<ZoneSaveData> Zones = new();
+	public List<AreaSaveData> Areas = new();
 }
 
 [Serializable]
-public sealed class ZoneSaveData
+public sealed class AreaSaveData
 {
 	public string Name;
-	public ZoneType Type;
-	public uint RuntimeBuildingId;
+	public AreaType Type;
 	public int Floor;
 	public RectIntSaveData Bounds = new();
 }

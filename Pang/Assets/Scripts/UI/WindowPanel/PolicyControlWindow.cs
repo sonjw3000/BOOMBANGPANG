@@ -46,7 +46,7 @@ namespace Assets.Scripts.UI
 		private TMP_Text loadingDestinationSummaryText;
 		private TMP_Text loadingSelectionStatusText;
 		private TMP_Text outboundPlaceholderText;
-		private ActionButtonControls landingZoneButton;
+		private ActionButtonControls landingAreaButton;
 		private ActionButtonControls unloadingDestinationButton;
 		private ActionButtonControls loadingDestinationButton;
 		private TabType currentTab;
@@ -66,7 +66,7 @@ namespace Assets.Scripts.UI
 		private BuildingFootprintService BuildingFootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
 		private CargoPortService CargoPortService => GameContext.HasInstance ? GameContext.Instance.CargoPortSvc : null;
 
-		private ZoneControlWindow zoneControlWindow;
+		private AreaControlWindow areaControlWindow;
 
 		private void Awake()
 		{
@@ -286,9 +286,9 @@ namespace Assets.Scripts.UI
 		private void BuildInboundTab(Transform parent)
 		{
 			CreateSectionHeader(parent, "Inbound Routing");
-			CreateHelpText(parent, "Configure rocket landing zones and which building receives inbound unloading.");
+			CreateHelpText(parent, "Configure rocket landing areas and which building receives inbound unloading.");
 
-			landingZoneButton = CreateButtonRow(parent, "Landing Zones", "Edit Landing Zones", HandleLandingZoneButtonClicked);
+			landingAreaButton = CreateButtonRow(parent, "Landing Areas", "Edit Landing Areas", HandleLandingAreaButtonClicked);
 			unloadingDestinationButton = CreateButtonRow(parent, "Unloading Destination", "Select Building", HandleUnloadingDestinationButtonClicked);
 			unloadingDestinationSummaryText = CreateBodyText("UnloadingDestinationSummary", parent, string.Empty);
 			unloadingSelectionStatusText = CreateBodyText("UnloadingSelectionStatus", parent, string.Empty);
@@ -355,10 +355,10 @@ namespace Assets.Scripts.UI
 				outboundPlaceholderText.text = string.Empty;
 		}
 
-		private void HandleLandingZoneButtonClicked()
+		private void HandleLandingAreaButtonClicked()
 		{
-			EnsureZoneControlWindow();
-			zoneControlWindow?.OpenForGlobalZoneType(ZoneType.RocketLanding);
+			EnsureAreaControlWindow();
+			areaControlWindow?.OpenForAreaType(AreaType.RocketLanding);
 		}
 
 		private void HandleUnloadingDestinationButtonClicked()
@@ -540,10 +540,10 @@ namespace Assets.Scripts.UI
 			return CargoPortService.TryQueryPorts(building.RuntimeBuildingId, ports, port => port != null && port is OutboundCargoPort);
 		}
 
-		private void EnsureZoneControlWindow()
+		private void EnsureAreaControlWindow()
 		{
-			if (zoneControlWindow == null)
-				zoneControlWindow = FindFirstObjectByType<ZoneControlWindow>(FindObjectsInactive.Include);
+			if (areaControlWindow == null)
+				areaControlWindow = FindFirstObjectByType<AreaControlWindow>(FindObjectsInactive.Include);
 		}
 
 		private void EnsureHostActive()

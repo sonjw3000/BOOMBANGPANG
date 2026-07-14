@@ -37,7 +37,7 @@ Interaction points define where workers can:
 
 Current direction for building space:
 - a building owns a set of interior cells
-- zones are defined as sub-areas inside that owned building space
+- worker spawn and rocket landing areas are defined only on outdoor cells
 - region calculation is primarily spatial classification such as indoor / outdoor / boundary
 - region classification should not become the source of truth for building ownership
 - future building shapes are expected to expand beyond simple rectangles, so ownership logic should increasingly be based on owned cell sets rather than rectangle-only assumptions
@@ -67,31 +67,30 @@ Cargo ports should increasingly be treated as logistics interfaces between:
 
 ---
 
-## 4 Building / Facility / Zone Interpretation
+## 4 Building / Facility / Area Interpretation
 
 Spatial logic should not treat every operational concept as the same kind of placeable.
 
 Current direction:
 - `Building` = a logistics process space that owns an interior area and participates in the player-built network
 - `Facility` = installed logistics or support function inside a building when a more granular internal object is needed
-- `Zone` = an internal rule area inside a building, used to control handling policy rather than define the building's core logistics purpose
+- `Area` = an outdoor rectangular marker used only for worker spawning or rocket landing
 
 This distinction should guide future placement, interaction, and refactoring work.
 
 Additional interpretation rules:
 - a building answers `what is this space for`
-- a zone answers `how should this part of the space operate`
-- one building may contain multiple zones
-- zones must remain inside the owning building boundary
-- zone logic should not define standalone logistics process identity outside of a building
+- a facility rule answers `how should this facility operate`
+- an area answers `where may this spawn or landing operation occur`
+- areas are not owned by buildings and cannot overlap building cells
+- areas do not own facilities, item filters, or worker policies
 
 Examples:
 - `StorageBuilding`, `Packing`, and `Staging` are building-level identities
-- fragile handling, hazard restrictions, temperature rules, and worker-only rules are zone-level policies
+- fragile handling, hazard restrictions, and item filters are facility-rule policies
 
 Current implementation note:
 - the present building creation flow may still use simple rectangular wall-based construction
 - this should be treated as an implementation stage, not the final conceptual boundary of the building system
 
 ---
-

@@ -28,7 +28,7 @@ Who or what should move cargo between them?
 
 ---
 
-## Three-Layer Structure
+## Structural Layers
 
 The hub should currently be interpreted through three separate layers:
 
@@ -60,7 +60,7 @@ Examples:
 
 Facilities represent real, placeable operational functions.
 
-### Zone
+### FacilityRule
 
 Operational policy.
 
@@ -71,16 +71,24 @@ Examples:
 - High Value
 - Robot Only
 
-Zones are not the same thing as buildings or facilities.
-They express handling rules, permissions, or operating constraints.
+Facility rules are not the same thing as buildings, facilities, or physical areas.
+They express handling filters, permissions, or operating constraints and are assigned to facilities.
+
+### Area
+
+Outdoor rectangular space used only for:
+- worker spawning
+- rocket landing
+
+Areas do not belong to buildings, contain facilities, or express operating policy.
 
 ---
 
 ## Semantic Reinterpretation
 
-Several older `Zone` concepts should now be reinterpreted:
+Several older `Zone` concepts are removed or reinterpreted:
 
-- `StandbyZone` should be treated as `Worker Bay`
+- worker standby zones are removed
 - `Rest Zone` should be treated as `Break Room`
 - `Charging Zone` should be treated as `Charging Station`
 

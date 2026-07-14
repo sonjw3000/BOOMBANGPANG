@@ -2,47 +2,48 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [Serializable]
 public struct WorkerSpawnDefinition
 {
-	[SerializeField] private ZoneType zoneType;
+	[FormerlySerializedAs("zoneType")]
+	[SerializeField] private WorkerKind workerKind;
 	[SerializeField] private PlaceableDefinition placeableDefinition;
 	[SerializeField] private FacingDirection facingDirection;
 
-	public ZoneType ZoneType => zoneType;
+	public WorkerKind WorkerKind => workerKind;
 	public PlaceableDefinition PlaceableDefinition => placeableDefinition;
 	public FacingDirection FacingDirection => facingDirection;
 }
 
 public class WorkerSpawnManager : MonoBehaviour
 {
-	[SerializeField] private ZoneManager zoneManager;
+	[FormerlySerializedAs("zoneManager")]
+	[SerializeField] private AreaManager areaManager;
 	[SerializeField] private Transform spawnedWorkerRoot;
 	[SerializeField] private int workerSpawnFloor = 0;
-	[SerializeField] private int randomSearchCountPerZone = 12;
+	[FormerlySerializedAs("randomSearchCountPerZone")]
+	[SerializeField] private int randomSearchCountPerArea = 12;
 	[SerializeField] private List<WorkerSpawnDefinition> spawnDefinitions = new();
 
 	public Transform SpawnedWorkerRoot => spawnedWorkerRoot;
 
 	private GridService GridService => GameContext.Instance.GridService;
-	private ZoneManager ZoneManager
+	private AreaManager AreaManager
 	{
 		get
 		{
-			if (zoneManager == null && GameContext.HasInstance)
-				zoneManager = GameContext.Instance.ZoneMgr;
+			if (areaManager == null && GameContext.HasInstance)
+				areaManager = GameContext.Instance.AreaMgr;
 
-			return zoneManager;
+			return areaManager;
 		}
 	}
 
 #if UNITY_EDITOR
 	private void OnValidate()
 	{
-		if (zoneManager == null)
-			Debug.LogError("No ZoneManager!!");
-
 		if (spawnedWorkerRoot == null)
 			Debug.LogError("No WorkerRoot!!");
 	}
@@ -58,38 +59,38 @@ public class WorkerSpawnManager : MonoBehaviour
 			return false;
 		}
 
-		if (ZoneManager == null)
+		if (AreaManager == null)
 		{
-			Debug.LogWarning("Worker spawn request failed: ZoneManager is not assigned");
+			Debug.LogWarning("Worker spawn request failed: AreaManager is not assigned");
 			return false;
 		}
 
 		archetype.AbilityDefinition.EnsureIdentityInitialized();
-		ZoneType zoneType = archetype.AbilityDefinition.WorkerKind.ToSpawnZoneType();
-		if (TryGetSpawnDefinition(zoneType, out var spawnDefinition) == false)
+		WorkerKind workerKind = archetype.AbilityDefinition.WorkerKind;
+		if (TryGetSpawnDefinition(workerKind, out var spawnDefinition) == false)
 		{
-			Debug.LogWarning($"Worker spawn definition is missing for {zoneType}");
+			Debug.LogWarning($"Worker spawn definition is missing for {workerKind}");
 			return false;
 		}
 
-		if (TryGetSpawnPoint(zoneType, spawnDefinition, out var spawnZone, out var spawnPoint) == false)
+		if (TryGetSpawnPoint(spawnDefinition, out Area spawnArea, out int3 spawnPoint) == false)
 		{
-			//Debug.LogWarning($"No available spawn point for {archetype.name} ({zoneType})");
+			//Debug.LogWarning($"No available spawn point for {archetype.name}.");
 			return false;
 		}
 
 		if (TryInstallWorker(archetype, spawnDefinition, spawnPoint, out spawnedWorker) == false)
 			return false;
 
-		Debug.Log($"Spawned worker by {requester?.name ?? "UnknownRequester"} at {spawnPoint} in zone {spawnZone.DisplayName}");
+		Debug.Log($"Spawned worker by {requester?.name ?? "UnknownRequester"} at {spawnPoint} in area {spawnArea.DisplayName}");
 		return true;
 	}
 
-	private bool TryGetSpawnDefinition(ZoneType zoneType, out WorkerSpawnDefinition result)
+	private bool TryGetSpawnDefinition(WorkerKind workerKind, out WorkerSpawnDefinition result)
 	{
 		foreach (var definition in spawnDefinitions)
 		{
-			if (definition.ZoneType == zoneType)
+			if (definition.WorkerKind == workerKind)
 			{
 				result = definition;
 				return true;
@@ -100,21 +101,21 @@ public class WorkerSpawnManager : MonoBehaviour
 		return false;
 	}
 
-	private bool TryGetSpawnPoint(ZoneType zoneType, in WorkerSpawnDefinition spawnDefinition, out ZoneArea spawnZone, out int3 spawnPoint)
+	private bool TryGetSpawnPoint(in WorkerSpawnDefinition spawnDefinition, out Area spawnArea, out int3 spawnPoint)
 	{
-		spawnZone = null;
+		spawnArea = null;
 		spawnPoint = default;
 
-		if (ZoneManager.TryGetZones(out var zones, workerSpawnFloor, zoneType) == false)
+		if (AreaManager.TryGetAreas(out var areas, workerSpawnFloor, AreaType.WorkerSpawn) == false)
 			return false;
 
-		int startIndex = UnityEngine.Random.Range(0, zones.Count);
-		for (int i = 0; i < zones.Count; ++i)
+		int startIndex = UnityEngine.Random.Range(0, areas.Count);
+		for (int i = 0; i < areas.Count; ++i)
 		{
-			var zone = zones[(startIndex + i) % zones.Count];
-			if (TryFindSpawnPoint(zone, spawnDefinition, out spawnPoint))
+			Area area = areas[(startIndex + i) % areas.Count];
+			if (TryFindSpawnPoint(area, spawnDefinition, out spawnPoint))
 			{
-				spawnZone = zone;
+				spawnArea = area;
 				return true;
 			}
 		}
@@ -122,11 +123,11 @@ public class WorkerSpawnManager : MonoBehaviour
 		return false;
 	}
 
-	private bool TryFindSpawnPoint(ZoneArea zone, in WorkerSpawnDefinition spawnDefinition, out int3 spawnPoint)
+	private bool TryFindSpawnPoint(Area area, in WorkerSpawnDefinition spawnDefinition, out int3 spawnPoint)
 	{
-		for (int i = 0; i < Mathf.Max(1, randomSearchCountPerZone); ++i)
+		for (int i = 0; i < Mathf.Max(1, randomSearchCountPerArea); ++i)
 		{
-			zone.GetRandomPoint(out var candidatePoint);
+			area.GetRandomPoint(out var candidatePoint);
 			if (CanInstall(candidatePoint, spawnDefinition))
 			{
 				spawnPoint = candidatePoint;
@@ -134,11 +135,11 @@ public class WorkerSpawnManager : MonoBehaviour
 			}
 		}
 
-		for (int z = zone.Bounds.yMin; z < zone.Bounds.yMax; ++z)
+		for (int z = area.Bounds.yMin; z < area.Bounds.yMax; ++z)
 		{
-			for (int x = zone.Bounds.xMin; x < zone.Bounds.xMax; ++x)
+			for (int x = area.Bounds.xMin; x < area.Bounds.xMax; ++x)
 			{
-				var candidatePoint = new int3(x, zone.Floor, z);
+				var candidatePoint = new int3(x, area.Floor, z);
 				if (CanInstall(candidatePoint, spawnDefinition))
 				{
 					spawnPoint = candidatePoint;

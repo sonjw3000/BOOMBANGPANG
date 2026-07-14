@@ -361,15 +361,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 947cac43de70f684488a0949fa30e612, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorkerSpawnManager
-  zoneManager: {fileID: 3365747867954475864}
+  areaManager: {fileID: 3365747867954475864}
   spawnedWorkerRoot: {fileID: 6293602162797510589}
   workerSpawnFloor: 0
-  randomSearchCountPerZone: 12
+  randomSearchCountPerArea: 12
   spawnDefinitions:
-  - zoneType: 1
+  - workerKind: 1
     placeableDefinition: {fileID: 11400000, guid: 0155fd8c9b5ebf04e9510c074c29badf, type: 2}
     facingDirection: 0
-  - zoneType: 0
+  - workerKind: 0
     placeableDefinition: {fileID: 11400000, guid: c60b80c613183a6459b8323e63293c9c, type: 2}
     facingDirection: 0
 --- !u!1 &862347329902503909
@@ -1005,7 +1005,7 @@ MonoBehaviour:
   contractService: {fileID: 1422058608903141302}
   licenseService: {fileID: 7873461287562190481}
   pathFindingService: {fileID: 2045873797293161509}
-  zoneManager: {fileID: 3365747867954475864}
+  areaManager: {fileID: 3365747867954475864}
   facilityManager: {fileID: 474663047469881703}
   facilityRuleManager: {fileID: 1297588356517447750}
   facilityRuleOverlayController: {fileID: 1416062975812873341}
@@ -1279,7 +1279,7 @@ GameObject:
   - component: {fileID: 3365747867954475864}
   - component: {fileID: 1150268374612000001}
   m_Layer: 0
-  m_Name: ZoneManager
+  m_Name: AreaManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1311,22 +1311,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a8472810fac36254e95e0440d77b4c85, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneManager
-  registeredZones: []
-  zoneColors:
+  m_EditorClassIdentifier: Assembly-CSharp::AreaManager
+  registeredAreas: []
+  areaColors:
     _serializedList:
     - Key: 0
       Value: {r: 0.32, g: 0.74, b: 0.98, a: 1}
     - Key: 1
       Value: {r: 1, g: 0.63, b: 0.2, a: 1}
-    - Key: 2
-      Value: {r: 0.52, g: 0.86, b: 0.46, a: 1}
-    - Key: 3
-      Value: {r: 0.95, g: 0.85, b: 0.36, a: 1}
-    - Key: 4
-      Value: {r: 0.94, g: 0.45, b: 0.45, a: 1}
-    - Key: 5
-      Value: {r: 0.48, g: 0.66, b: 0.95, a: 1}
 --- !u!114 &1150268374612000001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1338,10 +1330,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f98110844e454474c8ef5a91b7e3ae8a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneOverlayController
-  zoneManager: {fileID: 3365747867954475864}
+  m_EditorClassIdentifier: Assembly-CSharp::AreaOverlayController
+  areaManager: {fileID: 3365747867954475864}
   previewPoolSize: 8
-  zoneOverlayHeight: 0.02
+  areaOverlayHeight: 0.02
   labelHeight: 0.03
   previewHeight: 0.035
   overlayAlpha: 0.25
@@ -1798,10 +1790,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   requestService: {fileID: 206211745931544088}
-  zoneManager: {fileID: 0}
-  landingZoneType: 7
-  landingZoneFloor: 0
-  randomSearchCountPerZone: 12
+  areaManager: {fileID: 0}
+  landingAreaFloor: 0
+  randomSearchCountPerArea: 12
   inboundRocketSpawnInterval: 10
   hardLandingChange: 30
   damageRate: 30

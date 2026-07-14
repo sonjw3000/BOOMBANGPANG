@@ -55,43 +55,21 @@ This helps keep the simulation traceable and debuggable.
 
 ---
 
-## 3 Building & Zone Model
+## 3 Building, Facility Rule & Area Model
 
-`Building` and `Zone` serve different gameplay purposes and should not be merged conceptually.
+These concepts have separate owners and purposes.
 
 - `Building` = what logistics function a space performs
-- `Zone` = how a part of that space should be operated
+- `FacilityRule` = how an installed facility should handle eligible work or items
+- `Area` = an outdoor rectangular marker used only for worker spawning or rocket landing
 
 Current design direction:
 - `Building` is a logistics process node owned by the player
 - buildings may represent functions such as `StorageBuilding`, `Packing`, `Staging`, and similar workflow-facing spaces
-- players build a logistics network by connecting buildings and managing distance, throughput, specialization, and operational risk
-- a building may contain multiple zones
-- zones exist only inside a building and should not exist as free-floating global space rules
-
-`Zone` is not a process node.
-
-`Zone` is a rule layer applied to part of a building interior.
-
-Examples of zone concerns:
-- item filters
-- worker filters
-- handling rules
-- specialization rules
-- risk and compliance restrictions
-
-Examples:
-- `Contains Fragile`
-- `Contains Hazard`
-- `Under 0 Celsius`
-- `SATP`
-- `Only(WorkerType)`
-
-This distinction should guide future system design:
-- buildings define logistics purpose and network structure
-- zones define local operating policy inside a building
-- workflow routing should reason about buildings first, then zone rules
-- zone rules must not silently replace the role of buildings as logistics process owners
+- facility operating policy is assigned through building-scoped `FacilityRule` presets
+- `AreaType` contains only `WorkerSpawn` and `RocketLanding`
+- areas are not owned by buildings and do not contain facilities or gameplay rules
+- workflows query buildings and facilities first; areas are used only by their owning spawn/landing systems
 
 ---
 

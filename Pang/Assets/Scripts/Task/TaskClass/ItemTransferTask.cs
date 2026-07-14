@@ -337,7 +337,7 @@ public sealed class ItemTransferTask : WorkerTask
 			default:
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 				ctx.Worker.SetWorkerTarget(WorkerStatusTarget.WorkTarget);
-				return AIWorker.MoveToStandbyWhileWaiting(ctx);
+				return AIWorker.KeepTaskWaiting(ctx);
 		}
 	}
 

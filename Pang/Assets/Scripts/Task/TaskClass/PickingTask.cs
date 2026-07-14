@@ -213,7 +213,7 @@ public sealed partial class PickingTask : WorkerTask
 			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.CargoPort);
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			Debug.Log("No Available OB cargo port!");
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(targetPos);
@@ -415,7 +415,7 @@ public sealed partial class PickingTask : WorkerTask
 			default:
 				ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 				ctx.Worker.SetWorkerTarget(isPickingPhaseEnd ? WorkerStatusTarget.CapsuleBuffer : WorkerStatusTarget.Shelf);
-				return AIWorker.MoveToStandbyWhileWaiting(ctx);
+				return AIWorker.KeepTaskWaiting(ctx);
 		}
 	}
 

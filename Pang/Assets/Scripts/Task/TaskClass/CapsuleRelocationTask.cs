@@ -200,7 +200,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		{
 			ctx.Worker.SetWorkerTarget(task.GetTargetTarget());
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-			return AIWorker.MoveToStandbyWhileWaiting(ctx);
+			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.targetDock);
@@ -225,6 +225,6 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		task.WorkerCarryBox.PutBox(box);
 		ctx.Worker.SetWorkerTarget(task.GetTargetTarget());
 		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-		return AIWorker.MoveToStandbyWhileWaiting(ctx);
+		return AIWorker.KeepTaskWaiting(ctx);
 	}
 }

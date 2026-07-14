@@ -62,7 +62,8 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ContractService contractService;
 	[SerializeField] private LicenseService licenseService;
 	[SerializeField] private PathFindingService pathFindingService;
-	[SerializeField] private ZoneManager zoneManager;
+	[FormerlySerializedAs("zoneManager")]
+	[SerializeField] private AreaManager areaManager;
 	[SerializeField] private FacilityManager facilityManager;
 	[SerializeField] private FacilityRuleManager facilityRuleManager;
 	[SerializeField] private FacilityRuleOverlayController facilityRuleOverlayController;
@@ -162,7 +163,7 @@ public class GameContext : MonoBehaviour
 	public VendorService VendeorService => VendorService;
 	public PowerService PowerSvc => ResolveOrCreatePowerService();
 	public TemperatureService TemperatureSvc => ResolveOrCreateTemperatureService();
-	public ZoneManager ZoneMgr => zoneManager;
+	public AreaManager AreaMgr => areaManager;
 	public AirlockService AirlockSvc => airlockService;
 	public BuildingManager BuildingMgr => buildingManager;
 	public FacilityManager FacilityMgr => facilityManager;

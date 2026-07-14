@@ -209,7 +209,7 @@ GameObject:
   - component: {fileID: 6445035489824627889}
   - component: {fileID: 1661096378977446707}
   m_Layer: 0
-  m_Name: ZoneDetailContent
+  m_Name: AreaDetailContent
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -247,7 +247,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 83376d0cf3e08294bbb6c2759637c01a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneDetailContent
+  m_EditorClassIdentifier: Assembly-CSharp::AreaDetailContent
   deleteButton: {fileID: 0}
   defaultTabsPrefab: {fileID: 1557969092189939020, guid: db2c549d6ef382e4dbd1c9f246231f0f, type: 3}
   actionButtonPrefab: {fileID: 7582413638534039896, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
@@ -255,7 +255,7 @@ MonoBehaviour:
   infoTabRoot: {fileID: 1481112260261595362}
   actionTabRoot: {fileID: 363770991020059697}
   layoutView: {fileID: 7604511608732409385}
-  deleteZoneButton: {fileID: 5919967099621776355}
+  deleteAreaButton: {fileID: 5919967099621776355}
 --- !u!1001 &410108280828829608
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -266,11 +266,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 63384438580898178, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
       propertyPath: m_text
-      value: Delete Zone
+      value: Delete Area
       objectReference: {fileID: 0}
     - target: {fileID: 231583935517011606, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
       propertyPath: m_Name
-      value: DeleteZoneButton
+      value: DeleteAreaButton
       objectReference: {fileID: 0}
     - target: {fileID: 6669694109650853892, guid: f0b7c32d34fd98240a50fe420847d5bc, type: 3}
       propertyPath: m_Pivot.x
@@ -452,7 +452,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8746706590705228041, guid: f4b22109e943cc84199fcc992e3ce7bf, type: 3}
       propertyPath: m_Name
-      value: ZoneDetailLayout
+      value: AreaDetailLayout
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -485,4 +485,4 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a1d3767fadc69bb45a42bdbebbf10fce, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneDetailLayoutView
+  m_EditorClassIdentifier: Assembly-CSharp::AreaDetailLayoutView

@@ -13,13 +13,11 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	[SerializeField] private BuildingDetailLayoutView layoutPrefab = null;
 	[SerializeField] private DetailInfoRowView infoRowPrefab = null;
 	[SerializeField] private TextRowView summaryRowPrefab = null;
-	[SerializeField] private LabelButtonRowView zoneRowPrefab = null;
 
 	private UIWindow window;
 	private BuildingDetailLayoutView layoutView;
 	private readonly List<GameObject> tabRoots = new();
 	private readonly List<WindowTabContentEntry> tabEntries = new();
-	private readonly List<GameObject> zoneListRows = new();
 	private readonly List<GameObject> facilitySummaryRows = new();
 
 	private TextMeshProUGUI nameValue;
@@ -30,41 +28,31 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	private TextMeshProUGUI cellCountValue;
 	private TextMeshProUGUI facilityCountValue;
 	private TextMeshProUGUI cargoPortCountValue;
-	private TextMeshProUGUI zoneCountValue;
 	private TextMeshProUGUI thresholdValueText;
 	private TextMeshProUGUI settingsStatusText;
 	private TextMeshProUGUI actionStateValue;
 	private Toggle overrideThresholdToggle;
 	private Slider thresholdSlider;
 
-	private ZoneOverlayController zoneOverlayController;
-	private ZoneControlWindow zoneControlWindow;
 	private SelectionUIMaster selectionUIMaster;
 	private BuildingPlacementOverlayController buildingOverlayController;
-	private bool listenersBound;
 	private bool uiBuilt;
 	private int currentTabIndex;
 
-	private ZoneManager ZoneManager => GameContext.HasInstance ? GameContext.Instance.ZoneMgr : null;
-	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 
 	protected override void AddListener()
 	{
-		BindListeners();
 	}
 
 	protected override void RemoveListeners()
 	{
-		UnbindListeners();
-		ClearZoneListRows();
 		ClearFacilitySummaryRows();
 	}
 
 	protected override void LinkData()
 	{
 		EnsureUi();
-		BindListeners();
 		SetupTabs();
 		SetTab(0);
 		RefreshAll();
@@ -112,7 +100,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		cellCountValue = CreateInfoLine(layoutView.OverviewTab.transform, "Cells");
 		facilityCountValue = CreateInfoLine(layoutView.OverviewTab.transform, "Facilities");
 		cargoPortCountValue = CreateInfoLine(layoutView.OverviewTab.transform, "Cargo Ports");
-		zoneCountValue = CreateInfoLine(layoutView.OverviewTab.transform, "Zones");
 		actionStateValue = CreateInfoLine(layoutView.ActionTab.transform, "Current State");
 
 		if (layoutView.FacilitiesSummaryText != null)
@@ -124,72 +111,14 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 			layoutView.PolicyHelpText.text = "Change how far workers assigned to this building are allowed to operate.";
 		}
 
-		if (layoutView.ZoneStatusText != null)
-		{
-			layoutView.ZoneStatusText.fontSize = 20f;
-			layoutView.ZoneStatusText.text = "Use Zone Controls to create and inspect building-owned zones.";
-		}
-
-		if (layoutView.ZoneEmptyText != null)
-		{
-			layoutView.ZoneEmptyText.fontSize = 20f;
-			layoutView.ZoneEmptyText.text = "No zones in this building yet.";
-		}
-
 		if (layoutView.DemolitionNoteText != null)
 			layoutView.DemolitionNoteText.text = "Demolition flow is not wired yet. Use the actions below only to mark intent.";
 
 		BindSettingsSection();
 		layoutView.WorkScopeButton?.Configure("Cycle Work Scope", HandleWorkScopeButtonClicked);
-		layoutView.ZoneOpenControlsButton?.Configure("Open Zone Controls", HandleZoneControlsButtonClicked);
 		layoutView.PendingDemolitionButton?.Configure("Mark Pending Demolition", HandleMarkPendingDemolitionClicked);
 		layoutView.RestoreActiveButton?.Configure("Restore Active State", HandleRestoreActiveClicked);
 		uiBuilt = true;
-	}
-
-	private void BindListeners()
-	{
-		if (listenersBound)
-			return;
-
-		if (ZoneManager != null)
-		{
-			ZoneManager.OnZoneAdded -= HandleZoneChanged;
-			ZoneManager.OnZoneChanged -= HandleZoneChanged;
-			ZoneManager.OnZoneRemoved -= HandleZoneChanged;
-			ZoneManager.OnZonesRebuilt -= HandleZonesRebuilt;
-			ZoneManager.OnZoneAdded += HandleZoneChanged;
-			ZoneManager.OnZoneChanged += HandleZoneChanged;
-			ZoneManager.OnZoneRemoved += HandleZoneChanged;
-			ZoneManager.OnZonesRebuilt += HandleZonesRebuilt;
-		}
-
-		if (Interaction != null)
-		{
-			Interaction.OnZonePlacementChanged -= HandleZonePlacementChanged;
-			Interaction.OnZonePlacementChanged += HandleZonePlacementChanged;
-		}
-
-		listenersBound = true;
-	}
-
-	private void UnbindListeners()
-	{
-		if (listenersBound == false)
-			return;
-
-		if (ZoneManager != null)
-		{
-			ZoneManager.OnZoneAdded -= HandleZoneChanged;
-			ZoneManager.OnZoneChanged -= HandleZoneChanged;
-			ZoneManager.OnZoneRemoved -= HandleZoneChanged;
-			ZoneManager.OnZonesRebuilt -= HandleZonesRebuilt;
-		}
-
-		if (Interaction != null)
-			Interaction.OnZonePlacementChanged -= HandleZonePlacementChanged;
-
-		listenersBound = false;
 	}
 
 	private void SetupTabs()
@@ -216,7 +145,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 
 		window?.UpdateTabVisuals(tabIndex);
 		RefreshFacilitiesSection();
-		RefreshZoneSection();
 		RefreshSettingsSection();
 	}
 
@@ -240,7 +168,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	{
 		RefreshSummaryValues();
 		RefreshFacilitiesSection();
-		RefreshZoneSection();
 		RefreshSettingsSection();
 	}
 
@@ -257,7 +184,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		cellCountValue.text = buildingProvider.CellCount.ToString();
 		facilityCountValue.text = buildingProvider.FacilityCount.ToString();
 		cargoPortCountValue.text = buildingProvider.CargoPortCount.ToString();
-		zoneCountValue.text = buildingProvider.ZoneCount.ToString();
 		actionStateValue.text = buildingProvider.StateDisplay;
 
 		if (layoutView != null && layoutView.WorkScopeButton?.LabelText != null)
@@ -379,67 +305,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 		AddConnectedBuildingRows(building, isInputSection: false);
 	}
 
-	private void RefreshZoneSection()
-	{
-		if (layoutView == null || layoutView.ZoneStatusText == null || layoutView.ZoneOpenControlsButton == null || layoutView.ZoneListRoot == null || layoutView.ZoneEmptyText == null)
-			return;
-
-		EnsureZoneOverlayController();
-		ClearZoneListRows();
-
-		if (provider is not BuildingUIProvider buildingProvider || buildingProvider.Target?.Building == null)
-		{
-			if (layoutView.ZoneOpenControlsButton.Button != null)
-				layoutView.ZoneOpenControlsButton.Button.interactable = false;
-			layoutView.ZoneStatusText.text = "Building context is unavailable.";
-			layoutView.ZoneEmptyText.gameObject.SetActive(true);
-			layoutView.ZoneEmptyText.text = "No zones available.";
-			return;
-		}
-
-		Building building = buildingProvider.Target.Building;
-		IReadOnlyList<ZoneArea> buildingZones = ZoneManager != null
-			? ZoneManager.GetZonesForBuilding(building.RuntimeBuildingId)
-			: Array.Empty<ZoneArea>();
-		bool isCreating = Interaction != null
-			&& Interaction.Mode == InteractionContext.InteractionMode.BuildingZoneEdit
-			&& zoneOverlayController != null
-			&& zoneOverlayController.CurrentBuilding == building;
-
-		if (layoutView.ZoneOpenControlsButton.Button != null)
-			layoutView.ZoneOpenControlsButton.Button.interactable = true;
-		layoutView.ZoneStatusText.text = isCreating
-			? "Zone creation is active in Zone Controls. Left click start/end cells inside this building. Right click to cancel."
-			: "Use Zone Controls to create and manage zones for this building.";
-
-		if (buildingZones.Count <= 0)
-		{
-			layoutView.ZoneEmptyText.gameObject.SetActive(true);
-			layoutView.ZoneEmptyText.text = "No zones in this building yet.";
-			return;
-		}
-
-		layoutView.ZoneEmptyText.gameObject.SetActive(false);
-		for (int i = 0; i < buildingZones.Count; ++i)
-		{
-			ZoneArea zone = buildingZones[i];
-			if (zone == null)
-				continue;
-
-			CreateZoneListRow(zone);
-		}
-	}
-
-	private void HandleZoneControlsButtonClicked()
-	{
-		if (provider is not BuildingUIProvider buildingProvider || buildingProvider.Target?.Building == null)
-			return;
-
-		EnsureZoneControlWindow();
-		zoneControlWindow?.OpenForBuilding(buildingProvider.Target.Building);
-		RefreshZoneSection();
-	}
-
 	private void HandleWorkScopeButtonClicked()
 	{
 		if (provider is not BuildingUIProvider buildingProvider || buildingProvider.Target?.Building == null)
@@ -463,56 +328,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 			buildingProvider.Target.BuildingManager?.SetBuildingState(buildingProvider.Target.Building, BuildingState.Active);
 	}
 
-	private void HandleViewZoneDetailsClicked(ZoneArea zone)
-	{
-		if (zone == null)
-			return;
-
-		EnsureZoneOverlayController();
-		EnsureSelectionUIMaster();
-		ZoneSelectionProxy proxy = zoneOverlayController?.GetSelectionProxy(zone);
-		if (proxy == null)
-			return;
-
-		selectionUIMaster?.SelectAndShowDetail(proxy.gameObject);
-	}
-
-	private void HandleZonePlacementChanged(ZoneType zoneType)
-	{
-		RefreshZoneSection();
-	}
-
-	private void HandleZoneChanged(ZoneArea zone)
-	{
-		if (zone == null)
-			return;
-
-		if (provider is not BuildingUIProvider buildingProvider || buildingProvider.Target?.Building == null)
-			return;
-
-		if (zone.RuntimeBuildingId != buildingProvider.Target.Building.RuntimeBuildingId)
-			return;
-
-		RefreshAll();
-	}
-
-	private void HandleZonesRebuilt()
-	{
-		RefreshAll();
-	}
-
-	private void EnsureZoneOverlayController()
-	{
-		if (zoneOverlayController == null)
-			zoneOverlayController = FindFirstObjectByType<ZoneOverlayController>(FindObjectsInactive.Include);
-	}
-
-	private void EnsureZoneControlWindow()
-	{
-		if (zoneControlWindow == null)
-			zoneControlWindow = FindFirstObjectByType<ZoneControlWindow>(FindObjectsInactive.Include);
-	}
-
 	private void EnsureSelectionUIMaster()
 	{
 		if (selectionUIMaster == null)
@@ -526,43 +341,6 @@ public sealed class BuildingDetailContent : DetailContent<BuildingSelectionProxy
 	{
 		if (buildingOverlayController == null)
 			buildingOverlayController = FindFirstObjectByType<BuildingPlacementOverlayController>(FindObjectsInactive.Include);
-	}
-
-	private void CreateZoneListRow(ZoneArea zone)
-	{
-		if (zoneRowPrefab == null || layoutView == null)
-		{
-			Debug.LogError("[BuildingDetailContent] Zone row prefab is missing.", this);
-			return;
-		}
-
-		LabelButtonRowView row = Instantiate(zoneRowPrefab, layoutView.ZoneListRoot);
-		row.name = zone.DisplayName + "Row";
-		zoneListRows.Add(row.gameObject);
-
-		RectInt bounds = zone.Bounds;
-		if (row.LabelText != null)
-		{
-			row.LabelText.fontSize = 20f;
-			row.LabelText.text = $"{zone.DisplayName} ({zone.Type})  {bounds.width}x{bounds.height} @ {bounds.xMin}, {bounds.yMin}";
-		}
-
-		row.ActionButton?.Configure("View Details", () => HandleViewZoneDetailsClicked(zone));
-	}
-
-	private void ClearZoneListRows()
-	{
-		for (int i = 0; i < zoneListRows.Count; ++i)
-		{
-			GameObject row = zoneListRows[i];
-			if (row != null)
-			{
-				row.SetActive(false);
-				Destroy(row);
-			}
-		}
-
-		zoneListRows.Clear();
 	}
 
 	private void AddFacilitySummaryRow(string text)
