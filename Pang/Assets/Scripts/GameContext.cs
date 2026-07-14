@@ -92,6 +92,9 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ItemDamageService itemDamageService;
 	[SerializeField] private FireService fireService;
 	[SerializeField] private ExplosionService explosionService;
+	[SerializeField] private ContaminationService contaminationService;
+	[SerializeField] private CorrosionService corrosionService;
+	[SerializeField] private RadiationService radiationService;
 
 	[Header("Worker Visuals")]
 	[SerializeField] private WorkerVisualCatalog workerVisualCatalog;
@@ -180,6 +183,9 @@ public class GameContext : MonoBehaviour
 	public ItemDamageService ItemDamage => ResolveOrCreateItemDamageService();
 	public FireService FireSvc => ResolveOrCreateFireService();
 	public ExplosionService ExplosionSvc => ResolveOrCreateExplosionService();
+	public ContaminationService ContaminationSvc => ResolveOrCreateContaminationService();
+	public CorrosionService CorrosionSvc => ResolveOrCreateCorrosionService();
+	public RadiationService RadiationSvc => ResolveOrCreateRadiationService();
 	public WorkerVisualCatalog WorkerVisualCatalog
 	{
 		get
@@ -303,6 +309,9 @@ public class GameContext : MonoBehaviour
 		_ = ItemDamage;
 		_ = FireSvc;
 		_ = ExplosionSvc;
+		_ = ContaminationSvc;
+		_ = CorrosionSvc;
+		_ = RadiationSvc;
 		_ = ResolveOrCreateGridOverlayController();
 		_ = LicenseService;
 	}
@@ -377,6 +386,42 @@ public class GameContext : MonoBehaviour
 			explosionService = gameObject.AddComponent<ExplosionService>();
 
 		return explosionService;
+	}
+
+	private ContaminationService ResolveOrCreateContaminationService()
+	{
+		if (contaminationService != null)
+			return contaminationService;
+
+		contaminationService = GetComponentInChildren<ContaminationService>(true);
+		if (contaminationService == null)
+			contaminationService = gameObject.AddComponent<ContaminationService>();
+
+		return contaminationService;
+	}
+
+	private CorrosionService ResolveOrCreateCorrosionService()
+	{
+		if (corrosionService != null)
+			return corrosionService;
+
+		corrosionService = GetComponentInChildren<CorrosionService>(true);
+		if (corrosionService == null)
+			corrosionService = gameObject.AddComponent<CorrosionService>();
+
+		return corrosionService;
+	}
+
+	private RadiationService ResolveOrCreateRadiationService()
+	{
+		if (radiationService != null)
+			return radiationService;
+
+		radiationService = GetComponentInChildren<RadiationService>(true);
+		if (radiationService == null)
+			radiationService = gameObject.AddComponent<RadiationService>();
+
+		return radiationService;
 	}
 
 	private GridOverlayController ResolveOrCreateGridOverlayController()

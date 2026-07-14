@@ -163,6 +163,24 @@ public class ItemDamageService : MonoBehaviour
 				if (explosionService != null)
 					explosionService.ReportTrigger(in trigger);
 				break;
+
+			case ItemDamageIncidentType.Contamination:
+				ContaminationService contaminationService = GameContext.Instance.ContaminationSvc;
+				if (contaminationService != null)
+					contaminationService.ReportTrigger(in trigger);
+				break;
+
+			case ItemDamageIncidentType.Corrosion:
+				CorrosionService corrosionService = GameContext.Instance.CorrosionSvc;
+				if (corrosionService != null)
+					corrosionService.ReportTrigger(in trigger);
+				break;
+
+			case ItemDamageIncidentType.RadiationLeak:
+				RadiationService radiationService = GameContext.Instance.RadiationSvc;
+				if (radiationService != null)
+					radiationService.ReportTrigger(in trigger);
+				break;
 		}
 	}
 
