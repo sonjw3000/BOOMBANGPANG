@@ -8,14 +8,14 @@
 
 .left-hud {
 	position: absolute;
-	left: 20px;
-	bottom: 18px;
-	width: 430px;
+	left: 12px;
+	bottom: 12px;
+	width: 330px;
 }
 
 .hud-event-area {
 	min-height: 0;
-	margin-bottom: 8px;
+	margin-bottom: 5px;
 }
 
 .hud-event-list {
@@ -24,10 +24,10 @@
 }
 
 .hud-event-entry {
-	height: 36px;
+	height: 28px;
 	flex-direction: row;
 	align-items: center;
-	margin-top: 5px;
+	margin-top: 3px;
 	background-color: rgba(12, 20, 29, 0.92);
 	border-top-width: 1px;
 	border-right-width: 1px;
@@ -40,16 +40,16 @@
 }
 
 .hud-event-entry__indicator {
-	width: 4px;
-	height: 34px;
+	width: 3px;
+	height: 26px;
 	background-color: rgb(123, 169, 191);
 }
 
 .hud-event-entry__message {
 	flex-grow: 1;
-	padding-left: 12px;
-	padding-right: 12px;
-	font-size: 13px;
+	padding-left: 8px;
+	padding-right: 8px;
+	font-size: 11px;
 	color: rgb(222, 233, 238);
 }
 
@@ -70,11 +70,11 @@
 }
 
 .economy-summary {
-	height: 68px;
+	height: 52px;
 	flex-direction: row;
 	align-items: center;
-	padding-left: 18px;
-	padding-right: 14px;
+	padding-left: 12px;
+	padding-right: 10px;
 	background-color: rgba(12, 20, 29, 0.95);
 	border-top-width: 1px;
 	border-right-width: 1px;
@@ -99,19 +99,19 @@
 }
 
 .status-item {
-	min-width: 120px;
+	min-width: 88px;
 }
 
 .status-label {
-	margin-bottom: 3px;
-	font-size: 10px;
+	margin-bottom: 2px;
+	font-size: 8px;
 	-unity-font-style: bold;
 	letter-spacing: 1.2px;
 	color: rgb(126, 153, 166);
 }
 
 .status-value {
-	font-size: 21px;
+	font-size: 16px;
 	-unity-font-style: bold;
 	color: rgb(231, 240, 243);
 }
@@ -126,15 +126,15 @@
 
 .status-divider {
 	width: 1px;
-	height: 34px;
-	margin-left: 8px;
-	margin-right: 18px;
+	height: 28px;
+	margin-left: 5px;
+	margin-right: 12px;
 	background-color: rgba(93, 127, 143, 0.4);
 }
 
 .history-hint {
 	margin-left: auto;
-	font-size: 10px;
+	font-size: 8px;
 	-unity-font-style: bold;
 	letter-spacing: 0.8px;
 	color: rgb(88, 158, 184);
@@ -143,13 +143,13 @@
 .time-cluster {
 	position: absolute;
 	left: 50%;
-	bottom: 18px;
+	bottom: 12px;
 	translate: -50% 0;
-	height: 68px;
+	height: 52px;
 	flex-direction: row;
 	align-items: center;
-	padding-left: 18px;
-	padding-right: 12px;
+	padding-left: 12px;
+	padding-right: 8px;
 	background-color: rgba(12, 20, 29, 0.95);
 	border-top-width: 1px;
 	border-right-width: 1px;
@@ -166,29 +166,29 @@
 }
 
 .date-block {
-	min-width: 180px;
+	min-width: 145px;
 }
 
 .date-value {
-	font-size: 16px;
+	font-size: 13px;
 	-unity-font-style: bold;
 	color: rgb(224, 235, 240);
 }
 
 .time-divider {
 	width: 1px;
-	height: 34px;
-	margin-left: 16px;
-	margin-right: 12px;
+	height: 28px;
+	margin-left: 10px;
+	margin-right: 8px;
 	background-color: rgba(93, 127, 143, 0.4);
 }
 
 .speed-button {
-	width: 38px;
-	height: 34px;
-	margin-left: 3px;
+	width: 30px;
+	height: 28px;
+	margin-left: 2px;
 	padding: 0;
-	font-size: 14px;
+	font-size: 12px;
 	color: rgb(191, 211, 220);
 	background-color: rgb(30, 47, 61);
 	border-top-width: 1px;
@@ -223,9 +223,9 @@
 }
 
 .speed-value {
-	min-width: 64px;
-	margin-left: 10px;
-	font-size: 15px;
+	min-width: 50px;
+	margin-left: 6px;
+	font-size: 12px;
 	-unity-font-style: bold;
 	-unity-text-align: middle-center;
 	color: rgb(95, 206, 229);

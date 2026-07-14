@@ -32,6 +32,10 @@
 	border-bottom-color: rgb(72, 78, 90);
 }
 
+.ui-window__title-bar:hover {
+	background-color: rgb(44, 50, 60);
+}
+
 .ui-window__title-left {
 	flex-direction: row;
 	align-items: center;
@@ -117,4 +121,65 @@
 	padding-right: 16px;
 	padding-top: 16px;
 	padding-bottom: 16px;
+}
+
+.ui-window__resize-handle {
+	position: absolute;
+}
+
+.ui-window__resize-handle--top {
+	left: 10px;
+	right: 10px;
+	top: 0;
+	height: 6px;
+}
+
+.ui-window__resize-handle--right {
+	right: 0;
+	top: 10px;
+	bottom: 10px;
+	width: 6px;
+}
+
+.ui-window__resize-handle--bottom {
+	left: 10px;
+	right: 10px;
+	bottom: 0;
+	height: 6px;
+}
+
+.ui-window__resize-handle--left {
+	left: 0;
+	top: 10px;
+	bottom: 10px;
+	width: 6px;
+}
+
+.ui-window__resize-handle--corner {
+	width: 12px;
+	height: 12px;
+}
+
+.ui-window__resize-handle--top-left {
+	left: 0;
+	top: 0;
+}
+
+.ui-window__resize-handle--top-right {
+	right: 0;
+	top: 0;
+}
+
+.ui-window__resize-handle--bottom-left {
+	left: 0;
+	bottom: 0;
+}
+
+.ui-window__resize-handle--bottom-right {
+	right: 0;
+	bottom: 0;
+	border-right-width: 2px;
+	border-bottom-width: 2px;
+	border-right-color: rgb(105, 122, 136);
+	border-bottom-color: rgb(105, 122, 136);
 }
