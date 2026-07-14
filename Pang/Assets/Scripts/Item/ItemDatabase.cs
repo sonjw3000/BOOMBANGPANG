@@ -7,6 +7,7 @@ public class ItemDatabase : MonoBehaviour
 	[SerializeField] private List<ItemCatalog> itemCatalogs = new();
 	
 	private Dictionary<uint, ItemDefinition> itemIDMap;
+	private readonly List<ItemDefinition> orderedItems = new();
 
 	private void BuildDict(Dictionary<uint, ItemDefinition> dict)
 	{
@@ -36,8 +37,22 @@ public class ItemDatabase : MonoBehaviour
 	private void Awake()
 	{
 		BuildDict(itemIDMap = new());
+		orderedItems.Clear();
+		orderedItems.AddRange(itemIDMap.Values.OrderBy(item => item.ItemID));
 
 		itemCatalogs.Clear();
+	}
+
+	public bool TryGetItemBySortedIndex(int index, out ItemDefinition item)
+	{
+		if (index < 0 || index >= orderedItems.Count)
+		{
+			item = null;
+			return false;
+		}
+
+		item = orderedItems[index];
+		return item != null;
 	}
 
 	public bool GetItemData(uint itemID, out ItemDefinition data)

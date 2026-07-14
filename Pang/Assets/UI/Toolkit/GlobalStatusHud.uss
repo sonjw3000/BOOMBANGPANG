@@ -1,0 +1,231 @@
+.global-status-hud {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+}
+
+.left-hud {
+	position: absolute;
+	left: 12px;
+	bottom: 12px;
+	width: 235px;
+}
+
+.hud-event-area {
+	min-height: 0;
+	margin-bottom: 5px;
+}
+
+.hud-event-list {
+	flex-direction: column;
+	justify-content: flex-end;
+}
+
+.hud-event-entry {
+	height: 23px;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 3px;
+	background-color: rgba(12, 20, 29, 0.92);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgba(68, 100, 117, 0.65);
+	border-right-color: rgba(68, 100, 117, 0.65);
+	border-bottom-color: rgba(68, 100, 117, 0.65);
+	border-left-color: rgba(68, 100, 117, 0.65);
+}
+
+.hud-event-entry__indicator {
+	width: 3px;
+	height: 21px;
+	background-color: rgb(123, 169, 191);
+}
+
+.hud-event-entry__message {
+	flex-grow: 1;
+	padding-left: 6px;
+	padding-right: 6px;
+	font-size: 9px;
+	color: rgb(222, 233, 238);
+}
+
+.hud-event-entry--money .hud-event-entry__indicator {
+	background-color: rgb(92, 211, 166);
+}
+
+.hud-event-entry--reputation .hud-event-entry__indicator {
+	background-color: rgb(90, 177, 222);
+}
+
+.hud-event-entry--warning .hud-event-entry__indicator {
+	background-color: rgb(226, 174, 72);
+}
+
+.hud-event-entry--error .hud-event-entry__indicator {
+	background-color: rgb(224, 82, 82);
+}
+
+.economy-summary {
+	height: 42px;
+	flex-direction: row;
+	align-items: center;
+	padding-left: 8px;
+	padding-right: 7px;
+	overflow: hidden;
+	background-color: rgba(12, 20, 29, 0.95);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgba(73, 126, 153, 0.62);
+	border-right-color: rgba(73, 126, 153, 0.62);
+	border-bottom-color: rgba(73, 126, 153, 0.62);
+	border-left-color: rgba(73, 126, 153, 0.62);
+	border-top-left-radius: 5px;
+	border-top-right-radius: 5px;
+	border-bottom-left-radius: 5px;
+	border-bottom-right-radius: 5px;
+}
+
+.economy-summary:hover {
+	background-color: rgba(22, 38, 50, 0.97);
+	border-top-color: rgb(70, 169, 198);
+	border-right-color: rgb(70, 169, 198);
+	border-bottom-color: rgb(70, 169, 198);
+	border-left-color: rgb(70, 169, 198);
+}
+
+.status-item {
+	width: 82px;
+	overflow: hidden;
+}
+
+.status-label {
+	margin-bottom: 1px;
+	font-size: 7px;
+	-unity-font-style: bold;
+	letter-spacing: 1.2px;
+	color: rgb(126, 153, 166);
+}
+
+.status-value {
+	font-size: 13px;
+	-unity-font-style: bold;
+	color: rgb(231, 240, 243);
+}
+
+.status-value--money {
+	color: rgb(102, 220, 177);
+}
+
+.status-value--reputation {
+	color: rgb(112, 191, 231);
+}
+
+.status-divider {
+	width: 1px;
+	height: 22px;
+	margin-left: 3px;
+	margin-right: 7px;
+	background-color: rgba(93, 127, 143, 0.4);
+}
+
+.history-hint {
+	display: none;
+}
+
+.time-cluster {
+	position: absolute;
+	left: 50%;
+	bottom: 12px;
+	translate: -50% 0;
+	width: 270px;
+	height: 42px;
+	flex-direction: row;
+	align-items: center;
+	padding-left: 8px;
+	padding-right: 6px;
+	background-color: rgba(12, 20, 29, 0.95);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgba(73, 126, 153, 0.62);
+	border-right-color: rgba(73, 126, 153, 0.62);
+	border-bottom-color: rgba(73, 126, 153, 0.62);
+	border-left-color: rgba(73, 126, 153, 0.62);
+	border-top-left-radius: 5px;
+	border-top-right-radius: 5px;
+	border-bottom-left-radius: 5px;
+	border-bottom-right-radius: 5px;
+}
+
+.date-block {
+	width: 105px;
+}
+
+.date-value {
+	font-size: 10px;
+	-unity-font-style: bold;
+	color: rgb(224, 235, 240);
+}
+
+.time-divider {
+	width: 1px;
+	height: 22px;
+	margin-left: 6px;
+	margin-right: 5px;
+	background-color: rgba(93, 127, 143, 0.4);
+}
+
+.speed-button {
+	width: 25px;
+	height: 23px;
+	margin-left: 2px;
+	padding: 0;
+	font-size: 10px;
+	color: rgb(191, 211, 220);
+	background-color: rgb(30, 47, 61);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgb(58, 89, 105);
+	border-right-color: rgb(58, 89, 105);
+	border-bottom-color: rgb(58, 89, 105);
+	border-left-color: rgb(58, 89, 105);
+	border-top-left-radius: 3px;
+	border-top-right-radius: 3px;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+}
+
+.speed-button:hover {
+	color: rgb(238, 248, 251);
+	background-color: rgb(43, 75, 91);
+	border-top-color: rgb(77, 173, 200);
+	border-right-color: rgb(77, 173, 200);
+	border-bottom-color: rgb(77, 173, 200);
+	border-left-color: rgb(77, 173, 200);
+}
+
+.speed-button:active {
+	background-color: rgb(27, 111, 136);
+}
+
+.speed-button:disabled {
+	opacity: 0.35;
+}
+
+.speed-value {
+	min-width: 36px;
+	margin-left: 4px;
+	font-size: 10px;
+	-unity-font-style: bold;
+	-unity-text-align: middle-center;
+	color: rgb(95, 206, 229);
+}

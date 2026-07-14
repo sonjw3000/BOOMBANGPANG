@@ -1,0 +1,33 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="GlobalStatusHud.uss" />
+	<ui:VisualElement name="global-status-hud" class="global-status-hud" picking-mode="Ignore">
+		<ui:VisualElement class="left-hud" picking-mode="Ignore">
+			<ui:VisualElement name="hud-event-area" class="hud-event-area" picking-mode="Position">
+				<ui:VisualElement name="hud-event-list" class="hud-event-list" picking-mode="Ignore" />
+			</ui:VisualElement>
+			<ui:VisualElement name="economy-summary" class="economy-summary" picking-mode="Position">
+				<ui:VisualElement class="status-item">
+					<ui:Label text="FUNDS" class="status-label" />
+					<ui:Label name="money-value" text="$0" class="status-value status-value--money" />
+				</ui:VisualElement>
+				<ui:VisualElement class="status-divider" />
+				<ui:VisualElement class="status-item">
+					<ui:Label text="REPUTATION" class="status-label" />
+					<ui:Label name="reputation-value" text="0.0" class="status-value status-value--reputation" />
+				</ui:VisualElement>
+				<ui:Label text="HISTORY  ›" class="history-hint" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:VisualElement class="time-cluster" picking-mode="Position">
+			<ui:VisualElement class="date-block">
+				<ui:Label text="SIMULATION DATE" class="status-label" />
+				<ui:Label name="date-value" text="1년 1월 1째 주" class="date-value" />
+			</ui:VisualElement>
+			<ui:VisualElement class="time-divider" />
+			<ui:Button name="pause-button" text="Ⅱ" tooltip="Pause simulation" class="speed-button" />
+			<ui:Button name="normal-speed-button" text="1×" tooltip="Normal speed" class="speed-button" />
+			<ui:Button name="double-speed-button" text="»" tooltip="Increase speed" class="speed-button" />
+			<ui:Label name="speed-value" text="1x" class="speed-value" />
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

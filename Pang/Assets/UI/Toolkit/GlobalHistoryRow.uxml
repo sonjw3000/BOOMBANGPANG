@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<ui:VisualElement class="history-row">
+		<ui:Label name="history-row-kind" text="TYPE" class="history-row__kind" />
+		<ui:Label name="history-row-message" text="History message" class="history-row__message" />
+		<ui:Label name="history-row-delta" text="+$0" class="history-row__delta" />
+	</ui:VisualElement>
+</ui:UXML>

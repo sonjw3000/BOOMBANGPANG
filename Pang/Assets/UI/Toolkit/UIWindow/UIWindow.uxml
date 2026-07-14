@@ -8,7 +8,17 @@
 			</ui:VisualElement>
 			<ui:Button name="window-close-button" text="×" tooltip="Close" class="ui-window__close-button" />
 		</ui:VisualElement>
-		<ui:VisualElement name="window-tab-bar" class="ui-window__tab-bar" />
+		<ui:VisualElement name="window-tab-bar" class="ui-window__tab-bar">
+			<ui:VisualElement class="ui-window__tab-separator" picking-mode="Ignore" />
+		</ui:VisualElement>
 		<ui:VisualElement name="window-content-root" class="ui-window__content-root" />
+		<ui:VisualElement name="resize-top" class="ui-window__resize-handle ui-window__resize-handle--top" />
+		<ui:VisualElement name="resize-right" class="ui-window__resize-handle ui-window__resize-handle--right" />
+		<ui:VisualElement name="resize-bottom" class="ui-window__resize-handle ui-window__resize-handle--bottom" />
+		<ui:VisualElement name="resize-left" class="ui-window__resize-handle ui-window__resize-handle--left" />
+		<ui:VisualElement name="resize-top-left" class="ui-window__resize-handle ui-window__resize-handle--corner ui-window__resize-handle--top-left" />
+		<ui:VisualElement name="resize-top-right" class="ui-window__resize-handle ui-window__resize-handle--corner ui-window__resize-handle--top-right" />
+		<ui:VisualElement name="resize-bottom-left" class="ui-window__resize-handle ui-window__resize-handle--corner ui-window__resize-handle--bottom-left" />
+		<ui:VisualElement name="resize-bottom-right" class="ui-window__resize-handle ui-window__resize-handle--corner ui-window__resize-handle--bottom-right" />
 	</ui:VisualElement>
 </ui:UXML>

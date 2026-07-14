@@ -1890,7 +1890,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6544465946324216550
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4109,6 +4109,7 @@ GameObject:
   - component: {fileID: 6901851434643414991}
   - component: {fileID: 4078164640579252978}
   - component: {fileID: 7714475366775286390}
+  - component: {fileID: 8888000000000000001}
   m_Layer: 0
   m_Name: UI_InGame
   m_TagString: Untagged
@@ -4163,6 +4164,25 @@ MonoBehaviour:
   backFromSettingsButton: {fileID: 7220428139763864896}
   confirmTitleButton: {fileID: 74951576780055743}
   cancelTitleButton: {fileID: 1572444879556008225}
+--- !u!114 &8888000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3570038266190241319}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8a5c2cee10b4874a6089fd7a34ffe4e, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::UniverseLogistics.UI.Toolkit.GlobalStatusHud
+  visualTreeAsset: {fileID: 9197481963319205126, guid: 1bd3b60676094fa8a0d6b3cdbd43e983, type: 3}
+  hudEventEntryTemplate: {fileID: 9197481963319205126, guid: 64475ecdba43456a8e3e9bf3df86b7df, type: 3}
+  windowVisualTreeAsset: {fileID: 9197481963319205126, guid: 8697a5359d5e0402c95f680b02a44eb6, type: 3}
+  historyContentTemplate: {fileID: 9197481963319205126, guid: fcc952a83083404b9aaba29160e39e77, type: 3}
+  historyRowTemplate: {fileID: 9197481963319205126, guid: 5c4a0a6a12f04fbdb9525176e6f7ad4a, type: 3}
+  panelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
+  sortingOrder: 100
 --- !u!114 &7714475366775286390
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9508,7 +9528,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &3480674355663690188
 RectTransform:
   m_ObjectHideFlags: 0

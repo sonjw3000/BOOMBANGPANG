@@ -226,6 +226,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HudEventManager
   maxHistoryCount: 100
+  legacyViewEnabled: 0
   maxVisibleCount: 5
   defaultVisibleSeconds: 4
   fadeSeconds: 0.8

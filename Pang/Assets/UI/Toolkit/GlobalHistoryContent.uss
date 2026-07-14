@@ -1,0 +1,121 @@
+.history-content {
+	flex-grow: 1;
+}
+
+.history-section-tabs {
+	position: relative;
+	flex-direction: row;
+	align-items: flex-end;
+	height: 30px;
+	margin-bottom: 9px;
+}
+
+.history-section-tabs__separator {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 1px;
+	background-color: rgb(65, 78, 88);
+}
+
+.history-section-button {
+	width: 100px;
+	height: 29px;
+	margin-right: 3px;
+	background-color: rgba(0, 0, 0, 0);
+	border-left-width: 0;
+	border-right-width: 0;
+	border-top-width: 0;
+	border-bottom-width: 2px;
+	border-bottom-color: rgba(0, 0, 0, 0);
+	color: rgb(145, 163, 173);
+	font-size: 10px;
+}
+
+.history-section-button--selected {
+	border-bottom-color: rgb(74, 186, 218);
+	color: rgb(232, 243, 247);
+}
+
+.history-section {
+	flex-grow: 1;
+}
+
+.history-section-title {
+	font-size: 14px;
+	-unity-font-style: bold;
+	color: rgb(231, 240, 243);
+}
+
+.history-section-caption {
+	margin-top: 2px;
+	margin-bottom: 8px;
+	font-size: 9px;
+	color: rgb(125, 148, 160);
+}
+
+.history-list {
+	flex-grow: 1;
+}
+
+.history-empty {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 82px;
+	font-size: 10px;
+	-unity-text-align: middle-center;
+	color: rgb(112, 132, 143);
+}
+
+.history-row {
+	min-height: 38px;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 3px;
+	padding-left: 8px;
+	padding-right: 8px;
+	background-color: rgb(33, 42, 50);
+	border-left-width: 3px;
+	border-left-color: rgb(83, 120, 137);
+}
+
+.history-row--economy,
+.history-row--money {
+	border-left-color: rgb(93, 206, 164);
+}
+
+.history-row--reputation {
+	border-left-color: rgb(91, 174, 218);
+}
+
+.history-row--warning {
+	border-left-color: rgb(224, 172, 70);
+}
+
+.history-row--error {
+	border-left-color: rgb(224, 84, 84);
+}
+
+.history-row__kind {
+	width: 82px;
+	font-size: 8px;
+	-unity-font-style: bold;
+	letter-spacing: 1px;
+	color: rgb(113, 154, 173);
+}
+
+.history-row__message {
+	flex-grow: 1;
+	font-size: 11px;
+	color: rgb(219, 229, 234);
+}
+
+.history-row__delta {
+	min-width: 112px;
+	-unity-text-align: middle-right;
+	font-size: 11px;
+	-unity-font-style: bold;
+	color: rgb(103, 218, 177);
+}

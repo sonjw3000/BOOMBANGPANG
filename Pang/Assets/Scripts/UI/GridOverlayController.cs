@@ -9,6 +9,9 @@ public sealed class GridOverlayController : MonoBehaviour
 	private static readonly int HideZeroAlphaPixelsId = Shader.PropertyToID("_HideZeroAlphaPixels");
 
 	[SerializeField, Range(0f, 1f)] private float overlayAlpha = 0.45f;
+	[SerializeField, Range(0f, 1f)] private float filteredGlowMinAlpha = 0.2f;
+	[SerializeField, Range(0f, 1f)] private float filteredGlowMaxAlpha = 0.75f;
+	[SerializeField, Min(0.01f)] private float filteredGlowSpeed = 1.5f;
 	[SerializeField] private float overlayHeight = 0.03f;
 	[SerializeField, Min(0)] private int floor;
 
@@ -19,19 +22,75 @@ public sealed class GridOverlayController : MonoBehaviour
 	private GameObject overlayQuad;
 	private bool isHolding;
 	private KeyCode activeKey = KeyCode.None;
+	private float filteredGlowTime;
 
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 
 	private void Update()
 	{
-		if (Input.GetKeyDown(KeyCode.Keypad1))
-			BeginHold(KeyCode.Keypad1, GameContext.Instance.TemperatureSvc);
+		if (GameContext.HasInstance == false)
+			return;
 
-		if (Input.GetKeyDown(KeyCode.Keypad2))
-			BeginHold(KeyCode.Keypad2, GameContext.Instance.FacilityRuleMgr);
+		HandleItemFilterInput();
+
+		if (Input.GetKeyDown(KeyCode.T))
+			BeginHold(KeyCode.T, GameContext.Instance.TemperatureSvc);
+
+		if (Input.GetKeyDown(KeyCode.R))
+			BeginHold(KeyCode.R, GameContext.Instance.FacilityRuleMgr);
 
 		if (isHolding && Input.GetKey(activeKey) == false)
 			EndHold();
+
+		UpdateFilteredGlow();
+	}
+
+	private void HandleItemFilterInput()
+	{
+		if (Input.GetKeyDown(KeyCode.Alpha0))
+		{
+			ClearItemFilter();
+			return;
+		}
+
+		if (Input.GetKeyDown(KeyCode.Alpha1))
+			SetItemFilterByIndex(0);
+		else if (Input.GetKeyDown(KeyCode.Alpha2))
+			SetItemFilterByIndex(1);
+		else if (Input.GetKeyDown(KeyCode.Alpha3))
+			SetItemFilterByIndex(2);
+		else if (Input.GetKeyDown(KeyCode.Alpha4))
+			SetItemFilterByIndex(3);
+	}
+
+	private void SetItemFilterByIndex(int index)
+	{
+		ItemDatabase itemDatabase = GameContext.Instance.ItemDB;
+		FacilityRuleManager ruleManager = GameContext.Instance.FacilityRuleMgr;
+		if (itemDatabase == null || ruleManager == null)
+			return;
+
+		if (itemDatabase.TryGetItemBySortedIndex(index, out ItemDefinition item) == false)
+		{
+			Debug.LogWarning($"[GridOverlay] No item exists at sorted index {index}.", this);
+			return;
+		}
+
+		ruleManager.SetGridOverlayItemFilter(item);
+		filteredGlowTime = 0f;
+		Debug.Log($"[GridOverlay] Rule item filter: {item.name} (ItemID: {item.ItemID}, sorted index: {index}).", this);
+	}
+
+	private void ClearItemFilter()
+	{
+		FacilityRuleManager ruleManager = GameContext.Instance.FacilityRuleMgr;
+		if (ruleManager == null)
+			return;
+
+		ruleManager.ClearGridOverlayItemFilter();
+		filteredGlowTime = 0f;
+		ResetOverlayAlpha();
+		Debug.Log("[GridOverlay] Rule item filter cleared.", this);
 	}
 
 	private void OnDisable()
@@ -80,6 +139,7 @@ public sealed class GridOverlayController : MonoBehaviour
 		provider = null;
 		activeKey = KeyCode.None;
 		isHolding = false;
+		ResetOverlayAlpha();
 		if (overlayQuad != null)
 			overlayQuad.SetActive(false);
 	}
@@ -153,6 +213,25 @@ public sealed class GridOverlayController : MonoBehaviour
 	{
 		if (isHolding)
 			RefreshTexture();
+	}
+
+	private void UpdateFilteredGlow()
+	{
+		if (material == null || provider is not FacilityRuleManager ruleManager ||
+			ruleManager.HasGridOverlayItemFilter == false)
+		{
+			return;
+		}
+
+		filteredGlowTime += Time.unscaledDeltaTime;
+		float pulse = Mathf.PingPong(filteredGlowTime * filteredGlowSpeed, 1f);
+		material.SetFloat(OverlayAlphaId, Mathf.Lerp(filteredGlowMinAlpha, filteredGlowMaxAlpha, pulse));
+	}
+
+	private void ResetOverlayAlpha()
+	{
+		if (material != null)
+			material.SetFloat(OverlayAlphaId, overlayAlpha);
 	}
 
 	private void RefreshTexture()

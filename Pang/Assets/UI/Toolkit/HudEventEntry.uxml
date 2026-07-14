@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<ui:VisualElement class="hud-event-entry">
+		<ui:VisualElement name="hud-event-indicator" class="hud-event-entry__indicator" />
+		<ui:Label name="hud-event-message" text="HUD event" class="hud-event-entry__message" />
+	</ui:VisualElement>
+</ui:UXML>

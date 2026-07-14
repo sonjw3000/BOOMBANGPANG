@@ -9,6 +9,7 @@ namespace UniverseLogistics.UI.Toolkit
 	public sealed class UIWindow : MonoBehaviour
 	{
 		private const string RootName = "ui-window";
+		private const string TitleBarName = "window-title-bar";
 		private const string IconName = "window-icon";
 		private const string TitleName = "window-title";
 		private const string CloseButtonName = "window-close-button";
@@ -21,9 +22,14 @@ namespace UniverseLogistics.UI.Toolkit
 		[SerializeField] private string initialTitle = "Window";
 		[SerializeField] private Sprite initialIcon;
 		[SerializeField] private bool openOnEnable = true;
+		[SerializeField] private bool movable = true;
+		[SerializeField] private bool resizable = true;
+		[SerializeField] private Vector2 minimumSize = new(420f, 300f);
 
 		private readonly List<TabEntry> tabs = new();
+		private readonly List<ResizeHandleBinding> resizeHandleBindings = new();
 		private VisualElement windowRoot;
+		private VisualElement titleBar;
 		private VisualElement iconElement;
 		private Label titleLabel;
 		private Button closeButton;
@@ -32,6 +38,11 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualElement standaloneContent;
 		private int selectedTabIndex = -1;
 		private bool initialized;
+		private bool isMoving;
+		private ResizeDirection resizeDirection;
+		private int activePointerId = -1;
+		private Vector2 pointerStart;
+		private Rect windowStartRect;
 
 		public event Action Opened;
 		public event Action Closed;
@@ -41,6 +52,11 @@ namespace UniverseLogistics.UI.Toolkit
 		public int SelectedTabIndex => selectedTabIndex;
 		public int TabCount => tabs.Count;
 		public VisualElement ContentRoot => contentRoot;
+
+		public void SetOpenOnEnable(bool value)
+		{
+			openOnEnable = value;
+		}
 
 		private void Reset()
 		{
@@ -69,6 +85,8 @@ namespace UniverseLogistics.UI.Toolkit
 			if (closeButton != null)
 				closeButton.clicked -= Close;
 
+			UnbindWindowInteraction();
+
 			initialized = false;
 		}
 
@@ -85,14 +103,16 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			VisualElement documentRoot = uiDocument.rootVisualElement;
+			documentRoot.pickingMode = PickingMode.Ignore;
 			windowRoot = documentRoot.Q<VisualElement>(RootName);
+			titleBar = documentRoot.Q<VisualElement>(TitleBarName);
 			iconElement = documentRoot.Q<VisualElement>(IconName);
 			titleLabel = documentRoot.Q<Label>(TitleName);
 			closeButton = documentRoot.Q<Button>(CloseButtonName);
 			tabBar = documentRoot.Q<VisualElement>(TabBarName);
 			contentRoot = documentRoot.Q<VisualElement>(ContentRootName);
 
-			if (windowRoot == null || iconElement == null || titleLabel == null ||
+			if (windowRoot == null || titleBar == null || iconElement == null || titleLabel == null ||
 				closeButton == null || tabBar == null || contentRoot == null)
 			{
 				Debug.LogError("[UIWindow] The assigned UXML does not contain the required UIWindow elements.", this);
@@ -101,6 +121,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 			closeButton.clicked -= Close;
 			closeButton.clicked += Close;
+			BindWindowInteraction();
 
 			for (int i = 0; i < tabs.Count; ++i)
 			{
@@ -228,6 +249,7 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 
 			windowRoot.style.display = DisplayStyle.Flex;
+			windowRoot.schedule.Execute(ClampWindowToPanel);
 			Opened?.Invoke();
 		}
 
@@ -250,6 +272,218 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (tabBar != null)
 				tabBar.style.display = tabs.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+		}
+
+		private void BindWindowInteraction()
+		{
+			UnbindWindowInteraction();
+			titleBar.RegisterCallback<PointerDownEvent>(OnTitleBarPointerDown);
+			windowRoot.RegisterCallback<PointerMoveEvent>(OnWindowPointerMove);
+			windowRoot.RegisterCallback<PointerUpEvent>(OnWindowPointerUp);
+			windowRoot.RegisterCallback<PointerCancelEvent>(OnWindowPointerCancel);
+
+			RegisterResizeHandle("resize-top", ResizeDirection.Top);
+			RegisterResizeHandle("resize-right", ResizeDirection.Right);
+			RegisterResizeHandle("resize-bottom", ResizeDirection.Bottom);
+			RegisterResizeHandle("resize-left", ResizeDirection.Left);
+			RegisterResizeHandle("resize-top-left", ResizeDirection.Top | ResizeDirection.Left);
+			RegisterResizeHandle("resize-top-right", ResizeDirection.Top | ResizeDirection.Right);
+			RegisterResizeHandle("resize-bottom-left", ResizeDirection.Bottom | ResizeDirection.Left);
+			RegisterResizeHandle("resize-bottom-right", ResizeDirection.Bottom | ResizeDirection.Right);
+		}
+
+		private void UnbindWindowInteraction()
+		{
+			if (titleBar != null)
+				titleBar.UnregisterCallback<PointerDownEvent>(OnTitleBarPointerDown);
+
+			if (windowRoot != null)
+			{
+				windowRoot.UnregisterCallback<PointerMoveEvent>(OnWindowPointerMove);
+				windowRoot.UnregisterCallback<PointerUpEvent>(OnWindowPointerUp);
+				windowRoot.UnregisterCallback<PointerCancelEvent>(OnWindowPointerCancel);
+			}
+
+			for (int i = 0; i < resizeHandleBindings.Count; ++i)
+			{
+				ResizeHandleBinding binding = resizeHandleBindings[i];
+				binding.Handle.UnregisterCallback(binding.Callback);
+			}
+
+			resizeHandleBindings.Clear();
+			EndWindowInteraction();
+		}
+
+		private void RegisterResizeHandle(string elementName, ResizeDirection direction)
+		{
+			VisualElement handle = windowRoot.Q<VisualElement>(elementName);
+			if (handle == null)
+				return;
+
+			EventCallback<PointerDownEvent> callback = evt => OnResizeHandlePointerDown(evt, direction);
+			handle.RegisterCallback(callback);
+			resizeHandleBindings.Add(new ResizeHandleBinding(handle, callback));
+		}
+
+		private void OnTitleBarPointerDown(PointerDownEvent evt)
+		{
+			if (movable == false || evt.button != 0 || IsCloseButtonTarget(evt.target))
+				return;
+
+			BeginWindowInteraction(evt, true, ResizeDirection.None);
+		}
+
+		private void OnResizeHandlePointerDown(PointerDownEvent evt, ResizeDirection direction)
+		{
+			if (resizable == false || evt.button != 0)
+				return;
+
+			BeginWindowInteraction(evt, false, direction);
+		}
+
+		private void BeginWindowInteraction(PointerDownEvent evt, bool moveWindow, ResizeDirection direction)
+		{
+			windowStartRect = windowRoot.worldBound;
+			pointerStart = new Vector2(evt.position.x, evt.position.y);
+			activePointerId = evt.pointerId;
+			isMoving = moveWindow;
+			resizeDirection = direction;
+			windowRoot.CapturePointer(activePointerId);
+			evt.StopPropagation();
+		}
+
+		private void OnWindowPointerMove(PointerMoveEvent evt)
+		{
+			if (evt.pointerId != activePointerId || (isMoving == false && resizeDirection == ResizeDirection.None))
+				return;
+
+			Vector2 pointer = new(evt.position.x, evt.position.y);
+			Vector2 delta = pointer - pointerStart;
+			if (isMoving)
+				MoveWindow(delta);
+			else
+				ResizeWindow(delta);
+
+			evt.StopPropagation();
+		}
+
+		private void OnWindowPointerUp(PointerUpEvent evt)
+		{
+			if (evt.pointerId != activePointerId)
+				return;
+
+			EndWindowInteraction();
+			evt.StopPropagation();
+		}
+
+		private void OnWindowPointerCancel(PointerCancelEvent evt)
+		{
+			if (evt.pointerId == activePointerId)
+				EndWindowInteraction();
+		}
+
+		private void EndWindowInteraction()
+		{
+			if (windowRoot != null && activePointerId >= 0 && windowRoot.HasPointerCapture(activePointerId))
+				windowRoot.ReleasePointer(activePointerId);
+
+			activePointerId = -1;
+			isMoving = false;
+			resizeDirection = ResizeDirection.None;
+		}
+
+		private void MoveWindow(Vector2 delta)
+		{
+			Vector2 panelSize = GetPanelSize();
+			float maxX = Mathf.Max(0f, panelSize.x - windowStartRect.width);
+			float maxY = Mathf.Max(0f, panelSize.y - windowStartRect.height);
+			float x = Mathf.Clamp(windowStartRect.x + delta.x, 0f, maxX);
+			float y = Mathf.Clamp(windowStartRect.y + delta.y, 0f, maxY);
+			ApplyWindowRect(new Rect(x, y, windowStartRect.width, windowStartRect.height));
+		}
+
+		private void ResizeWindow(Vector2 delta)
+		{
+			Vector2 panelSize = GetPanelSize();
+			float minimumWidth = Mathf.Min(minimumSize.x, panelSize.x);
+			float minimumHeight = Mathf.Min(minimumSize.y, panelSize.y);
+			float left = windowStartRect.x;
+			float top = windowStartRect.y;
+			float right = windowStartRect.xMax;
+			float bottom = windowStartRect.yMax;
+
+			if ((resizeDirection & ResizeDirection.Left) != 0)
+				left = Mathf.Clamp(windowStartRect.x + delta.x, 0f, right - minimumWidth);
+			if ((resizeDirection & ResizeDirection.Right) != 0)
+				right = Mathf.Clamp(windowStartRect.xMax + delta.x, left + minimumWidth, panelSize.x);
+			if ((resizeDirection & ResizeDirection.Top) != 0)
+				top = Mathf.Clamp(windowStartRect.y + delta.y, 0f, bottom - minimumHeight);
+			if ((resizeDirection & ResizeDirection.Bottom) != 0)
+				bottom = Mathf.Clamp(windowStartRect.yMax + delta.y, top + minimumHeight, panelSize.y);
+
+			ApplyWindowRect(Rect.MinMaxRect(left, top, right, bottom));
+		}
+
+		private void ClampWindowToPanel()
+		{
+			if (windowRoot == null)
+				return;
+
+			Rect current = windowRoot.worldBound;
+			Vector2 panelSize = GetPanelSize();
+			float width = Mathf.Clamp(current.width, Mathf.Min(minimumSize.x, panelSize.x), panelSize.x);
+			float height = Mathf.Clamp(current.height, Mathf.Min(minimumSize.y, panelSize.y), panelSize.y);
+			float x = Mathf.Clamp(current.x, 0f, Mathf.Max(0f, panelSize.x - width));
+			float y = Mathf.Clamp(current.y, 0f, Mathf.Max(0f, panelSize.y - height));
+			ApplyWindowRect(new Rect(x, y, width, height));
+		}
+
+		private Vector2 GetPanelSize()
+		{
+			VisualElement documentRoot = uiDocument.rootVisualElement;
+			float width = documentRoot.resolvedStyle.width;
+			float height = documentRoot.resolvedStyle.height;
+			if (float.IsNaN(width) || width <= 0f)
+				width = Screen.width;
+			if (float.IsNaN(height) || height <= 0f)
+				height = Screen.height;
+			return new Vector2(width, height);
+		}
+
+		private void ApplyWindowRect(Rect rect)
+		{
+			windowRoot.style.translate = new Translate(0f, 0f);
+			windowRoot.style.left = rect.x;
+			windowRoot.style.top = rect.y;
+			windowRoot.style.width = rect.width;
+			windowRoot.style.height = rect.height;
+		}
+
+		private bool IsCloseButtonTarget(IEventHandler target)
+		{
+			return target is VisualElement element && (element == closeButton || closeButton.Contains(element));
+		}
+
+		[Flags]
+		private enum ResizeDirection
+		{
+			None = 0,
+			Left = 1 << 0,
+			Right = 1 << 1,
+			Top = 1 << 2,
+			Bottom = 1 << 3,
+		}
+
+		private readonly struct ResizeHandleBinding
+		{
+			public VisualElement Handle { get; }
+			public EventCallback<PointerDownEvent> Callback { get; }
+
+			public ResizeHandleBinding(VisualElement handle, EventCallback<PointerDownEvent> callback)
+			{
+				Handle = handle;
+				Callback = callback;
+			}
 		}
 
 		private readonly struct TabEntry
