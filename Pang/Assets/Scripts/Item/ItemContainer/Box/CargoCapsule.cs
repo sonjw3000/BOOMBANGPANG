@@ -69,7 +69,11 @@ public class CargoCapsule : BoxBase
 
 	private void ApplyDamageToStacks(int targetQuantity, int damageAmount)
 	{
-		if (targetQuantity <= 0 || damageAmount <= 0)
+		if (targetQuantity <= 0 || damageAmount <= 0 || GameContext.HasInstance == false)
+			return;
+
+		ItemDamageService itemDamageService = GameContext.Instance.ItemDamage;
+		if (itemDamageService == null || TryGetDamageOrigin(out Unity.Mathematics.int3 originCell) == false)
 			return;
 
 		List<ItemStack> targets = new(stacks.Count);
@@ -97,7 +101,13 @@ public class CargoCapsule : BoxBase
 			int appliedQuantity = Mathf.Min(targetQuantity, stack.Quantity);
 			if (appliedQuantity >= stack.Quantity)
 			{
-				stack.SetDamage((byte)(stack.Damage + damageAmount));
+				itemDamageService.TryApplyDamage(
+					stack,
+					damageAmount,
+					in originCell,
+					this,
+					ItemDamageCause.HardLanding,
+					out _);
 			}
 			else
 			{
@@ -105,12 +115,30 @@ public class CargoCapsule : BoxBase
 				if (damagedStack == null)
 					continue;
 
-				damagedStack.SetDamage((byte)(damagedStack.Damage + damageAmount));
 				stacks.Add(damagedStack);
+				itemDamageService.TryApplyDamage(
+					damagedStack,
+					damageAmount,
+					in originCell,
+					this,
+					ItemDamageCause.HardLanding,
+					out _);
 			}
 
 			targetQuantity -= appliedQuantity;
 		}
+	}
+
+	private bool TryGetDamageOrigin(out Unity.Mathematics.int3 originCell)
+	{
+		if (currentDock is IGridPlaceable gridPlaceable)
+		{
+			originCell = gridPlaceable.GridPosition;
+			return true;
+		}
+
+		originCell = default;
+		return false;
 	}
 
 	private void MergeMatchingStacks()

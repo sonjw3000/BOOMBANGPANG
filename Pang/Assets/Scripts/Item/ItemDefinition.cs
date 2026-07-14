@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [Flags]
@@ -9,6 +10,30 @@ public enum ItemTag
 	Food		= 1 << 1,
 	Danger		= 1 << 2,
 	Electric	= 1 << 3,
+}
+
+public enum ItemDamageIncidentType
+{
+	None,
+	Fire,
+	Explosion,
+	Contamination,
+	Corrosion,
+	RadiationLeak,
+}
+
+[Serializable]
+public sealed class ItemDamageIncidentDefinition
+{
+	[SerializeField, Range(1, 100)] private int triggerDamage = 100;
+	[SerializeField] private ItemDamageIncidentType incidentType;
+	[SerializeField, Min(0)] private int radius;
+	[SerializeField, Range(0, 100)] private int severity = 100;
+
+	public int TriggerDamage => Mathf.Clamp(triggerDamage, 1, 100);
+	public ItemDamageIncidentType IncidentType => incidentType;
+	public int Radius => Mathf.Max(0, radius);
+	public int Severity => Mathf.Clamp(severity, 0, 100);
 }
 
 
@@ -24,12 +49,13 @@ public class ItemDefinition : ScriptableObject
 	[SerializeField] private GameObject itemPrefab;
 
 	[SerializeField] private int price = 100;
+	[SerializeField] private List<ItemDamageIncidentDefinition> damageIncidents = new();
 
 	public uint ItemID => itemID;
 	public float Size => size;
 	public ItemTag Tag => tag;
 	public GameObject ItemPrefab => itemPrefab;
 	public int Price => price;
+	public IReadOnlyList<ItemDamageIncidentDefinition> DamageIncidents => damageIncidents;
 }
-
 

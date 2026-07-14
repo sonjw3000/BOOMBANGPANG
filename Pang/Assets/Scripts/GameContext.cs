@@ -89,6 +89,7 @@ public class GameContext : MonoBehaviour
 	[Header("Risk Service")]
 	[SerializeField] private HumanIncidentService humanIncidentService;
 	[SerializeField] private ItemHandlingDamageService itemHandlingDamageService;
+	[SerializeField] private ItemDamageService itemDamageService;
 
 	[Header("Worker Visuals")]
 	[SerializeField] private WorkerVisualCatalog workerVisualCatalog;
@@ -174,6 +175,7 @@ public class GameContext : MonoBehaviour
 
 	public HumanIncidentService HumanIncident => humanIncidentService;
 	public ItemHandlingDamageService ItemHandlingDamage => ResolveOrCreateItemHandlingDamageService();
+	public ItemDamageService ItemDamage => ResolveOrCreateItemDamageService();
 	public WorkerVisualCatalog WorkerVisualCatalog
 	{
 		get
@@ -294,6 +296,7 @@ public class GameContext : MonoBehaviour
 		_ = PowerSvc;
 		_ = TemperatureSvc;
 		_ = ItemHandlingDamage;
+		_ = ItemDamage;
 		_ = ResolveOrCreateGridOverlayController();
 		_ = LicenseService;
 	}
@@ -332,6 +335,18 @@ public class GameContext : MonoBehaviour
 			itemHandlingDamageService = gameObject.AddComponent<ItemHandlingDamageService>();
 
 		return itemHandlingDamageService;
+	}
+
+	private ItemDamageService ResolveOrCreateItemDamageService()
+	{
+		if (itemDamageService != null)
+			return itemDamageService;
+
+		itemDamageService = GetComponentInChildren<ItemDamageService>(true);
+		if (itemDamageService == null)
+			itemDamageService = gameObject.AddComponent<ItemDamageService>();
+
+		return itemDamageService;
 	}
 
 	private GridOverlayController ResolveOrCreateGridOverlayController()

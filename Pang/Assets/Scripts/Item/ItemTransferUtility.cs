@@ -1,5 +1,6 @@
 
 using System;
+using Unity.Mathematics;
 using UnityEngine;
 
 public enum TransferResultKind
@@ -140,7 +141,7 @@ public static class ItemTransferUtility
 			sourceStackPredicate,
 			handlingWorker);
 
-		ItemStack damagedStack = CreateDamagedTransferStack(payload, stack, stack.Quantity);
+		ItemStack damagedStack = CreateDamagedTransferStack(payload, stack, stack.Quantity, out ItemDamageChange damageChange);
 		ItemStack transferStack = damagedStack ?? stack;
 		if (to.CanAcceptStack(transferStack) == false)
 		{
@@ -177,6 +178,7 @@ public static class ItemTransferUtility
 		bool handlingDamageOccurred = damagedStack != null;
 		if (handlingDamageOccurred)
 		{
+			CommitTransferDamage(in payload, in damageChange);
 			stack.Recycle();
 			handlingWorker?.ReportItemDamageIncident();
 		}
@@ -403,7 +405,7 @@ public static class ItemTransferUtility
 	{
 		handlingDamageOccurred = false;
 		int movedQuantity = stack.Quantity;
-		ItemStack damagedStack = CreateDamagedTransferStack(payload, stack, movedQuantity);
+		ItemStack damagedStack = CreateDamagedTransferStack(payload, stack, movedQuantity, out ItemDamageChange damageChange);
 		if (damagedStack != null && payload.To.CanAcceptStack(damagedStack) == false)
 		{
 			damagedStack.Recycle();
@@ -428,6 +430,7 @@ public static class ItemTransferUtility
 
 		if (damagedStack != null)
 		{
+			CommitTransferDamage(in payload, in damageChange);
 			stack.Recycle();
 			handlingDamageOccurred = true;
 		}
@@ -451,7 +454,7 @@ public static class ItemTransferUtility
 			return 0;
 
 		int movedQuantity = movedStack.Quantity;
-		ItemStack damagedStack = CreateDamagedTransferStack(payload, movedStack, movedQuantity);
+		ItemStack damagedStack = CreateDamagedTransferStack(payload, movedStack, movedQuantity, out ItemDamageChange damageChange);
 		if (damagedStack != null && payload.To.CanAcceptStack(damagedStack) == false)
 		{
 			damagedStack.Recycle();
@@ -471,6 +474,7 @@ public static class ItemTransferUtility
 
 		if (damagedStack != null)
 		{
+			CommitTransferDamage(in payload, in damageChange);
 			movedStack.Recycle();
 			handlingDamageOccurred = true;
 		}
@@ -486,8 +490,10 @@ public static class ItemTransferUtility
 	private static ItemStack CreateDamagedTransferStack(
 		in ItemTransferPayload payload,
 		ItemStack sourceStack,
-		int quantity)
+		int quantity,
+		out ItemDamageChange damageChange)
 	{
+		damageChange = default;
 		if (payload.HandlingWorker == null ||
 			sourceStack == null ||
 			sourceStack.Damage >= 100 ||
@@ -502,19 +508,59 @@ public static class ItemTransferUtility
 			return null;
 		}
 
-		ItemStack damagedStack = sourceStack.CloneWithQuantity(quantity);
-		if (damagedStack == null)
-			return null;
-
-		int appliedDamage = Mathf.Clamp(damagedStack.Damage + damageIncrease, 0, 100);
-		if (appliedDamage <= damagedStack.Damage)
+		ItemDamageService itemDamageService = GameContext.Instance.ItemDamage;
+		if (itemDamageService == null ||
+			itemDamageService.TryCreateDamagedStack(
+				sourceStack,
+				quantity,
+				damageIncrease,
+				ItemDamageCause.Handling,
+				out ItemStack damagedStack,
+				out damageChange) == false)
 		{
-			damagedStack.Recycle();
 			return null;
 		}
 
-		damagedStack.SetDamage((byte)appliedDamage);
 		return damagedStack;
+	}
+
+	private static void CommitTransferDamage(
+		in ItemTransferPayload payload,
+		in ItemDamageChange damageChange)
+	{
+		if (damageChange.WasApplied == false || GameContext.HasInstance == false)
+			return;
+
+		if (TryResolveDamageOrigin(payload.To, payload.HandlingWorker, out int3 originCell) == false)
+		{
+			Debug.LogWarning(
+				$"[ItemTransferUtility] Handling damage was applied without a grid origin. " +
+				$"item={damageChange.ItemId}, destination={payload.To?.GetType().Name ?? "null"}");
+			return;
+		}
+
+		GameContext.Instance.ItemDamage.CommitDamage(in damageChange, in originCell, payload.To);
+	}
+
+	private static bool TryResolveDamageOrigin(
+		IItemContainer destination,
+		AIWorker handlingWorker,
+		out int3 originCell)
+	{
+		if (destination is IGridPlaceable gridPlaceable)
+		{
+			originCell = gridPlaceable.GridPosition;
+			return true;
+		}
+
+		if (handlingWorker != null)
+		{
+			originCell = handlingWorker.GridPosition;
+			return true;
+		}
+
+		originCell = default;
+		return false;
 	}
 
 	private static int GetStackTransferQuantity(IItemContainer to, ItemStack stack, int requested)
