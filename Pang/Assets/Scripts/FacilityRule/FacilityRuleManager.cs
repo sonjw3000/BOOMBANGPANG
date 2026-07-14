@@ -13,8 +13,11 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 	private readonly Dictionary<uint, List<IFacility>> facilitiesByPresetId = new();
 	private readonly Dictionary<GameObject, IFacility> facilitiesByObject = new();
 	private static readonly IReadOnlyList<IFacility> EmptyFacilities = Array.Empty<IFacility>();
+	private ItemDefinition gridOverlayItemFilter;
 
 	public IReadOnlyList<FacilityRulePreset> Presets => presets;
+	public bool HasGridOverlayItemFilter => gridOverlayItemFilter != null;
+	public ItemDefinition GridOverlayItemFilter => gridOverlayItemFilter;
 
 	public event Action<FacilityRulePreset> OnPresetCreated;
 	public event Action<FacilityRulePreset> OnPresetChanged;
@@ -236,6 +239,12 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 				if (presetId == NoRulePresetId || presetsById.TryGetValue(presetId, out FacilityRulePreset preset) == false)
 					continue;
 
+				if (gridOverlayItemFilter != null && preset.Rule != null &&
+					preset.Rule.IsItemDefinitionCapable(gridOverlayItemFilter) == false)
+				{
+					continue;
+				}
+
 				Color32 color = preset.Color;
 				color.a = 1;
 				buffer[index] = color;
@@ -243,6 +252,20 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 		}
 
 		return true;
+	}
+
+	public void SetGridOverlayItemFilter(ItemDefinition item)
+	{
+		if (gridOverlayItemFilter == item)
+			return;
+
+		gridOverlayItemFilter = item;
+		OnGridOverlayRefreshRequested?.Invoke();
+	}
+
+	public void ClearGridOverlayItemFilter()
+	{
+		SetGridOverlayItemFilter(null);
 	}
 
 	private void RebuildFacilityObjectLookup()

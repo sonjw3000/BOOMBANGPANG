@@ -1,0 +1,128 @@
+.global-status-hud {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    translate: -50% 0;
+    flex-direction: row;
+    align-items: stretch;
+    height: 68px;
+    background-color: rgba(12, 20, 29, 0.94);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(73, 126, 153, 0.62);
+    border-right-color: rgba(73, 126, 153, 0.62);
+    border-bottom-color: rgba(73, 126, 153, 0.62);
+    border-left-color: rgba(73, 126, 153, 0.62);
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+.status-cluster,
+.time-cluster {
+    flex-direction: row;
+    align-items: center;
+}
+
+.status-cluster {
+    padding-left: 22px;
+    padding-right: 18px;
+}
+
+.status-item {
+    min-width: 138px;
+    padding-right: 14px;
+}
+
+.status-label {
+    color: rgb(126, 153, 166);
+    font-size: 10px;
+    -unity-font-style: bold;
+    letter-spacing: 1.4px;
+    margin-bottom: 3px;
+}
+
+.status-value {
+    color: rgb(231, 240, 243);
+    font-size: 21px;
+    -unity-font-style: bold;
+}
+
+.status-value--money {
+    color: rgb(102, 220, 177);
+}
+
+.status-value--reputation {
+    color: rgb(112, 191, 231);
+}
+
+.status-divider {
+    width: 1px;
+    height: 34px;
+    margin-right: 18px;
+    background-color: rgba(93, 127, 143, 0.4);
+}
+
+.time-cluster {
+    padding-left: 18px;
+    padding-right: 12px;
+    background-color: rgba(21, 33, 45, 0.92);
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+.time-label {
+    margin-right: 12px;
+    margin-bottom: 0;
+}
+
+.speed-button {
+    width: 38px;
+    height: 34px;
+    margin-left: 3px;
+    padding: 0;
+    color: rgb(191, 211, 220);
+    font-size: 14px;
+    background-color: rgb(30, 47, 61);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgb(58, 89, 105);
+    border-right-color: rgb(58, 89, 105);
+    border-bottom-color: rgb(58, 89, 105);
+    border-left-color: rgb(58, 89, 105);
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.speed-button:hover {
+    color: rgb(238, 248, 251);
+    background-color: rgb(43, 75, 91);
+    border-top-color: rgb(77, 173, 200);
+    border-right-color: rgb(77, 173, 200);
+    border-bottom-color: rgb(77, 173, 200);
+    border-left-color: rgb(77, 173, 200);
+}
+
+.speed-button:active {
+    background-color: rgb(27, 111, 136);
+}
+
+.speed-button:disabled {
+    opacity: 0.35;
+}
+
+.speed-value {
+    min-width: 64px;
+    margin-left: 10px;
+    color: rgb(95, 206, 229);
+    font-size: 15px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}

@@ -29,6 +29,7 @@ public partial class EconomyService : MonoBehaviour
 	private readonly List<EconomyTransaction> history = new();
 
 	public event Action<float> OnReputationChanged;
+	public event Action<int> OnMoneyChanged;
 
 	public int Money => money;
 	public float Reputation => reputation;
@@ -44,12 +45,16 @@ public partial class EconomyService : MonoBehaviour
 		if (transaction == null)
 			return;
 
+		int previousMoney = money;
 		float previousReputation = reputation;
 		money += transaction.moneyDelta;
 		reputation += transaction.reputationDelta;
 
 		history.Add(transaction);
 		PublishHudEvent(transaction);
+
+		if (previousMoney != money)
+			OnMoneyChanged?.Invoke(money);
 
 		if (Mathf.Approximately(previousReputation, reputation) == false)
 			OnReputationChanged?.Invoke(reputation);

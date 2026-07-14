@@ -97,6 +97,27 @@ public sealed class FacilityItemRule
 
 		return true;
 	}
+
+	public bool IsItemDefinitionCapable(ItemDefinition item)
+	{
+		// Definition-level diagnostics intentionally exclude runtime ItemStatus conditions.
+		if (item == null)
+			return false;
+
+		if (whiteList != null && whiteList.Count != 0 && whiteList.Contains(item) == false)
+			return false;
+
+		if (blackList != null && blackList.Contains(item))
+			return false;
+
+		if ((item.Tag & requiredItemTags) != requiredItemTags)
+			return false;
+
+		if ((item.Tag & forbiddenItemTags) != ItemTag.None)
+			return false;
+
+		return true;
+	}
 }
 
 [Serializable]
@@ -336,5 +357,10 @@ public sealed class FacilityRule
 			return false;
 
 		return true;
+	}
+
+	public bool IsItemDefinitionCapable(ItemDefinition item)
+	{
+		return itemRule == null || itemRule.IsItemDefinitionCapable(item);
 	}
 }
