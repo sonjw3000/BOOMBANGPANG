@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab68d1243c41b0d40a7f4021d254158e, type: 3}
   m_Name: TempContract 5
   m_EditorClassIdentifier: Assembly-CSharp::ContractDefinition
-  ContractName: Test 5
+  ContractName: Explosion Test
   ContractId: 115
-  ItemToHandle: {fileID: 11400000, guid: 1e785f39ed06ee0479f70f9809355b28, type: 2}
+  ItemToHandle: {fileID: 11400000, guid: 70e69b9cd8cba4ec59a5f2ba919e8e57, type: 2}
   DeliveryIntervalWeek: 1
   ItemCountsPerDelivery: 100
   MinimumRequiredReputation: 0
