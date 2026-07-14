@@ -90,11 +90,11 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private HumanIncidentService humanIncidentService;
 	[SerializeField] private ItemHandlingDamageService itemHandlingDamageService;
 	[SerializeField] private ItemDamageService itemDamageService;
-	[SerializeField] private FireService fireService;
-	[SerializeField] private ExplosionService explosionService;
-	[SerializeField] private ContaminationService contaminationService;
-	[SerializeField] private CorrosionService corrosionService;
-	[SerializeField] private RadiationService radiationService;
+	private FireService fireService;
+	private ExplosionService explosionService;
+	private ContaminationService contaminationService;
+	private CorrosionService corrosionService;
+	private RadiationService radiationService;
 
 	[Header("Worker Visuals")]
 	[SerializeField] private WorkerVisualCatalog workerVisualCatalog;
@@ -181,11 +181,11 @@ public class GameContext : MonoBehaviour
 	public HumanIncidentService HumanIncident => humanIncidentService;
 	public ItemHandlingDamageService ItemHandlingDamage => ResolveOrCreateItemHandlingDamageService();
 	public ItemDamageService ItemDamage => ResolveOrCreateItemDamageService();
-	public FireService FireSvc => ResolveOrCreateFireService();
-	public ExplosionService ExplosionSvc => ResolveOrCreateExplosionService();
-	public ContaminationService ContaminationSvc => ResolveOrCreateContaminationService();
-	public CorrosionService CorrosionSvc => ResolveOrCreateCorrosionService();
-	public RadiationService RadiationSvc => ResolveOrCreateRadiationService();
+	public FireService FireSvc => fireService ??= new FireService();
+	public ExplosionService ExplosionSvc => explosionService ??= new ExplosionService();
+	public ContaminationService ContaminationSvc => contaminationService ??= new ContaminationService();
+	public CorrosionService CorrosionSvc => corrosionService ??= new CorrosionService();
+	public RadiationService RadiationSvc => radiationService ??= new RadiationService();
 	public WorkerVisualCatalog WorkerVisualCatalog
 	{
 		get
@@ -362,66 +362,6 @@ public class GameContext : MonoBehaviour
 			itemDamageService = gameObject.AddComponent<ItemDamageService>();
 
 		return itemDamageService;
-	}
-
-	private FireService ResolveOrCreateFireService()
-	{
-		if (fireService != null)
-			return fireService;
-
-		fireService = GetComponentInChildren<FireService>(true);
-		if (fireService == null)
-			fireService = gameObject.AddComponent<FireService>();
-
-		return fireService;
-	}
-
-	private ExplosionService ResolveOrCreateExplosionService()
-	{
-		if (explosionService != null)
-			return explosionService;
-
-		explosionService = GetComponentInChildren<ExplosionService>(true);
-		if (explosionService == null)
-			explosionService = gameObject.AddComponent<ExplosionService>();
-
-		return explosionService;
-	}
-
-	private ContaminationService ResolveOrCreateContaminationService()
-	{
-		if (contaminationService != null)
-			return contaminationService;
-
-		contaminationService = GetComponentInChildren<ContaminationService>(true);
-		if (contaminationService == null)
-			contaminationService = gameObject.AddComponent<ContaminationService>();
-
-		return contaminationService;
-	}
-
-	private CorrosionService ResolveOrCreateCorrosionService()
-	{
-		if (corrosionService != null)
-			return corrosionService;
-
-		corrosionService = GetComponentInChildren<CorrosionService>(true);
-		if (corrosionService == null)
-			corrosionService = gameObject.AddComponent<CorrosionService>();
-
-		return corrosionService;
-	}
-
-	private RadiationService ResolveOrCreateRadiationService()
-	{
-		if (radiationService != null)
-			return radiationService;
-
-		radiationService = GetComponentInChildren<RadiationService>(true);
-		if (radiationService == null)
-			radiationService = gameObject.AddComponent<RadiationService>();
-
-		return radiationService;
 	}
 
 	private GridOverlayController ResolveOrCreateGridOverlayController()
