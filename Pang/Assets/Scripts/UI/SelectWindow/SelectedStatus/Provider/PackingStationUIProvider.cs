@@ -1,6 +1,7 @@
 using UnityEngine;
+using UniverseLogistics.UI.Toolkit;
 
-public sealed class PackingStationUIProvider : UIProvider<PackingStation>
+public sealed class PackingStationUIProvider : UIProvider<PackingStation>, ISelectionInspectorProvider
 {
 	public override string Name => currentTarget != null ? currentTarget.name : "Unknown Packing Station";
 	public override string Subtitle => "Packing Station";
@@ -33,6 +34,36 @@ public sealed class PackingStationUIProvider : UIProvider<PackingStation>
 	public ItemContainerDisplayInfo GetWaitingBoxDisplay() => BuildItemContainerDisplay(currentTarget?.WaitingBox?.Box);
 	public ItemContainerDisplayInfo GetCurrentBoxDisplay() => BuildItemContainerDisplay(currentTarget?.CurrentPackingBox?.Box);
 	public ItemContainerDisplayInfo GetEndBoxDisplay() => BuildItemContainerDisplay(currentTarget?.EndPackingBox?.Box);
+
+	public void BuildInspectorModel(SelectionInspectorModel model)
+	{
+		model.Clear();
+		model.AddTab("Waiting", () => GetBoxVersion(currentTarget?.WaitingBox?.Box), () => BuildBoxPanel("WAITING", currentTarget?.WaitingBox?.Box, GetWaitingBoxDisplay()));
+		model.AddTab("Processing", () => GetBoxVersion(currentTarget?.CurrentPackingBox?.Box), () => BuildBoxPanel("PROCESSING", currentTarget?.CurrentPackingBox?.Box, GetCurrentBoxDisplay()));
+		model.AddTab("Output", () => GetBoxVersion(currentTarget?.EndPackingBox?.Box), () => BuildBoxPanel("OUTPUT", currentTarget?.EndPackingBox?.Box, GetEndBoxDisplay()));
+		model.AddOverview("Worker", () => CurrentWorkerName);
+		model.AddOverview("Status", () => WorkStatus);
+		model.AddOverview("Stage", () => WorkStage);
+		model.AddOverview("Incoming Worker", () => IncomingWorkerName);
+		model.AddOverview("Incoming Request", () => IncomingRequestDisplay);
+		model.AddAction("Remove", DeleteObject, isDangerous: true);
+	}
+
+	private static int GetBoxVersion(BoxBase box)
+	{
+		unchecked
+		{
+			return SelectionDetailContentUtility.GetItemContainerVersion(box) * 31 + (box != null ? (int)box.BoxId : 0);
+		}
+	}
+
+	private static SelectionDetailPanelModel BuildBoxPanel(string title, BoxBase box, ItemContainerDisplayInfo display)
+	{
+		string summary = box != null
+			? $"{display.ContainerName} · {box.TotalSize:0.0} / {box.MaxSize:0.0} units"
+			: "No box in this stage.";
+		return SelectionDetailContentUtility.BuildItemContainerPanel(title, summary, display);
+	}
 
 	private ItemContainerDisplayInfo BuildItemContainerDisplay(BoxBase box)
 	{

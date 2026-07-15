@@ -7,6 +7,7 @@ public sealed class ItemContainerItemDisplayInfo
 	public int Quantity { get; set; }
 	public byte Freshness { get; set; }
 	public byte Damage { get; set; }
+	public bool ShowsFreshness { get; set; }
 }
 
 public sealed class ItemContainerDisplayInfo
@@ -41,6 +42,7 @@ public static class ItemContainerDisplayUtility
 				Quantity = stack.Quantity,
 				Freshness = stack.Freshness,
 				Damage = stack.Damage,
+				ShowsFreshness = UsesFreshness(stack.ItemID),
 			})
 			.ToList();
 	}
@@ -107,5 +109,15 @@ public static class ItemContainerDisplayUtility
 		return GameContext.Instance.ItemDB.GetItemData(itemId, out ItemDefinition definition) && definition != null
 			? definition.name
 			: $"Item {itemId}";
+	}
+
+	private static bool UsesFreshness(uint itemId)
+	{
+		if (GameContext.HasInstance == false || GameContext.Instance.ItemDB == null)
+			return false;
+
+		return GameContext.Instance.ItemDB.GetItemData(itemId, out ItemDefinition definition) &&
+			definition != null &&
+			(definition.Tag & ItemTag.Food) != 0;
 	}
 }

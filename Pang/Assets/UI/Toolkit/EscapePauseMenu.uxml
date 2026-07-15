@@ -1,0 +1,46 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="EscapePauseMenu.uss" />
+	<ui:VisualElement name="escape-pause-menu" class="pause-overlay" picking-mode="Position">
+		<ui:VisualElement class="pause-window">
+			<ui:VisualElement class="pause-window__header">
+				<ui:Label text="SIMULATION PAUSED" class="pause-window__eyebrow" />
+				<ui:Label text="Universe Logistics" class="pause-window__title" />
+			</ui:VisualElement>
+
+			<ui:VisualElement name="pause-main-panel" class="pause-panel">
+				<ui:Button name="pause-resume-button" text="Resume" class="pause-button pause-button--primary" />
+				<ui:Button name="pause-save-menu-button" text="Save Game" class="pause-button" />
+				<ui:Button name="pause-settings-menu-button" text="Settings" class="pause-button" />
+				<ui:Button name="pause-title-menu-button" text="Return to Title" class="pause-button pause-button--danger" />
+			</ui:VisualElement>
+
+			<ui:VisualElement name="pause-save-panel" class="pause-panel">
+				<ui:Label text="SAVE GAME" class="pause-panel__title" />
+				<ui:Label text="Save name" class="pause-field-label" />
+				<ui:TextField name="pause-save-name-input" class="pause-text-field" />
+				<ui:Label name="pause-save-message" text="Enter a save file name." class="pause-message" />
+				<ui:VisualElement class="pause-panel__footer">
+					<ui:Button name="pause-save-back-button" text="Back" class="pause-footer-button" />
+					<ui:Button name="pause-confirm-save-button" text="Save" class="pause-footer-button pause-button--primary" />
+				</ui:VisualElement>
+			</ui:VisualElement>
+
+			<ui:VisualElement name="pause-settings-panel" class="pause-panel">
+				<ui:Label text="SETTINGS" class="pause-panel__title" />
+				<ui:Label text="No settings are currently available." class="pause-message pause-message--center" />
+				<ui:VisualElement class="pause-panel__footer">
+					<ui:Button name="pause-settings-back-button" text="Back" class="pause-footer-button" />
+				</ui:VisualElement>
+			</ui:VisualElement>
+
+			<ui:VisualElement name="pause-title-confirm-panel" class="pause-panel">
+				<ui:Label text="RETURN TO TITLE" class="pause-panel__title" />
+				<ui:Label text="Unsaved progress will be lost. Return to the title screen?" class="pause-message pause-message--center" />
+				<ui:VisualElement class="pause-panel__footer">
+					<ui:Button name="pause-cancel-title-button" text="Cancel" class="pause-footer-button" />
+					<ui:Button name="pause-confirm-title-button" text="Return to Title" class="pause-footer-button pause-button--danger" />
+				</ui:VisualElement>
+			</ui:VisualElement>
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

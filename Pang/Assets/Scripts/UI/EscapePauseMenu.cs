@@ -1,43 +1,42 @@
 using System.IO;
 using System.Linq;
-using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 public sealed class EscapePauseMenu : MonoBehaviour
 {
+	private const string DocumentObjectName = "EscapePauseMenuDocument";
+	private const string RootName = "escape-pause-menu";
+	private const string MainPanelName = "pause-main-panel";
+	private const string SavePanelName = "pause-save-panel";
+	private const string SettingsPanelName = "pause-settings-panel";
+	private const string TitleConfirmPanelName = "pause-title-confirm-panel";
+
 	[SerializeField] private string titleSceneName = "TitleScene";
 	[SerializeField] private KeyCode toggleKey = KeyCode.Escape;
+	[SerializeField] private VisualTreeAsset visualTreeAsset;
+	[SerializeField] private PanelSettings panelSettings;
+	[SerializeField] private int sortingOrder = 200;
 
-	[Header("Root")]
-	[SerializeField] private GameObject root;
-
-	[Header("Panels")]
-	[SerializeField] private GameObject mainPanel;
-	[SerializeField] private GameObject savePanel;
-	[SerializeField] private GameObject settingsPanel;
-	[SerializeField] private GameObject titleConfirmPanel;
-
-	[Header("Main Menu")]
-	[SerializeField] private Button resumeButton;
-	[SerializeField] private Button openSaveButton;
-	[SerializeField] private Button openSettingsButton;
-	[SerializeField] private Button openTitleConfirmButton;
-
-	[Header("Save Menu")]
-	[SerializeField] private TMP_InputField saveNameInput;
-	[SerializeField] private TMP_Text saveMessageText;
-	[SerializeField] private Button confirmSaveButton;
-	[SerializeField] private Button backFromSaveButton;
-
-	[Header("Settings Menu")]
-	[SerializeField] private Button backFromSettingsButton;
-
-	[Header("Title Confirmation")]
-	[SerializeField] private Button confirmTitleButton;
-	[SerializeField] private Button cancelTitleButton;
-
+	private UIDocument uiDocument;
+	private VisualElement root;
+	private VisualElement mainPanel;
+	private VisualElement savePanel;
+	private VisualElement settingsPanel;
+	private VisualElement titleConfirmPanel;
+	private Button resumeButton;
+	private Button openSaveButton;
+	private Button openSettingsButton;
+	private Button openTitleConfirmButton;
+	private TextField saveNameInput;
+	private Label saveMessageLabel;
+	private Button confirmSaveButton;
+	private Button backFromSaveButton;
+	private Button backFromSettingsButton;
+	private Button confirmTitleButton;
+	private Button cancelTitleButton;
+	private bool initialized;
 	private bool isOpen;
 	private bool loadingTitleScene;
 
@@ -45,41 +44,18 @@ public sealed class EscapePauseMenu : MonoBehaviour
 
 	private void Awake()
 	{
-		if (HasRequiredReferences() == false)
-		{
-			Debug.LogWarning("[PauseMenu] EscapePauseMenu prefab references are not fully assigned.");
-			enabled = false;
-			return;
-		}
-
-		root.transform.SetAsLastSibling();
-		root.SetActive(false);
+		EnsureInitialized();
 	}
 
 	private void OnEnable()
 	{
-		resumeButton?.onClick.AddListener(ResumeGame);
-		openSaveButton?.onClick.AddListener(OpenSavePanel);
-		openSettingsButton?.onClick.AddListener(OpenSettingsPanel);
-		openTitleConfirmButton?.onClick.AddListener(OpenTitleConfirmPanel);
-		confirmSaveButton?.onClick.AddListener(SaveGame);
-		backFromSaveButton?.onClick.AddListener(ShowMainPanel);
-		backFromSettingsButton?.onClick.AddListener(ShowMainPanel);
-		confirmTitleButton?.onClick.AddListener(LoadTitleScene);
-		cancelTitleButton?.onClick.AddListener(ShowMainPanel);
+		EnsureInitialized();
 	}
 
 	private void OnDisable()
 	{
-		resumeButton?.onClick.RemoveListener(ResumeGame);
-		openSaveButton?.onClick.RemoveListener(OpenSavePanel);
-		openSettingsButton?.onClick.RemoveListener(OpenSettingsPanel);
-		openTitleConfirmButton?.onClick.RemoveListener(OpenTitleConfirmPanel);
-		confirmSaveButton?.onClick.RemoveListener(SaveGame);
-		backFromSaveButton?.onClick.RemoveListener(ShowMainPanel);
-		backFromSettingsButton?.onClick.RemoveListener(ShowMainPanel);
-		confirmTitleButton?.onClick.RemoveListener(LoadTitleScene);
-		cancelTitleButton?.onClick.RemoveListener(ShowMainPanel);
+		UnbindControls();
+		initialized = false;
 	}
 
 	private void Update()
@@ -101,22 +77,118 @@ public sealed class EscapePauseMenu : MonoBehaviour
 		GameTime.ResumePreservedSpeed();
 	}
 
+	private bool EnsureInitialized()
+	{
+		if (initialized)
+			return true;
+
+		if (visualTreeAsset == null || panelSettings == null)
+		{
+			Debug.LogError("[PauseMenu] VisualTreeAsset or PanelSettings is missing.", this);
+			enabled = false;
+			return false;
+		}
+
+		EnsureDocument();
+		VisualElement documentRoot = uiDocument.rootVisualElement;
+		root = documentRoot.Q<VisualElement>(RootName);
+		mainPanel = documentRoot.Q<VisualElement>(MainPanelName);
+		savePanel = documentRoot.Q<VisualElement>(SavePanelName);
+		settingsPanel = documentRoot.Q<VisualElement>(SettingsPanelName);
+		titleConfirmPanel = documentRoot.Q<VisualElement>(TitleConfirmPanelName);
+		resumeButton = documentRoot.Q<Button>("pause-resume-button");
+		openSaveButton = documentRoot.Q<Button>("pause-save-menu-button");
+		openSettingsButton = documentRoot.Q<Button>("pause-settings-menu-button");
+		openTitleConfirmButton = documentRoot.Q<Button>("pause-title-menu-button");
+		saveNameInput = documentRoot.Q<TextField>("pause-save-name-input");
+		saveMessageLabel = documentRoot.Q<Label>("pause-save-message");
+		confirmSaveButton = documentRoot.Q<Button>("pause-confirm-save-button");
+		backFromSaveButton = documentRoot.Q<Button>("pause-save-back-button");
+		backFromSettingsButton = documentRoot.Q<Button>("pause-settings-back-button");
+		confirmTitleButton = documentRoot.Q<Button>("pause-confirm-title-button");
+		cancelTitleButton = documentRoot.Q<Button>("pause-cancel-title-button");
+
+		if (HasRequiredElements() == false)
+		{
+			Debug.LogError("[PauseMenu] Required UXML elements are missing.", this);
+			enabled = false;
+			return false;
+		}
+
+		BindControls();
+		root.style.display = DisplayStyle.None;
+		ShowPanel(mainPanel);
+		initialized = true;
+		return true;
+	}
+
+	private void EnsureDocument()
+	{
+		if (uiDocument != null)
+			return;
+
+		GameObject documentObject = new(DocumentObjectName);
+		documentObject.SetActive(false);
+		documentObject.transform.SetParent(transform, false);
+		uiDocument = documentObject.AddComponent<UIDocument>();
+		uiDocument.panelSettings = panelSettings;
+		uiDocument.visualTreeAsset = visualTreeAsset;
+		uiDocument.sortingOrder = sortingOrder;
+		documentObject.SetActive(true);
+	}
+
+	private bool HasRequiredElements()
+	{
+		return root != null && mainPanel != null && savePanel != null && settingsPanel != null &&
+			titleConfirmPanel != null && resumeButton != null && openSaveButton != null &&
+			openSettingsButton != null && openTitleConfirmButton != null && saveNameInput != null &&
+			saveMessageLabel != null && confirmSaveButton != null && backFromSaveButton != null &&
+			backFromSettingsButton != null && confirmTitleButton != null && cancelTitleButton != null;
+	}
+
+	private void BindControls()
+	{
+		UnbindControls();
+		resumeButton.clicked += ResumeGame;
+		openSaveButton.clicked += OpenSavePanel;
+		openSettingsButton.clicked += OpenSettingsPanel;
+		openTitleConfirmButton.clicked += OpenTitleConfirmPanel;
+		confirmSaveButton.clicked += SaveGame;
+		backFromSaveButton.clicked += ShowMainPanel;
+		backFromSettingsButton.clicked += ShowMainPanel;
+		confirmTitleButton.clicked += LoadTitleScene;
+		cancelTitleButton.clicked += ShowMainPanel;
+	}
+
+	private void UnbindControls()
+	{
+		if (resumeButton != null) resumeButton.clicked -= ResumeGame;
+		if (openSaveButton != null) openSaveButton.clicked -= OpenSavePanel;
+		if (openSettingsButton != null) openSettingsButton.clicked -= OpenSettingsPanel;
+		if (openTitleConfirmButton != null) openTitleConfirmButton.clicked -= OpenTitleConfirmPanel;
+		if (confirmSaveButton != null) confirmSaveButton.clicked -= SaveGame;
+		if (backFromSaveButton != null) backFromSaveButton.clicked -= ShowMainPanel;
+		if (backFromSettingsButton != null) backFromSettingsButton.clicked -= ShowMainPanel;
+		if (confirmTitleButton != null) confirmTitleButton.clicked -= LoadTitleScene;
+		if (cancelTitleButton != null) cancelTitleButton.clicked -= ShowMainPanel;
+	}
+
 	private void Open()
 	{
-		if (GameTime == null)
+		if (EnsureInitialized() == false || GameTime == null)
 			return;
 
 		GameTime.PausePreservingSpeed();
 		isOpen = true;
-		root.SetActive(true);
+		root.style.display = DisplayStyle.Flex;
 		ShowMainPanel();
 	}
 
 	private void ResumeGame()
 	{
-		root.SetActive(false);
+		if (root != null)
+			root.style.display = DisplayStyle.None;
 		isOpen = false;
-
 		GameTime?.ResumePreservedSpeed();
 	}
 
@@ -128,14 +200,9 @@ public sealed class EscapePauseMenu : MonoBehaviour
 	private void OpenSavePanel()
 	{
 		ShowPanel(savePanel);
-		if (saveNameInput != null)
-		{
-			saveNameInput.text = $"Save_{System.DateTime.Now:yyyyMMdd_HHmmss}";
-			saveNameInput.Select();
-			saveNameInput.ActivateInputField();
-		}
-
+		saveNameInput.value = $"Save_{System.DateTime.Now:yyyyMMdd_HHmmss}";
 		SetSaveMessage("Enter a save file name.");
+		saveNameInput.schedule.Execute(saveNameInput.Focus);
 	}
 
 	private void SaveGame()
@@ -146,8 +213,7 @@ public sealed class EscapePauseMenu : MonoBehaviour
 			return;
 		}
 
-		string saveName = saveNameInput != null ? saveNameInput.text : string.Empty;
-		string sanitizedName = SanitizeSaveName(saveName);
+		string sanitizedName = SanitizeSaveName(saveNameInput.value);
 		if (string.IsNullOrWhiteSpace(sanitizedName))
 		{
 			SetSaveMessage("Please enter a valid save name.");
@@ -178,38 +244,20 @@ public sealed class EscapePauseMenu : MonoBehaviour
 		SceneManager.LoadScene(titleSceneName, LoadSceneMode.Single);
 	}
 
-	private void ShowPanel(GameObject panel)
+	private void ShowPanel(VisualElement panel)
 	{
-		mainPanel.SetActive(panel == mainPanel);
-		savePanel.SetActive(panel == savePanel);
-		settingsPanel.SetActive(panel == settingsPanel);
-		titleConfirmPanel.SetActive(panel == titleConfirmPanel);
+		if (mainPanel == null)
+			return;
+
+		mainPanel.style.display = panel == mainPanel ? DisplayStyle.Flex : DisplayStyle.None;
+		savePanel.style.display = panel == savePanel ? DisplayStyle.Flex : DisplayStyle.None;
+		settingsPanel.style.display = panel == settingsPanel ? DisplayStyle.Flex : DisplayStyle.None;
+		titleConfirmPanel.style.display = panel == titleConfirmPanel ? DisplayStyle.Flex : DisplayStyle.None;
 	}
 
 	private void SetSaveMessage(string message)
 	{
-		if (saveMessageText != null)
-			saveMessageText.text = message;
-	}
-
-	private bool HasRequiredReferences()
-	{
-		return root != null
-			&& mainPanel != null
-			&& savePanel != null
-			&& settingsPanel != null
-			&& titleConfirmPanel != null
-			&& resumeButton != null
-			&& openSaveButton != null
-			&& openSettingsButton != null
-			&& openTitleConfirmButton != null
-			&& saveNameInput != null
-			&& saveMessageText != null
-			&& confirmSaveButton != null
-			&& backFromSaveButton != null
-			&& backFromSettingsButton != null
-			&& confirmTitleButton != null
-			&& cancelTitleButton != null;
+		saveMessageLabel.text = message;
 	}
 
 	private static string SanitizeSaveName(string saveName)

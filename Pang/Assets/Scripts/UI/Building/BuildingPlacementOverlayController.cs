@@ -24,6 +24,8 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 	private readonly List<MeshRenderer> previewRenderers = new();
 	private readonly Dictionary<Building, BuildingSelectionProxy> proxies = new();
 	private bool isVisible;
+	private bool oneShotCreate;
+	private bool startingOneShotCreate;
 
 	public BuildingType SelectedBuildingType => NormalizeSelectableBuildingType(selectedBuildingType);
 
@@ -39,6 +41,14 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 			return footprintService;
 		}
+	}
+
+	public void Configure(BuildingSelectionProxy targetSelectionProxyPrefab, GameObject targetOverlayQuadPrefab,
+		GameObject targetOverlayLabelPrefab)
+	{
+		selectionProxyPrefab = targetSelectionProxyPrefab;
+		overlayQuadPrefab = targetOverlayQuadPrefab;
+		overlayLabelPrefab = targetOverlayLabelPrefab;
 	}
 
 	private void Awake()
@@ -62,6 +72,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		Interaction.OnBuildingPlacementConfirmed += HandleBuildingPlacementConfirmed;
 		Interaction.OnResolveSelectionFallback += ResolveBuildingSelection;
 		Interaction.OnHandleBuildingSelection += HandleBuildingSelection;
+		Interaction.OnModeChanged += HandleInteractionModeChanged;
 	}
 
 	private void OnDestroy()
@@ -73,6 +84,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		Interaction.OnBuildingPlacementConfirmed -= HandleBuildingPlacementConfirmed;
 		Interaction.OnResolveSelectionFallback -= ResolveBuildingSelection;
 		Interaction.OnHandleBuildingSelection -= HandleBuildingSelection;
+		Interaction.OnModeChanged -= HandleInteractionModeChanged;
 	}
 
 	public void SetOverlayVisible(bool visible)
@@ -94,13 +106,32 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 	public void BeginCreate()
 	{
+		oneShotCreate = false;
 		SetOverlayVisible(true);
 		Interaction.EnterBuildingPlacementMode(currentFloor);
+	}
+
+	public void BeginCreateOneShot()
+	{
+		oneShotCreate = true;
+		SetOverlayVisible(true);
+		startingOneShotCreate = true;
+		Interaction.EnterBuildingPlacementMode(currentFloor);
+		startingOneShotCreate = false;
 	}
 
 	public void SetSelectedBuildingType(BuildingType buildingType)
 	{
 		selectedBuildingType = NormalizeSelectableBuildingType(buildingType);
+	}
+
+	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
+	{
+		if (oneShotCreate == false || startingOneShotCreate || Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement)
+			return;
+
+		oneShotCreate = false;
+		SetOverlayVisible(false);
 	}
 
 	private static BuildingType NormalizeSelectableBuildingType(BuildingType buildingType)

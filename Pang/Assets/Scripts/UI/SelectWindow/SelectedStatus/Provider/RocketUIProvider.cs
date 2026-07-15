@@ -1,6 +1,7 @@
 using UnityEngine;
+using UniverseLogistics.UI.Toolkit;
 
-public sealed class RocketUIProvider : UIProvider<Rocket>, IShelfBaseUIProvider
+public sealed class RocketUIProvider : UIProvider<Rocket>, IShelfBaseUIProvider, ISelectionInspectorProvider
 {
 	Component IShelfBaseUIProvider.Target => currentTarget;
 
@@ -11,6 +12,7 @@ public sealed class RocketUIProvider : UIProvider<Rocket>, IShelfBaseUIProvider
 	public string CapacityDisplay => currentTarget != null ? $"{currentTarget.MaxSize:0.0} units" : "0.0 units";
 	public string CurrentSizeDisplay => currentTarget != null ? $"{currentTarget.TotalSize:0.0} units" : "0.0 units";
 	public string FilledPercentDisplay => currentTarget != null ? $"{currentTarget.FilledPercent:0.0}%" : "0.0%";
+	public string StateDisplay => currentTarget != null ? currentTarget.State.ToString() : "Unknown";
 
 	public ItemContainerDisplayInfo GetItemDisplay() => new()
 	{
@@ -36,5 +38,33 @@ public sealed class RocketUIProvider : UIProvider<Rocket>, IShelfBaseUIProvider
 		(infoBlocks[0] as KeyValueBlock)?.UpdateValue(CapacityDisplay);
 		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(CurrentSizeDisplay);
 		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(FilledPercentDisplay);
+	}
+
+	public void BuildInspectorModel(SelectionInspectorModel model)
+	{
+		model.Clear();
+		model.AddTab("Cargo", GetCargoVersion, BuildCargoPanel);
+		model.AddOverview("State", () => StateDisplay);
+		model.AddOverview("Capacity", () => CapacityDisplay);
+		model.AddOverview("Current Size", () => CurrentSizeDisplay);
+		model.AddOverview("Filled", () => FilledPercentDisplay);
+		model.AddAction("Remove", DeleteObject, isDangerous: true);
+	}
+
+	private int GetCargoVersion()
+	{
+		unchecked
+		{
+			return SelectionDetailContentUtility.GetItemContainerVersion(currentTarget?.DockedCapsule) * 31 +
+				(currentTarget?.DockedCapsule != null ? (int)currentTarget.DockedCapsule.BoxId : 0);
+		}
+	}
+
+	private SelectionDetailPanelModel BuildCargoPanel()
+	{
+		return SelectionDetailContentUtility.BuildItemContainerPanel(
+			"CARGO",
+			$"{CurrentSizeDisplay} / {CapacityDisplay}",
+			GetItemDisplay());
 	}
 }

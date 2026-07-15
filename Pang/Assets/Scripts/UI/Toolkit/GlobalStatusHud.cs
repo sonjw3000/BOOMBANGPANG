@@ -10,11 +10,15 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string HistoryDocumentObjectName = "GlobalHistoryWindowDocument";
 		private const string ContractDocumentObjectName = "ContractManagementWindowDocument";
 		private const string WorkforceDocumentObjectName = "WorkforceManagementWindowDocument";
+		private const string BuildDocumentObjectName = "BuildManagementWindowDocument";
+		private const string WorkflowDocumentObjectName = "WorkflowManagementWindowDocument";
+		private const string CompanyDocumentObjectName = "CompanyManagementWindowDocument";
 		private const int MaxVisibleEvents = 5;
 		private const float EventFadeSeconds = 0.8f;
 		private const float ReferenceWidth = 1920f;
 		private const float ReferenceHeight = 1080f;
 		private const float ReferenceUiScale = 1.0f;
+		private static readonly Vector2 ManagementWindowDefaultSize = new(1200f, 820f);
 
 		[SerializeField] private VisualTreeAsset visualTreeAsset;
 		[SerializeField] private VisualTreeAsset hudEventEntryTemplate;
@@ -30,6 +34,17 @@ namespace UniverseLogistics.UI.Toolkit
 		[SerializeField] private VisualTreeAsset workforceCandidateRowTemplate;
 		[SerializeField] private List<WorkforceMarketData_SO> workforceHumanMarkets = new();
 		[SerializeField] private List<WorkforceMarketData_SO> workforceRobotMarkets = new();
+		[SerializeField] private VisualTreeAsset buildContentTemplate;
+		[SerializeField] private VisualTreeAsset buildPlaceableRowTemplate;
+		[SerializeField] private VisualTreeAsset buildRuleRowTemplate;
+		[SerializeField] private BuildingSelectionProxy buildSelectionProxyPrefab;
+		[SerializeField] private GameObject buildOverlayQuadPrefab;
+		[SerializeField] private GameObject buildOverlayLabelPrefab;
+		[SerializeField] private VisualTreeAsset workflowContentTemplate;
+		[SerializeField] private VisualTreeAsset workflowLandingAreaRowTemplate;
+		[SerializeField] private VisualTreeAsset companyContentTemplate;
+		[SerializeField] private VisualTreeAsset companyLicenseRowTemplate;
+		[SerializeField] private VisualTreeAsset companyResearchRowTemplate;
 		[SerializeField] private PanelSettings panelSettings;
 		[SerializeField] private int sortingOrder = 100;
 
@@ -52,10 +67,17 @@ namespace UniverseLogistics.UI.Toolkit
 		private Button managementButton;
 		private Button contractManagementButton;
 		private Button workforceManagementButton;
+		private Button buildManagementButton;
+		private Button workflowManagementButton;
+		private Button companyManagementButton;
 		private VisualElement managementMenu;
 		private GlobalHistoryWindow historyWindow;
 		private ContractManagementWindow contractManagementWindow;
 		private WorkforceManagementWindow workforceManagementWindow;
+		private BuildManagementWindow buildManagementWindow;
+		private WorkflowManagementWindow workflowManagementWindow;
+		private CompanyManagementWindow companyManagementWindow;
+		private SelectionCardHud selectionCard;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
@@ -63,6 +85,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private bool? timeHudDockedRight;
 		private int scaledScreenWidth = -1;
 		private int scaledScreenHeight = -1;
+
+		public SelectionCardHud SelectionCard => selectionCard;
 
 		private sealed class ActiveHudEvent
 		{
@@ -78,6 +102,9 @@ namespace UniverseLogistics.UI.Toolkit
 			EnsureHistoryWindow();
 			EnsureContractManagementWindow();
 			EnsureWorkforceManagementWindow();
+			EnsureBuildManagementWindow();
+			EnsureWorkflowManagementWindow();
+			EnsureCompanyManagementWindow();
 			BindControls();
 
 			if (started)
@@ -214,6 +241,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(ManagementWindowDefaultSize);
 			contractManagementWindow = documentObject.AddComponent<ContractManagementWindow>();
 			contractManagementWindow.Configure(window, contractContentTemplate, activeContractRowTemplate,
 				contractMarketRowTemplate, vendorContractRowTemplate);
@@ -243,9 +271,108 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(ManagementWindowDefaultSize);
 			workforceManagementWindow = documentObject.AddComponent<WorkforceManagementWindow>();
 			workforceManagementWindow.Configure(window, workforceContentTemplate, workforceRosterRowTemplate,
 				workforceCandidateRowTemplate, workforceHumanMarkets, workforceRobotMarkets);
+			documentObject.SetActive(true);
+		}
+
+		private void EnsureBuildManagementWindow()
+		{
+			if (buildManagementWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || buildContentTemplate == null || buildPlaceableRowTemplate == null ||
+				buildRuleRowTemplate == null || buildSelectionProxyPrefab == null || buildOverlayQuadPrefab == null ||
+				buildOverlayLabelPrefab == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Build management window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(BuildDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument buildDocument = documentObject.AddComponent<UIDocument>();
+			buildDocument.panelSettings = panelSettings;
+			buildDocument.visualTreeAsset = windowVisualTreeAsset;
+			buildDocument.sortingOrder = sortingOrder + 40;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(ManagementWindowDefaultSize);
+			BuildingPlacementOverlayController buildingOverlay = documentObject.AddComponent<BuildingPlacementOverlayController>();
+			buildingOverlay.Configure(buildSelectionProxyPrefab, buildOverlayQuadPrefab, buildOverlayLabelPrefab);
+			RoutingConnectivityOverlayController routingOverlay = documentObject.AddComponent<RoutingConnectivityOverlayController>();
+			routingOverlay.Configure(buildOverlayQuadPrefab);
+			CargoPortLinkModeController buildingLinkController = documentObject.AddComponent<CargoPortLinkModeController>();
+			buildingLinkController.Configure(buildOverlayQuadPrefab, buildOverlayLabelPrefab);
+			WorkflowDestinationLinkModeController workflowDestinationController = documentObject.AddComponent<WorkflowDestinationLinkModeController>();
+			workflowDestinationController.Configure(buildOverlayQuadPrefab, buildOverlayLabelPrefab);
+			buildManagementWindow = documentObject.AddComponent<BuildManagementWindow>();
+			buildManagementWindow.Configure(window, buildContentTemplate, buildPlaceableRowTemplate, buildRuleRowTemplate,
+				buildingOverlay, routingOverlay, buildingLinkController, workflowDestinationController);
+			documentObject.SetActive(true);
+		}
+
+		private void EnsureWorkflowManagementWindow()
+		{
+			if (workflowManagementWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || workflowContentTemplate == null || workflowLandingAreaRowTemplate == null ||
+				buildManagementWindow == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Workflow management window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(WorkflowDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument workflowDocument = documentObject.AddComponent<UIDocument>();
+			workflowDocument.panelSettings = panelSettings;
+			workflowDocument.visualTreeAsset = windowVisualTreeAsset;
+			workflowDocument.sortingOrder = sortingOrder + 50;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(ManagementWindowDefaultSize);
+			workflowManagementWindow = documentObject.AddComponent<WorkflowManagementWindow>();
+			workflowManagementWindow.Configure(window, workflowContentTemplate, workflowLandingAreaRowTemplate, buildManagementWindow);
+			documentObject.SetActive(true);
+		}
+
+		private void EnsureCompanyManagementWindow()
+		{
+			if (companyManagementWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || historyRowTemplate == null || companyContentTemplate == null ||
+				companyLicenseRowTemplate == null || companyResearchRowTemplate == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Company management window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(CompanyDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument companyDocument = documentObject.AddComponent<UIDocument>();
+			companyDocument.panelSettings = panelSettings;
+			companyDocument.visualTreeAsset = windowVisualTreeAsset;
+			companyDocument.sortingOrder = sortingOrder + 60;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(ManagementWindowDefaultSize);
+			companyManagementWindow = documentObject.AddComponent<CompanyManagementWindow>();
+			companyManagementWindow.Configure(window, companyContentTemplate, historyRowTemplate,
+				companyLicenseRowTemplate, companyResearchRowTemplate);
 			documentObject.SetActive(true);
 		}
 
@@ -256,6 +383,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 			VisualElement root = uiDocument.rootVisualElement;
 			root.pickingMode = PickingMode.Ignore;
+			selectionCard ??= new SelectionCardHud();
+			if (selectionCard.Bind(root) == false)
+				Debug.LogError("[GlobalStatusHud] Selection Card UXML elements are missing.", this);
 			hudRoot = root;
 			leftHud = root.Q<VisualElement>(className: "left-hud");
 			timeCluster = root.Q<VisualElement>(className: "time-cluster");
@@ -272,6 +402,9 @@ namespace UniverseLogistics.UI.Toolkit
 			managementButton = root.Q<Button>("management-button");
 			contractManagementButton = root.Q<Button>("contract-management-button");
 			workforceManagementButton = root.Q<Button>("workforce-management-button");
+			buildManagementButton = root.Q<Button>("build-management-button");
+			workflowManagementButton = root.Q<Button>("workflow-management-button");
+			companyManagementButton = root.Q<Button>("company-management-button");
 			managementMenu = root.Q<VisualElement>("management-menu");
 
 			if (leftHud == null || timeCluster == null || economySummary == null || hudEventArea == null ||
@@ -279,6 +412,9 @@ namespace UniverseLogistics.UI.Toolkit
 				reputationValue == null || dateValue == null || speedValue == null || pauseButton == null ||
 				normalSpeedButton == null || doubleSpeedButton == null || managementButton == null || contractManagementButton == null ||
 				workforceManagementButton == null ||
+				buildManagementButton == null ||
+				workflowManagementButton == null ||
+				companyManagementButton == null ||
 				managementMenu == null)
 			{
 				Debug.LogError("[GlobalStatusHud] Required UXML elements are missing.", this);
@@ -301,6 +437,12 @@ namespace UniverseLogistics.UI.Toolkit
 			contractManagementButton.clicked += OpenContractManagement;
 			workforceManagementButton.clicked -= OpenWorkforceManagement;
 			workforceManagementButton.clicked += OpenWorkforceManagement;
+			buildManagementButton.clicked -= OpenBuildManagement;
+			buildManagementButton.clicked += OpenBuildManagement;
+			workflowManagementButton.clicked -= OpenWorkflowManagement;
+			workflowManagementButton.clicked += OpenWorkflowManagement;
+			companyManagementButton.clicked -= OpenCompanyManagement;
+			companyManagementButton.clicked += OpenCompanyManagement;
 			ShowManagementMenu(false);
 			hudRoot.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
 			hudRoot.RegisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
@@ -327,6 +469,12 @@ namespace UniverseLogistics.UI.Toolkit
 				contractManagementButton.clicked -= OpenContractManagement;
 			if (workforceManagementButton != null)
 				workforceManagementButton.clicked -= OpenWorkforceManagement;
+			if (buildManagementButton != null)
+				buildManagementButton.clicked -= OpenBuildManagement;
+			if (workflowManagementButton != null)
+				workflowManagementButton.clicked -= OpenWorkflowManagement;
+			if (companyManagementButton != null)
+				companyManagementButton.clicked -= OpenCompanyManagement;
 		}
 
 		private void BindServices()
@@ -469,6 +617,24 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			ShowManagementMenu(false);
 			workforceManagementWindow?.Open();
+		}
+
+		private void OpenBuildManagement()
+		{
+			ShowManagementMenu(false);
+			buildManagementWindow?.Open();
+		}
+
+		private void OpenWorkflowManagement()
+		{
+			ShowManagementMenu(false);
+			workflowManagementWindow?.Open();
+		}
+
+		private void OpenCompanyManagement()
+		{
+			ShowManagementMenu(false);
+			companyManagementWindow?.Open();
 		}
 
 		private void OnMoneyChanged(int value)

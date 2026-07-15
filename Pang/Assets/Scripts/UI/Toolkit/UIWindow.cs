@@ -24,6 +24,7 @@ namespace UniverseLogistics.UI.Toolkit
 		[SerializeField] private bool openOnEnable = true;
 		[SerializeField] private bool movable = true;
 		[SerializeField] private bool resizable = true;
+		[SerializeField] private Vector2 defaultSize = new(990f, 690f);
 		[SerializeField] private Vector2 minimumSize = new(420f, 300f);
 
 		private readonly List<TabEntry> tabs = new();
@@ -43,6 +44,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private int activePointerId = -1;
 		private Vector2 pointerStart;
 		private Rect windowStartRect;
+		private bool hasAppliedDefaultSize;
 
 		public event Action Opened;
 		public event Action Closed;
@@ -56,6 +58,20 @@ namespace UniverseLogistics.UI.Toolkit
 		public void SetOpenOnEnable(bool value)
 		{
 			openOnEnable = value;
+		}
+
+		public void SetDefaultSize(Vector2 size)
+		{
+			defaultSize = new Vector2(
+				Mathf.Max(minimumSize.x, size.x),
+				Mathf.Max(minimumSize.y, size.y));
+			hasAppliedDefaultSize = false;
+
+			if (initialized)
+			{
+				ApplyDefaultSize();
+				windowRoot.schedule.Execute(ClampWindowToPanel);
+			}
 		}
 
 		private void Reset()
@@ -122,6 +138,7 @@ namespace UniverseLogistics.UI.Toolkit
 			closeButton.clicked -= Close;
 			closeButton.clicked += Close;
 			BindWindowInteraction();
+			ApplyDefaultSize();
 
 			for (int i = 0; i < tabs.Count; ++i)
 			{
@@ -457,6 +474,16 @@ namespace UniverseLogistics.UI.Toolkit
 			windowRoot.style.top = rect.y;
 			windowRoot.style.width = rect.width;
 			windowRoot.style.height = rect.height;
+		}
+
+		private void ApplyDefaultSize()
+		{
+			if (windowRoot == null || hasAppliedDefaultSize)
+				return;
+
+			windowRoot.style.width = Mathf.Max(minimumSize.x, defaultSize.x);
+			windowRoot.style.height = Mathf.Max(minimumSize.y, defaultSize.y);
+			hasAppliedDefaultSize = true;
 		}
 
 		private bool IsCloseButtonTarget(IEventHandler target)

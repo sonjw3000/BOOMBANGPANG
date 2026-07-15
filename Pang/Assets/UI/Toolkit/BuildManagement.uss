@@ -1,0 +1,92 @@
+.build-content { flex-grow: 1; }
+.build-tabs { position: relative; height: 30px; flex-direction: row; align-items: flex-end; margin-bottom: 9px; }
+.build-tabs__separator { position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background-color: rgb(65, 78, 88); }
+.build-tab-button { width: 90px; height: 29px; margin-right: 3px; font-size: 10px; color: rgb(145, 163, 173); background-color: rgba(0, 0, 0, 0); border-left-width: 0; border-right-width: 0; border-top-width: 0; border-bottom-width: 2px; border-bottom-color: rgba(0, 0, 0, 0); }
+.build-tab-button--selected { color: rgb(232, 243, 247); border-bottom-color: rgb(74, 186, 218); }
+.build-tab { position: relative; flex-grow: 1; }
+.build-buildings-scroll { flex-grow: 1; }
+.build-buildings-body { min-width: 300px; min-height: 330px; padding-right: 4px; padding-bottom: 4px; }
+.build-heading { font-size: 14px; -unity-font-style: bold; color: rgb(231, 240, 243); }
+.build-caption { margin-top: 2px; margin-bottom: 8px; font-size: 9px; color: rgb(125, 148, 160); }
+.building-build-panel { width: 390px; margin-top: 8px; padding: 12px; background-color: rgb(28, 38, 46); border-left-width: 2px; border-left-color: rgb(74, 136, 158); }
+.build-field-label { margin-top: 5px; margin-bottom: 2px; font-size: 8px; -unity-font-style: bold; letter-spacing: 1px; color: rgb(113, 154, 173); }
+.build-field { height: 27px; font-size: 9px; }
+.building-build-summary { min-height: 54px; margin-top: 12px; margin-bottom: 10px; padding: 8px; background-color: rgb(34, 45, 54); }
+.building-build-summary__name { font-size: 11px; -unity-font-style: bold; color: rgb(224, 235, 240); }
+.building-build-summary__details { margin-top: 4px; font-size: 9px; color: rgb(145, 170, 181); white-space: normal; }
+.build-primary-button { width: 110px; height: 27px; font-size: 9px; -unity-font-style: bold; color: rgb(225, 239, 244); background-color: rgb(31, 89, 108); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(65, 151, 177); border-right-color: rgb(65, 151, 177); border-top-color: rgb(65, 151, 177); border-bottom-color: rgb(65, 151, 177); }
+.build-primary-button:hover { background-color: rgb(39, 119, 142); }
+.build-message { margin-top: 7px; font-size: 8px; color: rgb(125, 148, 160); }
+.build-facilities { flex-direction: row; }
+.build-category-column { width: 150px; margin-right: 10px; padding-right: 9px; border-right-width: 1px; border-right-color: rgb(65, 78, 88); }
+.build-catalog-column { position: relative; flex-grow: 1; }
+.build-column-label { height: 22px; font-size: 8px; -unity-font-style: bold; letter-spacing: 1px; color: rgb(113, 154, 173); }
+.build-list { flex-grow: 1; }
+.build-category-button { height: 28px; margin-bottom: 3px; padding-left: 8px; font-size: 9px; -unity-text-align: middle-left; color: rgb(184, 204, 213); background-color: rgb(29, 39, 47); border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 2px; border-left-color: rgb(74, 104, 119); }
+.build-category-button:hover, .build-category-button--selected { color: rgb(237, 247, 250); background-color: rgb(38, 60, 71); border-left-color: rgb(74, 186, 218); }
+.build-empty { position: absolute; left: 0; right: 0; top: 90px; font-size: 10px; -unity-text-align: middle-center; color: rgb(112, 132, 143); }
+.build-placeable-row { min-height: 48px; flex-direction: row; align-items: center; margin-bottom: 3px; padding-left: 8px; padding-right: 7px; background-color: rgb(32, 42, 50); border-left-width: 2px; border-left-color: rgb(74, 136, 158); }
+.build-placeable-row__icon { width: 28px; height: 28px; margin-right: 8px; -unity-background-scale-mode: scale-to-fit; }
+.build-placeable-row__identity { width: 145px; }
+.build-placeable-row__name { font-size: 10px; -unity-font-style: bold; color: rgb(224, 235, 240); }
+.build-placeable-row__subtext { margin-top: 2px; font-size: 8px; color: rgb(126, 150, 162); }
+.build-placeable-row__value { width: 55px; font-size: 8px; color: rgb(181, 201, 210); }
+.build-placeable-row__environment { width: 80px; font-size: 8px; color: rgb(103, 196, 220); }
+.build-placeable-row__cost { flex-grow: 1; font-size: 9px; color: rgb(101, 213, 171); }
+.build-placeable-row__button { width: 58px; height: 25px; font-size: 9px; -unity-font-style: bold; color: rgb(225, 239, 244); background-color: rgb(31, 89, 108); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(65, 151, 177); border-right-color: rgb(65, 151, 177); border-top-color: rgb(65, 151, 177); border-bottom-color: rgb(65, 151, 177); }
+.build-placeable-row__button:hover { background-color: rgb(39, 119, 142); }
+.build-rules { position: relative; }
+.build-rule-library { flex-grow: 1; }
+.build-rules-toolbar { min-height: 48px; flex-direction: row; align-items: flex-start; margin-bottom: 6px; }
+.build-rules-toolbar__text { flex-grow: 1; }
+.build-rules-toolbar .build-primary-button { margin-top: 2px; }
+.build-rule-empty { top: 120px; }
+.build-rule-row { min-height: 48px; flex-direction: row; align-items: center; margin-bottom: 3px; padding-left: 8px; padding-right: 7px; background-color: rgb(32, 42, 50); border-left-width: 2px; border-left-color: rgb(74, 136, 158); }
+.build-rule-row__color { width: 8px; height: 30px; margin-right: 8px; }
+.build-rule-row__identity { width: 210px; }
+.build-rule-row__name { font-size: 10px; -unity-font-style: bold; color: rgb(224, 235, 240); }
+.build-rule-row__summary { margin-top: 2px; font-size: 8px; color: rgb(126, 150, 162); }
+.build-rule-row__value { width: 78px; font-size: 8px; color: rgb(181, 201, 210); }
+.build-rule-row__button { width: 52px; height: 24px; margin-left: 4px; font-size: 8px; color: rgb(210, 226, 232); background-color: rgb(43, 70, 82); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(74, 104, 119); border-right-color: rgb(74, 104, 119); border-top-color: rgb(74, 104, 119); border-bottom-color: rgb(74, 104, 119); }
+.build-rule-row__button:hover { background-color: rgb(48, 94, 111); }
+.build-rule-row__button--wide { width: 66px; }
+.build-rule-row__button--danger { color: rgb(231, 181, 164); background-color: rgb(82, 48, 46); }
+.build-rule-editor { flex-grow: 1; padding-right: 6px; }
+.rule-editor-field { margin-top: 5px; font-size: 9px; }
+.rule-editor-slider { margin-top: 3px; font-size: 8px; }
+.rule-editor-color-preview { width: 100%; height: 12px; margin-top: 4px; }
+.rule-editor-section { margin-top: 12px; margin-bottom: 5px; padding-bottom: 3px; font-size: 9px; -unity-font-style: bold; letter-spacing: 1px; color: rgb(103, 196, 220); border-bottom-width: 1px; border-bottom-color: rgb(65, 78, 88); }
+.rule-editor-label { margin-top: 5px; font-size: 8px; color: rgb(145, 170, 181); }
+.rule-editor-toggle-row { flex-direction: row; flex-wrap: wrap; margin-top: 2px; }
+.rule-editor-toggle-row .unity-toggle { min-width: 105px; height: 22px; font-size: 8px; color: rgb(187, 207, 216); }
+.rule-editor-actions { flex-direction: row; margin-top: 4px; }
+.rule-editor-small-button { min-width: 90px; height: 24px; margin-right: 4px; font-size: 8px; color: rgb(210, 226, 232); background-color: rgb(43, 70, 82); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(74, 104, 119); border-right-color: rgb(74, 104, 119); border-top-color: rgb(74, 104, 119); border-bottom-color: rgb(74, 104, 119); }
+.rule-editor-summary { margin-top: 5px; margin-bottom: 2px; font-size: 8px; color: rgb(181, 201, 210); white-space: normal; }
+.rule-editor-footer { flex-direction: row; margin-top: 14px; margin-bottom: 10px; }
+.build-routing { position: relative; padding-top: 2px; }
+.build-routing-toolbar { min-height: 42px; flex-direction: row; align-items: flex-start; }
+.build-routing-toolbar__text { flex-grow: 1; }
+.build-routing-actions { flex-direction: row; margin-top: 1px; }
+.build-routing-link-button { width: 104px; margin-left: 4px; }
+.build-routing-legend { flex-direction: row; margin-top: 8px; margin-bottom: 12px; }
+.build-routing-legend__item { flex-direction: row; align-items: center; margin-right: 18px; }
+.build-routing-legend__color { width: 18px; height: 10px; margin-right: 5px; }
+.build-routing-legend__color--landing { background-color: rgb(255, 135, 36); }
+.build-routing-legend__color--building { background-color: rgb(51, 209, 110); }
+.build-routing-legend__label { font-size: 9px; color: rgb(184, 204, 213); }
+.build-routing-summary { width: 390px; min-height: 48px; padding: 10px; font-size: 11px; -unity-font-style: bold; color: rgb(224, 235, 240); background-color: rgb(28, 38, 46); border-left-width: 2px; border-left-color: rgb(74, 136, 158); }
+.build-routing-list-title { margin-top: 12px; }
+.build-routing-source-list { flex-grow: 1; min-height: 120px; margin-top: 3px; padding-right: 4px; }
+.build-routing-source { margin-bottom: 4px; background-color: rgb(29, 39, 47); border-left-width: 2px; border-left-color: rgb(74, 104, 119); }
+.build-routing-source--expanded { background-color: rgb(34, 49, 58); border-left-color: rgb(74, 186, 218); }
+.build-routing-source__header { height: 30px; flex-direction: row; align-items: center; padding-left: 9px; padding-right: 8px; background-color: rgba(0, 0, 0, 0); border-left-width: 0; border-right-width: 0; border-top-width: 0; border-bottom-width: 0; }
+.build-routing-source__header:hover { background-color: rgb(39, 59, 69); }
+.build-routing-source__name { flex-grow: 1; font-size: 9px; -unity-font-style: bold; -unity-text-align: middle-left; color: rgb(224, 235, 240); }
+.build-routing-source__count { width: 92px; font-size: 8px; -unity-text-align: middle-right; color: rgb(139, 174, 188); }
+.build-routing-details { padding-left: 13px; padding-right: 6px; padding-bottom: 5px; }
+.build-routing-connection { height: 29px; flex-direction: row; align-items: center; margin-top: 2px; background-color: rgb(25, 34, 41); }
+.build-routing-connection--selected { background-color: rgb(43, 68, 78); }
+.build-routing-connection__target { flex-grow: 1; height: 27px; padding-left: 9px; font-size: 8px; -unity-text-align: middle-left; color: rgb(185, 207, 216); background-color: rgba(0, 0, 0, 0); border-left-width: 0; border-right-width: 0; border-top-width: 0; border-bottom-width: 0; }
+.build-routing-connection__disconnect { width: 72px; height: 23px; margin-right: 3px; font-size: 8px; color: rgb(231, 181, 164); background-color: rgb(82, 48, 46); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(119, 69, 64); border-right-color: rgb(119, 69, 64); border-top-color: rgb(119, 69, 64); border-bottom-color: rgb(119, 69, 64); }
+.build-routing-connection__disconnect:hover { background-color: rgb(105, 57, 52); }
+.build-routing-empty { top: 270px; }

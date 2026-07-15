@@ -1,12 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
+using ToolkitWindow = UniverseLogistics.UI.Toolkit.UIWindow;
 
 namespace Assets.Scripts.UI
 {
 	public sealed class EventNoticeService : MonoBehaviour
 	{
-		[SerializeField] private EventNoticeWindow eventNoticeWindowPrefab;
-		[SerializeField] private Transform windowParent;
+		[SerializeField] private VisualTreeAsset windowVisualTreeAsset;
+		[SerializeField] private VisualTreeAsset contentTemplate;
+		[SerializeField] private PanelSettings panelSettings;
+		[SerializeField] private Sprite defaultIcon;
+		[SerializeField] private string idleWindowTitle = "Event Notice";
+		[SerializeField] private Vector2 defaultWindowSize = new(500f, 800f);
+		[SerializeField] private int sortingOrder = 130;
 		[SerializeField, Min(1)] private int initialPoolSize = 1;
 		[SerializeField] private Vector2 initialWindowPosition = Vector2.zero;
 		[SerializeField] private Vector2 stackedWindowOffset = new(32f, -32f);
@@ -22,26 +29,42 @@ namespace Assets.Scripts.UI
 
 		private void EnsurePoolInitialized()
 		{
-			if (poolInitialized || eventNoticeWindowPrefab == null)
+			if (poolInitialized || HasRequiredAssets() == false)
 				return;
 
 			int targetCount = Mathf.Max(1, initialPoolSize);
 			for (int i = 0; i < targetCount; ++i)
-			{
-				EventNoticeWindow instance = CreateWindowInstance();
-				ReleaseWindow(instance);
-			}
+				ReleaseWindow(CreateWindowInstance());
 
 			poolInitialized = true;
 		}
 
+		private bool HasRequiredAssets()
+		{
+			if (windowVisualTreeAsset != null && contentTemplate != null && panelSettings != null)
+				return true;
+
+			Debug.LogError("[EventNoticeService] Toolkit window, content template, or PanelSettings is missing.", this);
+			return false;
+		}
+
 		private EventNoticeWindow CreateWindowInstance()
 		{
-			Transform parent = windowParent != null ? windowParent : transform;
-			EventNoticeWindow instance = Instantiate(eventNoticeWindowPrefab, parent);
-			instance.name = eventNoticeWindowPrefab.name;
-			instance.gameObject.SetActive(false);
-			instance.Dismissed -= HandleWindowDismissed;
+			GameObject windowObject = new("EventNoticeWindowDocument");
+			windowObject.SetActive(false);
+			windowObject.transform.SetParent(transform, false);
+
+			UIDocument document = windowObject.AddComponent<UIDocument>();
+			document.panelSettings = panelSettings;
+			document.visualTreeAsset = windowVisualTreeAsset;
+			document.sortingOrder = sortingOrder + activeWindows.Count;
+
+			ToolkitWindow toolkitWindow = windowObject.AddComponent<ToolkitWindow>();
+			toolkitWindow.SetOpenOnEnable(false);
+			toolkitWindow.SetDefaultSize(defaultWindowSize);
+
+			EventNoticeWindow instance = windowObject.AddComponent<EventNoticeWindow>();
+			instance.Configure(toolkitWindow, contentTemplate, idleWindowTitle, defaultIcon, defaultWindowSize);
 			instance.Dismissed += HandleWindowDismissed;
 			return instance;
 		}
@@ -49,11 +72,7 @@ namespace Assets.Scripts.UI
 		private EventNoticeWindow AcquireWindow()
 		{
 			EnsurePoolInitialized();
-
-			if (pooledWindows.Count > 0)
-				return pooledWindows.Pop();
-
-			return CreateWindowInstance();
+			return pooledWindows.Count > 0 ? pooledWindows.Pop() : CreateWindowInstance();
 		}
 
 		private void ReleaseWindow(EventNoticeWindow window)
@@ -61,7 +80,6 @@ namespace Assets.Scripts.UI
 			if (window == null)
 				return;
 
-			window.transform.SetParent(windowParent != null ? windowParent : transform, false);
 			window.gameObject.SetActive(false);
 			pooledWindows.Push(window);
 		}
@@ -79,13 +97,7 @@ namespace Assets.Scripts.UI
 		private void RepositionActiveWindows()
 		{
 			for (int i = 0; i < activeWindows.Count; ++i)
-			{
-				RectTransform rect = activeWindows[i].GetComponent<RectTransform>();
-				if (rect == null)
-					continue;
-
-				rect.anchoredPosition = GetWindowPosition(i);
-			}
+				activeWindows[i].ShowPosition(GetWindowPosition(i));
 		}
 
 		private Vector2 GetWindowPosition(int index)
@@ -95,7 +107,7 @@ namespace Assets.Scripts.UI
 
 		public void ShowNotice(EventNoticeRequest request)
 		{
-			if (request == null)
+			if (request == null || HasRequiredAssets() == false)
 				return;
 
 			EventNoticeWindow window = AcquireWindow();

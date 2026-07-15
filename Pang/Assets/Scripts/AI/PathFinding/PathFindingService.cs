@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -20,6 +21,7 @@ public class PathFindingService : MonoBehaviour
 	private ItemPool<SearchBuffer> searchBufferPool;
 
 	private List<PathSearchJob> activeJobs = new();
+	private bool isReady;
 
 	public int PlannedPathCongestionCost => plannedPathCongestionCost;
 	public int StalePlannedPathCongestionCost => stalePlannedPathCongestionCost;
@@ -30,6 +32,7 @@ public class PathFindingService : MonoBehaviour
 		jobPool = new(5, () => { return new(); });
 		searchBufferPool = new(5, () => { return new(GridSize); });
 		PathResultBuffer.InitializePool(100);
+		isReady = true;
 	}
 
 	private void Update()
@@ -77,5 +80,36 @@ public class PathFindingService : MonoBehaviour
 		activeJobs.Add(job);
 	}
 
-}
+	public bool RequestPreviewRoute(in int3 startPosition, in int3 endPosition,
+		Action<IReadOnlyList<int3>> completed, Func<int3, bool> canTraverseBlockedCell = null)
+	{
+		if (isReady == false || completed == null || startPosition.y != endPosition.y)
+			return false;
 
+		RequestRoute(new PathRequest(
+			startPosition,
+			endPosition,
+			FacingDirection.North,
+			result =>
+			{
+				List<int3> positions = new(result?.Path?.Count ?? 0);
+				try
+				{
+					if (result?.Path != null)
+					{
+						foreach (PathNode node in result.Path)
+							positions.Add(node.Position);
+					}
+				}
+				finally
+				{
+					result?.Clear();
+				}
+
+				completed(positions);
+			},
+			canTraverseBlockedCell));
+		return true;
+	}
+
+}

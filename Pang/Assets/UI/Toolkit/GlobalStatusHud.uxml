@@ -34,8 +34,47 @@
 			<ui:VisualElement name="management-menu" class="management-menu">
 				<ui:Button name="contract-management-button" text="Contract" class="management-menu__button" />
 				<ui:Button name="build-management-button" text="Build" class="management-menu__button" />
+				<ui:Button name="workflow-management-button" text="Workflow" class="management-menu__button" />
 				<ui:Button name="workforce-management-button" text="Workforce" class="management-menu__button" />
 				<ui:Button name="company-management-button" text="Company" class="management-menu__button" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:VisualElement name="selection-detail-panel" class="selection-detail-panel" picking-mode="Position">
+			<ui:VisualElement class="selection-detail-panel__header">
+				<ui:Label name="selection-detail-title" text="INVENTORY" class="selection-detail-panel__title" />
+				<ui:Label name="selection-detail-summary" text="0 / 0 units" class="selection-detail-panel__summary" />
+			</ui:VisualElement>
+			<ui:VisualElement name="selection-detail-slider-control" class="selection-detail-panel__slider-control">
+				<ui:VisualElement class="selection-detail-panel__slider-header">
+					<ui:Label name="selection-detail-slider-label" text="Threshold" class="selection-detail-panel__slider-label" />
+					<ui:Label name="selection-detail-slider-value" text="0%" class="selection-detail-panel__slider-value" />
+				</ui:VisualElement>
+				<ui:Slider name="selection-detail-slider" low-value="0" high-value="100" class="selection-detail-panel__slider" />
+			</ui:VisualElement>
+			<ui:ListView name="selection-detail-list" class="selection-detail-panel__list" virtualization-method="FixedHeight" fixed-item-height="44" />
+			<ui:Label name="selection-detail-empty" text="No items stored." class="selection-detail-panel__empty" />
+		</ui:VisualElement>
+		<ui:VisualElement name="selection-card" class="selection-card" picking-mode="Position">
+			<ui:VisualElement class="selection-card__accent" picking-mode="Ignore" />
+			<ui:VisualElement class="selection-card__header">
+				<ui:Image name="selection-card-icon" class="selection-card__icon" picking-mode="Ignore" />
+				<ui:VisualElement class="selection-card__identity">
+					<ui:Label name="selection-card-title" text="Selection" class="selection-card__title" />
+					<ui:Label name="selection-card-subtitle" text="Target" class="selection-card__subtitle" />
+				</ui:VisualElement>
+			</ui:VisualElement>
+			<ui:VisualElement class="selection-card__divider" picking-mode="Ignore" />
+			<ui:VisualElement name="selection-card-info-list" class="selection-card__info-list" />
+			<ui:VisualElement name="selection-card-inspector" class="selection-card__inspector">
+				<ui:VisualElement name="selection-card-detail-tabs" class="selection-card__detail-tabs" />
+				<ui:Label text="OVERVIEW" class="selection-card__section-title" />
+				<ui:VisualElement name="selection-card-overview-list" class="selection-card__overview-list" />
+				<ui:Label text="ACTIONS" class="selection-card__section-title selection-card__section-title--actions" />
+				<ui:VisualElement name="selection-card-context-actions" class="selection-card__context-actions" />
+			</ui:VisualElement>
+			<ui:VisualElement class="selection-card__actions">
+				<ui:Button name="selection-card-focus-button" text="Focus" class="selection-card__button" />
+				<ui:Button name="selection-card-details-button" text="Details" class="selection-card__button selection-card__button--primary" />
 			</ui:VisualElement>
 		</ui:VisualElement>
 	</ui:VisualElement>

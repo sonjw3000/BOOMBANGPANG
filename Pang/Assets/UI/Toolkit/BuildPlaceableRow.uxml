@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<ui:VisualElement class="build-placeable-row">
+		<ui:VisualElement name="build-placeable-icon" class="build-placeable-row__icon" />
+		<ui:VisualElement class="build-placeable-row__identity">
+			<ui:Label name="build-placeable-name" text="Facility" class="build-placeable-row__name" />
+			<ui:Label name="build-placeable-type" text="Other" class="build-placeable-row__subtext" />
+		</ui:VisualElement>
+		<ui:Label name="build-placeable-size" text="1 × 1" class="build-placeable-row__value" />
+		<ui:Label name="build-placeable-environment" text="Indoor" class="build-placeable-row__environment" />
+		<ui:Label name="build-placeable-cost" text="$0" class="build-placeable-row__cost" />
+		<ui:Button name="build-placeable-button" text="Place" class="build-placeable-row__button" />
+	</ui:VisualElement>
+</ui:UXML>

@@ -149,6 +149,11 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		if (RocketService != null)
 			RocketService.InboundRocketLanded += OnInboundRocketLanded;
+		if (AreaManager != null)
+		{
+			AreaManager.OnAreaChanged += HandleAreaChanged;
+			AreaManager.OnAreaRemoved += HandleAreaChanged;
+		}
 
 		TryEnqueueActiveRocketUnloadingTasks();
 	}
@@ -165,6 +170,17 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		if (RocketService != null)
 			RocketService.InboundRocketLanded -= OnInboundRocketLanded;
+		if (AreaManager != null)
+		{
+			AreaManager.OnAreaChanged -= HandleAreaChanged;
+			AreaManager.OnAreaRemoved -= HandleAreaChanged;
+		}
+	}
+
+	private void HandleAreaChanged(Area area)
+	{
+		if (area != null && area.Type == AreaType.RocketLanding)
+			TryEnqueueActiveRocketUnloadingTasks();
 	}
 
 	private void Update()
@@ -208,11 +224,16 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			return null;
 
 		FacilityFilter facilityFilter = FacilityFilter.ForContainer(rocket.DockedCapsule);
+		uint destinationBuildingId = requestedBuildingId != 0
+			? requestedBuildingId
+			: ResolveUnloadingDestinationBuildingId(rocket);
+		if (destinationBuildingId == 0)
+			return null;
 
 		return CargoPortService.FindClosestAvailablePort(
 			rocket.GridPosition,
 			InteractionKind.Put,
-			requestedBuildingId,
+			destinationBuildingId,
 			facilityFilter,
 			predicate: candidate => candidate is InboundCargoPort);
 	}
@@ -221,6 +242,14 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		if (rocket == null || TaskMgr == null)
 			return;
+
+		uint destinationBuildingId = ResolveUnloadingDestinationBuildingId(rocket);
+		if (destinationBuildingId == 0)
+		{
+			if (GameContext.HasInstance)
+				GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(rocket);
+			return;
+		}
 
 		rocket.DockedCapsule?.SetLogisticsState(CapsuleLogisticsState.IB);
 
@@ -231,8 +260,20 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			CapsuleDockState.IBStandby,
 			CapsuleRelocateScope.LinkedBuilding,
 			0,
-			unloadingDestinationBuildingId,
+			destinationBuildingId,
 			EnqueueRocketUnloadTask));
+	}
+
+	private uint ResolveUnloadingDestinationBuildingId(Rocket rocket)
+	{
+		if (rocket != null && AreaManager != null &&
+			AreaManager.TryGetAreaAt(rocket.LandingPos, out Area landingArea) &&
+			landingArea != null && landingArea.Type == AreaType.RocketLanding && landingArea.DestinationBuildingId != 0)
+		{
+			return landingArea.DestinationBuildingId;
+		}
+
+		return 0;
 	}
 
 	private bool EnqueueRocketUnloadTask(CapsuleRelocateMatch match)

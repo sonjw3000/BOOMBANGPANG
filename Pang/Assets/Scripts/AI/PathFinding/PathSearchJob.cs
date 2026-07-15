@@ -70,6 +70,9 @@ public class PathRequest
 	public readonly int3 startPosition;
 	public readonly int3 endPosition;
 	public readonly FacingDirection startFacingDirection;
+	public readonly Action<PathResultBuffer> Completed;
+	public readonly bool IncludeCongestion;
+	public readonly Func<int3, bool> CanTraverseBlockedCell;
 
 	public readonly int MovementCost;
 	public readonly int RotationCost;
@@ -84,12 +87,30 @@ public class PathRequest
 		this.endPosition = endPosition;
 		this.startFacingDirection = startFacingDirection;
 		this.AvoidTarget = avoidTarget;
+		Completed = null;
+		IncludeCongestion = true;
+		CanTraverseBlockedCell = null;
 
 		MovementCost = 1;
 		RotationCost = 2;
 
 		//MovementCost = (int)((1.0f / target.GetMovementSpeed()) * 100.0f);
 		//RotationCost = (int)((90.0f / target.GetRotationSpeed()) * 100.0f);
+	}
+
+	public PathRequest(int3 startPosition, int3 endPosition, FacingDirection startFacingDirection,
+		Action<PathResultBuffer> completed, Func<int3, bool> canTraverseBlockedCell = null)
+	{
+		target = null;
+		this.startPosition = startPosition;
+		this.endPosition = endPosition;
+		this.startFacingDirection = startFacingDirection;
+		AvoidTarget = null;
+		Completed = completed;
+		IncludeCongestion = false;
+		CanTraverseBlockedCell = canTraverseBlockedCell;
+		MovementCost = 1;
+		RotationCost = 2;
 	}
 
 	public static LocalGrid BuildLocalGrid(in int3 start, in int3 end, int margin)
@@ -296,10 +317,11 @@ public sealed class PathSearchJob
 	{
 		if (GridService.IsBlocked(pos))
 		{
+			bool canTraverseBlockedCell = request.CanTraverseBlockedCell != null && request.CanTraverseBlockedCell(pos);
 			// SubPath 요청인 경우, 최종 목적지(endPosition)가 점유(예약)되어 있더라도 탐색을 허용합니다.
 			// 우회 경로의 목적지는 원래 유효했던 경로의 노드이므로 정적 장애물일 가능성이 없으며,
 			// 타일 예약으로 인해 경로 탐색이 실패하여 무한 루프에 빠지는 것을 방지하기 위한 조치입니다.
-			if (!(request.IsSubPathRequest && math.all(pos == request.endPosition)))
+			if (canTraverseBlockedCell == false && !(request.IsSubPathRequest && math.all(pos == request.endPosition)))
 				return;
 		}
 
@@ -345,11 +367,13 @@ public sealed class PathSearchJob
 		// 모든 노드의 이동 비용은 동일하나 rotation시간의 뭐시기가 더 들어감
 		int distanceCost = request.MovementCost;
 		int rotationCost = rotationAmount * request.RotationCost;
-		int congestionCost = GridService.GetPlannedPathCongestionCost(
-			node,
-			request.target,
-			PathFinding.PlannedPathCongestionCost,
-			PathFinding.StalePlannedPathCongestionCost);
+		int congestionCost = request.IncludeCongestion
+			? GridService.GetPlannedPathCongestionCost(
+				node,
+				request.target,
+				PathFinding.PlannedPathCongestionCost,
+				PathFinding.StalePlannedPathCongestionCost)
+			: 0;
 		return distanceCost + rotationCost + congestionCost;
 	}
 
@@ -419,7 +443,16 @@ public sealed class PathSearchJob
 	public void SetPath()
 	{
 		var result = BuildResult();
-		request.target.OnPathFound(result);
+		if (request.Completed != null)
+		{
+			request.Completed(result);
+			return;
+		}
+
+		if (request.target != null)
+			request.target.OnPathFound(result);
+		else
+			result.Clear();
 	}
 }
 
@@ -661,4 +694,3 @@ public class PathResultBuffer
 		currentNode = null;
 	}
 }
-
