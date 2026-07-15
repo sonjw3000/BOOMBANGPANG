@@ -16,7 +16,7 @@ public enum AirlockState
 	Blocked,
 }
 
-public sealed class Airlock : ItemInteraction
+public sealed class Airlock : ItemInteraction, IFacilityUserRemovalGuard
 {
 	[SerializeField] private float entryDelaySeconds = 3.0f;
 	[SerializeField] private float transitMoveSpeed = 2.5f;
@@ -102,6 +102,20 @@ public sealed class Airlock : ItemInteraction
 	public override void OnRemoved()
 	{
 		Release(null);
+	}
+
+	public bool CanUserRemove(out FacilityRemovalFailure failure)
+	{
+		if (state != AirlockState.Idle || reservedWorker != null)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.InTransit,
+				"Wait for the airlock transit to finish before removing it.");
+			return false;
+		}
+
+		failure = FacilityRemovalFailure.None;
+		return true;
 	}
 
 	private IEnumerator EntryRoutine(AIWorker worker)

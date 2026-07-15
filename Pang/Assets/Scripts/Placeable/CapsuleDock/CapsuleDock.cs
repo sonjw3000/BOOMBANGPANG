@@ -11,7 +11,7 @@ public enum CapsuleDockState
 	InboundSource = 5,
 }
 
-public abstract class CapsuleDock : BoxInteraction
+public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
 {
 	protected CargoCapsule dockedCapsule = null;
 
@@ -115,6 +115,20 @@ public abstract class CapsuleDock : BoxInteraction
 
 	public override void OnRemoved()
 	{
+	}
+
+	public virtual bool CanUserRemove(out FacilityRemovalFailure failure)
+	{
+		if (HasCapsule)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.ContainsCapsule,
+				"Undock the capsule before removing this facility.");
+			return false;
+		}
+
+		failure = FacilityRemovalFailure.None;
+		return true;
 	}
 
 	protected virtual void OnDockedCapsuleChanged()

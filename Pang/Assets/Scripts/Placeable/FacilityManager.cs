@@ -53,8 +53,10 @@ public partial class FacilityManager : MonoBehaviour
 	// if uid == 0, outside of buildingß
 	private readonly Dictionary<uint, BuildingFacilityIndex> buildingFacilities = new();
 	private readonly Dictionary<IFacility, uint> facilityBuildingIds = new();
+	private readonly HashSet<IFacility> invalidatingFacilities = new();
 
-	
+	public event Action<IFacility, FacilityInvalidationContext> OnFacilityInvalidating;
+
 	public delegate void OnRegisterFacilityCallback(uint buildingId, IFacility facility);
 	public delegate void OnUnregisterFacilityCallback(uint buildingId, IFacility facility);
 
@@ -110,6 +112,7 @@ public partial class FacilityManager : MonoBehaviour
 			return;
 
 		facilityBuildingIds[facility] = buildingId;
+		invalidatingFacilities.Remove(facility);
 
 		Type runtimeType = facility.GetType();
 
@@ -130,6 +133,7 @@ public partial class FacilityManager : MonoBehaviour
 			return;
 
 		facilityBuildingIds.Remove(facility);
+		invalidatingFacilities.Remove(facility);
 
 		Type runtimeType = facility.GetType();
 
@@ -164,6 +168,117 @@ public partial class FacilityManager : MonoBehaviour
 		return facilityBuildingIds.TryGetValue(facility, out buildingId);
 	}
 
+	public bool IsInvalidating(IFacility facility)
+	{
+		return facility != null && invalidatingFacilities.Contains(facility);
+	}
+
+	public bool TryRemoveFacility(IFacility facility)
+	{
+		return TryRemoveFacility(facility, out _);
+	}
+
+	public bool TryRemoveFacility(IFacility facility, out FacilityRemovalFailure failure)
+	{
+		if (TryValidateRemovalTarget(facility, out _, out failure) == false)
+			return false;
+
+		if (facility is IFacilityUserRemovalGuard guard && guard.CanUserRemove(out failure) == false)
+			return false;
+
+		return InvalidateAndRemove(facility, FacilityInvalidationContext.UserRemoval(), out failure);
+	}
+
+	public bool DestroyFacility(IFacility facility, in DestroyContext destroyContext)
+	{
+		if (TryValidateRemovalTarget(facility, out _, out _) == false)
+			return false;
+
+		return InvalidateAndRemove(
+			facility,
+			FacilityInvalidationContext.Destroyed(destroyContext),
+			out _);
+	}
+
+	private bool InvalidateAndRemove(
+		IFacility facility,
+		FacilityInvalidationContext context,
+		out FacilityRemovalFailure failure)
+	{
+		failure = FacilityRemovalFailure.None;
+		if (invalidatingFacilities.Add(facility) == false)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.AlreadyInvalidating,
+				"Facility removal is already in progress.");
+			return false;
+		}
+
+		try
+		{
+			OnFacilityInvalidating?.Invoke(facility, context);
+
+			if (context.IsDestroyed)
+			{
+				DestroyContext destroyContext = context.DestroyContext;
+				facility.OnDestroyedBy(in destroyContext);
+			}
+
+			if (facility is not Component component ||
+				GameContext.HasInstance == false ||
+				GameContext.Instance.GridService == null ||
+				GameContext.Instance.GridService.OnRemove(component.gameObject) == false)
+			{
+				failure = new FacilityRemovalFailure(
+					FacilityRemovalFailureReason.GridRemovalFailed,
+					"Facility could not be removed from the grid.");
+				return false;
+			}
+
+			return true;
+		}
+		finally
+		{
+			invalidatingFacilities.Remove(facility);
+		}
+	}
+
+	private bool TryValidateRemovalTarget(
+		IFacility facility,
+		out Component component,
+		out FacilityRemovalFailure failure)
+	{
+		component = facility as Component;
+		failure = FacilityRemovalFailure.None;
+
+		if (component == null || facilityBuildingIds.ContainsKey(facility) == false)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.NotRegistered,
+				"Facility is not registered.");
+			return false;
+		}
+
+		if (invalidatingFacilities.Contains(facility))
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.AlreadyInvalidating,
+				"Facility removal is already in progress.");
+			return false;
+		}
+
+		GridService gridService = GameContext.HasInstance ? GameContext.Instance.GridService : null;
+		if (gridService == null || gridService.IsPlacedObject(component.gameObject) == false)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.NotPlaced,
+				"Facility is not placed on the grid.");
+			return false;
+		}
+
+		return true;
+	}
+
 	public IReadOnlyList<T> GetFacilities<T>(uint buildingId) where T : class, IFacility
 	{
 		TryGetFacilities(buildingId, out IReadOnlyList<T> facilities);
@@ -186,7 +301,7 @@ public partial class FacilityManager : MonoBehaviour
 			{
 				for (int i = 0; i < kvp.Value.Count; ++i)
 				{
-					if (kvp.Value[i] is T facility)
+					if (kvp.Value[i] is T facility && invalidatingFacilities.Contains(facility) == false)
 						typedFacilities.Add(facility);
 				}
 			}

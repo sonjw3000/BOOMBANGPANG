@@ -4,5 +4,6 @@ public partial class FacilityManager
 	{
 		buildingFacilities.Clear();
 		facilityBuildingIds.Clear();
+		invalidatingFacilities.Clear();
 	}
 }

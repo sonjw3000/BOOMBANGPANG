@@ -6,7 +6,8 @@ using UnityEngine;
 // box base를 보관하는 타일 단 하나
 
 public partial class BoxPool : 
-	BoxInteraction
+	BoxInteraction,
+	IFacilityUserRemovalGuard
 {
 	[SerializeField] private int maxStack = 50;
 	[SerializeField] private GameObject boxStackPos;
@@ -71,6 +72,20 @@ public partial class BoxPool :
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
 
+	}
+
+	public bool CanUserRemove(out FacilityRemovalFailure failure)
+	{
+		if (boxes.Count > 0)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.ContainsBox,
+				"Remove all boxes before removing this facility.");
+			return false;
+		}
+
+		failure = FacilityRemovalFailure.None;
+		return true;
 	}
 
 	private void HandleStoredBoxInvalidated(BoxBase box)

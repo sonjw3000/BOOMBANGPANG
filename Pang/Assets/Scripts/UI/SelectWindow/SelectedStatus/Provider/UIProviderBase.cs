@@ -29,7 +29,21 @@ public abstract class UIProviderBase
 
 	public virtual void DeleteObject()
 	{
-		if (linkedObject == null) return;
+		if (linkedObject == null || GameContext.HasInstance == false)
+			return;
+
+		if (linkedObject.TryGetComponent<IFacility>(out var facility))
+		{
+			if (GameContext.Instance.FacilityMgr.TryRemoveFacility(facility, out FacilityRemovalFailure failure))
+				return;
+
+			Debug.LogWarning($"Cannot remove facility {linkedObject.name}: {failure.Reason} - {failure.Message}");
+			GameContext.Instance.FloatingTextManager?.ShowScreen(
+				FloatingTextPreset.Error,
+				failure.Message,
+				Input.mousePosition);
+			return;
+		}
 
 		var grid = linkedObject.GetComponent<IGridPlaceable>();
 

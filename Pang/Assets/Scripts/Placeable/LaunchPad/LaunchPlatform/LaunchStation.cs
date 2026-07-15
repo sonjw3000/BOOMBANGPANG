@@ -12,6 +12,7 @@ public partial class LaunchStation
 	, IFacility
 	, IGridPlacementEffect
 	, IInteractionPoint
+	, IFacilityUserRemovalGuard
 {
 	[SerializeField] private uint facilityRulePresetId;
 	[SerializeField, Min(0)] private int powerConsumption;
@@ -129,6 +130,38 @@ public partial class LaunchStation
 
 	public void OnDestroyedBy(in DestroyContext ctx)
 	{
+	}
+
+	public bool CanUserRemove(out FacilityRemovalFailure failure)
+	{
+		for (int i = 0; i < addons.Count; ++i)
+		{
+			PlatformAddon addon = addons[i];
+			if (addon is LaunchPadAddon launchPad && launchPad.CargoToLaunch != null)
+			{
+				failure = new FacilityRemovalFailure(
+					FacilityRemovalFailureReason.ContainsBox,
+					"Remove launch cargo before removing this facility.");
+				return false;
+			}
+
+			if (addon is not CargoStorageAddon storage)
+				continue;
+
+			foreach (BoxBase cargo in storage.CargosToLaunch)
+			{
+				if (cargo == null)
+					continue;
+
+				failure = new FacilityRemovalFailure(
+					FacilityRemovalFailureReason.ContainsBox,
+					"Remove stored cargo before removing this facility.");
+				return false;
+			}
+		}
+
+		failure = FacilityRemovalFailure.None;
+		return true;
 	}
 
 	public bool IsInteractionAvailable(InteractionKind interactionKind)

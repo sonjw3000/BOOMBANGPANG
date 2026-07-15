@@ -19,7 +19,8 @@ public class BoxWithOrder
 
 public partial class PackingStation :
 	BoxInteraction,
-	IItemContainer
+	IItemContainer,
+	IFacilityUserRemovalGuard
 {
 	[SerializeField] Transform waitStackSlot = null;
 	[SerializeField] Transform packingSlot = null;
@@ -135,6 +136,44 @@ public partial class PackingStation :
 
 	public override void OnRemoved()
 	{
+	}
+
+	public bool CanUserRemove(out FacilityRemovalFailure failure)
+	{
+		if (currentPackingWorker != null)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.WorkerIsUsing,
+				"A worker is using this facility.");
+			return false;
+		}
+
+		if (incomingPickingWorker != null)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.HasReservation,
+				"An incoming worker has reserved this facility.");
+			return false;
+		}
+
+		if (waitStackBox != null || currentPackingBox != null || endPackingBox != null)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.ContainsBox,
+				"Remove all boxes before removing this facility.");
+			return false;
+		}
+
+		if (packedItems.Count > 0)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.ContainsItems,
+				"Remove all packed items before removing this facility.");
+			return false;
+		}
+
+		failure = FacilityRemovalFailure.None;
+		return true;
 	}
 
 	public bool CanRequestIncomingBox()

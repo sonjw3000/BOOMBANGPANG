@@ -866,11 +866,16 @@ public partial class GridService : MonoBehaviour
 
 			Debug.Log($"[GridService] Override triggered: target={targetName}, targetDef={targetCategory}, overriddenBy={overridingName}, overridingObject={overridingObjectName}");
 
-			if (target.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
+			DestroyContext ctx = DestroyContext.ForOverride(overridingDefinition, overridingObject);
+			if (target.TryGetComponent<IFacility>(out var facility) &&
+				FacilityManager != null &&
+				FacilityManager.DestroyFacility(facility, in ctx))
 			{
-				DestroyContext ctx = DestroyContext.ForOverride(overridingDefinition, overridingObject);
-				gridPlaceable.OnDestroyedBy(in ctx);
+				continue;
 			}
+
+			if (target.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
+				gridPlaceable.OnDestroyedBy(in ctx);
 
 			OnRemove(target);
 		}

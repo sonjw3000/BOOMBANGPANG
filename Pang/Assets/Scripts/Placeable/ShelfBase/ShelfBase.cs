@@ -9,7 +9,8 @@ using UnityEngine;
 public abstract partial class ShelfBase :
 	ItemInteraction,
 	IItemContainer,
-	IItemPickReservable
+	IItemPickReservable,
+	IFacilityUserRemovalGuard
 {
 	[SerializeField] protected int maxStacks = 16;
 	[SerializeField] protected float sizePerStack;
@@ -367,6 +368,31 @@ public abstract partial class ShelfBase :
 	}
 
 	protected virtual void OnDestroyedByCore(in DestroyContext ctx) { }
+
+	public bool CanUserRemove(out FacilityRemovalFailure failure)
+	{
+		if (stacks != null && stacks.Count > 0)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.ContainsItems,
+				"Move all items before removing this facility.");
+			return false;
+		}
+
+		foreach (int reservedQuantity in itemsReservedPick.Values)
+		{
+			if (reservedQuantity <= 0)
+				continue;
+
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.HasReservation,
+				"Release all item reservations before removing this facility.");
+			return false;
+		}
+
+		failure = FacilityRemovalFailure.None;
+		return true;
+	}
 
 	public int ReservePicking(uint itemId, int quantity)
 	{
