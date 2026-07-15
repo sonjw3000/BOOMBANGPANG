@@ -6,6 +6,7 @@
 			<ui:Button name="build-buildings-button" text="Buildings" class="build-tab-button" />
 			<ui:Button name="build-facilities-button" text="Facilities" class="build-tab-button" />
 			<ui:Button name="build-rules-button" text="Rules" class="build-tab-button" />
+			<ui:Button name="build-routing-button" text="Routing" class="build-tab-button" />
 		</ui:VisualElement>
 		<ui:ScrollView name="build-buildings-tab" mode="VerticalAndHorizontal" class="build-tab build-buildings-scroll">
 			<ui:VisualElement class="build-buildings-body">
@@ -121,6 +122,27 @@
 					<ui:Button name="rule-editor-cancel" text="Cancel" class="rule-editor-small-button" />
 				</ui:VisualElement>
 			</ui:ScrollView>
+		</ui:VisualElement>
+		<ui:VisualElement name="build-routing-tab" class="build-tab build-routing">
+			<ui:VisualElement class="build-routing-toolbar">
+				<ui:VisualElement class="build-routing-toolbar__text">
+					<ui:Label text="Logistics connectivity" class="build-heading" />
+					<ui:Label text="All configured connections are drawn automatically while this tab is open." class="build-caption" />
+				</ui:VisualElement>
+				<ui:Button name="build-routing-link-button" text="Link Buildings" class="build-primary-button build-routing-link-button" />
+			</ui:VisualElement>
+			<ui:VisualElement class="build-routing-legend">
+				<ui:VisualElement class="build-routing-legend__item">
+					<ui:VisualElement class="build-routing-legend__color build-routing-legend__color--landing" />
+					<ui:Label text="Landing → Building" class="build-routing-legend__label" />
+				</ui:VisualElement>
+				<ui:VisualElement class="build-routing-legend__item">
+					<ui:VisualElement class="build-routing-legend__color build-routing-legend__color--building" />
+					<ui:Label text="Building → Building" class="build-routing-legend__label" />
+				</ui:VisualElement>
+			</ui:VisualElement>
+			<ui:Label name="build-routing-summary" text="0 connections · 0 visible paths" class="build-routing-summary" />
+			<ui:Label name="build-routing-message" text="Open this tab to calculate routes." class="build-message" />
 		</ui:VisualElement>
 	</ui:VisualElement>
 </ui:UXML>

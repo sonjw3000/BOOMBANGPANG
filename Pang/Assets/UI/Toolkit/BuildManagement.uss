@@ -63,3 +63,14 @@
 .rule-editor-small-button { min-width: 90px; height: 24px; margin-right: 4px; font-size: 8px; color: rgb(210, 226, 232); background-color: rgb(43, 70, 82); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(74, 104, 119); border-right-color: rgb(74, 104, 119); border-top-color: rgb(74, 104, 119); border-bottom-color: rgb(74, 104, 119); }
 .rule-editor-summary { margin-top: 5px; margin-bottom: 2px; font-size: 8px; color: rgb(181, 201, 210); white-space: normal; }
 .rule-editor-footer { flex-direction: row; margin-top: 14px; margin-bottom: 10px; }
+.build-routing { padding-top: 2px; }
+.build-routing-toolbar { min-height: 42px; flex-direction: row; align-items: flex-start; }
+.build-routing-toolbar__text { flex-grow: 1; }
+.build-routing-link-button { width: 104px; margin-top: 1px; }
+.build-routing-legend { flex-direction: row; margin-top: 8px; margin-bottom: 12px; }
+.build-routing-legend__item { flex-direction: row; align-items: center; margin-right: 18px; }
+.build-routing-legend__color { width: 18px; height: 10px; margin-right: 5px; }
+.build-routing-legend__color--landing { background-color: rgb(255, 135, 36); }
+.build-routing-legend__color--building { background-color: rgb(51, 209, 110); }
+.build-routing-legend__label { font-size: 9px; color: rgb(184, 204, 213); }
+.build-routing-summary { width: 390px; min-height: 48px; padding: 10px; font-size: 11px; -unity-font-style: bold; color: rgb(224, 235, 240); background-color: rgb(28, 38, 46); border-left-width: 2px; border-left-color: rgb(74, 136, 158); }

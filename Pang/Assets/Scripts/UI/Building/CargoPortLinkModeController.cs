@@ -51,6 +51,14 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 	public Building SourceBuilding => sourceBuilding;
 	public string StatusText => BuildStatusText();
 	public bool HasStatusMessage => string.IsNullOrWhiteSpace(lastStatusMessage) == false;
+	public event System.Action StateChanged;
+	public event System.Action<Building, Building> LinkCreated;
+
+	public void Configure(GameObject targetOverlayQuadPrefab, GameObject targetOverlayLabelPrefab)
+	{
+		overlayQuadPrefab = targetOverlayQuadPrefab;
+		overlayLabelPrefab = targetOverlayLabelPrefab;
+	}
 
 	private void Awake()
 	{
@@ -101,6 +109,18 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		lastStatusMessage = string.Empty;
 		Interaction?.EnterBuildingLinkMode();
 		RefreshOverlay();
+		StateChanged?.Invoke();
+		return true;
+	}
+
+	public bool BeginLinkEdit()
+	{
+		sourceBuilding = null;
+		isEditing = true;
+		lastStatusMessage = string.Empty;
+		Interaction?.EnterBuildingLinkMode();
+		RefreshOverlay();
+		StateChanged?.Invoke();
 		return true;
 	}
 
@@ -137,19 +157,31 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 
 		if (sourceBuilding == null)
 		{
-			lastStatusMessage = "Select a source building before linking.";
+			if (HasOutboundPorts(targetBuilding) == false)
+			{
+				lastStatusMessage = $"{targetBuilding.DisplayName} has no outbound cargo ports.";
+				StateChanged?.Invoke();
+				return true;
+			}
+
+			sourceBuilding = targetBuilding;
+			lastStatusMessage = $"Source set to {sourceBuilding.DisplayName}. Select a target building with inbound cargo ports.";
+			RefreshOverlay();
+			StateChanged?.Invoke();
 			return true;
 		}
 
 		if (targetBuilding == sourceBuilding)
 		{
 			lastStatusMessage = "Select a different building as the target.";
+			StateChanged?.Invoke();
 			return true;
 		}
 
 		if (HasInboundPorts(targetBuilding) == false)
 		{
 			lastStatusMessage = $"{targetBuilding.DisplayName} has no inbound cargo ports.";
+			StateChanged?.Invoke();
 			return true;
 		}
 
@@ -159,12 +191,14 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		if (BuildingManager.CanLinkBuildings(sourceBuilding, targetBuilding, out string reason) == false)
 		{
 			lastStatusMessage = reason;
+			StateChanged?.Invoke();
 			return true;
 		}
 
 		if (BuildingManager.TryLinkBuildings(sourceBuilding, targetBuilding))
 		{
 			lastStatusMessage = $"Linked {sourceBuilding.DisplayName} -> {targetBuilding.DisplayName}. Select another target building or right click to finish.";
+			LinkCreated?.Invoke(sourceBuilding, targetBuilding);
 			Interaction?.ClearSelection();
 		}
 		else
@@ -173,17 +207,38 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 		}
 
 		RefreshOverlay();
+		StateChanged?.Invoke();
 		return true;
 	}
 
 	private void RefreshOverlay()
 	{
 		ClearOverlay();
-		if (isEditing == false || sourceBuilding == null || Interaction == null || Interaction.Mode != InteractionContext.InteractionMode.BuildingLinkEdit)
+		if (isEditing == false || Interaction == null || Interaction.Mode != InteractionContext.InteractionMode.BuildingLinkEdit)
 			return;
 
-		CreateSourceBuildingMarker();
-		CreateTargetBuildingMarkers();
+		if (sourceBuilding == null)
+			CreateSourceBuildingMarkers();
+		else
+		{
+			CreateSourceBuildingMarker();
+			CreateTargetBuildingMarkers();
+		}
+	}
+
+	private void CreateSourceBuildingMarkers()
+	{
+		if (BuildingManager == null)
+			return;
+
+		LinkMarkerVisualConfig visual = GetMarkerVisual(LinkMarkerType.SourcePort);
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			Building building = buildings[i];
+			if (building != null && HasOutboundPorts(building))
+				CreateBuildingMarker(building, visual, building.DisplayName);
+		}
 	}
 
 	private void CreateSourceBuildingMarker()
@@ -339,7 +394,7 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			return "Select a building, then start building linking.";
 
 		if (sourceBuilding == null)
-			return "Select a source building to begin linking buildings.";
+			return "Select a source building with outbound cargo ports.";
 
 		return $"Select an output target building for {sourceBuilding.DisplayName}.";
 	}
@@ -353,6 +408,8 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 
 		if (exitInteractionMode && Interaction != null && Interaction.Mode == InteractionContext.InteractionMode.BuildingLinkEdit)
 			Interaction.ExitBuildingLinkMode();
+
+		StateChanged?.Invoke();
 	}
 
 	private void EnsureOverlayRoot()

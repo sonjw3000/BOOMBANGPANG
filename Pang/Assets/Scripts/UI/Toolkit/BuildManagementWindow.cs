@@ -25,12 +25,19 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualTreeAsset placeableRowTemplate;
 		private VisualTreeAsset ruleRowTemplate;
 		private BuildingPlacementOverlayController buildingPlacementOverlay;
+		private RoutingConnectivityOverlayController routingOverlay;
+		private CargoPortLinkModeController buildingLinkController;
 		private Button buildingsButton;
 		private Button facilitiesButton;
 		private Button rulesButton;
+		private Button routingButton;
 		private VisualElement buildingsTab;
 		private VisualElement facilitiesTab;
 		private VisualElement rulesTab;
+		private VisualElement routingTab;
+		private Label routingSummary;
+		private Label routingMessage;
+		private Button routingLinkButton;
 		private DropdownField buildingTypeField;
 		private DropdownField footprintField;
 		private Label buildingSelectionName;
@@ -75,16 +82,21 @@ namespace UniverseLogistics.UI.Toolkit
 		private FacilityRuleManager ruleManager;
 		private bool initialized;
 		private bool started;
+		private int selectedTabIndex;
 
 		public void Configure(UIWindow targetWindow, VisualTreeAsset targetContentTemplate,
 			VisualTreeAsset targetPlaceableRowTemplate, VisualTreeAsset targetRuleRowTemplate,
-			BuildingPlacementOverlayController targetBuildingPlacementOverlay)
+			BuildingPlacementOverlayController targetBuildingPlacementOverlay,
+			RoutingConnectivityOverlayController targetRoutingOverlay,
+			CargoPortLinkModeController targetBuildingLinkController)
 		{
 			window = targetWindow;
 			contentTemplate = targetContentTemplate;
 			placeableRowTemplate = targetPlaceableRowTemplate;
 			ruleRowTemplate = targetRuleRowTemplate;
 			buildingPlacementOverlay = targetBuildingPlacementOverlay;
+			routingOverlay = targetRoutingOverlay;
+			buildingLinkController = targetBuildingLinkController;
 		}
 
 		private void OnEnable()
@@ -107,6 +119,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private void OnDisable()
 		{
 			EndApplyMode();
+			buildingLinkController?.EndLinkEdit();
+			routingOverlay?.SetVisible(false);
 			UnbindControls();
 			UnbindServices();
 			initialized = false;
@@ -134,9 +148,14 @@ namespace UniverseLogistics.UI.Toolkit
 			buildingsButton = content.Q<Button>("build-buildings-button");
 			facilitiesButton = content.Q<Button>("build-facilities-button");
 			rulesButton = content.Q<Button>("build-rules-button");
+			routingButton = content.Q<Button>("build-routing-button");
 			buildingsTab = content.Q<VisualElement>("build-buildings-tab");
 			facilitiesTab = content.Q<VisualElement>("build-facilities-tab");
 			rulesTab = content.Q<VisualElement>("build-rules-tab");
+			routingTab = content.Q<VisualElement>("build-routing-tab");
+			routingSummary = content.Q<Label>("build-routing-summary");
+			routingMessage = content.Q<Label>("build-routing-message");
+			routingLinkButton = content.Q<Button>("build-routing-link-button");
 			buildingTypeField = content.Q<DropdownField>("building-type-field");
 			footprintField = content.Q<DropdownField>("building-footprint-field");
 			buildingSelectionName = content.Q<Label>("building-selection-name");
@@ -167,8 +186,8 @@ namespace UniverseLogistics.UI.Toolkit
 			whiteListSummary = content.Q<Label>("rule-whitelist-summary");
 			blackListSummary = content.Q<Label>("rule-blacklist-summary");
 
-			if (buildingsButton == null || facilitiesButton == null || rulesButton == null || buildingsTab == null ||
-				facilitiesTab == null || rulesTab == null ||
+			if (buildingsButton == null || facilitiesButton == null || rulesButton == null || routingButton == null || buildingsTab == null ||
+				facilitiesTab == null || rulesTab == null || routingTab == null || routingSummary == null || routingMessage == null || routingLinkButton == null ||
 				buildingTypeField == null || footprintField == null || buildingSelectionName == null ||
 				buildingSelectionDetails == null || buildingMessage == null || createBuildingButton == null ||
 				categoryList == null || catalogTitle == null || catalogMessage == null || placeableList == null ||
@@ -185,6 +204,16 @@ namespace UniverseLogistics.UI.Toolkit
 			buildingsButton.clicked += OpenBuildings;
 			facilitiesButton.clicked += OpenFacilities;
 			rulesButton.clicked += OpenRules;
+			routingButton.clicked += OpenRouting;
+			routingLinkButton.clicked += ToggleBuildingLinkMode;
+			window.Opened += OnWindowOpened;
+			window.Closed += OnWindowClosed;
+			if (routingOverlay != null) routingOverlay.PathsChanged += RefreshRoutingSummary;
+			if (buildingLinkController != null)
+			{
+				buildingLinkController.StateChanged += RefreshRoutingSummary;
+				buildingLinkController.LinkCreated += OnBuildingLinkCreated;
+			}
 			createBuildingButton.clicked += BeginBuildingPlacement;
 			createRuleButton.clicked += CreateRule;
 			buildingTypeField.choices = BuildTypeChoices();
@@ -203,6 +232,19 @@ namespace UniverseLogistics.UI.Toolkit
 			if (buildingsButton != null) buildingsButton.clicked -= OpenBuildings;
 			if (facilitiesButton != null) facilitiesButton.clicked -= OpenFacilities;
 			if (rulesButton != null) rulesButton.clicked -= OpenRules;
+			if (routingButton != null) routingButton.clicked -= OpenRouting;
+			if (routingLinkButton != null) routingLinkButton.clicked -= ToggleBuildingLinkMode;
+			if (window != null)
+			{
+				window.Opened -= OnWindowOpened;
+				window.Closed -= OnWindowClosed;
+			}
+			if (routingOverlay != null) routingOverlay.PathsChanged -= RefreshRoutingSummary;
+			if (buildingLinkController != null)
+			{
+				buildingLinkController.StateChanged -= RefreshRoutingSummary;
+				buildingLinkController.LinkCreated -= OnBuildingLinkCreated;
+			}
 			if (createBuildingButton != null) createBuildingButton.clicked -= BeginBuildingPlacement;
 			if (createRuleButton != null) createRuleButton.clicked -= CreateRule;
 			buildingTypeField?.UnregisterValueChangedCallback(OnBuildingSelectionChanged);
@@ -248,15 +290,50 @@ namespace UniverseLogistics.UI.Toolkit
 		private void OpenBuildings() => SelectTab(0);
 		private void OpenFacilities() => SelectTab(1);
 		private void OpenRules() => SelectTab(2);
+		private void OpenRouting() => SelectTab(3);
 
 		private void SelectTab(int index)
 		{
+			if (index != 3) buildingLinkController?.EndLinkEdit();
+			selectedTabIndex = index;
 			buildingsTab.style.display = index == 0 ? DisplayStyle.Flex : DisplayStyle.None;
 			facilitiesTab.style.display = index == 1 ? DisplayStyle.Flex : DisplayStyle.None;
 			rulesTab.style.display = index == 2 ? DisplayStyle.Flex : DisplayStyle.None;
+			routingTab.style.display = index == 3 ? DisplayStyle.Flex : DisplayStyle.None;
 			buildingsButton.EnableInClassList(SelectedTabClass, index == 0);
 			facilitiesButton.EnableInClassList(SelectedTabClass, index == 1);
 			rulesButton.EnableInClassList(SelectedTabClass, index == 2);
+			routingButton.EnableInClassList(SelectedTabClass, index == 3);
+			routingOverlay?.SetVisible(index == 3 && window != null && window.IsOpen);
+			RefreshRoutingSummary();
+		}
+
+		private void OnWindowOpened()
+		{
+			routingOverlay?.SetVisible(selectedTabIndex == 3);
+			RefreshRoutingSummary();
+		}
+
+		private void OnWindowClosed()
+		{
+			buildingLinkController?.EndLinkEdit();
+			routingOverlay?.SetVisible(false);
+		}
+
+		private void ToggleBuildingLinkMode()
+		{
+			if (buildingLinkController == null) return;
+			if (buildingLinkController.IsEditing)
+				buildingLinkController.EndLinkEdit();
+			else
+				buildingLinkController.BeginLinkEdit();
+			RefreshRoutingSummary();
+		}
+
+		private void OnBuildingLinkCreated(Building source, Building target)
+		{
+			routingOverlay?.RefreshConnections();
+			RefreshRoutingSummary();
 		}
 
 		private void RefreshAll()
@@ -265,6 +342,33 @@ namespace UniverseLogistics.UI.Toolkit
 			RefreshCategories();
 			DisplaySelectedSection();
 			RefreshRules();
+			RefreshRoutingSummary();
+		}
+
+		private void RefreshRoutingSummary()
+		{
+			if (routingSummary == null || routingMessage == null || routingLinkButton == null) return;
+			routingLinkButton.SetEnabled(buildingLinkController != null);
+			routingLinkButton.text = buildingLinkController != null && buildingLinkController.IsEditing
+				? "Cancel Linking"
+				: "Link Buildings";
+			if (routingOverlay == null)
+			{
+				routingSummary.text = "Routing overlay unavailable";
+				routingMessage.text = "The connectivity overlay controller is not configured.";
+				return;
+			}
+
+			routingSummary.text = $"{routingOverlay.ConnectionCount} connections · {routingOverlay.ValidPathCount} visible paths";
+			if (buildingLinkController != null && buildingLinkController.IsEditing)
+			{
+				routingMessage.text = buildingLinkController.StatusText;
+				return;
+			}
+
+			routingMessage.text = routingOverlay.PendingPathCount > 0
+				? $"Calculating {routingOverlay.PendingPathCount} paths..."
+				: "Orange: Landing routing · Green: Building routing · Green takes priority where routes overlap.";
 		}
 
 		private void RefreshBuildingOptions()

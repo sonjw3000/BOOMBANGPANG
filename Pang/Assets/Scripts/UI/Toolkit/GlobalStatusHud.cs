@@ -292,8 +292,13 @@ namespace UniverseLogistics.UI.Toolkit
 			window.SetOpenOnEnable(false);
 			BuildingPlacementOverlayController buildingOverlay = documentObject.AddComponent<BuildingPlacementOverlayController>();
 			buildingOverlay.Configure(buildSelectionProxyPrefab, buildOverlayQuadPrefab, buildOverlayLabelPrefab);
+			RoutingConnectivityOverlayController routingOverlay = documentObject.AddComponent<RoutingConnectivityOverlayController>();
+			routingOverlay.Configure(buildOverlayQuadPrefab);
+			CargoPortLinkModeController buildingLinkController = documentObject.AddComponent<CargoPortLinkModeController>();
+			buildingLinkController.Configure(buildOverlayQuadPrefab, buildOverlayLabelPrefab);
 			buildManagementWindow = documentObject.AddComponent<BuildManagementWindow>();
-			buildManagementWindow.Configure(window, buildContentTemplate, buildPlaceableRowTemplate, buildRuleRowTemplate, buildingOverlay);
+			buildManagementWindow.Configure(window, buildContentTemplate, buildPlaceableRowTemplate, buildRuleRowTemplate,
+				buildingOverlay, routingOverlay, buildingLinkController);
 			documentObject.SetActive(true);
 		}
 

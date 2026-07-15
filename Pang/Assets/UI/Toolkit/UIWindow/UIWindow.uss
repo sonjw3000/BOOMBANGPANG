@@ -3,8 +3,8 @@
 	left: 50%;
 	top: 50%;
 	translate: -50% -50%;
-	width: 660px;
-	height: 460px;
+	width: 990px;
+	height: 690px;
 	background-color: rgb(28, 31, 38);
 	border-left-width: 1px;
 	border-right-width: 1px;
