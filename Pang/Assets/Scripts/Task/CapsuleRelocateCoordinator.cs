@@ -214,6 +214,21 @@ public sealed class CapsuleRelocateCoordinator
 		return dock != null && activeRelocationTargets.Contains(dock);
 	}
 
+	public bool TryReserveActiveTarget(CapsuleDock dock)
+	{
+		if (IsFacilityAvailable(dock) == false ||
+			dock.CanPutBox() == false ||
+			reservedDocks.Contains(dock) ||
+			activeRelocationTargets.Contains(dock))
+		{
+			return false;
+		}
+
+		reservedDocks.Add(dock);
+		activeRelocationTargets.Add(dock);
+		return true;
+	}
+
 	private bool TryMatchPendingSend()
 	{
 		LinkedListNode<CapsuleRelocateSendRequest> node = pendingSends.First;
@@ -325,6 +340,8 @@ public sealed class CapsuleRelocateCoordinator
 	private bool CanMatch(CapsuleRelocateSendRequest request, CapsuleDock targetDock, uint targetBuildingId)
 	{
 		if (targetDock == null ||
+			IsFacilityAvailable(request.SourceDock) == false ||
+			IsFacilityAvailable(targetDock) == false ||
 			reservedDocks.Contains(request.SourceDock) ||
 			reservedDocks.Contains(targetDock) ||
 			activeRelocationSources.Contains(request.SourceDock) ||
@@ -342,6 +359,8 @@ public sealed class CapsuleRelocateCoordinator
 	private bool CanMatch(CapsuleDock sourceDock, uint sourceBuildingId, CapsuleRelocateDemand demand)
 	{
 		if (sourceDock == null ||
+			IsFacilityAvailable(sourceDock) == false ||
+			IsFacilityAvailable(demand.TargetDock) == false ||
 			reservedDocks.Contains(sourceDock) ||
 			reservedDocks.Contains(demand.TargetDock) ||
 			activeRelocationSources.Contains(sourceDock) ||
@@ -376,6 +395,7 @@ public sealed class CapsuleRelocateCoordinator
 	private bool IsSendSourceValid(CapsuleRelocateSendRequest request, bool checkReservation = true)
 	{
 		return request.SourceDock != null &&
+			IsFacilityAvailable(request.SourceDock) &&
 			(checkReservation == false || reservedDocks.Contains(request.SourceDock) == false) &&
 			activeRelocationSources.Contains(request.SourceDock) == false &&
 			request.SourceDock.DockState == request.RequiredSourceDockState &&
@@ -386,10 +406,19 @@ public sealed class CapsuleRelocateCoordinator
 	private bool IsDemandTargetValid(CapsuleRelocateDemand demand, bool checkReservation = true)
 	{
 		return demand.TargetDock != null &&
+			IsFacilityAvailable(demand.TargetDock) &&
 			(checkReservation == false || reservedDocks.Contains(demand.TargetDock) == false) &&
 			activeRelocationTargets.Contains(demand.TargetDock) == false &&
 			demand.TargetDock.DockState == demand.RequiredTargetDockState &&
 			demand.TargetDock.CanPutBox();
+	}
+
+	private static bool IsFacilityAvailable(CapsuleDock dock)
+	{
+		return dock != null &&
+			(GameContext.HasInstance == false ||
+			 GameContext.Instance.FacilityMgr == null ||
+			 GameContext.Instance.FacilityMgr.IsInvalidating(dock) == false);
 	}
 
 	private void Reserve(CapsuleDock sourceDock, CapsuleDock targetDock)

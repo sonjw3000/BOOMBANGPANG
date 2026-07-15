@@ -186,6 +186,14 @@ public partial class FacilityManager : MonoBehaviour
 		if (facility is IFacilityUserRemovalGuard guard && guard.CanUserRemove(out failure) == false)
 			return false;
 
+		if (GameContext.HasInstance && GameContext.Instance.TaskMgr?.HasFacilityDependency(facility) == true)
+		{
+			failure = new FacilityRemovalFailure(
+				FacilityRemovalFailureReason.HasActiveTask,
+				"Wait for active tasks using this facility to finish.");
+			return false;
+		}
+
 		return InvalidateAndRemove(facility, FacilityInvalidationContext.UserRemoval(), out failure);
 	}
 

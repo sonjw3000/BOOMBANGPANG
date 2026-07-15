@@ -6,6 +6,7 @@ public sealed class LabelingTaskBuildRequest : TaskBuildRequest<LabelingTask>
 	public override WorkerTask.TaskType TaskType => WorkerTask.TaskType.Labeling;
 	public override object RequestKey => new TaskBuildRequestKey(TaskType, targetBuffer);
 	public override bool IsStillValid => building != null && building.CanRequestLabelingTask(targetBuffer);
+	public override bool DependsOnFacility(IFacility facility) => ReferenceEquals(targetBuffer, facility);
 
 	public LabelingTaskBuildRequest(StagingBuilding building, CapsuleBuffer targetBuffer)
 		: base(building != null ? building.RuntimeBuildingId : 0)

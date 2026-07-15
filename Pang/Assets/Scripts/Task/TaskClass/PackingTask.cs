@@ -93,6 +93,11 @@ public partial class PackingTask : WorkerTask
 		return CanDispatchToWorkerZones(worker, targetStation);
 	}
 
+	public override bool DependsOnFacility(IFacility facility)
+	{
+		return ReferenceEquals(targetStation, facility);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{

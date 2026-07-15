@@ -71,7 +71,15 @@ public partial class BoxPool :
 
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
+		if (GameContext.HasInstance == false)
+			return;
 
+		BoxBase[] storedBoxes = boxes.ToArray();
+		for (int i = 0; i < storedBoxes.Length; ++i)
+		{
+			if (storedBoxes[i] != null)
+				GameContext.Instance.BoxMgr?.DestroyBox(storedBoxes[i]);
+		}
 	}
 
 	public bool CanUserRemove(out FacilityRemovalFailure failure)

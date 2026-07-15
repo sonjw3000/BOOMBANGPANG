@@ -106,6 +106,13 @@ public sealed class ExplosionService
 			if (facility.ApplyDamage(trigger.Severity) > 0.0f)
 				++damagedHealthTargets;
 
+			if (facility.Health <= 0.0f)
+			{
+				DestroyContext destroyContext = new(DestroyContext.Destroycause.Explosion);
+				GameContext.Instance.FacilityMgr?.DestroyFacility(facility, in destroyContext);
+				continue;
+			}
+
 			if (targetObject.TryGetComponent<ShelfBase>(out var shelf) && ApplyContainerDamage(
 					itemDamageService,
 					shelf,

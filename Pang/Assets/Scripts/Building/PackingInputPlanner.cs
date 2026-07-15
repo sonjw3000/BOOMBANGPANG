@@ -87,7 +87,10 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 			if (remaining > 0)
 				reservable.ReleaseReservedPick(line.ItemID, remaining);
 
-			if (line.Container != null)
+			FacilityManager facilityManager = GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
+			if (line.Container is IFacility facility && facilityManager?.IsInvalidating(facility) == true)
+				building?.ClearItemContainerDirty(line.Container);
+			else if (line.Container != null)
 				building?.MarkItemContainerDirty(line.Container);
 		}
 		else if (task.Phase == ItemTransferPhase.Place && line?.Target is PackingStation station)

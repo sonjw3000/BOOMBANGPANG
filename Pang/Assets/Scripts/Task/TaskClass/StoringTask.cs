@@ -127,6 +127,28 @@ public partial class StoringTask : WorkerTask
 		return $"Phase: Place\nTarget: {placeName}";
 	}
 
+	public override bool DependsOnFacility(IFacility facility)
+	{
+		return facility != null && currentLine != null &&
+			(ReferenceEquals(currentLine.Target, facility) || ReferenceEquals(currentLine.Container, facility));
+	}
+
+	internal override FacilityTaskInvalidationAction HandleFacilityInvalidating(
+		IFacility facility,
+		in FacilityInvalidationContext context)
+	{
+		if (DependsOnFacility(facility) == false)
+			return FacilityTaskInvalidationAction.None;
+
+		if (CurrentPhase == Phase.Place)
+		{
+			currentLine = null;
+			return FacilityTaskInvalidationAction.Reevaluate;
+		}
+
+		return FacilityTaskInvalidationAction.Invalidate;
+	}
+
 	public static NodeState CheckPhaseCollect(in BTContext ctx)
 	{
 		StoringTask task = (StoringTask)ctx.Worker.CurrentTask;

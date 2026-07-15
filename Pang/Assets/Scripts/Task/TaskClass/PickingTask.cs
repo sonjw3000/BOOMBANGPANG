@@ -88,6 +88,23 @@ public sealed partial class PickingTask : WorkerTask
 			Debug.LogError("No carryBox ability but assigned to picking!!");
 	}
 
+	protected override void OnTaskInvalidated()
+	{
+		if (isPickingPhaseEnd || CurrentLine == null)
+			return;
+
+		WorkLine line = CurrentLine;
+		int remaining = Mathf.Max(0, line.Quantity - line.CompleteQuantity);
+		if (remaining <= 0)
+			return;
+
+		int released = line.Container is IItemPickReservable reservable
+			? reservable.ReleaseReservedPick(line.ItemID, remaining)
+			: 0;
+		if (released > 0 && GameContext.HasInstance)
+			GameContext.Instance.OrderMgr?.ReleasePickingAllocation(line.RelatedOrderLine, released);
+	}
+
 	protected override IBaseNode BuildWorkNode()
 	{
 		SelectorNode root = new SelectorNode();
@@ -146,6 +163,29 @@ public sealed partial class PickingTask : WorkerTask
 
 		string sourceName = CurrentLine?.TargetName ?? "None";
 		return $"Phase: Pick\nSource: {sourceName}";
+	}
+
+	public override bool DependsOnFacility(IFacility facility)
+	{
+		WorkLine line = CurrentLine;
+		return facility != null && line != null &&
+			(ReferenceEquals(line.Target, facility) || ReferenceEquals(line.Container, facility));
+	}
+
+	internal override FacilityTaskInvalidationAction HandleFacilityInvalidating(
+		IFacility facility,
+		in FacilityInvalidationContext context)
+	{
+		if (DependsOnFacility(facility) == false)
+			return FacilityTaskInvalidationAction.None;
+
+		if (isPickingPhaseEnd)
+		{
+			currentPlaceLine = null;
+			return FacilityTaskInvalidationAction.Reevaluate;
+		}
+
+		return FacilityTaskInvalidationAction.Invalidate;
 	}
 
 	public void RestoreState(uint buildingId, bool isPickingPhaseEnd, bool isTaskEnd, WorkLine currentPlaceLine = null, int placingLineIndex = 0)

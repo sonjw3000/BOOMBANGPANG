@@ -82,6 +82,12 @@ public partial class LaunchPadAddon : PlatformAddon
 		readyToLaunch = false;
 	}
 
+	public void DestroyLoadedCargo()
+	{
+		if (cargoToLaunch != null && GameContext.HasInstance)
+			GameContext.Instance.BoxMgr?.DestroyBox(cargoToLaunch);
+	}
+
 	private void Update()
 	{
 		if (readyToLaunch)

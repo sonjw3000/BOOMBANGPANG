@@ -12,6 +12,7 @@ public partial class TaskManager
 		}
 
 		returnedTaskQueue.Clear();
+		facilityAffectedTasks.Clear();
 
 		taskBuildQueue.Clear();
 		taskBuildRequestsByKey.Clear();

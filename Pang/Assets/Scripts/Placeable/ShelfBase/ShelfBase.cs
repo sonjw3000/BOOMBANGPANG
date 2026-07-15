@@ -364,6 +364,18 @@ public abstract partial class ShelfBase :
 
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
+		ClearAllPickReservations();
+		if (stacks != null)
+		{
+			ItemStack[] contents = stacks.ToArray();
+			for (int i = 0; i < contents.Length; ++i)
+			{
+				ItemStack stack = contents[i];
+				if (stack != null && RemoveStack(stack))
+					stack.Recycle();
+			}
+		}
+
 		OnDestroyedByCore(in ctx);
 	}
 
@@ -410,6 +422,23 @@ public abstract partial class ShelfBase :
 		OnItemReservedPickChanged?.Invoke(this, itemId, canReserve);
 
 		return canReserve;
+	}
+
+	private void ClearAllPickReservations()
+	{
+		if (itemsReservedPick.Count <= 0)
+			return;
+
+		uint[] itemIds = itemsReservedPick.Keys.ToArray();
+		for (int i = 0; i < itemIds.Length; ++i)
+		{
+			uint itemId = itemIds[i];
+			int reserved = itemsReservedPick.GetValueOrDefault(itemId);
+			if (reserved > 0)
+				OnItemReservedPickChanged?.Invoke(this, itemId, -reserved);
+		}
+
+		itemsReservedPick.Clear();
 	}
 
 	public int ConsumeReservedPick(uint itemId, int quantity)

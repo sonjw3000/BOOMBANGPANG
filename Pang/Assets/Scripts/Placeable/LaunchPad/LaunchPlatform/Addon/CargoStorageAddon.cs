@@ -77,6 +77,19 @@ public partial class CargoStorageAddon
 		cargosToLaunch.Remove(cargo);
 	}
 
+	public void DestroyStoredCargo()
+	{
+		if (GameContext.HasInstance == false)
+			return;
+
+		List<BoxBase> snapshot = new(cargosToLaunch);
+		for (int i = 0; i < snapshot.Count; ++i)
+		{
+			if (snapshot[i] != null)
+				GameContext.Instance.BoxMgr?.DestroyBox(snapshot[i]);
+		}
+	}
+
 	private void Update()
 	{
 		for (var it = cargosToLaunch.First; it != null; )

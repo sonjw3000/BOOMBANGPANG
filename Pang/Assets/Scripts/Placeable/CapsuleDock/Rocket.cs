@@ -209,8 +209,9 @@ public partial class Rocket : CapsuleDock
 			ctx.overriddenByObject.TryGetComponent<Rocket>(out var overridingRocket))
 		{
 			OnOverriddenByRocket(overridingRocket, in ctx);
-			return;
 		}
+
+		base.OnDestroyedBy(in ctx);
 	}
 
 	// Hook for future cargo-quality changes on the overridden rocket.

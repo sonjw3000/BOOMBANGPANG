@@ -664,6 +664,19 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		}
 	}
 
+	internal bool ReevaluateTask(WorkerTask expectedTask)
+	{
+		if (expectedTask == null || currentTask != expectedTask)
+			return false;
+
+		routeFinder?.CancelCurrentRoute();
+		localBlackBoard.Clear();
+		expectedTask.ResetForReevaluation();
+		BuildBehaviorTree();
+		enabled = true;
+		return true;
+	}
+
 	public bool EnterIncapacitatedState(WorkerOperationalState state)
 	{
 		if (state == WorkerOperationalState.Active || operationalState == state)

@@ -9,6 +9,7 @@ public abstract class TaskBuildRequest
 	public abstract WorkerTask.TaskType TaskType { get; }
 	public virtual object RequestKey => this;
 	public abstract bool IsStillValid { get; }
+	public virtual bool DependsOnFacility(IFacility facility) => false;
 
 	public uint RequestedBuildingID => requestedBuildingID;
 

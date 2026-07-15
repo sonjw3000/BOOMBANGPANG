@@ -94,7 +94,40 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 			case TaskType.Packing:
 				if (task is PackingTask packingTask)
-					PackingStationService?.OnPackingTaskCompleted(packingTask.TargetStation);
+				{
+					PackingStation station = packingTask.TargetStation;
+					FacilityManager facilityManager = GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
+					if (station != null && (facilityManager == null || facilityManager.IsInvalidating(station) == false))
+						PackingStationService?.OnPackingTaskCompleted(station);
+				}
+				break;
+		}
+	}
+
+	public void OnFacilityInvalidating(IFacility facility, in FacilityInvalidationContext context)
+	{
+		if (facility == null)
+			return;
+
+		if (facility is ShelfBase shelf && BuildingManager != null)
+		{
+			IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+			for (int i = 0; i < buildings.Count; ++i)
+			{
+				if (buildings[i] is StorageBuilding storageBuilding)
+					storageBuilding.PickingPlanner?.CancelRequestsForSource(shelf);
+			}
+		}
+
+		switch (facility)
+		{
+			case OutboundCargoPort outboundPort:
+				queuedCargoTransferPorts.Remove(outboundPort);
+				queuedCargoTransferTargets.Remove(outboundPort);
+				break;
+
+			case InboundCargoPort inboundPort:
+				RemoveQueuedCargoTransferTarget(inboundPort);
 				break;
 		}
 	}
@@ -620,21 +653,29 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			return null;
 
 		int3 sourcePoint = ResolveInteractionOrigin(sourcePort, InteractionKind.Pick);
-		FacilityFilter facilityFilter = FacilityFilter.ForContainer(sourcePort.DockedCapsule);
+		return ResolveLoadingTargetStation(sourcePort, sourcePort.DockedCapsule, sourcePoint);
+	}
+
+	internal LaunchStation ResolveLoadingTargetStation(CargoPort sourcePort, BoxBase payload, in int3 origin)
+	{
+		if (payload == null || launchStationService == null)
+			return null;
+
+		FacilityFilter facilityFilter = FacilityFilter.ForContainer(payload);
 		if (loadingDestinationBuildingId != 0)
 		{
-			return launchStationService.TryFindDestination(loadingDestinationBuildingId, sourcePoint, InteractionKind.Put, facilityFilter, out LaunchStation selectedStation)
+			return launchStationService.TryFindDestination(loadingDestinationBuildingId, origin, InteractionKind.Put, facilityFilter, out LaunchStation selectedStation)
 				? selectedStation
 				: null;
 		}
 
 		if (ResolveSourceBuilding(sourcePort, out Building sourceBuilding) &&
-			launchStationService.TryFindDestination(sourceBuilding.RuntimeBuildingId, sourcePoint, InteractionKind.Put, facilityFilter, out LaunchStation localStation))
+			launchStationService.TryFindDestination(sourceBuilding.RuntimeBuildingId, origin, InteractionKind.Put, facilityFilter, out LaunchStation localStation))
 		{
 			return localStation;
 		}
 
-		return launchStationService.TryFindDestination(0, sourcePoint, InteractionKind.Put, facilityFilter, out LaunchStation globalStation)
+		return launchStationService.TryFindDestination(0, origin, InteractionKind.Put, facilityFilter, out LaunchStation globalStation)
 			? globalStation
 			: null;
 	}

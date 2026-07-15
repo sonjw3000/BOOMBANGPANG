@@ -130,6 +130,19 @@ public partial class LaunchStation
 
 	public void OnDestroyedBy(in DestroyContext ctx)
 	{
+		for (int i = 0; i < addons.Count; ++i)
+		{
+			switch (addons[i])
+			{
+				case CargoStorageAddon storage:
+					storage.DestroyStoredCargo();
+					break;
+
+				case LaunchPadAddon launchPad:
+					launchPad.DestroyLoadedCargo();
+					break;
+			}
+		}
 	}
 
 	public bool CanUserRemove(out FacilityRemovalFailure failure)

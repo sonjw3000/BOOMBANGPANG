@@ -110,8 +110,13 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 		if (task?.Phase != ItemTransferPhase.Collect || task.CurrentLine?.Target is not PackingStation station)
 			return;
 
-		if (building != null && building.CanBuildPackingOutputTask(station))
+		FacilityManager facilityManager = GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
+		if (building != null &&
+			(facilityManager == null || facilityManager.IsInvalidating(station) == false) &&
+			building.CanBuildPackingOutputTask(station))
+		{
 			building.MarkPackingOutputDirty(station);
+		}
 	}
 
 	private static void TransferPackedManifest(BoxBase sourceBox, WorkLine placeLine)

@@ -11,6 +11,8 @@ public partial class TaskManager : MonoBehaviour
 	private readonly LinkedList<WorkerTask> returnedTaskQueue = new();
 	private readonly LinkedList<TaskBuildRequest> taskBuildQueue = new();
 	private readonly Dictionary<object, LinkedListNode<TaskBuildRequest>> taskBuildRequestsByKey = new();
+	private readonly HashSet<WorkerTask> facilityAffectedTasks = new();
+	private FacilityManager boundFacilityManager;
 
 	private ProcessStatsCollector Stats => GameContext.Instance.ProcessStats;
 
@@ -102,6 +104,134 @@ public partial class TaskManager : MonoBehaviour
 			taskBuildRequestsByKey.Remove(key);
 
 		taskBuildQueue.Remove(node);
+	}
+
+	public void BindFacilityInvalidation(FacilityManager facilityManager)
+	{
+		if (boundFacilityManager == facilityManager)
+			return;
+
+		UnbindFacilityInvalidation();
+		boundFacilityManager = facilityManager;
+		if (boundFacilityManager != null)
+			boundFacilityManager.OnFacilityInvalidating += HandleFacilityInvalidating;
+	}
+
+	public void UnbindFacilityInvalidation()
+	{
+		if (boundFacilityManager != null)
+			boundFacilityManager.OnFacilityInvalidating -= HandleFacilityInvalidating;
+
+		boundFacilityManager = null;
+	}
+
+	public bool HasFacilityDependency(IFacility facility)
+	{
+		if (facility == null)
+			return false;
+
+		foreach (TaskBuildRequest request in taskBuildQueue)
+		{
+			if (request != null && request.IsStillValid && request.DependsOnFacility(facility))
+				return true;
+		}
+
+		foreach (LinkedList<WorkerTask> queue in taskQueue.Values)
+		{
+			if (QueueDependsOnFacility(queue, facility))
+				return true;
+		}
+
+		foreach (LinkedList<WorkerTask> queue in taskOnProgress.Values)
+		{
+			if (QueueDependsOnFacility(queue, facility))
+				return true;
+		}
+
+		return QueueDependsOnFacility(returnedTaskQueue, facility);
+	}
+
+	private void HandleFacilityInvalidating(
+		IFacility facility,
+		FacilityInvalidationContext context)
+	{
+		if (facility == null)
+			return;
+
+		RemoveFacilityTaskBuildRequests(facility);
+		CollectFacilityAffectedTasks(facility);
+
+		foreach (WorkerTask task in facilityAffectedTasks)
+		{
+			if (task == null)
+				continue;
+
+			FacilityTaskInvalidationAction action = task.HandleFacilityInvalidating(facility, in context);
+			switch (action)
+			{
+				case FacilityTaskInvalidationAction.Invalidate:
+					InvalidateTask(task);
+					break;
+
+				case FacilityTaskInvalidationAction.Reevaluate:
+					if (task.CurrentStatus == WorkerTask.Status.Assigned)
+						task.OccupyWorker?.ReevaluateTask(task);
+					break;
+			}
+		}
+
+		facilityAffectedTasks.Clear();
+		if (facility is CapsuleDock dock && GameContext.HasInstance)
+			GameContext.Instance.CapsuleRelocateCoordinator?.RemoveDock(dock);
+
+		IBService?.OnFacilityInvalidating(facility, in context);
+		OBService?.OnFacilityInvalidating(facility, in context);
+		RemoveFacilityTaskBuildRequests(facility);
+	}
+
+	private void RemoveFacilityTaskBuildRequests(IFacility facility)
+	{
+		LinkedListNode<TaskBuildRequest> node = taskBuildQueue.First;
+		while (node != null)
+		{
+			LinkedListNode<TaskBuildRequest> next = node.Next;
+			if (node.Value == null || node.Value.DependsOnFacility(facility))
+				RemoveTaskBuildRequest(node);
+
+			node = next;
+		}
+	}
+
+	private void CollectFacilityAffectedTasks(IFacility facility)
+	{
+		facilityAffectedTasks.Clear();
+		foreach (LinkedList<WorkerTask> queue in taskQueue.Values)
+			AddFacilityAffectedTasks(queue, facility);
+
+		foreach (LinkedList<WorkerTask> queue in taskOnProgress.Values)
+			AddFacilityAffectedTasks(queue, facility);
+
+		AddFacilityAffectedTasks(returnedTaskQueue, facility);
+	}
+
+	private void AddFacilityAffectedTasks(IEnumerable<WorkerTask> tasks, IFacility facility)
+	{
+		foreach (WorkerTask task in tasks)
+		{
+			if (task != null && task.DependsOnFacility(facility))
+				facilityAffectedTasks.Add(task);
+		}
+	}
+
+	private static bool QueueDependsOnFacility(IEnumerable<WorkerTask> tasks, IFacility facility)
+	{
+		foreach (WorkerTask task in tasks)
+		{
+			if (task != null && task.DependsOnFacility(facility))
+				return true;
+		}
+
+		return false;
 	}
 
 	// dispatch task to workers

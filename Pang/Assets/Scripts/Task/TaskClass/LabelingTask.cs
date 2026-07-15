@@ -61,6 +61,15 @@ public sealed partial class LabelingTask : WorkerTask
 		return root;
 	}
 
+	protected override void OnTaskInvalidated()
+	{
+		FacilityManager facilityManager = GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
+		if (targetPlaceable is IFacility facility && facilityManager?.IsInvalidating(facility) == true)
+			building?.OnLabelingTaskInvalidated(targetContainer);
+		else
+			building?.OnLabelingTaskFinished(targetContainer);
+	}
+
 	public override bool CheckTaskEnd()
 	{
 		if (isTaskEnd)
@@ -82,6 +91,11 @@ public sealed partial class LabelingTask : WorkerTask
 			building != null &&
 			worker.PrimaryBuildingId == building.RuntimeBuildingId &&
 			CanDispatchToWorkerZones(worker, targetPlaceable);
+	}
+
+	public override bool DependsOnFacility(IFacility facility)
+	{
+		return ReferenceEquals(targetPlaceable, facility);
 	}
 
 #if UNITY_EDITOR

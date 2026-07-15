@@ -146,7 +146,7 @@ public partial class CapsuleBuffer :
 
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
-
+		base.OnDestroyedBy(in ctx);
 	}
 
 	protected override void OnBeforeCapsuleUndocked(CargoCapsule capsule)

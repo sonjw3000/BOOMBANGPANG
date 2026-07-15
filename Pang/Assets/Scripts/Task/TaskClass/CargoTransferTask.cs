@@ -54,6 +54,12 @@ public sealed partial class CargoTransferTask : WorkerTask
 		return CanDispatchToWorkerZones(worker, sourcePort, targetPort);
 	}
 
+	public override bool DependsOnFacility(IFacility facility)
+	{
+		return ReferenceEquals(targetPort, facility) ||
+			(ReferenceEquals(sourcePort, facility) && HasActivePayload == false);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{

@@ -232,6 +232,42 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			GameContext.Instance.ItemTransferTaskScheduler?.MarkDirty(BuildingId, ItemTransferScheduleMode.Picking);
 	}
 
+	public int CancelRequestsForSource(ShelfBase source)
+	{
+		if (source == null)
+			return 0;
+
+		OrderManager orderManager = GameContext.HasInstance ? GameContext.Instance.OrderMgr : null;
+		List<PickingRequest> requests = new(requestSource.GetAllRequests());
+		int cancelledQuantity = 0;
+		for (int i = 0; i < requests.Count; ++i)
+		{
+			PickingRequest request = requests[i];
+			if (request == null || request.Source != source)
+				continue;
+
+			int releasable = request.GetAllocatableQuantity();
+			if (releasable > 0)
+			{
+				int releasedReservation = source.ReleaseReservedPick(request.ItemId, releasable);
+				int releasedAllocation = orderManager != null
+					? orderManager.ReleasePickingAllocation(request.OrderLine, releasedReservation)
+					: 0;
+				if (orderManager != null && releasedAllocation != releasedReservation)
+				{
+					Debug.LogWarning($"[PickingPlanner] Facility invalidation allocation rollback mismatch. requested={releasedReservation}, released={releasedAllocation}");
+				}
+
+				request.ReleaseReserved(releasedReservation);
+				cancelledQuantity += releasedReservation;
+			}
+
+			requestSource.Remove(request);
+		}
+
+		return cancelledQuantity;
+	}
+
 	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine pickedLine, out WorkLine line)
 	{
 		return TryGetPlaceLine(worker, buildingId, pickedLine, pickedLine != null ? pickedLine.Quantity : 0, out line);
@@ -521,6 +557,26 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 				if (request != null && request.GetAllocatableQuantity() > 0)
 					yield return request;
 			}
+		}
+
+		public IReadOnlyList<PickingRequest> GetAllRequests()
+		{
+			return requests;
+		}
+
+		public bool Remove(PickingRequest request)
+		{
+			if (request == null || requests.Remove(request) == false)
+				return false;
+
+			if (requestsByItem.TryGetValue(request.ItemId, out List<PickingRequest> itemRequests))
+			{
+				itemRequests.Remove(request);
+				if (itemRequests.Count == 0)
+					requestsByItem.Remove(request.ItemId);
+			}
+
+			return true;
 		}
 
 		public int GetAllocatableQuantity(PickingRequest requestLine)

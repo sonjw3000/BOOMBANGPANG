@@ -496,6 +496,8 @@ public class GameContext : MonoBehaviour
 
 	private void AddEvent()
 	{
+		TaskMgr?.BindFacilityInvalidation(FacilityMgr);
+
 		if (CapsuleDockSvc != null)
 		{
 			CapsuleDockSvc.OnCapsuleDocked += HandleCapsuleRelocateDocked;
@@ -519,6 +521,8 @@ public class GameContext : MonoBehaviour
 
 	private void RemoveEvent()
 	{
+		TaskMgr?.UnbindFacilityInvalidation();
+
 		if (CapsuleDockSvc != null)
 		{
 			CapsuleDockSvc.OnCapsuleDocked -= HandleCapsuleRelocateDocked;

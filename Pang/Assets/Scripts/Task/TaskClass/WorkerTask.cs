@@ -28,6 +28,13 @@ public static class WorkerTaskTypeRequirement
 	}
 }
 
+public enum FacilityTaskInvalidationAction
+{
+	None,
+	Invalidate,
+	Reevaluate,
+}
+
 public abstract partial class WorkerTask
 {
 	public enum TaskType
@@ -177,6 +184,34 @@ public abstract partial class WorkerTask
 	{
 		return worker != null;
 	}
+
+	public virtual bool DependsOnFacility(IFacility facility)
+	{
+		return false;
+	}
+
+	internal virtual FacilityTaskInvalidationAction HandleFacilityInvalidating(
+		IFacility facility,
+		in FacilityInvalidationContext context)
+	{
+		return DependsOnFacility(facility)
+			? FacilityTaskInvalidationAction.Invalidate
+			: FacilityTaskInvalidationAction.None;
+	}
+
+	internal void ResetForReevaluation()
+	{
+		RebuildTaskTree();
+	}
+
+	protected bool HasActivePayload =>
+		OccupyWorker?.CarryingAbility?.CarryingBox != null ||
+		(PayloadBox != null && PayloadBox.IsValid);
+
+	protected BoxBase ActivePayload =>
+		OccupyWorker?.CarryingAbility?.CarryingBox != null
+			? OccupyWorker.CarryingAbility.CarryingBox
+			: PayloadBox;
 
 	public abstract string GetStatusSummary();
 

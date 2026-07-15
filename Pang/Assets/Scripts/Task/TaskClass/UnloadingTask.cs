@@ -61,6 +61,12 @@ public partial class UnloadingTask : WorkerTask
 		return CanDispatchToWorkerZones(worker, targetRocket, cargoPort);
 	}
 
+	public override bool DependsOnFacility(IFacility facility)
+	{
+		return ReferenceEquals(cargoPort, facility) ||
+			(ReferenceEquals(targetRocket, facility) && HasActivePayload == false);
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{

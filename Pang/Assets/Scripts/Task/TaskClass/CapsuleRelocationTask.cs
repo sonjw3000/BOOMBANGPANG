@@ -1,3 +1,4 @@
+using System;
 using Unity.Mathematics;
 using UnityEngine;
 using static IBaseNode;
@@ -14,9 +15,13 @@ public enum CapsuleRelocationReason
 public sealed class CapsuleRelocationTask : WorkerTask
 {
 	private readonly CapsuleDock sourceDock;
-	private readonly CapsuleDock targetDock;
+	private CapsuleDock targetDock;
 	private readonly uint buildingId;
 	private readonly CapsuleRelocationReason reason;
+	private readonly uint targetBuildingId;
+	private readonly CapsuleDockState targetDockState;
+	private readonly Type targetDockType;
+	private readonly WorkerStatusTarget targetWorkerStatus;
 	private bool isTaskEnd;
 
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
@@ -37,6 +42,11 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		this.targetDock = targetDock;
 		this.buildingId = buildingId;
 		this.reason = reason;
+		targetDockState = targetDock != null ? targetDock.DockState : CapsuleDockState.Empty;
+		targetDockType = targetDock?.GetType();
+		targetWorkerStatus = targetDock != null ? targetDock.BuildingTarget : WorkerStatusTarget.None;
+		if (targetDock != null && GameContext.HasInstance)
+			GameContext.Instance.FacilityMgr?.TryGetBuildingId(targetDock, out targetBuildingId);
 		TrackDependencyBox(sourceDock?.DockedCapsule);
 	}
 
@@ -105,6 +115,32 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			CanDispatchToWorkerZones(worker, sourceDock, targetDock);
 	}
 
+	public override bool DependsOnFacility(IFacility facility)
+	{
+		if (ReferenceEquals(targetDock, facility))
+			return true;
+
+		return ReferenceEquals(sourceDock, facility) && HasActivePayload == false;
+	}
+
+	internal override FacilityTaskInvalidationAction HandleFacilityInvalidating(
+		IFacility facility,
+		in FacilityInvalidationContext context)
+	{
+		if (ReferenceEquals(targetDock, facility))
+		{
+			if (GameContext.HasInstance)
+				GameContext.Instance.CapsuleRelocateCoordinator?.RemoveDock(targetDock);
+
+			targetDock = null;
+			return FacilityTaskInvalidationAction.Reevaluate;
+		}
+
+		return ReferenceEquals(sourceDock, facility) && HasActivePayload == false
+			? FacilityTaskInvalidationAction.Invalidate
+			: FacilityTaskInvalidationAction.None;
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
@@ -128,7 +164,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 	private WorkerStatusTarget GetTargetTarget()
 	{
-		return targetDock != null ? targetDock.BuildingTarget : WorkerStatusTarget.None;
+		return targetDock != null ? targetDock.BuildingTarget : targetWorkerStatus;
 	}
 
 	private bool CanUseSource()
@@ -165,6 +201,13 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	public static NodeState SetSourceTarget(in BTContext ctx)
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
+		if (task.TryResolveReplacementTarget() == false)
+		{
+			ctx.Worker.SetWorkerTarget(task.GetTargetTarget());
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			return AIWorker.KeepTaskWaiting(ctx);
+		}
+
 		if (task.CanUseSource() == false)
 		{
 			task.isTaskEnd = true;
@@ -206,7 +249,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	public static NodeState SetTargetDock(in BTContext ctx)
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
-		if (task.CanUseTarget() == false)
+		if (task.TryResolveReplacementTarget() == false || task.CanUseTarget() == false)
 		{
 			ctx.Worker.SetWorkerTarget(task.GetTargetTarget());
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
@@ -215,6 +258,42 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.targetDock);
 		return Success;
+	}
+
+	private bool TryResolveReplacementTarget()
+	{
+		if (targetDock != null)
+			return true;
+
+		if (targetDockType == null || GameContext.HasInstance == false)
+			return false;
+
+		GameContext context = GameContext.Instance;
+		CapsuleDockService dockService = context.CapsuleDockSvc;
+		CapsuleRelocateCoordinator coordinator = context.CapsuleRelocateCoordinator;
+		FacilityManager facilityManager = context.FacilityMgr;
+		if (dockService == null || coordinator == null)
+			return false;
+
+		if (dockService.TryFindDock(
+			targetBuildingId,
+			targetDockState,
+			false,
+			out CapsuleDock replacement,
+			candidate => candidate != null &&
+				candidate.GetType() == targetDockType &&
+				(facilityManager == null || facilityManager.IsInvalidating(candidate) == false) &&
+				coordinator.IsReserved(candidate) == false &&
+				coordinator.IsRelocationTargetActive(candidate) == false) == false)
+		{
+			return false;
+		}
+
+		if (coordinator.TryReserveActiveTarget(replacement) == false)
+			return false;
+
+		targetDock = replacement;
+		return true;
 	}
 
 	public static NodeState StoreCapsuleToTarget(in BTContext ctx)

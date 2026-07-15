@@ -7,7 +7,7 @@ public partial class LoadingTask : WorkerTask
 	private bool isLoadEnd = false;
 
 	private readonly CargoPort sourcePort;
-	private readonly LaunchStation targetStation;
+	private LaunchStation targetStation;
 
 	internal CargoPort SourcePort => sourcePort;
 	internal LaunchStation TargetStation => targetStation;
@@ -59,6 +59,29 @@ public partial class LoadingTask : WorkerTask
 		return CanDispatchToWorkerZones(worker, sourcePort, targetStation);
 	}
 
+	public override bool DependsOnFacility(IFacility facility)
+	{
+		if (ReferenceEquals(targetStation, facility))
+			return true;
+
+		return ReferenceEquals(sourcePort, facility) && HasActivePayload == false;
+	}
+
+	internal override FacilityTaskInvalidationAction HandleFacilityInvalidating(
+		IFacility facility,
+		in FacilityInvalidationContext context)
+	{
+		if (ReferenceEquals(targetStation, facility))
+		{
+			targetStation = null;
+			return FacilityTaskInvalidationAction.Reevaluate;
+		}
+
+		return ReferenceEquals(sourcePort, facility) && HasActivePayload == false
+			? FacilityTaskInvalidationAction.Invalidate
+			: FacilityTaskInvalidationAction.None;
+	}
+
 #if UNITY_EDITOR
 	public override string ShowStatus()
 	{
@@ -79,6 +102,21 @@ public partial class LoadingTask : WorkerTask
 		var task = ctx.Worker.CurrentTask as LoadingTask;
 		if (task?.sourcePort == null)
 			return Failure;
+
+		if (task.targetStation == null && GameContext.HasInstance)
+		{
+			task.targetStation = GameContext.Instance.OBWorkflowSvc?.ResolveLoadingTargetStation(
+				task.sourcePort,
+				task.sourcePort.DockedCapsule,
+				ctx.Worker.GridPosition);
+		}
+
+		if (task.targetStation == null)
+		{
+			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			ctx.Worker.SetWorkerTarget(WorkerStatusTarget.LaunchStation);
+			return AIWorker.KeepTaskWaiting(ctx);
+		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.sourcePort);
 
@@ -118,6 +156,14 @@ public partial class LoadingTask : WorkerTask
 	static private NodeState SetLaunchStation(in BTContext ctx)
 	{
 		var task = (LoadingTask)ctx.Worker.CurrentTask;
+		if (task.targetStation == null && GameContext.HasInstance)
+		{
+			task.targetStation = GameContext.Instance.OBWorkflowSvc?.ResolveLoadingTargetStation(
+				task.sourcePort,
+				task.ActivePayload,
+				ctx.Worker.GridPosition);
+		}
+
 		if (task.targetStation == null)
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);

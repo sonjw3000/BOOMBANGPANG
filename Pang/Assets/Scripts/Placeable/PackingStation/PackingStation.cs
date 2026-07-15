@@ -132,6 +132,28 @@ public partial class PackingStation :
 
 	public override void OnDestroyedBy(in DestroyContext context)
 	{
+		CurrentPackingWorker = null;
+		ClearIncomingBoxReservation();
+
+		HashSet<BoxBase> ownedBoxes = new();
+		if (waitStackBox?.Box != null)
+			ownedBoxes.Add(waitStackBox.Box);
+		if (currentPackingBox?.Box != null)
+			ownedBoxes.Add(currentPackingBox.Box);
+		if (endPackingBox?.Box != null)
+			ownedBoxes.Add(endPackingBox.Box);
+
+		if (GameContext.HasInstance)
+		{
+			foreach (BoxBase box in ownedBoxes)
+				GameContext.Instance.BoxMgr?.DestroyBox(box);
+		}
+
+		SetWaitStackBox(null);
+		SetCurrentPackingBox(null);
+		SetEndStackBox(null);
+		if (packedItems.Count > 0)
+			ClearPackedItemsForDestroyedBox();
 	}
 
 	public override void OnRemoved()

@@ -58,6 +58,12 @@ public sealed class StagingBuilding : Building
 			TryRequestLabelingTask(capsuleBuffer);
 	}
 
+	internal void OnLabelingTaskInvalidated(IItemContainer container)
+	{
+		if (container != null)
+			queuedLabelingContainers.Remove(container);
+	}
+
 	internal bool TryLabelItems(IItemContainer container, out int labeledQuantity)
 	{
 		labeledQuantity = 0;

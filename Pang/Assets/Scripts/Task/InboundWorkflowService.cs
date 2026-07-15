@@ -124,6 +124,14 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			relocationTask.TargetDock);
 	}
 
+	public void OnFacilityInvalidating(IFacility facility, in FacilityInvalidationContext context)
+	{
+		if (facility is not CapsuleDock dock || GameContext.HasInstance == false)
+			return;
+
+		GameContext.Instance.CapsuleRelocateCoordinator?.CancelPendingRequests(dock);
+	}
+
 	public void OnInboundRocketLanded(Rocket rocket)
 	{
 		if (rocket == null)

@@ -59,6 +59,9 @@ public sealed class CapsuleDockService : FacilityService<CapsuleDock>
 		if (facility is CapsuleBuffer buffer)
 			buffer.OnDockStateChanged -= HandleBufferDockStateChanged;
 
+		if (GameContext.HasInstance)
+			GameContext.Instance.CapsuleRelocateCoordinator?.RemoveDock(facility);
+
 		RemoveDock(facility);
 	}
 

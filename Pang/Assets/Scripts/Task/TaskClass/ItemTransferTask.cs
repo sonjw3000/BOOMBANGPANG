@@ -157,6 +157,28 @@ public sealed class ItemTransferTask : WorkerTask
 			CanDispatchToWorkerZones(worker, currentLine?.Target);
 	}
 
+	public override bool DependsOnFacility(IFacility facility)
+	{
+		return ReferencesFacility(currentLine, facility);
+	}
+
+	internal override FacilityTaskInvalidationAction HandleFacilityInvalidating(
+		IFacility facility,
+		in FacilityInvalidationContext context)
+	{
+		if (ReferencesFacility(currentLine, facility) == false)
+			return FacilityTaskInvalidationAction.None;
+
+		if (phase == ItemTransferPhase.Collect)
+			return FacilityTaskInvalidationAction.Invalidate;
+
+		if (job?.Planner is IItemTransferTaskInvalidationHandler handler)
+			handler.OnTaskInvalidated(this);
+
+		currentLine = null;
+		return FacilityTaskInvalidationAction.Reevaluate;
+	}
+
 	public override bool TryGetPreferredWorker(out AIWorker worker)
 	{
 		worker = job?.PreferredWorker;
@@ -545,5 +567,11 @@ public sealed class ItemTransferTask : WorkerTask
 	private static bool IsSupportedTaskType(TaskType taskType)
 	{
 		return taskType is TaskType.Picking or TaskType.Storing or TaskType.PackingInput or TaskType.PackingOutput;
+	}
+
+	private static bool ReferencesFacility(WorkLine line, IFacility facility)
+	{
+		return facility != null && line != null &&
+			(ReferenceEquals(line.Target, facility) || ReferenceEquals(line.Container, facility));
 	}
 }
