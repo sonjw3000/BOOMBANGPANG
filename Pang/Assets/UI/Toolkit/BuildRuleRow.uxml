@@ -1,0 +1,15 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<ui:VisualElement class="build-rule-row">
+		<ui:VisualElement name="build-rule-color" class="build-rule-row__color" />
+		<ui:VisualElement class="build-rule-row__identity">
+			<ui:Label name="build-rule-name" text="Rule" class="build-rule-row__name" />
+			<ui:Label name="build-rule-summary" text="No restrictions" class="build-rule-row__summary" />
+		</ui:VisualElement>
+		<ui:Label name="build-rule-priority" text="Priority 0" class="build-rule-row__value" />
+		<ui:Label name="build-rule-applied" text="0 facilities" class="build-rule-row__value" />
+		<ui:Button name="build-rule-duplicate-button" text="Duplicate" class="build-rule-row__button build-rule-row__button--wide" />
+		<ui:Button name="build-rule-apply-button" text="Apply" class="build-rule-row__button" />
+		<ui:Button name="build-rule-edit-button" text="Edit" class="build-rule-row__button" />
+		<ui:Button name="build-rule-delete-button" text="Delete" class="build-rule-row__button build-rule-row__button--danger" />
+	</ui:VisualElement>
+</ui:UXML>

@@ -39,6 +39,7 @@ public class AreaOverlayController : MonoBehaviour
 	private GameObject previewLabel;
 	private bool isVisible;
 	private bool oneShotCreate;
+	private bool startingOneShotCreate;
 	private AreaType activeAreaType = AreaType.RocketLanding;
 
 	public AreaType ActiveAreaType => activeAreaType;
@@ -122,7 +123,9 @@ public class AreaOverlayController : MonoBehaviour
 	{
 		oneShotCreate = true;
 		SetAreaModeActive(true, areaType, floor);
+		startingOneShotCreate = true;
 		Interaction.EnterAreaPlacementMode(areaType, floor);
+		startingOneShotCreate = false;
 	}
 
 	public AreaSelectionProxy GetSelectionProxy(Area area)
@@ -153,7 +156,7 @@ public class AreaOverlayController : MonoBehaviour
 
 	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
 	{
-		if (oneShotCreate && Interaction.Mode != InteractionContext.InteractionMode.AreaEdit)
+		if (oneShotCreate && startingOneShotCreate == false && Interaction.Mode != InteractionContext.InteractionMode.AreaEdit)
 		{
 			oneShotCreate = false;
 			SetAreaModeActive(false, activeAreaType, currentFloor);

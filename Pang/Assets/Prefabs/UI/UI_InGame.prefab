@@ -4194,6 +4194,12 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a2d2bad0fac024440a9b808cf524322a, type: 2}
   workforceRobotMarkets:
   - {fileID: 11400000, guid: 22073902b8aebe84b87b86d28df81eee, type: 2}
+  buildContentTemplate: {fileID: 9197481963319205126, guid: 683676993c294a70b100adb7808fb769, type: 3}
+  buildPlaceableRowTemplate: {fileID: 9197481963319205126, guid: d86e15781685433f804b74d2036140b0, type: 3}
+  buildRuleRowTemplate: {fileID: 9197481963319205126, guid: 63cfc25c561348159af8e0b450097c12, type: 3}
+  buildSelectionProxyPrefab: {fileID: 3787967229008310781, guid: e2626915b1f7fd04a9dc58aef00bf227, type: 3}
+  buildOverlayQuadPrefab: {fileID: 5193021133707544615, guid: e7663c41ad454444489fd24ab7df83f3, type: 3}
+  buildOverlayLabelPrefab: {fileID: 332711428261118799, guid: 34cb7ef3efcff6c4099dfb58d514ea84, type: 3}
   panelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
   sortingOrder: 100
 --- !u!114 &7714475366775286390

@@ -1,0 +1,126 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="BuildManagement.uss" />
+	<ui:VisualElement class="build-content">
+		<ui:VisualElement class="build-tabs">
+			<ui:VisualElement class="build-tabs__separator" picking-mode="Ignore" />
+			<ui:Button name="build-buildings-button" text="Buildings" class="build-tab-button" />
+			<ui:Button name="build-facilities-button" text="Facilities" class="build-tab-button" />
+			<ui:Button name="build-rules-button" text="Rules" class="build-tab-button" />
+		</ui:VisualElement>
+		<ui:ScrollView name="build-buildings-tab" mode="VerticalAndHorizontal" class="build-tab build-buildings-scroll">
+			<ui:VisualElement class="build-buildings-body">
+				<ui:Label text="Create a logistics process space" class="build-heading" />
+				<ui:Label text="Choose the building role and footprint, then place it directly on the map." class="build-caption" />
+				<ui:VisualElement class="building-build-panel">
+				<ui:Label text="BUILDING TYPE" class="build-field-label" />
+				<ui:DropdownField name="building-type-field" class="build-field" />
+				<ui:Label text="FOOTPRINT" class="build-field-label" />
+				<ui:DropdownField name="building-footprint-field" class="build-field" />
+				<ui:VisualElement class="building-build-summary">
+					<ui:Label name="building-selection-name" text="No footprint available" class="building-build-summary__name" />
+					<ui:Label name="building-selection-details" text="Building walls are charged when placement succeeds." class="building-build-summary__details" />
+				</ui:VisualElement>
+				<ui:Button name="create-building-button" text="Place Building" class="build-primary-button" />
+				<ui:Label name="building-build-message" text="Right click cancels placement." class="build-message" />
+				</ui:VisualElement>
+			</ui:VisualElement>
+		</ui:ScrollView>
+		<ui:VisualElement name="build-facilities-tab" class="build-tab build-facilities">
+			<ui:VisualElement class="build-category-column">
+				<ui:Label text="CATEGORIES" class="build-column-label" />
+				<ui:ScrollView name="build-category-list" class="build-list" />
+			</ui:VisualElement>
+			<ui:VisualElement class="build-catalog-column">
+				<ui:Label name="build-catalog-title" text="Facilities" class="build-heading" />
+				<ui:Label name="build-catalog-message" text="Select a category." class="build-caption" />
+				<ui:ScrollView name="build-placeable-list" class="build-list" />
+				<ui:Label name="build-placeable-empty" text="No buildable facilities in this category." class="build-empty" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:VisualElement name="build-rules-tab" class="build-tab build-rules">
+			<ui:VisualElement name="build-rule-library" class="build-rule-library">
+			<ui:VisualElement class="build-rules-toolbar">
+				<ui:VisualElement class="build-rules-toolbar__text">
+					<ui:Label text="Facility Rule presets" class="build-heading" />
+					<ui:Label text="Create and maintain reusable operating rules. Apply them from the selected facility HUD." class="build-caption" />
+				</ui:VisualElement>
+				<ui:Button name="create-rule-preset-button" text="Create Rule" class="build-primary-button" />
+			</ui:VisualElement>
+			<ui:ScrollView name="build-rule-list" class="build-list" />
+			<ui:Label name="build-rule-empty" text="No Facility Rule presets." class="build-empty build-rule-empty" />
+			<ui:Label name="build-rule-message" text="Rule assignment remains target-based." class="build-message" />
+			</ui:VisualElement>
+			<ui:ScrollView name="build-rule-editor" class="build-rule-editor">
+				<ui:Label name="rule-editor-title" text="Create Facility Rule" class="build-heading" />
+				<ui:TextField name="rule-editor-name" label="Name" class="rule-editor-field" />
+				<ui:IntegerField name="rule-editor-priority" label="Priority" class="rule-editor-field" />
+				<ui:Label text="COLOR" class="build-field-label" />
+				<ui:Slider name="rule-editor-red" label="Red" low-value="0" high-value="1" class="rule-editor-slider" />
+				<ui:Slider name="rule-editor-green" label="Green" low-value="0" high-value="1" class="rule-editor-slider" />
+				<ui:Slider name="rule-editor-blue" label="Blue" low-value="0" high-value="1" class="rule-editor-slider" />
+				<ui:VisualElement name="rule-editor-color-preview" class="rule-editor-color-preview" />
+				<ui:Label text="ITEM CONDITIONS" class="rule-editor-section" />
+				<ui:DropdownField name="rule-editor-item-status" label="Required status" class="rule-editor-field" />
+				<ui:Label text="Required tags" class="rule-editor-label" />
+				<ui:VisualElement class="rule-editor-toggle-row">
+					<ui:Toggle name="rule-required-tag-fragile" text="Fragile" />
+					<ui:Toggle name="rule-required-tag-food" text="Food" />
+					<ui:Toggle name="rule-required-tag-danger" text="Danger" />
+					<ui:Toggle name="rule-required-tag-electric" text="Electric" />
+				</ui:VisualElement>
+				<ui:Label text="Forbidden tags" class="rule-editor-label" />
+				<ui:VisualElement class="rule-editor-toggle-row">
+					<ui:Toggle name="rule-forbidden-tag-fragile" text="Fragile" />
+					<ui:Toggle name="rule-forbidden-tag-food" text="Food" />
+					<ui:Toggle name="rule-forbidden-tag-danger" text="Danger" />
+					<ui:Toggle name="rule-forbidden-tag-electric" text="Electric" />
+				</ui:VisualElement>
+				<ui:DropdownField name="rule-editor-item" label="Item" class="rule-editor-field" />
+				<ui:VisualElement class="rule-editor-actions">
+					<ui:Button name="rule-add-whitelist" text="Add to White List" class="rule-editor-small-button" />
+					<ui:Button name="rule-add-blacklist" text="Add to Black List" class="rule-editor-small-button" />
+				</ui:VisualElement>
+				<ui:Label name="rule-whitelist-summary" text="White List: Any" class="rule-editor-summary" />
+				<ui:Button name="rule-clear-whitelist" text="Clear White List" class="rule-editor-small-button" />
+				<ui:Label name="rule-blacklist-summary" text="Black List: None" class="rule-editor-summary" />
+				<ui:Button name="rule-clear-blacklist" text="Clear Black List" class="rule-editor-small-button" />
+				<ui:Label text="WORKER CONDITIONS" class="rule-editor-section" />
+				<ui:DropdownField name="rule-editor-worker-kind" label="Required kind" class="rule-editor-field" />
+				<ui:Label text="Required abilities" class="rule-editor-label" />
+				<ui:VisualElement class="rule-editor-toggle-row">
+					<ui:Toggle name="rule-ability-carrybox" text="Carry Box" />
+					<ui:Toggle name="rule-ability-picking" text="Pick / Store" />
+					<ui:Toggle name="rule-ability-packing" text="Packing" />
+					<ui:Toggle name="rule-ability-labeling" text="Labeling" />
+					<ui:Toggle name="rule-ability-cargo" text="Cargo" />
+				</ui:VisualElement>
+				<ui:Label text="Required human types" class="rule-editor-label" />
+				<ui:VisualElement class="rule-editor-toggle-row">
+					<ui:Toggle name="rule-required-human-fulltime" text="Full Time" />
+					<ui:Toggle name="rule-required-human-parttime" text="Part Time" />
+					<ui:Toggle name="rule-required-human-illegal" text="Illegal" />
+				</ui:VisualElement>
+				<ui:Label text="Forbidden human types" class="rule-editor-label" />
+				<ui:VisualElement class="rule-editor-toggle-row">
+					<ui:Toggle name="rule-forbidden-human-fulltime" text="Full Time" />
+					<ui:Toggle name="rule-forbidden-human-parttime" text="Part Time" />
+					<ui:Toggle name="rule-forbidden-human-illegal" text="Illegal" />
+				</ui:VisualElement>
+				<ui:VisualElement class="rule-editor-toggle-row">
+					<ui:Toggle name="rule-required-robot-transfer" text="Require Transfer Robot" />
+					<ui:Toggle name="rule-forbidden-robot-transfer" text="Forbid Transfer Robot" />
+				</ui:VisualElement>
+				<ui:Label text="MANIFEST CONDITIONS" class="rule-editor-section" />
+				<ui:VisualElement class="rule-editor-toggle-row">
+					<ui:Toggle name="rule-destination-none" text="None" />
+					<ui:Toggle name="rule-destination-mars" text="Mars" />
+					<ui:Toggle name="rule-destination-titan" text="Titan" />
+				</ui:VisualElement>
+				<ui:VisualElement class="rule-editor-footer">
+					<ui:Button name="rule-editor-save" text="Save" class="build-primary-button" />
+					<ui:Button name="rule-editor-cancel" text="Cancel" class="rule-editor-small-button" />
+				</ui:VisualElement>
+			</ui:ScrollView>
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>
