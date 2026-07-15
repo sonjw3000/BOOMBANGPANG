@@ -29,6 +29,9 @@ public sealed class BuildingFootprintPreset : ScriptableObject
 
 	[SerializeField] private string presetId = "circle_15";
 	[SerializeField] private string displayName = "Diameter 15";
+	[Header("Research Requirement")]
+	[SerializeField] private string requiredResearchUid = string.Empty;
+	[Header("Footprint")]
 	[SerializeField, Min(MinimumDiameter)] private int width = 15;
 	[SerializeField, Min(MinimumDiameter)] private int height = 15;
 	[SerializeField] private Vector2Int pivot = new(7, 7);
@@ -36,6 +39,8 @@ public sealed class BuildingFootprintPreset : ScriptableObject
 
 	public string PresetId => presetId;
 	public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? $"Diameter {width}" : displayName;
+	public string RequiredResearchUid => requiredResearchUid;
+	public bool RequiresResearch => string.IsNullOrWhiteSpace(requiredResearchUid) == false;
 	public int Diameter => width;
 	public int Width => width;
 	public int Height => height;

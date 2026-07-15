@@ -16,5 +16,11 @@ public class PlaceableDefinition : ScriptableObject
 	public PlaceableDefinitionType definitionType = PlaceableDefinitionType.Other;
 	public PlacementEnvironmentRequirement placementEnvironment = PlacementEnvironmentRequirement.Indoor | PlacementEnvironmentRequirement.Outdoor;
 
+	[Header("Research Requirement")]
+	[SerializeField] private string requiredResearchUid = string.Empty;
+
 	public int Cost = 10;
+
+	public string RequiredResearchUid => requiredResearchUid;
+	public bool RequiresResearch => string.IsNullOrWhiteSpace(requiredResearchUid) == false;
 }
