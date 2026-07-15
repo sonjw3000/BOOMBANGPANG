@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<ui:VisualElement class="company-research-row">
+		<ui:VisualElement class="company-research-row__identity"><ui:Label name="research-name" text="Research" class="company-research-row__name" /><ui:Label name="research-description" text="Description" class="company-research-row__description" /></ui:VisualElement>
+		<ui:Label name="research-prerequisites" text="No prerequisites" class="company-research-row__prerequisites" />
+		<ui:Label name="research-cost" text="$0" class="company-research-row__value" />
+		<ui:Label name="research-duration" text="1 week" class="company-research-row__value" />
+		<ui:Label name="research-state" text="Available" class="company-research-row__state" />
+		<ui:Button name="research-start-button" text="Start" class="company-action-button" />
+	</ui:VisualElement>
+</ui:UXML>

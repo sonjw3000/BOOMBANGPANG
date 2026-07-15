@@ -4200,6 +4200,9 @@ MonoBehaviour:
   buildSelectionProxyPrefab: {fileID: 3787967229008310781, guid: e2626915b1f7fd04a9dc58aef00bf227, type: 3}
   buildOverlayQuadPrefab: {fileID: 5193021133707544615, guid: e7663c41ad454444489fd24ab7df83f3, type: 3}
   buildOverlayLabelPrefab: {fileID: 332711428261118799, guid: 34cb7ef3efcff6c4099dfb58d514ea84, type: 3}
+  companyContentTemplate: {fileID: 9197481963319205126, guid: 27fc7097e0454a09bb1f298569e0162c, type: 3}
+  companyLicenseRowTemplate: {fileID: 9197481963319205126, guid: 4a9ae56b2bd44c14892b568dd232d33a, type: 3}
+  companyResearchRowTemplate: {fileID: 9197481963319205126, guid: b61c3ddde04740198f85c17eb41de5df, type: 3}
   panelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
   sortingOrder: 100
 --- !u!114 &7714475366775286390

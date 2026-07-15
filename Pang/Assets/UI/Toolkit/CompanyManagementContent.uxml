@@ -1,0 +1,42 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="CompanyManagement.uss" />
+	<ui:VisualElement class="company-content">
+		<ui:VisualElement class="company-tabs">
+			<ui:VisualElement class="company-tabs__separator" picking-mode="Ignore" />
+			<ui:Button name="company-overview-button" text="Overview" class="company-tab-button" />
+			<ui:Button name="company-finance-button" text="Finance" class="company-tab-button" />
+			<ui:Button name="company-licenses-button" text="Licenses" class="company-tab-button" />
+			<ui:Button name="company-research-button" text="Research" class="company-tab-button" />
+		</ui:VisualElement>
+		<ui:ScrollView name="company-overview-tab" class="company-tab company-overview">
+			<ui:Label text="Company at a glance" class="company-heading" />
+			<ui:Label text="Current observed state. Open the owning management screen to change operations." class="company-caption" />
+			<ui:VisualElement class="company-summary-grid">
+				<ui:VisualElement class="company-summary-card"><ui:Label text="MONEY" class="company-card__label" /><ui:Label name="company-money" text="$0" class="company-card__value" /></ui:VisualElement>
+				<ui:VisualElement class="company-summary-card"><ui:Label text="REPUTATION" class="company-card__label" /><ui:Label name="company-reputation" text="0" class="company-card__value" /></ui:VisualElement>
+				<ui:VisualElement class="company-summary-card"><ui:Label text="ACTIVE CONTRACTS" class="company-card__label" /><ui:Label name="company-contracts" text="0" class="company-card__value" /></ui:VisualElement>
+				<ui:VisualElement class="company-summary-card"><ui:Label text="WORKFORCE" class="company-card__label" /><ui:Label name="company-workers" text="0" class="company-card__value" /></ui:VisualElement>
+				<ui:VisualElement class="company-summary-card"><ui:Label text="MONTHLY PAYROLL" class="company-card__label" /><ui:Label name="company-payroll" text="$0" class="company-card__value" /></ui:VisualElement>
+				<ui:VisualElement class="company-summary-card"><ui:Label text="BUILDINGS / FACILITIES" class="company-card__label" /><ui:Label name="company-buildings" text="0 / 0" class="company-card__value" /></ui:VisualElement>
+				<ui:VisualElement class="company-summary-card"><ui:Label text="LICENSES" class="company-card__label" /><ui:Label name="company-licenses" text="0 active" class="company-card__value" /></ui:VisualElement>
+				<ui:VisualElement class="company-summary-card"><ui:Label text="RESEARCH" class="company-card__label" /><ui:Label name="company-research" text="Idle" class="company-card__value" /></ui:VisualElement>
+			</ui:VisualElement>
+		</ui:ScrollView>
+		<ui:VisualElement name="company-finance-tab" class="company-tab company-finance">
+			<ui:VisualElement class="company-toolbar"><ui:Label text="Transaction history" class="company-heading" /><ui:DropdownField name="company-finance-filter" class="company-filter" /></ui:VisualElement>
+			<ui:Label text="Money and reputation changes recorded by EconomyService. Most recent first." class="company-caption" />
+			<ui:ScrollView name="company-finance-list" class="company-list" />
+			<ui:Label name="company-finance-empty" text="No matching transactions." class="company-empty" />
+		</ui:VisualElement>
+		<ui:VisualElement name="company-licenses-tab" class="company-tab company-columns">
+			<ui:VisualElement class="company-sidebar"><ui:Label text="LICENSES" class="company-column-label" /><ui:ScrollView name="company-license-list" class="company-list" /></ui:VisualElement>
+			<ui:VisualElement class="company-main-column"><ui:Label name="company-license-title" text="Select a License" class="company-heading" /><ui:Label name="company-license-status" text="" class="company-caption" /><ui:ScrollView name="company-license-detail" class="company-list" /></ui:VisualElement>
+		</ui:VisualElement>
+		<ui:VisualElement name="company-research-tab" class="company-tab">
+			<ui:VisualElement class="company-research-active"><ui:Label text="ACTIVE RESEARCH" class="company-column-label" /><ui:Label name="company-active-research" text="No active research" class="company-research-active__name" /><ui:Label name="company-active-research-time" text="" class="company-caption" /></ui:VisualElement>
+			<ui:ScrollView name="company-research-list" class="company-list" />
+			<ui:Label name="company-research-empty" text="No research definitions available." class="company-empty company-research-empty" />
+			<ui:Label name="company-research-message" text="" class="company-message" />
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>
