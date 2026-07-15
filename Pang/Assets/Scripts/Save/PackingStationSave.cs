@@ -37,6 +37,13 @@ public partial class PackingStation
 		Dictionary<int, OrderLine> restoredOrderLines,
 		Dictionary<int, GameObject> restoredPlaceables)
 	{
+		if (waitStackBox?.Box != null)
+			waitStackBox.Box.OnInvalidated -= HandleOwnedBoxInvalidated;
+		if (currentPackingBox?.Box != null)
+			currentPackingBox.Box.OnInvalidated -= HandleOwnedBoxInvalidated;
+		if (endPackingBox?.Box != null)
+			endPackingBox.Box.OnInvalidated -= HandleOwnedBoxInvalidated;
+
 		for (int i = 0; i < packedItems.Count; ++i)
 			packedItems[i]?.Recycle();
 

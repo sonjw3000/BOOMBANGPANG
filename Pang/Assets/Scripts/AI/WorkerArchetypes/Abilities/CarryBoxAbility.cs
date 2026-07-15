@@ -48,6 +48,7 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 		box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
 		carryingBox = box;
+		carryingBox.OnInvalidated += HandleCarryingBoxInvalidated;
 		Worker?.CurrentTask?.TrackPayloadBox(box);
 
 		return true;
@@ -61,6 +62,7 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 
 		box = carryingBox;
 
+		carryingBox.OnInvalidated -= HandleCarryingBoxInvalidated;
 		carryingBox.transform.SetParent(null);
 		carryingBox = null;
 		Worker?.CurrentTask?.ReleasePayloadBox(box);
@@ -74,9 +76,20 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 		if (box == null)
 			return false;
 
+		box.OnInvalidated -= HandleCarryingBoxInvalidated;
 		box.transform.SetParent(null);
 		box.transform.position = Worker != null ? Worker.transform.position : transform.position;
 		carryingBox = null;
 		return true;
+	}
+
+	private void HandleCarryingBoxInvalidated(BoxBase box)
+	{
+		if (box == null || carryingBox != box)
+			return;
+
+		box.OnInvalidated -= HandleCarryingBoxInvalidated;
+		box.transform.SetParent(null, true);
+		carryingBox = null;
 	}
 }

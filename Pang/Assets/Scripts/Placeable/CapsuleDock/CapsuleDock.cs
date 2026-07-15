@@ -32,6 +32,7 @@ public abstract class CapsuleDock : BoxInteraction
 			return false;
 
 		dockedCapsule = capsule;
+		dockedCapsule.OnInvalidated += HandleDockedCapsuleInvalidated;
 		capsule.SetCurrentDock(this);
 		capsule.transform.SetParent(transform, false);
 		capsule.transform.localPosition = Vector3.zero;
@@ -51,6 +52,7 @@ public abstract class CapsuleDock : BoxInteraction
 			return false;
 
 		dockedCapsule.OnQuantityChanged -= OnCapsuleQuantityChanged;
+		dockedCapsule.OnInvalidated -= HandleDockedCapsuleInvalidated;
 
 		capsule = dockedCapsule;
 		OnBeforeCapsuleUndocked(capsule);
@@ -125,5 +127,13 @@ public abstract class CapsuleDock : BoxInteraction
 
 	protected virtual void OnCapsuleQuantityChanged()
 	{
+	}
+
+	private void HandleDockedCapsuleInvalidated(BoxBase box)
+	{
+		if (box != dockedCapsule)
+			return;
+
+		TryUndockCapsule(out _);
 	}
 }

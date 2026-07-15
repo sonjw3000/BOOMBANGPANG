@@ -17,6 +17,7 @@ public partial class PackingTask : WorkerTask
 	public PackingTask(PackingStation targetStation) : base(TaskType.Packing)
 	{
 		this.targetStation = targetStation;
+		TrackDependencyBox(targetStation?.WaitingBox?.Box);
 	}
 
 	protected override void OnTaskAssigned()

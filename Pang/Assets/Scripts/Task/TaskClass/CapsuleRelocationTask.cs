@@ -37,6 +37,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		this.targetDock = targetDock;
 		this.buildingId = buildingId;
 		this.reason = reason;
+		TrackDependencyBox(sourceDock?.DockedCapsule);
 	}
 
 	public override bool TryGetPreferredWorker(out AIWorker worker)

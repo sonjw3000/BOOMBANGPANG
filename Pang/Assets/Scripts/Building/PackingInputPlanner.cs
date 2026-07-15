@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class PackingInputPlanner : IItemTransferPlanner
+public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTaskInvalidationHandler
 {
 	private readonly PackingBuilding building;
 
@@ -66,7 +66,34 @@ public sealed class PackingInputPlanner : IItemTransferPlanner
 
 	public WorkPlanResult OnPlaceCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result)
 	{
-		return result.Moved > 0 ? WorkPlanResult.Completed : WorkPlanResult.Waiting;
+		if (result.Moved > 0)
+			return WorkPlanResult.Completed;
+
+		if (placeLine?.Target is PackingStation station)
+			station.SetIncomingRequestSuspended(false);
+
+		return WorkPlanResult.Waiting;
+	}
+
+	public void OnTaskInvalidated(ItemTransferTask task)
+	{
+		if (task == null)
+			return;
+
+		WorkLine line = task.CurrentLine;
+		if (task.Phase == ItemTransferPhase.Collect && line?.Container is IItemPickReservable reservable)
+		{
+			int remaining = Mathf.Max(0, line.Quantity - line.CompleteQuantity);
+			if (remaining > 0)
+				reservable.ReleaseReservedPick(line.ItemID, remaining);
+
+			if (line.Container != null)
+				building?.MarkItemContainerDirty(line.Container);
+		}
+		else if (task.Phase == ItemTransferPhase.Place && line?.Target is PackingStation station)
+		{
+			station.SetIncomingRequestSuspended(false);
+		}
 	}
 
 	private bool TryBuildCollectLine(AIWorker worker, IItemContainer container, out WorkLine line)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 public enum OrderStatus
 {
@@ -201,6 +202,31 @@ public partial class OrderLine
 		CompletedQuantity += actual;
 		ClampProgress();
 		return actual;
+	}
+
+	public int RollbackDestroyedCargo(
+		int pickedQuantity,
+		int packedQuantity,
+		PackageOutboundStage outboundStage)
+	{
+		if (outboundStage == PackageOutboundStage.Completed)
+			return 0;
+
+		int actualPicked = ClampInt(pickedQuantity, 0, PickingCompletedQuantity);
+		int actualPacked = ClampInt(packedQuantity, 0, Mathf.Min(actualPicked, PackagingCompletedQuantity));
+
+		PickingCompletedQuantity -= actualPicked;
+		PackagingCompletedQuantity -= actualPacked;
+
+		if (outboundStage >= PackageOutboundStage.WaitingForShipping)
+			WaitingForShippingQuantity -= Mathf.Min(actualPacked, WaitingForShippingQuantity);
+		if (outboundStage >= PackageOutboundStage.Shipping)
+			ShippingQuantity -= Mathf.Min(actualPacked, ShippingQuantity);
+		if (outboundStage >= PackageOutboundStage.InDelivery)
+			InDeliveryQuantity -= Mathf.Min(actualPacked, InDeliveryQuantity);
+
+		ClampProgress();
+		return actualPicked;
 	}
 
 	public void Cancel()

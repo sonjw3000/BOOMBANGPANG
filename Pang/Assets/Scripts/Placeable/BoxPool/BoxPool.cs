@@ -32,6 +32,7 @@ public partial class BoxPool :
 			return false;
 
 		box = boxes.Pop();
+		box.OnInvalidated -= HandleStoredBoxInvalidated;
 
 		box.gameObject.transform.parent = null;
 
@@ -46,6 +47,8 @@ public partial class BoxPool :
 			return false;
 
 		boxes.Push(box);
+		box.OnInvalidated -= HandleStoredBoxInvalidated;
+		box.OnInvalidated += HandleStoredBoxInvalidated;
 
 		box.gameObject.transform.parent = boxStackPos.transform;
 
@@ -68,6 +71,25 @@ public partial class BoxPool :
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
 
+	}
+
+	private void HandleStoredBoxInvalidated(BoxBase box)
+	{
+		if (box == null || boxes.Contains(box) == false)
+			return;
+
+		box.OnInvalidated -= HandleStoredBoxInvalidated;
+		BoxBase[] topToBottom = boxes.ToArray();
+		boxes.Clear();
+		for (int i = topToBottom.Length - 1; i >= 0; --i)
+		{
+			BoxBase stored = topToBottom[i];
+			if (stored == null || stored == box)
+				continue;
+
+			boxes.Push(stored);
+			stored.transform.localPosition = new Vector3(0.0f, boxes.Count * stackHeight, 0.0f);
+		}
 	}
 
 }

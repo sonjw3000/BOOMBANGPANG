@@ -22,6 +22,12 @@ public partial class BoxPool
 
 	public void RestoreState(BoxPoolSaveData data)
 	{
+		foreach (BoxBase box in boxes)
+		{
+			if (box != null)
+				box.OnInvalidated -= HandleStoredBoxInvalidated;
+		}
+
 		boxes.Clear();
 		if (data == null)
 			return;

@@ -114,6 +114,16 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		}
 	}
 
+	public void OnTaskInvalidated(WorkerTask task)
+	{
+		if (task is not CapsuleRelocationTask relocationTask || GameContext.HasInstance == false)
+			return;
+
+		GameContext.Instance.CapsuleRelocateCoordinator?.ReleaseReservation(
+			relocationTask.SourceDock,
+			relocationTask.TargetDock);
+	}
+
 	public void OnInboundRocketLanded(Rocket rocket)
 	{
 		if (rocket == null)

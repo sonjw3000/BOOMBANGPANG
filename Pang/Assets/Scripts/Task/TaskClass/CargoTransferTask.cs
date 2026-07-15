@@ -15,6 +15,7 @@ public sealed partial class CargoTransferTask : WorkerTask
 	{
 		this.sourcePort = sourcePort;
 		this.targetPort = targetPort;
+		TrackDependencyBox(sourcePort?.DockedCapsule);
 	}
 
 	protected override void OnTaskAssigned()

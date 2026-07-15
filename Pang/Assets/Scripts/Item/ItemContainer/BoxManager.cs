@@ -78,6 +78,16 @@ public partial class BoxManager : MonoBehaviour
 
 	public bool DisableBox(BoxBase box)
 	{
+		return ReleaseBox(box, destroyed: false);
+	}
+
+	public bool DestroyBox(BoxBase box)
+	{
+		return ReleaseBox(box, destroyed: true);
+	}
+
+	private bool ReleaseBox(BoxBase box, bool destroyed)
+	{
 		if (box == null)
 			return false;
 
@@ -86,6 +96,9 @@ public partial class BoxManager : MonoBehaviour
 
 		if (!boxDict.ContainsKey(box.BoxId))
 			return false;
+
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.OnBoxReleased(box, destroyed);
 
 		box.Invalidate();
 

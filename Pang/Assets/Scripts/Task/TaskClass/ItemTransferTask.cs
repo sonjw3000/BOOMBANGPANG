@@ -65,6 +65,11 @@ public interface IItemTransferPlanner
 	WorkPlanResult OnPlaceCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result);
 }
 
+public interface IItemTransferTaskInvalidationHandler
+{
+	void OnTaskInvalidated(ItemTransferTask task);
+}
+
 public sealed class ItemTransferTask : WorkerTask
 {
 	private readonly ItemTransferJob job;
@@ -92,6 +97,12 @@ public sealed class ItemTransferTask : WorkerTask
 	{
 		if (WorkerCarryBox == null)
 			Debug.LogError($"[ItemTransferTask] No carry box ability but assigned to {Type}.");
+	}
+
+	protected override void OnTaskInvalidated()
+	{
+		if (job?.Planner is IItemTransferTaskInvalidationHandler handler)
+			handler.OnTaskInvalidated(this);
 	}
 
 	protected override IBaseNode BuildWorkNode()

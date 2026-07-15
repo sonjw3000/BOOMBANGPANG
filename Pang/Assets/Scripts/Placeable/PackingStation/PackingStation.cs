@@ -381,6 +381,10 @@ public partial class PackingStation :
 
 	private void SetCurrentPackingBox(BoxWithOrder value)
 	{
+		BoxBase previousBox = currentPackingBox?.Box;
+		if (previousBox != null)
+			previousBox.OnInvalidated -= HandleOwnedBoxInvalidated;
+
 		if (value != null)
 		{
 			value.Box.transform.SetParent(packingSlot);
@@ -391,10 +395,15 @@ public partial class PackingStation :
 			currentPackingBox.Box.transform.SetParent(null);
 
 		currentPackingBox = value;
+		RefreshOwnedBoxInvalidationSubscriptions();
 	}
 
 	private void SetWaitStackBox(BoxWithOrder value)
 	{
+		BoxBase previousBox = waitStackBox?.Box;
+		if (previousBox != null)
+			previousBox.OnInvalidated -= HandleOwnedBoxInvalidated;
+
 		if (value != null)
 		{
 			value.Box.transform.SetParent(waitStackSlot);
@@ -408,10 +417,15 @@ public partial class PackingStation :
 			waitStackBox.Box.transform.SetParent(null);
 
 		waitStackBox = value;
+		RefreshOwnedBoxInvalidationSubscriptions();
 	}
 
 	private void SetEndStackBox(BoxWithOrder value)
 	{
+		BoxBase previousBox = endPackingBox?.Box;
+		if (previousBox != null)
+			previousBox.OnInvalidated -= HandleOwnedBoxInvalidated;
+
 		if (value == null)
 		{
 			if (currentPackingWorker != null)
@@ -427,6 +441,55 @@ public partial class PackingStation :
 			endPackingBox.Box.transform.SetParent(null);
 
 		endPackingBox = value;
+		RefreshOwnedBoxInvalidationSubscriptions();
+	}
+
+	private void RefreshOwnedBoxInvalidationSubscriptions()
+	{
+		SubscribeOwnedBox(waitStackBox?.Box);
+		SubscribeOwnedBox(currentPackingBox?.Box);
+		SubscribeOwnedBox(endPackingBox?.Box);
+	}
+
+	private void SubscribeOwnedBox(BoxBase box)
+	{
+		if (box == null)
+			return;
+
+		box.OnInvalidated -= HandleOwnedBoxInvalidated;
+		box.OnInvalidated += HandleOwnedBoxInvalidated;
+	}
+
+	private void HandleOwnedBoxInvalidated(BoxBase box)
+	{
+		if (box == null)
+			return;
+
+		if (waitStackBox?.Box == box)
+			SetWaitStackBox(null);
+
+		if (currentPackingBox?.Box == box)
+		{
+			ClearPackedItemsForDestroyedBox();
+			SetCurrentPackingBox(null);
+		}
+
+		if (endPackingBox?.Box == box)
+			SetEndStackBox(null);
+
+		RefreshWaitingState();
+	}
+
+	private void ClearPackedItemsForDestroyedBox()
+	{
+		for (int i = 0; i < packedItems.Count; ++i)
+			packedItems[i]?.Recycle();
+
+		packedItems.Clear();
+		itemTotals.Clear();
+		totalSize = 0.0f;
+		itemTags = ItemTag.None;
+		OnItemContentChanged?.Invoke(this);
 	}
 
 }

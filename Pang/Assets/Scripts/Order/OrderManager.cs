@@ -158,6 +158,17 @@ public partial class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLi
 		return ApplyLineProgress(targetOrder, () => targetOrder.ReportCompleted(quantity));
 	}
 
+	public int RollbackDestroyedCargo(
+		OrderLine targetOrder,
+		int pickedQuantity,
+		int packedQuantity,
+		PackageOutboundStage outboundStage)
+	{
+		return ApplyLineProgress(
+			targetOrder,
+			() => targetOrder.RollbackDestroyedCargo(pickedQuantity, packedQuantity, outboundStage));
+	}
+
 	public void ChangeOrderStatus(OrderLine targetOrder, OrderStatus status)
 	{
 		if (targetOrder == null)

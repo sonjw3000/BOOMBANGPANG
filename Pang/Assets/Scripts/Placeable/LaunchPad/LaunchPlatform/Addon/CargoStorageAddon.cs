@@ -35,6 +35,8 @@ public partial class CargoStorageAddon
 		}
 
 		cargosToLaunch.AddLast(cargo);
+		cargo.OnInvalidated -= HandleStoredCargoInvalidated;
+		cargo.OnInvalidated += HandleStoredCargoInvalidated;
 
 		cargo.transform.SetParent(transform);
 		cargo.transform.SetLocalPositionAndRotation(Vector3.zero + new Vector3(0, cargosToLaunch.Count, 0), Quaternion.identity);
@@ -61,6 +63,17 @@ public partial class CargoStorageAddon
 		}
 
 		cargo.transform.SetParent(null);
+		cargo.OnInvalidated -= HandleStoredCargoInvalidated;
+		cargosToLaunch.Remove(cargo);
+	}
+
+	private void HandleStoredCargoInvalidated(BoxBase cargo)
+	{
+		if (cargo == null || cargosToLaunch.Contains(cargo) == false)
+			return;
+
+		cargo.OnInvalidated -= HandleStoredCargoInvalidated;
+		cargo.transform.SetParent(null, true);
 		cargosToLaunch.Remove(cargo);
 	}
 

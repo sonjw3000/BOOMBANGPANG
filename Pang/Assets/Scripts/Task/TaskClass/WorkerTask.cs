@@ -143,6 +143,7 @@ public abstract partial class WorkerTask
 			return false;
 
 		ClearPayloadBox();
+		ClearDependencyBoxes();
 		CurrentStatus = Status.Completed;
 		return true;
 	}
@@ -155,6 +156,7 @@ public abstract partial class WorkerTask
 
 		OnTaskInvalidated();
 		ClearPayloadBox();
+		ClearDependencyBoxes();
 		OccupyWorker = null;
 		CurrentStatus = Status.Invalidated;
 		return true;

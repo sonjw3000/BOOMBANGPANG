@@ -28,6 +28,8 @@ public partial class LaunchPadAddon : PlatformAddon
 		// rocket의 cargo point에 cargo를 넣어야함
 
 		cargoToLaunch = cargo;
+		cargoToLaunch.OnInvalidated -= HandleCargoInvalidated;
+		cargoToLaunch.OnInvalidated += HandleCargoInvalidated;
 		readyToLaunch = true;
 
 		return true;
@@ -63,10 +65,21 @@ public partial class LaunchPadAddon : PlatformAddon
 
 		OrderDelivery.DeliverCargo(cargoToLaunch, GameTime.WeekToSeconds(4));
 
+		cargoToLaunch.OnInvalidated -= HandleCargoInvalidated;
 		readyToLaunch = false;
 		cargoToLaunch = null;
 
 		rocket = null;
+	}
+
+	private void HandleCargoInvalidated(BoxBase cargo)
+	{
+		if (cargo == null || cargoToLaunch != cargo)
+			return;
+
+		cargo.OnInvalidated -= HandleCargoInvalidated;
+		cargoToLaunch = null;
+		readyToLaunch = false;
 	}
 
 	private void Update()

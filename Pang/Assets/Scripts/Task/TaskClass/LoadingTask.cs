@@ -16,6 +16,7 @@ public partial class LoadingTask : WorkerTask
 	{
 		this.sourcePort = sourcePort;
 		this.targetStation = targetStation;
+		TrackDependencyBox(sourcePort?.DockedCapsule);
 	}
 
 	protected override void OnTaskAssigned()

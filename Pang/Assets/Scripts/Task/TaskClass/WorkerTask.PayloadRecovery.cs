@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -6,6 +7,7 @@ public abstract partial class WorkerTask
 	private BoxBase payloadBox;
 	private int3 payloadRecoveryPosition;
 	private bool hasPendingPayloadRecovery;
+	private readonly HashSet<BoxBase> dependencyBoxes = new();
 
 	public BoxBase PayloadBox => payloadBox;
 	public bool HasPendingPayloadRecovery => hasPendingPayloadRecovery;
@@ -19,6 +21,25 @@ public abstract partial class WorkerTask
 		ClearPayloadBox();
 		payloadBox = box;
 		payloadBox.OnInvalidated += HandlePayloadBoxInvalidated;
+	}
+
+	protected void TrackDependencyBox(BoxBase box)
+	{
+		if (box == null || dependencyBoxes.Add(box) == false)
+			return;
+
+		box.OnInvalidated += HandleDependencyBoxInvalidated;
+	}
+
+	private void ClearDependencyBoxes()
+	{
+		foreach (BoxBase box in dependencyBoxes)
+		{
+			if (box != null)
+				box.OnInvalidated -= HandleDependencyBoxInvalidated;
+		}
+
+		dependencyBoxes.Clear();
 	}
 
 	internal void ReleasePayloadBox(BoxBase box)
@@ -212,6 +233,15 @@ public abstract partial class WorkerTask
 	private void HandlePayloadBoxInvalidated(BoxBase box)
 	{
 		if (box != payloadBox)
+			return;
+
+		if (GameContext.HasInstance)
+			GameContext.Instance.TaskMgr.InvalidateTask(this);
+	}
+
+	private void HandleDependencyBoxInvalidated(BoxBase box)
+	{
+		if (box == null || dependencyBoxes.Contains(box) == false)
 			return;
 
 		if (GameContext.HasInstance)

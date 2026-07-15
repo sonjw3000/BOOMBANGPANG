@@ -38,6 +38,13 @@ public sealed class PickingRequest
 		return actual;
 	}
 
+	public int ReleaseAllocated(int quantity)
+	{
+		int actual = Mathf.Clamp(quantity, 0, allocatedQuantity);
+		allocatedQuantity -= actual;
+		return actual;
+	}
+
 	public int ReleaseReserved(int quantity)
 	{
 		int releasable = Mathf.Max(0, reservedQuantity - allocatedQuantity);
@@ -47,7 +54,7 @@ public sealed class PickingRequest
 	}
 }
 
-public sealed class PickingPlanner : IItemTransferPlanner
+public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInvalidationHandler
 {
 	private static int jobID = 1;
 
@@ -202,6 +209,27 @@ public sealed class PickingPlanner : IItemTransferPlanner
 			return WorkPlanResult.SwitchPhase;
 
 		return WorkPlanResult.Issued;
+	}
+
+	public void OnTaskInvalidated(ItemTransferTask task)
+	{
+		if (task == null)
+			return;
+
+		WorkLine line = task.Phase == ItemTransferPhase.Collect ? task.CurrentLine : null;
+		if (line != null)
+		{
+			int remaining = Mathf.Max(0, line.Quantity - line.CompleteQuantity);
+			if (remaining > 0)
+			{
+				int released = requestSource.ReleaseAllocated(line.RelatedOrderLine, line.Container as ShelfBase, line.ItemID, remaining);
+				if (released != remaining)
+					Debug.LogWarning($"[PickingPlanner] Task allocation rollback mismatch. requested={remaining}, released={released}");
+			}
+		}
+
+		if (HasPendingCollect(BuildingId))
+			GameContext.Instance.ItemTransferTaskScheduler?.MarkDirty(BuildingId, ItemTransferScheduleMode.Picking);
 	}
 
 	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine pickedLine, out WorkLine line)
@@ -507,6 +535,29 @@ public sealed class PickingPlanner : IItemTransferPlanner
 
 			int requested = Mathf.Min(quantity, requestLine.GetAllocatableQuantity());
 			return requestLine.ReportAllocated(requested);
+		}
+
+		public int ReleaseAllocated(OrderLine orderLine, ShelfBase source, uint itemId, int quantity)
+		{
+			if (orderLine == null || source == null || quantity <= 0)
+				return 0;
+
+			int remaining = quantity;
+			for (int i = 0; i < requests.Count && remaining > 0; ++i)
+			{
+				PickingRequest request = requests[i];
+				if (request == null ||
+					request.OrderLine != orderLine ||
+					request.Source != source ||
+					request.ItemId != itemId)
+				{
+					continue;
+				}
+
+				remaining -= request.ReleaseAllocated(remaining);
+			}
+
+			return quantity - remaining;
 		}
 
 		public WorkLine CreateWorkLine(ShelfBase source, uint itemId, int quantity, PickingRequest requestLine)

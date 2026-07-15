@@ -2,6 +2,12 @@ public partial class OrderDeliveryService
 {
 	public void ResetRuntimeState()
 	{
+		foreach (var progress in deliveryProgresses)
+		{
+			if (progress?.Cargo != null)
+				progress.Cargo.OnInvalidated -= HandleDeliveryCargoInvalidated;
+		}
+
 		deliveryProgresses.Clear();
 	}
 
@@ -37,7 +43,7 @@ public partial class OrderDeliveryService
 			if (progress.Box == null || BoxMgr.TryGetBox(progress.Box.BoxType, progress.Box.BoxId, out var cargo) == false)
 				continue;
 
-			deliveryProgresses.Add(new DeliveryProgress(cargo, progress.TimeRemain));
+			DeliverCargo(cargo, progress.TimeRemain);
 		}
 	}
 }

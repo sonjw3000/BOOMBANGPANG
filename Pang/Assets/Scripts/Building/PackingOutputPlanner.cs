@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public sealed class PackingOutputPlanner : IItemTransferPlanner
+public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTaskInvalidationHandler
 {
 	private readonly PackingBuilding building;
 
@@ -103,6 +103,15 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner
 			return WorkPlanResult.Issued;
 
 		return WorkPlanResult.Completed;
+	}
+
+	public void OnTaskInvalidated(ItemTransferTask task)
+	{
+		if (task?.Phase != ItemTransferPhase.Collect || task.CurrentLine?.Target is not PackingStation station)
+			return;
+
+		if (building != null && building.CanBuildPackingOutputTask(station))
+			building.MarkPackingOutputDirty(station);
 	}
 
 	private static void TransferPackedManifest(BoxBase sourceBox, WorkLine placeLine)

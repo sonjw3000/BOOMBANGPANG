@@ -40,6 +40,7 @@ public partial class OrderDeliveryService : MonoBehaviour
 
 			Debug.Log("Cargo Delivered!");
 
+			progress.Cargo.OnInvalidated -= HandleDeliveryCargoInvalidated;
 			BoxMgr.DisableBox(progress.Cargo);
 			deliveryProgresses.RemoveAt(i);
 		}
@@ -47,7 +48,25 @@ public partial class OrderDeliveryService : MonoBehaviour
 
 	public void DeliverCargo(BoxBase box, float duration)
 	{
+		if (box == null)
+			return;
+
+		box.OnInvalidated -= HandleDeliveryCargoInvalidated;
+		box.OnInvalidated += HandleDeliveryCargoInvalidated;
 		deliveryProgresses.Add(new(box, duration));
+	}
+
+	private void HandleDeliveryCargoInvalidated(BoxBase box)
+	{
+		if (box == null)
+			return;
+
+		box.OnInvalidated -= HandleDeliveryCargoInvalidated;
+		for (int i = deliveryProgresses.Count - 1; i >= 0; --i)
+		{
+			if (deliveryProgresses[i].Cargo == box)
+				deliveryProgresses.RemoveAt(i);
+		}
 	}
 
 }

@@ -223,7 +223,35 @@ public partial class TaskManager : MonoBehaviour
 		if (task is ItemTransferTask && GameContext.HasInstance)
 			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
 
+		NotifyWorkflowTaskInvalidated(task);
+
 		return true;
+	}
+
+	private void NotifyWorkflowTaskInvalidated(WorkerTask task)
+	{
+		if (task == null)
+			return;
+
+		switch (task.Type)
+		{
+			case TaskType.Unloading:
+			case TaskType.IB:
+			case TaskType.CapsuleClear:
+			case TaskType.Labeling:
+			case TaskType.Storing:
+				IBService?.OnTaskInvalidated(task);
+				break;
+
+			case TaskType.CapsuleSupply:
+			case TaskType.OB:
+			case TaskType.CargoTransfer:
+			case TaskType.Picking:
+			case TaskType.Packing:
+			case TaskType.Loading:
+				OBService?.OnTaskInvalidated(task);
+				break;
+		}
 	}
 
 	public void CompleteTask(WorkerTask task)

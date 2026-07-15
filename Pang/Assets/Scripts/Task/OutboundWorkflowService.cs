@@ -72,6 +72,41 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		}
 	}
 
+	public void OnTaskInvalidated(WorkerTask task)
+	{
+		if (task == null)
+			return;
+
+		switch (task.Type)
+		{
+			case TaskType.CargoTransfer:
+				if (task is CargoTransferTask cargoTransferTask)
+				{
+					OnCargoTransferTaskCompleted(cargoTransferTask);
+					ReleaseRelocationReservation(cargoTransferTask.SourcePort, cargoTransferTask.TargetPort);
+				}
+				else if (task is CapsuleRelocationTask capsuleTransferTask)
+				{
+					OnCargoTransferTaskCompleted(capsuleTransferTask);
+					ReleaseRelocationReservation(capsuleTransferTask.SourceDock, capsuleTransferTask.TargetDock);
+				}
+				break;
+
+			case TaskType.Packing:
+				if (task is PackingTask packingTask)
+					PackingStationService?.OnPackingTaskCompleted(packingTask.TargetStation);
+				break;
+		}
+	}
+
+	private static void ReleaseRelocationReservation(CapsuleDock sourceDock, CapsuleDock targetDock)
+	{
+		if (GameContext.HasInstance == false)
+			return;
+
+		GameContext.Instance.CapsuleRelocateCoordinator?.ReleaseReservation(sourceDock, targetDock);
+	}
+
 	public void MakeOrder()
 	{
 		OrderMgr.CreateRandomOrder();
@@ -157,6 +192,39 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		if (boxId != 0)
 			pickingManifests.Remove(boxId);
+	}
+
+	public void OnBoxReleased(BoxBase box, bool destroyed)
+	{
+		if (box == null || TryGetPickingManifest(box, out PickingManifest manifest) == false)
+			return;
+
+		if (destroyed)
+		{
+			IReadOnlyList<PickingManifestLine> lines = manifest.Lines;
+			for (int i = 0; i < lines.Count; ++i)
+			{
+				PickingManifestLine line = lines[i];
+				if (line?.OrderLine == null || line.PickedQuantity <= 0)
+					continue;
+
+				if (line.OutboundStage == PackageOutboundStage.Completed)
+				{
+					Debug.LogWarning($"[OutboundWorkflowService] Completed cargo cannot be rolled back by box destruction. box={box.BoxId}, item={line.ItemId}");
+					continue;
+				}
+
+				int rolledBack = OrderMgr.RollbackDestroyedCargo(
+					line.OrderLine,
+					line.PickedQuantity,
+					line.PackedQuantity,
+					line.OutboundStage);
+				if (rolledBack != line.PickedQuantity)
+					Debug.LogWarning($"[OutboundWorkflowService] Destroyed cargo rollback mismatch. box={box.BoxId}, item={line.ItemId}, requested={line.PickedQuantity}, applied={rolledBack}");
+			}
+		}
+
+		ClearPickingManifest(box);
 	}
 
 	public int AddPickedToManifest(BoxBase box, OrderLine orderLine, uint itemId, int quantity)

@@ -13,6 +13,7 @@ public partial class UnloadingTask : WorkerTask
 	{
 		targetRocket = rocket;
 		this.cargoPort = cargoPort;
+		TrackDependencyBox(rocket?.DockedCapsule);
 	}
 
 	protected override void OnTaskAssigned()
