@@ -14,7 +14,8 @@ public class MetricsService : MonoBehaviour
 	private WorkerManager WorkerMgr => GameContext.Instance.WorkerMgr;
 
 	// workers
-	public int GetQueueLength(WorkerTask.TaskType type) => TaskQueue[type].Count;
+	public int GetQueueLength(WorkerTask.TaskType type)
+		=> TaskQueue[type].Count + GameContext.Instance.TaskMgr.GetReturnedTaskCount(type);
 	public int GetOnProgressLength(WorkerTask.TaskType type) => TaskOnProgress[type].Count;
 	public int GetTaskWorkerStatusCount(WorkerTask.TaskType type, WorkerStatusAction statusAction)
 		=> WorkerMgr.GetTaskWorkerStatusCount(type, statusAction);

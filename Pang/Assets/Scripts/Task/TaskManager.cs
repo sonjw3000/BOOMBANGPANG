@@ -8,6 +8,7 @@ public partial class TaskManager : MonoBehaviour
 {
 	private Dictionary<TaskType, LinkedList<WorkerTask>> taskQueue = new();
 	private Dictionary<TaskType, LinkedList<WorkerTask>> taskOnProgress = new();
+	private readonly LinkedList<WorkerTask> returnedTaskQueue = new();
 	private readonly LinkedList<TaskBuildRequest> taskBuildQueue = new();
 	private readonly Dictionary<object, LinkedListNode<TaskBuildRequest>> taskBuildRequestsByKey = new();
 
@@ -18,6 +19,7 @@ public partial class TaskManager : MonoBehaviour
 
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue => taskQueue;
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskOnProgress => taskOnProgress;
+	public IReadOnlyCollection<WorkerTask> ReturnedTaskQueue => returnedTaskQueue;
 	public IReadOnlyCollection<TaskBuildRequest> TaskBuildQueue => taskBuildQueue;
 
 	private void Awake()
@@ -33,7 +35,7 @@ public partial class TaskManager : MonoBehaviour
 	
 	public void EnqueueTask(WorkerTask task)
 	{
-		if (task == null)
+		if (task == null || task.CurrentStatus != WorkerTask.Status.Ready)
 			return;
 
 		taskQueue[task.Type].AddLast(task);
@@ -105,6 +107,8 @@ public partial class TaskManager : MonoBehaviour
 	// dispatch task to workers
 	private void Dispatch()
 	{
+		DispatchReturnedTasks();
+
 		// find tasks to do
 		foreach (var (key, queue) in taskQueue)
 		{
@@ -117,9 +121,11 @@ public partial class TaskManager : MonoBehaviour
 
 				if (worker != null)
 				{
-					queue.Remove(node);
-					worker.SetTask(data);
-					taskOnProgress[key].AddLast(data);
+					if (worker.SetTask(data))
+					{
+						queue.Remove(node);
+						taskOnProgress[key].AddLast(data);
+					}
 				}
 
 				node = next;
@@ -127,9 +133,77 @@ public partial class TaskManager : MonoBehaviour
 		}
 	}
 
-	public void OnEndTask(WorkerTask task)
+	private void DispatchReturnedTasks()
 	{
+		LinkedListNode<WorkerTask> node = returnedTaskQueue.First;
+		while (node != null)
+		{
+			LinkedListNode<WorkerTask> next = node.Next;
+			WorkerTask task = node.Value;
+			if (task == null || task.CurrentStatus != WorkerTask.Status.Returned)
+			{
+				returnedTaskQueue.Remove(node);
+				node = next;
+				continue;
+			}
+
+			AIWorker worker = GameContext.Instance.WorkerMgr.GetAvailableWorkers(task);
+			if (worker != null)
+			{
+				if (worker.SetTask(task))
+				{
+					returnedTaskQueue.Remove(node);
+					taskOnProgress[task.Type].AddLast(task);
+				}
+			}
+
+			node = next;
+		}
+	}
+
+	public bool ReturnTask(AIWorker worker)
+	{
+		WorkerTask task = worker != null ? worker.CurrentTask : null;
+		if (task == null || task.MarkReturned(worker) == false)
+			return false;
+
 		taskOnProgress[task.Type].Remove(task);
+		worker.ClearTask(task, becomeIdle: false);
+		returnedTaskQueue.AddLast(task);
+
+		if (task is ItemTransferTask && GameContext.HasInstance)
+			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskReturned(task);
+
+		return true;
+	}
+
+	public bool InvalidateTask(WorkerTask task)
+	{
+		if (task == null || task.MarkInvalidated(out AIWorker worker) == false)
+			return false;
+
+		taskQueue[task.Type].Remove(task);
+		returnedTaskQueue.Remove(task);
+		taskOnProgress[task.Type].Remove(task);
+
+		if (worker != null)
+			worker.ClearTask(task, becomeIdle: worker.IsOperational);
+
+		Stats.RemoveQueue(task.Type);
+		if (task is ItemTransferTask && GameContext.HasInstance)
+			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
+
+		return true;
+	}
+
+	public void CompleteTask(WorkerTask task)
+	{
+		if (task == null || task.MarkCompleted(out AIWorker worker) == false)
+			return;
+
+		taskOnProgress[task.Type].Remove(task);
+		worker.OnTaskCompleted();
+		worker.ClearTask(task, becomeIdle: true);
 		Stats.CompleteProcess(task.Type);
 
 		if (task is ItemTransferTask && GameContext.HasInstance)
@@ -184,6 +258,27 @@ public partial class TaskManager : MonoBehaviour
 			return;
 
 		taskOnProgress[task.Type].AddLast(task);
+	}
+
+	public void AddRestoredReturnedTask(WorkerTask task)
+	{
+		if (task == null)
+			return;
+
+		task.RestoreReturnedState();
+		returnedTaskQueue.AddLast(task);
+	}
+
+	public int GetReturnedTaskCount(TaskType taskType)
+	{
+		int count = 0;
+		foreach (WorkerTask task in returnedTaskQueue)
+		{
+			if (task != null && task.Type == taskType)
+				++count;
+		}
+
+		return count;
 	}
 
 }

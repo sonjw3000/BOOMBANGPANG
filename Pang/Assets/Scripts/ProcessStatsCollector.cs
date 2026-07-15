@@ -60,6 +60,11 @@ public class ProcessStatsCollector : MonoBehaviour
 		stats[workerTask].ProcessedThisWeek++;
 	}
 
+	public void RemoveQueue(WorkerTask.TaskType workerTask)
+	{
+		stats[workerTask].CurrentQueue = Math.Max(0, stats[workerTask].CurrentQueue - 1);
+	}
+
 	public ProcessStats GetStats(WorkerTask.TaskType workerTask)
 	{
 		return stats[workerTask];

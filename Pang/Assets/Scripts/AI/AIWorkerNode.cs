@@ -518,7 +518,7 @@ public abstract partial class AIWorker
 			if (res == null)
 				return Success;
 
-			ctx.LocalBlackBoard.Set("IncidentState", res);
+			ctx.LocalBlackBoard.Set("IncidentState", res.responseType);
 			return Success;
 		}));
 
@@ -540,7 +540,7 @@ public abstract partial class AIWorker
 	protected static NodeState IsIncidentWorkMistake(in BTContext ctx)
 	{
 		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
-			responseType != HumanIncidentResponseType.WorkMistake)
+			responseType == HumanIncidentResponseType.WorkMistake)
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.HandlingMistake);
 			return Success;
@@ -552,7 +552,7 @@ public abstract partial class AIWorker
 	protected static NodeState IsIncidentCollapse(in BTContext ctx)
 	{
 		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
-			responseType != HumanIncidentResponseType.AbortTask)
+			responseType == HumanIncidentResponseType.AbortTask)
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.Collapse);
 
@@ -564,12 +564,9 @@ public abstract partial class AIWorker
 
 	protected static NodeState AbortTask(in BTContext ctx)
 	{
-		//WorkerTask task = ctx.Worker.currentTask;
-		//ctx.Worker.SetTask(null);
-		
-		// task manager에게 대체 worker가 task를 수행해야 한다고 알림
-
-		return Success;
+		return ctx.Worker.EnterIncapacitatedState(WorkerOperationalState.Knockout)
+			? Success
+			: Failure;
 	}
 
 	protected static NodeState EndWorkerIncident(in BTContext ctx)
@@ -590,6 +587,7 @@ public abstract partial class AIWorker
 		SequenceNode mistake= new SequenceNode();
 		mistake.Add(new ActionNode(IsIncidentWorkMistake));
 		mistake.Add(new DoWorkNode(WorkActionType.HandleMistake));
+		mistake.Add(new ActionNode(EndWorkerIncident));
 
 		SelectorNode handleIncident = new SelectorNode();
 		handleIncident.Add(collapse);

@@ -155,6 +155,7 @@ public sealed class GameSaveService : MonoBehaviour
 
 		data.Tasks.AddRange(CaptureTasks(Ctx.TaskMgr.TaskQueue, false));
 		data.Tasks.AddRange(CaptureTasks(Ctx.TaskMgr.TaskOnProgress, true));
+		data.Tasks.AddRange(CaptureReturnedTasks(Ctx.TaskMgr.ReturnedTaskQueue));
 		return data;
 	}
 
@@ -254,8 +255,14 @@ public sealed class GameSaveService : MonoBehaviour
 					continue;
 				}
 
-				worker.SetTask(task);
-				Ctx.TaskMgr.AddRestoredInProgressTask(task);
+				if (worker.SetTask(task))
+					Ctx.TaskMgr.AddRestoredInProgressTask(task);
+				else
+					Debug.LogWarning($"[Save] Worker {taskData.AssignedWorkerId} could not restore in-progress task {taskData.TaskType}");
+			}
+			else if (taskData.IsReturned)
+			{
+				Ctx.TaskMgr.AddRestoredReturnedTask(task);
 			}
 			else
 			{
@@ -333,43 +340,55 @@ public sealed class GameSaveService : MonoBehaviour
 		foreach (var list in source.Values)
 		{
 			foreach (WorkerTask task in list)
-			{
-				TaskSaveData taskData = new();
-				taskData.TaskType = task.Type;
-				taskData.IsInProgress = isInProgress;
-				taskData.AssignedWorkerId = task.OccupyWorker != null ? task.OccupyWorker.WorkerID : 0;
-
-				switch (task)
-				{
-					case UnloadingTask unloading:
-						taskData.Unloading = unloading.CaptureState(GetPlaceableIdOrDefault);
-						break;
-					case LoadingTask loading:
-						taskData.Loading = loading.CaptureState(GetPlaceableIdOrDefault);
-						break;
-					case PickingTask picking:
-						taskData.Picking = picking.CaptureState(GetPlaceableIdOrDefault, RegisterOrderLine);
-						break;
-					case StoringTask storing:
-						taskData.Storing = storing.CaptureState(GetPlaceableIdOrDefault, RegisterOrderLine);
-						break;
-					case CapsuleRelocationTask capsuleRelocation:
-						taskData.CapsuleTransfer = capsuleRelocation.CaptureState(GetPlaceableIdOrDefault);
-						break;
-					case CargoTransferTask cargoTransfer:
-						taskData.CargoTransfer = cargoTransfer.CaptureState(GetPlaceableIdOrDefault);
-						break;
-					case PackingTask packing:
-						taskData.Packing = packing.CaptureState(GetPlaceableIdOrDefault);
-						break;
-					case LabelingTask labeling:
-						taskData.Labeling = labeling.CaptureState(GetPlaceableIdOrDefault);
-						break;
-				}
-
-				yield return taskData;
-			}
+				yield return CaptureTask(task, isInProgress, isReturned: false);
 		}
+	}
+
+	private IEnumerable<TaskSaveData> CaptureReturnedTasks(IEnumerable<WorkerTask> source)
+	{
+		foreach (WorkerTask task in source)
+			yield return CaptureTask(task, isInProgress: false, isReturned: true);
+	}
+
+	private TaskSaveData CaptureTask(WorkerTask task, bool isInProgress, bool isReturned)
+	{
+		TaskSaveData taskData = new()
+		{
+			TaskType = task.Type,
+			IsInProgress = isInProgress,
+			IsReturned = isReturned,
+			AssignedWorkerId = task.OccupyWorker != null ? task.OccupyWorker.WorkerID : 0,
+		};
+
+		switch (task)
+		{
+			case UnloadingTask unloading:
+				taskData.Unloading = unloading.CaptureState(GetPlaceableIdOrDefault);
+				break;
+			case LoadingTask loading:
+				taskData.Loading = loading.CaptureState(GetPlaceableIdOrDefault);
+				break;
+			case PickingTask picking:
+				taskData.Picking = picking.CaptureState(GetPlaceableIdOrDefault, RegisterOrderLine);
+				break;
+			case StoringTask storing:
+				taskData.Storing = storing.CaptureState(GetPlaceableIdOrDefault, RegisterOrderLine);
+				break;
+			case CapsuleRelocationTask capsuleRelocation:
+				taskData.CapsuleTransfer = capsuleRelocation.CaptureState(GetPlaceableIdOrDefault);
+				break;
+			case CargoTransferTask cargoTransfer:
+				taskData.CargoTransfer = cargoTransfer.CaptureState(GetPlaceableIdOrDefault);
+				break;
+			case PackingTask packing:
+				taskData.Packing = packing.CaptureState(GetPlaceableIdOrDefault);
+				break;
+			case LabelingTask labeling:
+				taskData.Labeling = labeling.CaptureState(GetPlaceableIdOrDefault);
+				break;
+		}
+
+		return taskData;
 	}
 
 	private void InstantiatePlaceable(

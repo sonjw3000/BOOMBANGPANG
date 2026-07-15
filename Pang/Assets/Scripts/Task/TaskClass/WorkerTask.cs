@@ -56,9 +56,10 @@ public abstract class WorkerTask
 	public enum Status
 	{
 		Ready,
-		Blocked,
 		Assigned,
-		End
+		Returned,
+		Completed,
+		Invalidated,
 	}
 
 	private IBaseNode baseNode = null;
@@ -67,7 +68,7 @@ public abstract class WorkerTask
 
 	public AIWorker OccupyWorker { get; private set; }
 	public TaskType Type { get; private set; }
-	public Status CurrentStatus { get; private set; } = Status.Blocked;
+	public Status CurrentStatus { get; private set; } = Status.Ready;
 	public float TaskBuiltTime { get; private set; }
 	public bool IsEmergency { get; private set; }
 	public CarryBoxAbility CarryingAbility => WorkerCarryBox;
@@ -90,24 +91,76 @@ public abstract class WorkerTask
 		baseNode = root;
 	}
 
-	public void SetAIWorker(AIWorker worker)
+	public bool SetAIWorker(AIWorker worker)
 	{
+		if (worker == null ||
+			(CurrentStatus != Status.Ready && CurrentStatus != Status.Returned))
+		{
+			return false;
+		}
+
+		bool isReassignment = CurrentStatus == Status.Returned;
+		if (isReassignment)
+			RebuildTaskTree();
+
 		OccupyWorker = worker;
-		// 작업자가 배치된 상태라면 작업이 진행되고있는 상태임
 		CurrentStatus = Status.Assigned;
-		OnTaskAssigned();
+		if (isReassignment)
+			OnTaskReassigned();
+		else
+			OnTaskAssigned();
+
+		return true;
 	}
 
 	public void EndTask()
 	{
-		CurrentStatus = Status.End;
-		OccupyWorker.OnTaskCompleted();
-		OccupyWorker.SetTask(null);
-
-		Manager.OnEndTask(this);
+		Manager.CompleteTask(this);
 	}
 
 	protected virtual void OnTaskAssigned() { }
+	protected virtual void OnTaskReassigned() => OnTaskAssigned();
+	protected virtual void OnTaskReturned(AIWorker worker) { }
+	protected virtual void OnTaskInvalidated() { }
+
+	internal bool MarkReturned(AIWorker worker)
+	{
+		if (CurrentStatus != Status.Assigned || worker == null || OccupyWorker != worker)
+			return false;
+
+		OnTaskReturned(worker);
+		OccupyWorker = null;
+		CurrentStatus = Status.Returned;
+		return true;
+	}
+
+	internal bool MarkCompleted(out AIWorker worker)
+	{
+		worker = OccupyWorker;
+		if (CurrentStatus != Status.Assigned || worker == null)
+			return false;
+
+		CurrentStatus = Status.Completed;
+		return true;
+	}
+
+	internal bool MarkInvalidated(out AIWorker worker)
+	{
+		worker = OccupyWorker;
+		if (CurrentStatus == Status.Completed || CurrentStatus == Status.Invalidated)
+			return false;
+
+		OnTaskInvalidated();
+		OccupyWorker = null;
+		CurrentStatus = Status.Invalidated;
+		return true;
+	}
+
+	internal void RestoreReturnedState()
+	{
+		if (CurrentStatus == Status.Ready)
+			CurrentStatus = Status.Returned;
+	}
 	public virtual bool TryGetPreferredWorker(out AIWorker worker)
 	{
 		worker = null;
@@ -130,6 +183,14 @@ public abstract class WorkerTask
 	public IBaseNode.NodeState UpdateTaskNode(in BTContext ctx)
 	{
 		return baseNode.Evaluate(ctx);
+	}
+
+	private void RebuildTaskTree()
+	{
+		SelectorNode root = new();
+		root.Add(CheckFulfiledNode());
+		root.Add(BuildWorkNode());
+		baseNode = root;
 	}
 
 

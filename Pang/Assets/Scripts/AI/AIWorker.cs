@@ -47,6 +47,17 @@ public enum WorkerStatusAction
 	Charging,
 	Working,
 	TrafficBlock,
+	Knockout,
+	Death,
+	Malfunction,
+}
+
+public enum WorkerOperationalState
+{
+	Active,
+	Knockout,
+	Death,
+	Malfunction,
 }
 
 public enum WorkerStatusTarget
@@ -103,6 +114,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private int hiredAtElapsedWeek = -1;
 	[SerializeField] private int itemDamageIncidentCount;
 	[SerializeField] private HealthState health = new();
+	[SerializeField] private WorkerOperationalState operationalState = WorkerOperationalState.Active;
 
 	// base stat
 	[SerializeField] private float baseMoveSpeedMultiplier = 1.0f;
@@ -204,8 +216,21 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public int ItemDamageIncidentCount => itemDamageIncidentCount;
 	public float Health => health.Health;
 	public float MaxHealth => health.MaxHealth;
+	public WorkerOperationalState OperationalState => operationalState;
+	public bool IsOperational => operationalState == WorkerOperationalState.Active;
 
-	public float ApplyDamage(float amount) => health.ApplyDamage(amount);
+	public float ApplyDamage(float amount)
+	{
+		float applied = health.ApplyDamage(amount);
+		if (applied > 0.0f && health.Health <= 0.0f)
+		{
+			EnterIncapacitatedState(WorkerKind == WorkerKind.Robot
+				? WorkerOperationalState.Malfunction
+				: WorkerOperationalState.Death);
+		}
+
+		return applied;
+	}
 	public void RestoreHealth(float value) => health.RestoreHealth(value);
 
 	// stat
@@ -299,6 +324,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private void BuildBehaviorTree()
 	{
 		SelectorNode root = new();
+		root.Add(new ActionNode(HoldIncapacitatedState));
 
 		IBaseNode workerBaseNode = BuildWorkerBaseNode();
 		ActionNode performTask = new(DoWork);
@@ -402,7 +428,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	{
 		EnsureEmploymentInitialized();
 		InitializeForSaveLoad();
-		if (currentTask == null)
+		if (currentTask == null && IsOperational)
 		{
 			WorkerMgr.AddIdleWorker(this);
 		}
@@ -589,17 +615,88 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		identityInitialized = true;
 	}
 
-	public void SetTask(WorkerTask task)
+	public bool SetTask(WorkerTask task)
 	{
+		if (task != null && IsOperational == false)
+			return false;
+
 		if (GameContext.HasInstance && task != null)
 			WorkerMgr.RemoveIdleWorker(this);
-		else
+		else if (IsOperational)
 		{
 			WorkerMgr.AddIdleWorker(this);
 		}
 
-		task?.SetAIWorker(this);
+		if (task != null && task.SetAIWorker(this) == false)
+		{
+			if (GameContext.HasInstance && IsOperational)
+				WorkerMgr.AddIdleWorker(this);
+			return false;
+		}
+
 		currentTask = task;
+		return true;
+	}
+
+	internal void ClearTask(WorkerTask expectedTask, bool becomeIdle)
+	{
+		if (expectedTask != null && currentTask != expectedTask)
+			return;
+
+		currentTask = null;
+		localBlackBoard.Clear();
+		if (GameContext.HasInstance)
+		{
+			if (becomeIdle && IsOperational)
+				WorkerMgr.AddIdleWorker(this);
+			else
+				WorkerMgr.RemoveIdleWorker(this);
+		}
+	}
+
+	public bool EnterIncapacitatedState(WorkerOperationalState state)
+	{
+		if (state == WorkerOperationalState.Active || operationalState == state)
+			return false;
+
+		operationalState = state;
+		routeFinder?.CancelCurrentRoute();
+		localBlackBoard.Clear();
+
+		if (GameContext.HasInstance)
+		{
+			WorkerMgr.RemoveIdleWorker(this);
+			GameContext.Instance.TaskMgr.ReturnTask(this);
+		}
+
+		if (isTrafficBlocked)
+			EndTrafficBlock();
+
+		SetWorkerTarget(WorkerStatusTarget.None);
+		SetWorkerAction(GetIncapacitatedStatusAction(state));
+		enabled = true;
+		return true;
+	}
+
+	private static WorkerStatusAction GetIncapacitatedStatusAction(WorkerOperationalState state)
+	{
+		return state switch
+		{
+			WorkerOperationalState.Knockout => WorkerStatusAction.Knockout,
+			WorkerOperationalState.Death => WorkerStatusAction.Death,
+			WorkerOperationalState.Malfunction => WorkerStatusAction.Malfunction,
+			_ => WorkerStatusAction.Idle,
+		};
+	}
+
+	private static IBaseNode.NodeState HoldIncapacitatedState(in BTContext ctx)
+	{
+		if (ctx.Worker == null || ctx.Worker.IsOperational)
+			return IBaseNode.NodeState.Failure;
+
+		ctx.Worker.SetWorkerTarget(WorkerStatusTarget.None);
+		ctx.Worker.SetWorkerAction(GetIncapacitatedStatusAction(ctx.Worker.OperationalState));
+		return IBaseNode.NodeState.Running;
 	}
 
 	// for findroute only
@@ -682,7 +779,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptGeneralTask(WorkerTask.TaskType taskType)
 	{
-		if (currentTask != null || IsAssignedToTaskType(taskType) == false)
+		if (IsOperational == false || currentTask != null || IsAssignedToTaskType(taskType) == false)
 			return false;
 
 		if (IsAssignedToPackingStation)
@@ -698,7 +795,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptPreferredTask(WorkerTask task)
 	{
-		if (currentTask != null || task == null || IsAssignedToTaskType(task.Type) == false)
+		if (IsOperational == false || currentTask != null || task == null || IsAssignedToTaskType(task.Type) == false)
 			return false;
 
 		if (task is PackingTask packingTask)

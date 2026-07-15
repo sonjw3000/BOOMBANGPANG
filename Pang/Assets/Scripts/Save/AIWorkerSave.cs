@@ -46,6 +46,7 @@ public abstract partial class AIWorker
 			AssignedTaskTypes = new System.Collections.Generic.List<WorkerTask.TaskType>(workerAssignedTaskTypes),
 			StatusAction = workerState.Action,
 			StatusTarget = workerState.Target,
+			OperationalState = operationalState,
 			CarryingBox = null,
 		};
 
@@ -101,6 +102,7 @@ public abstract partial class AIWorker
 
 		workerMainTaskType = workerAssignedTaskTypes.Count > 0 ? workerAssignedTaskTypes[0] : WorkerTask.TaskType.Undefined;
 		workerState = new WorkerStatusInfo(data.StatusAction, data.StatusTarget);
+		operationalState = data.OperationalState;
 		preTrafficAction = workerState.Action;
 		isTrafficBlocked = false;
 		tick = 0;

@@ -91,6 +91,42 @@ public class TrafficCoordinator : MonoBehaviour
 		EnqueueResolve(route);
 	}
 
+	public void CancelRoute(FindRoute route)
+	{
+		if (route == null)
+			return;
+
+		UnregisterWait(route);
+		queuedRoutes.Remove(route);
+		clearingForRoutes.Remove(route);
+
+		waitScanScratch.Clear();
+		foreach (var pair in clearingForRoutes)
+		{
+			if (pair.Value == route)
+				waitScanScratch.Add(pair.Key);
+		}
+		for (int i = 0; i < waitScanScratch.Count; ++i)
+			clearingForRoutes.Remove(waitScanScratch[i]);
+
+		yieldHoldScratch.Clear();
+		foreach (var pair in yieldHolds)
+		{
+			YieldHold hold = pair.Value;
+			if (hold != null && (hold.YieldingRoute == route || hold.PriorityRoute == route))
+				yieldHoldScratch.Add(hold);
+		}
+
+		for (int i = 0; i < yieldHoldScratch.Count; ++i)
+		{
+			YieldHold hold = yieldHoldScratch[i];
+			FindRoute yieldingRoute = hold.YieldingRoute;
+			ClearYieldHold(hold);
+			if (yieldingRoute != null && yieldingRoute != route)
+				RequestFreshRouteOrResume(yieldingRoute);
+		}
+	}
+
 	public void NotifyAvoidTargetCleared(FindRoute route, FindRoute avoidTarget)
 	{
 		if (route == null)

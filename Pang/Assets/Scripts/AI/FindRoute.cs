@@ -598,6 +598,21 @@ public class FindRoute : MonoBehaviour
 		enabled = false;
 	}
 
+	public void CancelCurrentRoute()
+	{
+		if (GameContext.HasInstance)
+			TrafficCoordinator.CancelRoute(this);
+
+		ClearWait();
+		stopAfterCurrentStep = false;
+		hasPendingGoal = false;
+		hasCurrentGoal = false;
+		isYieldMove = false;
+		ResetCurrentPathPlan(true);
+		movementState = MovementState.Idle;
+		enabled = false;
+	}
+
 	public void ConsumeArrivedGoal()
 	{
 		if (movementState != MovementState.Arrived)

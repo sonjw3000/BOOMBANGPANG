@@ -484,6 +484,7 @@ public sealed class WorkerSaveData
 	public List<WorkerTask.TaskType> AssignedTaskTypes = new();
 	public WorkerStatusAction StatusAction;
 	public WorkerStatusTarget StatusTarget;
+	public WorkerOperationalState OperationalState;
 	public float Fatigue;
 	public float Experience;
 	public float BatteryLevel;
@@ -590,6 +591,7 @@ public sealed class TaskSaveData
 {
 	public WorkerTask.TaskType TaskType;
 	public bool IsInProgress;
+	public bool IsReturned;
 	public uint AssignedWorkerId;
 
 	public UnloadingTaskSaveData Unloading;

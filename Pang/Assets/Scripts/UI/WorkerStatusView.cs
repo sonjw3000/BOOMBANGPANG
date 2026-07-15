@@ -107,7 +107,10 @@ public class WorkerStatusView : MonoBehaviour
 			   action == WorkerStatusAction.TrafficBlock ||
 			   action == WorkerStatusAction.WaitingForTargetBuilding ||
 			   action == WorkerStatusAction.HandlingMistake ||
-			   action == WorkerStatusAction.Collapse;
+			   action == WorkerStatusAction.Collapse ||
+			   action == WorkerStatusAction.Knockout ||
+			   action == WorkerStatusAction.Death ||
+			   action == WorkerStatusAction.Malfunction;
 	}
 
 	private void LateUpdate()

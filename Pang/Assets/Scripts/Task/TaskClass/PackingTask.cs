@@ -30,6 +30,24 @@ public partial class PackingTask : WorkerTask
 		PackingStationService.OnPackingTaskAssigned(targetStation);
 	}
 
+	protected override void OnTaskReturned(AIWorker worker)
+	{
+		if (targetStation != null && targetStation.CurrentPackingWorker == worker)
+			targetStation.CurrentPackingWorker = null;
+	}
+
+	protected override void OnTaskInvalidated()
+	{
+		if (targetStation != null && targetStation.CurrentPackingWorker == OccupyWorker)
+			targetStation.CurrentPackingWorker = null;
+	}
+
+	protected override void OnTaskReassigned()
+	{
+		if (targetStation != null)
+			targetStation.CurrentPackingWorker = OccupyWorker;
+	}
+
 	public override bool TryGetPreferredWorker(out AIWorker worker)
 	{
 		worker = targetStation != null ? targetStation.CurrentPackingWorker : null;

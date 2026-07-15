@@ -18,6 +18,9 @@ public class StatusTrackingUI : MonoBehaviour
 		WorkerStatusAction.Charging,
 		WorkerStatusAction.HandlingMistake,
 		WorkerStatusAction.Collapse,
+		WorkerStatusAction.Knockout,
+		WorkerStatusAction.Death,
+		WorkerStatusAction.Malfunction,
 	};
 
 	[Header("Task Tracking")]

@@ -191,6 +191,20 @@ public sealed class ItemTransferTaskScheduler
 			TryScheduleDirtyKeys();
 	}
 
+	public void NotifyTaskReturned(WorkerTask task)
+	{
+		if (task == null || scheduledWorkersByTask.TryGetValue(task, out AIWorker worker) == false)
+			return;
+
+		scheduledWorkersByTask.Remove(task);
+		reservedWorkers.Remove(worker);
+	}
+
+	public void NotifyTaskInvalidated(WorkerTask task)
+	{
+		NotifyTaskCompleted(task);
+	}
+
 	public bool HasDirty(uint buildingId, ItemTransferScheduleMode mode)
 	{
 		return dirtyKeys.Contains(new ItemTransferScheduleKey(buildingId, mode));
