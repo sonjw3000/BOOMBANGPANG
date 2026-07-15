@@ -72,6 +72,7 @@ public class PathRequest
 	public readonly FacingDirection startFacingDirection;
 	public readonly Action<PathResultBuffer> Completed;
 	public readonly bool IncludeCongestion;
+	public readonly Func<int3, bool> CanTraverseBlockedCell;
 
 	public readonly int MovementCost;
 	public readonly int RotationCost;
@@ -88,6 +89,7 @@ public class PathRequest
 		this.AvoidTarget = avoidTarget;
 		Completed = null;
 		IncludeCongestion = true;
+		CanTraverseBlockedCell = null;
 
 		MovementCost = 1;
 		RotationCost = 2;
@@ -97,7 +99,7 @@ public class PathRequest
 	}
 
 	public PathRequest(int3 startPosition, int3 endPosition, FacingDirection startFacingDirection,
-		Action<PathResultBuffer> completed)
+		Action<PathResultBuffer> completed, Func<int3, bool> canTraverseBlockedCell = null)
 	{
 		target = null;
 		this.startPosition = startPosition;
@@ -106,6 +108,7 @@ public class PathRequest
 		AvoidTarget = null;
 		Completed = completed;
 		IncludeCongestion = false;
+		CanTraverseBlockedCell = canTraverseBlockedCell;
 		MovementCost = 1;
 		RotationCost = 2;
 	}
@@ -314,10 +317,11 @@ public sealed class PathSearchJob
 	{
 		if (GridService.IsBlocked(pos))
 		{
+			bool canTraverseBlockedCell = request.CanTraverseBlockedCell != null && request.CanTraverseBlockedCell(pos);
 			// SubPath 요청인 경우, 최종 목적지(endPosition)가 점유(예약)되어 있더라도 탐색을 허용합니다.
 			// 우회 경로의 목적지는 원래 유효했던 경로의 노드이므로 정적 장애물일 가능성이 없으며,
 			// 타일 예약으로 인해 경로 탐색이 실패하여 무한 루프에 빠지는 것을 방지하기 위한 조치입니다.
-			if (!(request.IsSubPathRequest && math.all(pos == request.endPosition)))
+			if (canTraverseBlockedCell == false && !(request.IsSubPathRequest && math.all(pos == request.endPosition)))
 				return;
 		}
 

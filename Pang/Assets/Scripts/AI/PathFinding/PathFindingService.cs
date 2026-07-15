@@ -81,7 +81,7 @@ public class PathFindingService : MonoBehaviour
 	}
 
 	public bool RequestPreviewRoute(in int3 startPosition, in int3 endPosition,
-		Action<IReadOnlyList<int3>> completed)
+		Action<IReadOnlyList<int3>> completed, Func<int3, bool> canTraverseBlockedCell = null)
 	{
 		if (isReady == false || completed == null || startPosition.y != endPosition.y)
 			return false;
@@ -107,7 +107,8 @@ public class PathFindingService : MonoBehaviour
 				}
 
 				completed(positions);
-			}));
+			},
+			canTraverseBlockedCell));
 		return true;
 	}
 

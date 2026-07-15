@@ -168,7 +168,8 @@ namespace UniverseLogistics.UI.Toolkit
 				cachedPaths[request.Key] = new CachedRoutingPath(request.Key, null);
 				pendingPathCount += 1;
 				if (PathFinding == null || PathFinding.RequestPreviewRoute(request.Start, request.End,
-					cells => HandlePathCompleted(generation, request.Key, cells)) == false)
+					cells => HandlePathCompleted(generation, request.Key, cells),
+					position => CanTraverseBlockedCell(request.Key, position)) == false)
 				{
 					pendingPathCount -= 1;
 				}
@@ -229,6 +230,20 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			return requests;
+		}
+
+		private bool CanTraverseBlockedCell(RoutingConnectionKey key, int3 position)
+		{
+			GridCell cell = GridService?.GetCell(position);
+			if (cell == null) return false;
+
+			if (cell.BuildingId == key.TargetBuildingId ||
+				(key.SourceBuildingId != 0 && cell.BuildingId == key.SourceBuildingId))
+				return true;
+
+			Area sourceArea = key.SourceArea;
+			return sourceArea != null && position.y == sourceArea.Floor &&
+				sourceArea.Bounds.Contains(new Vector2Int(position.x, position.z));
 		}
 
 		private bool TryGetBuildingPoint(Building building, out int3 point)

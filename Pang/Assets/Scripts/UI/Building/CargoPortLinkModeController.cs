@@ -275,19 +275,25 @@ public sealed class CargoPortLinkModeController : MonoBehaviour
 			return;
 
 		RectInt bounds = footprint.Bounds;
+		for (int z = bounds.yMin; z < bounds.yMax; ++z)
+		{
+			for (int x = bounds.xMin; x < bounds.xMax; ++x)
+			{
+				GridCell cell = GridService?.GetCell(x, footprint.Floor, z);
+				if (cell == null || cell.BuildingId != building.RuntimeBuildingId)
+					continue;
 
-		GameObject marker = CreateQuadObject("BuildingLinkMarker");
-		if (marker == null)
-			return;
+				GameObject marker = CreateQuadObject("BuildingLinkMarker");
+				if (marker == null)
+					return;
 
-		marker.transform.position = new Vector3(
-			bounds.xMin + (bounds.width * 0.5f) - 0.5f,
-			visual.MarkerHeight,
-			bounds.yMin + (bounds.height * 0.5f) - 0.5f);
-		marker.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-		marker.transform.localScale = new Vector3(bounds.width, bounds.height, 1f);
-		marker.GetComponent<MeshRenderer>().material.color = visual.MarkerColor;
-		overlayObjects.Add(marker);
+				marker.transform.position = new Vector3(x, visual.MarkerHeight, z);
+				marker.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+				marker.transform.localScale = Vector3.one;
+				marker.GetComponent<MeshRenderer>().material.color = visual.MarkerColor;
+				overlayObjects.Add(marker);
+			}
+		}
 
 		GameObject label = CreateLabelObject("BuildingLinkLabel", labelText, visual.LabelColor);
 		if (label == null)
