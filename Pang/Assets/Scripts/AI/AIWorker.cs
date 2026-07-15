@@ -150,6 +150,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private IInteractionPoint currentWorkingPoint = null;
 	private bool isRegistered = false;
 	private bool isTrafficBlocked = false;
+	private bool isRemovalPrepared = false;
 
 	// event
 	public event System.Action<WorkerStatusAction> OnActionChanged;
@@ -481,6 +482,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		WorkerMgr.UnregisterWorker(this);
 	}
 
+	internal void MarkUnregistered()
+	{
+		isRegistered = false;
+	}
+
 	public bool TryAttachBox(BoxBase box)
 	{
 		var component = CarryingAbility;
@@ -752,21 +758,39 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public void OnRemoved()
 	{
-		//int3 previousNode = routeFinder.PreviousNode;
-		//int3 nextNode = routeFinder.NextNode;
+		PrepareForRemoval();
 
-		//Cell[,,] map = GameContext.Instance.MapResources.mapRef;
+		if (GameContext.HasInstance)
+			WorkerMgr.UnregisterWorker(this);
+	}
 
-		//if (previousNode.x >= 0 && previousNode.y >= 0 && previousNode.z >= 0)
-		//{
-		//	Cell prevCell = map[previousNode.x, previousNode.y, previousNode.z];
-		//	prevCell.type = prevCell.previousType;
-		//}
-		//if (nextNode.x >= 0 && nextNode.y >= 0 && nextNode.z >= 0)
-		//{
-		//	Cell nextCell = map[nextNode.x, nextNode.y, nextNode.z];
-		//	nextCell.type = nextCell.previousType;
-		//}
+	internal bool PrepareForRemoval()
+	{
+		if (isRemovalPrepared)
+			return true;
+
+		isRemovalPrepared = true;
+		routeFinder?.CancelCurrentRoute();
+		localBlackBoard.Clear();
+
+		if (GameContext.HasInstance)
+		{
+			WorkerTask task = currentTask;
+			if (task != null && GameContext.Instance.TaskMgr.ReturnTask(this) == false)
+				GameContext.Instance.TaskMgr.InvalidateTask(task);
+
+			if (CarryingAbility?.CarryingBox != null)
+				CarryingAbility.DropBoxToWorld(out _);
+
+			WorkerMgr.RemoveIdleWorker(this);
+		}
+
+		if (isTrafficBlocked)
+			EndTrafficBlock();
+
+		currentWorkingPoint = null;
+		enabled = false;
+		return true;
 	}
 
 	public void OnDestroyedBy(in DestroyContext ctx)

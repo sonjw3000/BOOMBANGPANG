@@ -90,7 +90,23 @@ public partial class WorkerManager : MonoBehaviour
 		RemoveIdleWorker(worker);
 
 		monthlyCost -= worker.MonthlyCost;
+		worker.MarkUnregistered();
 		OnWorkersChanged?.Invoke();
+	}
+
+	public bool TryRemoveWorker(AIWorker worker)
+	{
+		if (worker == null || workers.Contains(worker) == false || worker.IsOperational == false)
+			return false;
+
+		GridService gridService = GameContext.HasInstance ? GameContext.Instance.GridService : null;
+		if (gridService == null || gridService.IsPlacedObject(worker.gameObject) == false)
+			return false;
+
+		if (worker.PrepareForRemoval() == false)
+			return false;
+
+		return gridService.OnRemove(worker.gameObject);
 	}
 
 	static public bool CanChangeType(AIWorker worker, TaskType type) => WorkerTaskAssignmentPolicy.CanAssign(worker, type);

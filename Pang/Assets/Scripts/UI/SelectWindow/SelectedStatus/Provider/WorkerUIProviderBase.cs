@@ -97,6 +97,15 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		infoBlocks.Add(new KeyValueBlock("Target", TargetDisplay));
 	}
 
+	public override void DeleteObject()
+	{
+		if (currentTarget == null || GameContext.HasInstance == false)
+			return;
+
+		if (GameContext.Instance.WorkerMgr.TryRemoveWorker(currentTarget) == false)
+			Debug.LogWarning($"Worker {currentTarget.Name} cannot be removed in state {currentTarget.OperationalState}.");
+	}
+
 	public override void OnUpdate()
 	{
 		if (infoBlocks.Count < 6)

@@ -83,6 +83,20 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 		return true;
 	}
 
+	public bool DropBoxToWorld(out BoxBase box)
+	{
+		box = carryingBox;
+		if (box == null)
+			return false;
+
+		box.OnInvalidated -= HandleCarryingBoxInvalidated;
+		box.transform.SetParent(null);
+		box.transform.position = Worker != null ? Worker.transform.position : transform.position;
+		carryingBox = null;
+		Worker?.CurrentTask?.ReleasePayloadBox(box);
+		return true;
+	}
+
 	private void HandleCarryingBoxInvalidated(BoxBase box)
 	{
 		if (box == null || carryingBox != box)
