@@ -222,6 +222,7 @@ public sealed class AreaSaveData
 	public string Name;
 	public AreaType Type;
 	public int Floor;
+	public uint DestinationBuildingId;
 	public RectIntSaveData Bounds = new();
 }
 

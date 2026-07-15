@@ -137,6 +137,24 @@ public partial class AreaManager : MonoBehaviour
 		return true;
 	}
 
+	public bool TrySetDestinationBuilding(Area area, uint buildingId)
+	{
+		if (ContainsArea(area) == false || area.Type != AreaType.RocketLanding)
+			return false;
+
+		if (buildingId != 0 &&
+			(GameContext.HasInstance == false || GameContext.Instance.BuildingMgr == null ||
+			GameContext.Instance.BuildingMgr.TryGetBuilding(buildingId, out _) == false))
+			return false;
+
+		if (area.DestinationBuildingId == buildingId)
+			return true;
+
+		area.SetDestinationBuildingId(buildingId);
+		OnAreaChanged?.Invoke(area);
+		return true;
+	}
+
 	public bool TryGetAreas(out IReadOnlyList<Area> result, int floor, AreaType type)
 	{
 		result = null;

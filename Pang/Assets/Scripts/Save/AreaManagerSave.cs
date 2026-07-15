@@ -16,6 +16,7 @@ public partial class AreaManager
 				Name = area.DisplayName,
 				Type = area.Type,
 				Floor = area.Floor,
+				DestinationBuildingId = area.DestinationBuildingId,
 				Bounds = new RectIntSaveData(area.Bounds.x, area.Bounds.y, area.Bounds.width, area.Bounds.height),
 			});
 		}
@@ -40,8 +41,11 @@ public partial class AreaManager
 				areaData.Bounds.Y,
 				areaData.Bounds.Width,
 				areaData.Bounds.Height);
-			if (AddArea(areaData.Name, areaData.Type, bounds, areaData.Floor) == null)
+			Area area = AddArea(areaData.Name, areaData.Type, bounds, areaData.Floor);
+			if (area == null)
 				Debug.LogWarning($"[Save] Failed to restore area {areaData.Name}.");
+			else if (areaData.DestinationBuildingId != 0 && TrySetDestinationBuilding(area, areaData.DestinationBuildingId) == false)
+				Debug.LogWarning($"[Save] Failed to restore destination for area {areaData.Name}.");
 		}
 	}
 

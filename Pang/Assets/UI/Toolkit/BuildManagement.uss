@@ -66,7 +66,8 @@
 .build-routing { padding-top: 2px; }
 .build-routing-toolbar { min-height: 42px; flex-direction: row; align-items: flex-start; }
 .build-routing-toolbar__text { flex-grow: 1; }
-.build-routing-link-button { width: 104px; margin-top: 1px; }
+.build-routing-actions { flex-direction: row; margin-top: 1px; }
+.build-routing-link-button { width: 104px; margin-left: 4px; }
 .build-routing-legend { flex-direction: row; margin-top: 8px; margin-bottom: 12px; }
 .build-routing-legend__item { flex-direction: row; align-items: center; margin-right: 18px; }
 .build-routing-legend__color { width: 18px; height: 10px; margin-right: 5px; }

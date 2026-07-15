@@ -34,6 +34,7 @@
 			<ui:VisualElement name="management-menu" class="management-menu">
 				<ui:Button name="contract-management-button" text="Contract" class="management-menu__button" />
 				<ui:Button name="build-management-button" text="Build" class="management-menu__button" />
+				<ui:Button name="workflow-management-button" text="Workflow" class="management-menu__button" />
 				<ui:Button name="workforce-management-button" text="Workforce" class="management-menu__button" />
 				<ui:Button name="company-management-button" text="Company" class="management-menu__button" />
 			</ui:VisualElement>

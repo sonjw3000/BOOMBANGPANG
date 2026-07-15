@@ -514,14 +514,18 @@ public class GameContext : MonoBehaviour
 
 		if (sourceBuildingId == 0)
 		{
-			if (inboundWorkflowService == null)
-				return false;
+			if (areaManager != null)
+			{
+				var areas = areaManager.RegisteredAreas;
+				for (int i = 0; i < areas.Count; ++i)
+				{
+					Area area = areas[i];
+					if (area != null && area.Type == AreaType.RocketLanding && area.DestinationBuildingId == targetBuildingId)
+						return true;
+				}
+			}
 
-			uint destinationBuildingId = inboundWorkflowService.UnloadingDestinationBuildingId;
-			if (destinationBuildingId != 0)
-				return destinationBuildingId == targetBuildingId;
-
-			return buildingManager != null && buildingManager.TryGetBuilding(targetBuildingId, out _);
+			return false;
 		}
 
 		if (buildingManager == null ||

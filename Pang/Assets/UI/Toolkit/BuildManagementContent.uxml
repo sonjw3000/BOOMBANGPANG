@@ -129,7 +129,10 @@
 					<ui:Label text="Logistics connectivity" class="build-heading" />
 					<ui:Label text="All configured connections are drawn automatically while this tab is open." class="build-caption" />
 				</ui:VisualElement>
-				<ui:Button name="build-routing-link-button" text="Link Buildings" class="build-primary-button build-routing-link-button" />
+				<ui:VisualElement class="build-routing-actions">
+					<ui:Button name="build-routing-landing-link-button" text="Link Landing" class="build-primary-button build-routing-link-button" />
+					<ui:Button name="build-routing-link-button" text="Link Buildings" class="build-primary-button build-routing-link-button" />
+				</ui:VisualElement>
 			</ui:VisualElement>
 			<ui:VisualElement class="build-routing-legend">
 				<ui:VisualElement class="build-routing-legend__item">

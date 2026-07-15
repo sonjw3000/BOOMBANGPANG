@@ -109,7 +109,6 @@ namespace UniverseLogistics.UI.Toolkit
 		private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 		private BuildingFootprintService FootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
 		private AreaManager AreaManager => GameContext.HasInstance ? GameContext.Instance.AreaMgr : null;
-		private InboundWorkflowService InboundWorkflow => GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;
 
 		public void Configure(GameObject targetOverlayQuadPrefab)
 		{
@@ -193,15 +192,16 @@ namespace UniverseLogistics.UI.Toolkit
 			List<RouteRequest> requests = new();
 			if (BuildingManager == null || FootprintService == null || GridService == null) return requests;
 
-			if (InboundWorkflow != null && InboundWorkflow.TryGetUnloadingDestinationBuilding(out Building destination) &&
-				TryGetBuildingPoint(destination, out int3 landingDestination) && AreaManager != null)
+			if (AreaManager != null)
 			{
 				IReadOnlyList<Area> areas = AreaManager.RegisteredAreas;
 				for (int i = 0; i < areas.Count; ++i)
 				{
 					Area area = areas[i];
-					if (area == null || area.Type != AreaType.RocketLanding ||
-						TryGetAreaPoint(area, out int3 areaPoint) == false || areaPoint.y != landingDestination.y)
+					if (area == null || area.Type != AreaType.RocketLanding || area.DestinationBuildingId == 0 ||
+						BuildingManager.TryGetBuilding(area.DestinationBuildingId, out Building destination) == false || destination == null ||
+						TryGetAreaPoint(area, out int3 areaPoint) == false ||
+						TryGetBuildingPoint(destination, out int3 landingDestination) == false || areaPoint.y != landingDestination.y)
 						continue;
 
 					requests.Add(new RouteRequest(

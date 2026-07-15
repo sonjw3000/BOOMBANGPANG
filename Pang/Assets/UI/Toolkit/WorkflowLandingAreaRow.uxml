@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="WorkflowManagement.uss" />
+	<ui:VisualElement class="workflow-area-row">
+		<ui:VisualElement class="workflow-area-row__identity">
+			<ui:Label name="workflow-area-name" text="Rocket Landing Area" class="workflow-area-row__name" />
+			<ui:Label name="workflow-area-bounds" text="8 × 8 · (0, 0)" class="workflow-area-row__bounds" />
+		</ui:VisualElement>
+		<ui:Label name="workflow-area-destination" text="Not linked" class="workflow-area-row__destination" />
+		<ui:Label name="workflow-area-floor" text="Floor 0" class="workflow-area-row__floor" />
+		<ui:Button name="workflow-area-remove" text="Remove" class="workflow-remove-button" />
+	</ui:VisualElement>
+</ui:UXML>
