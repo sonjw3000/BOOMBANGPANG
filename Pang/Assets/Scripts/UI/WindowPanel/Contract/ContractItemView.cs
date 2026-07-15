@@ -59,6 +59,10 @@ namespace Assets.Scripts.UI
 				return $"Capacity: {launchVendor.CapsuleCapacity} Capsules / Fee: {launchVendor.LaunchCost:0.##}%";
 			if (vendor is PowerVendor powerVendor)
 				return $"Capacity: {powerVendor.PowerCapacity} / Fee: {powerVendor.WeeklyPowerCost}/week";
+			if (vendor is MedicalVendor medicalVendor)
+				return $"Subscription: {medicalVendor.SubscriptionFee} / Call: {medicalVendor.ServiceFee}";
+			if (vendor is MaintenanceVendor maintenanceVendor)
+				return $"Subscription: {maintenanceVendor.SubscriptionFee} / Call: {maintenanceVendor.ServiceFee}";
 
 			return "Service Terms: -";
 		}

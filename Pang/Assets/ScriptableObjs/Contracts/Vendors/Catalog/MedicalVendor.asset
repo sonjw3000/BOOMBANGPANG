@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cbb84d7d5136214cb60c992ac306ff6, type: 3}
+  m_Name: MedicalVendor
+  m_EditorClassIdentifier: Assembly-CSharp::VendorCatalog
+  catalogName: Medical Service
+  vendorType: 3
+  vendors:
+  - {fileID: 11400000, guid: 8359680a492a34063b2259fd1ce4322f, type: 2}
+  - {fileID: 11400000, guid: bac6a8aa209a74dbd981b0dee939f87c, type: 2}
+  - {fileID: 11400000, guid: 037caa630d30c4e34b1ad0d8b06ac21a, type: 2}

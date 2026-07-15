@@ -156,6 +156,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public event System.Action<AIWorker, WorkerStatusAction, WorkerStatusAction> OnStatusChanged;
 	public event System.Action<AIWorker, WorkerTask.TaskType, WorkerTask.TaskType> OnTaskTypeChanged;
 	public event System.Action<AIWorker, bool> OnTrafficBlockChanged;
+	public event System.Action<AIWorker, WorkerOperationalState, WorkerOperationalState> OnOperationalStateChanged;
 
 	// worker identity
 	public string Name
@@ -659,6 +660,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		if (state == WorkerOperationalState.Active || operationalState == state)
 			return false;
 
+		WorkerOperationalState previousState = operationalState;
 		operationalState = state;
 		routeFinder?.CancelCurrentRoute();
 		localBlackBoard.Clear();
@@ -675,6 +677,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		SetWorkerTarget(WorkerStatusTarget.None);
 		SetWorkerAction(GetIncapacitatedStatusAction(state));
 		enabled = true;
+		OnOperationalStateChanged?.Invoke(this, previousState, state);
 		return true;
 	}
 

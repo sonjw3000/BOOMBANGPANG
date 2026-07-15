@@ -74,6 +74,9 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private TrafficCoordinator trafficCoordinator;
 	[SerializeField] private VendorService vendorService;
 	[SerializeField] private PowerService powerService;
+	[SerializeField] private MedicalService medicalService;
+	[SerializeField] private RobotFixService robotFixService;
+	[SerializeField] private WorkplaceIncidentService workplaceIncidentService;
 	[SerializeField] private TemperatureService temperatureService;
 	[SerializeField] private GridOverlayController gridOverlayController;
 
@@ -170,6 +173,9 @@ public class GameContext : MonoBehaviour
 	public VendorService VendorService => ResolveManager(ref vendorService, nameof(VendorService));
 	public VendorService VendeorService => VendorService;
 	public PowerService PowerSvc => ResolveOrCreatePowerService();
+	public MedicalService MedicalSvc => ResolveOrCreateMedicalService();
+	public RobotFixService RobotFixSvc => ResolveOrCreateRobotFixService();
+	public WorkplaceIncidentService WorkplaceIncidentSvc => ResolveOrCreateWorkplaceIncidentService();
 	public TemperatureService TemperatureSvc => ResolveOrCreateTemperatureService();
 	public AreaManager AreaMgr => areaManager;
 	public AirlockService AirlockSvc => airlockService;
@@ -284,6 +290,7 @@ public class GameContext : MonoBehaviour
 	private void OnDisable()
 	{
 		explosionService?.Unbind();
+		workplaceIncidentService?.Unbind();
 		UnbindEvents();
 	}
 
@@ -323,6 +330,9 @@ public class GameContext : MonoBehaviour
 		_ = SaveService;
 		_ = DemoGoalService;
 		_ = PowerSvc;
+		_ = MedicalSvc;
+		_ = RobotFixSvc;
+		WorkplaceIncidentSvc.Initialize(WorkerMgr, MedicalSvc, RobotFixSvc, VendorService, EconomyService);
 		_ = TemperatureSvc;
 		_ = ItemHandlingDamage;
 		_ = ItemDamage;
@@ -345,6 +355,42 @@ public class GameContext : MonoBehaviour
 			powerService = gameObject.AddComponent<PowerService>();
 
 		return powerService;
+	}
+
+	private MedicalService ResolveOrCreateMedicalService()
+	{
+		if (medicalService != null)
+			return medicalService;
+
+		medicalService = GetComponentInChildren<MedicalService>(true);
+		if (medicalService == null)
+			medicalService = gameObject.AddComponent<MedicalService>();
+
+		return medicalService;
+	}
+
+	private RobotFixService ResolveOrCreateRobotFixService()
+	{
+		if (robotFixService != null)
+			return robotFixService;
+
+		robotFixService = GetComponentInChildren<RobotFixService>(true);
+		if (robotFixService == null)
+			robotFixService = gameObject.AddComponent<RobotFixService>();
+
+		return robotFixService;
+	}
+
+	private WorkplaceIncidentService ResolveOrCreateWorkplaceIncidentService()
+	{
+		if (workplaceIncidentService != null)
+			return workplaceIncidentService;
+
+		workplaceIncidentService = GetComponentInChildren<WorkplaceIncidentService>(true);
+		if (workplaceIncidentService == null)
+			workplaceIncidentService = gameObject.AddComponent<WorkplaceIncidentService>();
+
+		return workplaceIncidentService;
 	}
 
 	private TemperatureService ResolveOrCreateTemperatureService()

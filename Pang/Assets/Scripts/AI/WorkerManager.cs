@@ -37,6 +37,7 @@ public partial class WorkerManager : MonoBehaviour
 	public int TrafficBlockedCount => trafficBlockedCount;
 	public event Action OnWorkersChanged;
 	public event Action<AIWorker> OnWorkerChanged;
+	public event Action<AIWorker, WorkerOperationalState, WorkerOperationalState> OnWorkerOperationalStateChanged;
 	// todo
 	// 전역 블랙보드의 관리는 다른곳에 넘겨야함
 	private BlackBoard globalBlackboard;
@@ -370,6 +371,7 @@ public partial class WorkerManager : MonoBehaviour
 		worker.OnStatusChanged += OnWorkerStatusChanged;
 		worker.OnTaskTypeChanged += OnWorkerTaskTypeChanged;
 		worker.OnTrafficBlockChanged += OnWorkerTrafficBlockChanged;
+		worker.OnOperationalStateChanged += HandleWorkerOperationalStateChanged;
 	}
 
 	private void UnsubscribeWorker(AIWorker worker)
@@ -377,6 +379,7 @@ public partial class WorkerManager : MonoBehaviour
 		worker.OnStatusChanged -= OnWorkerStatusChanged;
 		worker.OnTaskTypeChanged -= OnWorkerTaskTypeChanged;
 		worker.OnTrafficBlockChanged -= OnWorkerTrafficBlockChanged;
+		worker.OnOperationalStateChanged -= HandleWorkerOperationalStateChanged;
 	}
 
 	private void OnWorkerStatusChanged(AIWorker worker, WorkerStatusAction oldStatus, WorkerStatusAction newStatus)
@@ -412,6 +415,18 @@ public partial class WorkerManager : MonoBehaviour
 
 		AdjustTrafficBlockedCount(worker.TaskType, isBlocked ? 1 : -1);
 		OnWorkerChanged?.Invoke(worker);
+	}
+
+	private void HandleWorkerOperationalStateChanged(
+		AIWorker worker,
+		WorkerOperationalState previousState,
+		WorkerOperationalState nextState)
+	{
+		if (worker == null || previousState == nextState)
+			return;
+
+		OnWorkerChanged?.Invoke(worker);
+		OnWorkerOperationalStateChanged?.Invoke(worker, previousState, nextState);
 	}
 
 	private void RegisterWorkerStatus(AIWorker worker)

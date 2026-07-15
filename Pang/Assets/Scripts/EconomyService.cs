@@ -14,6 +14,11 @@ public class EconomyTransaction
 		ResearchInvestment,
 		OrderSettlement,
 		WorkerHire,
+		MedicalSubscription,
+		MedicalDispatch,
+		MaintenanceSubscription,
+		MaintenanceDispatch,
+		OccupationalClaimNotProcessed,
 		}
 
 	public int moneyDelta;
@@ -90,6 +95,11 @@ public partial class EconomyService : MonoBehaviour
 			EconomyTransaction.Reason.ResearchInvestment => "Research Investment",
 			EconomyTransaction.Reason.OrderSettlement => "Order Settlement",
 			EconomyTransaction.Reason.WorkerHire => "Worker Hire",
+			EconomyTransaction.Reason.MedicalSubscription => "Medical Subscription",
+			EconomyTransaction.Reason.MedicalDispatch => "Medical Dispatch",
+			EconomyTransaction.Reason.MaintenanceSubscription => "Maintenance Subscription",
+			EconomyTransaction.Reason.MaintenanceDispatch => "Maintenance Dispatch",
+			EconomyTransaction.Reason.OccupationalClaimNotProcessed => "Occupational Claim Not Processed",
 			_ => reason.ToString(),
 		};
 	}

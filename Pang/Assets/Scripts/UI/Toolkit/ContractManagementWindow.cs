@@ -399,6 +399,10 @@ namespace UniverseLogistics.UI.Toolkit
 				return $"{launch.CapsuleCapacity} capsules · {launch.LaunchCost:0.##}% fee · every {launch.ServiceInterval} weeks{elapsed}";
 			if (vendor is PowerVendor power)
 				return $"{power.PowerCapacity} power · {power.WeeklyPowerCost}/week · every {power.ServiceInterval} weeks{elapsed}";
+			if (vendor is MedicalVendor medical)
+				return $"{medical.SubscriptionFee}/period · {medical.ServiceFee}/call · every {medical.ServiceInterval} weeks{elapsed}";
+			if (vendor is MaintenanceVendor maintenance)
+				return $"{maintenance.SubscriptionFee}/period · {maintenance.ServiceFee}/call · every {maintenance.ServiceInterval} weeks{elapsed}";
 			return vendor != null ? $"Every {vendor.ServiceInterval} weeks{elapsed}" : "Service terms unavailable";
 		}
 

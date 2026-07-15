@@ -53,7 +53,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 4;
+	public int Version = 5;
 	public string SavedAtUtc;
 
 	public PolicyStateSaveData Policy = new();
@@ -69,6 +69,7 @@ public sealed class GameSaveData
 	public LicenseServiceSaveData Licenses = new();
 	public ResearchServiceSaveData Research = new();
 	public VendorServiceSaveData Vendors = new();
+	public WorkplaceIncidentSaveData WorkplaceIncidents = new();
 	public OrderManagerSaveData Orders = new();
 	public OutboundPickingManifestSaveData OutboundPickingManifests = new();
 	public DeliveryQueueSaveData DeliveryQueue = new();
@@ -331,6 +332,22 @@ public sealed class VendorRuntimeSaveData
 	public VendorType VendorType;
 	public uint VendorId;
 	public int WeeksSinceLastAction;
+}
+
+[Serializable]
+public sealed class WorkplaceIncidentSaveData
+{
+	public int NextIncidentId = 1;
+	public bool IsAccidentFree = true;
+	public List<WorkerIncidentCase> Incidents = new();
+	public List<WorkerClaimSettingSaveData> ClaimSettings = new();
+}
+
+[Serializable]
+public sealed class WorkerClaimSettingSaveData
+{
+	public uint WorkerId;
+	public bool ShouldProcess = true;
 }
 
 [Serializable]

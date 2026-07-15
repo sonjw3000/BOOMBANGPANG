@@ -138,6 +138,7 @@ public sealed class GameSaveService : MonoBehaviour
 		data.Licenses = Ctx.LicenseService.CaptureState();
 		data.Research = Ctx.ResearchService.CaptureState();
 		data.Vendors = Ctx.VendorService.CaptureState();
+		data.WorkplaceIncidents = Ctx.WorkplaceIncidentSvc.CaptureState();
 		data.Orders = Ctx.OrderMgr.CaptureState(RegisterOrderLine);
 		data.OutboundPickingManifests = Ctx.OBWorkflowSvc.CapturePickingManifestState(RegisterOrderLine);
 		data.DeliveryQueue = Ctx.DeliveryService.CaptureState();
@@ -171,6 +172,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.LicenseService.ResetRuntimeState();
 		Ctx.ResearchService.ResetRuntimeState();
 		Ctx.VendorService.ResetRuntimeState();
+		Ctx.WorkplaceIncidentSvc.ResetRuntimeState();
 		Ctx.OrderMgr.ResetRuntimeState();
 		Ctx.DeliveryService.ResetRuntimeState();
 		Ctx.IBWorkflowSvc.ResetRuntimeState();
@@ -216,6 +218,8 @@ public sealed class GameSaveService : MonoBehaviour
 
 		foreach (PlaceableSaveData placeableData in data.Placeables.Where(p => p.IsWorker))
 			InstantiatePlaceable(placeableData, restoredPlaceables, workersById, restoredOrderLines);
+
+		Ctx.WorkplaceIncidentSvc.RestoreState(data.WorkplaceIncidents);
 
 		Ctx.BuildingMgr.RestoreBuildingLinks(data.Buildings);
 

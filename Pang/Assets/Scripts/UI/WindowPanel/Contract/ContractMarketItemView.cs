@@ -327,6 +327,10 @@ namespace Assets.Scripts.UI
 				return $"{launchVendor.LaunchCost:0.##}%";
 			if (vendor is PowerVendor powerVendor)
 				return $"{powerVendor.WeeklyPowerCost}/week";
+			if (vendor is MedicalVendor medicalVendor)
+				return $"{medicalVendor.SubscriptionFee}/period + {medicalVendor.ServiceFee}/call";
+			if (vendor is MaintenanceVendor maintenanceVendor)
+				return $"{maintenanceVendor.SubscriptionFee}/period + {maintenanceVendor.ServiceFee}/call";
 
 			return "-";
 		}

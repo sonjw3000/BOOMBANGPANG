@@ -8,7 +8,7 @@ public enum VendorType
 	Launch,
 	Power,
 	Maintenance,
-
+	Medical,
 }
 
 public class VendorRuntime
@@ -57,7 +57,8 @@ public partial class VendorService : MonoBehaviour
 	{
 		{ VendorType.Launch, new LaunchVendorPickupService() },
 		{ VendorType.Power, new PowerVendorService() },
-		{ VendorType.Maintenance, null }
+		{ VendorType.Maintenance, new MaintenanceVendorService() },
+		{ VendorType.Medical, new MedicalVendorService() },
 	};
 
 	public event Action OnVendorsChanged;
@@ -68,6 +69,19 @@ public partial class VendorService : MonoBehaviour
 		return activeVendors.TryGetValue(vendorType, out List<VendorRuntime> vendors)
 			? vendors
 			: Array.Empty<VendorRuntime>();
+	}
+
+	public bool TryGetActiveVendor(VendorType vendorType, out VendorRuntime vendor)
+	{
+		IReadOnlyList<VendorRuntime> vendors = GetActiveVendors(vendorType);
+		if (vendors.Count > 0)
+		{
+			vendor = vendors[0];
+			return vendor?.Vendor != null;
+		}
+
+		vendor = null;
+		return false;
 	}
 
 	public IReadOnlyList<Vendor> GetCatalog(VendorType vendorType)
@@ -107,10 +121,16 @@ public partial class VendorService : MonoBehaviour
 		if (vendorList.Exists(runtime => runtime.Vendor == vendor))
 			return false;
 
+		if (IsExclusiveOnDemandType(vendor.Type))
+			vendorList.Clear();
+
 		vendorList.Add(new VendorRuntime(vendor));
 		OnVendorsChanged?.Invoke();
 		return true;
 	}
+
+	private static bool IsExclusiveOnDemandType(VendorType type)
+		=> type == VendorType.Medical || type == VendorType.Maintenance;
 
 	private void OnValidate()
 	{
