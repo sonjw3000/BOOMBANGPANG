@@ -61,6 +61,7 @@ public partial class BoxManager : MonoBehaviour
 			tote.UpdateToteCapacity(toteCapacity);
 
 		box.SetBoxId(nextBoxIdByType[boxType]++);
+		box.MarkValid();
 
 		if (activeBoxes.Contains(box) == false)
 			activeBoxes.Add(box);
@@ -86,6 +87,8 @@ public partial class BoxManager : MonoBehaviour
 		if (!boxDict.ContainsKey(box.BoxId))
 			return false;
 
+		box.Invalidate();
+
 		boxDict.Remove(box.BoxId);
 		activeBoxes.Remove(box);
 
@@ -104,6 +107,9 @@ public partial class BoxManager : MonoBehaviour
 	public bool TryGetBox(BoxType boxType, uint boxId, out BoxBase box)
 	{
 		box = null;
-		return boxesByBoxId.TryGetValue(boxType, out var boxDict) && boxDict.TryGetValue(boxId, out box);
+		return boxesByBoxId.TryGetValue(boxType, out var boxDict) &&
+			boxDict.TryGetValue(boxId, out box) &&
+			box != null &&
+			box.IsValid;
 	}
 }

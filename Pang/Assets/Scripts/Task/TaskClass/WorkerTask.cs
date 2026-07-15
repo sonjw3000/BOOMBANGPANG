@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Unity.Mathematics;
+using UnityEngine;
 
 public static class WorkerTaskTypeRequirement
 {
@@ -27,7 +28,7 @@ public static class WorkerTaskTypeRequirement
 	}
 }
 
-public abstract class WorkerTask
+public abstract partial class WorkerTask
 {
 	public enum TaskType
 	{
@@ -81,14 +82,7 @@ public abstract class WorkerTask
 		//OccupyWorker = worker;
 		Type = type;
 		TaskBuiltTime = Time.time;
-		SelectorNode root = new SelectorNode();
-
-		// todo
-		// work가 실패했을경우도 판단해야함
-		root.Add(CheckFulfiledNode());
-		root.Add(BuildWorkNode());
-
-		baseNode = root;
+		RebuildTaskTree();
 	}
 
 	public bool SetAIWorker(AIWorker worker)
@@ -98,6 +92,9 @@ public abstract class WorkerTask
 		{
 			return false;
 		}
+
+		if (IsValidForDispatch == false)
+			return false;
 
 		bool isReassignment = CurrentStatus == Status.Returned;
 		if (isReassignment)
@@ -123,12 +120,17 @@ public abstract class WorkerTask
 	protected virtual void OnTaskReturned(AIWorker worker) { }
 	protected virtual void OnTaskInvalidated() { }
 
-	internal bool MarkReturned(AIWorker worker)
+	internal bool MarkReturned(AIWorker worker, BoxBase recoveryBox, in int3 recoveryPosition)
 	{
 		if (CurrentStatus != Status.Assigned || worker == null || OccupyWorker != worker)
 			return false;
 
 		OnTaskReturned(worker);
+		if (recoveryBox != null)
+			PreparePayloadRecovery(recoveryBox, recoveryPosition);
+		else
+			ClearPayloadBox();
+
 		OccupyWorker = null;
 		CurrentStatus = Status.Returned;
 		return true;
@@ -140,6 +142,7 @@ public abstract class WorkerTask
 		if (CurrentStatus != Status.Assigned || worker == null)
 			return false;
 
+		ClearPayloadBox();
 		CurrentStatus = Status.Completed;
 		return true;
 	}
@@ -151,6 +154,7 @@ public abstract class WorkerTask
 			return false;
 
 		OnTaskInvalidated();
+		ClearPayloadBox();
 		OccupyWorker = null;
 		CurrentStatus = Status.Invalidated;
 		return true;
@@ -189,10 +193,13 @@ public abstract class WorkerTask
 	{
 		SelectorNode root = new();
 		root.Add(CheckFulfiledNode());
-		root.Add(BuildWorkNode());
+
+		SequenceNode work = new();
+		work.Add(BuildPayloadRecoveryNode());
+		work.Add(BuildWorkNode());
+		root.Add(work);
 		baseNode = root;
 	}
-
 
 	private IBaseNode CheckFulfiledNode()
 	{

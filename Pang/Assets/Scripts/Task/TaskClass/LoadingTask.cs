@@ -29,14 +29,21 @@ public partial class LoadingTask : WorkerTask
 
 	protected override IBaseNode BuildWorkNode()
 	{
-		SequenceNode root = new();
+		SelectorNode root = new();
 
-		root.Add(AIWorker.ReturnBox());
-		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetLoadTarget));
-		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCargo));
+		SequenceNode resume = new();
+		resume.Add(new ActionNode(CheckWorkerCarriesPayload));
+		resume.Add(AIWorker.MoveToTarget(WorkerStatusTarget.LaunchStation, InteractionKind.Put, SetLaunchStation));
+		resume.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCargo));
+		root.Add(resume);
 
-		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.LaunchStation, InteractionKind.Put, SetLaunchStation));
-		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCargo));
+		SequenceNode start = new();
+		start.Add(AIWorker.ReturnBox());
+		start.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetLoadTarget));
+		start.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCargo));
+		start.Add(AIWorker.MoveToTarget(WorkerStatusTarget.LaunchStation, InteractionKind.Put, SetLaunchStation));
+		start.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCargo));
+		root.Add(start);
 
 		return root;
 	}

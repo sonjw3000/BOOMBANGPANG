@@ -13,11 +13,14 @@ public enum BoxType
 
 public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 {
+	public event System.Action<BoxBase> OnInvalidated;
+
 	[SerializeField] BoxType boxType;
 	[SerializeField] private float capacity = 10.0f;
 	[SerializeField] private uint boxId = 0;
 	protected float size = 0.0f;
 	private ItemTag itemTags = ItemTag.None;
+	private bool isValid;
 
 	protected List<ItemStack> stacks = new();
 	protected Dictionary<uint, int> itemTotals = new();
@@ -36,8 +39,25 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 	public float Capacity => capacity;
 	public BoxType Type => boxType;
 	public uint BoxId => boxId;
+	public bool IsValid => isValid;
 
 	public void SetBoxId(uint id) => boxId = id;
+
+	internal void MarkValid()
+	{
+		isValid = true;
+	}
+
+	internal bool Invalidate()
+	{
+		if (isValid == false)
+			return false;
+
+		isValid = false;
+		OnInvalidated?.Invoke(this);
+		OnInvalidated = null;
+		return true;
+	}
 
 	public virtual void ResetContainer()
 	{

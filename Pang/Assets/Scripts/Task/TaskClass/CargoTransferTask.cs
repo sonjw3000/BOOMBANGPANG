@@ -25,12 +25,21 @@ public sealed partial class CargoTransferTask : WorkerTask
 
 	protected override IBaseNode BuildWorkNode()
 	{
-		SequenceNode root = new();
-		root.Add(AIWorker.ReturnBox());
-		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetSourceTarget));
-		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCapsule));
-		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Put, SetTargetPort));
-		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCapsuleToPort));
+		SelectorNode root = new();
+
+		SequenceNode resume = new();
+		resume.Add(new ActionNode(CheckWorkerCarriesPayload));
+		resume.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Put, SetTargetPort));
+		resume.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCapsuleToPort));
+		root.Add(resume);
+
+		SequenceNode start = new();
+		start.Add(AIWorker.ReturnBox());
+		start.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Pick, SetSourceTarget));
+		start.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCapsule));
+		start.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Put, SetTargetPort));
+		start.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCapsuleToPort));
+		root.Add(start);
 		return root;
 	}
 

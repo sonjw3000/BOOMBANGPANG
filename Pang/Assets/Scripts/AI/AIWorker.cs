@@ -636,6 +636,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		}
 
 		currentTask = task;
+		BuildBehaviorTree();
 		return true;
 	}
 
@@ -645,7 +646,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			return;
 
 		currentTask = null;
+		routeFinder?.CancelCurrentRoute();
 		localBlackBoard.Clear();
+		BuildBehaviorTree();
 		if (GameContext.HasInstance)
 		{
 			if (becomeIdle && IsOperational)
@@ -676,6 +679,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 		SetWorkerTarget(WorkerStatusTarget.None);
 		SetWorkerAction(GetIncapacitatedStatusAction(state));
+		BuildBehaviorTree();
 		enabled = true;
 		OnOperationalStateChanged?.Invoke(this, previousState, state);
 		return true;

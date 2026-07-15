@@ -31,13 +31,21 @@ public partial class UnloadingTask : WorkerTask
 		// 4. payload를 zone에 올리기
 		// 5. 완료
 
-		SequenceNode root = new();
+		SelectorNode root = new();
 
-		root.Add(AIWorker.ReturnBox());
-		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.Rocket, InteractionKind.Pick, SetRocketTarget));
-		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, UnloadFromRocket));
-		root.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Put, SetZoneTarget));
-		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, PutOnBuffer));
+		SequenceNode resume = new();
+		resume.Add(new ActionNode(CheckWorkerCarriesPayload));
+		resume.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Put, SetZoneTarget));
+		resume.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, PutOnBuffer));
+		root.Add(resume);
+
+		SequenceNode start = new();
+		start.Add(AIWorker.ReturnBox());
+		start.Add(AIWorker.MoveToTarget(WorkerStatusTarget.Rocket, InteractionKind.Pick, SetRocketTarget));
+		start.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, UnloadFromRocket));
+		start.Add(AIWorker.MoveToTarget(WorkerStatusTarget.CargoPort, InteractionKind.Put, SetZoneTarget));
+		start.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, PutOnBuffer));
+		root.Add(start);
 
 		return root;
 	}

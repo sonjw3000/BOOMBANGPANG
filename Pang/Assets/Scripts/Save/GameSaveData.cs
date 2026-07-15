@@ -610,6 +610,8 @@ public sealed class TaskSaveData
 	public bool IsInProgress;
 	public bool IsReturned;
 	public uint AssignedWorkerId;
+	public BoxReferenceSaveData RecoveryBox;
+	public Int3SaveData RecoveryPosition = new();
 
 	public UnloadingTaskSaveData Unloading;
 	public LoadingTaskSaveData Loading;

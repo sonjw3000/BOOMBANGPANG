@@ -251,6 +251,17 @@ public sealed class GameSaveService : MonoBehaviour
 			if (task == null)
 				continue;
 
+			if (taskData.RecoveryBox != null)
+			{
+				if (Ctx.BoxMgr.TryGetBox(taskData.RecoveryBox.BoxType, taskData.RecoveryBox.BoxId, out BoxBase recoveryBox) == false ||
+					task.RestorePayloadRecovery(recoveryBox, FromSave(taskData.RecoveryPosition)) == false)
+				{
+					task.MarkInvalidated(out _);
+					Debug.LogWarning($"[Save] Missing recovery box for task {taskData.TaskType}.");
+					continue;
+				}
+			}
+
 			if (taskData.IsInProgress)
 			{
 				if (workersById.TryGetValue(taskData.AssignedWorkerId, out var worker) == false)
@@ -260,7 +271,12 @@ public sealed class GameSaveService : MonoBehaviour
 				}
 
 				if (worker.SetTask(task))
+				{
+					if (worker.CarryingAbility?.CarryingBox != null)
+						task.TrackPayloadBox(worker.CarryingAbility.CarryingBox);
+
 					Ctx.TaskMgr.AddRestoredInProgressTask(task);
+				}
 				else
 					Debug.LogWarning($"[Save] Worker {taskData.AssignedWorkerId} could not restore in-progress task {taskData.TaskType}");
 			}
@@ -363,6 +379,16 @@ public sealed class GameSaveService : MonoBehaviour
 			IsReturned = isReturned,
 			AssignedWorkerId = task.OccupyWorker != null ? task.OccupyWorker.WorkerID : 0,
 		};
+
+		if (task.TryGetPayloadRecovery(out BoxBase recoveryBox, out int3 recoveryPosition))
+		{
+			taskData.RecoveryBox = new BoxReferenceSaveData
+			{
+				BoxType = recoveryBox.Type,
+				BoxId = recoveryBox.BoxId,
+			};
+			taskData.RecoveryPosition = ToSave(recoveryPosition);
+		}
 
 		switch (task)
 		{

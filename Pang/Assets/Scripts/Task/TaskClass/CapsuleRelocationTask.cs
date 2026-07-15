@@ -74,12 +74,21 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 	protected override IBaseNode BuildWorkNode()
 	{
-		SequenceNode root = new();
-		root.Add(AIWorker.ReturnBox());
-		root.Add(AIWorker.MoveToTarget(GetSourceTarget(), InteractionKind.Pick, SetSourceTarget));
-		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCapsule));
-		root.Add(AIWorker.MoveToTarget(GetTargetTarget(), InteractionKind.Put, SetTargetDock));
-		root.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCapsuleToTarget));
+		SelectorNode root = new();
+
+		SequenceNode resume = new();
+		resume.Add(new ActionNode(CheckWorkerCarriesPayload));
+		resume.Add(AIWorker.MoveToTarget(GetTargetTarget(), InteractionKind.Put, SetTargetDock));
+		resume.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCapsuleToTarget));
+		root.Add(resume);
+
+		SequenceNode start = new();
+		start.Add(AIWorker.ReturnBox());
+		start.Add(AIWorker.MoveToTarget(GetSourceTarget(), InteractionKind.Pick, SetSourceTarget));
+		start.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickCapsule));
+		start.Add(AIWorker.MoveToTarget(GetTargetTarget(), InteractionKind.Put, SetTargetDock));
+		start.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PutBox, StoreCapsuleToTarget));
+		root.Add(start);
 		return root;
 	}
 

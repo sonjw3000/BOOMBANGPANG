@@ -117,6 +117,20 @@ public partial class TaskManager : MonoBehaviour
 			{
 				var next = node.Next;
 				WorkerTask data = node.Value;
+				if (data == null)
+				{
+					queue.Remove(node);
+					node = next;
+					continue;
+				}
+
+				if (data.IsValidForDispatch == false)
+				{
+					InvalidateTask(data);
+					node = next;
+					continue;
+				}
+
 				AIWorker worker = GameContext.Instance.WorkerMgr.GetAvailableWorkers(data);
 
 				if (worker != null)
@@ -147,6 +161,13 @@ public partial class TaskManager : MonoBehaviour
 				continue;
 			}
 
+			if (task.IsValidForDispatch == false)
+			{
+				InvalidateTask(task);
+				node = next;
+				continue;
+			}
+
 			AIWorker worker = GameContext.Instance.WorkerMgr.GetAvailableWorkers(task);
 			if (worker != null)
 			{
@@ -164,8 +185,17 @@ public partial class TaskManager : MonoBehaviour
 	public bool ReturnTask(AIWorker worker)
 	{
 		WorkerTask task = worker != null ? worker.CurrentTask : null;
-		if (task == null || task.MarkReturned(worker) == false)
+		BoxBase recoveryBox = worker?.CarryingAbility?.CarryingBox;
+		if (task == null || task.MarkReturned(worker, recoveryBox, worker.GridPosition) == false)
 			return false;
+
+		if (recoveryBox != null &&
+			(worker.CarryingAbility.DropBoxForTaskRecovery(out BoxBase droppedBox) == false || droppedBox != recoveryBox))
+		{
+			InvalidateTask(task);
+			worker.ClearTask(task, becomeIdle: false);
+			return false;
+		}
 
 		taskOnProgress[task.Type].Remove(task);
 		worker.ClearTask(task, becomeIdle: false);

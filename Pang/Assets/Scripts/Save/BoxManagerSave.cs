@@ -63,6 +63,7 @@ public partial class BoxManager
 				tote.UpdateToteCapacity(toteCapacity);
 
 			box.SetBoxId(boxData.BoxId);
+			box.MarkValid();
 			box.transform.SetParent(boxPoolRoot.transform, false);
 
 			activeBoxes.Add(box);

@@ -48,6 +48,7 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 		box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
 		carryingBox = box;
+		Worker?.CurrentTask?.TrackPayloadBox(box);
 
 		return true;
 	}
@@ -62,7 +63,20 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 
 		carryingBox.transform.SetParent(null);
 		carryingBox = null;
+		Worker?.CurrentTask?.ReleasePayloadBox(box);
 
+		return true;
+	}
+
+	public bool DropBoxForTaskRecovery(out BoxBase box)
+	{
+		box = carryingBox;
+		if (box == null)
+			return false;
+
+		box.transform.SetParent(null);
+		box.transform.position = Worker != null ? Worker.transform.position : transform.position;
+		carryingBox = null;
 		return true;
 	}
 }
