@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using Unity.Mathematics;
 using UnityEngine;
+using UniverseLogistics.UI.Toolkit;
 
 public interface IWorkerUIProvider
 {
@@ -27,7 +28,7 @@ public interface IWorkerUIProvider
 	ItemContainerDisplayInfo GetCarriedBoxDisplay();
 }
 
-public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWorkerUIProvider
+public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWorkerUIProvider, ISelectionInspectorProvider
 	where TWorker : AIWorker
 {
 	protected abstract string ResourceLabel { get; }
@@ -108,6 +109,74 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(MainTaskTypeDisplay);
 		(infoBlocks[4] as KeyValueBlock)?.UpdateValue(ActionDisplay);
 		(infoBlocks[5] as KeyValueBlock)?.UpdateValue(TargetDisplay);
+	}
+
+	public void BuildInspectorModel(SelectionInspectorModel model)
+	{
+		model.Clear();
+		model.AddTab("Profile", GetProfileVersion, BuildProfilePanel);
+		model.AddTab("Activity", GetActivityVersion, BuildActivityPanel);
+		model.AddTab("Carry", GetCarryVersion, BuildCarryPanel);
+		model.AddOverview(ResourceLabel, () => ResourceDisplay);
+		model.AddOverview("Main Task", () => MainTaskTypeDisplay);
+		model.AddOverview("Action", () => ActionDisplay);
+		model.AddAction("Remove", DeleteObject, isDangerous: true);
+	}
+
+	private int GetProfileVersion()
+	{
+		return HashCode.Combine(ResourceDisplay, MoveSpeedDisplay, WorkSpeedDisplay, MainTaskTypeDisplay, AbilityDisplay, MonthlyCostDisplay);
+	}
+
+	private int GetActivityVersion()
+	{
+		return HashCode.Combine(PositionDisplay, DestinationDisplay, ActionDisplay, TargetDisplay, CurrentTaskButtonLabel, CurrentTaskSummary);
+	}
+
+	private int GetCarryVersion()
+	{
+		BoxBase box = currentTarget?.CarryingAbility?.CarryingBox;
+		unchecked
+		{
+			return SelectionDetailContentUtility.GetItemContainerVersion(box) * 31 + (box != null ? (int)box.BoxId : 0);
+		}
+	}
+
+	private SelectionDetailPanelModel BuildProfilePanel()
+	{
+		SelectionDetailPanelModel panel = new() { Title = "PROFILE", Summary = WorkerTypeLabel };
+		AddDetailValue(panel, ResourceLabel, ResourceDisplay);
+		AddDetailValue(panel, "Move Speed", MoveSpeedDisplay);
+		AddDetailValue(panel, "Work Speed", WorkSpeedDisplay);
+		AddDetailValue(panel, "Main Task", MainTaskTypeDisplay);
+		AddDetailValue(panel, "Abilities", AbilityDisplay.Replace('\n', ',').Replace(",", ", "));
+		AddDetailValue(panel, "Monthly Cost", MonthlyCostDisplay);
+		return panel;
+	}
+
+	private SelectionDetailPanelModel BuildActivityPanel()
+	{
+		SelectionDetailPanelModel panel = new() { Title = "ACTIVITY", Summary = CurrentTaskButtonLabel };
+		AddDetailValue(panel, "Task", CurrentTaskSummary);
+		AddDetailValue(panel, "Action", ActionDisplay);
+		AddDetailValue(panel, "Target", TargetDisplay);
+		AddDetailValue(panel, "Destination", DestinationDisplay);
+		AddDetailValue(panel, "Position", PositionDisplay);
+		return panel;
+	}
+
+	private SelectionDetailPanelModel BuildCarryPanel()
+	{
+		BoxBase box = currentTarget?.CarryingAbility?.CarryingBox;
+		return SelectionDetailContentUtility.BuildItemContainerPanel(
+			"CARRY",
+			box != null ? $"{GetCarriedBoxDisplay().ContainerName} · Filled {CarriedBoxFillDisplay}" : "Not carrying anything.",
+			GetCarriedBoxDisplay());
+	}
+
+	private static void AddDetailValue(SelectionDetailPanelModel panel, string label, string value)
+	{
+		panel.Rows.Add(new SelectionDetailRow { Primary = label, Secondary = value });
 	}
 
 	public static string GetWorkerTypeLabel(AIWorker worker)

@@ -1,6 +1,7 @@
 using UnityEngine;
+using UniverseLogistics.UI.Toolkit;
 
-public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfBaseUIProvider
+public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfBaseUIProvider, ISelectionInspectorProvider
 {
 	Component IShelfBaseUIProvider.Target => currentTarget;
 
@@ -49,6 +50,88 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(CapsuleDisplay);
 		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(DockedBufferDisplay);
 		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(FilledPercentDisplay);
+	}
+
+	public void BuildInspectorModel(SelectionInspectorModel model)
+	{
+		model.Clear();
+		model.AddTab("Cargo", GetCargoVersion, BuildCargoPanel);
+		model.AddOverview("State", () => StateDisplay);
+		model.AddOverview("Capsule", () => CapsuleDisplay);
+		model.AddOverview("Logistics", () => DockedBufferDisplay);
+		model.AddOverview("Filled", () => FilledPercentDisplay);
+		model.AddOverview("Inbound", () => InboundAccessDisplay);
+		model.AddOverview("Outbound", () => OutboundAccessDisplay);
+		model.AddAction("Purchase Capsule", PurchaseEmptyCapsule, CanPurchaseEmptyCapsule);
+		model.AddAction("Sell Capsule", SellEmptyCapsule, CanSellEmptyCapsule);
+		model.AddAction("Set Empty", () => SetDockState(CapsuleDockState.Empty), () => CanSetDockState(CapsuleDockState.Empty));
+		model.AddAction("Set IB", () => SetDockState(CapsuleDockState.IB), () => CanSetDockState(CapsuleDockState.IB));
+		model.AddAction("Set OB Standby", () => SetDockState(CapsuleDockState.OBStandby), () => CanSetDockState(CapsuleDockState.OBStandby));
+		model.AddAction("Remove", DeleteObject, isDangerous: true);
+	}
+
+	private int GetCargoVersion()
+	{
+		unchecked
+		{
+			return SelectionDetailContentUtility.GetItemContainerVersion(currentTarget?.DockedCapsule) * 31 +
+				(currentTarget?.DockedCapsule != null ? (int)currentTarget.DockedCapsule.BoxId : 0);
+		}
+	}
+
+	private SelectionDetailPanelModel BuildCargoPanel()
+	{
+		return SelectionDetailContentUtility.BuildItemContainerPanel(
+			"CARGO",
+			$"{CurrentSizeDisplay} / {CapacityDisplay}",
+			GetItemDisplay());
+	}
+
+	private bool CanSetDockState(CapsuleDockState state) => currentTarget != null && currentTarget.DockState != state;
+
+	private void SetDockState(CapsuleDockState state)
+	{
+		if (currentTarget == null) return;
+		CapsuleBufferService service = GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
+		if (service != null)
+			service.SetDockState(currentTarget, state);
+		else
+			currentTarget.SetDockState(state);
+	}
+
+	private bool CanPurchaseEmptyCapsule()
+	{
+		return currentTarget != null && currentTarget.DockState == CapsuleDockState.Empty &&
+			currentTarget.HasCapsule == false && GameContext.HasInstance && GameContext.Instance.BoxMgr != null;
+	}
+
+	private bool CanSellEmptyCapsule()
+	{
+		return currentTarget != null && currentTarget.DockState == CapsuleDockState.Empty &&
+			currentTarget.DockedCapsule != null && currentTarget.DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty &&
+			currentTarget.IsCapsuleEmpty() && GameContext.HasInstance && GameContext.Instance.BoxMgr != null;
+	}
+
+	private void PurchaseEmptyCapsule()
+	{
+		if (CanPurchaseEmptyCapsule() == false) return;
+		BoxManager boxManager = GameContext.Instance.BoxMgr;
+		if (boxManager.GetNewBox(BoxType.Capsule, out BoxBase box) == false) return;
+		if (box is not CargoCapsule capsule)
+		{
+			boxManager.DisableBox(box);
+			return;
+		}
+		capsule.SetLogisticsState(CapsuleLogisticsState.Empty);
+		if (currentTarget.TryDockCapsule(capsule) == false)
+			boxManager.DisableBox(capsule);
+	}
+
+	private void SellEmptyCapsule()
+	{
+		if (CanSellEmptyCapsule() == false || currentTarget.TryUndockCapsule(out CargoCapsule capsule) == false)
+			return;
+		GameContext.Instance.BoxMgr.DisableBox(capsule);
 	}
 
 	private static string GetStateLabel(CapsuleDockState state)

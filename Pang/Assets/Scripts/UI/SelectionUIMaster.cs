@@ -251,7 +251,8 @@ public class SelectionUIMaster : MonoBehaviour
 			RefreshModeHud();
 		}
 
-		OpenDetailWindow(targetObj);
+		if (selectionCardHud == null || selectionCardHud.ExpandInspector(currentProvider) == false)
+			OpenDetailWindow(targetObj);
 	}
 
 	public void OnFocusBtnClicked()
@@ -268,7 +269,7 @@ public class SelectionUIMaster : MonoBehaviour
 		if (targetObj == null)
 			return;
 
-		OpenDetailWindow(targetObj);
+		SelectAndShowDetail(targetObj);
 	}
 
 	public SelectDetailUI OpenDetailWindow(GameObject targetObj)
