@@ -76,6 +76,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private BuildManagementWindow buildManagementWindow;
 		private WorkflowManagementWindow workflowManagementWindow;
 		private CompanyManagementWindow companyManagementWindow;
+		private SelectionCardHud selectionCard;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
@@ -83,6 +84,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private bool? timeHudDockedRight;
 		private int scaledScreenWidth = -1;
 		private int scaledScreenHeight = -1;
+
+		public SelectionCardHud SelectionCard => selectionCard;
 
 		private sealed class ActiveHudEvent
 		{
@@ -374,6 +377,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 			VisualElement root = uiDocument.rootVisualElement;
 			root.pickingMode = PickingMode.Ignore;
+			selectionCard ??= new SelectionCardHud();
+			if (selectionCard.Bind(root) == false)
+				Debug.LogError("[GlobalStatusHud] Selection Card UXML elements are missing.", this);
 			hudRoot = root;
 			leftHud = root.Q<VisualElement>(className: "left-hud");
 			timeCluster = root.Q<VisualElement>(className: "time-cluster");

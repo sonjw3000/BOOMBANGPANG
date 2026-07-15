@@ -6,6 +6,8 @@ using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using GlobalStatusHud = UniverseLogistics.UI.Toolkit.GlobalStatusHud;
+using SelectionCardHud = UniverseLogistics.UI.Toolkit.SelectionCardHud;
 
 public class SelectionUIMaster : MonoBehaviour
 {
@@ -62,6 +64,7 @@ public class SelectionUIMaster : MonoBehaviour
 	private TextMeshProUGUI modeActionText = null;
 	private Button buildingDetailsButton = null;
 	private TextMeshProUGUI buildingDetailsButtonText = null;
+	private SelectionCardHud selectionCardHud = null;
 	[SerializeField] private BuildingPlacementOverlayController buildingPlacementOverlayController = null;
 
 	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
@@ -94,8 +97,13 @@ public class SelectionUIMaster : MonoBehaviour
 			Interaction.OnModeChanged += HandleInteractionModeChanged;
 		}
 
-		cardUI.FocusButton.onClick.AddListener(OnFocusBtnClicked);
-		cardUI.DetailsButton.onClick.AddListener(OnDetailClicked);
+		if (cardUI != null)
+		{
+			cardUI.gameObject.SetActive(false);
+			cardUI.FocusButton?.onClick.AddListener(OnFocusBtnClicked);
+			cardUI.DetailsButton?.onClick.AddListener(OnDetailClicked);
+		}
+		EnsureSelectionCardHud();
 		if (buildingDetailsButton != null)
 			buildingDetailsButton.onClick.AddListener(HandleBuildingDetailsClicked);
 
@@ -109,8 +117,13 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void OnDisable()
 	{
-		cardUI.DetailsButton.onClick.RemoveListener(OnDetailClicked);
-		cardUI.FocusButton.onClick.RemoveListener(OnFocusBtnClicked);
+		if (cardUI != null)
+		{
+			cardUI.DetailsButton?.onClick.RemoveListener(OnDetailClicked);
+			cardUI.FocusButton?.onClick.RemoveListener(OnFocusBtnClicked);
+		}
+		selectionCardHud?.Hide();
+		selectionCardHud?.SetActions(null, null);
 		if (buildingDetailsButton != null)
 			buildingDetailsButton.onClick.RemoveListener(HandleBuildingDetailsClicked);
 
@@ -126,7 +139,15 @@ public class SelectionUIMaster : MonoBehaviour
 	private void Update()
 	{
 		if (currentProvider != null)
+		{
 			currentProvider.OnUpdate();
+			if (EnsureSelectionCardHud())
+			{
+				if (selectionCardHud.Refresh(currentProvider) == false)
+					selectionCardHud.Show(currentProvider);
+				if (cardUI != null) cardUI.gameObject.SetActive(false);
+			}
+		}
 	}
 
 	private void OnSelected(GameObject gridObj)
@@ -163,18 +184,50 @@ public class SelectionUIMaster : MonoBehaviour
 		currentProvider.LinkObject(currentObj);
 		currentProvider.BuildInfoBlocks();
 
-		cardUI.SetUpCard(currentProvider);
-		cardUI.gameObject.SetActive(true);
+		if (EnsureSelectionCardHud())
+		{
+			selectionCardHud.Show(currentProvider);
+			if (cardUI != null) cardUI.gameObject.SetActive(false);
+			return;
+		}
+
+		if (cardUI != null)
+		{
+			cardUI.SetUpCard(currentProvider);
+			cardUI.gameObject.SetActive(true);
+		}
 	}
 
 	private void DisableCard()
 	{
-		cardUI.ClearCard();
-		cardUI.gameObject.SetActive(false);
+		selectionCardHud?.Hide();
+		if (cardUI != null)
+		{
+			cardUI.ClearCard();
+			cardUI.gameObject.SetActive(false);
+		}
+	}
+
+	private bool EnsureSelectionCardHud()
+	{
+		if (selectionCardHud == null)
+		{
+			GlobalStatusHud globalHud = FindAnyObjectByType<GlobalStatusHud>(FindObjectsInactive.Include);
+			selectionCardHud = globalHud != null ? globalHud.SelectionCard : null;
+		}
+
+		if (selectionCardHud == null || selectionCardHud.IsBound == false)
+			return false;
+
+		selectionCardHud.SetActions(OnFocusBtnClicked, OnDetailClicked);
+		return true;
 	}
 
 	public void OnDetailClicked()
 	{
+		if (selectionCardHud != null && selectionCardHud.ToggleInspector(currentProvider))
+			return;
+
 		OpenDetailWindow(currentObj);
 	}
 
@@ -203,6 +256,11 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnFocusBtnClicked()
 	{
+		if (currentObj == null) return;
+		OrbitCamera orbitCamera = Camera.main != null ? Camera.main.GetComponent<OrbitCamera>() : null;
+		orbitCamera ??= FindAnyObjectByType<OrbitCamera>();
+		if (orbitCamera != null)
+			orbitCamera._GoalTargetPos = currentObj.transform.position;
 	}
 
 	public void ShowDetailForObject(GameObject targetObj)
