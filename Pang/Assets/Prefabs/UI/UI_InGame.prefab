@@ -4148,22 +4148,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EscapePauseMenu
   titleSceneName: TitleScene
   toggleKey: 27
-  root: {fileID: 460021832087150793}
-  mainPanel: {fileID: 6370492372354991947}
-  savePanel: {fileID: 634290086620787750}
-  settingsPanel: {fileID: 5441925453296259793}
-  titleConfirmPanel: {fileID: 239235275706460300}
-  resumeButton: {fileID: 1375080058633507705}
-  openSaveButton: {fileID: 5416183887492575436}
-  openSettingsButton: {fileID: 6016772763568963670}
-  openTitleConfirmButton: {fileID: 3225014311686957715}
-  saveNameInput: {fileID: 399305068521122079}
-  saveMessageText: {fileID: 7794814591461940777}
-  confirmSaveButton: {fileID: 1778154578194581321}
-  backFromSaveButton: {fileID: 4432240835893425399}
-  backFromSettingsButton: {fileID: 7220428139763864896}
-  confirmTitleButton: {fileID: 74951576780055743}
-  cancelTitleButton: {fileID: 1572444879556008225}
+  visualTreeAsset: {fileID: 9197481963319205126, guid: b157ef20171c4790afd91237198b62ae, type: 3}
+  panelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
+  sortingOrder: 200
 --- !u!114 &8888000000000000001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4219,8 +4206,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0a366066213a460586cd6a415fbcd6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.UI.EventNoticeService
-  eventNoticeWindowPrefab: {fileID: 1727248438672667693, guid: a71e83e031dbd43b78d07f5c9b673760, type: 3}
-  windowParent: {fileID: 9168031254211916281}
+  windowVisualTreeAsset: {fileID: 9197481963319205126, guid: 8697a5359d5e0402c95f680b02a44eb6, type: 3}
+  contentTemplate: {fileID: 9197481963319205126, guid: 8b3119b30fd54882934f7383e0e95f8c, type: 3}
+  panelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
+  defaultIcon: {fileID: 6160130628020387274, guid: a9f32f23d12396345a8684444399eba2, type: 3}
+  idleWindowTitle: Event Notice
+  defaultWindowSize: {x: 500, y: 800}
+  sortingOrder: 130
   initialPoolSize: 1
   initialWindowPosition: {x: 0, y: 0}
   stackedWindowOffset: {x: 32, y: -32}
