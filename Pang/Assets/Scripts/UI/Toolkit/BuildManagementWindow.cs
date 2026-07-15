@@ -8,8 +8,17 @@ namespace UniverseLogistics.UI.Toolkit
 {
 	public sealed class BuildManagementWindow : MonoBehaviour
 	{
+		private enum RoutingSourceKind
+		{
+			None,
+			LandingArea,
+			Building,
+		}
+
 		private const string SelectedTabClass = "build-tab-button--selected";
 		private const string SelectedCategoryClass = "build-category-button--selected";
+		private const string ExpandedRoutingSourceClass = "build-routing-source--expanded";
+		private const string SelectedRoutingConnectionClass = "build-routing-connection--selected";
 		private static readonly BuildingType[] BuildingTypes =
 		{
 			BuildingType.Staging,
@@ -40,6 +49,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label routingMessage;
 		private Button routingLinkButton;
 		private Button routingLandingLinkButton;
+		private ScrollView routingSourceList;
+		private Label routingEmpty;
 		private DropdownField buildingTypeField;
 		private DropdownField footprintField;
 		private Label buildingSelectionName;
@@ -85,6 +96,14 @@ namespace UniverseLogistics.UI.Toolkit
 		private bool initialized;
 		private bool started;
 		private int selectedTabIndex;
+		private RoutingSourceKind selectedRoutingSourceKind;
+		private Area selectedRoutingSourceArea;
+		private uint selectedRoutingSourceBuildingId;
+		private RoutingConnectionKey? selectedRoutingConnection;
+		private int configuredRoutingConnectionCount;
+
+		private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+		private AreaManager AreaManager => GameContext.HasInstance ? GameContext.Instance.AreaMgr : null;
 
 		public void Configure(UIWindow targetWindow, VisualTreeAsset targetContentTemplate,
 			VisualTreeAsset targetPlaceableRowTemplate, VisualTreeAsset targetRuleRowTemplate,
@@ -173,6 +192,8 @@ namespace UniverseLogistics.UI.Toolkit
 			routingMessage = content.Q<Label>("build-routing-message");
 			routingLinkButton = content.Q<Button>("build-routing-link-button");
 			routingLandingLinkButton = content.Q<Button>("build-routing-landing-link-button");
+			routingSourceList = content.Q<ScrollView>("build-routing-source-list");
+			routingEmpty = content.Q<Label>("build-routing-empty");
 			buildingTypeField = content.Q<DropdownField>("building-type-field");
 			footprintField = content.Q<DropdownField>("building-footprint-field");
 			buildingSelectionName = content.Q<Label>("building-selection-name");
@@ -205,7 +226,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 			if (buildingsButton == null || facilitiesButton == null || rulesButton == null || routingButton == null || buildingsTab == null ||
 				facilitiesTab == null || rulesTab == null || routingTab == null || routingSummary == null || routingMessage == null || routingLinkButton == null ||
-				routingLandingLinkButton == null ||
+				routingLandingLinkButton == null || routingSourceList == null || routingEmpty == null ||
 				buildingTypeField == null || footprintField == null || buildingSelectionName == null ||
 				buildingSelectionDetails == null || buildingMessage == null || createBuildingButton == null ||
 				categoryList == null || catalogTitle == null || catalogMessage == null || placeableList == null ||
@@ -328,6 +349,7 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				buildingLinkController?.EndLinkEdit();
 				workflowDestinationController?.EndSelection();
+				ClearRoutingSelection();
 			}
 			selectedTabIndex = index;
 			buildingsTab.style.display = index == 0 ? DisplayStyle.Flex : DisplayStyle.None;
@@ -340,6 +362,7 @@ namespace UniverseLogistics.UI.Toolkit
 			routingButton.EnableInClassList(SelectedTabClass, index == 3);
 			routingOverlay?.SetVisible(index == 3 && window != null && window.IsOpen);
 			workflowDestinationController?.SetRoutingVisible(index == 3 && window != null && window.IsOpen);
+			if (index == 3) RefreshRoutingConnectionList();
 			RefreshRoutingSummary();
 		}
 
@@ -347,6 +370,7 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			routingOverlay?.SetVisible(selectedTabIndex == 3);
 			workflowDestinationController?.SetRoutingVisible(selectedTabIndex == 3);
+			if (selectedTabIndex == 3) RefreshRoutingConnectionList();
 			RefreshRoutingSummary();
 		}
 
@@ -355,6 +379,7 @@ namespace UniverseLogistics.UI.Toolkit
 			buildingLinkController?.EndLinkEdit();
 			workflowDestinationController?.EndSelection();
 			workflowDestinationController?.SetRoutingVisible(false);
+			ClearRoutingSelection();
 			routingOverlay?.SetVisible(false);
 		}
 
@@ -366,6 +391,8 @@ namespace UniverseLogistics.UI.Toolkit
 			else
 			{
 				workflowDestinationController?.EndSelection();
+				ClearRoutingSelection();
+				RefreshRoutingConnectionList();
 				buildingLinkController.BeginLinkEdit();
 			}
 			RefreshRoutingSummary();
@@ -379,6 +406,8 @@ namespace UniverseLogistics.UI.Toolkit
 			else
 			{
 				buildingLinkController?.EndLinkEdit();
+				ClearRoutingSelection();
+				RefreshRoutingConnectionList();
 				workflowDestinationController.BeginInboundSelection();
 			}
 			RefreshRoutingSummary();
@@ -393,6 +422,8 @@ namespace UniverseLogistics.UI.Toolkit
 			SelectTab(3);
 			window.Open();
 			buildingLinkController?.EndLinkEdit();
+			ClearRoutingSelection();
+			RefreshRoutingConnectionList();
 			if (inbound)
 				workflowDestinationController.BeginInboundSelection();
 			else
@@ -403,13 +434,243 @@ namespace UniverseLogistics.UI.Toolkit
 		private void OnBuildingLinkCreated(Building source, Building target)
 		{
 			routingOverlay?.RefreshConnections();
+			RefreshRoutingConnectionList();
 			RefreshRoutingSummary();
 		}
 
 		private void OnWorkflowDestinationChanged()
 		{
 			routingOverlay?.RefreshConnections();
+			RefreshRoutingConnectionList();
 			RefreshRoutingSummary();
+		}
+
+		private void RefreshRoutingConnectionList()
+		{
+			if (routingSourceList == null || routingEmpty == null) return;
+			routingSourceList.Clear();
+
+			int sourceCount = 0;
+			configuredRoutingConnectionCount = 0;
+			bool selectedSourceExists = false;
+			AreaManager areaManager = AreaManager;
+			if (areaManager != null)
+			{
+				IReadOnlyList<Area> areas = areaManager.RegisteredAreas;
+				for (int i = 0; i < areas.Count; ++i)
+				{
+					Area area = areas[i];
+					if (area == null || area.Type != AreaType.RocketLanding || area.DestinationBuildingId == 0) continue;
+					bool expanded = IsSelectedRoutingSource(area);
+					selectedSourceExists |= expanded;
+					routingSourceList.Add(CreateRoutingSource(
+						area.DisplayName,
+						1,
+						expanded,
+						() => ToggleRoutingSource(area),
+						expanded ? new[] { RoutingConnectionKey.ForLanding(area, area.DestinationBuildingId) } : null));
+					sourceCount += 1;
+					configuredRoutingConnectionCount += 1;
+				}
+			}
+
+			BuildingManager buildingManager = BuildingManager;
+			if (buildingManager != null)
+			{
+				IReadOnlyList<Building> buildings = buildingManager.RegisteredBuildings;
+				for (int i = 0; i < buildings.Count; ++i)
+				{
+					Building building = buildings[i];
+					if (building == null || building.OutputBuildingIds.Count == 0) continue;
+					bool expanded = IsSelectedRoutingSource(building.RuntimeBuildingId);
+					selectedSourceExists |= expanded;
+					List<RoutingConnectionKey> connections = null;
+					if (expanded)
+					{
+						connections = new List<RoutingConnectionKey>(building.OutputBuildingIds.Count);
+						foreach (uint targetBuildingId in building.OutputBuildingIds)
+							connections.Add(RoutingConnectionKey.ForBuildings(building.RuntimeBuildingId, targetBuildingId));
+					}
+					routingSourceList.Add(CreateRoutingSource(
+						building.DisplayName,
+						building.OutputBuildingIds.Count,
+						expanded,
+						() => ToggleRoutingSource(building.RuntimeBuildingId),
+						connections));
+					sourceCount += 1;
+					configuredRoutingConnectionCount += building.OutputBuildingIds.Count;
+				}
+			}
+
+			routingEmpty.style.display = sourceCount == 0 ? DisplayStyle.Flex : DisplayStyle.None;
+			if (selectedRoutingSourceKind != RoutingSourceKind.None && selectedSourceExists == false)
+				ClearRoutingSelection();
+		}
+
+		private VisualElement CreateRoutingSource(string sourceName, int connectionCount, bool expanded,
+			Action toggleSource, IReadOnlyList<RoutingConnectionKey> connections)
+		{
+			VisualElement source = new();
+			source.AddToClassList("build-routing-source");
+			source.EnableInClassList(ExpandedRoutingSourceClass, expanded);
+
+			Button header = new(toggleSource) { text = string.Empty };
+			header.AddToClassList("build-routing-source__header");
+			Label name = new(sourceName);
+			name.AddToClassList("build-routing-source__name");
+			Label count = new($"Connection: {connectionCount}");
+			count.AddToClassList("build-routing-source__count");
+			header.Add(name);
+			header.Add(count);
+			source.Add(header);
+
+			if (expanded && connections != null)
+			{
+				VisualElement details = new();
+				details.AddToClassList("build-routing-details");
+				for (int i = 0; i < connections.Count; ++i)
+					details.Add(CreateRoutingConnection(connections[i]));
+				source.Add(details);
+			}
+
+			return source;
+		}
+
+		private VisualElement CreateRoutingConnection(RoutingConnectionKey connection)
+		{
+			VisualElement row = new();
+			row.AddToClassList("build-routing-connection");
+			row.EnableInClassList(SelectedRoutingConnectionClass,
+				selectedRoutingConnection.HasValue && selectedRoutingConnection.Value.Equals(connection));
+
+			Button target = new(() => ToggleRoutingConnection(connection))
+			{
+				text = ResolveRoutingBuildingName(connection.TargetBuildingId),
+			};
+			target.AddToClassList("build-routing-connection__target");
+			Button disconnect = new(() => DisconnectRoutingConnection(connection)) { text = "Disconnect" };
+			disconnect.AddToClassList("build-routing-connection__disconnect");
+			row.Add(target);
+			row.Add(disconnect);
+			return row;
+		}
+
+		private void ToggleRoutingSource(Area area)
+		{
+			if (IsSelectedRoutingSource(area))
+				ClearRoutingSelection();
+			else
+			{
+				selectedRoutingSourceKind = RoutingSourceKind.LandingArea;
+				selectedRoutingSourceArea = area;
+				selectedRoutingSourceBuildingId = 0;
+				selectedRoutingConnection = null;
+				routingOverlay?.ShowSourceConnections(area);
+			}
+			RefreshRoutingConnectionList();
+			RefreshRoutingSummary();
+		}
+
+		private void ToggleRoutingSource(uint buildingId)
+		{
+			if (IsSelectedRoutingSource(buildingId))
+				ClearRoutingSelection();
+			else
+			{
+				selectedRoutingSourceKind = RoutingSourceKind.Building;
+				selectedRoutingSourceArea = null;
+				selectedRoutingSourceBuildingId = buildingId;
+				selectedRoutingConnection = null;
+				routingOverlay?.ShowSourceConnections(buildingId);
+			}
+			RefreshRoutingConnectionList();
+			RefreshRoutingSummary();
+		}
+
+		private void ToggleRoutingConnection(RoutingConnectionKey connection)
+		{
+			if (selectedRoutingConnection.HasValue && selectedRoutingConnection.Value.Equals(connection))
+			{
+				selectedRoutingConnection = null;
+				ApplySelectedRoutingSourceFilter();
+			}
+			else
+			{
+				selectedRoutingConnection = connection;
+				routingOverlay?.ShowConnection(connection);
+			}
+			RefreshRoutingConnectionList();
+			RefreshRoutingSummary();
+		}
+
+		private void DisconnectRoutingConnection(RoutingConnectionKey connection)
+		{
+			bool disconnected = false;
+			if (connection.Type == RoutingConnectionType.LandingToBuilding)
+			{
+				disconnected = AreaManager != null &&
+					AreaManager.TrySetDestinationBuilding(connection.SourceArea, 0);
+			}
+			else if (BuildingManager != null &&
+				BuildingManager.TryGetBuilding(connection.SourceBuildingId, out Building source) && source != null)
+			{
+				if (BuildingManager.TryGetBuilding(connection.TargetBuildingId, out Building target) && target != null)
+					disconnected = BuildingManager.TryUnlinkBuildings(source, target);
+				else
+					disconnected = source.RemoveOutputBuilding(connection.TargetBuildingId);
+			}
+
+			if (disconnected == false) return;
+			selectedRoutingConnection = null;
+			if (SelectedRoutingSourceHasConnections())
+				ApplySelectedRoutingSourceFilter();
+			else
+				ClearRoutingSelection();
+			routingOverlay?.RefreshConnections();
+			RefreshRoutingConnectionList();
+			RefreshRoutingSummary();
+		}
+
+		private void ApplySelectedRoutingSourceFilter()
+		{
+			if (selectedRoutingSourceKind == RoutingSourceKind.LandingArea)
+				routingOverlay?.ShowSourceConnections(selectedRoutingSourceArea);
+			else if (selectedRoutingSourceKind == RoutingSourceKind.Building)
+				routingOverlay?.ShowSourceConnections(selectedRoutingSourceBuildingId);
+			else
+				routingOverlay?.ShowAllConnections();
+		}
+
+		private void ClearRoutingSelection()
+		{
+			selectedRoutingSourceKind = RoutingSourceKind.None;
+			selectedRoutingSourceArea = null;
+			selectedRoutingSourceBuildingId = 0;
+			selectedRoutingConnection = null;
+			routingOverlay?.ShowAllConnections();
+		}
+
+		private bool IsSelectedRoutingSource(Area area) =>
+			selectedRoutingSourceKind == RoutingSourceKind.LandingArea && ReferenceEquals(selectedRoutingSourceArea, area);
+
+		private bool IsSelectedRoutingSource(uint buildingId) =>
+			selectedRoutingSourceKind == RoutingSourceKind.Building && selectedRoutingSourceBuildingId == buildingId;
+
+		private bool SelectedRoutingSourceHasConnections()
+		{
+			if (selectedRoutingSourceKind == RoutingSourceKind.LandingArea)
+				return selectedRoutingSourceArea != null && selectedRoutingSourceArea.DestinationBuildingId != 0;
+			if (selectedRoutingSourceKind == RoutingSourceKind.Building && BuildingManager != null &&
+				BuildingManager.TryGetBuilding(selectedRoutingSourceBuildingId, out Building building) && building != null)
+				return building.OutputBuildingIds.Count > 0;
+			return false;
+		}
+
+		private string ResolveRoutingBuildingName(uint buildingId)
+		{
+			return BuildingManager != null && BuildingManager.TryGetBuilding(buildingId, out Building building) && building != null
+				? building.DisplayName
+				: $"Missing Building #{buildingId}";
 		}
 
 		private void RefreshAll()
@@ -418,6 +679,7 @@ namespace UniverseLogistics.UI.Toolkit
 			RefreshCategories();
 			DisplaySelectedSection();
 			RefreshRules();
+			RefreshRoutingConnectionList();
 			RefreshRoutingSummary();
 		}
 
@@ -441,7 +703,7 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 			}
 
-			routingSummary.text = $"{routingOverlay.ConnectionCount} connections · {routingOverlay.ValidPathCount} visible paths";
+			routingSummary.text = $"{configuredRoutingConnectionCount} connections · {routingOverlay.VisiblePathCount} visible paths";
 			if (buildingLinkController != null && buildingLinkController.IsEditing)
 			{
 				routingMessage.text = buildingLinkController.StatusText;

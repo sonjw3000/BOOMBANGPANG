@@ -11,6 +11,13 @@ namespace UniverseLogistics.UI.Toolkit
 		BuildingToBuilding = 1,
 	}
 
+	public enum RoutingOverlayFilterMode
+	{
+		All = 0,
+		Source = 1,
+		Connection = 2,
+	}
+
 	public readonly struct RoutingConnectionKey : IEquatable<RoutingConnectionKey>
 	{
 		public RoutingConnectionType Type { get; }
@@ -86,11 +93,17 @@ namespace UniverseLogistics.UI.Toolkit
 		private bool isVisible;
 		private int refreshGeneration;
 		private int pendingPathCount;
+		private RoutingOverlayFilterMode filterMode;
+		private RoutingConnectionType filterSourceType;
+		private Area filterSourceArea;
+		private uint filterSourceBuildingId;
+		private RoutingConnectionKey filterConnection;
 
 		public IReadOnlyDictionary<RoutingConnectionKey, CachedRoutingPath> CachedPaths => cachedPaths;
 		public bool IsVisible => isVisible;
 		public int ConnectionCount => cachedPaths.Count;
 		public int PendingPathCount => pendingPathCount;
+		public RoutingOverlayFilterMode FilterMode => filterMode;
 		public int ValidPathCount
 		{
 			get
@@ -98,6 +111,16 @@ namespace UniverseLogistics.UI.Toolkit
 				int count = 0;
 				foreach (CachedRoutingPath path in cachedPaths.Values)
 					if (path.HasPath) count += 1;
+				return count;
+			}
+		}
+		public int VisiblePathCount
+		{
+			get
+			{
+				int count = 0;
+				foreach (CachedRoutingPath path in cachedPaths.Values)
+					if (path.HasPath && MatchesFilter(path.Key)) count += 1;
 				return count;
 			}
 		}
@@ -113,6 +136,39 @@ namespace UniverseLogistics.UI.Toolkit
 		public void Configure(GameObject targetOverlayQuadPrefab)
 		{
 			overlayQuadPrefab = targetOverlayQuadPrefab;
+		}
+
+		public void ShowAllConnections()
+		{
+			filterMode = RoutingOverlayFilterMode.All;
+			filterSourceArea = null;
+			filterSourceBuildingId = 0;
+			ApplyFilter();
+		}
+
+		public void ShowSourceConnections(Area sourceArea)
+		{
+			filterMode = RoutingOverlayFilterMode.Source;
+			filterSourceType = RoutingConnectionType.LandingToBuilding;
+			filterSourceArea = sourceArea;
+			filterSourceBuildingId = 0;
+			ApplyFilter();
+		}
+
+		public void ShowSourceConnections(uint sourceBuildingId)
+		{
+			filterMode = RoutingOverlayFilterMode.Source;
+			filterSourceType = RoutingConnectionType.BuildingToBuilding;
+			filterSourceArea = null;
+			filterSourceBuildingId = sourceBuildingId;
+			ApplyFilter();
+		}
+
+		public void ShowConnection(RoutingConnectionKey connection)
+		{
+			filterMode = RoutingOverlayFilterMode.Connection;
+			filterConnection = connection;
+			ApplyFilter();
 		}
 
 		private void Awake()
@@ -301,6 +357,7 @@ namespace UniverseLogistics.UI.Toolkit
 			visibleCells.Clear();
 			foreach (CachedRoutingPath path in cachedPaths.Values)
 			{
+				if (MatchesFilter(path.Key) == false) continue;
 				IReadOnlyList<int3> cells = path.Cells;
 				for (int i = 0; i < cells.Count; ++i)
 				{
@@ -330,6 +387,25 @@ namespace UniverseLogistics.UI.Toolkit
 						: landingRouteColor;
 				activeQuads.Add(quad);
 			}
+		}
+
+		private void ApplyFilter()
+		{
+			RebuildVisuals();
+			PathsChanged?.Invoke();
+		}
+
+		private bool MatchesFilter(RoutingConnectionKey key)
+		{
+			return filterMode switch
+			{
+				RoutingOverlayFilterMode.Source => key.Type == filterSourceType &&
+					(key.Type == RoutingConnectionType.LandingToBuilding
+						? ReferenceEquals(key.SourceArea, filterSourceArea)
+						: key.SourceBuildingId == filterSourceBuildingId),
+				RoutingOverlayFilterMode.Connection => key.Equals(filterConnection),
+				_ => true,
+			};
 		}
 
 		private GameObject CreateQuad()

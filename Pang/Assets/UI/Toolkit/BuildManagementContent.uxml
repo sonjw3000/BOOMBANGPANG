@@ -146,6 +146,9 @@
 			</ui:VisualElement>
 			<ui:Label name="build-routing-summary" text="0 connections · 0 visible paths" class="build-routing-summary" />
 			<ui:Label name="build-routing-message" text="Open this tab to calculate routes." class="build-message" />
+			<ui:Label text="CONNECTIONS" class="build-field-label build-routing-list-title" />
+			<ui:ScrollView name="build-routing-source-list" class="build-routing-source-list" />
+			<ui:Label name="build-routing-empty" text="No configured connections." class="build-empty build-routing-empty" />
 		</ui:VisualElement>
 	</ui:VisualElement>
 </ui:UXML>

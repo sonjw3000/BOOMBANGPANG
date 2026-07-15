@@ -132,7 +132,10 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		if (RocketService != null)
 			RocketService.InboundRocketLanded += OnInboundRocketLanded;
 		if (AreaManager != null)
+		{
 			AreaManager.OnAreaChanged += HandleAreaChanged;
+			AreaManager.OnAreaRemoved += HandleAreaChanged;
+		}
 
 		TryEnqueueActiveRocketUnloadingTasks();
 	}
@@ -150,7 +153,10 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		if (RocketService != null)
 			RocketService.InboundRocketLanded -= OnInboundRocketLanded;
 		if (AreaManager != null)
+		{
 			AreaManager.OnAreaChanged -= HandleAreaChanged;
+			AreaManager.OnAreaRemoved -= HandleAreaChanged;
+		}
 	}
 
 	private void HandleAreaChanged(Area area)
@@ -221,7 +227,11 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 		uint destinationBuildingId = ResolveUnloadingDestinationBuildingId(rocket);
 		if (destinationBuildingId == 0)
+		{
+			if (GameContext.HasInstance)
+				GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(rocket);
 			return;
+		}
 
 		rocket.DockedCapsule?.SetLogisticsState(CapsuleLogisticsState.IB);
 
