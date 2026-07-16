@@ -106,9 +106,9 @@ public abstract partial class WorkerTask
 
 		AIWorker worker = ctx.Worker;
 		if (worker?.CarryingAbility?.CarryingBox == payloadBox)
-			return IBaseNode.NodeState.Success;
+			return CompletePayloadRecoveryMovement(worker);
 		if (worker != null && IsAdjacent(worker.GridPosition, payloadRecoveryPosition))
-			return IBaseNode.NodeState.Success;
+			return CompletePayloadRecoveryMovement(worker);
 
 		FindRoute route = worker?.RouteFinder;
 		if (route == null)
@@ -143,6 +143,15 @@ public abstract partial class WorkerTask
 		route.enabled = true;
 		route.SetGoalPosition(pickupPosition);
 		return IBaseNode.NodeState.Running;
+	}
+
+	private static IBaseNode.NodeState CompletePayloadRecoveryMovement(AIWorker worker)
+	{
+		FindRoute route = worker?.RouteFinder;
+		if (route != null && route.HasActiveGoal)
+			route.CancelCurrentRoute();
+
+		return IBaseNode.NodeState.Success;
 	}
 
 	private IBaseNode.NodeState PickPayloadRecovery(in BTContext ctx)
