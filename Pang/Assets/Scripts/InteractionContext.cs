@@ -86,6 +86,7 @@ public class InteractionContext
 
 	// select event
 	public event System.Action<GameObject> OnItemSelected;
+	public event System.Func<int3, bool> OnHandlePriorityLeftClick;
 	public event System.Func<int3, GameObject> OnResolveSelectionFallback;
 	public event System.Func<int3, bool> OnHandleBuildingSelection;
 	public event System.Func<int3, bool> OnHandleBuildingLinkSelection;
@@ -321,6 +322,15 @@ public class InteractionContext
 
 	public void OnLeftClick(in int3 pos)
 	{
+		if (OnHandlePriorityLeftClick != null)
+		{
+			foreach (System.Func<int3, bool> handler in OnHandlePriorityLeftClick.GetInvocationList())
+			{
+				if (handler(pos))
+					return;
+			}
+		}
+
 		switch (Mode)
 		{
 			case InteractionMode.FacilitySelect:

@@ -13,6 +13,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string BuildDocumentObjectName = "BuildManagementWindowDocument";
 		private const string WorkflowDocumentObjectName = "WorkflowManagementWindowDocument";
 		private const string CompanyDocumentObjectName = "CompanyManagementWindowDocument";
+		private const string DebugDocumentObjectName = "DebugControlWindowDocument";
 		private const int MaxVisibleEvents = 5;
 		private const float EventFadeSeconds = 0.8f;
 		private const float ReferenceWidth = 1920f;
@@ -45,6 +46,7 @@ namespace UniverseLogistics.UI.Toolkit
 		[SerializeField] private VisualTreeAsset companyContentTemplate;
 		[SerializeField] private VisualTreeAsset companyLicenseRowTemplate;
 		[SerializeField] private VisualTreeAsset companyResearchRowTemplate;
+		[SerializeField] private VisualTreeAsset debugContentTemplate;
 		[SerializeField] private PanelSettings panelSettings;
 		[SerializeField] private int sortingOrder = 100;
 
@@ -77,6 +79,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private BuildManagementWindow buildManagementWindow;
 		private WorkflowManagementWindow workflowManagementWindow;
 		private CompanyManagementWindow companyManagementWindow;
+		private DebugControlWindow debugControlWindow;
 		private SelectionCardHud selectionCard;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
@@ -105,6 +108,7 @@ namespace UniverseLogistics.UI.Toolkit
 			EnsureBuildManagementWindow();
 			EnsureWorkflowManagementWindow();
 			EnsureCompanyManagementWindow();
+			EnsureDebugControlWindow();
 			BindControls();
 
 			if (started)
@@ -373,6 +377,34 @@ namespace UniverseLogistics.UI.Toolkit
 			companyManagementWindow = documentObject.AddComponent<CompanyManagementWindow>();
 			companyManagementWindow.Configure(window, companyContentTemplate, historyRowTemplate,
 				companyLicenseRowTemplate, companyResearchRowTemplate);
+			documentObject.SetActive(true);
+		}
+
+		private void EnsureDebugControlWindow()
+		{
+			if (debugControlWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || debugContentTemplate == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Debug window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(DebugDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument debugDocument = documentObject.AddComponent<UIDocument>();
+			debugDocument.panelSettings = panelSettings;
+			debugDocument.visualTreeAsset = windowVisualTreeAsset;
+			debugDocument.sortingOrder = sortingOrder + 70;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(new Vector2(560f, 460f));
+			debugControlWindow = documentObject.AddComponent<DebugControlWindow>();
+			debugControlWindow.Configure(window, debugContentTemplate);
 			documentObject.SetActive(true);
 		}
 

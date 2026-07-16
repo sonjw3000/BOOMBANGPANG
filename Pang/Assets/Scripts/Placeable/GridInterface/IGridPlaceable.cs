@@ -7,6 +7,7 @@ public class DestroyContext
 	{
 		Explosion,
 		Override,
+		Damage,
 	}
 
 	public readonly Destroycause cause;

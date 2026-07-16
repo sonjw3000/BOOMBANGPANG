@@ -1,0 +1,79 @@
+.debug-control-tab {
+	flex-grow: 1;
+	padding-top: 20px;
+	padding-right: 22px;
+	padding-bottom: 22px;
+	padding-left: 22px;
+	background-color: rgba(10, 18, 25, 0.96);
+}
+
+.debug-control-heading {
+	margin-bottom: 8px;
+	font-size: 18px;
+	-unity-font-style: bold;
+	letter-spacing: 1.2px;
+	color: rgb(105, 205, 232);
+}
+
+.debug-control-description {
+	margin-bottom: 18px;
+	font-size: 12px;
+	white-space: normal;
+	color: rgb(210, 224, 230);
+}
+
+.debug-control-fields {
+	margin-bottom: 10px;
+	padding-top: 12px;
+	padding-right: 14px;
+	padding-bottom: 8px;
+	padding-left: 14px;
+	background-color: rgba(23, 38, 49, 0.9);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgba(71, 119, 139, 0.75);
+	border-right-color: rgba(71, 119, 139, 0.75);
+	border-bottom-color: rgba(71, 119, 139, 0.75);
+	border-left-color: rgba(71, 119, 139, 0.75);
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
+}
+
+.debug-control-field {
+	margin-bottom: 8px;
+}
+
+.debug-control-field > Label {
+	min-width: 135px;
+	color: rgb(165, 190, 201);
+}
+
+.debug-control-field .unity-base-text-field__input {
+	background-color: rgb(8, 14, 20);
+	color: rgb(231, 240, 243);
+}
+
+.debug-control-hint {
+	margin-top: 4px;
+	font-size: 10px;
+	white-space: normal;
+	color: rgb(135, 157, 168);
+}
+
+.debug-control-message {
+	margin-top: 18px;
+	padding-top: 10px;
+	padding-right: 12px;
+	padding-bottom: 10px;
+	padding-left: 12px;
+	font-size: 11px;
+	white-space: normal;
+	color: rgb(217, 231, 236);
+	background-color: rgba(5, 11, 16, 0.9);
+	border-left-width: 3px;
+	border-left-color: rgb(70, 169, 198);
+}

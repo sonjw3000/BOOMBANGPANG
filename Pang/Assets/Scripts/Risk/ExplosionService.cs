@@ -4,13 +4,13 @@ using UnityEngine;
 
 public sealed class ExplosionService
 {
-	private readonly Queue<ItemDamageIncidentTrigger> pendingTriggers = new();
+	private readonly Queue<ExplosionRequest> pendingRequests = new();
 	private readonly HashSet<GameObject> affectedObjects = new();
 
 	private GameTime gameTime;
 	private bool isProcessing;
 
-	public int PendingTriggerCount => pendingTriggers.Count;
+	public int PendingTriggerCount => pendingRequests.Count;
 
 	public void Bind(GameTime targetGameTime)
 	{
@@ -33,28 +33,47 @@ public sealed class ExplosionService
 
 	public void ResetRuntimeState()
 	{
-		pendingTriggers.Clear();
+		pendingRequests.Clear();
 		affectedObjects.Clear();
 		isProcessing = false;
 	}
 
 	public void Enqueue(in ItemDamageIncidentTrigger trigger)
 	{
-		pendingTriggers.Enqueue(trigger);
+		pendingRequests.Enqueue(new ExplosionRequest(
+			trigger.OriginCell,
+			trigger.Radius,
+			trigger.Severity,
+			trigger.DamageChange.ItemId,
+			isDebugRequest: false));
+	}
+
+	public bool TryEnqueueDebugExplosion(in int3 originCell, int radius, int severity)
+	{
+		if (radius < 0 || severity <= 0)
+			return false;
+
+		pendingRequests.Enqueue(new ExplosionRequest(
+			originCell,
+			radius,
+			Mathf.Clamp(severity, 1, 100),
+			itemId: 0,
+			isDebugRequest: true));
+		return true;
 	}
 
 	private void HandleSimulationTick(SimulationTickContext context)
 	{
-		if (isProcessing || pendingTriggers.Count == 0)
+		if (isProcessing || pendingRequests.Count == 0)
 			return;
 
 		isProcessing = true;
 		try
 		{
-			while (pendingTriggers.Count > 0)
+			while (pendingRequests.Count > 0)
 			{
-				ItemDamageIncidentTrigger trigger = pendingTriggers.Dequeue();
-				ProcessTrigger(in trigger);
+				ExplosionRequest request = pendingRequests.Dequeue();
+				ProcessRequest(in request);
 			}
 		}
 		finally
@@ -63,7 +82,7 @@ public sealed class ExplosionService
 		}
 	}
 
-	private void ProcessTrigger(in ItemDamageIncidentTrigger trigger)
+	private void ProcessRequest(in ExplosionRequest request)
 	{
 		if (GameContext.HasInstance == false)
 			return;
@@ -73,7 +92,7 @@ public sealed class ExplosionService
 		if (gridService == null || gridService.IsReady == false || itemDamageService == null)
 			return;
 
-		CollectAffectedObjects(gridService, in trigger.OriginCell, trigger.Radius);
+		CollectAffectedObjects(gridService, in request.OriginCell, request.Radius);
 
 		int damagedHealthTargets = 0;
 		int damagedContainers = 0;
@@ -84,7 +103,7 @@ public sealed class ExplosionService
 
 			if (targetObject.TryGetComponent<AIWorker>(out var worker))
 			{
-				if (worker.ApplyDamage(trigger.Severity) > 0.0f)
+				if (worker.ApplyDamage(request.Severity) > 0.0f)
 					++damagedHealthTargets;
 
 				BoxBase carryingBox = worker.CarryingAbility?.CarryingBox;
@@ -92,7 +111,7 @@ public sealed class ExplosionService
 						itemDamageService,
 						carryingBox,
 						worker.GridPosition,
-						trigger.Severity))
+						request.Severity))
 				{
 					++damagedContainers;
 				}
@@ -103,7 +122,7 @@ public sealed class ExplosionService
 			if (targetObject.TryGetComponent<IFacility>(out var facility) == false)
 				continue;
 
-			if (facility.ApplyDamage(trigger.Severity) > 0.0f)
+			if (facility.ApplyDamage(request.Severity) > 0.0f)
 				++damagedHealthTargets;
 
 			if (facility.Health <= 0.0f)
@@ -117,13 +136,23 @@ public sealed class ExplosionService
 					itemDamageService,
 					shelf,
 					shelf.GridPosition,
-					trigger.Severity))
+					request.Severity))
 			{
 				++damagedContainers;
 			}
 		}
 
-		PublishHudEvent(in trigger, damagedHealthTargets, damagedContainers);
+		if (request.IsDebugRequest)
+		{
+			Debug.Log(
+				$"[DebugControl] Explosion processed at ({request.OriginCell.x},{request.OriginCell.y},{request.OriginCell.z}) " +
+				$"radius={request.Radius}, severity={request.Severity}, " +
+				$"healthTargets={damagedHealthTargets}, containers={damagedContainers}");
+		}
+		else
+		{
+			PublishHudEvent(in request, damagedHealthTargets, damagedContainers);
+		}
 	}
 
 	private void CollectAffectedObjects(GridService gridService, in int3 origin, int radius)
@@ -183,14 +212,36 @@ public sealed class ExplosionService
 	}
 
 	private static void PublishHudEvent(
-		in ItemDamageIncidentTrigger trigger,
+		in ExplosionRequest request,
 		int damagedHealthTargets,
 		int damagedContainers)
 	{
-		ItemDamageChange damage = trigger.DamageChange;
 		GameContext.Instance.HudEventManager?.Publish(
 			HudEventType.Error,
-			$"EXPLOSION item:{damage.ItemId} @({trigger.OriginCell.x},{trigger.OriginCell.y},{trigger.OriginCell.z}) " +
-			$"R:{trigger.Radius} S:{trigger.Severity} H:{damagedHealthTargets} C:{damagedContainers}");
+			$"EXPLOSION item:{request.ItemId} @({request.OriginCell.x},{request.OriginCell.y},{request.OriginCell.z}) " +
+			$"R:{request.Radius} S:{request.Severity} H:{damagedHealthTargets} C:{damagedContainers}");
+	}
+
+	private readonly struct ExplosionRequest
+	{
+		public readonly int3 OriginCell;
+		public readonly int Radius;
+		public readonly int Severity;
+		public readonly uint ItemId;
+		public readonly bool IsDebugRequest;
+
+		public ExplosionRequest(
+			in int3 originCell,
+			int radius,
+			int severity,
+			uint itemId,
+			bool isDebugRequest)
+		{
+			OriginCell = originCell;
+			Radius = Mathf.Max(0, radius);
+			Severity = Mathf.Clamp(severity, 0, 100);
+			ItemId = itemId;
+			IsDebugRequest = isDebugRequest;
+		}
 	}
 }
