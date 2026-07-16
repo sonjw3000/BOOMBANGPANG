@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -9,15 +10,18 @@ namespace UniverseLogistics.UI.Toolkit
 		private const int ExplosionTabIndex = 0;
 		private const int DamageTabIndex = 1;
 		private const int WorkerTabIndex = 2;
+		private const int ItemTabIndex = 3;
 		private const string ExplosionTabName = "debug-explosion-tab";
 		private const string DamageTabName = "debug-damage-tab";
 		private const string WorkerTabName = "debug-worker-tab";
+		private const string ItemTabName = "debug-item-tab";
 
 		private static readonly string[] TabNames =
 		{
 			ExplosionTabName,
 			DamageTabName,
 			WorkerTabName,
+			ItemTabName,
 		};
 
 		private UIWindow window;
@@ -28,7 +32,15 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label explosionMessage;
 		private Label damageMessage;
 		private Label workerMessage;
+		private Label itemSelection;
+		private Label itemEmpty;
+		private Label itemMessage;
+		private ScrollView itemList;
+		private Button itemRefreshButton;
 		private InteractionContext interaction;
+		private GameObject inspectedItemTarget;
+		private IItemContainer inspectedItemContainer;
+		private string inspectedItemContainerName;
 		private bool initialized;
 		private bool started;
 
@@ -78,7 +90,8 @@ namespace UniverseLogistics.UI.Toolkit
 			TemplateContainer explosionContent = CreateTabContent(ExplosionTabName);
 			TemplateContainer damageContent = CreateTabContent(DamageTabName);
 			TemplateContainer workerContent = CreateTabContent(WorkerTabName);
-			if (explosionContent == null || damageContent == null || workerContent == null)
+			TemplateContainer itemContent = CreateTabContent(ItemTabName);
+			if (explosionContent == null || damageContent == null || workerContent == null || itemContent == null)
 			{
 				Debug.LogError("[DebugControl] Required tab roots are missing.", this);
 				return false;
@@ -90,8 +103,15 @@ namespace UniverseLogistics.UI.Toolkit
 			explosionMessage = explosionContent.Q<Label>("debug-explosion-message");
 			damageMessage = damageContent.Q<Label>("debug-damage-message");
 			workerMessage = workerContent.Q<Label>("debug-worker-message");
+			itemSelection = itemContent.Q<Label>("debug-item-selection");
+			itemEmpty = itemContent.Q<Label>("debug-item-empty");
+			itemMessage = itemContent.Q<Label>("debug-item-message");
+			itemList = itemContent.Q<ScrollView>("debug-item-list");
+			itemRefreshButton = itemContent.Q<Button>("debug-item-refresh");
 			if (explosionRadiusField == null || explosionSeverityField == null || damageAmountField == null ||
-				explosionMessage == null || damageMessage == null || workerMessage == null)
+				explosionMessage == null || damageMessage == null || workerMessage == null ||
+				itemSelection == null || itemEmpty == null || itemMessage == null || itemList == null ||
+				itemRefreshButton == null)
 			{
 				Debug.LogError("[DebugControl] Required controls are missing.", this);
 				return false;
@@ -108,12 +128,14 @@ namespace UniverseLogistics.UI.Toolkit
 					: Mathf.Max(0.0f, evt.newValue);
 				damageAmountField.SetValueWithoutNotify(value);
 			});
+			itemRefreshButton.clicked += RefreshInspectedItems;
 
 			window.SetTitle("Debug Controls");
 			window.ClearTabs();
 			window.AddTab("Explosion", explosionContent);
 			window.AddTab("Damage", damageContent);
 			window.AddTab("Worker", workerContent);
+			window.AddTab("Item", itemContent);
 			window.SelectTab(ExplosionTabIndex);
 			initialized = true;
 			return true;
@@ -187,6 +209,10 @@ namespace UniverseLogistics.UI.Toolkit
 
 				case WorkerTabIndex:
 					KnockoutWorker(in position);
+					break;
+
+				case ItemTabIndex:
+					InspectItemContainer(in position);
 					break;
 			}
 
@@ -269,6 +295,257 @@ namespace UniverseLogistics.UI.Toolkit
 
 			Report(workerMessage,
 				$"{workerName}: {previousState} -> Knockout. Returned task: {taskName}.");
+		}
+
+		private void InspectItemContainer(in int3 position)
+		{
+			ClearInspectedItems();
+			if (TryResolveTarget(in position, out GameObject target) == false)
+			{
+				Report(itemMessage, $"No worker or item container at {FormatPosition(in position)}.", LogType.Warning);
+				return;
+			}
+
+			if (target.TryGetComponent<AIWorker>(out var worker))
+			{
+				BoxBase carryingBox = worker.CarryingAbility?.CarryingBox;
+				if (carryingBox == null)
+				{
+					Report(itemMessage, $"{worker.Name} is not carrying a box.", LogType.Warning);
+					return;
+				}
+
+				inspectedItemTarget = target;
+				inspectedItemContainer = carryingBox;
+				inspectedItemContainerName = $"{worker.Name} / {carryingBox.name} #{carryingBox.BoxId}";
+				RefreshInspectedItems();
+				Report(itemMessage, $"Inspecting {inspectedItemContainerName} at {FormatPosition(in position)}.");
+				return;
+			}
+
+			if (target.TryGetComponent<IItemContainer>(out var container) == false)
+			{
+				Report(itemMessage, $"{target.name} is not a direct item container.", LogType.Warning);
+				return;
+			}
+
+			inspectedItemTarget = target;
+			inspectedItemContainer = container;
+			inspectedItemContainerName = target.name;
+			RefreshInspectedItems();
+			Report(itemMessage, $"Inspecting {inspectedItemContainerName} at {FormatPosition(in position)}.");
+		}
+
+		private void ClearInspectedItems()
+		{
+			inspectedItemTarget = null;
+			inspectedItemContainer = null;
+			inspectedItemContainerName = null;
+			if (itemSelection != null)
+				itemSelection.text = "Selected: None";
+			if (itemList != null)
+				itemList.contentContainer.Clear();
+			if (itemEmpty != null && itemList != null)
+			{
+				itemEmpty.text = "Select an item container.";
+				itemEmpty.style.display = DisplayStyle.Flex;
+				itemList.contentContainer.Add(itemEmpty);
+			}
+		}
+
+		private void RefreshInspectedItems()
+		{
+			if (TryValidateInspectedContainer(out int3 position) == false)
+			{
+				ClearInspectedItems();
+				Report(itemMessage, "Container changed. Select it again.", LogType.Warning);
+				return;
+			}
+
+			itemSelection.text = $"Selected: {inspectedItemContainerName}  {FormatPosition(in position)}";
+			itemList.contentContainer.Clear();
+			int rowCount = 0;
+			IReadOnlyList<ItemStack> stacks = inspectedItemContainer.Stacks;
+			for (int i = 0; i < stacks.Count; ++i)
+			{
+				ItemStack stack = stacks[i];
+				if (stack == null || stack.Quantity <= 0)
+					continue;
+
+				itemList.contentContainer.Add(CreateItemRow(stack));
+				++rowCount;
+			}
+
+			itemEmpty.text = rowCount == 0 ? "Container is empty." : string.Empty;
+			itemEmpty.style.display = rowCount == 0 ? DisplayStyle.Flex : DisplayStyle.None;
+			itemList.contentContainer.Add(itemEmpty);
+		}
+
+		private VisualElement CreateItemRow(ItemStack stack)
+		{
+			VisualElement row = new();
+			row.AddToClassList("debug-item-row");
+
+			VisualElement header = new();
+			header.AddToClassList("debug-item-row-header");
+			Label name = new(ResolveItemName(stack.ItemID));
+			name.AddToClassList("debug-item-row-name");
+			Label quantity = new($"x{stack.Quantity}");
+			quantity.AddToClassList("debug-item-row-quantity");
+			header.Add(name);
+			header.Add(quantity);
+			row.Add(header);
+
+			bool usesFreshness = UsesFreshness(stack.ItemID);
+			row.Add(CreateConditionRow(
+				"Freshness",
+				usesFreshness ? stack.Freshness.ToString() : "N/A",
+				usesFreshness,
+				target => AdjustFreshness(stack, target),
+				stack.Freshness));
+			row.Add(CreateConditionRow(
+				"Damage",
+				stack.Damage.ToString(),
+				true,
+				target => AdjustDamage(stack, target),
+				stack.Damage));
+			return row;
+		}
+
+		private static VisualElement CreateConditionRow(
+			string conditionName,
+			string conditionValue,
+			bool enabled,
+			System.Action<int> setValue,
+			int currentValue)
+		{
+			VisualElement row = new();
+			row.AddToClassList("debug-item-condition-row");
+			Label name = new(conditionName);
+			name.AddToClassList("debug-item-condition-name");
+			Label value = new(conditionValue);
+			value.AddToClassList("debug-item-condition-value");
+			row.Add(name);
+			row.Add(value);
+			row.Add(CreateAdjustButton("-10", enabled, () => setValue(currentValue - 10)));
+			row.Add(CreateAdjustButton("+10", enabled, () => setValue(currentValue + 10)));
+			row.Add(CreateAdjustButton("0", enabled, () => setValue(0)));
+			row.Add(CreateAdjustButton("100", enabled, () => setValue(100)));
+			return row;
+		}
+
+		private static Button CreateAdjustButton(string text, bool enabled, System.Action clicked)
+		{
+			Button button = new(clicked) { text = text };
+			button.AddToClassList("debug-item-adjust-button");
+			button.SetEnabled(enabled);
+			return button;
+		}
+
+		private void AdjustFreshness(ItemStack stack, int targetFreshness)
+		{
+			if (TryValidateInspectedStack(stack, out _) == false)
+			{
+				Report(itemMessage, "Container contents changed. Select or refresh it again.", LogType.Warning);
+				RefreshInspectedItems();
+				return;
+			}
+
+			byte previous = stack.Freshness;
+			byte current = (byte)Mathf.Clamp(targetFreshness, 0, 100);
+			if (current == previous)
+				return;
+
+			stack.SetFreshness(current);
+			Report(itemMessage,
+				$"{ResolveItemName(stack.ItemID)} x{stack.Quantity} Freshness {previous} -> {current}, Container={inspectedItemContainerName}.");
+			RefreshInspectedItems();
+		}
+
+		private void AdjustDamage(ItemStack stack, int targetDamage)
+		{
+			if (TryValidateInspectedStack(stack, out int3 position) == false)
+			{
+				Report(itemMessage, "Container contents changed. Select or refresh it again.", LogType.Warning);
+				RefreshInspectedItems();
+				return;
+			}
+
+			ItemDamageService damageService = GameContext.HasInstance ? GameContext.Instance.ItemDamage : null;
+			if (damageService == null || damageService.TrySetDebugDamage(
+				stack,
+				targetDamage,
+				in position,
+				inspectedItemContainer,
+				out ItemDamageChange change) == false)
+			{
+				return;
+			}
+
+			Report(itemMessage,
+				$"{ResolveItemName(stack.ItemID)} x{stack.Quantity} Damage {change.PreviousDamage} -> {change.CurrentDamage} " +
+				$"at {FormatPosition(in position)}, Container={inspectedItemContainerName}.");
+			RefreshInspectedItems();
+		}
+
+		private bool TryValidateInspectedStack(ItemStack stack, out int3 position)
+		{
+			if (TryValidateInspectedContainer(out position) == false || stack == null)
+				return false;
+
+			IReadOnlyList<ItemStack> stacks = inspectedItemContainer.Stacks;
+			for (int i = 0; i < stacks.Count; ++i)
+			{
+				if (ReferenceEquals(stacks[i], stack))
+					return true;
+			}
+
+			return false;
+		}
+
+		private bool TryValidateInspectedContainer(out int3 position)
+		{
+			position = default;
+			if (inspectedItemTarget == null || inspectedItemContainer == null)
+				return false;
+
+			if (inspectedItemTarget.TryGetComponent<AIWorker>(out var worker))
+			{
+				if (ReferenceEquals(worker.CarryingAbility?.CarryingBox, inspectedItemContainer) == false)
+					return false;
+
+				position = worker.GridPosition;
+				return true;
+			}
+
+			if (inspectedItemTarget.TryGetComponent<IItemContainer>(out var currentContainer) == false ||
+				ReferenceEquals(currentContainer, inspectedItemContainer) == false ||
+				inspectedItemTarget.TryGetComponent<IGridPlaceable>(out var placeable) == false)
+			{
+				return false;
+			}
+
+			position = placeable.GridPosition;
+			return true;
+		}
+
+		private static string ResolveItemName(uint itemId)
+		{
+			if (GameContext.HasInstance == false || GameContext.Instance.ItemDB == null)
+				return $"Item {itemId}";
+
+			return GameContext.Instance.ItemDB.GetItemData(itemId, out ItemDefinition definition) && definition != null
+				? definition.name
+				: $"Item {itemId}";
+		}
+
+		private static bool UsesFreshness(uint itemId)
+		{
+			return GameContext.HasInstance &&
+				GameContext.Instance.ItemDB != null &&
+				GameContext.Instance.ItemDB.GetItemData(itemId, out ItemDefinition definition) &&
+				definition != null &&
+				(definition.Tag & ItemTag.Food) != 0;
 		}
 
 		private static bool TryResolveTarget(in int3 position, out GameObject target)

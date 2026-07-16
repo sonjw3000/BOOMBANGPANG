@@ -26,4 +26,18 @@
 		<ui:Label text="Workers that are already incapacitated are left unchanged." class="debug-control-hint" />
 		<ui:Label name="debug-worker-message" text="Ready. Select a worker." class="debug-control-message" />
 	</ui:VisualElement>
+
+	<ui:VisualElement name="debug-item-tab" class="debug-control-tab">
+		<ui:Label text="ITEM" class="debug-control-heading" />
+		<ui:Label text="Left-click a worker carrying a box or a direct item container to inspect its stacks." class="debug-control-description" />
+		<ui:VisualElement class="debug-item-toolbar">
+			<ui:Label name="debug-item-selection" text="Selected: None" class="debug-item-selection" />
+			<ui:Button name="debug-item-refresh" text="Refresh" class="debug-item-refresh" />
+		</ui:VisualElement>
+		<ui:ScrollView name="debug-item-list" mode="Vertical" class="debug-item-list">
+			<ui:Label name="debug-item-empty" text="Select an item container." class="debug-item-empty" />
+		</ui:ScrollView>
+		<ui:Label text="Damage increases use ItemDamageService and can trigger configured incidents. Damage decreases are debug repairs." class="debug-control-hint" />
+		<ui:Label name="debug-item-message" text="Ready. Select a worker or item container." class="debug-control-message" />
+	</ui:VisualElement>
 </ui:UXML>

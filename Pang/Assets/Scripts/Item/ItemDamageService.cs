@@ -13,6 +13,7 @@ public enum ItemDamageCause
 	Contamination,
 	Corrosion,
 	Radiation,
+	Debug,
 }
 
 public readonly struct ItemDamageChange
@@ -67,6 +68,43 @@ public readonly struct ItemDamageIncidentTrigger
 public class ItemDamageService : MonoBehaviour
 {
 	public event Action<ItemDamageIncidentTrigger> OnIncidentTriggered;
+
+	public bool TrySetDebugDamage(
+		ItemStack stack,
+		int targetDamage,
+		in int3 originCell,
+		IItemContainer container,
+		out ItemDamageChange damageChange)
+	{
+		damageChange = default;
+		if (stack == null || stack.Quantity <= 0)
+			return false;
+
+		byte previousDamage = stack.Damage;
+		byte currentDamage = (byte)Mathf.Clamp(targetDamage, 0, 100);
+		if (currentDamage == previousDamage)
+			return false;
+
+		if (currentDamage > previousDamage)
+		{
+			return TryApplyDamage(
+				stack,
+				currentDamage - previousDamage,
+				in originCell,
+				container,
+				ItemDamageCause.Debug,
+				out damageChange);
+		}
+
+		stack.SetDamage(currentDamage);
+		damageChange = new ItemDamageChange(
+			stack.ItemID,
+			stack.Quantity,
+			previousDamage,
+			currentDamage,
+			ItemDamageCause.Debug);
+		return true;
+	}
 
 	public bool TryApplyDamage(
 		ItemStack stack,
