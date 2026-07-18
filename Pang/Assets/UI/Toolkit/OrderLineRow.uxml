@@ -1,0 +1,22 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="OrderManagement.uss" />
+	<ui:VisualElement class="order-line-row">
+		<ui:VisualElement class="order-line-row__top">
+			<ui:VisualElement class="order-line-row__identity">
+				<ui:Label name="order-line-item" text="Item" class="order-line-row__item" />
+				<ui:Label name="order-line-contract" text="Contract" class="order-line-row__contract" />
+			</ui:VisualElement>
+			<ui:VisualElement class="order-line-row__metric">
+				<ui:Label text="REQUESTED" class="order-line-row__metric-label" />
+				<ui:Label name="order-line-requested" text="0" class="order-line-row__metric-value" />
+			</ui:VisualElement>
+			<ui:VisualElement class="order-line-row__metric order-line-row__metric--due">
+				<ui:Label text="DUE" class="order-line-row__metric-label" />
+				<ui:Label name="order-line-due" text="0w left" class="order-line-row__metric-value" />
+			</ui:VisualElement>
+			<ui:Label name="order-line-status" text="Pending" class="order-line-row__status" />
+			<ui:Button name="order-line-inventory" text="Inventory" class="order-line-row__button" />
+		</ui:VisualElement>
+		<ui:Label name="order-line-progress" text="Pending 0/0" class="order-line-row__progress" />
+	</ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="OrderManagement.uss" />
+	<ui:Button name="order-row-button" class="order-row">
+		<ui:VisualElement class="order-row__identity">
+			<ui:Label name="order-row-id" text="#0" class="order-row__id" />
+			<ui:Label name="order-row-lines" text="0 lines" class="order-row__lines" />
+		</ui:VisualElement>
+		<ui:Label name="order-row-destination" text="Mars" class="order-row__destination" />
+		<ui:Label name="order-row-status" text="Pending" class="order-row__status" />
+		<ui:Label name="order-row-progress" text="0 / 0 · Pending" class="order-row__progress" />
+		<ui:Label name="order-row-due" text="0 weeks left" class="order-row__due" />
+		<ui:Label name="order-row-reward" text="$0" class="order-row__reward" />
+	</ui:Button>
+</ui:UXML>

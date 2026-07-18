@@ -1,0 +1,90 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="InventoryManagement.uss" />
+	<ui:VisualElement class="inventory-management-content">
+		<ui:VisualElement class="inventory-summary">
+			<ui:VisualElement class="inventory-summary-card">
+				<ui:Label text="TRACKED SKUS" class="inventory-summary-card__label" />
+				<ui:Label name="inventory-sku-count" text="0" class="inventory-summary-card__value" />
+			</ui:VisualElement>
+			<ui:VisualElement class="inventory-summary-card">
+				<ui:Label text="OUT OF STOCK" class="inventory-summary-card__label" />
+				<ui:Label name="inventory-out-of-stock" text="0" class="inventory-summary-card__value inventory-summary-card__value--warning" />
+			</ui:VisualElement>
+			<ui:VisualElement class="inventory-summary-card">
+				<ui:Label text="FULLY RESERVED" class="inventory-summary-card__label" />
+				<ui:Label name="inventory-fully-reserved" text="0" class="inventory-summary-card__value inventory-summary-card__value--warning" />
+			</ui:VisualElement>
+			<ui:VisualElement class="inventory-summary-card inventory-summary-card--last">
+				<ui:Label text="INCOMING NEXT WEEK" class="inventory-summary-card__label" />
+				<ui:Label name="inventory-incoming" text="0" class="inventory-summary-card__value inventory-summary-card__value--supply" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:VisualElement class="inventory-body">
+			<ui:VisualElement class="inventory-list-panel">
+				<ui:Label text="Operational inventory" class="inventory-heading" />
+				<ui:Label text="Shelf stock, order reservations, scheduled supply, demand, and outbound work." class="inventory-caption" />
+				<ui:VisualElement class="inventory-table-header">
+					<ui:Label text="ITEM" class="inventory-table-header__item" />
+					<ui:Label text="SHELF" class="inventory-table-header__number" />
+					<ui:Label text="RESERVED" class="inventory-table-header__number" />
+					<ui:Label text="AVAILABLE" class="inventory-table-header__number" />
+					<ui:Label text="NEXT IN" class="inventory-table-header__incoming" />
+					<ui:Label text="DEMAND" class="inventory-table-header__number" />
+					<ui:Label text="WIP" class="inventory-table-header__number inventory-table-header__number--small" />
+					<ui:Label text="STATE" class="inventory-table-header__status" />
+				</ui:VisualElement>
+				<ui:ScrollView name="inventory-item-list" class="inventory-item-list" />
+				<ui:Label name="inventory-empty" text="No operational inventory is currently tracked." class="inventory-empty" />
+			</ui:VisualElement>
+			<ui:VisualElement class="inventory-detail-panel">
+				<ui:VisualElement class="inventory-detail-header">
+					<ui:VisualElement class="inventory-detail-header__identity">
+						<ui:Label name="inventory-detail-name" text="No tracked inventory" class="inventory-detail-name" />
+						<ui:Label name="inventory-detail-status" text="Select an item." class="inventory-detail-status" />
+					</ui:VisualElement>
+					<ui:Button name="inventory-view-orders" text="View Orders" class="inventory-link-button" />
+				</ui:VisualElement>
+				<ui:ScrollView class="inventory-detail-scroll">
+					<ui:Label text="STOCK" class="inventory-section-label" />
+					<ui:VisualElement class="inventory-metric-row">
+						<ui:Label text="Shelf stock" class="inventory-metric-row__label" />
+						<ui:Label name="inventory-detail-shelf" text="—" class="inventory-metric-row__value" />
+					</ui:VisualElement>
+					<ui:VisualElement class="inventory-metric-row">
+						<ui:Label text="Reserved on shelves" class="inventory-metric-row__label" />
+						<ui:Label name="inventory-detail-reserved" text="—" class="inventory-metric-row__value" />
+					</ui:VisualElement>
+					<ui:VisualElement class="inventory-metric-row inventory-metric-row--accent">
+						<ui:Label text="Available for new orders" class="inventory-metric-row__label" />
+						<ui:Label name="inventory-detail-available" text="—" class="inventory-metric-row__value" />
+					</ui:VisualElement>
+					<ui:Label text="SUPPLY" class="inventory-section-label" />
+					<ui:VisualElement class="inventory-metric-row">
+						<ui:Label text="Contracted supply" class="inventory-metric-row__label" />
+						<ui:Label name="inventory-detail-contracted" text="—" class="inventory-metric-row__value" />
+					</ui:VisualElement>
+					<ui:VisualElement class="inventory-metric-row">
+						<ui:Label text="Next scheduled delivery" class="inventory-metric-row__label" />
+						<ui:Label name="inventory-detail-next-delivery" text="—" class="inventory-metric-row__value" />
+					</ui:VisualElement>
+					<ui:Label name="inventory-detail-contracts" text="—" class="inventory-detail-note" />
+					<ui:Label text="DEMAND &amp; OUTBOUND WORK" class="inventory-section-label" />
+					<ui:VisualElement class="inventory-metric-row">
+						<ui:Label text="Active order demand" class="inventory-metric-row__label" />
+						<ui:Label name="inventory-detail-demand" text="—" class="inventory-metric-row__value" />
+					</ui:VisualElement>
+					<ui:VisualElement class="inventory-metric-row">
+						<ui:Label text="Not started" class="inventory-metric-row__label" />
+						<ui:Label name="inventory-detail-not-started" text="—" class="inventory-metric-row__value" />
+					</ui:VisualElement>
+					<ui:VisualElement class="inventory-metric-row">
+						<ui:Label text="Outbound work in progress" class="inventory-metric-row__label" />
+						<ui:Label name="inventory-detail-outbound-wip" text="—" class="inventory-metric-row__value" />
+					</ui:VisualElement>
+					<ui:Label name="inventory-detail-stages" text="—" class="inventory-detail-note inventory-detail-note--stages" />
+					<ui:Label text="Inbound transit is not included until cargo and storing work share a company-wide item index." class="inventory-boundary-note" />
+				</ui:ScrollView>
+			</ui:VisualElement>
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

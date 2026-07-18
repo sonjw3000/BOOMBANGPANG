@@ -97,6 +97,7 @@ public partial class OrderManager
 		}
 
 		OrderFactory.SetNextOrderId(data.NextOrderId);
+		OnOrdersChanged?.Invoke();
 	}
 
 	public void ResetRuntimeState()
@@ -108,5 +109,6 @@ public partial class OrderManager
 		{
 			orderStatus[status] = new();
 		}
+		OnOrdersChanged?.Invoke();
 	}
 }

@@ -33,6 +33,8 @@
 			<ui:Button name="management-button" text="Management" tooltip="Open management menu" class="management-button" />
 			<ui:VisualElement name="management-menu" class="management-menu">
 				<ui:Button name="contract-management-button" text="Contract" class="management-menu__button" />
+				<ui:Button name="inventory-management-button" text="Inventory" class="management-menu__button" />
+				<ui:Button name="orders-management-button" text="Orders" class="management-menu__button" />
 				<ui:Button name="build-management-button" text="Build" class="management-menu__button" />
 				<ui:Button name="workflow-management-button" text="Workflow" class="management-menu__button" />
 				<ui:Button name="workforce-management-button" text="Workforce" class="management-menu__button" />

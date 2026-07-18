@@ -1,0 +1,72 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="OrderManagement.uss" />
+	<ui:VisualElement class="orders-management-content">
+		<ui:VisualElement class="orders-summary">
+			<ui:VisualElement class="orders-summary-card">
+				<ui:Label text="ACTIVE ORDERS" class="orders-summary-card__label" />
+				<ui:Label name="orders-active-count" text="0" class="orders-summary-card__value" />
+			</ui:VisualElement>
+			<ui:VisualElement class="orders-summary-card">
+				<ui:Label text="DELAYED" class="orders-summary-card__label" />
+				<ui:Label name="orders-delayed-count" text="0" class="orders-summary-card__value orders-summary-card__value--danger" />
+			</ui:VisualElement>
+			<ui:VisualElement class="orders-summary-card">
+				<ui:Label text="DUE WITHIN 2 WEEKS" class="orders-summary-card__label" />
+				<ui:Label name="orders-due-soon-count" text="0" class="orders-summary-card__value orders-summary-card__value--warning" />
+			</ui:VisualElement>
+			<ui:VisualElement class="orders-summary-card orders-summary-card--last">
+				<ui:Label text="EXPECTED ACTIVE REWARD" class="orders-summary-card__label" />
+				<ui:Label name="orders-expected-reward" text="$0" class="orders-summary-card__value orders-summary-card__value--money" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:VisualElement class="orders-toolbar">
+			<ui:VisualElement class="orders-tabs">
+				<ui:Button name="orders-active-button" text="Active" class="order-tab-button" />
+				<ui:Button name="orders-completed-button" text="Completed" class="order-tab-button" />
+				<ui:Button name="orders-cancelled-button" text="Cancelled" class="order-tab-button" />
+			</ui:VisualElement>
+			<ui:VisualElement class="orders-filter">
+				<ui:Label name="orders-filter-label" text="ITEM FILTER" class="orders-filter__label" />
+				<ui:Button name="orders-clear-filter" text="Clear" class="orders-filter__clear" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:VisualElement class="orders-body">
+			<ui:VisualElement class="orders-list-panel">
+				<ui:VisualElement class="orders-table-header">
+					<ui:Label text="ORDER" class="orders-table-header__identity" />
+					<ui:Label text="DESTINATION" class="orders-table-header__destination" />
+					<ui:Label text="STATUS" class="orders-table-header__status" />
+					<ui:Label text="PROGRESS" class="orders-table-header__progress" />
+					<ui:Label text="DUE" class="orders-table-header__due" />
+					<ui:Label text="REWARD" class="orders-table-header__reward" />
+				</ui:VisualElement>
+				<ui:ScrollView name="orders-list" class="orders-list" />
+				<ui:Label name="orders-empty" text="No orders match this view." class="orders-empty" />
+			</ui:VisualElement>
+			<ui:VisualElement class="orders-detail-panel">
+				<ui:VisualElement class="orders-detail-header">
+					<ui:Label name="orders-detail-title" text="No orders" class="orders-detail-title" />
+					<ui:Label name="orders-detail-status" text="Select an order." class="orders-detail-status" />
+				</ui:VisualElement>
+				<ui:VisualElement class="orders-detail-metrics">
+					<ui:VisualElement class="orders-detail-metric">
+						<ui:Label text="DESTINATION" class="orders-detail-metric__label" />
+						<ui:Label name="orders-detail-destination" text="—" class="orders-detail-metric__value" />
+					</ui:VisualElement>
+					<ui:VisualElement class="orders-detail-metric">
+						<ui:Label text="DUE" class="orders-detail-metric__label" />
+						<ui:Label name="orders-detail-due" text="—" class="orders-detail-metric__value" />
+					</ui:VisualElement>
+				</ui:VisualElement>
+				<ui:Label text="ORDER PROGRESS" class="orders-section-label" />
+				<ui:Label name="orders-detail-progress" text="—" class="orders-detail-note" />
+				<ui:Label text="EXPECTED SETTLEMENT" class="orders-section-label" />
+				<ui:Label name="orders-detail-reward" text="—" class="orders-detail-note orders-detail-note--reward" />
+				<ui:Label text="SOURCE CONTRACTS" class="orders-section-label" />
+				<ui:Label name="orders-detail-contracts" text="—" class="orders-detail-note" />
+				<ui:Label text="ORDER LINES" class="orders-section-label" />
+				<ui:ScrollView name="orders-line-list" class="orders-line-list" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

@@ -26,6 +26,7 @@ public partial class ItemLedger
 			reservedItems[entry.ItemId] = entry.Quantity;
 
 		orderableItems.AddRange(data.OrderableItems);
+		OnInventoryChanged?.Invoke();
 	}
 
 	public void ResetRuntimeState()
@@ -33,5 +34,6 @@ public partial class ItemLedger
 		itemTotals.Clear();
 		reservedItems.Clear();
 		orderableItems.Clear();
+		OnInventoryChanged?.Invoke();
 	}
 }

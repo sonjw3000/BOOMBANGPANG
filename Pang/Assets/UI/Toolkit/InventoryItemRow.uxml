@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="InventoryManagement.uss" />
+	<ui:Button name="inventory-row-button" class="inventory-row">
+		<ui:VisualElement class="inventory-row__identity">
+			<ui:Label name="inventory-row-name" text="Item" class="inventory-row__name" />
+			<ui:Label name="inventory-row-id" text="Item 0" class="inventory-row__id" />
+		</ui:VisualElement>
+		<ui:Label name="inventory-row-shelf" text="0" class="inventory-row__number" />
+		<ui:Label name="inventory-row-reserved" text="0" class="inventory-row__number" />
+		<ui:Label name="inventory-row-available" text="0" class="inventory-row__number inventory-row__number--available" />
+		<ui:Label name="inventory-row-incoming" text="—" class="inventory-row__incoming" />
+		<ui:Label name="inventory-row-demand" text="0" class="inventory-row__number" />
+		<ui:Label name="inventory-row-wip" text="0" class="inventory-row__number inventory-row__number--small" />
+		<ui:Label name="inventory-row-status" text="Available" class="inventory-row__status" />
+	</ui:Button>
+</ui:UXML>

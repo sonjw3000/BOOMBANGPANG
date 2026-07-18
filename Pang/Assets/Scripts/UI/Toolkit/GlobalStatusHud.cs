@@ -9,6 +9,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string DocumentObjectName = "GlobalStatusHudDocument";
 		private const string HistoryDocumentObjectName = "GlobalHistoryWindowDocument";
 		private const string ContractDocumentObjectName = "ContractManagementWindowDocument";
+		private const string InventoryDocumentObjectName = "InventoryManagementWindowDocument";
+		private const string OrdersDocumentObjectName = "OrdersManagementWindowDocument";
 		private const string WorkforceDocumentObjectName = "WorkforceManagementWindowDocument";
 		private const string BuildDocumentObjectName = "BuildManagementWindowDocument";
 		private const string WorkflowDocumentObjectName = "WorkflowManagementWindowDocument";
@@ -30,6 +32,11 @@ namespace UniverseLogistics.UI.Toolkit
 		[SerializeField] private VisualTreeAsset activeContractRowTemplate;
 		[SerializeField] private VisualTreeAsset contractMarketRowTemplate;
 		[SerializeField] private VisualTreeAsset vendorContractRowTemplate;
+		[SerializeField] private VisualTreeAsset inventoryContentTemplate;
+		[SerializeField] private VisualTreeAsset inventoryItemRowTemplate;
+		[SerializeField] private VisualTreeAsset ordersContentTemplate;
+		[SerializeField] private VisualTreeAsset orderRowTemplate;
+		[SerializeField] private VisualTreeAsset orderLineRowTemplate;
 		[SerializeField] private VisualTreeAsset workforceContentTemplate;
 		[SerializeField] private VisualTreeAsset workforceRosterRowTemplate;
 		[SerializeField] private VisualTreeAsset workforceCandidateRowTemplate;
@@ -68,6 +75,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private Button doubleSpeedButton;
 		private Button managementButton;
 		private Button contractManagementButton;
+		private Button inventoryManagementButton;
+		private Button ordersManagementButton;
 		private Button workforceManagementButton;
 		private Button buildManagementButton;
 		private Button workflowManagementButton;
@@ -75,6 +84,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualElement managementMenu;
 		private GlobalHistoryWindow historyWindow;
 		private ContractManagementWindow contractManagementWindow;
+		private InventoryManagementWindow inventoryManagementWindow;
+		private OrderManagementWindow orderManagementWindow;
 		private WorkforceManagementWindow workforceManagementWindow;
 		private BuildManagementWindow buildManagementWindow;
 		private WorkflowManagementWindow workflowManagementWindow;
@@ -104,6 +115,9 @@ namespace UniverseLogistics.UI.Toolkit
 			EnsureDocument();
 			EnsureHistoryWindow();
 			EnsureContractManagementWindow();
+			EnsureInventoryManagementWindow();
+			EnsureOrderManagementWindow();
+			ConfigureManagementNavigation();
 			EnsureWorkforceManagementWindow();
 			EnsureBuildManagementWindow();
 			EnsureWorkflowManagementWindow();
@@ -252,6 +266,73 @@ namespace UniverseLogistics.UI.Toolkit
 			documentObject.SetActive(true);
 		}
 
+		private void EnsureInventoryManagementWindow()
+		{
+			if (inventoryManagementWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || inventoryContentTemplate == null || inventoryItemRowTemplate == null ||
+				panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Inventory management window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(InventoryDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument inventoryDocument = documentObject.AddComponent<UIDocument>();
+			inventoryDocument.panelSettings = panelSettings;
+			inventoryDocument.visualTreeAsset = windowVisualTreeAsset;
+			inventoryDocument.sortingOrder = sortingOrder + 30;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(ManagementWindowDefaultSize);
+			inventoryManagementWindow = documentObject.AddComponent<InventoryManagementWindow>();
+			inventoryManagementWindow.Configure(window, inventoryContentTemplate, inventoryItemRowTemplate);
+			documentObject.SetActive(true);
+		}
+
+		private void EnsureOrderManagementWindow()
+		{
+			if (orderManagementWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || ordersContentTemplate == null || orderRowTemplate == null ||
+				orderLineRowTemplate == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Orders management window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(OrdersDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument ordersDocument = documentObject.AddComponent<UIDocument>();
+			ordersDocument.panelSettings = panelSettings;
+			ordersDocument.visualTreeAsset = windowVisualTreeAsset;
+			ordersDocument.sortingOrder = sortingOrder + 40;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(ManagementWindowDefaultSize);
+			orderManagementWindow = documentObject.AddComponent<OrderManagementWindow>();
+			orderManagementWindow.Configure(window, ordersContentTemplate, orderRowTemplate, orderLineRowTemplate);
+			documentObject.SetActive(true);
+		}
+
+		private void ConfigureManagementNavigation()
+		{
+			if (inventoryManagementWindow == null || orderManagementWindow == null)
+				return;
+
+			inventoryManagementWindow.ConfigureNavigation(orderManagementWindow.OpenForItem);
+			orderManagementWindow.ConfigureNavigation(inventoryManagementWindow.OpenForItem);
+		}
+
 		private void EnsureWorkforceManagementWindow()
 		{
 			if (workforceManagementWindow != null)
@@ -271,7 +352,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument workforceDocument = documentObject.AddComponent<UIDocument>();
 			workforceDocument.panelSettings = panelSettings;
 			workforceDocument.visualTreeAsset = windowVisualTreeAsset;
-			workforceDocument.sortingOrder = sortingOrder + 30;
+			workforceDocument.sortingOrder = sortingOrder + 50;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
@@ -302,7 +383,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument buildDocument = documentObject.AddComponent<UIDocument>();
 			buildDocument.panelSettings = panelSettings;
 			buildDocument.visualTreeAsset = windowVisualTreeAsset;
-			buildDocument.sortingOrder = sortingOrder + 40;
+			buildDocument.sortingOrder = sortingOrder + 60;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
@@ -340,7 +421,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument workflowDocument = documentObject.AddComponent<UIDocument>();
 			workflowDocument.panelSettings = panelSettings;
 			workflowDocument.visualTreeAsset = windowVisualTreeAsset;
-			workflowDocument.sortingOrder = sortingOrder + 50;
+			workflowDocument.sortingOrder = sortingOrder + 70;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
@@ -369,7 +450,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument companyDocument = documentObject.AddComponent<UIDocument>();
 			companyDocument.panelSettings = panelSettings;
 			companyDocument.visualTreeAsset = windowVisualTreeAsset;
-			companyDocument.sortingOrder = sortingOrder + 60;
+			companyDocument.sortingOrder = sortingOrder + 80;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
@@ -398,7 +479,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument debugDocument = documentObject.AddComponent<UIDocument>();
 			debugDocument.panelSettings = panelSettings;
 			debugDocument.visualTreeAsset = windowVisualTreeAsset;
-			debugDocument.sortingOrder = sortingOrder + 70;
+			debugDocument.sortingOrder = sortingOrder + 90;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
@@ -433,6 +514,8 @@ namespace UniverseLogistics.UI.Toolkit
 			doubleSpeedButton = root.Q<Button>("double-speed-button");
 			managementButton = root.Q<Button>("management-button");
 			contractManagementButton = root.Q<Button>("contract-management-button");
+			inventoryManagementButton = root.Q<Button>("inventory-management-button");
+			ordersManagementButton = root.Q<Button>("orders-management-button");
 			workforceManagementButton = root.Q<Button>("workforce-management-button");
 			buildManagementButton = root.Q<Button>("build-management-button");
 			workflowManagementButton = root.Q<Button>("workflow-management-button");
@@ -443,6 +526,7 @@ namespace UniverseLogistics.UI.Toolkit
 				hudEventList == null || moneyValue == null ||
 				reputationValue == null || dateValue == null || speedValue == null || pauseButton == null ||
 				normalSpeedButton == null || doubleSpeedButton == null || managementButton == null || contractManagementButton == null ||
+				inventoryManagementButton == null || ordersManagementButton == null ||
 				workforceManagementButton == null ||
 				buildManagementButton == null ||
 				workflowManagementButton == null ||
@@ -467,6 +551,10 @@ namespace UniverseLogistics.UI.Toolkit
 			managementButton.clicked += ToggleManagementMenu;
 			contractManagementButton.clicked -= OpenContractManagement;
 			contractManagementButton.clicked += OpenContractManagement;
+			inventoryManagementButton.clicked -= OpenInventoryManagement;
+			inventoryManagementButton.clicked += OpenInventoryManagement;
+			ordersManagementButton.clicked -= OpenOrdersManagement;
+			ordersManagementButton.clicked += OpenOrdersManagement;
 			workforceManagementButton.clicked -= OpenWorkforceManagement;
 			workforceManagementButton.clicked += OpenWorkforceManagement;
 			buildManagementButton.clicked -= OpenBuildManagement;
@@ -499,6 +587,10 @@ namespace UniverseLogistics.UI.Toolkit
 				managementButton.clicked -= ToggleManagementMenu;
 			if (contractManagementButton != null)
 				contractManagementButton.clicked -= OpenContractManagement;
+			if (inventoryManagementButton != null)
+				inventoryManagementButton.clicked -= OpenInventoryManagement;
+			if (ordersManagementButton != null)
+				ordersManagementButton.clicked -= OpenOrdersManagement;
 			if (workforceManagementButton != null)
 				workforceManagementButton.clicked -= OpenWorkforceManagement;
 			if (buildManagementButton != null)
@@ -643,6 +735,18 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			ShowManagementMenu(false);
 			contractManagementWindow?.Open();
+		}
+
+		private void OpenInventoryManagement()
+		{
+			ShowManagementMenu(false);
+			inventoryManagementWindow?.Open();
+		}
+
+		private void OpenOrdersManagement()
+		{
+			ShowManagementMenu(false);
+			orderManagementWindow?.Open();
 		}
 
 		private void OpenWorkforceManagement()

@@ -4172,6 +4172,11 @@ MonoBehaviour:
   activeContractRowTemplate: {fileID: 9197481963319205126, guid: bf60daa2a49344abb0267af12a25793c, type: 3}
   contractMarketRowTemplate: {fileID: 9197481963319205126, guid: 4e74d2e832744c79a6288cd245668f5e, type: 3}
   vendorContractRowTemplate: {fileID: 9197481963319205126, guid: 30d024f30ee24d2ab83a424867cfb135, type: 3}
+  inventoryContentTemplate: {fileID: 9197481963319205126, guid: a575689d25a54d5ca9c95237c27f3f77, type: 3}
+  inventoryItemRowTemplate: {fileID: 9197481963319205126, guid: 88e105b39ca34691b4cf02deaeb1c840, type: 3}
+  ordersContentTemplate: {fileID: 9197481963319205126, guid: 2f5a703acebe468a9799c8a1b0907b33, type: 3}
+  orderRowTemplate: {fileID: 9197481963319205126, guid: d05faf4732fa45bd8a96431d8e4f23f4, type: 3}
+  orderLineRowTemplate: {fileID: 9197481963319205126, guid: 622f0a8a15e94fcb8e974cafb3409f9a, type: 3}
   workforceContentTemplate: {fileID: 9197481963319205126, guid: ba65ed6996704405ba140af1e1fbee04, type: 3}
   workforceRosterRowTemplate: {fileID: 9197481963319205126, guid: ebbd4bbb6b0e4cb380e91cdfe0fe542d, type: 3}
   workforceCandidateRowTemplate: {fileID: 9197481963319205126, guid: 2ba2c3e8181c468f962c7ef36779197f, type: 3}

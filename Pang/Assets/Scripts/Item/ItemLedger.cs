@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 
@@ -15,13 +16,18 @@ public partial class ItemLedger : MonoBehaviour
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
 	public IReadOnlyDictionary<uint, int> ReservedItems => reservedItems;
 	public IReadOnlyList<uint> OrderableItems => orderableItems;
+	public event Action OnInventoryChanged;
 
 	public int GetTotal(uint itemId) => itemTotals.GetValueOrDefault(itemId);
 	public int GetReserved(uint itemId) => reservedItems.GetValueOrDefault(itemId);
 	public int GetAvailable(uint itemId) => GetTotal(itemId) - GetReserved(itemId);
 
 	// 주문 취소/실패 등으로 예약 롤백
-	public void ReleaseReserve(uint itemId, int quantity) => reservedItems[itemId] = reservedItems.GetValueOrDefault(itemId) - quantity;
+	public void ReleaseReserve(uint itemId, int quantity)
+	{
+		reservedItems[itemId] = reservedItems.GetValueOrDefault(itemId) - quantity;
+		OnInventoryChanged?.Invoke();
+	}
 
 	private void ItemAdded(uint itemId, int quantity)
 	{
@@ -72,6 +78,8 @@ public partial class ItemLedger : MonoBehaviour
 		}
 		else
 			ItemAdded(itemId, quantityDelta);
+
+		OnInventoryChanged?.Invoke();
 	}
 
 	// 필수
@@ -85,6 +93,8 @@ public partial class ItemLedger : MonoBehaviour
 		{
 			orderableItems.Remove(itemId);
 		}
+
+		OnInventoryChanged?.Invoke();
 	}
 
 }

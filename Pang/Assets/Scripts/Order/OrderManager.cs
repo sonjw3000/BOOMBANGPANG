@@ -11,6 +11,7 @@ public partial class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLi
 	public IReadOnlyCollection<Order> Orders => orders;
 	public IReadOnlyDictionary<uint, List<OrderLine>> ItemOrderLines => itemOrderLines;
 	public IReadOnlyDictionary<OrderTotalStatus, LinkedList<Order>> OrderStatusMap => orderStatus;
+	public event Action OnOrdersChanged;
 
 	private void Start()
 	{
@@ -35,6 +36,9 @@ public partial class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLi
 				RegisterOrderLineForPicking(line);
 			}
 		}
+
+		if (newOrders.Count > 0)
+			OnOrdersChanged?.Invoke();
 	}
 
 	public IEnumerable<uint> GetAllOrderedItemIDs()
@@ -184,6 +188,7 @@ public partial class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLi
 		OrderTotalStatus beforeOrderStatus = targetOrder.ParentOrder.Status;
 		targetOrder.Cancel();
 		HandleLineStateChange(targetOrder, beforeLineStatus, beforeOrderStatus);
+		OnOrdersChanged?.Invoke();
 	}
 
 	public void CheckExpiredOrders()
@@ -274,6 +279,7 @@ public partial class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLi
 		if (actual > 0)
 		{
 			HandleLineStateChange(targetOrder, beforeLineStatus, beforeOrderStatus);
+			OnOrdersChanged?.Invoke();
 		}
 
 		return actual;
