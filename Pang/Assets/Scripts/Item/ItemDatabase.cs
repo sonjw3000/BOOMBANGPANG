@@ -8,6 +8,7 @@ public class ItemDatabase : MonoBehaviour
 	
 	private Dictionary<uint, ItemDefinition> itemIDMap;
 	private readonly List<ItemDefinition> orderedItems = new();
+	public IReadOnlyList<ItemDefinition> OrderedItems => orderedItems;
 
 	private void BuildDict(Dictionary<uint, ItemDefinition> dict)
 	{

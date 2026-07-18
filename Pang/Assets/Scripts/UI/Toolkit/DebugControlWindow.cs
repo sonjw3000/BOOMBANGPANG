@@ -37,6 +37,10 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label itemMessage;
 		private ScrollView itemList;
 		private Button itemRefreshButton;
+		private DropdownField itemGrantItemField;
+		private IntegerField itemGrantQuantityField;
+		private Button itemGrantButton;
+		private readonly List<ItemDefinition> grantItems = new();
 		private InteractionContext interaction;
 		private GameObject inspectedItemTarget;
 		private IItemContainer inspectedItemContainer;
@@ -108,10 +112,14 @@ namespace UniverseLogistics.UI.Toolkit
 			itemMessage = itemContent.Q<Label>("debug-item-message");
 			itemList = itemContent.Q<ScrollView>("debug-item-list");
 			itemRefreshButton = itemContent.Q<Button>("debug-item-refresh");
+			itemGrantItemField = itemContent.Q<DropdownField>("debug-item-grant-item");
+			itemGrantQuantityField = itemContent.Q<IntegerField>("debug-item-grant-quantity");
+			itemGrantButton = itemContent.Q<Button>("debug-item-grant-button");
 			if (explosionRadiusField == null || explosionSeverityField == null || damageAmountField == null ||
 				explosionMessage == null || damageMessage == null || workerMessage == null ||
 				itemSelection == null || itemEmpty == null || itemMessage == null || itemList == null ||
-				itemRefreshButton == null)
+				itemRefreshButton == null || itemGrantItemField == null || itemGrantQuantityField == null ||
+				itemGrantButton == null)
 			{
 				Debug.LogError("[DebugControl] Required controls are missing.", this);
 				return false;
@@ -129,6 +137,10 @@ namespace UniverseLogistics.UI.Toolkit
 				damageAmountField.SetValueWithoutNotify(value);
 			});
 			itemRefreshButton.clicked += RefreshInspectedItems;
+			itemGrantQuantityField.RegisterValueChangedCallback(evt =>
+				itemGrantQuantityField.SetValueWithoutNotify(Mathf.Max(1, evt.newValue)));
+			itemGrantButton.clicked += GiveSelectedItem;
+			itemGrantButton.SetEnabled(false);
 
 			window.SetTitle("Debug Controls");
 			window.ClearTabs();
@@ -182,6 +194,8 @@ namespace UniverseLogistics.UI.Toolkit
 			interaction = GameContext.Instance.InteractionCtx;
 			if (interaction != null)
 				interaction.OnHandlePriorityLeftClick += HandleWorldClick;
+
+			RefreshGrantItemChoices();
 		}
 
 		private void UnbindServices()
@@ -341,6 +355,7 @@ namespace UniverseLogistics.UI.Toolkit
 			inspectedItemTarget = null;
 			inspectedItemContainer = null;
 			inspectedItemContainerName = null;
+			itemGrantButton?.SetEnabled(false);
 			if (itemSelection != null)
 				itemSelection.text = "Selected: None";
 			if (itemList != null)
@@ -363,6 +378,7 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			itemSelection.text = $"Selected: {inspectedItemContainerName}  {FormatPosition(in position)}";
+			itemGrantButton.SetEnabled(grantItems.Count > 0);
 			itemList.contentContainer.Clear();
 			int rowCount = 0;
 			IReadOnlyList<ItemStack> stacks = inspectedItemContainer.Stacks;
@@ -379,6 +395,80 @@ namespace UniverseLogistics.UI.Toolkit
 			itemEmpty.text = rowCount == 0 ? "Container is empty." : string.Empty;
 			itemEmpty.style.display = rowCount == 0 ? DisplayStyle.Flex : DisplayStyle.None;
 			itemList.contentContainer.Add(itemEmpty);
+		}
+
+		private void RefreshGrantItemChoices()
+		{
+			grantItems.Clear();
+			List<string> choices = new();
+			IReadOnlyList<ItemDefinition> definitions = GameContext.HasInstance
+				? GameContext.Instance.ItemDB?.OrderedItems
+				: null;
+
+			if (definitions != null)
+			{
+				for (int i = 0; i < definitions.Count; ++i)
+				{
+					ItemDefinition definition = definitions[i];
+					if (definition == null)
+						continue;
+
+					grantItems.Add(definition);
+					choices.Add($"{definition.name} [{definition.ItemID}]");
+				}
+			}
+
+			itemGrantItemField.choices = choices;
+			itemGrantItemField.index = choices.Count > 0 ? 0 : -1;
+			itemGrantButton.SetEnabled(inspectedItemContainer != null && grantItems.Count > 0);
+		}
+
+		private void GiveSelectedItem()
+		{
+			if (TryValidateInspectedContainer(out _) == false)
+			{
+				ClearInspectedItems();
+				Report(itemMessage, "Container changed. Select it again.", LogType.Warning);
+				return;
+			}
+
+			int selectedIndex = itemGrantItemField.index;
+			if (selectedIndex < 0 || selectedIndex >= grantItems.Count)
+			{
+				Report(itemMessage, "Select an item to give.", LogType.Warning);
+				return;
+			}
+
+			ItemDefinition item = grantItems[selectedIndex];
+			int requested = Mathf.Max(1, itemGrantQuantityField.value);
+			if (inspectedItemTarget.TryGetComponent<IFacility>(out var facility))
+			{
+				FacilityItemFilter itemFilter = new(
+					item.Tag,
+					new[] { item },
+					new[] { ItemStatus.None });
+				FacilityFilter filter = new(itemFilter: itemFilter);
+				if (filter.MatchesCurrentRules(facility) == false)
+				{
+					Report(itemMessage,
+						$"{item.name} [{item.ItemID}] rejected by {inspectedItemContainerName} Rule.",
+						LogType.Warning);
+					return;
+				}
+			}
+
+			int added = inspectedItemContainer.AddItem(item.ItemID, requested);
+			if (added <= 0)
+			{
+				Report(itemMessage,
+					$"{inspectedItemContainerName} could not accept {item.name} [{item.ItemID}].",
+					LogType.Warning);
+				return;
+			}
+
+			Report(itemMessage,
+				$"Added {item.name} [{item.ItemID}] x{added} to {inspectedItemContainerName}. Requested={requested}.");
+			RefreshInspectedItems();
 		}
 
 		private VisualElement CreateItemRow(ItemStack stack)

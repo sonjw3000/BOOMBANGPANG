@@ -34,6 +34,11 @@
 			<ui:Label name="debug-item-selection" text="Selected: None" class="debug-item-selection" />
 			<ui:Button name="debug-item-refresh" text="Refresh" class="debug-item-refresh" />
 		</ui:VisualElement>
+		<ui:VisualElement class="debug-item-grant">
+			<ui:DropdownField name="debug-item-grant-item" label="Item" class="debug-item-grant-item" />
+			<ui:IntegerField name="debug-item-grant-quantity" label="Quantity" value="1" is-delayed="true" class="debug-item-grant-quantity" />
+			<ui:Button name="debug-item-grant-button" text="Give" class="debug-item-grant-button" />
+		</ui:VisualElement>
 		<ui:ScrollView name="debug-item-list" mode="Vertical" class="debug-item-list">
 			<ui:Label name="debug-item-empty" text="Select an item container." class="debug-item-empty" />
 		</ui:ScrollView>

@@ -101,6 +101,26 @@
 	margin-left: 10px;
 }
 
+.debug-item-grant {
+	flex-direction: row;
+	align-items: flex-end;
+	margin-bottom: 8px;
+}
+
+.debug-item-grant-item {
+	flex-grow: 1;
+}
+
+.debug-item-grant-quantity {
+	width: 130px;
+	margin-left: 8px;
+}
+
+.debug-item-grant-button {
+	min-width: 64px;
+	margin-left: 8px;
+}
+
 .debug-item-list {
 	flex-grow: 1;
 	min-height: 190px;
