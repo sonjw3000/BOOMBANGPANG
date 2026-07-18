@@ -92,7 +92,7 @@ public sealed class ExplosionService
 		if (gridService == null || gridService.IsReady == false || itemDamageService == null)
 			return;
 
-		CollectAffectedObjects(gridService, in request.OriginCell, request.Radius);
+		CollectAffectedObjects(gridService, in request.OriginCell, request.Radius, request.IsDebugRequest);
 
 		int damagedHealthTargets = 0;
 		int damagedContainers = 0;
@@ -155,7 +155,7 @@ public sealed class ExplosionService
 		}
 	}
 
-	private void CollectAffectedObjects(GridService gridService, in int3 origin, int radius)
+	private void CollectAffectedObjects(GridService gridService, in int3 origin, int radius, bool logAffectedCells)
 	{
 		affectedObjects.Clear();
 		radius = Mathf.Max(0, radius);
@@ -173,6 +173,9 @@ public sealed class ExplosionService
 				GridCell cell = gridService.GetCell(x, origin.y, z);
 				if (cell == null)
 					continue;
+
+				if (logAffectedCells)
+					Debug.Log($"[DebugExplosion] Cell affected: ({x},{origin.y},{z})");
 
 				if (cell.ObjectOnGrid != null)
 					affectedObjects.Add(cell.ObjectOnGrid);
