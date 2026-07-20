@@ -732,6 +732,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9319eba9574f646de9d5b71beca92393, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FacilityManager
+  destroyedMaterial: {fileID: 2100000, guid: 410dfd34cdddf46658615384508f17e3, type: 2}
 --- !u!1 &2087926139697921670
 GameObject:
   m_ObjectHideFlags: 0

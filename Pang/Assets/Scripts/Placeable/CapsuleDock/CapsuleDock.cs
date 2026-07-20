@@ -111,6 +111,9 @@ public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
 
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
+		if (ctx.IsOverride == false)
+			return;
+
 		CargoCapsule capsule = dockedCapsule;
 		if (capsule != null && GameContext.HasInstance)
 			GameContext.Instance.BoxMgr?.DestroyBox(capsule);

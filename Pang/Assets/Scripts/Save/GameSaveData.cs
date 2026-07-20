@@ -468,6 +468,7 @@ public sealed class PlaceableSaveData
 	public uint FacilityRulePresetId;
 	public bool HasHealth;
 	public float Health;
+	public bool IsFacilityDestroyed;
 
 	public WorkerSaveData Worker;
 	public ShelfContainerSaveData Shelf;

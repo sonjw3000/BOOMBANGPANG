@@ -130,6 +130,9 @@ public partial class LaunchStation
 
 	public void OnDestroyedBy(in DestroyContext ctx)
 	{
+		if (ctx.IsOverride == false)
+			return;
+
 		for (int i = 0; i < addons.Count; ++i)
 		{
 			switch (addons[i])

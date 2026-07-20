@@ -134,6 +134,8 @@ public partial class PackingStation :
 	{
 		CurrentPackingWorker = null;
 		ClearIncomingBoxReservation();
+		if (context.IsOverride == false)
+			return;
 
 		HashSet<BoxBase> ownedBoxes = new();
 		if (waitStackBox?.Box != null)

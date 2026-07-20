@@ -50,10 +50,13 @@ public class BuildingFacilityIndex
 // facility를 보유
 public partial class FacilityManager : MonoBehaviour
 {
+	[SerializeField] private Material destroyedMaterial;
+
 	// if uid == 0, outside of buildingß
 	private readonly Dictionary<uint, BuildingFacilityIndex> buildingFacilities = new();
 	private readonly Dictionary<IFacility, uint> facilityBuildingIds = new();
 	private readonly HashSet<IFacility> invalidatingFacilities = new();
+	private readonly HashSet<IFacility> destroyedFacilities = new();
 
 	public event Action<IFacility, FacilityInvalidationContext> OnFacilityInvalidating;
 
@@ -113,6 +116,7 @@ public partial class FacilityManager : MonoBehaviour
 
 		facilityBuildingIds[facility] = buildingId;
 		invalidatingFacilities.Remove(facility);
+		destroyedFacilities.Remove(facility);
 
 		Type runtimeType = facility.GetType();
 
@@ -132,14 +136,12 @@ public partial class FacilityManager : MonoBehaviour
 		if (facilityIndex.UnregisterFacility(facility) == false)
 			return;
 
+		bool wasDestroyed = destroyedFacilities.Remove(facility);
 		facilityBuildingIds.Remove(facility);
 		invalidatingFacilities.Remove(facility);
 
-		Type runtimeType = facility.GetType();
-
-		foreach (var (subscribedType, callback) in unregisterCallbacks)
-			if (subscribedType.IsAssignableFrom(runtimeType))
-				callback?.Invoke(buildingId, facility);
+		if (wasDestroyed == false)
+			NotifyFacilityUnregistered(buildingId, facility);
 
 		if (facilityIndex.Facilities.Count == 0)
 			buildingFacilities.Remove(buildingId);
@@ -170,7 +172,13 @@ public partial class FacilityManager : MonoBehaviour
 
 	public bool IsInvalidating(IFacility facility)
 	{
-		return facility != null && invalidatingFacilities.Contains(facility);
+		return facility != null &&
+			(invalidatingFacilities.Contains(facility) || destroyedFacilities.Contains(facility));
+	}
+
+	public bool IsDestroyed(IFacility facility)
+	{
+		return facility != null && destroyedFacilities.Contains(facility);
 	}
 
 	public bool TryRemoveFacility(IFacility facility)
@@ -199,13 +207,65 @@ public partial class FacilityManager : MonoBehaviour
 
 	public bool DestroyFacility(IFacility facility, in DestroyContext destroyContext)
 	{
+		if (destroyContext?.IsOverride == true)
+		{
+			if (TryValidateRemovalTarget(facility, out _, out _) == false)
+				return false;
+
+			return InvalidateAndRemove(
+				facility,
+				FacilityInvalidationContext.Destroyed(destroyContext),
+				out _);
+		}
+
 		if (TryValidateRemovalTarget(facility, out _, out _) == false)
 			return false;
 
-		return InvalidateAndRemove(
+		return SetFacilityDestroyed(facility, destroyContext);
+	}
+
+	internal bool RestoreDestroyedFacility(IFacility facility)
+	{
+		if (TryValidateRemovalTarget(facility, out _, out _) == false)
+			return false;
+
+		return SetFacilityDestroyed(
 			facility,
-			FacilityInvalidationContext.Destroyed(destroyContext),
-			out _);
+			new DestroyContext(DestroyContext.Destroycause.Damage));
+	}
+
+	private bool SetFacilityDestroyed(IFacility facility, DestroyContext destroyContext)
+	{
+		if (destroyedFacilities.Contains(facility) || invalidatingFacilities.Add(facility) == false)
+			return false;
+
+		if (facilityBuildingIds.TryGetValue(facility, out uint buildingId) == false)
+		{
+			invalidatingFacilities.Remove(facility);
+			return false;
+		}
+
+		destroyedFacilities.Add(facility);
+		try
+		{
+			FacilityInvalidationContext context = FacilityInvalidationContext.Destroyed(destroyContext);
+			OnFacilityInvalidating?.Invoke(facility, context);
+			if (buildingId != 0 && GameContext.HasInstance)
+				GameContext.Instance.BuildingMgr?.TryUnregisterFacility(buildingId, facility);
+
+			facility.OnDestroyedBy(in destroyContext);
+
+			if (facility is Behaviour behaviour)
+				behaviour.enabled = false;
+
+			ApplyDestroyedMaterial(facility);
+			NotifyFacilityUnregistered(buildingId, facility);
+			return true;
+		}
+		finally
+		{
+			invalidatingFacilities.Remove(facility);
+		}
 	}
 
 	private bool InvalidateAndRemove(
@@ -287,6 +347,40 @@ public partial class FacilityManager : MonoBehaviour
 		return true;
 	}
 
+	private void ApplyDestroyedMaterial(IFacility facility)
+	{
+		if (destroyedMaterial == null || facility is not Component component)
+			return;
+
+		Renderer[] renderers = component.GetComponentsInChildren<Renderer>(true);
+		for (int rendererIndex = 0; rendererIndex < renderers.Length; ++rendererIndex)
+		{
+			Renderer renderer = renderers[rendererIndex];
+			if (renderer == null || renderer is ParticleSystemRenderer)
+				continue;
+
+			IItemContainer ownedContainer = renderer.GetComponentInParent<IItemContainer>(true);
+			if (ownedContainer != null && ReferenceEquals(ownedContainer, facility) == false)
+				continue;
+
+			Material[] materials = renderer.sharedMaterials;
+			for (int materialIndex = 0; materialIndex < materials.Length; ++materialIndex)
+				materials[materialIndex] = destroyedMaterial;
+
+			renderer.sharedMaterials = materials;
+		}
+	}
+
+	private void NotifyFacilityUnregistered(uint buildingId, IFacility facility)
+	{
+		Type runtimeType = facility.GetType();
+		foreach (var (subscribedType, callback) in unregisterCallbacks)
+		{
+			if (subscribedType.IsAssignableFrom(runtimeType))
+				callback?.Invoke(buildingId, facility);
+		}
+	}
+
 	public IReadOnlyList<T> GetFacilities<T>(uint buildingId) where T : class, IFacility
 	{
 		TryGetFacilities(buildingId, out IReadOnlyList<T> facilities);
@@ -309,7 +403,9 @@ public partial class FacilityManager : MonoBehaviour
 			{
 				for (int i = 0; i < kvp.Value.Count; ++i)
 				{
-					if (kvp.Value[i] is T facility && invalidatingFacilities.Contains(facility) == false)
+					if (kvp.Value[i] is T facility &&
+						invalidatingFacilities.Contains(facility) == false &&
+						destroyedFacilities.Contains(facility) == false)
 						typedFacilities.Add(facility);
 				}
 			}

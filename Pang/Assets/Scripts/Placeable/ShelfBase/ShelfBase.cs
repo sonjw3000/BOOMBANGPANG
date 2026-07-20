@@ -365,7 +365,7 @@ public abstract partial class ShelfBase :
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
 		ClearAllPickReservations();
-		if (stacks != null)
+		if (ctx.IsOverride && stacks != null)
 		{
 			ItemStack[] contents = stacks.ToArray();
 			for (int i = 0; i < contents.Length; ++i)

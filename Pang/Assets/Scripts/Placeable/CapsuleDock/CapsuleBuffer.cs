@@ -146,6 +146,7 @@ public partial class CapsuleBuffer :
 
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
+		ClearPickReservations();
 		base.OnDestroyedBy(in ctx);
 	}
 

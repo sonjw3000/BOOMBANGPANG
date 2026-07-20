@@ -71,7 +71,7 @@ public partial class BoxPool :
 
 	public override void OnDestroyedBy(in DestroyContext ctx)
 	{
-		if (GameContext.HasInstance == false)
+		if (ctx.IsOverride == false || GameContext.HasInstance == false)
 			return;
 
 		BoxBase[] storedBoxes = boxes.ToArray();

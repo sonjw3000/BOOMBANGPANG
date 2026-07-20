@@ -304,7 +304,10 @@ public sealed class GameSaveService : MonoBehaviour
 		data.FacingDirection = ctx.facingDirection;
 		data.GridPosition = ToSave(ctx.center);
 		if (obj.TryGetComponent<IFacility>(out var facility))
+		{
 			data.FacilityRulePresetId = facility.FacilityRulePresetId;
+			data.IsFacilityDestroyed = Ctx.FacilityMgr?.IsDestroyed(facility) == true;
+		}
 		if (obj.TryGetComponent<IHealth>(out var healthOwner))
 		{
 			data.HasHealth = true;
@@ -504,6 +507,9 @@ public sealed class GameSaveService : MonoBehaviour
 			worker.InitializeForSaveLoad(preserveWorkerId: true);
 			workersById[worker.WorkerID] = worker;
 		}
+
+		if (save.IsFacilityDestroyed && obj.TryGetComponent<IFacility>(out var destroyedFacility))
+			Ctx.FacilityMgr?.RestoreDestroyedFacility(destroyedFacility);
 	}
 
 	private WorkerTask CreateTask(TaskSaveData taskData, Dictionary<int, GameObject> restoredPlaceables, Dictionary<int, OrderLine> restoredOrderLines)
