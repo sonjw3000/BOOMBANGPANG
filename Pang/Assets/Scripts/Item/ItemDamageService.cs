@@ -58,6 +58,7 @@ public readonly struct ItemDamageIncidentTrigger
 	public ItemDamageIncidentType IncidentType => Definition.IncidentType;
 	public int Radius => Definition.Radius;
 	public int Severity => Definition.Severity;
+	public int EdgeDamagePercent => Definition.EdgeDamagePercent;
 
 	public ItemDamageIncidentTrigger(
 		ItemDamageIncidentDefinition definition,
@@ -74,7 +75,54 @@ public readonly struct ItemDamageIncidentTrigger
 
 public class ItemDamageService : MonoBehaviour
 {
+	[SerializeField, Min(1.0f)] private float fragileExplosionDamageMultiplier = 1.5f;
+
 	public event Action<ItemDamageIncidentTrigger> OnIncidentTriggered;
+
+	public int CalculateDamageIncrease(ItemStack stack, int baseDamage, ItemDamageCause cause)
+	{
+		if (stack == null || baseDamage <= 0)
+			return 0;
+
+		float multiplier = 1.0f;
+		if (cause == ItemDamageCause.Explosion && IsFragile(stack.ItemID))
+			multiplier = Mathf.Max(1.0f, fragileExplosionDamageMultiplier);
+
+		return Mathf.Clamp(Mathf.RoundToInt(baseDamage * multiplier), 0, 100);
+	}
+
+	public bool WouldTriggerIncident(
+		ItemStack stack,
+		int baseDamage,
+		ItemDamageCause cause,
+		ItemDamageIncidentType incidentType)
+	{
+		if (stack == null || stack.Quantity <= 0 || stack.Damage >= 100)
+			return false;
+
+		int damageIncrease = CalculateDamageIncrease(stack, baseDamage, cause);
+		if (damageIncrease <= 0 || TryGetItemDefinition(stack.ItemID, out ItemDefinition itemDefinition) == false)
+			return false;
+
+		int predictedDamage = Mathf.Clamp(stack.Damage + damageIncrease, 0, 100);
+		IReadOnlyList<ItemDamageIncidentDefinition> incidents = itemDefinition.DamageIncidents;
+		if (incidents == null)
+			return false;
+
+		for (int i = 0; i < incidents.Count; ++i)
+		{
+			ItemDamageIncidentDefinition incident = incidents[i];
+			if (incident != null &&
+				incident.IncidentType == incidentType &&
+				stack.Damage < incident.TriggerDamage &&
+				predictedDamage >= incident.TriggerDamage)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 
 	public bool TrySetDebugDamage(
 		ItemStack stack,
@@ -124,7 +172,8 @@ public class ItemDamageService : MonoBehaviour
 		out ItemDamageChange damageChange)
 	{
 		damageChange = default;
-		if (TryApplyDamageValue(stack, damageIncrease, cause, out damageChange) == false)
+		int adjustedDamageIncrease = CalculateDamageIncrease(stack, damageIncrease, cause);
+		if (TryApplyDamageValue(stack, adjustedDamageIncrease, cause, out damageChange) == false)
 			return false;
 
 		CommitDamage(in damageChange, in originCell, container);
@@ -232,6 +281,21 @@ public class ItemDamageService : MonoBehaviour
 					radiationService.ReportTrigger(in trigger);
 				break;
 		}
+	}
+
+	private static bool TryGetItemDefinition(uint itemId, out ItemDefinition itemDefinition)
+	{
+		itemDefinition = null;
+		return GameContext.HasInstance &&
+			GameContext.Instance.ItemDB != null &&
+			GameContext.Instance.ItemDB.GetItemData(itemId, out itemDefinition) &&
+			itemDefinition != null;
+	}
+
+	private static bool IsFragile(uint itemId)
+	{
+		return TryGetItemDefinition(itemId, out ItemDefinition itemDefinition) &&
+			(itemDefinition.Tag & ItemTag.Fragile) != 0;
 	}
 
 	private static bool TryApplyDamageValue(
