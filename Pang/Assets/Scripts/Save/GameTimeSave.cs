@@ -20,7 +20,9 @@ public partial class GameTime
 
 		timeElapsed = data.TimeElapsed;
 		simulationTickElapsed = SecondsPerSimulationTick > 0f ? timeElapsed % SecondsPerSimulationTick : 0f;
-		simulationTicksPassed = (ulong)Mathf.Max(0, data.ElapsedWeek * 4 + Mathf.FloorToInt(timeElapsed / SecondsPerSimulationTick));
+		simulationTicksPassed = (ulong)Mathf.Max(
+			0,
+			data.ElapsedWeek * SimulationTicksPerWeek + Mathf.FloorToInt(timeElapsed / SecondsPerSimulationTick));
 		elapsedWeek = data.ElapsedWeek;
 		elapsedMonth = data.ElapsedMonth;
 		preservedPauseCount = 0;

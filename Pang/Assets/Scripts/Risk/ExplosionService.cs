@@ -54,6 +54,7 @@ public sealed class ExplosionService
 			trigger.EdgeDamagePercent,
 			trigger.DamageChange.ItemId,
 			isDebugRequest: false));
+		TryProcess(CurrentTick, applyPendingItemImpacts: false);
 	}
 
 	public bool TryEnqueueDebugExplosion(in int3 originCell, int radius, int severity)
@@ -68,23 +69,33 @@ public sealed class ExplosionService
 			DebugEdgeDamagePercent,
 			itemId: 0,
 			isDebugRequest: true));
+		TryProcess(CurrentTick, applyPendingItemImpacts: false);
 		return true;
 	}
 
+	private ulong CurrentTick => gameTime?.SimulationTicksPassed ?? 0;
+
 	private void HandleSimulationTick(SimulationTickContext context)
 	{
-		if (isProcessing || (pendingRequests.Count == 0 && pendingItemImpacts.Count == 0))
+		TryProcess(context.Tick, applyPendingItemImpacts: true);
+	}
+
+	private void TryProcess(ulong currentTick, bool applyPendingItemImpacts)
+	{
+		if (isProcessing || (pendingRequests.Count == 0 &&
+			(applyPendingItemImpacts == false || pendingItemImpacts.Count == 0)))
 			return;
 
 		isProcessing = true;
 		try
 		{
-			ApplyPendingItemImpacts(context.Tick);
+			if (applyPendingItemImpacts)
+				ApplyPendingItemImpacts(currentTick);
 
 			while (pendingRequests.Count > 0)
 			{
 				ExplosionRequest request = pendingRequests.Dequeue();
-				ProcessRequest(in request, context.Tick);
+				ProcessRequest(in request, currentTick);
 			}
 		}
 		finally
@@ -103,7 +114,7 @@ public sealed class ExplosionService
 		if (gridService == null || gridService.IsReady == false || itemDamageService == null)
 			return;
 
-		CollectAffectedObjects(gridService, in request.OriginCell, request.Radius, request.IsDebugRequest);
+		CollectAffectedObjects(gridService, in request);
 		affectedContainers.Clear();
 
 		int damagedHealthTargets = 0;
@@ -240,10 +251,11 @@ public sealed class ExplosionService
 		}
 	}
 
-	private void CollectAffectedObjects(GridService gridService, in int3 origin, int radius, bool logAffectedCells)
+	private void CollectAffectedObjects(GridService gridService, in ExplosionRequest request)
 	{
 		affectedObjects.Clear();
-		radius = Mathf.Max(0, radius);
+		int3 origin = request.OriginCell;
+		int radius = Mathf.Max(0, request.Radius);
 		long radiusSquared = (long)radius * radius;
 
 		for (int z = origin.z - radius; z <= origin.z + radius; ++z)
@@ -259,10 +271,11 @@ public sealed class ExplosionService
 				if (cell == null)
 					continue;
 
-				if (logAffectedCells)
+				if (request.IsDebugRequest)
 					Debug.Log($"[DebugExplosion] Cell affected: ({x},{origin.y},{z})");
 
 				int3 affectedCell = new(x, origin.y, z);
+				PublishExplosionCue(in affectedCell, CalculateExplosionDamage(in request, in affectedCell));
 				if (cell.ObjectOnGrid != null)
 					TrackAffectedObject(cell.ObjectOnGrid, in affectedCell, in origin);
 				if (cell.OccupancyObjectOnGrid != null)
@@ -430,6 +443,17 @@ public sealed class ExplosionService
 			FloatingTextPreset.Error,
 			"IGNITING",
 			new Vector3(originCell.x, originCell.y + 1.0f, originCell.z));
+	}
+
+	private static void PublishExplosionCue(in int3 affectedCell, int damage)
+	{
+		if (GameContext.HasInstance == false)
+			return;
+
+		GameContext.Instance.FloatingTextManager?.ShowWorld(
+			FloatingTextPreset.Error,
+			$"EXPLOSION\nDMG {damage}",
+			new Vector3(affectedCell.x, affectedCell.y + 1.0f, affectedCell.z));
 	}
 
 	private static void PublishHudEvent(

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public interface ITemperatureModifier : IFacility
 {
@@ -21,7 +22,8 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	}
 
 	[SerializeField] private float ambientTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
-	[SerializeField, Min(0f)] private float degreesPerTick = 1f;
+	[FormerlySerializedAs("degreesPerTick")]
+	[SerializeField, Min(0f)] private float degreesPerQuarterWeek = 1f;
 
 	private readonly Dictionary<ITemperatureModifier, ModifierState> modifiers = new();
 	private readonly Dictionary<int3, float> targets = new();
@@ -36,7 +38,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	public bool HideZeroAlphaPixels => false;
 
 	public float AmbientTemperatureCelsius => ambientTemperatureCelsius;
-	public float DegreesPerTick => degreesPerTick;
+	public float DegreesPerQuarterWeek => degreesPerQuarterWeek;
 	public int ActiveCellCount => activeCells.Count;
 
 	private GameTime GameTime => GameContext.HasInstance ? GameContext.Instance.GameTime : null;
@@ -155,6 +157,9 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 
 	private void HandleSimulationTick(SimulationTickContext context)
 	{
+		if (context.Tick % GameTime.QuarterWeekSimulationTickInterval != 0)
+			return;
+
 		if (GridService == null || GridService.IsReady == false)
 			return;
 
@@ -350,7 +355,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 			}
 
 			float target = targets.TryGetValue(position, out float value) ? value : ambientTemperatureCelsius;
-			float next = Mathf.MoveTowards(cell.TemperatureCelsius, target, degreesPerTick);
+			float next = Mathf.MoveTowards(cell.TemperatureCelsius, target, degreesPerQuarterWeek);
 			GridService.TrySetTemperature(position, next);
 			if (Mathf.Approximately(next, target))
 			{

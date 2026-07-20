@@ -24,7 +24,9 @@ public partial class GameTime : MonoBehaviour
 	[Tooltip("최대 배속 지수. 3이면 2^3 = 8배속까지 허용한다.")]
 	[SerializeField, Min(0)] private int maxSpeedExponent = 3;
 
-	public const float SimulationTickWeeks = 0.25f;
+	public const int SimulationTicksPerWeek = 32;
+	public const int QuarterWeekSimulationTickInterval = SimulationTicksPerWeek / 4;
+	public const float SimulationTickWeeks = 1.0f / SimulationTicksPerWeek;
 
 	private float SecondsPerWeek => secondsPerMonth / 4.0f;
 	private float SecondsPerSimulationTick => SecondsPerWeek * SimulationTickWeeks;
