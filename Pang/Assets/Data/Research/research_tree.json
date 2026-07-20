@@ -1,0 +1,14 @@
+{
+	"schemaVersion": 1,
+	"nodes": [
+		{
+			"uid": "inventory_digitization",
+			"categoryId": "information_systems",
+			"displayName": "Inventory Digitization",
+			"description": "Integrates facility inventory records into a global inventory management view.",
+			"cost": 100,
+			"durationWeeks": 1,
+			"prerequisiteUids": []
+		}
+	]
+}

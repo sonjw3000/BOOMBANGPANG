@@ -374,7 +374,9 @@ namespace UniverseLogistics.UI.Toolkit
 			bool canStart = researchService.CanStartResearch(definition.Uid, out ResearchStartFailureReason reason);
 			button.SetEnabled(canStart);
 			button.text = state == ResearchState.Completed ? "Done" : state == ResearchState.InProgress ? "Active" : "Start";
-			button.tooltip = canStart ? "Start research" : FormatResearchFailure(reason);
+			row.SetTooltip(canStart
+				? UITooltipContent.DescriptionOnly(definition.DisplayName, definition.Description)
+				: UITooltipContent.Locked(definition.DisplayName, definition.Description, FormatResearchFailure(reason)));
 			button.clicked += () => StartResearch(definition);
 			return row;
 		}

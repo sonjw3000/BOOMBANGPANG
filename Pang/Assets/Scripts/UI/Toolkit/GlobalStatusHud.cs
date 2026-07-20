@@ -6,6 +6,7 @@ namespace UniverseLogistics.UI.Toolkit
 {
 	public sealed class GlobalStatusHud : MonoBehaviour
 	{
+		private const string InventoryDigitizationResearchId = "inventory_digitization";
 		private const string DocumentObjectName = "GlobalStatusHudDocument";
 		private const string TooltipDocumentObjectName = "UITooltipDocument";
 		private const string HistoryDocumentObjectName = "GlobalHistoryWindowDocument";
@@ -99,6 +100,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
+		private ResearchService researchService;
 		private bool started;
 		private bool? timeHudDockedRight;
 		private int scaledScreenWidth = -1;
@@ -359,7 +361,7 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 
 			inventoryManagementWindow.ConfigureNavigation(orderManagementWindow.OpenForItem);
-			orderManagementWindow.ConfigureNavigation(inventoryManagementWindow.OpenForItem);
+			orderManagementWindow.ConfigureNavigation(OpenInventoryManagementForItem);
 		}
 
 		private void EnsureWorkforceManagementWindow()
@@ -597,7 +599,7 @@ namespace UniverseLogistics.UI.Toolkit
 			companyManagementButton.clicked -= OpenCompanyManagement;
 			companyManagementButton.clicked += OpenCompanyManagement;
 			contractManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Contracts", "Review available and active contracts."));
-			inventoryManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Inventory", "Review global stock, reservations, incoming supply, and demand."));
+			inventoryManagementButton.SetTooltip(BuildInventoryTooltip);
 			ordersManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Orders", "Review order progress and outbound workflow stages."));
 			workforceManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Workforce", "Review workers and available hiring candidates."));
 			buildManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Build", "Construct facilities and configure building logistics."));
@@ -654,6 +656,7 @@ namespace UniverseLogistics.UI.Toolkit
 			economyService = GameContext.Instance.EconomyService;
 			hudEventManager = GameContext.Instance.HudEventManager;
 			gameTime = GameContext.Instance.GameTime;
+			researchService = GameContext.Instance.ResearchService;
 
 			if (economyService != null)
 			{
@@ -670,6 +673,10 @@ namespace UniverseLogistics.UI.Toolkit
 				gameTime.OnWeekPassed += OnWeekPassed;
 			}
 
+			if (researchService != null)
+				researchService.OnResearchStateChanged += OnResearchStateChanged;
+
+			RefreshInventoryResearchState();
 			RefreshAll();
 		}
 
@@ -690,9 +697,13 @@ namespace UniverseLogistics.UI.Toolkit
 				gameTime.OnWeekPassed -= OnWeekPassed;
 			}
 
+			if (researchService != null)
+				researchService.OnResearchStateChanged -= OnResearchStateChanged;
+
 			economyService = null;
 			hudEventManager = null;
 			gameTime = null;
+			researchService = null;
 		}
 
 		private void OnEconomySummaryClicked(ClickEvent _)
@@ -779,8 +790,50 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OpenInventoryManagement()
 		{
+			if (IsInventoryManagementUnlocked() == false)
+				return;
+
 			ShowManagementMenu(false);
 			inventoryManagementWindow?.Open();
+		}
+
+		private void OpenInventoryManagementForItem(uint itemId)
+		{
+			if (IsInventoryManagementUnlocked() == false)
+				return;
+
+			inventoryManagementWindow?.OpenForItem(itemId);
+		}
+
+		private void OnResearchStateChanged()
+		{
+			RefreshInventoryResearchState();
+		}
+
+		private void RefreshInventoryResearchState()
+		{
+			inventoryManagementButton?.EnableInClassList(
+				"management-menu__button--locked",
+				IsInventoryManagementUnlocked() == false);
+		}
+
+		private bool IsInventoryManagementUnlocked()
+		{
+			return researchService?.IsResearched(InventoryDigitizationResearchId) == true;
+		}
+
+		private UITooltipContent BuildInventoryTooltip()
+		{
+			const string title = "Global Inventory";
+			const string description = "Review global stock, reservations, available quantities, incoming supply, and order demand.";
+			if (IsInventoryManagementUnlocked())
+				return UITooltipContent.DescriptionOnly(title, description);
+
+			string researchName = InventoryDigitizationResearchId;
+			if (researchService?.Catalog?.TryGet(InventoryDigitizationResearchId, out ResearchDefinition definition) == true)
+				researchName = definition.DisplayName;
+
+			return UITooltipContent.Locked(title, description, $"Required research: {researchName}");
 		}
 
 		private void OpenOrdersManagement()

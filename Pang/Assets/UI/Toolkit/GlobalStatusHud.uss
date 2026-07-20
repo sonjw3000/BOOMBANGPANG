@@ -323,6 +323,14 @@
 	background-color: rgb(27, 111, 136);
 }
 
+.management-menu__button--locked,
+.management-menu__button--locked:hover,
+.management-menu__button--locked:active {
+	color: rgb(105, 120, 128);
+	background-color: rgba(24, 32, 38, 0.94);
+	border-left-color: rgb(82, 89, 93);
+}
+
 .selection-card {
 	display: none;
 	position: absolute;
