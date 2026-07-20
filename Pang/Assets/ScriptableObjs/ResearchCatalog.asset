@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cfb058284fea484586c593d0d1ee214b, type: 3}
   m_Name: ResearchCatalog
   m_EditorClassIdentifier: Assembly-CSharp::ResearchCatalog
-  definitions: []
+  researchTreeJson: {fileID: 4900000, guid: a15c82cbbe1d404ca7533edc473edb93, type: 3}

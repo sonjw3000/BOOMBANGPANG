@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="InteractionModeHud.uss" />
+	<ui:VisualElement name="interaction-mode-hud" class="interaction-mode-hud" picking-mode="Ignore">
+		<ui:Label name="interaction-mode-domain" text="Building Mode" class="interaction-mode-hud__domain" picking-mode="Ignore" />
+		<ui:Label name="interaction-mode-action" text="Select" class="interaction-mode-hud__action" picking-mode="Ignore" />
+	</ui:VisualElement>
+</ui:UXML>

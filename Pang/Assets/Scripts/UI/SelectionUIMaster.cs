@@ -5,7 +5,7 @@ using AYellowpaper.SerializedCollections;
 using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine.UIElements;
 using GlobalStatusHud = UniverseLogistics.UI.Toolkit.GlobalStatusHud;
 using SelectionCardHud = UniverseLogistics.UI.Toolkit.SelectionCardHud;
 
@@ -37,18 +37,12 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 	}
 
-	[Header("Select UIs")]
-	[SerializeField] private SelectCardUI cardUI = null;
-	[SerializeField] private SelectDetailUI detailUI = null;
-	[SerializeField] private DetailWindowManager detailWindowManager = null;
-
-	[Header("Detail Contents")]
-	[SerializeField] private DetailContentBase[] detailContents;
-
 	[Header("World Highlight")]
 	[SerializedDictionary("Highlight", "Visual")]
 	[SerializeField] private SerializedDictionary<WorldHighlightType, WorldHighlightVisualConfig> highlightVisuals = new();
-	[SerializeField] private RectTransform interactionModeHudPrefab;
+	[SerializeField] private VisualTreeAsset interactionModeHudVisualTreeAsset;
+	[SerializeField] private PanelSettings interactionModeHudPanelSettings;
+	[SerializeField] private int interactionModeHudSortingOrder = 110;
 	[SerializeField] private int interactionHighlightPoolSize = 8;
 
 	private readonly List<Type> providerTypes = new();
@@ -59,13 +53,10 @@ public class SelectionUIMaster : MonoBehaviour
 	private GameObject selectedHighlight = null;
 	private GameObjectPool interactionHighlightPool = null;
 	private GameObjectPool interactionLabelPool = null;
-	private RectTransform modeHudRoot = null;
-	private TextMeshProUGUI modeDomainText = null;
-	private TextMeshProUGUI modeActionText = null;
-	private Button buildingDetailsButton = null;
-	private TextMeshProUGUI buildingDetailsButtonText = null;
+	private UIDocument interactionModeHudDocument = null;
+	private Label modeDomainText = null;
+	private Label modeActionText = null;
 	private SelectionCardHud selectionCardHud = null;
-	[SerializeField] private BuildingPlacementOverlayController buildingPlacementOverlayController = null;
 
 	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
 
@@ -85,11 +76,8 @@ public class SelectionUIMaster : MonoBehaviour
 		providerTypes.Add(typeof(AreaUIProvider));
 		providerTypes.Add(typeof(BuildingUIProvider));
 
-		EnsureRuntimeCapsuleBufferDetailContent();
-		EnsureDetailWindowManager();
 		EnsureHighlightRoot();
 		EnsureModeHud();
-		EnsureModeDependencies();
 
 		if (Interaction != null)
 		{
@@ -97,15 +85,7 @@ public class SelectionUIMaster : MonoBehaviour
 			Interaction.OnModeChanged += HandleInteractionModeChanged;
 		}
 
-		if (cardUI != null)
-		{
-			cardUI.gameObject.SetActive(false);
-			cardUI.FocusButton?.onClick.AddListener(OnFocusBtnClicked);
-			cardUI.DetailsButton?.onClick.AddListener(OnDetailClicked);
-		}
 		EnsureSelectionCardHud();
-		if (buildingDetailsButton != null)
-			buildingDetailsButton.onClick.AddListener(HandleBuildingDetailsClicked);
 
 		RefreshModeHud();
 	}
@@ -117,15 +97,8 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void OnDisable()
 	{
-		if (cardUI != null)
-		{
-			cardUI.DetailsButton?.onClick.RemoveListener(OnDetailClicked);
-			cardUI.FocusButton?.onClick.RemoveListener(OnFocusBtnClicked);
-		}
 		selectionCardHud?.Hide();
 		selectionCardHud?.SetActions(null, null);
-		if (buildingDetailsButton != null)
-			buildingDetailsButton.onClick.RemoveListener(HandleBuildingDetailsClicked);
 
 		if (Interaction != null)
 		{
@@ -145,7 +118,6 @@ public class SelectionUIMaster : MonoBehaviour
 			{
 				if (selectionCardHud.Refresh(currentProvider) == false)
 					selectionCardHud.Show(currentProvider);
-				if (cardUI != null) cardUI.gameObject.SetActive(false);
 			}
 		}
 	}
@@ -187,25 +159,15 @@ public class SelectionUIMaster : MonoBehaviour
 		if (EnsureSelectionCardHud())
 		{
 			selectionCardHud.Show(currentProvider);
-			if (cardUI != null) cardUI.gameObject.SetActive(false);
 			return;
 		}
 
-		if (cardUI != null)
-		{
-			cardUI.SetUpCard(currentProvider);
-			cardUI.gameObject.SetActive(true);
-		}
+		Debug.LogError("[SelectionUIMaster] SelectionCardHud is unavailable.", this);
 	}
 
 	private void DisableCard()
 	{
 		selectionCardHud?.Hide();
-		if (cardUI != null)
-		{
-			cardUI.ClearCard();
-			cardUI.gameObject.SetActive(false);
-		}
 	}
 
 	private bool EnsureSelectionCardHud()
@@ -225,10 +187,8 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnDetailClicked()
 	{
-		if (selectionCardHud != null && selectionCardHud.ToggleInspector(currentProvider))
-			return;
-
-		OpenDetailWindow(currentObj);
+		if (selectionCardHud == null || selectionCardHud.ToggleInspector(currentProvider) == false)
+			Debug.LogWarning("[SelectionUIMaster] Toolkit inspector is unavailable for the selected object.", this);
 	}
 
 	public void SelectAndShowDetail(GameObject targetObj)
@@ -252,7 +212,7 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 
 		if (selectionCardHud == null || selectionCardHud.ExpandInspector(currentProvider) == false)
-			OpenDetailWindow(targetObj);
+			Debug.LogWarning("[SelectionUIMaster] Toolkit inspector is unavailable for the selected object.", this);
 	}
 
 	public void OnFocusBtnClicked()
@@ -270,20 +230,6 @@ public class SelectionUIMaster : MonoBehaviour
 			return;
 
 		SelectAndShowDetail(targetObj);
-	}
-
-	public SelectDetailUI OpenDetailWindow(GameObject targetObj)
-	{
-		if (targetObj == null)
-			return null;
-
-		UIProviderBase provider = CreateBestProvider(targetObj);
-		if (provider == null)
-			return null;
-
-		provider.LinkObject(targetObj);
-		provider.BuildInfoBlocks();
-		return detailWindowManager != null ? detailWindowManager.OpenDetail(targetObj, provider) : null;
 	}
 
 	private UIProviderBase CreateBestProvider(GameObject targetObj)
@@ -355,54 +301,31 @@ public class SelectionUIMaster : MonoBehaviour
 		EnsureHighlightPools();
 	}
 
-	private void EnsureDetailWindowManager()
-	{
-		if (detailWindowManager == null)
-			detailWindowManager = GetComponent<DetailWindowManager>();
-
-		if (detailWindowManager == null)
-		{
-			Debug.LogError("[SelectionUIMaster] DetailWindowManager is missing.", this);
-			return;
-		}
-
-		detailWindowManager.Initialize(detailUI);
-	}
-
-	private void EnsureModeDependencies()
-	{
-		buildingPlacementOverlayController ??= FindFirstObjectByType<BuildingPlacementOverlayController>(FindObjectsInactive.Include);
-	}
-
 	private void EnsureModeHud()
 	{
-		if (modeHudRoot != null)
+		if (interactionModeHudDocument != null)
 			return;
 
-		Canvas canvas = GetComponentInParent<Canvas>();
-		if (canvas == null)
-			canvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
-
-		if (canvas == null)
-			return;
-
-		if (interactionModeHudPrefab == null)
+		if (interactionModeHudVisualTreeAsset == null || interactionModeHudPanelSettings == null)
 		{
-			Debug.LogError("[SelectionUIMaster] InteractionModeHud prefab is missing.", this);
+			Debug.LogError("[SelectionUIMaster] InteractionModeHud Toolkit assets are missing.", this);
 			return;
 		}
 
-		modeHudRoot = Instantiate(interactionModeHudPrefab, canvas.transform);
-		modeHudRoot.name = "InteractionModeHud";
-		if (modeHudRoot == null)
-			return;
+		GameObject documentObject = new("InteractionModeHudDocument");
+		documentObject.SetActive(false);
+		documentObject.transform.SetParent(transform, false);
+		interactionModeHudDocument = documentObject.AddComponent<UIDocument>();
+		interactionModeHudDocument.panelSettings = interactionModeHudPanelSettings;
+		interactionModeHudDocument.visualTreeAsset = interactionModeHudVisualTreeAsset;
+		interactionModeHudDocument.sortingOrder = interactionModeHudSortingOrder;
+		documentObject.SetActive(true);
 
-		modeDomainText = FindNamedComponent<TextMeshProUGUI>(modeHudRoot, "ModeDomain");
-		modeActionText = FindNamedComponent<TextMeshProUGUI>(modeHudRoot, "ModeAction");
-		buildingDetailsButton = FindNamedComponent<Button>(modeHudRoot, "BuildingModeDetailsButton");
-		buildingDetailsButtonText = buildingDetailsButton != null
-			? buildingDetailsButton.GetComponentInChildren<TextMeshProUGUI>(true)
-			: null;
+		VisualElement root = interactionModeHudDocument.rootVisualElement;
+		modeDomainText = root.Q<Label>("interaction-mode-domain");
+		modeActionText = root.Q<Label>("interaction-mode-action");
+		if (modeDomainText == null || modeActionText == null)
+			Debug.LogError("[SelectionUIMaster] InteractionModeHud UXML elements are missing.", this);
 	}
 
 	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
@@ -410,29 +333,12 @@ public class SelectionUIMaster : MonoBehaviour
 		RefreshModeHud();
 	}
 
-	private void HandleBuildingDetailsClicked()
-	{
-		EnsureModeDependencies();
-		if (buildingPlacementOverlayController == null || currentObj == null)
-			return;
-
-		if (currentObj.TryGetComponent<BuildingSelectionProxy>(out BuildingSelectionProxy selectedProxy) == false
-			|| selectedProxy.Building == null)
-			return;
-
-		BuildingSelectionProxy proxy = buildingPlacementOverlayController.GetSelectionProxy(selectedProxy.Building);
-		if (proxy == null)
-			return;
-
-		ShowDetailForObject(proxy.gameObject);
-	}
-
 	private void RefreshModeHud()
 	{
 		if (Interaction == null)
 			return;
 
-		EnsureModeDependencies();
+		EnsureModeHud();
 
 		if (modeDomainText != null)
 		{
@@ -452,13 +358,6 @@ public class SelectionUIMaster : MonoBehaviour
 			};
 		}
 
-		if (buildingDetailsButton != null)
-		{
-			bool isBuildingMode = Interaction.Domain == InteractionContext.InteractionDomain.Building;
-			bool hasActiveBuilding = currentObj != null && currentObj.TryGetComponent<BuildingSelectionProxy>(out _);
-			buildingDetailsButton.interactable = isBuildingMode && hasActiveBuilding;
-			buildingDetailsButton.gameObject.SetActive(true);
-		}
 	}
 
 	private void RefreshWorldHighlights()
@@ -582,50 +481,6 @@ public class SelectionUIMaster : MonoBehaviour
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Charge, "CHARGE");
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Enter, "ENTER");
 		return builder.ToString();
-	}
-
-	private void EnsureRuntimeCapsuleBufferDetailContent()
-	{
-		foreach (DetailContentBase detailContent in detailContents)
-		{
-			if (detailContent is CapsuleBufferDetailBuilder)
-				return;
-		}
-
-		CargoPortDetailBuilder template = null;
-		foreach (DetailContentBase detailContent in detailContents)
-		{
-			if (detailContent is CargoPortDetailBuilder cargoPortDetailBuilder)
-			{
-				template = cargoPortDetailBuilder;
-				break;
-			}
-		}
-
-		if (detailUI == null || template == null)
-		{
-			Debug.LogError("[SelectionUIMaster] CapsuleBuffer detail content template is missing.", this);
-			return;
-		}
-
-		UIWindow detailWindow = detailUI.GetComponentInChildren<UIWindow>(true);
-		Transform parent = detailWindow != null && detailWindow.ContentRoot != null
-			? detailWindow.ContentRoot
-			: detailUI.transform;
-
-		GameObject detailRoot = new("RuntimeCapsuleBufferDetailContent", typeof(RectTransform), typeof(CapsuleBufferDetailBuilder));
-		detailRoot.transform.SetParent(parent, false);
-		detailRoot.SetActive(false);
-
-		CapsuleBufferDetailBuilder runtimeDetailContent = detailRoot.GetComponent<CapsuleBufferDetailBuilder>();
-		template.CopyRuntimeScaffoldingTo(runtimeDetailContent);
-
-		var contents = new List<DetailContentBase>(detailContents ?? Array.Empty<DetailContentBase>())
-		{
-			runtimeDetailContent
-		};
-		detailContents = contents.ToArray();
-		detailUI.RefreshDetailContentCache();
 	}
 
 	private void EnsureHighlightVisuals()

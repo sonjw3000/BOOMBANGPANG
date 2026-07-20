@@ -6,7 +6,9 @@ namespace UniverseLogistics.UI.Toolkit
 {
 	public sealed class GlobalStatusHud : MonoBehaviour
 	{
+		private const string InventoryDigitizationResearchId = "inventory_digitization";
 		private const string DocumentObjectName = "GlobalStatusHudDocument";
+		private const string TooltipDocumentObjectName = "UITooltipDocument";
 		private const string HistoryDocumentObjectName = "GlobalHistoryWindowDocument";
 		private const string ContractDocumentObjectName = "ContractManagementWindowDocument";
 		private const string InventoryDocumentObjectName = "InventoryManagementWindowDocument";
@@ -24,6 +26,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private static readonly Vector2 ManagementWindowDefaultSize = new(1200f, 820f);
 
 		[SerializeField] private VisualTreeAsset visualTreeAsset;
+		[SerializeField] private VisualTreeAsset tooltipVisualTreeAsset;
 		[SerializeField] private VisualTreeAsset hudEventEntryTemplate;
 		[SerializeField] private VisualTreeAsset windowVisualTreeAsset;
 		[SerializeField] private VisualTreeAsset historyContentTemplate;
@@ -59,6 +62,8 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private readonly List<ActiveHudEvent> activeEvents = new();
 		private UIDocument uiDocument;
+		private UIDocument tooltipDocument;
+		private UITooltipPresenter tooltipPresenter;
 		private UnityEngine.UI.CanvasScaler legacyCanvasScaler;
 		private VisualElement hudRoot;
 		private VisualElement leftHud;
@@ -95,6 +100,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
+		private ResearchService researchService;
 		private bool started;
 		private bool? timeHudDockedRight;
 		private int scaledScreenWidth = -1;
@@ -113,6 +119,7 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			ApplyPanelScale();
 			EnsureDocument();
+			EnsureTooltip();
 			EnsureHistoryWindow();
 			EnsureContractManagementWindow();
 			EnsureInventoryManagementWindow();
@@ -207,6 +214,30 @@ namespace UniverseLogistics.UI.Toolkit
 			uiDocument.visualTreeAsset = visualTreeAsset;
 			uiDocument.sortingOrder = sortingOrder;
 			documentObject.SetActive(true);
+		}
+
+		private void EnsureTooltip()
+		{
+			if (tooltipPresenter != null)
+				return;
+
+			if (tooltipVisualTreeAsset == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Tooltip VisualTreeAsset or PanelSettings is missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(TooltipDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			tooltipDocument = documentObject.AddComponent<UIDocument>();
+			tooltipDocument.panelSettings = panelSettings;
+			tooltipDocument.visualTreeAsset = tooltipVisualTreeAsset;
+			tooltipDocument.sortingOrder = sortingOrder + 1000;
+			tooltipPresenter = documentObject.AddComponent<UITooltipPresenter>();
+			documentObject.SetActive(true);
+			tooltipPresenter.Initialize(tooltipDocument.rootVisualElement);
 		}
 
 		private void EnsureHistoryWindow()
@@ -330,7 +361,7 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 
 			inventoryManagementWindow.ConfigureNavigation(orderManagementWindow.OpenForItem);
-			orderManagementWindow.ConfigureNavigation(inventoryManagementWindow.OpenForItem);
+			orderManagementWindow.ConfigureNavigation(OpenInventoryManagementForItem);
 		}
 
 		private void EnsureWorkforceManagementWindow()
@@ -547,8 +578,12 @@ namespace UniverseLogistics.UI.Toolkit
 			normalSpeedButton.clicked += SetNormalSpeed;
 			doubleSpeedButton.clicked -= DoubleSpeed;
 			doubleSpeedButton.clicked += DoubleSpeed;
+			pauseButton.SetTooltip(UITooltipContent.DescriptionOnly("Pause", "Pause the simulation."));
+			normalSpeedButton.SetTooltip(UITooltipContent.DescriptionOnly("Normal Speed", "Run the simulation at normal speed."));
+			doubleSpeedButton.SetTooltip(UITooltipContent.DescriptionOnly("Increase Speed", "Increase the simulation speed."));
 			managementButton.clicked -= ToggleManagementMenu;
 			managementButton.clicked += ToggleManagementMenu;
+			managementButton.SetTooltip(UITooltipContent.DescriptionOnly("Management", "Open the management menu."));
 			contractManagementButton.clicked -= OpenContractManagement;
 			contractManagementButton.clicked += OpenContractManagement;
 			inventoryManagementButton.clicked -= OpenInventoryManagement;
@@ -563,6 +598,13 @@ namespace UniverseLogistics.UI.Toolkit
 			workflowManagementButton.clicked += OpenWorkflowManagement;
 			companyManagementButton.clicked -= OpenCompanyManagement;
 			companyManagementButton.clicked += OpenCompanyManagement;
+			contractManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Contracts", "Review available and active contracts."));
+			inventoryManagementButton.SetTooltip(BuildInventoryTooltip);
+			ordersManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Orders", "Review order progress and outbound workflow stages."));
+			workforceManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Workforce", "Review workers and available hiring candidates."));
+			buildManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Build", "Construct facilities and configure building logistics."));
+			workflowManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Workflow", "Configure inbound and outbound workflow behavior."));
+			companyManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Company", "Review company licenses and research."));
 			ShowManagementMenu(false);
 			hudRoot.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
 			hudRoot.RegisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
@@ -614,6 +656,7 @@ namespace UniverseLogistics.UI.Toolkit
 			economyService = GameContext.Instance.EconomyService;
 			hudEventManager = GameContext.Instance.HudEventManager;
 			gameTime = GameContext.Instance.GameTime;
+			researchService = GameContext.Instance.ResearchService;
 
 			if (economyService != null)
 			{
@@ -630,6 +673,10 @@ namespace UniverseLogistics.UI.Toolkit
 				gameTime.OnWeekPassed += OnWeekPassed;
 			}
 
+			if (researchService != null)
+				researchService.OnResearchStateChanged += OnResearchStateChanged;
+
+			RefreshInventoryResearchState();
 			RefreshAll();
 		}
 
@@ -650,9 +697,13 @@ namespace UniverseLogistics.UI.Toolkit
 				gameTime.OnWeekPassed -= OnWeekPassed;
 			}
 
+			if (researchService != null)
+				researchService.OnResearchStateChanged -= OnResearchStateChanged;
+
 			economyService = null;
 			hudEventManager = null;
 			gameTime = null;
+			researchService = null;
 		}
 
 		private void OnEconomySummaryClicked(ClickEvent _)
@@ -739,8 +790,50 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OpenInventoryManagement()
 		{
+			if (IsInventoryManagementUnlocked() == false)
+				return;
+
 			ShowManagementMenu(false);
 			inventoryManagementWindow?.Open();
+		}
+
+		private void OpenInventoryManagementForItem(uint itemId)
+		{
+			if (IsInventoryManagementUnlocked() == false)
+				return;
+
+			inventoryManagementWindow?.OpenForItem(itemId);
+		}
+
+		private void OnResearchStateChanged()
+		{
+			RefreshInventoryResearchState();
+		}
+
+		private void RefreshInventoryResearchState()
+		{
+			inventoryManagementButton?.EnableInClassList(
+				"management-menu__button--locked",
+				IsInventoryManagementUnlocked() == false);
+		}
+
+		private bool IsInventoryManagementUnlocked()
+		{
+			return researchService?.IsResearched(InventoryDigitizationResearchId) == true;
+		}
+
+		private UITooltipContent BuildInventoryTooltip()
+		{
+			const string title = "Global Inventory";
+			const string description = "Review global stock, reservations, available quantities, incoming supply, and order demand.";
+			if (IsInventoryManagementUnlocked())
+				return UITooltipContent.DescriptionOnly(title, description);
+
+			string researchName = InventoryDigitizationResearchId;
+			if (researchService?.Catalog?.TryGet(InventoryDigitizationResearchId, out ResearchDefinition definition) == true)
+				researchName = definition.DisplayName;
+
+			return UITooltipContent.Locked(title, description, $"Required research: {researchName}");
 		}
 
 		private void OpenOrdersManagement()
