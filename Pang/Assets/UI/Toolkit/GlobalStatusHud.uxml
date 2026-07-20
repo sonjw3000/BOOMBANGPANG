@@ -24,13 +24,13 @@
 				<ui:Label name="date-value" text="1년 1월 1째 주" class="date-value" />
 			</ui:VisualElement>
 			<ui:VisualElement class="time-divider" />
-			<ui:Button name="pause-button" text="Ⅱ" tooltip="Pause simulation" class="speed-button" />
-			<ui:Button name="normal-speed-button" text="1×" tooltip="Normal speed" class="speed-button" />
-			<ui:Button name="double-speed-button" text="»" tooltip="Increase speed" class="speed-button" />
+			<ui:Button name="pause-button" text="Ⅱ" class="speed-button" />
+			<ui:Button name="normal-speed-button" text="1×" class="speed-button" />
+			<ui:Button name="double-speed-button" text="»" class="speed-button" />
 			<ui:Label name="speed-value" text="1x" class="speed-value" />
 		</ui:VisualElement>
 		<ui:VisualElement class="management-cluster" picking-mode="Position">
-			<ui:Button name="management-button" text="Management" tooltip="Open management menu" class="management-button" />
+			<ui:Button name="management-button" text="Management" class="management-button" />
 			<ui:VisualElement name="management-menu" class="management-menu">
 				<ui:Button name="contract-management-button" text="Contract" class="management-menu__button" />
 				<ui:Button name="inventory-management-button" text="Inventory" class="management-menu__button" />

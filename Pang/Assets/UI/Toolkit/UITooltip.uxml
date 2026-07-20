@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="UITooltip.uss" />
+	<ui:VisualElement name="ui-tooltip-layer" class="ui-tooltip-layer" picking-mode="Ignore">
+		<ui:VisualElement name="ui-tooltip" class="ui-tooltip" picking-mode="Ignore">
+			<ui:Label name="ui-tooltip-title" class="ui-tooltip__title" picking-mode="Ignore" />
+			<ui:Label name="ui-tooltip-description" class="ui-tooltip__description" picking-mode="Ignore" />
+			<ui:VisualElement name="ui-tooltip-requirement" class="ui-tooltip__requirement" picking-mode="Ignore">
+				<ui:Label name="ui-tooltip-requirement-label" class="ui-tooltip__requirement-label" picking-mode="Ignore" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

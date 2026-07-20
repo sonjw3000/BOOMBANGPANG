@@ -65,6 +65,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::UniverseLogistics.UI.Toolkit.GlobalStatusHud
   visualTreeAsset: {fileID: 9197481963319205126, guid: 1bd3b60676094fa8a0d6b3cdbd43e983, type: 3}
+  tooltipVisualTreeAsset: {fileID: 9197481963319205126, guid: 43559e9a5d394efe9d1a6e65fac74858, type: 3}
   hudEventEntryTemplate: {fileID: 9197481963319205126, guid: 64475ecdba43456a8e3e9bf3df86b7df, type: 3}
   windowVisualTreeAsset: {fileID: 9197481963319205126, guid: 8697a5359d5e0402c95f680b02a44eb6, type: 3}
   historyContentTemplate: {fileID: 9197481963319205126, guid: fcc952a83083404b9aaba29160e39e77, type: 3}
