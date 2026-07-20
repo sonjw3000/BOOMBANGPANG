@@ -37,14 +37,6 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 	}
 
-	[Header("Select UIs")]
-	[SerializeField] private SelectCardUI cardUI = null;
-	[SerializeField] private SelectDetailUI detailUI = null;
-	[SerializeField] private DetailWindowManager detailWindowManager = null;
-
-	[Header("Detail Contents")]
-	[SerializeField] private DetailContentBase[] detailContents;
-
 	[Header("World Highlight")]
 	[SerializedDictionary("Highlight", "Visual")]
 	[SerializeField] private SerializedDictionary<WorldHighlightType, WorldHighlightVisualConfig> highlightVisuals = new();
@@ -84,8 +76,6 @@ public class SelectionUIMaster : MonoBehaviour
 		providerTypes.Add(typeof(AreaUIProvider));
 		providerTypes.Add(typeof(BuildingUIProvider));
 
-		EnsureRuntimeCapsuleBufferDetailContent();
-		EnsureDetailWindowManager();
 		EnsureHighlightRoot();
 		EnsureModeHud();
 
@@ -95,12 +85,6 @@ public class SelectionUIMaster : MonoBehaviour
 			Interaction.OnModeChanged += HandleInteractionModeChanged;
 		}
 
-		if (cardUI != null)
-		{
-			cardUI.gameObject.SetActive(false);
-			cardUI.FocusButton?.onClick.AddListener(OnFocusBtnClicked);
-			cardUI.DetailsButton?.onClick.AddListener(OnDetailClicked);
-		}
 		EnsureSelectionCardHud();
 
 		RefreshModeHud();
@@ -113,11 +97,6 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void OnDisable()
 	{
-		if (cardUI != null)
-		{
-			cardUI.DetailsButton?.onClick.RemoveListener(OnDetailClicked);
-			cardUI.FocusButton?.onClick.RemoveListener(OnFocusBtnClicked);
-		}
 		selectionCardHud?.Hide();
 		selectionCardHud?.SetActions(null, null);
 
@@ -139,7 +118,6 @@ public class SelectionUIMaster : MonoBehaviour
 			{
 				if (selectionCardHud.Refresh(currentProvider) == false)
 					selectionCardHud.Show(currentProvider);
-				if (cardUI != null) cardUI.gameObject.SetActive(false);
 			}
 		}
 	}
@@ -181,25 +159,15 @@ public class SelectionUIMaster : MonoBehaviour
 		if (EnsureSelectionCardHud())
 		{
 			selectionCardHud.Show(currentProvider);
-			if (cardUI != null) cardUI.gameObject.SetActive(false);
 			return;
 		}
 
-		if (cardUI != null)
-		{
-			cardUI.SetUpCard(currentProvider);
-			cardUI.gameObject.SetActive(true);
-		}
+		Debug.LogError("[SelectionUIMaster] SelectionCardHud is unavailable.", this);
 	}
 
 	private void DisableCard()
 	{
 		selectionCardHud?.Hide();
-		if (cardUI != null)
-		{
-			cardUI.ClearCard();
-			cardUI.gameObject.SetActive(false);
-		}
 	}
 
 	private bool EnsureSelectionCardHud()
@@ -219,10 +187,8 @@ public class SelectionUIMaster : MonoBehaviour
 
 	public void OnDetailClicked()
 	{
-		if (selectionCardHud != null && selectionCardHud.ToggleInspector(currentProvider))
-			return;
-
-		OpenDetailWindow(currentObj);
+		if (selectionCardHud == null || selectionCardHud.ToggleInspector(currentProvider) == false)
+			Debug.LogWarning("[SelectionUIMaster] Toolkit inspector is unavailable for the selected object.", this);
 	}
 
 	public void SelectAndShowDetail(GameObject targetObj)
@@ -246,7 +212,7 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 
 		if (selectionCardHud == null || selectionCardHud.ExpandInspector(currentProvider) == false)
-			OpenDetailWindow(targetObj);
+			Debug.LogWarning("[SelectionUIMaster] Toolkit inspector is unavailable for the selected object.", this);
 	}
 
 	public void OnFocusBtnClicked()
@@ -264,20 +230,6 @@ public class SelectionUIMaster : MonoBehaviour
 			return;
 
 		SelectAndShowDetail(targetObj);
-	}
-
-	public SelectDetailUI OpenDetailWindow(GameObject targetObj)
-	{
-		if (targetObj == null)
-			return null;
-
-		UIProviderBase provider = CreateBestProvider(targetObj);
-		if (provider == null)
-			return null;
-
-		provider.LinkObject(targetObj);
-		provider.BuildInfoBlocks();
-		return detailWindowManager != null ? detailWindowManager.OpenDetail(targetObj, provider) : null;
 	}
 
 	private UIProviderBase CreateBestProvider(GameObject targetObj)
@@ -347,20 +299,6 @@ public class SelectionUIMaster : MonoBehaviour
 		selectionHighlightRoot = new GameObject("SelectionHighlightRoot");
 		selectionHighlightRoot.transform.SetParent(transform, false);
 		EnsureHighlightPools();
-	}
-
-	private void EnsureDetailWindowManager()
-	{
-		if (detailWindowManager == null)
-			detailWindowManager = GetComponent<DetailWindowManager>();
-
-		if (detailWindowManager == null)
-		{
-			Debug.LogError("[SelectionUIMaster] DetailWindowManager is missing.", this);
-			return;
-		}
-
-		detailWindowManager.Initialize(detailUI);
 	}
 
 	private void EnsureModeHud()
@@ -543,50 +481,6 @@ public class SelectionUIMaster : MonoBehaviour
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Charge, "CHARGE");
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Enter, "ENTER");
 		return builder.ToString();
-	}
-
-	private void EnsureRuntimeCapsuleBufferDetailContent()
-	{
-		foreach (DetailContentBase detailContent in detailContents)
-		{
-			if (detailContent is CapsuleBufferDetailBuilder)
-				return;
-		}
-
-		CargoPortDetailBuilder template = null;
-		foreach (DetailContentBase detailContent in detailContents)
-		{
-			if (detailContent is CargoPortDetailBuilder cargoPortDetailBuilder)
-			{
-				template = cargoPortDetailBuilder;
-				break;
-			}
-		}
-
-		if (detailUI == null || template == null)
-		{
-			Debug.LogError("[SelectionUIMaster] CapsuleBuffer detail content template is missing.", this);
-			return;
-		}
-
-		UIWindow detailWindow = detailUI.GetComponentInChildren<UIWindow>(true);
-		Transform parent = detailWindow != null && detailWindow.ContentRoot != null
-			? detailWindow.ContentRoot
-			: detailUI.transform;
-
-		GameObject detailRoot = new("RuntimeCapsuleBufferDetailContent", typeof(RectTransform), typeof(CapsuleBufferDetailBuilder));
-		detailRoot.transform.SetParent(parent, false);
-		detailRoot.SetActive(false);
-
-		CapsuleBufferDetailBuilder runtimeDetailContent = detailRoot.GetComponent<CapsuleBufferDetailBuilder>();
-		template.CopyRuntimeScaffoldingTo(runtimeDetailContent);
-
-		var contents = new List<DetailContentBase>(detailContents ?? Array.Empty<DetailContentBase>())
-		{
-			runtimeDetailContent
-		};
-		detailContents = contents.ToArray();
-		detailUI.RefreshDetailContentCache();
 	}
 
 	private void EnsureHighlightVisuals()
