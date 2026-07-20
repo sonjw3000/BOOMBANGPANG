@@ -23,21 +23,28 @@ public readonly struct ItemDamageChange
 	public readonly byte PreviousDamage;
 	public readonly byte CurrentDamage;
 	public readonly ItemDamageCause Cause;
+	public readonly ItemQuality PreviousQuality;
+	public readonly ItemQuality CurrentQuality;
 
 	public bool WasApplied => CurrentDamage > PreviousDamage;
+	public bool QualityChanged => CurrentQuality != PreviousQuality;
 
 	public ItemDamageChange(
 		uint itemId,
 		int affectedQuantity,
 		byte previousDamage,
 		byte currentDamage,
-		ItemDamageCause cause)
+		ItemDamageCause cause,
+		ItemQuality previousQuality,
+		ItemQuality currentQuality)
 	{
 		ItemId = itemId;
 		AffectedQuantity = affectedQuantity;
 		PreviousDamage = previousDamage;
 		CurrentDamage = currentDamage;
 		Cause = cause;
+		PreviousQuality = previousQuality;
+		CurrentQuality = currentQuality;
 	}
 }
 
@@ -102,7 +109,9 @@ public class ItemDamageService : MonoBehaviour
 			stack.Quantity,
 			previousDamage,
 			currentDamage,
-			ItemDamageCause.Debug);
+			ItemDamageCause.Debug,
+			stack.Quality,
+			stack.Quality);
 		return true;
 	}
 
@@ -154,6 +163,9 @@ public class ItemDamageService : MonoBehaviour
 	{
 		if (damageChange.WasApplied == false || GameContext.HasInstance == false)
 			return;
+
+		if (damageChange.QualityChanged)
+			GameContext.Instance.BuildingMgr?.RefreshItemContainerState(container);
 
 		ItemDatabase itemDatabase = GameContext.Instance.ItemDB;
 		if (itemDatabase == null ||
@@ -233,17 +245,23 @@ public class ItemDamageService : MonoBehaviour
 			return false;
 
 		byte previousDamage = stack.Damage;
+		ItemQuality previousQuality = stack.Quality;
 		byte currentDamage = (byte)Mathf.Clamp(previousDamage + damageIncrease, 0, 100);
 		if (currentDamage <= previousDamage)
 			return false;
 
 		stack.SetDamage(currentDamage);
+		if (currentDamage >= 100 && previousDamage < 100)
+			stack.AddQuality(ItemQuality.Waste);
+
 		damageChange = new ItemDamageChange(
 			stack.ItemID,
 			stack.Quantity,
 			previousDamage,
 			currentDamage,
-			cause);
+			cause,
+			previousQuality,
+			stack.Quality);
 		return true;
 	}
 }

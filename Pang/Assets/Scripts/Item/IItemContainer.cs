@@ -62,6 +62,7 @@ public class ItemStack
 	private byte freshness = DefaultFreshnessValue;
 	private byte damage = DefaultDamageValue;
 	private ItemStatus status = ItemStatus.None;
+	private ItemQuality quality = ItemQuality.None;
 	private PackageOutboundStage outboundStage = PackageOutboundStage.None;
 
 	public uint ItemID => itemID;
@@ -69,12 +70,14 @@ public class ItemStack
 	public byte Freshness => freshness;
 	public byte Damage => damage;
 	public ItemStatus Status => status;
+	public ItemQuality Quality => quality;
 	public PackageOutboundStage OutboundStage => outboundStage;
 	public float Size => GameContext.Instance.ItemDB.GetItemSize(ItemID) * Quantity;
 	public bool IsDefaultIdentity =>
 		freshness == DefaultFreshnessValue &&
 		damage == DefaultDamageValue &&
 		status == ItemStatus.None &&
+		quality == ItemQuality.None &&
 		outboundStage == PackageOutboundStage.None;
 
 	public ItemStack(
@@ -82,9 +85,10 @@ public class ItemStack
 		byte freshness = 100,
 		byte damage = 0,
 		ItemStatus status = ItemStatus.None,
-		PackageOutboundStage outboundStage = PackageOutboundStage.None)
+		PackageOutboundStage outboundStage = PackageOutboundStage.None,
+		ItemQuality quality = ItemQuality.None)
 	{
-		Initialize(itemID, freshness, damage, status, outboundStage);
+		Initialize(itemID, freshness, damage, status, outboundStage, quality);
 	}
 
 	private static byte ClampPercent(byte value) => (byte)Mathf.Clamp((int)value, 0, 100);
@@ -94,16 +98,17 @@ public class ItemStack
 		byte freshness = 100,
 		byte damage = 0,
 		ItemStatus status = ItemStatus.None,
-		PackageOutboundStage outboundStage = PackageOutboundStage.None)
+		PackageOutboundStage outboundStage = PackageOutboundStage.None,
+		ItemQuality quality = ItemQuality.None)
 	{
 		if (pool.Count > 0)
 		{
 			ItemStack stack = pool.Pop();
-			stack.Initialize(itemID, freshness, damage, status, outboundStage);
+			stack.Initialize(itemID, freshness, damage, status, outboundStage, quality);
 			return stack;
 		}
 
-		return new ItemStack(itemID, freshness, damage, status, outboundStage);
+		return new ItemStack(itemID, freshness, damage, status, outboundStage, quality);
 	}
 
 	public static ItemStack RentDefault(uint itemID)
@@ -113,6 +118,7 @@ public class ItemStack
 
 	public bool HasItemID(uint itemID) => this.itemID == itemID;
 	public bool HasStatus(ItemStatus target) => status == target;
+	public bool HasQuality(ItemQuality target) => target != ItemQuality.None && (quality & target) == target;
 
 	public void SetFreshness(byte freshness)
 	{
@@ -129,6 +135,11 @@ public class ItemStack
 		this.status = status;
 	}
 
+	public void AddQuality(ItemQuality quality)
+	{
+		this.quality |= quality;
+	}
+
 	public void SetOutboundStage(PackageOutboundStage outboundStage)
 	{
 		this.outboundStage = outboundStage;
@@ -143,6 +154,7 @@ public class ItemStack
 			freshness == other.freshness &&
 			damage == other.damage &&
 			status == other.status &&
+			quality == other.quality &&
 			outboundStage == other.outboundStage;
 	}
 
@@ -181,7 +193,7 @@ public class ItemStack
 
 	protected virtual ItemStack CreateEmptyLikeThis()
 	{
-		return Rent(itemID, freshness, damage, status, outboundStage);
+		return Rent(itemID, freshness, damage, status, outboundStage, quality);
 	}
 
 	public virtual ItemStack CreateTransferStack(int amount)
@@ -234,7 +246,8 @@ public class ItemStack
 		byte freshness,
 		byte damage,
 		ItemStatus status,
-		PackageOutboundStage outboundStage)
+		PackageOutboundStage outboundStage,
+		ItemQuality quality)
 	{
 		this.itemID = itemID;
 		quantity = 0;
@@ -242,6 +255,7 @@ public class ItemStack
 		this.damage = ClampPercent(damage);
 		this.status = status;
 		this.outboundStage = outboundStage;
+		this.quality = quality;
 	}
 
 	private void ResetState()
@@ -251,6 +265,7 @@ public class ItemStack
 		freshness = DefaultFreshnessValue;
 		damage = DefaultDamageValue;
 		status = ItemStatus.None;
+		quality = ItemQuality.None;
 		outboundStage = PackageOutboundStage.None;
 	}
 }
@@ -261,6 +276,13 @@ public enum ItemStatus
 	None = 0,
 	Labeled = 1,
 	Packed = 2,
+}
+
+[System.Flags]
+public enum ItemQuality
+{
+	None = 0,
+	Waste = 1 << 0,
 }
 
 public enum PackageOutboundStage

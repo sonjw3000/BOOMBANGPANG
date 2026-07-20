@@ -94,6 +94,18 @@ public sealed partial class BuildingManager : MonoBehaviour
 		return TryGetBuilding(cell.BuildingId, out building);
 	}
 
+	public void RefreshItemContainerState(IItemContainer container)
+	{
+		if (container == null)
+			return;
+
+		for (int i = 0; i < registeredBuildings.Count; ++i)
+		{
+			Building building = registeredBuildings[i];
+			building?.ItemIndex.RefreshContainer(container);
+		}
+	}
+
 	public bool TryRegisterFacility(uint runtimeBuildingId, IFacility facility)
 	{
 		if (facility == null || TryGetBuilding(runtimeBuildingId, out var building) == false)

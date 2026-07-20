@@ -5,7 +5,8 @@ using UnityEngine;
 public sealed class ExplosionService
 {
 	private readonly Queue<ExplosionRequest> pendingRequests = new();
-	private readonly HashSet<GameObject> affectedObjects = new();
+	private readonly Dictionary<GameObject, int3> affectedObjects = new();
+	private readonly HashSet<IItemContainer> affectedContainers = new();
 
 	private GameTime gameTime;
 	private bool isProcessing;
@@ -35,6 +36,7 @@ public sealed class ExplosionService
 	{
 		pendingRequests.Clear();
 		affectedObjects.Clear();
+		affectedContainers.Clear();
 		isProcessing = false;
 	}
 
@@ -93,11 +95,13 @@ public sealed class ExplosionService
 			return;
 
 		CollectAffectedObjects(gridService, in request.OriginCell, request.Radius, request.IsDebugRequest);
+		affectedContainers.Clear();
 
 		int damagedHealthTargets = 0;
 		int damagedContainers = 0;
-		foreach (GameObject targetObject in affectedObjects)
+		foreach (var affectedObject in affectedObjects)
 		{
+			GameObject targetObject = affectedObject.Key;
 			if (targetObject == null)
 				continue;
 
@@ -107,10 +111,23 @@ public sealed class ExplosionService
 					++damagedHealthTargets;
 
 				BoxBase carryingBox = worker.CarryingAbility?.CarryingBox;
-				if (carryingBox != null && ApplyContainerDamage(
+				if (ApplyContainerDamageOnce(
+					itemDamageService,
+					carryingBox,
+					worker.GridPosition,
+					request.Severity))
+					++damagedContainers;
+
+				continue;
+			}
+
+			if (targetObject.TryGetComponent<IFacility>(out var facility) == false)
+			{
+				if (targetObject.TryGetComponent<IItemContainer>(out var exposedContainer) &&
+					ApplyContainerDamageOnce(
 						itemDamageService,
-						carryingBox,
-						worker.GridPosition,
+						exposedContainer,
+						affectedObject.Value,
 						request.Severity))
 				{
 					++damagedContainers;
@@ -118,9 +135,6 @@ public sealed class ExplosionService
 
 				continue;
 			}
-
-			if (targetObject.TryGetComponent<IFacility>(out var facility) == false)
-				continue;
 
 			if (facility.ApplyDamage(request.Severity) > 0.0f)
 				++damagedHealthTargets;
@@ -132,13 +146,41 @@ public sealed class ExplosionService
 				continue;
 			}
 
-			if (targetObject.TryGetComponent<ShelfBase>(out var shelf) && ApplyContainerDamage(
+			if (facility is IItemContainer facilityContainer && ApplyContainerDamageOnce(
 					itemDamageService,
-					shelf,
-					shelf.GridPosition,
+					facilityContainer,
+					facility.GridPosition,
 					request.Severity))
 			{
 				++damagedContainers;
+			}
+
+			if (facility is PackingStation packingStation)
+			{
+				if (ApplyContainerDamageOnce(itemDamageService, packingStation.WaitingBox?.Box, packingStation.GridPosition, request.Severity))
+					++damagedContainers;
+				if (ApplyContainerDamageOnce(itemDamageService, packingStation.CurrentPackingBox?.Box, packingStation.GridPosition, request.Severity))
+					++damagedContainers;
+				if (ApplyContainerDamageOnce(itemDamageService, packingStation.EndPackingBox?.Box, packingStation.GridPosition, request.Severity))
+					++damagedContainers;
+			}
+
+			if (facility is LaunchStation launchStation)
+			{
+				if (launchStation.TryGetAddon<LaunchPadAddon>(out var launchPad) &&
+					ApplyContainerDamageOnce(itemDamageService, launchPad.CargoToLaunch, launchStation.GridPosition, request.Severity))
+				{
+					++damagedContainers;
+				}
+
+				if (launchStation.TryGetAddon<CargoStorageAddon>(out var cargoStorage))
+				{
+					foreach (BoxBase cargo in cargoStorage.CargosToLaunch)
+					{
+						if (ApplyContainerDamageOnce(itemDamageService, cargo, launchStation.GridPosition, request.Severity))
+							++damagedContainers;
+					}
+				}
 			}
 		}
 
@@ -177,12 +219,25 @@ public sealed class ExplosionService
 				if (logAffectedCells)
 					Debug.Log($"[DebugExplosion] Cell affected: ({x},{origin.y},{z})");
 
+				int3 affectedCell = new(x, origin.y, z);
 				if (cell.ObjectOnGrid != null)
-					affectedObjects.Add(cell.ObjectOnGrid);
+					affectedObjects.TryAdd(cell.ObjectOnGrid, affectedCell);
 				if (cell.OccupancyObjectOnGrid != null)
-					affectedObjects.Add(cell.OccupancyObjectOnGrid);
+					affectedObjects.TryAdd(cell.OccupancyObjectOnGrid, affectedCell);
 			}
 		}
+	}
+
+	private bool ApplyContainerDamageOnce(
+		ItemDamageService itemDamageService,
+		IItemContainer container,
+		in int3 originCell,
+		int damage)
+	{
+		if (container == null || affectedContainers.Add(container) == false)
+			return false;
+
+		return ApplyContainerDamage(itemDamageService, container, in originCell, damage);
 	}
 
 	private static bool ApplyContainerDamage(

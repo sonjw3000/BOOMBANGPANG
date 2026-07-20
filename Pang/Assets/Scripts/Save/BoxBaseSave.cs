@@ -24,6 +24,7 @@ public abstract partial class BoxBase
 				Damage = stack.Damage,
 				Status = stack.Status,
 				OutboundStage = stack.OutboundStage,
+				Quality = stack.Quality,
 			});
 		}
 
@@ -41,7 +42,7 @@ public abstract partial class BoxBase
 
 		foreach (var stackData in data.Stacks)
 		{
-			ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, stackData.OutboundStage);
+			ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, stackData.OutboundStage, stackData.Quality);
 			stack.AddItem(stackData.Quantity);
 			AddStack(stack);
 			if (stack.Quantity <= 0)

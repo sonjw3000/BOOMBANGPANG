@@ -595,6 +595,7 @@ public sealed class ItemStackSaveData
 	public byte Damage;
 	public ItemStatus Status = ItemStatus.None;
 	public PackageOutboundStage OutboundStage = PackageOutboundStage.None;
+	public ItemQuality Quality = ItemQuality.None;
 }
 
 [Serializable]

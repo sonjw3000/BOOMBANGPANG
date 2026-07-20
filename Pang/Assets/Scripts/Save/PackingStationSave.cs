@@ -22,6 +22,7 @@ public partial class PackingStation
 				Damage = stack.Damage,
 				Status = stack.Status,
 				OutboundStage = stack.OutboundStage,
+				Quality = stack.Quality,
 			}),
 			WaitingBox = CaptureBoxWithOrder(waitStackBox, registerOrderLine, getPlaceableId),
 			CurrentBox = CaptureBoxWithOrder(currentPackingBox, registerOrderLine, getPlaceableId),
@@ -62,7 +63,7 @@ public partial class PackingStation
 
 		foreach (var stackData in data.PackedItems)
 		{
-			ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, stackData.OutboundStage);
+			ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, stackData.OutboundStage, stackData.Quality);
 			stack.AddItem(stackData.Quantity);
 			AddStack(stack);
 			if (stack.Quantity <= 0)
