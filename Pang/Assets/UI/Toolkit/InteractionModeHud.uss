@@ -1,0 +1,25 @@
+.interaction-mode-hud {
+	position: absolute;
+	left: 50%;
+	top: 20px;
+	translate: -50% 0;
+	width: 320px;
+	align-items: center;
+}
+
+.interaction-mode-hud__domain {
+	width: 320px;
+	height: 40px;
+	color: white;
+	font-size: 28px;
+	-unity-text-align: middle-center;
+}
+
+.interaction-mode-hud__action {
+	width: 320px;
+	height: 28px;
+	margin-top: -4px;
+	color: white;
+	font-size: 18px;
+	-unity-text-align: middle-center;
+}

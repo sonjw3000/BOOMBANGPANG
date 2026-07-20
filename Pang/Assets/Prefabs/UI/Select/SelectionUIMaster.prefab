@@ -5974,10 +5974,11 @@ MonoBehaviour:
         Scale: {x: 0.2, y: 0.2, z: 0.2}
         FontSize: 3.6
         Color: {r: 1, g: 1, b: 1, a: 1}
-  interactionModeHudPrefab: {fileID: 5353290070793651210, guid: c02309a4a793c0c46bbc62087fcd287f, type: 3}
+  interactionModeHudVisualTreeAsset: {fileID: 9197481963319205126, guid: 91b3fdd3e1464be4a159fd156d30b03c, type: 3}
+  interactionModeHudPanelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
+  interactionModeHudSortingOrder: 110
   interactionHighlightPoolSize: 8
   zoneOverlayController: {fileID: 0}
-  buildingPlacementOverlayController: {fileID: 0}
 --- !u!114 &1399559845251109525
 MonoBehaviour:
   m_ObjectHideFlags: 0

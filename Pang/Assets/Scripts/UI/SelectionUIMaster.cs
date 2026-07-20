@@ -5,7 +5,7 @@ using AYellowpaper.SerializedCollections;
 using Assets.Scripts.UI;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine.UIElements;
 using GlobalStatusHud = UniverseLogistics.UI.Toolkit.GlobalStatusHud;
 using SelectionCardHud = UniverseLogistics.UI.Toolkit.SelectionCardHud;
 
@@ -48,7 +48,9 @@ public class SelectionUIMaster : MonoBehaviour
 	[Header("World Highlight")]
 	[SerializedDictionary("Highlight", "Visual")]
 	[SerializeField] private SerializedDictionary<WorldHighlightType, WorldHighlightVisualConfig> highlightVisuals = new();
-	[SerializeField] private RectTransform interactionModeHudPrefab;
+	[SerializeField] private VisualTreeAsset interactionModeHudVisualTreeAsset;
+	[SerializeField] private PanelSettings interactionModeHudPanelSettings;
+	[SerializeField] private int interactionModeHudSortingOrder = 110;
 	[SerializeField] private int interactionHighlightPoolSize = 8;
 
 	private readonly List<Type> providerTypes = new();
@@ -59,13 +61,10 @@ public class SelectionUIMaster : MonoBehaviour
 	private GameObject selectedHighlight = null;
 	private GameObjectPool interactionHighlightPool = null;
 	private GameObjectPool interactionLabelPool = null;
-	private RectTransform modeHudRoot = null;
-	private TextMeshProUGUI modeDomainText = null;
-	private TextMeshProUGUI modeActionText = null;
-	private Button buildingDetailsButton = null;
-	private TextMeshProUGUI buildingDetailsButtonText = null;
+	private UIDocument interactionModeHudDocument = null;
+	private Label modeDomainText = null;
+	private Label modeActionText = null;
 	private SelectionCardHud selectionCardHud = null;
-	[SerializeField] private BuildingPlacementOverlayController buildingPlacementOverlayController = null;
 
 	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
 
@@ -89,7 +88,6 @@ public class SelectionUIMaster : MonoBehaviour
 		EnsureDetailWindowManager();
 		EnsureHighlightRoot();
 		EnsureModeHud();
-		EnsureModeDependencies();
 
 		if (Interaction != null)
 		{
@@ -104,8 +102,6 @@ public class SelectionUIMaster : MonoBehaviour
 			cardUI.DetailsButton?.onClick.AddListener(OnDetailClicked);
 		}
 		EnsureSelectionCardHud();
-		if (buildingDetailsButton != null)
-			buildingDetailsButton.onClick.AddListener(HandleBuildingDetailsClicked);
 
 		RefreshModeHud();
 	}
@@ -124,8 +120,6 @@ public class SelectionUIMaster : MonoBehaviour
 		}
 		selectionCardHud?.Hide();
 		selectionCardHud?.SetActions(null, null);
-		if (buildingDetailsButton != null)
-			buildingDetailsButton.onClick.RemoveListener(HandleBuildingDetailsClicked);
 
 		if (Interaction != null)
 		{
@@ -369,40 +363,31 @@ public class SelectionUIMaster : MonoBehaviour
 		detailWindowManager.Initialize(detailUI);
 	}
 
-	private void EnsureModeDependencies()
-	{
-		buildingPlacementOverlayController ??= FindFirstObjectByType<BuildingPlacementOverlayController>(FindObjectsInactive.Include);
-	}
-
 	private void EnsureModeHud()
 	{
-		if (modeHudRoot != null)
+		if (interactionModeHudDocument != null)
 			return;
 
-		Canvas canvas = GetComponentInParent<Canvas>();
-		if (canvas == null)
-			canvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
-
-		if (canvas == null)
-			return;
-
-		if (interactionModeHudPrefab == null)
+		if (interactionModeHudVisualTreeAsset == null || interactionModeHudPanelSettings == null)
 		{
-			Debug.LogError("[SelectionUIMaster] InteractionModeHud prefab is missing.", this);
+			Debug.LogError("[SelectionUIMaster] InteractionModeHud Toolkit assets are missing.", this);
 			return;
 		}
 
-		modeHudRoot = Instantiate(interactionModeHudPrefab, canvas.transform);
-		modeHudRoot.name = "InteractionModeHud";
-		if (modeHudRoot == null)
-			return;
+		GameObject documentObject = new("InteractionModeHudDocument");
+		documentObject.SetActive(false);
+		documentObject.transform.SetParent(transform, false);
+		interactionModeHudDocument = documentObject.AddComponent<UIDocument>();
+		interactionModeHudDocument.panelSettings = interactionModeHudPanelSettings;
+		interactionModeHudDocument.visualTreeAsset = interactionModeHudVisualTreeAsset;
+		interactionModeHudDocument.sortingOrder = interactionModeHudSortingOrder;
+		documentObject.SetActive(true);
 
-		modeDomainText = FindNamedComponent<TextMeshProUGUI>(modeHudRoot, "ModeDomain");
-		modeActionText = FindNamedComponent<TextMeshProUGUI>(modeHudRoot, "ModeAction");
-		buildingDetailsButton = FindNamedComponent<Button>(modeHudRoot, "BuildingModeDetailsButton");
-		buildingDetailsButtonText = buildingDetailsButton != null
-			? buildingDetailsButton.GetComponentInChildren<TextMeshProUGUI>(true)
-			: null;
+		VisualElement root = interactionModeHudDocument.rootVisualElement;
+		modeDomainText = root.Q<Label>("interaction-mode-domain");
+		modeActionText = root.Q<Label>("interaction-mode-action");
+		if (modeDomainText == null || modeActionText == null)
+			Debug.LogError("[SelectionUIMaster] InteractionModeHud UXML elements are missing.", this);
 	}
 
 	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
@@ -410,29 +395,12 @@ public class SelectionUIMaster : MonoBehaviour
 		RefreshModeHud();
 	}
 
-	private void HandleBuildingDetailsClicked()
-	{
-		EnsureModeDependencies();
-		if (buildingPlacementOverlayController == null || currentObj == null)
-			return;
-
-		if (currentObj.TryGetComponent<BuildingSelectionProxy>(out BuildingSelectionProxy selectedProxy) == false
-			|| selectedProxy.Building == null)
-			return;
-
-		BuildingSelectionProxy proxy = buildingPlacementOverlayController.GetSelectionProxy(selectedProxy.Building);
-		if (proxy == null)
-			return;
-
-		ShowDetailForObject(proxy.gameObject);
-	}
-
 	private void RefreshModeHud()
 	{
 		if (Interaction == null)
 			return;
 
-		EnsureModeDependencies();
+		EnsureModeHud();
 
 		if (modeDomainText != null)
 		{
@@ -452,13 +420,6 @@ public class SelectionUIMaster : MonoBehaviour
 			};
 		}
 
-		if (buildingDetailsButton != null)
-		{
-			bool isBuildingMode = Interaction.Domain == InteractionContext.InteractionDomain.Building;
-			bool hasActiveBuilding = currentObj != null && currentObj.TryGetComponent<BuildingSelectionProxy>(out _);
-			buildingDetailsButton.interactable = isBuildingMode && hasActiveBuilding;
-			buildingDetailsButton.gameObject.SetActive(true);
-		}
 	}
 
 	private void RefreshWorldHighlights()
