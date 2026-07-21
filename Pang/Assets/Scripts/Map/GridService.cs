@@ -199,6 +199,7 @@ public partial class GridService : MonoBehaviour
 
 
 	private readonly Dictionary<GameObject, PlacementContext> placedObjects = new();
+	private readonly Dictionary<BoxBase, int3> droppedBoxPositions = new();
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
 	public event System.Action<int3, float, float> OnCellTemperatureChanged;
@@ -207,6 +208,50 @@ public partial class GridService : MonoBehaviour
 	public event System.Action OnSpaceRegionsChanged;
 
 	public bool IsPlacedObject(GameObject targetObj) => targetObj != null && placedObjects.ContainsKey(targetObj);
+
+	public bool TryRegisterDroppedBox(BoxBase box, in int3 position)
+	{
+		if (box == null || box.IsValid == false)
+			return false;
+
+		GridCell cell = GetCell(position);
+		if (cell == null)
+			return false;
+
+		if (droppedBoxPositions.TryGetValue(box, out int3 previousPosition))
+		{
+			if (previousPosition.Equals(position))
+				return true;
+
+			TryUnregisterDroppedBox(box);
+		}
+
+		if (cell.RegisterObject(box.gameObject, GridFlags.DynamicObstacle) == false)
+			return false;
+
+		droppedBoxPositions[box] = position;
+		box.transform.SetParent(null);
+		box.transform.position = new Vector3(position.x, position.y, position.z);
+		box.OnPositionSet(position, FacingDirection.North);
+		return true;
+	}
+
+	public bool TryUnregisterDroppedBox(BoxBase box)
+	{
+		if (box == null || droppedBoxPositions.TryGetValue(box, out int3 position) == false)
+			return false;
+
+		GridCell cell = GetCell(position);
+		cell?.UnregisterObject(box.gameObject);
+		droppedBoxPositions.Remove(box);
+		box.ClearGridPosition();
+		return true;
+	}
+
+	public IReadOnlyCollection<GameObject> GetObjectsOnGrid(in int3 position)
+	{
+		return GetCell(position)?.ObjectsOnGrid ?? System.Array.Empty<GameObject>();
+	}
 
 	private EconomyService Economy => GameContext.Instance.EconomyService;
 	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;

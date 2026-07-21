@@ -98,6 +98,9 @@ public partial class BoxManager : MonoBehaviour
 			return false;
 
 		if (GameContext.HasInstance)
+			GameContext.Instance.GridService?.TryUnregisterDroppedBox(box);
+
+		if (GameContext.HasInstance)
 			GameContext.Instance.OBWorkflowSvc?.OnBoxReleased(box, destroyed);
 
 		box.Invalidate();

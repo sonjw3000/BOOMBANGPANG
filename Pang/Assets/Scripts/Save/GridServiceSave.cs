@@ -83,6 +83,7 @@ public partial class GridService
 
 		gridBoundaryQuad = null;
 		placedObjects.Clear();
+		droppedBoxPositions.Clear();
 		IsReady = false;
 	}
 }

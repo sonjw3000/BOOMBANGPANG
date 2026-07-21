@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 [System.Serializable]
@@ -11,7 +12,7 @@ public enum BoxType
 	Any = 3,
 }
 
-public abstract partial class BoxBase : MonoBehaviour, IItemContainer
+public abstract partial class BoxBase : MonoBehaviour, IItemContainer, IGridPlaceable
 {
 	public event System.Action<BoxBase> OnInvalidated;
 
@@ -21,6 +22,9 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 	protected float size = 0.0f;
 	private ItemTag itemTags = ItemTag.None;
 	private bool isValid;
+	private bool isPlacedOnGrid;
+	private int3 gridPosition;
+	private FacingDirection facingDirection;
 
 	protected List<ItemStack> stacks = new();
 	protected Dictionary<uint, int> itemTotals = new();
@@ -40,8 +44,31 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 	public BoxType Type => boxType;
 	public uint BoxId => boxId;
 	public bool IsValid => isValid;
+	public bool IsPlacedOnGrid => isPlacedOnGrid;
+	public int3 GridPosition => gridPosition;
+	public FacingDirection Direction => facingDirection;
+	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.Box;
 
 	public void SetBoxId(uint id) => boxId = id;
+
+	public void OnPositionSet(in int3 position, FacingDirection direction)
+	{
+		gridPosition = position;
+		facingDirection = direction;
+		isPlacedOnGrid = true;
+	}
+
+	public void OnDestroyedBy(in DestroyContext context)
+	{
+		BoxMgr?.DestroyBox(this);
+	}
+
+	internal void ClearGridPosition()
+	{
+		gridPosition = default;
+		facingDirection = FacingDirection.North;
+		isPlacedOnGrid = false;
+	}
 
 	internal void MarkValid()
 	{
@@ -54,6 +81,7 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer
 			return false;
 
 		isValid = false;
+		isPlacedOnGrid = false;
 		OnInvalidated?.Invoke(this);
 		OnInvalidated = null;
 		return true;

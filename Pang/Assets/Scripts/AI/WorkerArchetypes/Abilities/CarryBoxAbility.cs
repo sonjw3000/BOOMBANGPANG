@@ -44,6 +44,9 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 			return false;
 		}
 
+		if (GameContext.HasInstance)
+			GameContext.Instance.GridService?.TryUnregisterDroppedBox(box);
+
 		box.transform.SetParent(boxSlot);
 		box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
@@ -76,9 +79,16 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 		if (box == null)
 			return false;
 
-		box.OnInvalidated -= HandleCarryingBoxInvalidated;
 		box.transform.SetParent(null);
-		box.transform.position = Worker != null ? Worker.transform.position : transform.position;
+		if (GameContext.HasInstance == false || Worker == null ||
+			GameContext.Instance.GridService.TryRegisterDroppedBox(box, Worker.GridPosition) == false)
+		{
+			box.transform.SetParent(boxSlot);
+			box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+			return false;
+		}
+
+		box.OnInvalidated -= HandleCarryingBoxInvalidated;
 		carryingBox = null;
 		return true;
 	}
@@ -89,9 +99,16 @@ public class CarryBoxAbility : AbilityBase, IBoxHandleable
 		if (box == null)
 			return false;
 
-		box.OnInvalidated -= HandleCarryingBoxInvalidated;
 		box.transform.SetParent(null);
-		box.transform.position = Worker != null ? Worker.transform.position : transform.position;
+		if (GameContext.HasInstance == false || Worker == null ||
+			GameContext.Instance.GridService.TryRegisterDroppedBox(box, Worker.GridPosition) == false)
+		{
+			box.transform.SetParent(boxSlot);
+			box.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+			return false;
+		}
+
+		box.OnInvalidated -= HandleCarryingBoxInvalidated;
 		carryingBox = null;
 		Worker?.CurrentTask?.ReleasePayloadBox(box);
 		return true;

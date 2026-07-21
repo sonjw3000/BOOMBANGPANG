@@ -85,6 +85,7 @@ public class GridCell
 	public bool CanPlaceObject => IsBlocked == false && reservedBy == null;
 	public GameObject ObjectOnGrid => objectRef;
 	public GameObject OccupancyObjectOnGrid => occupancyObjectRef;
+	public IReadOnlyCollection<GameObject> ObjectsOnGrid => flagsByObject.Keys;
 
 	public FindRoute ReservedRoute => reservedBy;
 	public int PlannedPathCount => plannedRoutes.Count;
@@ -172,6 +173,25 @@ public class GridCell
 		}
 
 		flags &= ~cellFootprint.flags;
+	}
+
+	internal bool RegisterObject(GameObject obj, GridFlags objectFlags)
+	{
+		if (obj == null || flagsByObject.ContainsKey(obj))
+			return false;
+
+		flagsByObject[obj] = objectFlags;
+		RebuildFlags();
+		return true;
+	}
+
+	internal bool UnregisterObject(GameObject obj)
+	{
+		if (obj == null || flagsByObject.Remove(obj) == false)
+			return false;
+
+		RebuildFlags();
+		return true;
 	}
 
 	public void SetRegionId(int value)

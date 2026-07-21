@@ -63,9 +63,8 @@ public abstract partial class WorkerTask
 			return false;
 
 		PreparePayloadRecovery(box, position);
-		box.transform.SetParent(null);
-		box.transform.position = new Vector3(position.x, position.y, position.z);
-		return true;
+		return GameContext.HasInstance &&
+			GameContext.Instance.GridService.TryRegisterDroppedBox(box, position);
 	}
 
 	protected static IBaseNode.NodeState CheckWorkerCarriesPayload(in BTContext ctx)
