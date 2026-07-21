@@ -22,20 +22,48 @@ public sealed class FireService
 		new(0, 0, -1),
 	};
 
+	private readonly HashSet<IGridPlaceable> ignitionCandidates = new();
 	private readonly HashSet<IGridPlaceable> burningTargets = new();
-	private readonly HashSet<GameObject> candidateObjects = new();
 	private readonly List<IGridPlaceable> candidateTargets = new();
 	private readonly List<IGridPlaceable> burningScratch = new();
 	private readonly Dictionary<int3, float> projectedIntensities = new();
 	private readonly HashSet<int3> previousProjectedCells = new();
 	private readonly Dictionary<GameObject, float> damageTargets = new();
+	private GridService boundGridService;
 
 	public int BurningTargetCount => burningTargets.Count;
 
+	public void Bind(GridService gridService)
+	{
+		if (boundGridService == gridService)
+			return;
+
+		Unbind();
+		boundGridService = gridService;
+		if (boundGridService == null)
+			return;
+
+		boundGridService.OnGridPlaceableRegistered += HandleGridPlaceableRegistered;
+		boundGridService.OnGridPlaceableUnregistered += HandleGridPlaceableUnregistered;
+		RebuildCandidateIndex();
+	}
+
+	public void Unbind()
+	{
+		if (boundGridService != null)
+		{
+			boundGridService.OnGridPlaceableRegistered -= HandleGridPlaceableRegistered;
+			boundGridService.OnGridPlaceableUnregistered -= HandleGridPlaceableUnregistered;
+		}
+
+		boundGridService = null;
+		ignitionCandidates.Clear();
+	}
+
 	public void ResetRuntimeState()
 	{
+		ignitionCandidates.Clear();
 		burningTargets.Clear();
-		candidateObjects.Clear();
 		candidateTargets.Clear();
 		burningScratch.Clear();
 		projectedIntensities.Clear();
@@ -45,9 +73,10 @@ public sealed class FireService
 
 	public void RebuildRuntimeState()
 	{
+		RebuildCandidateIndex();
 		burningTargets.Clear();
 		ClearAllCellFireIntensity();
-		CollectCandidates();
+		RefreshCandidateSnapshot();
 		for (int i = 0; i < candidateTargets.Count; ++i)
 		{
 			IGridPlaceable target = candidateTargets[i];
@@ -77,7 +106,7 @@ public sealed class FireService
 		if (gridService == null || gridService.IsReady == false)
 			return;
 
-		CollectCandidates();
+		RefreshCandidateSnapshot();
 		for (int i = 0; i < candidateTargets.Count; ++i)
 			EvaluateTarget(candidateTargets[i]);
 
@@ -112,16 +141,14 @@ public sealed class FireService
 		if (cell == null)
 			return false;
 
-		candidateObjects.Clear();
-		candidateTargets.Clear();
 		foreach (GameObject targetObject in cell.ObjectsOnGrid)
-			AddCandidate(targetObject);
-
-		for (int i = 0; i < candidateTargets.Count; ++i)
 		{
-			IGridPlaceable target = candidateTargets[i];
-			if (IsAvailable(target) == false)
+			if (targetObject == null ||
+				targetObject.TryGetComponent<IGridPlaceable>(out var target) == false ||
+				IsAvailable(target) == false)
+			{
 				continue;
+			}
 
 			ApplyIntensity(target, intensity, showFloatingText: true);
 			++affectedTargets;
@@ -133,57 +160,34 @@ public sealed class FireService
 
 	private static GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 
-	private void CollectCandidates()
+	private void RebuildCandidateIndex()
 	{
-		candidateObjects.Clear();
-		candidateTargets.Clear();
-
-		GridService gridService = GridService;
-		if (gridService == null || gridService.IsReady == false)
+		ignitionCandidates.Clear();
+		if (boundGridService == null)
 			return;
 
-		int3 size = gridService.MapSize;
-		for (int x = 0; x < size.x; ++x)
-		{
-			for (int y = 0; y < size.y; ++y)
-			{
-				for (int z = 0; z < size.z; ++z)
-				{
-					GridCell cell = gridService.GetCell(x, y, z);
-					if (cell == null)
-						continue;
-
-					foreach (GameObject targetObject in cell.ObjectsOnGrid)
-						AddCandidate(targetObject);
-				}
-			}
-		}
-
-		burningScratch.Clear();
-		foreach (IGridPlaceable target in burningTargets)
-			burningScratch.Add(target);
-
-		for (int i = 0; i < burningScratch.Count; ++i)
-		{
-			if (burningScratch[i] is Component component)
-				AddCandidate(component.gameObject);
-		}
+		foreach (IGridPlaceable target in boundGridService.RegisteredGridPlaceables)
+			if (IsAvailable(target))
+				ignitionCandidates.Add(target);
 	}
 
-	private void AddCandidate(GameObject targetObject)
+	private void RefreshCandidateSnapshot()
 	{
-		if (targetObject == null || candidateObjects.Add(targetObject) == false ||
-			targetObject.TryGetComponent<IGridPlaceable>(out var target) == false)
-		{
-			return;
-		}
+		candidateTargets.Clear();
+		foreach (IGridPlaceable target in ignitionCandidates)
+			candidateTargets.Add(target);
+	}
 
-		candidateTargets.Add(target);
-		if (target is AIWorker worker && worker.CarryingAbility?.CarryingBox is BoxBase carryingBox &&
-			candidateObjects.Add(carryingBox.gameObject))
-		{
-			candidateTargets.Add(carryingBox);
-		}
+	private void HandleGridPlaceableRegistered(IGridPlaceable target)
+	{
+		if (IsAvailable(target))
+			ignitionCandidates.Add(target);
+	}
+
+	private void HandleGridPlaceableUnregistered(IGridPlaceable target)
+	{
+		ignitionCandidates.Remove(target);
+		burningTargets.Remove(target);
 	}
 
 	private void EvaluateTarget(IGridPlaceable target)
@@ -234,9 +238,23 @@ public sealed class FireService
 			ignitionTemperature = context.placeableDefinition.IgnitionTemperatureCelsius;
 		}
 
-		if (target is not IItemContainer container || GameContext.Instance.ItemDB == null)
+		if (GameContext.Instance.ItemDB == null)
 			return hasFuel;
 
+		if (target is IItemContainer container)
+			AccumulateContainerIgnitionTemperature(container, ref hasFuel, ref ignitionTemperature);
+
+		if (target is AIWorker worker && worker.CarryingAbility?.CarryingBox is BoxBase carryingBox)
+			AccumulateContainerIgnitionTemperature(carryingBox, ref hasFuel, ref ignitionTemperature);
+
+		return hasFuel;
+	}
+
+	private static void AccumulateContainerIgnitionTemperature(
+		IItemContainer container,
+		ref bool hasFuel,
+		ref float ignitionTemperature)
+	{
 		IReadOnlyList<ItemStack> stacks = container.Stacks;
 		for (int i = 0; i < stacks.Count; ++i)
 		{
@@ -251,8 +269,6 @@ public sealed class FireService
 			hasFuel = true;
 			ignitionTemperature = Mathf.Min(ignitionTemperature, definition.IgnitionTemperatureCelsius);
 		}
-
-		return hasFuel;
 	}
 
 	private bool ApplyIntensity(IGridPlaceable target, float intensity, bool showFloatingText)

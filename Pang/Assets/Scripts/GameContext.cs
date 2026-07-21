@@ -293,6 +293,7 @@ public class GameContext : MonoBehaviour
 	private void OnDisable()
 	{
 		simulationTickCoordinator?.Unbind();
+		fireService?.Unbind();
 		workplaceIncidentService?.Unbind();
 		UnbindEvents();
 	}
@@ -341,6 +342,7 @@ public class GameContext : MonoBehaviour
 		_ = ItemHandlingDamage;
 		_ = ItemDamage;
 		_ = FireSvc;
+		fireService.Bind(gridService);
 		_ = ExplosionSvc;
 		simulationTickCoordinator ??= new SimulationTickCoordinator();
 		simulationTickCoordinator.Bind(gameTime, explosionService, oxygenService, temperatureService, fireService);

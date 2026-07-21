@@ -52,6 +52,7 @@ public partial class GridService : MonoBehaviour
 
 	public GridCell[,,] Map => gridMap.Map;
 	public int3 MapSize => gridMap.MapSize;
+	public IReadOnlyCollection<IGridPlaceable> RegisteredGridPlaceables => registeredGridPlaceables;
 
 	public bool IsReady { get; private set; }
 
@@ -200,8 +201,11 @@ public partial class GridService : MonoBehaviour
 
 	private readonly Dictionary<GameObject, PlacementContext> placedObjects = new();
 	private readonly Dictionary<BoxBase, int3> droppedBoxPositions = new();
+	private readonly HashSet<IGridPlaceable> registeredGridPlaceables = new();
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
+	public event System.Action<IGridPlaceable> OnGridPlaceableRegistered;
+	public event System.Action<IGridPlaceable> OnGridPlaceableUnregistered;
 	public event System.Action<int3, float, float> OnCellTemperatureChanged;
 	public event System.Action<GridCell, float, float> OnCellOxygenChanged;
 	public event System.Action<int3, GridHazardType, float, float> OnCellHazardChanged;
@@ -239,6 +243,7 @@ public partial class GridService : MonoBehaviour
 		box.SetCurrentCarrier(null);
 		box.transform.position = new Vector3(position.x, position.y, position.z);
 		box.OnPositionSet(position, FacingDirection.North);
+		RegisterGridPlaceable(box);
 		return true;
 	}
 
@@ -250,6 +255,7 @@ public partial class GridService : MonoBehaviour
 		GridCell cell = GetCell(position);
 		cell?.UnregisterObject(box.gameObject);
 		droppedBoxPositions.Remove(box);
+		UnregisterGridPlaceable(box);
 		box.ClearGridPosition();
 		return true;
 	}
@@ -453,6 +459,7 @@ public partial class GridService : MonoBehaviour
 		if (gridPlaceable != null)
 		{
 			gridPlaceable.OnPositionSet(ctx.center, ctx.facingDirection);
+			RegisterGridPlaceable(gridPlaceable);
 		}
 
 		if (obj.TryGetComponent<IFacility>(out var facility))
@@ -539,6 +546,8 @@ public partial class GridService : MonoBehaviour
 		}
 
 		placedObjects.Remove(targetObj);
+		if (targetObj.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
+			UnregisterGridPlaceable(gridPlaceable);
 		if (targetObj.TryGetComponent<IGridPlacementEffect>(out var placementEffect))
 			placementEffect.OnRemoved();
 
@@ -558,6 +567,22 @@ public partial class GridService : MonoBehaviour
 			RecalculateSpaceRegions();
 
 		return true;
+	}
+
+	private void RegisterGridPlaceable(IGridPlaceable target)
+	{
+		if (target == null || registeredGridPlaceables.Add(target) == false)
+			return;
+
+		OnGridPlaceableRegistered?.Invoke(target);
+	}
+
+	private void UnregisterGridPlaceable(IGridPlaceable target)
+	{
+		if (target == null || registeredGridPlaceables.Remove(target) == false)
+			return;
+
+		OnGridPlaceableUnregistered?.Invoke(target);
 	}
 
 	public bool TryReserve(FindRoute findRoute, in int3 pos)
