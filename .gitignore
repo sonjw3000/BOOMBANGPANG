@@ -13,6 +13,8 @@
 */Assets/Plugins/NuGet/Chache
 /Tools/Obsidian/__pycache__
 
+/Pang/.codex/config.toml
+
 *AI Toolkit
 *AI Toolkit.meta
 
