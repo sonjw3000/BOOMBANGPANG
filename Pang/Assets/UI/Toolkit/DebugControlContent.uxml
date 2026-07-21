@@ -65,4 +65,16 @@
 		<ui:Label text="Damage increases use ItemDamageService and can trigger configured incidents. Damage decreases are debug repairs." class="debug-control-hint" />
 		<ui:Label name="debug-item-message" text="Ready. Select a worker or item container." class="debug-control-message" />
 	</ui:VisualElement>
+
+	<ui:VisualElement name="debug-money-tab" class="debug-control-tab">
+		<ui:Label text="MONEY" class="debug-control-heading" />
+		<ui:Label text="Set the company's current money through EconomyService." class="debug-control-description" />
+		<ui:Label name="debug-money-current" text="Current Money: $0" class="debug-money-current" />
+		<ui:VisualElement class="debug-money-controls">
+			<ui:IntegerField name="debug-money-value" label="Money" value="0" is-delayed="true" class="debug-control-field debug-money-value" />
+			<ui:Button name="debug-money-apply" text="Apply" class="debug-money-apply" />
+		</ui:VisualElement>
+		<ui:Label text="Applying creates a Debug Adjustment transaction so the change remains visible in economy history." class="debug-control-hint" />
+		<ui:Label name="debug-money-message" text="Ready." class="debug-control-message" />
+	</ui:VisualElement>
 </ui:UXML>

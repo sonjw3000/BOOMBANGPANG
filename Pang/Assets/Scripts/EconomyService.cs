@@ -19,6 +19,7 @@ public class EconomyTransaction
 		MaintenanceSubscription,
 		MaintenanceDispatch,
 		OccupationalClaimNotProcessed,
+		DebugAdjustment,
 		}
 
 	public int moneyDelta;
@@ -100,6 +101,7 @@ public partial class EconomyService : MonoBehaviour
 			EconomyTransaction.Reason.MaintenanceSubscription => "Maintenance Subscription",
 			EconomyTransaction.Reason.MaintenanceDispatch => "Maintenance Dispatch",
 			EconomyTransaction.Reason.OccupationalClaimNotProcessed => "Occupational Claim Not Processed",
+			EconomyTransaction.Reason.DebugAdjustment => "Debug Adjustment",
 			_ => reason.ToString(),
 		};
 	}

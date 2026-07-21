@@ -13,12 +13,14 @@ namespace UniverseLogistics.UI.Toolkit
 		private const int DamageTabIndex = 3;
 		private const int WorkerTabIndex = 4;
 		private const int ItemTabIndex = 5;
+		private const int MoneyTabIndex = 6;
 		private const string ExplosionTabName = "debug-explosion-tab";
 		private const string FireTabName = "debug-fire-tab";
 		private const string TemperatureTabName = "debug-temperature-tab";
 		private const string DamageTabName = "debug-damage-tab";
 		private const string WorkerTabName = "debug-worker-tab";
 		private const string ItemTabName = "debug-item-tab";
+		private const string MoneyTabName = "debug-money-tab";
 
 		private static readonly string[] TabNames =
 		{
@@ -28,6 +30,7 @@ namespace UniverseLogistics.UI.Toolkit
 			DamageTabName,
 			WorkerTabName,
 			ItemTabName,
+			MoneyTabName,
 		};
 
 		private UIWindow window;
@@ -50,8 +53,13 @@ namespace UniverseLogistics.UI.Toolkit
 		private DropdownField itemGrantItemField;
 		private IntegerField itemGrantQuantityField;
 		private Button itemGrantButton;
+		private Label moneyCurrentLabel;
+		private IntegerField moneyValueField;
+		private Button moneyApplyButton;
+		private Label moneyMessage;
 		private readonly List<ItemDefinition> grantItems = new();
 		private InteractionContext interaction;
+		private EconomyService economyService;
 		private GameObject inspectedItemTarget;
 		private IItemContainer inspectedItemContainer;
 		private string inspectedItemContainerName;
@@ -107,8 +115,9 @@ namespace UniverseLogistics.UI.Toolkit
 			TemplateContainer damageContent = CreateTabContent(DamageTabName);
 			TemplateContainer workerContent = CreateTabContent(WorkerTabName);
 			TemplateContainer itemContent = CreateTabContent(ItemTabName);
+			TemplateContainer moneyContent = CreateTabContent(MoneyTabName);
 			if (explosionContent == null || fireContent == null || temperatureContent == null ||
-				damageContent == null || workerContent == null || itemContent == null)
+				damageContent == null || workerContent == null || itemContent == null || moneyContent == null)
 			{
 				Debug.LogError("[DebugControl] Required tab roots are missing.", this);
 				return false;
@@ -132,12 +141,17 @@ namespace UniverseLogistics.UI.Toolkit
 			itemGrantItemField = itemContent.Q<DropdownField>("debug-item-grant-item");
 			itemGrantQuantityField = itemContent.Q<IntegerField>("debug-item-grant-quantity");
 			itemGrantButton = itemContent.Q<Button>("debug-item-grant-button");
+			moneyCurrentLabel = moneyContent.Q<Label>("debug-money-current");
+			moneyValueField = moneyContent.Q<IntegerField>("debug-money-value");
+			moneyApplyButton = moneyContent.Q<Button>("debug-money-apply");
+			moneyMessage = moneyContent.Q<Label>("debug-money-message");
 			if (explosionRadiusField == null || explosionSeverityField == null || fireIntensityField == null ||
 				temperatureCelsiusField == null || damageAmountField == null || explosionMessage == null ||
 				fireMessage == null || temperatureMessage == null || damageMessage == null || workerMessage == null ||
 				itemSelection == null || itemEmpty == null || itemMessage == null || itemList == null ||
 				itemRefreshButton == null || itemGrantItemField == null || itemGrantQuantityField == null ||
-				itemGrantButton == null)
+				itemGrantButton == null || moneyCurrentLabel == null || moneyValueField == null ||
+				moneyApplyButton == null || moneyMessage == null)
 			{
 				Debug.LogError("[DebugControl] Required controls are missing.", this);
 				return false;
@@ -168,6 +182,7 @@ namespace UniverseLogistics.UI.Toolkit
 				itemGrantQuantityField.SetValueWithoutNotify(Mathf.Max(1, evt.newValue)));
 			itemGrantButton.clicked += GiveSelectedItem;
 			itemGrantButton.SetEnabled(false);
+			moneyApplyButton.clicked += ApplyMoney;
 
 			window.SetTitle("Debug Controls");
 			window.ClearTabs();
@@ -177,6 +192,7 @@ namespace UniverseLogistics.UI.Toolkit
 			window.AddTab("Damage", damageContent);
 			window.AddTab("Worker", workerContent);
 			window.AddTab("Item", itemContent);
+			window.AddTab("Money", moneyContent);
 			window.SelectTab(ExplosionTabIndex);
 			initialized = true;
 			return true;
@@ -221,8 +237,14 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 
 			interaction = GameContext.Instance.InteractionCtx;
+			economyService = GameContext.Instance.EconomyService;
 			if (interaction != null)
 				interaction.OnHandlePriorityLeftClick += HandleWorldClick;
+			if (economyService != null)
+			{
+				economyService.OnMoneyChanged += OnMoneyChanged;
+				OnMoneyChanged(economyService.Money);
+			}
 
 			RefreshGrantItemChoices();
 		}
@@ -231,8 +253,11 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (interaction != null)
 				interaction.OnHandlePriorityLeftClick -= HandleWorldClick;
+			if (economyService != null)
+				economyService.OnMoneyChanged -= OnMoneyChanged;
 
 			interaction = null;
+			economyService = null;
 		}
 
 		private bool HandleWorldClick(int3 position)
@@ -265,9 +290,52 @@ namespace UniverseLogistics.UI.Toolkit
 				case ItemTabIndex:
 					InspectItemContainer(in position);
 					break;
+
+				case MoneyTabIndex:
+					return false;
 			}
 
 			return true;
+		}
+
+		private void ApplyMoney()
+		{
+			if (economyService == null)
+			{
+				Report(moneyMessage, "EconomyService is unavailable.", LogType.Warning);
+				return;
+			}
+
+			int target = moneyValueField.value;
+			int previous = economyService.Money;
+			long delta = (long)target - previous;
+			if (delta < int.MinValue || delta > int.MaxValue)
+			{
+				Report(moneyMessage, "The requested adjustment is outside the supported transaction range.", LogType.Warning);
+				return;
+			}
+
+			if (delta == 0)
+			{
+				Report(moneyMessage, $"Money is already ${target:N0}.");
+				return;
+			}
+
+			economyService.ApplyTransaction(new EconomyTransaction
+			{
+				moneyDelta = (int)delta,
+				reputationDelta = 0f,
+				reason = EconomyTransaction.Reason.DebugAdjustment,
+			});
+			Report(moneyMessage, $"Money set: ${previous:N0} -> ${economyService.Money:N0}.");
+		}
+
+		private void OnMoneyChanged(int value)
+		{
+			if (moneyCurrentLabel != null)
+				moneyCurrentLabel.text = $"Current Money: ${value:N0}";
+			if (moneyValueField != null)
+				moneyValueField.SetValueWithoutNotify(value);
 		}
 
 		private void TriggerExplosion(in int3 position)

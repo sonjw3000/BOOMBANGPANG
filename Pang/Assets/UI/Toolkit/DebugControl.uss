@@ -188,3 +188,31 @@
 	padding-left: 5px;
 	padding-right: 5px;
 }
+
+.debug-money-current {
+	margin-bottom: 10px;
+	font-size: 14px;
+	-unity-font-style: bold;
+	color: rgb(105, 205, 232);
+}
+
+.debug-money-controls {
+	flex-direction: row;
+	align-items: flex-end;
+	margin-bottom: 10px;
+	padding-top: 12px;
+	padding-right: 14px;
+	padding-bottom: 8px;
+	padding-left: 14px;
+	background-color: rgba(23, 38, 49, 0.9);
+}
+
+.debug-money-value {
+	flex-grow: 1;
+}
+
+.debug-money-apply {
+	min-width: 72px;
+	margin-bottom: 8px;
+	margin-left: 8px;
+}
