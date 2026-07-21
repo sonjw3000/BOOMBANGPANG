@@ -18,23 +18,9 @@ public sealed class ExplosionService
 	public int PendingTriggerCount => pendingRequests.Count;
 	public int PendingItemImpactCount => pendingItemImpacts.Count;
 
-	public void Bind(GameTime targetGameTime)
+	public void Initialize(GameTime targetGameTime)
 	{
-		if (gameTime == targetGameTime)
-			return;
-
-		Unbind();
 		gameTime = targetGameTime;
-		if (gameTime != null)
-			gameTime.OnSimulationTick += HandleSimulationTick;
-	}
-
-	public void Unbind()
-	{
-		if (gameTime != null)
-			gameTime.OnSimulationTick -= HandleSimulationTick;
-
-		gameTime = null;
 	}
 
 	public void ResetRuntimeState()
@@ -85,7 +71,7 @@ public sealed class ExplosionService
 
 	private ulong CurrentTick => gameTime?.SimulationTicksPassed ?? 0;
 
-	private void HandleSimulationTick(SimulationTickContext context)
+	public void ProcessSimulationTick(in SimulationTickContext context)
 	{
 		TryProcess(context.Tick, applyPendingItemImpacts: true);
 	}

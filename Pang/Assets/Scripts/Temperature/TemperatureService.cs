@@ -41,7 +41,6 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	public float DegreesPerQuarterWeek => degreesPerQuarterWeek;
 	public int ActiveCellCount => activeCells.Count;
 
-	private GameTime GameTime => GameContext.HasInstance ? GameContext.Instance.GameTime : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private FacilityManager FacilityManager => GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
 
@@ -76,10 +75,9 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 
 	private void BindEvents()
 	{
-		if (eventsBound || GameTime == null || FacilityManager == null || GridService == null)
+		if (eventsBound || FacilityManager == null || GridService == null)
 			return;
 
-		GameTime.OnSimulationTick += HandleSimulationTick;
 		FacilityManager.SubscribeFacilityRegister<ITemperatureModifier>(HandleRegistered, HandleUnregistered);
 		GridService.OnCellTemperatureChanged += HandleCellTemperatureChanged;
 		eventsBound = true;
@@ -90,8 +88,6 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		if (eventsBound == false)
 			return;
 
-		if (GameTime != null)
-			GameTime.OnSimulationTick -= HandleSimulationTick;
 		if (FacilityManager != null)
 			FacilityManager.UnsubscribeFacilityRegister<ITemperatureModifier>(HandleRegistered, HandleUnregistered);
 		if (GridService != null)
@@ -155,11 +151,8 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		};
 	}
 
-	private void HandleSimulationTick(SimulationTickContext context)
+	public void ProcessQuarterWeekTick()
 	{
-		if (context.Tick % GameTime.QuarterWeekSimulationTickInterval != 0)
-			return;
-
 		if (GridService == null || GridService.IsReady == false)
 			return;
 

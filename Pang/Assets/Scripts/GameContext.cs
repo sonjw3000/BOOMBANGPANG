@@ -116,6 +116,7 @@ public class GameContext : MonoBehaviour
 	private DemoGoalService demoGoalService;
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
 	private ItemTransferTaskScheduler itemTransferTaskScheduler;
+	private SimulationTickCoordinator simulationTickCoordinator;
 
 	private InteractionContext interactionCtx;
 	private bool eventsBound;
@@ -202,7 +203,7 @@ public class GameContext : MonoBehaviour
 		get
 		{
 			explosionService ??= new ExplosionService();
-			explosionService.Bind(gameTime);
+			explosionService.Initialize(gameTime);
 			return explosionService;
 		}
 	}
@@ -289,7 +290,7 @@ public class GameContext : MonoBehaviour
 
 	private void OnDisable()
 	{
-		explosionService?.Unbind();
+		simulationTickCoordinator?.Unbind();
 		workplaceIncidentService?.Unbind();
 		UnbindEvents();
 	}
@@ -338,6 +339,8 @@ public class GameContext : MonoBehaviour
 		_ = ItemDamage;
 		_ = FireSvc;
 		_ = ExplosionSvc;
+		simulationTickCoordinator ??= new SimulationTickCoordinator();
+		simulationTickCoordinator.Bind(gameTime, explosionService, temperatureService);
 		_ = ContaminationSvc;
 		_ = CorrosionSvc;
 		_ = RadiationSvc;
