@@ -37,18 +37,27 @@ public sealed class WorkLine
 	public readonly int Quantity;
 	public readonly OrderLine RelatedOrderLine = null;
 	public readonly ItemStatus? RequiredStatus = null;
+	public readonly bool ConsumeSourcePickReservation;
 	public int CompleteQuantity = 0;
 
 	public bool IsComplete => Quantity == CompleteQuantity;
 	public Component TargetComponent => Target as Component;
 	public string TargetName => TargetComponent != null ? TargetComponent.name : "None";
 
-	public WorkLine(ShelfBase source, uint itemID, int quantity, OrderLine relatedOrderLine = null)
-		: this(WorkLineAction.Pick, source, source, itemID, quantity, relatedOrderLine)
+	public WorkLine(ShelfBase source, uint itemID, int quantity, OrderLine relatedOrderLine = null, bool consumeSourcePickReservation = true)
+		: this(WorkLineAction.Pick, source, source, itemID, quantity, relatedOrderLine, consumeSourcePickReservation: consumeSourcePickReservation)
 	{
 	}
 
-	public WorkLine(WorkLineAction action, IItemContainer container, IGridPlaceable target, uint itemID, int quantity, OrderLine relatedOrderLine = null, ItemStatus? requiredStatus = null)
+	public WorkLine(
+		WorkLineAction action,
+		IItemContainer container,
+		IGridPlaceable target,
+		uint itemID,
+		int quantity,
+		OrderLine relatedOrderLine = null,
+		ItemStatus? requiredStatus = null,
+		bool consumeSourcePickReservation = true)
 	{
 		Action = action;
 		Container = container;
@@ -57,6 +66,7 @@ public sealed class WorkLine
 		Quantity = quantity;
 		RelatedOrderLine = relatedOrderLine;
 		RequiredStatus = requiredStatus;
+		ConsumeSourcePickReservation = consumeSourcePickReservation;
 	}
 }
 

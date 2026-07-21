@@ -7,6 +7,7 @@ public partial class OutboundWorkflowService
 	{
 		return new OutboundWorkflowPolicySaveData
 		{
+			PickingPolicy = PickingPolicyType,
 			PickingCollectingPolicy = PickingCollectingPolicyType,
 			LoadingDestinationBuildingId = loadingDestinationBuildingId,
 		};
@@ -14,8 +15,10 @@ public partial class OutboundWorkflowService
 
 	public void RestorePolicyState(OutboundWorkflowPolicySaveData data)
 	{
+		PickingPolicyType pickingPolicyType = data != null ? data.PickingPolicy : DefaultPickingPolicyType;
 		CollectingPolicyType policyType = data != null ? data.PickingCollectingPolicy : DefaultCollectingPolicyType;
 		loadingDestinationBuildingId = data != null ? data.LoadingDestinationBuildingId : 0;
+		SetPickingPolicy(pickingPolicyType);
 		SetPickingCollectingPolicy(policyType);
 	}
 

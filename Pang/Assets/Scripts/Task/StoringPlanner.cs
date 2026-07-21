@@ -12,7 +12,6 @@ public sealed class StoringPlanner : IItemTransferPlanner
 	private IPlacingPolicy placingPolicy;
 	private float boxFillLimitPercent;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
-	private ShelfStorageService StorageService => GameContext.HasInstance ? GameContext.Instance.StorageService : null;
 
 	public static int GetNextJobId() => jobID;
 	public static void SetNextJobId(int nextJobId) => jobID = nextJobId;
@@ -131,7 +130,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 				}
 
 				int quantity = Mathf.Min(available, acceptable);
-				if (distance >= bestDistance)
+				if (IsBetterCollectCandidate(quantity, distance, bestQuantity, bestDistance) == false)
 					continue;
 
 				bestBuffer = buffer;
@@ -148,6 +147,14 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		}
 
 		return box.Stacks.Count > 0 ? WorkPlanResult.SwitchPhase : WorkPlanResult.Completed;
+	}
+
+	private bool IsBetterCollectCandidate(int quantity, int distance, int bestQuantity, int bestDistance)
+	{
+		if (collectingPolicyType == CollectingPolicyType.LargestQuantityNearest)
+			return quantity > bestQuantity || (quantity == bestQuantity && distance < bestDistance);
+
+		return distance < bestDistance || (distance == bestDistance && quantity > bestQuantity);
 	}
 
 	public WorkPlanResult OnCollectLineCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
@@ -200,21 +207,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 			return WorkPlanResult.SwitchPhase;
 
 		ItemStack targetStack = box.Stacks[0];
-		FacilityFilter filter = FacilityFilter.ForTransfer(box, targetStack.ItemID, targetStack.Quantity, worker: worker);
-		if (placingPolicy.TryDecide(
-			worker.GridPosition,
-			box,
-			shelf => IsShelfInBuilding(shelf, buildingId) && filter.MatchesCurrentRules(shelf),
-			out var decision) == false)
-		{
-			return WorkPlanResult.Waiting;
-		}
-
-		if (decision.shelf == null || decision.Quantity <= 0)
-			return WorkPlanResult.Waiting;
-
-		line = new WorkLine(WorkLineAction.Put, decision.shelf, decision.shelf, decision.ItemID, decision.Quantity);
-		return WorkPlanResult.Issued;
+		return TryGetPlaceLine(worker, buildingId, targetStack.ItemID, targetStack.Quantity, out line);
 	}
 
 	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine collectedLine, int remainingQuantity, out WorkLine line)
@@ -280,71 +273,32 @@ public sealed class StoringPlanner : IItemTransferPlanner
 	private WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, uint itemId, int quantity, out WorkLine line)
 	{
 		line = null;
-		if (StorageService == null || worker == null || itemId == 0 || quantity <= 0)
+		if (placingPolicy == null || worker == null || itemId == 0 || quantity <= 0)
 			return WorkPlanResult.Waiting;
 
 		BoxBase box = worker.CarryingAbility?.CarryingBox;
+		if (box == null)
+			return WorkPlanResult.Waiting;
+
 		FacilityFilter filter = FacilityFilter.ForTransfer(box, itemId, quantity, worker: worker);
-		List<ShelfBase> candidates = new();
-		float filledPercentSum = 0.0f;
-		foreach (ShelfBase shelf in StorageService.QueryPlaceCandidate(itemId, quantity))
+		if (placingPolicy.TryDecide(
+			worker.GridPosition,
+			itemId,
+			quantity,
+			shelf => IsShelfInBuilding(shelf, buildingId) && filter.MatchesCurrentRules(shelf),
+			out PlaceDecision decision) == false ||
+			decision.shelf == null ||
+			decision.Quantity <= 0)
 		{
-			if (IsShelfInBuilding(shelf, buildingId) == false)
-				continue;
-
-			if (filter.MatchesCurrentRules(shelf) == false)
-				continue;
-
-			if (InteractionPointSelector.TryGetInteractionPoint(
-				shelf,
-				InteractionKind.Put,
-				worker.GridPosition,
-				out _,
-				out _) == false)
-			{
-				continue;
-			}
-
-			candidates.Add(shelf);
-			filledPercentSum += shelf.FilledPercent;
+			return WorkPlanResult.Waiting;
 		}
 
-		if (candidates.Count <= 0)
-			return WorkPlanResult.Waiting;
-
-		float averageFilledPercent = filledPercentSum / candidates.Count;
-		ShelfBase best = null;
-		int bestDistance = int.MaxValue;
-		for (int i = 0; i < candidates.Count; ++i)
-		{
-			ShelfBase shelf = candidates[i];
-			if (placingPolicyType == PlacingPolicyType.BelowAverageFilledNearest &&
-				shelf.FilledPercent > averageFilledPercent)
-			{
-				continue;
-			}
-
-			if (InteractionPointSelector.TryGetInteractionPoint(
-				shelf,
-				InteractionKind.Put,
-				worker.GridPosition,
-				out _,
-				out int distance) == false)
-			{
-				continue;
-			}
-
-			if (distance >= bestDistance)
-				continue;
-
-			best = shelf;
-			bestDistance = distance;
-		}
-
-		if (best == null)
-			return WorkPlanResult.Waiting;
-
-		line = new WorkLine(WorkLineAction.Put, best, best, itemId, quantity);
+		line = new WorkLine(
+			WorkLineAction.Put,
+			decision.shelf,
+			decision.shelf,
+			decision.ItemID,
+			decision.Quantity);
 		return WorkPlanResult.Issued;
 	}
 

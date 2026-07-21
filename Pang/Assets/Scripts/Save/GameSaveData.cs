@@ -124,6 +124,7 @@ public sealed class InboundWorkflowPolicySaveData
 [Serializable]
 public sealed class OutboundWorkflowPolicySaveData
 {
+	public PickingPolicyType PickingPolicy = PickingPolicyType.ManualShelfScan;
 	public CollectingPolicyType PickingCollectingPolicy = CollectingPolicyType.Nearest;
 	public uint LoadingDestinationBuildingId;
 }

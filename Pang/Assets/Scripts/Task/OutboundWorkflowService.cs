@@ -8,6 +8,8 @@ using static WorkerTask;
 
 public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 {
+	private const string InventoryDigitizationResearchId = "inventory_digitization";
+	private const PickingPolicyType DefaultPickingPolicyType = PickingPolicyType.ManualShelfScan;
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 
 	[SerializeField] private PackingStationService packingStationService;
@@ -15,6 +17,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	[SerializeField] private float orderInterval = 10.0f;
 	[SerializeField] private float cargoPortThresholdPercent = 80.0f;
 	[SerializeField] [Range(1f, 100f)] private float pickingBoxFillLimitPercent = 80.0f;
+	[SerializeField] private PickingPolicyType defaultPickingPolicyType = DefaultPickingPolicyType;
 	[SerializeField] private CollectingPolicyType defaultPickingCollectingPolicyType = DefaultCollectingPolicyType;
 	[SerializeField] private uint loadingDestinationBuildingId = 0;
 
@@ -27,6 +30,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public PackingStationService PackingStationService => packingStationService;
 	public LaunchStationService LaunchStationService => launchStationService;
 	public IReadOnlyDictionary<uint, PickingManifest> PickingManifests => pickingManifests;
+	public PickingPolicyType PickingPolicyType => defaultPickingPolicyType;
 	public CollectingPolicyType PickingCollectingPolicyType => defaultPickingCollectingPolicyType;
 	public float PickingBoxFillLimitPercent => pickingBoxFillLimitPercent;
 	public float CargoPortThresholdPercent => cargoPortThresholdPercent;
@@ -143,6 +147,37 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public void MakeOrder()
 	{
 		OrderMgr.CreateRandomOrder();
+	}
+
+	public bool CanUsePickingPolicy(PickingPolicyType policyType)
+	{
+		return policyType == PickingPolicyType.ManualShelfScan ||
+			(policyType == PickingPolicyType.InventoryGuided &&
+			 GameContext.HasInstance &&
+			 GameContext.Instance.ResearchService?.IsResearched(InventoryDigitizationResearchId) == true);
+	}
+
+	public bool TrySetPickingPolicy(PickingPolicyType policyType)
+	{
+		if (CanUsePickingPolicy(policyType) == false)
+			return false;
+
+		SetPickingPolicy(policyType);
+		return true;
+	}
+
+	private void SetPickingPolicy(PickingPolicyType policyType)
+	{
+		defaultPickingPolicyType = policyType;
+		if (BuildingManager == null)
+			return;
+
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is StorageBuilding storageBuilding)
+				storageBuilding.PickingPlanner?.SetPickingPolicy(policyType);
+		}
 	}
 
 	public void SetPickingCollectingPolicy(CollectingPolicyType policyType)

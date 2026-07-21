@@ -18,6 +18,11 @@ namespace UniverseLogistics.UI.Toolkit
 			PlacingPolicyType.BelowAverageFilledNearest,
 			PlacingPolicyType.Nearest,
 		};
+		private static readonly PickingPolicyType[] PickingPolicies =
+		{
+			PickingPolicyType.ManualShelfScan,
+			PickingPolicyType.InventoryGuided,
+		};
 
 		private UIWindow window;
 		private VisualTreeAsset contentTemplate;
@@ -34,6 +39,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label unloadingDestinationSummary;
 		private DropdownField collectingPolicyField;
 		private DropdownField placingPolicyField;
+		private VisualElement pickingPolicyControl;
+		private DropdownField pickingPolicyField;
 		private Button linkOutboundDestinationButton;
 		private Label loadingDestinationSummary;
 		private Label messageLabel;
@@ -41,6 +48,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private BuildingManager buildingManager;
 		private InboundWorkflowService inboundWorkflow;
 		private OutboundWorkflowService outboundWorkflow;
+		private ResearchService researchService;
 		private bool initialized;
 		private bool started;
 
@@ -101,6 +109,8 @@ namespace UniverseLogistics.UI.Toolkit
 			unloadingDestinationSummary = content.Q<Label>("workflow-unloading-destination");
 			collectingPolicyField = content.Q<DropdownField>("workflow-collecting-policy");
 			placingPolicyField = content.Q<DropdownField>("workflow-placing-policy");
+			pickingPolicyControl = content.Q<VisualElement>("workflow-picking-policy-control");
+			pickingPolicyField = content.Q<DropdownField>("workflow-picking-policy");
 			linkOutboundDestinationButton = content.Q<Button>("workflow-link-outbound-destination-button");
 			loadingDestinationSummary = content.Q<Label>("workflow-loading-destination");
 			messageLabel = content.Q<Label>("workflow-message");
@@ -108,7 +118,8 @@ namespace UniverseLogistics.UI.Toolkit
 			if (inboundButton == null || outboundButton == null || inboundTab == null || outboundTab == null ||
 				addLandingAreaButton == null || linkLandingAreaButton == null || landingAreaList == null ||
 				landingAreaEmpty == null || unloadingDestinationSummary == null || collectingPolicyField == null ||
-				placingPolicyField == null || linkOutboundDestinationButton == null || loadingDestinationSummary == null ||
+				placingPolicyField == null || pickingPolicyControl == null || pickingPolicyField == null ||
+				linkOutboundDestinationButton == null || loadingDestinationSummary == null ||
 				messageLabel == null)
 			{
 				Debug.LogError("[WorkflowManagementWindow] Required UXML elements are missing.", this);
@@ -117,6 +128,14 @@ namespace UniverseLogistics.UI.Toolkit
 
 			collectingPolicyField.choices = BuildCollectingPolicyChoices();
 			placingPolicyField.choices = BuildPlacingPolicyChoices();
+			pickingPolicyField.choices = BuildPickingPolicyChoices();
+			collectingPolicyField.SetTooltip(UITooltipContent.DescriptionOnly(
+				"Capsule collecting",
+				"Choose whether storing workers prioritize the nearest inbound capsule or the largest movable item quantity."));
+			placingPolicyField.SetTooltip(UITooltipContent.DescriptionOnly(
+				"Shelf placing",
+				"Choose how storing workers select a destination shelf for carried items."));
+			pickingPolicyControl.SetTooltip(BuildPickingPolicyTooltip);
 			window.SetTitle("Workflow Management");
 			window.SetContent(content);
 			inboundButton.clicked += OpenInbound;
@@ -126,6 +145,7 @@ namespace UniverseLogistics.UI.Toolkit
 			linkOutboundDestinationButton.clicked += BeginOutboundDestinationLink;
 			collectingPolicyField.RegisterValueChangedCallback(OnCollectingPolicyChanged);
 			placingPolicyField.RegisterValueChangedCallback(OnPlacingPolicyChanged);
+			pickingPolicyField.RegisterValueChangedCallback(OnPickingPolicyChanged);
 			initialized = true;
 			SelectTab(true);
 			return true;
@@ -140,6 +160,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (linkOutboundDestinationButton != null) linkOutboundDestinationButton.clicked -= BeginOutboundDestinationLink;
 			collectingPolicyField?.UnregisterValueChangedCallback(OnCollectingPolicyChanged);
 			placingPolicyField?.UnregisterValueChangedCallback(OnPlacingPolicyChanged);
+			pickingPolicyField?.UnregisterValueChangedCallback(OnPickingPolicyChanged);
 		}
 
 		private void BindServices()
@@ -150,6 +171,7 @@ namespace UniverseLogistics.UI.Toolkit
 			buildingManager = GameContext.Instance.BuildingMgr;
 			inboundWorkflow = GameContext.Instance.IBWorkflowSvc;
 			outboundWorkflow = GameContext.Instance.OBWorkflowSvc;
+			researchService = GameContext.Instance.ResearchService;
 			if (areaManager != null)
 			{
 				areaManager.OnAreaAdded += OnAreaChanged;
@@ -157,6 +179,8 @@ namespace UniverseLogistics.UI.Toolkit
 				areaManager.OnAreaChanged += OnAreaChanged;
 				areaManager.OnAreasRebuilt += RefreshLandingAreas;
 			}
+			if (researchService != null)
+				researchService.OnResearchStateChanged += RefreshPolicies;
 		}
 
 		private void UnbindServices()
@@ -168,10 +192,13 @@ namespace UniverseLogistics.UI.Toolkit
 				areaManager.OnAreaChanged -= OnAreaChanged;
 				areaManager.OnAreasRebuilt -= RefreshLandingAreas;
 			}
+			if (researchService != null)
+				researchService.OnResearchStateChanged -= RefreshPolicies;
 			areaManager = null;
 			buildingManager = null;
 			inboundWorkflow = null;
 			outboundWorkflow = null;
+			researchService = null;
 		}
 
 		private void OpenInbound() => SelectTab(true);
@@ -265,11 +292,20 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void RefreshPolicies()
 		{
-			if (inboundWorkflow == null) return;
-			int collectingIndex = Array.IndexOf(CollectingPolicies, inboundWorkflow.StoringCollectingPolicyType);
-			int placingIndex = Array.IndexOf(PlacingPolicies, inboundWorkflow.StoringPlacingPolicyType);
-			collectingPolicyField.SetValueWithoutNotify(collectingPolicyField.choices[Mathf.Max(0, collectingIndex)]);
-			placingPolicyField.SetValueWithoutNotify(placingPolicyField.choices[Mathf.Max(0, placingIndex)]);
+			if (inboundWorkflow != null)
+			{
+				int collectingIndex = Array.IndexOf(CollectingPolicies, inboundWorkflow.StoringCollectingPolicyType);
+				int placingIndex = Array.IndexOf(PlacingPolicies, inboundWorkflow.StoringPlacingPolicyType);
+				collectingPolicyField.SetValueWithoutNotify(collectingPolicyField.choices[Mathf.Max(0, collectingIndex)]);
+				placingPolicyField.SetValueWithoutNotify(placingPolicyField.choices[Mathf.Max(0, placingIndex)]);
+			}
+
+			if (outboundWorkflow != null)
+			{
+				int pickingIndex = Array.IndexOf(PickingPolicies, outboundWorkflow.PickingPolicyType);
+				pickingPolicyField.SetValueWithoutNotify(pickingPolicyField.choices[Mathf.Max(0, pickingIndex)]);
+				pickingPolicyField.SetEnabled(outboundWorkflow.CanUsePickingPolicy(PickingPolicyType.InventoryGuided));
+			}
 		}
 
 		private void BeginLandingAreaCreation()
@@ -331,6 +367,22 @@ namespace UniverseLogistics.UI.Toolkit
 				inboundWorkflow.SetStoringPlacingPolicy(PlacingPolicies[index]);
 		}
 
+		private void OnPickingPolicyChanged(ChangeEvent<string> evt)
+		{
+			int index = pickingPolicyField.index;
+			if (outboundWorkflow == null || index < 0 || index >= PickingPolicies.Length)
+				return;
+
+			if (outboundWorkflow.TrySetPickingPolicy(PickingPolicies[index]))
+			{
+				messageLabel.text = string.Empty;
+				return;
+			}
+
+			messageLabel.text = "Inventory Digitization research is required.";
+			RefreshPolicies();
+		}
+
 		private void OnAreaChanged(Area area)
 		{
 			RefreshLandingAreas();
@@ -347,5 +399,20 @@ namespace UniverseLogistics.UI.Toolkit
 			"Below average filled + nearest",
 			"Nearest",
 		};
+
+		private static List<string> BuildPickingPolicyChoices() => new()
+		{
+			"Manual shelf scan",
+			"Inventory-guided",
+		};
+
+		private UITooltipContent BuildPickingPolicyTooltip()
+		{
+			const string title = "Picking method";
+			const string description = "Manual workers search nearby shelves. Inventory-guided workers receive the exact source shelf.";
+			return outboundWorkflow?.CanUsePickingPolicy(PickingPolicyType.InventoryGuided) == true
+				? UITooltipContent.DescriptionOnly(title, description)
+				: UITooltipContent.Locked(title, description, "Required research: Inventory Digitization");
+		}
 	}
 }

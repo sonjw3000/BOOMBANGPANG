@@ -400,7 +400,7 @@ public sealed class ItemTransferTask : WorkerTask
 			box,
 			line.ItemID,
 			remainingQuantity,
-			consumeSourcePickReservation: line.Container is IItemPickReservable,
+			consumeSourcePickReservation: line.ConsumeSourcePickReservation && line.Container is IItemPickReservable,
 			stackPredicate: stack => line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value)));
 	}
 
@@ -546,7 +546,15 @@ public sealed class ItemTransferTask : WorkerTask
 
 	private static WorkLine CopyLineWithQuantity(WorkLine source, int quantity)
 	{
-		WorkLine line = new(source.Action, source.Container, source.Target, source.ItemID, quantity, source.RelatedOrderLine, source.RequiredStatus);
+		WorkLine line = new(
+			source.Action,
+			source.Container,
+			source.Target,
+			source.ItemID,
+			quantity,
+			source.RelatedOrderLine,
+			source.RequiredStatus,
+			source.ConsumeSourcePickReservation);
 		line.CompleteQuantity = quantity;
 		return line;
 	}
