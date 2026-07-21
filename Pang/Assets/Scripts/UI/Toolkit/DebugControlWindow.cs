@@ -9,11 +9,13 @@ namespace UniverseLogistics.UI.Toolkit
 	{
 		private const int ExplosionTabIndex = 0;
 		private const int FireTabIndex = 1;
-		private const int DamageTabIndex = 2;
-		private const int WorkerTabIndex = 3;
-		private const int ItemTabIndex = 4;
+		private const int TemperatureTabIndex = 2;
+		private const int DamageTabIndex = 3;
+		private const int WorkerTabIndex = 4;
+		private const int ItemTabIndex = 5;
 		private const string ExplosionTabName = "debug-explosion-tab";
 		private const string FireTabName = "debug-fire-tab";
+		private const string TemperatureTabName = "debug-temperature-tab";
 		private const string DamageTabName = "debug-damage-tab";
 		private const string WorkerTabName = "debug-worker-tab";
 		private const string ItemTabName = "debug-item-tab";
@@ -22,6 +24,7 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			ExplosionTabName,
 			FireTabName,
+			TemperatureTabName,
 			DamageTabName,
 			WorkerTabName,
 			ItemTabName,
@@ -32,9 +35,11 @@ namespace UniverseLogistics.UI.Toolkit
 		private IntegerField explosionRadiusField;
 		private IntegerField explosionSeverityField;
 		private IntegerField fireIntensityField;
+		private FloatField temperatureCelsiusField;
 		private FloatField damageAmountField;
 		private Label explosionMessage;
 		private Label fireMessage;
+		private Label temperatureMessage;
 		private Label damageMessage;
 		private Label workerMessage;
 		private Label itemSelection;
@@ -98,10 +103,12 @@ namespace UniverseLogistics.UI.Toolkit
 
 			TemplateContainer explosionContent = CreateTabContent(ExplosionTabName);
 			TemplateContainer fireContent = CreateTabContent(FireTabName);
+			TemplateContainer temperatureContent = CreateTabContent(TemperatureTabName);
 			TemplateContainer damageContent = CreateTabContent(DamageTabName);
 			TemplateContainer workerContent = CreateTabContent(WorkerTabName);
 			TemplateContainer itemContent = CreateTabContent(ItemTabName);
-			if (explosionContent == null || fireContent == null || damageContent == null || workerContent == null || itemContent == null)
+			if (explosionContent == null || fireContent == null || temperatureContent == null ||
+				damageContent == null || workerContent == null || itemContent == null)
 			{
 				Debug.LogError("[DebugControl] Required tab roots are missing.", this);
 				return false;
@@ -110,9 +117,11 @@ namespace UniverseLogistics.UI.Toolkit
 			explosionRadiusField = explosionContent.Q<IntegerField>("debug-explosion-radius");
 			explosionSeverityField = explosionContent.Q<IntegerField>("debug-explosion-severity");
 			fireIntensityField = fireContent.Q<IntegerField>("debug-fire-intensity");
+			temperatureCelsiusField = temperatureContent.Q<FloatField>("debug-temperature-celsius");
 			damageAmountField = damageContent.Q<FloatField>("debug-damage-amount");
 			explosionMessage = explosionContent.Q<Label>("debug-explosion-message");
 			fireMessage = fireContent.Q<Label>("debug-fire-message");
+			temperatureMessage = temperatureContent.Q<Label>("debug-temperature-message");
 			damageMessage = damageContent.Q<Label>("debug-damage-message");
 			workerMessage = workerContent.Q<Label>("debug-worker-message");
 			itemSelection = itemContent.Q<Label>("debug-item-selection");
@@ -123,8 +132,9 @@ namespace UniverseLogistics.UI.Toolkit
 			itemGrantItemField = itemContent.Q<DropdownField>("debug-item-grant-item");
 			itemGrantQuantityField = itemContent.Q<IntegerField>("debug-item-grant-quantity");
 			itemGrantButton = itemContent.Q<Button>("debug-item-grant-button");
-			if (explosionRadiusField == null || explosionSeverityField == null || fireIntensityField == null || damageAmountField == null ||
-				explosionMessage == null || fireMessage == null || damageMessage == null || workerMessage == null ||
+			if (explosionRadiusField == null || explosionSeverityField == null || fireIntensityField == null ||
+				temperatureCelsiusField == null || damageAmountField == null || explosionMessage == null ||
+				fireMessage == null || temperatureMessage == null || damageMessage == null || workerMessage == null ||
 				itemSelection == null || itemEmpty == null || itemMessage == null || itemList == null ||
 				itemRefreshButton == null || itemGrantItemField == null || itemGrantQuantityField == null ||
 				itemGrantButton == null)
@@ -139,6 +149,13 @@ namespace UniverseLogistics.UI.Toolkit
 				explosionSeverityField.SetValueWithoutNotify(Mathf.Clamp(evt.newValue, 1, 100)));
 			fireIntensityField.RegisterValueChangedCallback(evt =>
 				fireIntensityField.SetValueWithoutNotify(Mathf.Clamp(evt.newValue, 1, 100)));
+			temperatureCelsiusField.RegisterValueChangedCallback(evt =>
+			{
+				float value = float.IsNaN(evt.newValue) || float.IsInfinity(evt.newValue)
+					? GridCell.DefaultTemperatureCelsius
+					: Mathf.Max(-273.15f, evt.newValue);
+				temperatureCelsiusField.SetValueWithoutNotify(value);
+			});
 			damageAmountField.RegisterValueChangedCallback(evt =>
 			{
 				float value = float.IsNaN(evt.newValue) || float.IsInfinity(evt.newValue)
@@ -156,6 +173,7 @@ namespace UniverseLogistics.UI.Toolkit
 			window.ClearTabs();
 			window.AddTab("Explosion", explosionContent);
 			window.AddTab("Fire", fireContent);
+			window.AddTab("Temperature", temperatureContent);
 			window.AddTab("Damage", damageContent);
 			window.AddTab("Worker", workerContent);
 			window.AddTab("Item", itemContent);
@@ -232,6 +250,10 @@ namespace UniverseLogistics.UI.Toolkit
 					ApplyFire(in position);
 					break;
 
+				case TemperatureTabIndex:
+					SetTemperature(in position);
+					break;
+
 				case DamageTabIndex:
 					ApplyDamage(in position);
 					break;
@@ -299,7 +321,34 @@ namespace UniverseLogistics.UI.Toolkit
 
 			string suffix = destroyed ? " Destroyed." : string.Empty;
 			Report(damageMessage,
-				$"{targetName} damaged by {applied:0.##}: {previousHealth:0.##} -> {currentHealth:0.##}.{suffix}");
+				$"{targetName} damaged by {applied:0.##} HP: {previousHealth:0.##} -> " +
+				$"{currentHealth:0.##}/{health.MaxHealth:0.##} HP.{suffix}");
+		}
+
+		private void SetTemperature(in int3 position)
+		{
+			GridService gridService = GameContext.HasInstance ? GameContext.Instance.GridService : null;
+			GridCell cell = gridService?.GetCell(position);
+			if (cell == null)
+			{
+				Report(temperatureMessage,
+					$"No grid cell at {FormatPosition(in position)}.",
+					LogType.Warning);
+				return;
+			}
+
+			float temperature = temperatureCelsiusField.value;
+			if (float.IsNaN(temperature) || float.IsInfinity(temperature))
+			{
+				Report(temperatureMessage, "Temperature must be a finite Celsius value.", LogType.Warning);
+				return;
+			}
+
+			temperature = Mathf.Max(-273.15f, temperature);
+			float previous = cell.TemperatureCelsius;
+			gridService.TrySetTemperature(in position, temperature);
+			Report(temperatureMessage,
+				$"Temperature at {FormatPosition(in position)}: {previous:0.##}°C -> {cell.TemperatureCelsius:0.##}°C.");
 		}
 
 		private void ApplyFire(in int3 position)

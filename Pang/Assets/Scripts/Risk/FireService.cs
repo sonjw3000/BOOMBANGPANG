@@ -11,8 +11,8 @@ public sealed class FireService
 	public const float MaximumFireIntensity = 100.0f;
 	public const float NeighborIntensityMultiplier = 0.5f;
 
-	private const int MaximumHealthDamagePerTick = 10;
-	private const int MaximumItemDamagePerTick = 10;
+	private const float HealthDamageAtMaximumIntensity = 10.0f;
+	private const int ItemDamagePercentAtMaximumIntensity = 10;
 
 	private static readonly int3[] AffectedDirections =
 	{
@@ -374,7 +374,7 @@ public sealed class FireService
 		if (targetObject == null || intensity <= 0.0f)
 			return;
 
-		int healthDamage = Mathf.Max(1, Mathf.RoundToInt(MaximumHealthDamagePerTick * intensity / MaximumFireIntensity));
+		float healthDamage = HealthDamageAtMaximumIntensity * intensity / MaximumFireIntensity;
 		if (targetObject.TryGetComponent<IHealth>(out var health))
 		{
 			health.ApplyDamage(healthDamage);
@@ -393,7 +393,7 @@ public sealed class FireService
 			TryResolvePosition(placeable, out int3 resolvedPosition)
 			? resolvedPosition
 			: default;
-		int itemDamage = Mathf.Max(1, Mathf.RoundToInt(MaximumItemDamagePerTick * intensity / MaximumFireIntensity));
+		int itemDamage = Mathf.Max(1, Mathf.RoundToInt(ItemDamagePercentAtMaximumIntensity * intensity / MaximumFireIntensity));
 		IReadOnlyList<ItemStack> stacks = container.Stacks;
 		for (int i = stacks.Count - 1; i >= 0; --i)
 		{

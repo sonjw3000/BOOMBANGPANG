@@ -21,11 +21,21 @@
 		<ui:Label name="debug-fire-message" text="Ready. Select an IGridPlaceable." class="debug-control-message" />
 	</ui:VisualElement>
 
+	<ui:VisualElement name="debug-temperature-tab" class="debug-control-tab">
+		<ui:Label text="TEMPERATURE" class="debug-control-heading" />
+		<ui:Label text="Left-click a grid cell to set its absolute temperature in Celsius." class="debug-control-description" />
+		<ui:VisualElement class="debug-control-fields">
+			<ui:FloatField name="debug-temperature-celsius" label="Temperature °C" value="100" is-delayed="true" class="debug-control-field" />
+		</ui:VisualElement>
+		<ui:Label text="The value is applied through GridService and cannot go below absolute zero." class="debug-control-hint" />
+		<ui:Label name="debug-temperature-message" text="Ready. Select a grid cell." class="debug-control-message" />
+	</ui:VisualElement>
+
 	<ui:VisualElement name="debug-damage-tab" class="debug-control-tab">
 		<ui:Label text="DAMAGE" class="debug-control-heading" />
-		<ui:Label text="Left-click a grid cell to damage its IHealth GridPlaceable. Facilities at zero health use the normal destruction path." class="debug-control-description" />
+		<ui:Label text="Left-click a grid cell to apply absolute HP damage to its IHealth GridPlaceable. Facilities at zero health use the normal destruction path." class="debug-control-description" />
 		<ui:VisualElement class="debug-control-fields">
-			<ui:FloatField name="debug-damage-amount" label="Damage Amount" value="25" is-delayed="true" class="debug-control-field" />
+			<ui:FloatField name="debug-damage-amount" label="Damage HP" value="25" is-delayed="true" class="debug-control-field" />
 		</ui:VisualElement>
 		<ui:Label name="debug-damage-message" text="Ready. Select a damageable GridPlaceable." class="debug-control-message" />
 	</ui:VisualElement>
