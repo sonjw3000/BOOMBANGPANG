@@ -13,6 +13,7 @@ public interface IPlacingPolicy
 {
 	bool TryDecide(
 		in int3 workerPos,
+		uint workerBuildingId,
 		uint itemId,
 		int requestedQuantity,
 		Predicate<ShelfBase> pred,
@@ -25,6 +26,7 @@ public class NearestPlacingPolicy : IPlacingPolicy
 
 	public bool TryDecide(
 		in int3 workerPos,
+		uint workerBuildingId,
 		uint itemId,
 		int requestedQuantity,
 		Predicate<ShelfBase> pred,
@@ -48,10 +50,11 @@ public class NearestPlacingPolicy : IPlacingPolicy
 			if (acceptable <= 0)
 				continue;
 
-			if (InteractionPointSelector.TryGetInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
 				shelf,
 				InteractionKind.Put,
 				workerPos,
+				workerBuildingId,
 				out _,
 				out int dist) == false)
 				continue;
@@ -80,6 +83,7 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 
 	public bool TryDecide(
 		in int3 workerPos,
+		uint workerBuildingId,
 		uint itemId,
 		int requestedQuantity,
 		Predicate<ShelfBase> pred,
@@ -101,10 +105,11 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 			if (shelf.GetAcceptableQuantity(itemId, requestedQuantity) <= 0)
 				continue;
 
-			if (InteractionPointSelector.TryGetInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
 				shelf,
 				InteractionKind.Put,
 				workerPos,
+				workerBuildingId,
 				out _,
 				out _) == false)
 				continue;
@@ -129,10 +134,11 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 				continue;
 			}
 
-			if (InteractionPointSelector.TryGetInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
 				shelf,
 				InteractionKind.Put,
 				workerPos,
+				workerBuildingId,
 				out _,
 				out int dist) == false)
 				continue;

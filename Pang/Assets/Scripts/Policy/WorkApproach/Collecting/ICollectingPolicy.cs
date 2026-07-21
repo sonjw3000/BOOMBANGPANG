@@ -19,12 +19,12 @@ public readonly struct CollectCandidate<TRequestLine>
 
 public interface ICollectingPolicy<TRequestLine>
 {
-	bool TryDecide(in int3 workerPos, IReadOnlyList<CollectCandidate<TRequestLine>> candidates, out CollectCandidate<TRequestLine> decision);
+	bool TryDecide(in int3 workerPos, uint workerBuildingId, IReadOnlyList<CollectCandidate<TRequestLine>> candidates, out CollectCandidate<TRequestLine> decision);
 }
 
 public sealed class NearestCollectingPolicy<TRequestLine> : ICollectingPolicy<TRequestLine>
 {
-	public bool TryDecide(in int3 workerPos, IReadOnlyList<CollectCandidate<TRequestLine>> candidates, out CollectCandidate<TRequestLine> decision)
+	public bool TryDecide(in int3 workerPos, uint workerBuildingId, IReadOnlyList<CollectCandidate<TRequestLine>> candidates, out CollectCandidate<TRequestLine> decision)
 	{
 		decision = default;
 		if (candidates == null || candidates.Count <= 0)
@@ -39,10 +39,11 @@ public sealed class NearestCollectingPolicy<TRequestLine> : ICollectingPolicy<TR
 			if (source == null)
 				continue;
 
-			if (InteractionPointSelector.TryGetInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
 				source,
 				InteractionKind.Pick,
 				workerPos,
+				workerBuildingId,
 				out _,
 				out int dist) == false)
 				continue;
@@ -64,7 +65,7 @@ public sealed class NearestCollectingPolicy<TRequestLine> : ICollectingPolicy<TR
 
 public sealed class LargestQuantityNearestCollectingPolicy<TRequestLine> : ICollectingPolicy<TRequestLine>
 {
-	public bool TryDecide(in int3 workerPos, IReadOnlyList<CollectCandidate<TRequestLine>> candidates, out CollectCandidate<TRequestLine> decision)
+	public bool TryDecide(in int3 workerPos, uint workerBuildingId, IReadOnlyList<CollectCandidate<TRequestLine>> candidates, out CollectCandidate<TRequestLine> decision)
 	{
 		decision = default;
 		if (candidates == null || candidates.Count <= 0)
@@ -81,10 +82,11 @@ public sealed class LargestQuantityNearestCollectingPolicy<TRequestLine> : IColl
 				continue;
 
 			int quantity = candidates[i].Quantity;
-			if (InteractionPointSelector.TryGetInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
 				source,
 				InteractionKind.Pick,
 				workerPos,
+				workerBuildingId,
 				out _,
 				out int dist) == false)
 				continue;

@@ -343,10 +343,11 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			if (movable < remainingQuantity)
 				continue;
 
-			if (InteractionPointSelector.TryGetInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
 				buffer,
 				InteractionKind.Put,
 				worker.GridPosition,
+				worker.PrimaryBuildingId,
 				out _,
 				out int distance) == false)
 			{
@@ -575,10 +576,11 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			if (container is not ShelfBase shelf || session.VisitedShelves.Contains(shelf))
 				continue;
 
-			if (InteractionPointSelector.TryGetInteractionPoint(
+			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
 				shelf,
 				InteractionKind.Pick,
 				worker.GridPosition,
+				worker.PrimaryBuildingId,
 				out _,
 				out int distance) == false ||
 				distance >= bestDistance)
@@ -697,7 +699,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		while (candidates.Count > 0)
 		{
 			if ((requestCollectingPolicy ?? new NearestCollectingPolicy<PickingRequest>())
-				.TryDecide(worker.GridPosition, candidates, out var decision) == false)
+				.TryDecide(worker.GridPosition, worker.PrimaryBuildingId, candidates, out var decision) == false)
 			{
 				return false;
 			}

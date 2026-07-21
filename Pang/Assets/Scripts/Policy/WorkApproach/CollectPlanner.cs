@@ -44,7 +44,7 @@ public sealed class CollectPlanner<TRequestLine>
 		List<CollectCandidate<TRequestLine>> candidates = BuildCandidates(box, buildingId);
 		while (candidates.Count > 0)
 		{
-			if (collectingPolicy.TryDecide(worker.GridPosition, candidates, out var decision) == false)
+			if (collectingPolicy.TryDecide(worker.GridPosition, worker.PrimaryBuildingId, candidates, out var decision) == false)
 				return false;
 
 			if (decision.Source == null || decision.Quantity <= 0)

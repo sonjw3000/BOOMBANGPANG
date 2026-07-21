@@ -119,10 +119,11 @@ public sealed class StoringPlanner : IItemTransferPlanner
 				if (acceptable <= 0)
 					continue;
 
-				if (InteractionPointSelector.TryGetInteractionPoint(
+				if (InteractionPointSelector.TryGetInteractionPointInBuilding(
 					buffer,
 					InteractionKind.Pick,
 					worker.GridPosition,
+					worker.PrimaryBuildingId,
 					out _,
 					out int distance) == false)
 				{
@@ -283,6 +284,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		FacilityFilter filter = FacilityFilter.ForTransfer(box, itemId, quantity, worker: worker);
 		if (placingPolicy.TryDecide(
 			worker.GridPosition,
+			worker.PrimaryBuildingId,
 			itemId,
 			quantity,
 			shelf => IsShelfInBuilding(shelf, buildingId) && filter.MatchesCurrentRules(shelf),
