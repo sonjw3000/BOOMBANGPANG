@@ -26,6 +26,14 @@ public partial class RocketService : FacilityService<Rocket>
 	private GameObject rocketPoolParent = null;
 	private PlaceableDefinition rocketPD;
 
+	public void RegisterRestoredPlacedRocket(Rocket rocket)
+	{
+		if (rocket == null || rocket.State != Rocket.RocketState.OnPad || activeRockets.Contains(rocket))
+			return;
+
+		activeRockets.Add(rocket);
+	}
+
 	protected override void Start()
 	{
 		base.Start();

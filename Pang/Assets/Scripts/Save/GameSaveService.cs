@@ -298,6 +298,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.TemperatureSvc.RebuildRuntimeState();
 		Ctx.OxygenSvc.RebuildRuntimeState();
 		Ctx.FireSvc.RebuildRuntimeState();
+		Ctx.IBWorkflowSvc.RetryActiveRocketUnloadingTasks();
 	}
 
 	private PlaceableSaveData CapturePlaceable(GameObject obj, PlacementContext ctx)
@@ -501,6 +502,7 @@ public sealed class GameSaveService : MonoBehaviour
 		if (obj.TryGetComponent<Rocket>(out var rocket) && save.Rocket != null)
 		{
 			rocket.RestoreState(save.Rocket);
+			Ctx.RocketSvc.RegisterRestoredPlacedRocket(rocket);
 		}
 
 		if (obj.TryGetComponent<LaunchStation>(out var launchStation) && save.LaunchStation != null)
