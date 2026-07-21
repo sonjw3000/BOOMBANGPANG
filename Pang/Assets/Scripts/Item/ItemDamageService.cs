@@ -50,7 +50,7 @@ public readonly struct ItemDamageChange
 
 public readonly struct ItemDamageIncidentTrigger
 {
-	public readonly ItemDamageIncidentDefinition Definition;
+	public readonly DamageIncidentDefinition Definition;
 	public readonly ItemDamageChange DamageChange;
 	public readonly int3 OriginCell;
 	public readonly IItemContainer Container;
@@ -62,7 +62,7 @@ public readonly struct ItemDamageIncidentTrigger
 	public int TriggerDelayTicks => Definition.TriggerDelayTicks;
 
 	public ItemDamageIncidentTrigger(
-		ItemDamageIncidentDefinition definition,
+		DamageIncidentDefinition definition,
 		in ItemDamageChange damageChange,
 		in int3 originCell,
 		IItemContainer container)
@@ -106,13 +106,13 @@ public class ItemDamageService : MonoBehaviour
 			return false;
 
 		int predictedDamage = Mathf.Clamp(stack.Damage + damageIncrease, 0, 100);
-		IReadOnlyList<ItemDamageIncidentDefinition> incidents = itemDefinition.DamageIncidents;
+		IReadOnlyList<DamageIncidentDefinition> incidents = itemDefinition.DamageIncidents;
 		if (incidents == null)
 			return false;
 
 		for (int i = 0; i < incidents.Count; ++i)
 		{
-			ItemDamageIncidentDefinition incident = incidents[i];
+			DamageIncidentDefinition incident = incidents[i];
 			if (incident != null &&
 				incident.IncidentType == incidentType &&
 				stack.Damage < incident.TriggerDamage &&
@@ -225,13 +225,13 @@ public class ItemDamageService : MonoBehaviour
 			return;
 		}
 
-		IReadOnlyList<ItemDamageIncidentDefinition> incidents = itemDefinition.DamageIncidents;
+		IReadOnlyList<DamageIncidentDefinition> incidents = itemDefinition.DamageIncidents;
 		if (incidents == null)
 			return;
 
 		for (int i = 0; i < incidents.Count; ++i)
 		{
-			ItemDamageIncidentDefinition incident = incidents[i];
+			DamageIncidentDefinition incident = incidents[i];
 			if (incident == null ||
 				damageChange.PreviousDamage >= incident.TriggerDamage ||
 				damageChange.CurrentDamage < incident.TriggerDamage)

@@ -23,7 +23,7 @@ public enum ItemDamageIncidentType
 }
 
 [Serializable]
-public sealed class ItemDamageIncidentDefinition
+public sealed class DamageIncidentDefinition
 {
 	[SerializeField, Range(1, 100)] private int triggerDamage = 100;
 	[SerializeField] private ItemDamageIncidentType incidentType;
@@ -53,12 +53,12 @@ public class ItemDefinition : ScriptableObject
 	[SerializeField] private GameObject itemPrefab;
 
 	[SerializeField] private int price = 100;
-	[SerializeField] private List<ItemDamageIncidentDefinition> damageIncidents = new();
+	[SerializeField] private List<DamageIncidentDefinition> damageIncidents = new();
 
 	public uint ItemID => itemID;
 	public float Size => size;
 	public ItemTag Tag => tag;
 	public GameObject ItemPrefab => itemPrefab;
 	public int Price => price;
-	public IReadOnlyList<ItemDamageIncidentDefinition> DamageIncidents => damageIncidents;
+	public IReadOnlyList<DamageIncidentDefinition> DamageIncidents => damageIncidents;
 }
