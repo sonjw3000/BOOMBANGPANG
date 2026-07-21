@@ -13,6 +13,7 @@ public interface IHealth
 [Serializable]
 public sealed class HealthState
 {
+	[Tooltip("Maximum health in absolute HP units. This is not a percentage.")]
 	[SerializeField, Min(1.0f)] private float maxHealth = 100.0f;
 	[SerializeField] private float health = 100.0f;
 	[SerializeField, HideInInspector] private bool initialized;
