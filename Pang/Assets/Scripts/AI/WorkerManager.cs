@@ -130,6 +130,7 @@ public partial class WorkerManager : MonoBehaviour
 		RemoveIdleWorker(worker);
 		worker.ChangeWorkerType(type);
 		RegisterWorkerTaskTypes(worker);
+		SyncWorkerAvailability(worker);
 
 
 		// todo
@@ -162,6 +163,7 @@ public partial class WorkerManager : MonoBehaviour
 		RemoveIdleWorker(worker);
 		worker.SetAssignedTaskTypes(validTypes);
 		RegisterWorkerTaskTypes(worker);
+		SyncWorkerAvailability(worker);
 		OnWorkerChanged?.Invoke(worker);
 	}
 
@@ -213,14 +215,22 @@ public partial class WorkerManager : MonoBehaviour
 		}
 
 		var queue = idleWorkersQueue[taskData.Type];
-		while (queue.Count > 0)
+		int candidateCount = queue.Count;
+		for (int i = 0; i < candidateCount; ++i)
 		{
 			var worker = queue.First.Value;
 			queue.RemoveFirst();
 			idleWorkersSet[taskData.Type].Remove(worker);
 
-			if (worker == null || worker.CanAcceptGeneralTask(taskData) == false || taskData.CanDispatchTo(worker) == false)
+			if (worker == null || worker.CanAcceptGeneralTask(taskData) == false)
 				continue;
+
+			if (taskData.CanDispatchTo(worker) == false)
+			{
+				idleWorkersSet[taskData.Type].Add(worker);
+				queue.AddLast(worker);
+				continue;
+			}
 
 			RemoveIdleWorker(worker);
 			return worker;

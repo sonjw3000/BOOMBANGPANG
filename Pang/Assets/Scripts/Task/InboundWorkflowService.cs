@@ -215,7 +215,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			AreaManager.OnAreaRemoved += HandleAreaChanged;
 		}
 
-		TryEnqueueActiveRocketUnloadingTasks();
+		RetryActiveRocketUnloadingTasks();
 	}
 
 	private void OnEnable()
@@ -240,7 +240,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	private void HandleAreaChanged(Area area)
 	{
 		if (area != null && area.Type == AreaType.RocketLanding)
-			TryEnqueueActiveRocketUnloadingTasks();
+			RetryActiveRocketUnloadingTasks();
 	}
 
 	private void Update()
@@ -300,7 +300,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void TryEnqueueUnloadingTask(Rocket rocket)
 	{
-		if (rocket == null || TaskMgr == null)
+		if (rocket == null || TaskMgr == null || TaskMgr.HasFacilityDependency(rocket))
 			return;
 
 		uint destinationBuildingId = ResolveUnloadingDestinationBuildingId(rocket);
@@ -351,7 +351,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		return true;
 	}
 
-	private void TryEnqueueActiveRocketUnloadingTasks()
+	public void RetryActiveRocketUnloadingTasks()
 	{
 		RocketService rocketService = RocketService;
 		if (rocketService == null)
