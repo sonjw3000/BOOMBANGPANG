@@ -30,12 +30,14 @@ public sealed class ItemDamageIncidentDefinition
 	[SerializeField, Min(0)] private int radius;
 	[SerializeField, Range(0, 100)] private int severity = 100;
 	[SerializeField, Range(0, 100)] private int edgeDamagePercent = 25;
+	[SerializeField, Min(0)] private int triggerDelayTicks;
 
 	public int TriggerDamage => Mathf.Clamp(triggerDamage, 1, 100);
 	public ItemDamageIncidentType IncidentType => incidentType;
 	public int Radius => Mathf.Max(0, radius);
 	public int Severity => Mathf.Clamp(severity, 0, 100);
 	public int EdgeDamagePercent => Mathf.Clamp(edgeDamagePercent, 0, 100);
+	public int TriggerDelayTicks => Mathf.Max(0, triggerDelayTicks);
 }
 
 

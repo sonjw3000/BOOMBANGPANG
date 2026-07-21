@@ -59,6 +59,7 @@ public readonly struct ItemDamageIncidentTrigger
 	public int Radius => Definition.Radius;
 	public int Severity => Definition.Severity;
 	public int EdgeDamagePercent => Definition.EdgeDamagePercent;
+	public int TriggerDelayTicks => Definition.TriggerDelayTicks;
 
 	public ItemDamageIncidentTrigger(
 		ItemDamageIncidentDefinition definition,

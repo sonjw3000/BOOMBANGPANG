@@ -5,6 +5,7 @@ using UnityEngine;
 public sealed class ExplosionService
 {
 	private const int DebugEdgeDamagePercent = 25;
+	private const int DebugIgnitionDelayTicks = 2;
 
 	private readonly Queue<ExplosionRequest> pendingRequests = new();
 	private readonly Queue<PendingItemImpact> pendingItemImpacts = new();
@@ -47,14 +48,20 @@ public sealed class ExplosionService
 
 	public void Enqueue(in ItemDamageIncidentTrigger trigger)
 	{
+		ulong currentTick = CurrentTick;
 		pendingRequests.Enqueue(new ExplosionRequest(
+			currentTick + (ulong)trigger.TriggerDelayTicks,
 			trigger.OriginCell,
 			trigger.Radius,
 			trigger.Severity,
 			trigger.EdgeDamagePercent,
 			trigger.DamageChange.ItemId,
 			isDebugRequest: false));
-		TryProcess(CurrentTick, applyPendingItemImpacts: false);
+
+		if (trigger.TriggerDelayTicks > 0)
+			PublishIgnition(in trigger.OriginCell, trigger.Container, trigger.TriggerDelayTicks);
+
+		TryProcess(currentTick, applyPendingItemImpacts: false);
 	}
 
 	public bool TryEnqueueDebugExplosion(in int3 originCell, int radius, int severity)
@@ -62,14 +69,17 @@ public sealed class ExplosionService
 		if (radius < 0 || severity <= 0)
 			return false;
 
+		ulong currentTick = CurrentTick;
 		pendingRequests.Enqueue(new ExplosionRequest(
+			currentTick + DebugIgnitionDelayTicks,
 			originCell,
 			radius,
 			Mathf.Clamp(severity, 1, 100),
 			DebugEdgeDamagePercent,
 			itemId: 0,
 			isDebugRequest: true));
-		TryProcess(CurrentTick, applyPendingItemImpacts: false);
+		PublishIgnition(in originCell, container: null, DebugIgnitionDelayTicks);
+		TryProcess(currentTick, applyPendingItemImpacts: false);
 		return true;
 	}
 
@@ -92,15 +102,27 @@ public sealed class ExplosionService
 			if (applyPendingItemImpacts)
 				ApplyPendingItemImpacts(currentTick);
 
-			while (pendingRequests.Count > 0)
-			{
-				ExplosionRequest request = pendingRequests.Dequeue();
-				ProcessRequest(in request, currentTick);
-			}
+			ProcessDueExplosionRequests(currentTick);
 		}
 		finally
 		{
 			isProcessing = false;
+		}
+	}
+
+	private void ProcessDueExplosionRequests(ulong currentTick)
+	{
+		int requestCount = pendingRequests.Count;
+		for (int i = 0; i < requestCount; ++i)
+		{
+			ExplosionRequest request = pendingRequests.Dequeue();
+			if (request.ActivationTick > currentTick)
+			{
+				pendingRequests.Enqueue(request);
+				continue;
+			}
+
+			ProcessRequest(in request, currentTick);
 		}
 	}
 
@@ -110,8 +132,7 @@ public sealed class ExplosionService
 			return;
 
 		GridService gridService = GameContext.Instance.GridService;
-		ItemDamageService itemDamageService = GameContext.Instance.ItemDamage;
-		if (gridService == null || gridService.IsReady == false || itemDamageService == null)
+		if (gridService == null || gridService.IsReady == false)
 			return;
 
 		CollectAffectedObjects(gridService, in request);
@@ -137,7 +158,6 @@ public sealed class ExplosionService
 
 				BoxBase carryingBox = worker.CarryingAbility?.CarryingBox;
 				if (EnqueueContainerImpactOnce(
-					itemDamageService,
 					carryingBox,
 					worker.GridPosition,
 					damage,
@@ -151,7 +171,6 @@ public sealed class ExplosionService
 			{
 				if (targetObject.TryGetComponent<IItemContainer>(out var exposedContainer) &&
 					EnqueueContainerImpactOnce(
-						itemDamageService,
 						exposedContainer,
 						affectedCell,
 						damage,
@@ -173,7 +192,6 @@ public sealed class ExplosionService
 			}
 
 			if (facility is IItemContainer facilityContainer && EnqueueContainerImpactOnce(
-					itemDamageService,
 					facilityContainer,
 					facility.GridPosition,
 					damage,
@@ -184,7 +202,6 @@ public sealed class ExplosionService
 
 			if (facility is CapsuleDock capsuleDock && facility is not IItemContainer &&
 				EnqueueContainerImpactOnce(
-					itemDamageService,
 					capsuleDock.DockedCapsule,
 					facility.GridPosition,
 					damage,
@@ -198,7 +215,6 @@ public sealed class ExplosionService
 				foreach (BoxBase box in boxPool.Boxes)
 				{
 					if (EnqueueContainerImpactOnce(
-						itemDamageService,
 						box,
 						facility.GridPosition,
 						damage,
@@ -211,18 +227,18 @@ public sealed class ExplosionService
 
 			if (facility is PackingStation packingStation)
 			{
-				if (EnqueueContainerImpactOnce(itemDamageService, packingStation.WaitingBox?.Box, packingStation.GridPosition, damage, currentTick))
+				if (EnqueueContainerImpactOnce(packingStation.WaitingBox?.Box, packingStation.GridPosition, damage, currentTick))
 					++pendingContainers;
-				if (EnqueueContainerImpactOnce(itemDamageService, packingStation.CurrentPackingBox?.Box, packingStation.GridPosition, damage, currentTick))
+				if (EnqueueContainerImpactOnce(packingStation.CurrentPackingBox?.Box, packingStation.GridPosition, damage, currentTick))
 					++pendingContainers;
-				if (EnqueueContainerImpactOnce(itemDamageService, packingStation.EndPackingBox?.Box, packingStation.GridPosition, damage, currentTick))
+				if (EnqueueContainerImpactOnce(packingStation.EndPackingBox?.Box, packingStation.GridPosition, damage, currentTick))
 					++pendingContainers;
 			}
 
 			if (facility is LaunchStation launchStation)
 			{
 				if (launchStation.TryGetAddon<LaunchPadAddon>(out var launchPad) &&
-					EnqueueContainerImpactOnce(itemDamageService, launchPad.CargoToLaunch, launchStation.GridPosition, damage, currentTick))
+					EnqueueContainerImpactOnce(launchPad.CargoToLaunch, launchStation.GridPosition, damage, currentTick))
 				{
 					++pendingContainers;
 				}
@@ -231,7 +247,7 @@ public sealed class ExplosionService
 				{
 					foreach (BoxBase cargo in cargoStorage.CargosToLaunch)
 					{
-						if (EnqueueContainerImpactOnce(itemDamageService, cargo, launchStation.GridPosition, damage, currentTick))
+						if (EnqueueContainerImpactOnce(cargo, launchStation.GridPosition, damage, currentTick))
 							++pendingContainers;
 					}
 				}
@@ -345,7 +361,6 @@ public sealed class ExplosionService
 	}
 
 	private bool EnqueueContainerImpactOnce(
-		ItemDamageService itemDamageService,
 		IItemContainer container,
 		in int3 originCell,
 		int baseDamage,
@@ -357,7 +372,6 @@ public sealed class ExplosionService
 			return false;
 
 		bool hasDamageTarget = false;
-		bool willTriggerExplosion = false;
 		IReadOnlyList<ItemStack> stacks = container.Stacks;
 		for (int i = 0; i < stacks.Count; ++i)
 		{
@@ -366,14 +380,6 @@ public sealed class ExplosionService
 				continue;
 
 			hasDamageTarget = true;
-			if (willTriggerExplosion == false && itemDamageService.WouldTriggerIncident(
-					stack,
-					baseDamage,
-					ItemDamageCause.Explosion,
-					ItemDamageIncidentType.Explosion))
-			{
-				willTriggerExplosion = true;
-			}
 		}
 
 		if (hasDamageTarget == false)
@@ -384,9 +390,6 @@ public sealed class ExplosionService
 			container,
 			in originCell,
 			baseDamage));
-
-		if (willTriggerExplosion)
-			PublishPendingIgnition(in originCell, container);
 
 		return true;
 	}
@@ -428,7 +431,7 @@ public sealed class ExplosionService
 		return container is not Object unityObject || unityObject != null;
 	}
 
-	private static void PublishPendingIgnition(in int3 originCell, IItemContainer container)
+	private static void PublishIgnition(in int3 originCell, IItemContainer container, int delayTicks)
 	{
 		if (GameContext.HasInstance == false)
 			return;
@@ -436,12 +439,12 @@ public sealed class ExplosionService
 		Object source = container as Object;
 		GameContext.Instance.HudEventManager?.Publish(
 			HudEventType.Warning,
-			$"EXPLOSIVE ITEM IGNITING @({originCell.x},{originCell.y},{originCell.z}) - detonation next tick",
+			$"IGNITION @({originCell.x},{originCell.y},{originCell.z}) - detonation in {delayTicks} ticks",
 			source);
 
 		GameContext.Instance.FloatingTextManager?.ShowWorld(
 			FloatingTextPreset.Error,
-			"IGNITING",
+			$"IGNITION\n{delayTicks} TICKS",
 			new Vector3(originCell.x, originCell.y + 1.0f, originCell.z));
 	}
 
@@ -469,6 +472,7 @@ public sealed class ExplosionService
 
 	private readonly struct ExplosionRequest
 	{
+		public readonly ulong ActivationTick;
 		public readonly int3 OriginCell;
 		public readonly int Radius;
 		public readonly int Severity;
@@ -477,6 +481,7 @@ public sealed class ExplosionService
 		public readonly bool IsDebugRequest;
 
 		public ExplosionRequest(
+			ulong activationTick,
 			in int3 originCell,
 			int radius,
 			int severity,
@@ -484,6 +489,7 @@ public sealed class ExplosionService
 			uint itemId,
 			bool isDebugRequest)
 		{
+			ActivationTick = activationTick;
 			OriginCell = originCell;
 			Radius = Mathf.Max(0, radius);
 			Severity = Mathf.Clamp(severity, 0, 100);
