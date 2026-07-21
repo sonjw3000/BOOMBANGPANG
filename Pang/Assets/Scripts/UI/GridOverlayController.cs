@@ -36,6 +36,9 @@ public sealed class GridOverlayController : MonoBehaviour
 		if (Input.GetKeyDown(KeyCode.T))
 			BeginHold(KeyCode.T, GameContext.Instance.TemperatureSvc);
 
+		if (Input.GetKeyDown(KeyCode.O))
+			BeginHold(KeyCode.O, GameContext.Instance.OxygenSvc);
+
 		if (Input.GetKeyDown(KeyCode.R))
 			BeginHold(KeyCode.R, GameContext.Instance.FacilityRuleMgr);
 

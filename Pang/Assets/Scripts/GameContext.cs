@@ -78,6 +78,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private RobotFixService robotFixService;
 	[SerializeField] private WorkplaceIncidentService workplaceIncidentService;
 	[SerializeField] private TemperatureService temperatureService;
+	[SerializeField] private OxygenService oxygenService;
 	[SerializeField] private GridOverlayController gridOverlayController;
 
 	[Header("Workflow Managers")]
@@ -178,6 +179,7 @@ public class GameContext : MonoBehaviour
 	public RobotFixService RobotFixSvc => ResolveOrCreateRobotFixService();
 	public WorkplaceIncidentService WorkplaceIncidentSvc => ResolveOrCreateWorkplaceIncidentService();
 	public TemperatureService TemperatureSvc => ResolveOrCreateTemperatureService();
+	public OxygenService OxygenSvc => ResolveOrCreateOxygenService();
 	public AreaManager AreaMgr => areaManager;
 	public AirlockService AirlockSvc => airlockService;
 	public BuildingManager BuildingMgr => buildingManager;
@@ -335,12 +337,13 @@ public class GameContext : MonoBehaviour
 		_ = RobotFixSvc;
 		WorkplaceIncidentSvc.Initialize(WorkerMgr, MedicalSvc, RobotFixSvc, VendorService, EconomyService);
 		_ = TemperatureSvc;
+		_ = OxygenSvc;
 		_ = ItemHandlingDamage;
 		_ = ItemDamage;
 		_ = FireSvc;
 		_ = ExplosionSvc;
 		simulationTickCoordinator ??= new SimulationTickCoordinator();
-		simulationTickCoordinator.Bind(gameTime, explosionService, temperatureService);
+		simulationTickCoordinator.Bind(gameTime, explosionService, oxygenService, temperatureService);
 		_ = ContaminationSvc;
 		_ = CorrosionSvc;
 		_ = RadiationSvc;
@@ -406,6 +409,18 @@ public class GameContext : MonoBehaviour
 			temperatureService = gameObject.AddComponent<TemperatureService>();
 
 		return temperatureService;
+	}
+
+	private OxygenService ResolveOrCreateOxygenService()
+	{
+		if (oxygenService != null)
+			return oxygenService;
+
+		oxygenService = GetComponentInChildren<OxygenService>(true);
+		if (oxygenService == null)
+			oxygenService = gameObject.AddComponent<OxygenService>();
+
+		return oxygenService;
 	}
 
 	private ItemHandlingDamageService ResolveOrCreateItemHandlingDamageService()

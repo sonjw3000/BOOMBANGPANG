@@ -42,6 +42,8 @@ public class PlacementContext
 public class GridCell
 {
 	public const float DefaultTemperatureCelsius = 20.0f;
+	public const float DefaultOxygen = 0.0f;
+	public const float MaximumOxygen = 100.0f;
 	public const float MinimumHazardLevel = 0.0f;
 	public const float MaximumHazardLevel = 100.0f;
 
@@ -50,6 +52,7 @@ public class GridCell
 	private int regionId = 0;
 	private uint buildingId = 0;
 	private float temperatureCelsius = DefaultTemperatureCelsius;
+	private float oxygen = DefaultOxygen;
 	private float fireIntensity;
 	private float contaminationLevel;
 	private float corrosiveLevel;
@@ -68,6 +71,7 @@ public class GridCell
 	public int RegionId => regionId;
 	public uint BuildingId => buildingId;
 	public float TemperatureCelsius => temperatureCelsius;
+	public float Oxygen => oxygen;
 	public float FireIntensity => fireIntensity;
 	public float ContaminationLevel => contaminationLevel;
 	public float CorrosiveLevel => corrosiveLevel;
@@ -95,10 +99,12 @@ public class GridCell
 		float fireIntensity = MinimumHazardLevel,
 		float contaminationLevel = MinimumHazardLevel,
 		float corrosiveLevel = MinimumHazardLevel,
-		float radiationLevel = MinimumHazardLevel)
+		float radiationLevel = MinimumHazardLevel,
+		float oxygen = DefaultOxygen)
 	{
 		tile = tileType;
 		this.temperatureCelsius = temperatureCelsius;
+		this.oxygen = ClampOxygen(oxygen);
 		this.fireIntensity = ClampHazardLevel(fireIntensity);
 		this.contaminationLevel = ClampHazardLevel(contaminationLevel);
 		this.corrosiveLevel = ClampHazardLevel(corrosiveLevel);
@@ -134,6 +140,7 @@ public class GridCell
 		flags = GridFlags.None;
 		regionId = 0;
 		buildingId = 0;
+		oxygen = DefaultOxygen;
 		flagsByObject.Clear();
 		objectRef = null;
 		occupancyObjectRef = null;
@@ -188,6 +195,19 @@ public class GridCell
 		return true;
 	}
 
+	internal bool SetOxygen(float value)
+	{
+		if (float.IsNaN(value) || float.IsInfinity(value))
+			return false;
+
+		float clamped = ClampOxygen(value);
+		if (Mathf.Approximately(oxygen, clamped))
+			return false;
+
+		oxygen = clamped;
+		return true;
+	}
+
 	public float GetHazardLevel(GridHazardType hazardType)
 	{
 		return hazardType switch
@@ -227,6 +247,11 @@ public class GridCell
 			return MinimumHazardLevel;
 
 		return Mathf.Clamp(value, MinimumHazardLevel, MaximumHazardLevel);
+	}
+
+	private static float ClampOxygen(float value)
+	{
+		return Mathf.Clamp(value, DefaultOxygen, MaximumOxygen);
 	}
 
 	private static bool TrySetHazardLevel(ref float current, float value)
@@ -322,6 +347,9 @@ public class GridMap
 					float temperature = data.Temperatures != null && idx < data.Temperatures.Length
 						? data.Temperatures[idx]
 						: GridCell.DefaultTemperatureCelsius;
+					float oxygen = data.OxygenLevels != null && idx < data.OxygenLevels.Length
+						? data.OxygenLevels[idx]
+						: GridCell.DefaultOxygen;
 					float fireIntensity = ReadHazardLevel(data.FireIntensities, idx);
 					float contaminationLevel = ReadHazardLevel(data.ContaminationLevels, idx);
 					float corrosiveLevel = ReadHazardLevel(data.CorrosiveLevels, idx);
@@ -332,7 +360,8 @@ public class GridMap
 						fireIntensity,
 						contaminationLevel,
 						corrosiveLevel,
-						radiationLevel);
+						radiationLevel,
+						oxygen);
 				}
 			}
 		}

@@ -92,6 +92,33 @@ public partial class GridService : MonoBehaviour
 		return TrySetTemperature(pos, cell.TemperatureCelsius + deltaCelsius);
 	}
 
+	public bool TrySetOxygen(in int3 pos, float oxygen)
+	{
+		return TrySetOxygen(GetCell(pos), oxygen);
+	}
+
+	public bool TrySetOxygen(GridCell cell, float oxygen)
+	{
+		if (cell == null)
+			return false;
+
+		float previous = cell.Oxygen;
+		if (cell.SetOxygen(oxygen) == false)
+			return false;
+
+		OnCellOxygenChanged?.Invoke(cell, previous, cell.Oxygen);
+		return true;
+	}
+
+	public bool TryAdjustOxygen(in int3 pos, float delta)
+	{
+		GridCell cell = GetCell(pos);
+		if (cell == null || float.IsNaN(delta) || float.IsInfinity(delta) || delta == 0.0f)
+			return false;
+
+		return TrySetOxygen(cell, cell.Oxygen + delta);
+	}
+
 	public bool TrySetFireIntensity(in int3 pos, float intensity) =>
 		TrySetHazardLevel(pos, GridHazardType.Fire, intensity);
 
@@ -175,6 +202,7 @@ public partial class GridService : MonoBehaviour
 
 	public event System.Action<PlacementContext> OnPlaceableInstalled;
 	public event System.Action<int3, float, float> OnCellTemperatureChanged;
+	public event System.Action<GridCell, float, float> OnCellOxygenChanged;
 	public event System.Action<int3, GridHazardType, float, float> OnCellHazardChanged;
 	public event System.Action OnSpaceRegionsChanged;
 
