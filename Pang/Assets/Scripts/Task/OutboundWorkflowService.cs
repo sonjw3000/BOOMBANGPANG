@@ -8,6 +8,7 @@ using static WorkerTask;
 
 public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 {
+	private const PickingPolicyType DefaultPickingPolicyType = PickingPolicyType.ManualShelfScan;
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 
 	[SerializeField] private PackingStationService packingStationService;
@@ -15,6 +16,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	[SerializeField] private float orderInterval = 10.0f;
 	[SerializeField] private float cargoPortThresholdPercent = 80.0f;
 	[SerializeField] [Range(1f, 100f)] private float pickingBoxFillLimitPercent = 80.0f;
+	[SerializeField] private PickingPolicyType defaultPickingPolicyType = DefaultPickingPolicyType;
 	[SerializeField] private CollectingPolicyType defaultPickingCollectingPolicyType = DefaultCollectingPolicyType;
 	[SerializeField] private uint loadingDestinationBuildingId = 0;
 
@@ -27,6 +29,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public PackingStationService PackingStationService => packingStationService;
 	public LaunchStationService LaunchStationService => launchStationService;
 	public IReadOnlyDictionary<uint, PickingManifest> PickingManifests => pickingManifests;
+	public PickingPolicyType PickingPolicyType => defaultPickingPolicyType;
 	public CollectingPolicyType PickingCollectingPolicyType => defaultPickingCollectingPolicyType;
 	public float PickingBoxFillLimitPercent => pickingBoxFillLimitPercent;
 	public float CargoPortThresholdPercent => cargoPortThresholdPercent;
@@ -145,6 +148,39 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		OrderMgr.CreateRandomOrder();
 	}
 
+	public bool CanUsePickingPolicy(PickingPolicyType policyType)
+	{
+		if (IsResearchCompleted(ResearchIds.WorkflowPolicyManagement) == false)
+			return false;
+
+		return policyType == PickingPolicyType.ManualShelfScan ||
+			(policyType == PickingPolicyType.InventoryGuided &&
+			 IsResearchCompleted(ResearchIds.InventoryDigitization));
+	}
+
+	public bool TrySetPickingPolicy(PickingPolicyType policyType)
+	{
+		if (CanUsePickingPolicy(policyType) == false)
+			return false;
+
+		SetPickingPolicy(policyType);
+		return true;
+	}
+
+	private void SetPickingPolicy(PickingPolicyType policyType)
+	{
+		defaultPickingPolicyType = policyType;
+		if (BuildingManager == null)
+			return;
+
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is StorageBuilding storageBuilding)
+				storageBuilding.PickingPlanner?.SetPickingPolicy(policyType);
+		}
+	}
+
 	public void SetPickingCollectingPolicy(CollectingPolicyType policyType)
 	{
 		defaultPickingCollectingPolicyType = policyType;
@@ -157,6 +193,54 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			if (buildings[i] is StorageBuilding storageBuilding)
 				storageBuilding.PickingPlanner?.SetCollectingPolicy(policyType);
 		}
+	}
+
+	public bool CanUsePickingCollectingPolicy(CollectingPolicyType policyType)
+	{
+		if (IsResearchCompleted(ResearchIds.WorkflowPolicyManagement) == false)
+			return false;
+
+		return policyType == CollectingPolicyType.Nearest ||
+			(policyType == CollectingPolicyType.LargestQuantityNearest &&
+			 IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization));
+	}
+
+	public bool TrySetPickingCollectingPolicy(CollectingPolicyType policyType)
+	{
+		if (CanUsePickingCollectingPolicy(policyType) == false)
+			return false;
+
+		SetPickingCollectingPolicy(policyType);
+		return true;
+	}
+
+	public bool TrySetPickingBoxFillLimitPercent(float value)
+	{
+		if (IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization) == false)
+			return false;
+
+		SetPickingBoxFillLimitPercent(value);
+		return true;
+	}
+
+	private void SetPickingBoxFillLimitPercent(float value)
+	{
+		pickingBoxFillLimitPercent = Mathf.Clamp(value, 1.0f, 100.0f);
+		if (BuildingManager == null)
+			return;
+
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is StorageBuilding storageBuilding)
+				storageBuilding.PickingPlanner?.SetBoxFillLimitPercent(pickingBoxFillLimitPercent);
+		}
+	}
+
+	private static bool IsResearchCompleted(string researchId)
+	{
+		return GameContext.HasInstance &&
+			GameContext.Instance.ResearchService?.IsResearched(researchId) == true;
 	}
 
 	public bool TryGetLoadingDestinationBuilding(out Building building)

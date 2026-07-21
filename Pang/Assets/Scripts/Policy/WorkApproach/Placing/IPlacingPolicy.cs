@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
-using UnityEngine;
 
 public struct PlaceDecision
 {
@@ -12,34 +11,42 @@ public struct PlaceDecision
 
 public interface IPlacingPolicy
 {
-	bool TryDecide(in int3 workerPos, BoxBase box, Predicate<ShelfBase> pred, out PlaceDecision decision);
+	bool TryDecide(
+		in int3 workerPos,
+		uint itemId,
+		int requestedQuantity,
+		Predicate<ShelfBase> pred,
+		out PlaceDecision decision);
 }
 
 public class NearestPlacingPolicy : IPlacingPolicy
 {
 	private ShelfStorageService StorageService => GameContext.Instance.StorageService;
 
-	public bool TryDecide(in int3 workerPos, BoxBase box, Predicate<ShelfBase> pred, out PlaceDecision decision)
+	public bool TryDecide(
+		in int3 workerPos,
+		uint itemId,
+		int requestedQuantity,
+		Predicate<ShelfBase> pred,
+		out PlaceDecision decision)
 	{
 		decision = default;
 
-		if (box == null || box.Stacks.Count == 0)
-		{
-			Debug.LogWarning("Cannot decide placing target without a carried box.");
+		if (itemId == 0 || requestedQuantity <= 0)
 			return false;
-		}
 
 		ShelfBase best = null;
 		int bestDist = int.MaxValue;
-		ItemStack bestStack = box.Stacks[0];
-		int quantity = 0;
+		int bestQuantity = 0;
 
-		foreach (var shelf in StorageService.QueryPlaceCandidate(bestStack.ItemID, bestStack.Quantity))
+		foreach (ShelfBase shelf in StorageService.QueryPlaceCandidate(itemId, 1))
 		{
-			if (pred != null && pred(shelf) == false)
-			{
+			if (shelf == null || (pred != null && pred(shelf) == false))
 				continue;
-			}
+
+			int acceptable = shelf.GetAcceptableQuantity(itemId, requestedQuantity);
+			if (acceptable <= 0)
+				continue;
 
 			if (InteractionPointSelector.TryGetInteractionPoint(
 				shelf,
@@ -53,19 +60,16 @@ public class NearestPlacingPolicy : IPlacingPolicy
 			{
 				bestDist = dist;
 				best = shelf;
-				quantity = bestStack.Quantity;
+				bestQuantity = acceptable;
 			}
 		}
 
-		if (best == null)
-		{
-			Debug.Log("No suitable shelf found for placing.");
+		if (best == null || bestQuantity <= 0)
 			return false;
-		}
 
 		decision.shelf = best;
-		decision.ItemID = bestStack.ItemID;
-		decision.Quantity = quantity;
+		decision.ItemID = itemId;
+		decision.Quantity = bestQuantity;
 		return true;
 	}
 }
@@ -74,26 +78,28 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 {
 	private ShelfStorageService StorageService => GameContext.Instance.StorageService;
 
-	public bool TryDecide(in int3 workerPos, BoxBase box, Predicate<ShelfBase> pred, out PlaceDecision decision)
+	public bool TryDecide(
+		in int3 workerPos,
+		uint itemId,
+		int requestedQuantity,
+		Predicate<ShelfBase> pred,
+		out PlaceDecision decision)
 	{
 		decision = default;
 
-		if (box == null || box.Stacks.Count == 0)
-		{
-			Debug.LogWarning("Cannot decide placing target without a carried box.");
+		if (itemId == 0 || requestedQuantity <= 0)
 			return false;
-		}
 
-		ItemStack bestStack = box.Stacks[0];
 		List<ShelfBase> candidates = new();
 		float filledPercentSum = 0.0f;
 
-		foreach (var shelf in StorageService.QueryPlaceCandidate(bestStack.ItemID, bestStack.Quantity))
+		foreach (ShelfBase shelf in StorageService.QueryPlaceCandidate(itemId, 1))
 		{
-			if (pred != null && pred(shelf) == false)
-			{
+			if (shelf == null || (pred != null && pred(shelf) == false))
 				continue;
-			}
+
+			if (shelf.GetAcceptableQuantity(itemId, requestedQuantity) <= 0)
+				continue;
 
 			if (InteractionPointSelector.TryGetInteractionPoint(
 				shelf,
@@ -108,14 +114,12 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 		}
 
 		if (candidates.Count <= 0)
-		{
-			Debug.Log("No suitable shelf found for placing.");
 			return false;
-		}
 
 		float averageFilledPercent = filledPercentSum / candidates.Count;
 		ShelfBase best = null;
 		int bestDist = int.MaxValue;
+		int bestQuantity = 0;
 
 		for (int i = 0; i < candidates.Count; ++i)
 		{
@@ -137,18 +141,16 @@ public class BelowAverageFilledNearestPlacingPolicy : IPlacingPolicy
 			{
 				bestDist = dist;
 				best = shelf;
+				bestQuantity = shelf.GetAcceptableQuantity(itemId, requestedQuantity);
 			}
 		}
 
-		if (best == null)
-		{
-			Debug.Log("No suitable shelf found for placing.");
+		if (best == null || bestQuantity <= 0)
 			return false;
-		}
 
 		decision.shelf = best;
-		decision.ItemID = bestStack.ItemID;
-		decision.Quantity = bestStack.Quantity;
+		decision.ItemID = itemId;
+		decision.Quantity = bestQuantity;
 		return true;
 	}
 }

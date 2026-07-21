@@ -1,6 +1,13 @@
 using System;
 using System.Collections.Generic;
 
+public static class ResearchIds
+{
+	public const string InventoryDigitization = "inventory_digitization";
+	public const string WorkflowPolicyManagement = "workflow_policy_management";
+	public const string WorkflowPolicyOptimization = "workflow_policy_optimization";
+}
+
 public enum ResearchState
 {
 	Locked,

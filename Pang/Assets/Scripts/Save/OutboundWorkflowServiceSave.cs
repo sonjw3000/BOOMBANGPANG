@@ -7,16 +7,29 @@ public partial class OutboundWorkflowService
 	{
 		return new OutboundWorkflowPolicySaveData
 		{
+			PickingPolicy = PickingPolicyType,
 			PickingCollectingPolicy = PickingCollectingPolicyType,
+			PickingBoxFillLimitPercent = pickingBoxFillLimitPercent,
 			LoadingDestinationBuildingId = loadingDestinationBuildingId,
 		};
 	}
 
 	public void RestorePolicyState(OutboundWorkflowPolicySaveData data)
 	{
-		CollectingPolicyType policyType = data != null ? data.PickingCollectingPolicy : DefaultCollectingPolicyType;
+		PickingPolicyType pickingPolicyType = data != null ? data.PickingPolicy : DefaultPickingPolicyType;
+		CollectingPolicyType collectingPolicyType = data != null ? data.PickingCollectingPolicy : DefaultCollectingPolicyType;
+		if (pickingPolicyType != DefaultPickingPolicyType && CanUsePickingPolicy(pickingPolicyType) == false)
+			pickingPolicyType = DefaultPickingPolicyType;
+		if (collectingPolicyType != DefaultCollectingPolicyType && CanUsePickingCollectingPolicy(collectingPolicyType) == false)
+			collectingPolicyType = DefaultCollectingPolicyType;
 		loadingDestinationBuildingId = data != null ? data.LoadingDestinationBuildingId : 0;
-		SetPickingCollectingPolicy(policyType);
+		SetPickingPolicy(pickingPolicyType);
+		SetPickingCollectingPolicy(collectingPolicyType);
+		float boxFillLimit = IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization) &&
+			data != null && data.PickingBoxFillLimitPercent > 0.0f
+			? data.PickingBoxFillLimitPercent
+			: 80.0f;
+		SetPickingBoxFillLimitPercent(boxFillLimit);
 	}
 
 	public OutboundPickingManifestSaveData CapturePickingManifestState(Func<OrderLine, int> registerOrderLine)

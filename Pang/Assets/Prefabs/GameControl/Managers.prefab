@@ -1805,7 +1805,7 @@ MonoBehaviour:
   unloadingDestinationBuildingId: 0
   storingBoxFillLimitPercent: 80
   defaultStoringCollectingPolicyType: 0
-  defaultStoringPlacingPolicyType: 0
+  defaultStoringPlacingPolicyType: 1
 --- !u!1 &5548878945946769984
 GameObject:
   m_ObjectHideFlags: 0

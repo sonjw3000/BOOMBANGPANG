@@ -51,7 +51,8 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		model.AddOverview("Facilities", () => FacilityCount.ToString());
 		model.AddOverview("Cargo Ports", () => CargoPortCount.ToString());
 		model.AddAction("Cycle Work Scope", CycleWorkScope, () => Building != null);
-		model.AddAction("Toggle Threshold", ToggleThresholdOverride, SupportsCapsuleThreshold);
+		model.AddAction("Toggle Threshold", ToggleThresholdOverride, CanControlCapsuleThreshold,
+			tooltip: BuildThresholdTooltip);
 		model.AddAction("Pending Demolition", MarkPendingDemolition, () => Building != null && Building.State != BuildingState.PendingDemolition, true);
 		model.AddAction("Restore Active", RestoreActive, () => Building != null && Building.State != BuildingState.Active);
 	}
@@ -132,7 +133,14 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 
 	private SelectionDetailPanelModel BuildSettingsPanel()
 	{
-		SelectionDetailPanelModel panel = new() { Title = "SETTINGS", Summary = SupportsCapsuleThreshold() ? "Outbound capsule release settings" : "No capsule threshold setting for this building type." };
+		bool thresholdUnlocked = CanControlCapsuleThreshold();
+		SelectionDetailPanelModel panel = new()
+		{
+			Title = "SETTINGS",
+			Summary = SupportsCapsuleThreshold()
+				? thresholdUnlocked ? "Outbound capsule release settings" : "Threshold control requires Workflow Policy Optimization."
+				: "No capsule threshold setting for this building type."
+		};
 		if (Building == null) return panel;
 		panel.Rows.Add(new SelectionDetailRow { Primary = "Work Scope", Secondary = WorkScopeDisplay });
 		if (SupportsCapsuleThreshold())
@@ -144,8 +152,9 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 			panel.SliderValue = Building.CapsuleThresholdPercent;
 			panel.SliderLowValue = 0.0f;
 			panel.SliderHighValue = 100.0f;
-			panel.SliderEnabled = Building.OverrideCapsuleThreshold;
+			panel.SliderEnabled = thresholdUnlocked && Building.OverrideCapsuleThreshold;
 			panel.SliderChanged = SetThreshold;
+			panel.SliderTooltip = BuildThresholdTooltip;
 		}
 		return panel;
 	}
@@ -159,8 +168,18 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	}
 
 	private bool SupportsCapsuleThreshold() => Building != null && (Building.Type == BuildingType.Storage || Building.Type == BuildingType.Packing);
-	private void ToggleThresholdOverride() { if (SupportsCapsuleThreshold()) Building.SetOverrideCapsuleThreshold(Building.OverrideCapsuleThreshold == false); }
-	private void SetThreshold(float value) { if (SupportsCapsuleThreshold() && Building.OverrideCapsuleThreshold) Building.SetCapsuleThresholdPercent(value); }
+	private bool CanControlCapsuleThreshold() => SupportsCapsuleThreshold() && Building.CanControlCapsuleThreshold();
+	private UITooltipContent BuildThresholdTooltip()
+	{
+		const string title = "Building capsule threshold";
+		const string description = "Override the global outbound release threshold for this building.";
+		return CanControlCapsuleThreshold()
+			? UITooltipContent.DescriptionOnly(title, description)
+			: UITooltipContent.Locked(title, description,
+				"Required research: Workflow Policy Optimization");
+	}
+	private void ToggleThresholdOverride() { if (SupportsCapsuleThreshold()) Building.TrySetOverrideCapsuleThreshold(Building.OverrideCapsuleThreshold == false); }
+	private void SetThreshold(float value) { if (SupportsCapsuleThreshold()) Building.TrySetCapsuleThresholdPercent(value); }
 	private void MarkPendingDemolition() { if (Building != null) currentTarget?.BuildingManager?.SetBuildingState(Building, BuildingState.PendingDemolition); }
 	private void RestoreActive() { if (Building != null) currentTarget?.BuildingManager?.SetBuildingState(Building, BuildingState.Active); }
 }

@@ -9,6 +9,24 @@
 			"cost": 100,
 			"durationWeeks": 1,
 			"prerequisiteUids": []
+		},
+		{
+			"uid": "workflow_policy_management",
+			"categoryId": "planning_operations",
+			"displayName": "Workflow Policy Management",
+			"description": "Introduces formal operating policies for picking and storing workflows.",
+			"cost": 80,
+			"durationWeeks": 1,
+			"prerequisiteUids": []
+		},
+		{
+			"uid": "workflow_policy_optimization",
+			"categoryId": "planning_operations",
+			"displayName": "Workflow Policy Optimization",
+			"description": "Adds quantity-aware collecting, fill-aware placement, box fill limits, and building-specific outbound thresholds.",
+			"cost": 140,
+			"durationWeeks": 2,
+			"prerequisiteUids": ["workflow_policy_management", "inventory_digitization"]
 		}
 	]
 }

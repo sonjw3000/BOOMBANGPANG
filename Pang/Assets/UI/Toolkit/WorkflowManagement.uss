@@ -2,6 +2,7 @@
 .workflow-tabs { position: relative; height: 30px; flex-direction: row; align-items: flex-end; margin-bottom: 9px; }
 .workflow-tabs__separator { position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background-color: rgb(65, 78, 88); }
 .workflow-tab-button { width: 90px; height: 29px; margin-right: 3px; font-size: 10px; color: rgb(145, 163, 173); background-color: rgba(0, 0, 0, 0); border-left-width: 0; border-right-width: 0; border-top-width: 0; border-bottom-width: 2px; border-bottom-color: rgba(0, 0, 0, 0); }
+.workflow-tab-control { width: 93px; height: 29px; }
 .workflow-tab-button--selected { color: rgb(232, 243, 247); border-bottom-color: rgb(74, 186, 218); }
 .workflow-tab { position: relative; flex-grow: 1; padding-right: 4px; }
 .workflow-heading { font-size: 14px; -unity-font-style: bold; color: rgb(231, 240, 243); }
@@ -26,4 +27,9 @@
 .workflow-section-label { margin-top: 3px; margin-bottom: 4px; padding-bottom: 3px; border-bottom-width: 1px; border-bottom-color: rgb(65, 78, 88); }
 .workflow-destination-value { margin-top: 4px; font-size: 11px; -unity-font-style: bold; color: rgb(224, 235, 240); }
 .workflow-policy-field { height: 29px; margin-top: 4px; font-size: 9px; }
+.workflow-slider-control { min-height: 43px; margin-top: 5px; padding-top: 4px; padding-right: 7px; padding-left: 7px; background-color: rgba(25, 39, 50, 0.72); }
+.workflow-slider-header { height: 15px; flex-direction: row; }
+.workflow-slider-label { flex-grow: 1; font-size: 8px; color: rgb(151, 177, 188); }
+.workflow-slider-value { font-size: 8px; -unity-font-style: bold; color: rgb(225, 166, 92); }
+.workflow-slider { height: 20px; }
 .workflow-message { height: 20px; margin-top: 5px; font-size: 8px; color: rgb(200, 155, 112); }

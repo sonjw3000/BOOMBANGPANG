@@ -60,12 +60,16 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 
 	private readonly StorageBuilding ownerBuilding;
 	private readonly PickingRequestSource requestSource = new();
+	private readonly Dictionary<AIWorker, ManualPickingSession> manualSessions = new();
+	private readonly HashSet<PickingRequest> claimedManualRequests = new();
+	private PickingPolicyType pickingPolicyType;
 	private ICollectingPolicy<PickingRequest> requestCollectingPolicy;
 	private CollectingPolicyType collectingPolicyType;
 	private float boxFillLimitPercent;
 
 	public static int GetNextJobId() => jobID;
 	public static void SetNextJobId(int nextJobId) => jobID = nextJobId;
+	public PickingPolicyType PickingPolicyType => pickingPolicyType;
 	public CollectingPolicyType CollectingPolicyType => collectingPolicyType;
 	private uint BuildingId => ownerBuilding != null ? ownerBuilding.RuntimeBuildingId : 0;
 
@@ -74,11 +78,18 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 	public PickingPlanner(
 		StorageBuilding ownerBuilding,
 		float boxFillLimitPercent,
-		CollectingPolicyType collectingPolicyType = CollectingPolicyType.Nearest)
+		CollectingPolicyType collectingPolicyType = CollectingPolicyType.Nearest,
+		PickingPolicyType pickingPolicyType = PickingPolicyType.ManualShelfScan)
 	{
 		this.ownerBuilding = ownerBuilding;
 		this.boxFillLimitPercent = boxFillLimitPercent;
 		SetCollectingPolicy(collectingPolicyType);
+		SetPickingPolicy(pickingPolicyType);
+	}
+
+	public void SetPickingPolicy(PickingPolicyType policyType)
+	{
+		pickingPolicyType = policyType;
 	}
 
 	public void SetCollectingPolicy(CollectingPolicyType policyType)
@@ -107,11 +118,21 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 	{
 		foreach (PickingRequest request in requestSource.GetRequests())
 		{
-			if (request?.Source != null && request.GetAllocatableQuantity() > 0)
+			if (request == null || request.GetAllocatableQuantity() <= 0)
+				continue;
+
+			if (request.Source != null || claimedManualRequests.Contains(request) == false)
 				return true;
 		}
 
 		return false;
+	}
+
+	public int AcceptPickingRequest(OrderLine orderLine, int quantity, out PickingRequest firstRequest)
+	{
+		return CanUseInventoryGuidance()
+			? AcceptLocatedPickingRequest(orderLine, quantity, out firstRequest)
+			: AcceptManualPickingRequest(orderLine, quantity, out firstRequest);
 	}
 
 	public bool AddReservedPickingRequest(OrderLine orderLine, ShelfBase source, int reservedQuantity, out PickingRequest request)
@@ -134,7 +155,8 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 	{
 		task = null;
 		uint targetBuildingId = BuildingId;
-		if (HasPendingCollect(targetBuildingId) == false)
+		if (preferredWorker == null ||
+			(TryClaimManualRequest(preferredWorker) == false && HasPendingLocatedRequest() == false))
 			return false;
 
 		ItemTransferJob job = new(
@@ -169,7 +191,13 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			return WorkPlanResult.Waiting;
 
 		if (HasReachedBoxFillLimit(box))
+		{
+			ReleaseManualSession(worker, keepRequest: true);
 			return WorkPlanResult.SwitchPhase;
+		}
+
+		if (manualSessions.TryGetValue(worker, out ManualPickingSession manualSession))
+			return TryGetManualCollectLine(worker, box, manualSession, out line);
 
 		if (requestSource.HasAny())
 		{
@@ -189,20 +217,15 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 
 	public WorkPlanResult OnCollectCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
 	{
+		if (line != null && line.ConsumeSourcePickReservation == false)
+			return OnManualCollectCompleted(worker, line, result);
+
 		ReleaseUnmovedReservation(line, result);
 
 		if (line == null || result.Moved <= 0)
 			return WorkPlanResult.Waiting;
 
-		OrderManager orderManager = GameContext.HasInstance ? GameContext.Instance.OrderMgr : null;
-		int pickedQuantity = orderManager != null
-			? orderManager.ReportPickingCompleted(line.RelatedOrderLine, result.Moved)
-			: 0;
-		if (pickedQuantity != result.Moved)
-			Debug.LogWarning($"[PickingPlanner] Pick progress mismatch. requested={result.Moved}, applied={pickedQuantity}");
-
-		OutboundWorkflowService outboundWorkflowService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
-		outboundWorkflowService?.AddPickedToManifest(worker?.CarryingAbility?.CarryingBox, line.RelatedOrderLine, line.ItemID, result.Moved);
+		ReportCollected(worker, line, result.Moved);
 
 		BoxBase box = worker?.CarryingAbility?.CarryingBox;
 		if (HasReachedBoxFillLimit(box))
@@ -216,8 +239,11 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		if (task == null)
 			return;
 
+		if (task.TryGetPreferredWorker(out AIWorker preferredWorker))
+			ReleaseManualSession(preferredWorker, keepRequest: true);
+
 		WorkLine line = task.Phase == ItemTransferPhase.Collect ? task.CurrentLine : null;
-		if (line != null)
+		if (line != null && line.ConsumeSourcePickReservation)
 		{
 			int remaining = Mathf.Max(0, line.Quantity - line.CompleteQuantity);
 			if (remaining > 0)
@@ -358,6 +384,296 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		return WorkPlanResult.Issued;
 	}
 
+	private int AcceptLocatedPickingRequest(OrderLine orderLine, int quantity, out PickingRequest firstRequest)
+	{
+		firstRequest = null;
+		if (BuildingId == 0 || orderLine == null || quantity <= 0 || orderLine.CanAllocatePicking == false)
+			return 0;
+
+		OrderManager orderManager = GameContext.HasInstance ? GameContext.Instance.OrderMgr : null;
+		ShelfStorageService storageService = GameContext.HasInstance ? GameContext.Instance.StorageService : null;
+		if (orderManager == null || storageService == null)
+			return 0;
+
+		int remaining = Mathf.Min(quantity, orderLine.GetPickingAllocatableQuantity());
+		int accepted = 0;
+		foreach (ShelfBase source in storageService.GetSources(BuildingId, orderLine.ItemID))
+		{
+			if (source == null || remaining <= 0)
+				continue;
+
+			int reserved = source.ReservePicking(orderLine.ItemID, remaining);
+			if (reserved <= 0)
+				continue;
+
+			int allocated = orderManager.AllocatePicking(orderLine, reserved);
+			if (allocated <= 0)
+			{
+				source.ReleaseReservedPick(orderLine.ItemID, reserved);
+				continue;
+			}
+
+			if (allocated < reserved)
+			{
+				source.ReleaseReservedPick(orderLine.ItemID, reserved - allocated);
+				reserved = allocated;
+			}
+
+			if (AddReservedPickingRequest(orderLine, source, reserved, out PickingRequest request) == false)
+			{
+				source.ReleaseReservedPick(orderLine.ItemID, reserved);
+				orderManager.ReleasePickingAllocation(orderLine, reserved);
+				continue;
+			}
+
+			firstRequest ??= request;
+			accepted += reserved;
+			remaining -= reserved;
+		}
+
+		return accepted;
+	}
+
+	private int AcceptManualPickingRequest(OrderLine orderLine, int quantity, out PickingRequest request)
+	{
+		request = null;
+		if (BuildingId == 0 || orderLine == null || quantity <= 0 || orderLine.CanAllocatePicking == false)
+			return 0;
+
+		OrderManager orderManager = GameContext.HasInstance ? GameContext.Instance.OrderMgr : null;
+		if (orderManager == null)
+			return 0;
+
+		int requested = Mathf.Min(quantity, orderLine.GetPickingAllocatableQuantity());
+		int allocated = orderManager.AllocatePicking(orderLine, requested);
+		if (allocated <= 0)
+			return 0;
+
+		request = requestSource.Add(orderLine, null, allocated);
+		if (request != null)
+			return allocated;
+
+		orderManager.ReleasePickingAllocation(orderLine, allocated);
+		return 0;
+	}
+
+	private bool TryClaimManualRequest(AIWorker worker)
+	{
+		if (worker == null)
+			return false;
+
+		if (manualSessions.ContainsKey(worker))
+			return true;
+
+		foreach (PickingRequest request in requestSource.GetRequests())
+		{
+			if (request == null ||
+				request.Source != null ||
+				request.GetAllocatableQuantity() <= 0 ||
+				claimedManualRequests.Add(request) == false)
+			{
+				continue;
+			}
+
+			manualSessions[worker] = new ManualPickingSession(request);
+			return true;
+		}
+
+		return false;
+	}
+
+	private WorkPlanResult TryGetManualCollectLine(
+		AIWorker worker,
+		BoxBase box,
+		ManualPickingSession session,
+		out WorkLine line)
+	{
+		line = null;
+		PickingRequest request = session?.Request;
+		if (request == null || request.GetAllocatableQuantity() <= 0)
+			return FinishManualScan(worker, box, session);
+
+		int quantity = box.GetAcceptableQuantity(request.ItemId, request.GetAllocatableQuantity());
+		if (quantity <= 0)
+		{
+			if (box.Stacks.Count > 0)
+			{
+				ReleaseManualSession(worker, keepRequest: true);
+				return WorkPlanResult.SwitchPhase;
+			}
+
+			return FinishManualScan(worker, box, session);
+		}
+
+		ShelfBase shelf = FindNextManualShelf(worker, session);
+		if (shelf == null)
+			return FinishManualScan(worker, box, session);
+
+		session.VisitedShelves.Add(shelf);
+		line = new WorkLine(
+			WorkLineAction.Pick,
+			shelf,
+			shelf,
+			request.ItemId,
+			quantity,
+			request.OrderLine,
+			consumeSourcePickReservation: false);
+		return WorkPlanResult.Issued;
+	}
+
+	private WorkPlanResult OnManualCollectCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
+	{
+		BoxBase box = worker?.CarryingAbility?.CarryingBox;
+		if (worker == null ||
+			manualSessions.TryGetValue(worker, out ManualPickingSession session) == false ||
+			session.Request == null)
+		{
+			return box != null && box.Stacks.Count > 0
+				? WorkPlanResult.SwitchPhase
+				: WorkPlanResult.Completed;
+		}
+
+		if (result.Moved > 0)
+		{
+			int applied = session.Request.ReportAllocated(result.Moved);
+			if (applied != result.Moved)
+				Debug.LogWarning($"[PickingPlanner] Manual pick request mismatch. moved={result.Moved}, applied={applied}");
+
+			ReportCollected(worker, line, result.Moved);
+		}
+
+		if (session.Request.IsComplete)
+		{
+			requestSource.Remove(session.Request);
+			ReleaseManualSession(worker, keepRequest: false);
+			return box != null && box.Stacks.Count > 0
+				? WorkPlanResult.SwitchPhase
+				: WorkPlanResult.Completed;
+		}
+
+		if (HasReachedBoxFillLimit(box))
+		{
+			ReleaseManualSession(worker, keepRequest: true);
+			return WorkPlanResult.SwitchPhase;
+		}
+
+		if (FindNextManualShelf(worker, session) != null)
+			return WorkPlanResult.Issued;
+
+		return FinishManualScan(worker, box, session);
+	}
+
+	private ShelfBase FindNextManualShelf(AIWorker worker, ManualPickingSession session)
+	{
+		if (worker == null || session == null || ownerBuilding?.ItemIndex == null)
+			return null;
+
+		ShelfBase bestShelf = null;
+		int bestDistance = int.MaxValue;
+		foreach (IItemContainer container in ownerBuilding.ItemIndex.Containers)
+		{
+			if (container is not ShelfBase shelf || session.VisitedShelves.Contains(shelf))
+				continue;
+
+			if (InteractionPointSelector.TryGetInteractionPoint(
+				shelf,
+				InteractionKind.Pick,
+				worker.GridPosition,
+				out _,
+				out int distance) == false ||
+				distance >= bestDistance)
+			{
+				continue;
+			}
+
+			bestShelf = shelf;
+			bestDistance = distance;
+		}
+
+		return bestShelf;
+	}
+
+	private WorkPlanResult FinishManualScan(AIWorker worker, BoxBase box, ManualPickingSession session)
+	{
+		PickingRequest request = session?.Request;
+		if (request != null)
+		{
+			int remaining = request.RemainingQuantity;
+			OrderManager orderManager = GameContext.HasInstance ? GameContext.Instance.OrderMgr : null;
+			int released = orderManager != null
+				? orderManager.ReleasePickingAllocation(request.OrderLine, remaining)
+				: 0;
+			if (orderManager != null && released != remaining)
+				Debug.LogWarning($"[PickingPlanner] Manual scan allocation rollback mismatch. requested={remaining}, released={released}");
+
+			request.ReleaseReserved(remaining);
+			requestSource.Remove(request);
+		}
+
+		ReleaseManualSession(worker, keepRequest: false);
+		return box != null && box.Stacks.Count > 0
+			? WorkPlanResult.SwitchPhase
+			: WorkPlanResult.Completed;
+	}
+
+	private bool ReleaseManualSession(AIWorker worker, bool keepRequest)
+	{
+		if (worker == null || manualSessions.Remove(worker, out ManualPickingSession session) == false)
+			return false;
+
+		if (session?.Request != null)
+			claimedManualRequests.Remove(session.Request);
+
+		if (keepRequest && session?.Request?.GetAllocatableQuantity() > 0)
+			MarkPickingDirty();
+
+		return true;
+	}
+
+	private bool HasPendingLocatedRequest()
+	{
+		foreach (PickingRequest request in requestSource.GetRequests())
+		{
+			if (request?.Source != null && request.GetAllocatableQuantity() > 0)
+				return true;
+		}
+
+		return false;
+	}
+
+	private bool CanUseInventoryGuidance()
+	{
+		return pickingPolicyType == PickingPolicyType.InventoryGuided &&
+			GameContext.HasInstance &&
+			GameContext.Instance.ResearchService?.IsResearched(ResearchIds.InventoryDigitization) == true;
+	}
+
+	private static void ReportCollected(AIWorker worker, WorkLine line, int moved)
+	{
+		if (line == null || moved <= 0)
+			return;
+
+		OrderManager orderManager = GameContext.HasInstance ? GameContext.Instance.OrderMgr : null;
+		int pickedQuantity = orderManager != null
+			? orderManager.ReportPickingCompleted(line.RelatedOrderLine, moved)
+			: 0;
+		if (pickedQuantity != moved)
+			Debug.LogWarning($"[PickingPlanner] Pick progress mismatch. requested={moved}, applied={pickedQuantity}");
+
+		OutboundWorkflowService outboundWorkflowService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
+		outboundWorkflowService?.AddPickedToManifest(
+			worker?.CarryingAbility?.CarryingBox,
+			line.RelatedOrderLine,
+			line.ItemID,
+			moved);
+	}
+
+	private void MarkPickingDirty()
+	{
+		if (BuildingId != 0 && GameContext.HasInstance)
+			GameContext.Instance.ItemTransferTaskScheduler?.MarkDirty(BuildingId, ItemTransferScheduleMode.Picking);
+	}
+
 	private bool HasReachedBoxFillLimit(BoxBase box)
 	{
 		if (box == null || box.MaxSize <= 0.0f)
@@ -484,7 +800,9 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 
 	private static void ReleaseUnmovedReservation(WorkLine line, ItemTransferResult result)
 	{
-		if (line?.Container is not IItemPickReservable reservable)
+		if (line == null ||
+			line.ConsumeSourcePickReservation == false ||
+			line.Container is not IItemPickReservable reservable)
 			return;
 
 		int remainingReservation = Mathf.Max(0, line.Quantity - result.Moved);
@@ -513,6 +831,17 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			: 0;
 		if (manifestMoved != moved)
 			Debug.LogWarning($"[PickingPlanner] Picking manifest place mismatch. item={placeLine.ItemID}, moved={moved}, manifestMoved={manifestMoved}");
+	}
+
+	private sealed class ManualPickingSession
+	{
+		public readonly PickingRequest Request;
+		public readonly HashSet<ShelfBase> VisitedShelves = new();
+
+		public ManualPickingSession(PickingRequest request)
+		{
+			Request = request;
+		}
 	}
 
 	private sealed class PickingRequestSource

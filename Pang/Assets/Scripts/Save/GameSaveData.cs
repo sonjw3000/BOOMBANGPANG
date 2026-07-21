@@ -118,14 +118,17 @@ public sealed class WorkerPolicyTypeFloatSaveData
 public sealed class InboundWorkflowPolicySaveData
 {
 	public CollectingPolicyType StoringCollectingPolicy = CollectingPolicyType.Nearest;
-	public PlacingPolicyType StoringPlacingPolicy = PlacingPolicyType.BelowAverageFilledNearest;
+	public PlacingPolicyType StoringPlacingPolicy = PlacingPolicyType.Nearest;
+	public float StoringBoxFillLimitPercent = 80.0f;
 	public uint UnloadingDestinationBuildingId;
 }
 
 [Serializable]
 public sealed class OutboundWorkflowPolicySaveData
 {
+	public PickingPolicyType PickingPolicy = PickingPolicyType.ManualShelfScan;
 	public CollectingPolicyType PickingCollectingPolicy = CollectingPolicyType.Nearest;
+	public float PickingBoxFillLimitPercent = 80.0f;
 	public uint LoadingDestinationBuildingId;
 }
 

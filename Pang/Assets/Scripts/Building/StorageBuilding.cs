@@ -15,7 +15,8 @@ public sealed class StorageBuilding : Building
 		pickingPlanner = new PickingPlanner(
 			this,
 			outbound != null ? outbound.PickingBoxFillLimitPercent : 80.0f,
-			outbound != null ? outbound.PickingCollectingPolicyType : CollectingPolicyType.Nearest);
+			outbound != null ? outbound.PickingCollectingPolicyType : CollectingPolicyType.Nearest,
+			outbound != null ? outbound.PickingPolicyType : PickingPolicyType.ManualShelfScan);
 	}
 
 	public bool TryAcceptPickingRequest(OrderLine orderLine, int quantity, out PickingRequest request)
@@ -33,45 +34,7 @@ public sealed class StorageBuilding : Building
 		if (RuntimeBuildingId == 0 || orderLine == null || quantity <= 0 || orderLine.CanAllocatePicking == false)
 			return 0;
 
-		OrderManager orderManager = GameContext.Instance.OrderMgr;
-		if (orderManager == null)
-			return 0;
-
-		int remaining = UnityEngine.Mathf.Min(quantity, orderLine.GetPickingAllocatableQuantity());
-		int accepted = 0;
-		foreach (ShelfBase source in GameContext.Instance.StorageService.GetSources(RuntimeBuildingId, orderLine.ItemID))
-		{
-			if (source == null || remaining <= 0)
-				continue;
-
-			int reserved = source.ReservePicking(orderLine.ItemID, remaining);
-			if (reserved <= 0)
-				continue;
-
-			int allocated = orderManager.AllocatePicking(orderLine, reserved);
-			if (allocated <= 0)
-			{
-				source.ReleaseReservedPick(orderLine.ItemID, reserved);
-				continue;
-			}
-
-			if (allocated < reserved)
-			{
-				source.ReleaseReservedPick(orderLine.ItemID, reserved - allocated);
-				reserved = allocated;
-			}
-
-			if (pickingPlanner.AddReservedPickingRequest(orderLine, source, reserved, out PickingRequest request) == false)
-			{
-				source.ReleaseReservedPick(orderLine.ItemID, reserved);
-				orderManager.ReleasePickingAllocation(orderLine, reserved);
-				continue;
-			}
-
-			firstRequest ??= request;
-			accepted += reserved;
-			remaining -= reserved;
-		}
+		int accepted = pickingPlanner.AcceptPickingRequest(orderLine, quantity, out firstRequest);
 
 		if (accepted > 0)
 			Scheduler?.MarkDirty(RuntimeBuildingId, ItemTransferScheduleMode.Picking);

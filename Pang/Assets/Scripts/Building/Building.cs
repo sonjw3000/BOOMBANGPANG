@@ -125,8 +125,32 @@ public class Building
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private OutboundWorkflowService OutboundWorkflowService => GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
 
-	public void SetOverrideCapsuleThreshold(bool value) => overrideCapsuleThreshold = value;
-	public void SetCapsuleThresholdPercent(float value) => capsuleThresholdPercent = UnityEngine.Mathf.Clamp(value, 0.0f, 100.0f);
+	public bool CanControlCapsuleThreshold()
+	{
+		return GameContext.HasInstance &&
+			GameContext.Instance.ResearchService?.IsResearched(ResearchIds.WorkflowPolicyOptimization) == true;
+	}
+
+	public bool TrySetOverrideCapsuleThreshold(bool value)
+	{
+		if (CanControlCapsuleThreshold() == false)
+			return false;
+
+		SetOverrideCapsuleThreshold(value);
+		return true;
+	}
+
+	public bool TrySetCapsuleThresholdPercent(float value)
+	{
+		if (CanControlCapsuleThreshold() == false || overrideCapsuleThreshold == false)
+			return false;
+
+		SetCapsuleThresholdPercent(value);
+		return true;
+	}
+
+	internal void SetOverrideCapsuleThreshold(bool value) => overrideCapsuleThreshold = value;
+	internal void SetCapsuleThresholdPercent(float value) => capsuleThresholdPercent = UnityEngine.Mathf.Clamp(value, 0.0f, 100.0f);
 	internal void AssignRuntimeBuildingId(uint id) => runtimeBuildingId = id;
 	internal void SetRegistered(bool registered)
 	{
