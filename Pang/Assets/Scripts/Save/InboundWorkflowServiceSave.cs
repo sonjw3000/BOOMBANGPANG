@@ -13,10 +13,14 @@ public partial class InboundWorkflowService
 	public void RestorePolicyState(InboundWorkflowPolicySaveData data)
 	{
 		CollectingPolicyType collectingPolicyType = data != null ? data.StoringCollectingPolicy : DefaultCollectingPolicyType;
-		PlacingPolicyType policyType = data != null ? data.StoringPlacingPolicy : DefaultPlacingPolicyType;
+		PlacingPolicyType placingPolicyType = data != null ? data.StoringPlacingPolicy : DefaultPlacingPolicyType;
+		if (collectingPolicyType != DefaultCollectingPolicyType && CanUseStoringCollectingPolicy(collectingPolicyType) == false)
+			collectingPolicyType = DefaultCollectingPolicyType;
+		if (placingPolicyType != DefaultPlacingPolicyType && CanUseStoringPlacingPolicy(placingPolicyType) == false)
+			placingPolicyType = DefaultPlacingPolicyType;
 		unloadingDestinationBuildingId = data != null ? data.UnloadingDestinationBuildingId : 0;
 		SetStoringCollectingPolicy(collectingPolicyType);
-		SetStoringPlacingPolicy(policyType);
+		SetStoringPlacingPolicy(placingPolicyType);
 	}
 
 	public void ResetRuntimeState()

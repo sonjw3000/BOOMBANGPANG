@@ -8,7 +8,6 @@ using static WorkerTask;
 
 public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 {
-	private const string InventoryDigitizationResearchId = "inventory_digitization";
 	private const PickingPolicyType DefaultPickingPolicyType = PickingPolicyType.ManualShelfScan;
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
 
@@ -151,10 +150,12 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	public bool CanUsePickingPolicy(PickingPolicyType policyType)
 	{
+		if (IsResearchCompleted(ResearchIds.WorkflowPolicyManagement) == false)
+			return false;
+
 		return policyType == PickingPolicyType.ManualShelfScan ||
 			(policyType == PickingPolicyType.InventoryGuided &&
-			 GameContext.HasInstance &&
-			 GameContext.Instance.ResearchService?.IsResearched(InventoryDigitizationResearchId) == true);
+			 IsResearchCompleted(ResearchIds.InventoryDigitization));
 	}
 
 	public bool TrySetPickingPolicy(PickingPolicyType policyType)
@@ -192,6 +193,31 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			if (buildings[i] is StorageBuilding storageBuilding)
 				storageBuilding.PickingPlanner?.SetCollectingPolicy(policyType);
 		}
+	}
+
+	public bool CanUsePickingCollectingPolicy(CollectingPolicyType policyType)
+	{
+		if (IsResearchCompleted(ResearchIds.WorkflowPolicyManagement) == false)
+			return false;
+
+		return policyType == CollectingPolicyType.Nearest ||
+			(policyType == CollectingPolicyType.LargestQuantityNearest &&
+			 IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization));
+	}
+
+	public bool TrySetPickingCollectingPolicy(CollectingPolicyType policyType)
+	{
+		if (CanUsePickingCollectingPolicy(policyType) == false)
+			return false;
+
+		SetPickingCollectingPolicy(policyType);
+		return true;
+	}
+
+	private static bool IsResearchCompleted(string researchId)
+	{
+		return GameContext.HasInstance &&
+			GameContext.Instance.ResearchService?.IsResearched(researchId) == true;
 	}
 
 	public bool TryGetLoadingDestinationBuilding(out Building building)

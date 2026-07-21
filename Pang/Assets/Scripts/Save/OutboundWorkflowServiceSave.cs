@@ -16,10 +16,14 @@ public partial class OutboundWorkflowService
 	public void RestorePolicyState(OutboundWorkflowPolicySaveData data)
 	{
 		PickingPolicyType pickingPolicyType = data != null ? data.PickingPolicy : DefaultPickingPolicyType;
-		CollectingPolicyType policyType = data != null ? data.PickingCollectingPolicy : DefaultCollectingPolicyType;
+		CollectingPolicyType collectingPolicyType = data != null ? data.PickingCollectingPolicy : DefaultCollectingPolicyType;
+		if (pickingPolicyType != DefaultPickingPolicyType && CanUsePickingPolicy(pickingPolicyType) == false)
+			pickingPolicyType = DefaultPickingPolicyType;
+		if (collectingPolicyType != DefaultCollectingPolicyType && CanUsePickingCollectingPolicy(collectingPolicyType) == false)
+			collectingPolicyType = DefaultCollectingPolicyType;
 		loadingDestinationBuildingId = data != null ? data.LoadingDestinationBuildingId : 0;
 		SetPickingPolicy(pickingPolicyType);
-		SetPickingCollectingPolicy(policyType);
+		SetPickingCollectingPolicy(collectingPolicyType);
 	}
 
 	public OutboundPickingManifestSaveData CapturePickingManifestState(Func<OrderLine, int> registerOrderLine)

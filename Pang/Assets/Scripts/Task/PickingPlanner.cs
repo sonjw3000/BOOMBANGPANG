@@ -56,7 +56,6 @@ public sealed class PickingRequest
 
 public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInvalidationHandler
 {
-	private const string InventoryDigitizationResearchId = "inventory_digitization";
 	private static int jobID = 1;
 
 	private readonly StorageBuilding ownerBuilding;
@@ -646,7 +645,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 	{
 		return pickingPolicyType == PickingPolicyType.InventoryGuided &&
 			GameContext.HasInstance &&
-			GameContext.Instance.ResearchService?.IsResearched(InventoryDigitizationResearchId) == true;
+			GameContext.Instance.ResearchService?.IsResearched(ResearchIds.InventoryDigitization) == true;
 	}
 
 	private static void ReportCollected(AIWorker worker, WorkLine line, int moved)

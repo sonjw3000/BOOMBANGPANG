@@ -5,6 +5,9 @@
 			<ui:VisualElement class="workflow-tabs__separator" picking-mode="Ignore" />
 			<ui:Button name="workflow-inbound-button" text="Inbound" class="workflow-tab-button" />
 			<ui:Button name="workflow-outbound-button" text="Outbound" class="workflow-tab-button" />
+			<ui:VisualElement name="workflow-policy-button-control" class="workflow-tab-control">
+				<ui:Button name="workflow-policy-button" text="Policy" class="workflow-tab-button" />
+			</ui:VisualElement>
 		</ui:VisualElement>
 		<ui:ScrollView name="workflow-inbound-tab" class="workflow-tab">
 			<ui:VisualElement class="workflow-section-toolbar">
@@ -26,9 +29,6 @@
 				</ui:VisualElement>
 				<ui:Button name="workflow-link-landing-area-button" text="Link" class="workflow-action-button" />
 			</ui:VisualElement>
-			<ui:Label text="STORING POLICY" class="workflow-section-label" />
-			<ui:DropdownField name="workflow-collecting-policy" label="Capsule collecting" class="workflow-policy-field" />
-			<ui:DropdownField name="workflow-placing-policy" label="Shelf placing" class="workflow-policy-field" />
 		</ui:ScrollView>
 		<ui:VisualElement name="workflow-outbound-tab" class="workflow-tab">
 			<ui:Label text="Outbound Workflow" class="workflow-heading" />
@@ -40,12 +40,26 @@
 				</ui:VisualElement>
 				<ui:Button name="workflow-link-outbound-destination-button" text="Link" class="workflow-action-button" />
 			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:ScrollView name="workflow-policy-tab" class="workflow-tab">
+			<ui:Label text="Workflow Policy" class="workflow-heading" />
+			<ui:Label text="Choose how workers collect, route, and place cargo." class="workflow-caption" />
+			<ui:Label text="STORING POLICY" class="workflow-section-label" />
+			<ui:VisualElement name="workflow-collecting-policy-control">
+				<ui:DropdownField name="workflow-collecting-policy" label="Capsule collecting" class="workflow-policy-field" />
+			</ui:VisualElement>
+			<ui:VisualElement name="workflow-placing-policy-control">
+				<ui:DropdownField name="workflow-placing-policy" label="Shelf placing" class="workflow-policy-field" />
+			</ui:VisualElement>
 			<ui:Label text="PICKING POLICY" class="workflow-section-label" />
 			<ui:VisualElement name="workflow-picking-policy-control">
 				<ui:DropdownField name="workflow-picking-policy" label="Picking method" class="workflow-policy-field" />
 			</ui:VisualElement>
+			<ui:VisualElement name="workflow-picking-collecting-policy-control">
+				<ui:DropdownField name="workflow-picking-collecting-policy" label="Guided source priority" class="workflow-policy-field" />
+			</ui:VisualElement>
 			<ui:Label text="Inventory-guided picking requires Inventory Digitization research." class="workflow-caption" />
-		</ui:VisualElement>
+		</ui:ScrollView>
 		<ui:Label name="workflow-message" text="" class="workflow-message" />
 	</ui:VisualElement>
 </ui:UXML>

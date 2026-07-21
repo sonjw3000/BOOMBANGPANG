@@ -15,7 +15,7 @@ using UnityEngine.Serialization;
 public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 {
 	private const CollectingPolicyType DefaultCollectingPolicyType = CollectingPolicyType.Nearest;
-	private const PlacingPolicyType DefaultPlacingPolicyType = PlacingPolicyType.BelowAverageFilledNearest;
+	private const PlacingPolicyType DefaultPlacingPolicyType = PlacingPolicyType.Nearest;
 
 	[SerializeField] private InboundRequestService requestService;
 	[FormerlySerializedAs("zoneManager")]
@@ -93,6 +93,25 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		storingPlanner.SetCollectingPolicy(policyType);
 	}
 
+	public bool CanUseStoringCollectingPolicy(CollectingPolicyType policyType)
+	{
+		if (IsResearchCompleted(ResearchIds.WorkflowPolicyManagement) == false)
+			return false;
+
+		return policyType == CollectingPolicyType.Nearest ||
+			(policyType == CollectingPolicyType.LargestQuantityNearest &&
+			 IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization));
+	}
+
+	public bool TrySetStoringCollectingPolicy(CollectingPolicyType policyType)
+	{
+		if (CanUseStoringCollectingPolicy(policyType) == false)
+			return false;
+
+		SetStoringCollectingPolicy(policyType);
+		return true;
+	}
+
 	public void SetStoringPlacingPolicy(PlacingPolicyType policyType)
 	{
 		defaultStoringPlacingPolicyType = policyType;
@@ -100,6 +119,31 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			return;
 
 		storingPlanner.SetPlacingPolicy(policyType);
+	}
+
+	public bool CanUseStoringPlacingPolicy(PlacingPolicyType policyType)
+	{
+		if (IsResearchCompleted(ResearchIds.WorkflowPolicyManagement) == false)
+			return false;
+
+		return policyType == PlacingPolicyType.Nearest ||
+			(policyType == PlacingPolicyType.BelowAverageFilledNearest &&
+			 IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization));
+	}
+
+	public bool TrySetStoringPlacingPolicy(PlacingPolicyType policyType)
+	{
+		if (CanUseStoringPlacingPolicy(policyType) == false)
+			return false;
+
+		SetStoringPlacingPolicy(policyType);
+		return true;
+	}
+
+	private static bool IsResearchCompleted(string researchId)
+	{
+		return GameContext.HasInstance &&
+			GameContext.Instance.ResearchService?.IsResearched(researchId) == true;
 	}
 
 	public void OnTaskCompleted(WorkerTask task)

@@ -201,11 +201,11 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.AreaMgr.RestoreState(data.Areas);
 		Ctx.FacilityRuleMgr.RestoreState(data.FacilityRules);
 		Ctx.WMSys.WorkPolicyService.RestoreState(data.Policy != null ? data.Policy.WorkSpeed : null);
-		Ctx.IBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);
-		Ctx.OBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.OutboundWorkApproach : null);
 		Ctx.GameTime.RestoreState(data.Time);
 		Ctx.EconomyService.RestoreState(data.Economy);
 		Ctx.ResearchService.RestoreState(data.Research);
+		Ctx.IBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);
+		Ctx.OBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.OutboundWorkApproach : null);
 		Ctx.LicenseService.RestoreState(data.Licenses);
 		Ctx.ContractMgr.RestoreState(data.Contracts);
 		Ctx.VendorService.RestoreState(data.Vendors);

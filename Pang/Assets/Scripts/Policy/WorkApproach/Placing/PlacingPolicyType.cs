@@ -10,12 +10,12 @@ public static class PlacingPolicyFactory
 	{
 		switch (type)
 		{
-			case PlacingPolicyType.Nearest:
-				return new NearestPlacingPolicy();
-
 			case PlacingPolicyType.BelowAverageFilledNearest:
-			default:
 				return new BelowAverageFilledNearestPlacingPolicy();
+
+			case PlacingPolicyType.Nearest:
+			default:
+				return new NearestPlacingPolicy();
 		}
 	}
 }

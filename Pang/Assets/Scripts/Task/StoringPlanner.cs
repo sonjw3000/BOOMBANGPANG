@@ -21,7 +21,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 	public StoringPlanner(
 		CapsuleBufferService capsuleBufferService,
 		CollectingPolicyType collectingPolicyType = CollectingPolicyType.Nearest,
-		PlacingPolicyType placingPolicyType = PlacingPolicyType.BelowAverageFilledNearest,
+		PlacingPolicyType placingPolicyType = PlacingPolicyType.Nearest,
 		float boxFillLimitPercent = 80.0f)
 	{
 		this.capsuleBufferService = capsuleBufferService;

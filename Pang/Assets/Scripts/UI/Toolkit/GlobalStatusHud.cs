@@ -6,7 +6,6 @@ namespace UniverseLogistics.UI.Toolkit
 {
 	public sealed class GlobalStatusHud : MonoBehaviour
 	{
-		private const string InventoryDigitizationResearchId = "inventory_digitization";
 		private const string DocumentObjectName = "GlobalStatusHudDocument";
 		private const string TooltipDocumentObjectName = "UITooltipDocument";
 		private const string HistoryDocumentObjectName = "GlobalHistoryWindowDocument";
@@ -819,7 +818,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private bool IsInventoryManagementUnlocked()
 		{
-			return researchService?.IsResearched(InventoryDigitizationResearchId) == true;
+			return researchService?.IsResearched(ResearchIds.InventoryDigitization) == true;
 		}
 
 		private UITooltipContent BuildInventoryTooltip()
@@ -829,8 +828,8 @@ namespace UniverseLogistics.UI.Toolkit
 			if (IsInventoryManagementUnlocked())
 				return UITooltipContent.DescriptionOnly(title, description);
 
-			string researchName = InventoryDigitizationResearchId;
-			if (researchService?.Catalog?.TryGet(InventoryDigitizationResearchId, out ResearchDefinition definition) == true)
+			string researchName = ResearchIds.InventoryDigitization;
+			if (researchService?.Catalog?.TryGet(ResearchIds.InventoryDigitization, out ResearchDefinition definition) == true)
 				researchName = definition.DisplayName;
 
 			return UITooltipContent.Locked(title, description, $"Required research: {researchName}");

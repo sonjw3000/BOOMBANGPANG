@@ -117,7 +117,7 @@ public sealed class WorkerPolicyTypeFloatSaveData
 public sealed class InboundWorkflowPolicySaveData
 {
 	public CollectingPolicyType StoringCollectingPolicy = CollectingPolicyType.Nearest;
-	public PlacingPolicyType StoringPlacingPolicy = PlacingPolicyType.BelowAverageFilledNearest;
+	public PlacingPolicyType StoringPlacingPolicy = PlacingPolicyType.Nearest;
 	public uint UnloadingDestinationBuildingId;
 }
 
