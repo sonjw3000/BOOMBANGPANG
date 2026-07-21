@@ -388,6 +388,8 @@
 .selection-card__section-title--actions { margin-top: 5px; }
 .selection-card__overview-list { min-height: 60px; }
 .selection-card__context-actions { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; min-height: 25px; }
+.selection-card__context-button-control { height: 24px; min-width: 82px; margin-left: 4px; margin-bottom: 4px; }
+.selection-card__context-button-control .selection-card__context-button { height: 24px; min-width: 82px; margin-left: 0; margin-bottom: 0; }
 .selection-card__context-button { height: 24px; min-width: 82px; margin-left: 4px; margin-bottom: 4px; padding-left: 8px; padding-right: 8px; font-size: 8px; -unity-font-style: bold; color: rgb(208, 224, 230); background-color: rgb(30, 47, 61); border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; border-top-color: rgb(58, 89, 105); border-right-color: rgb(58, 89, 105); border-bottom-color: rgb(58, 89, 105); border-left-color: rgb(58, 89, 105); }
 .selection-card__context-button:hover { background-color: rgb(43, 75, 91); border-top-color: rgb(77, 173, 200); border-right-color: rgb(77, 173, 200); border-bottom-color: rgb(77, 173, 200); border-left-color: rgb(77, 173, 200); }
 .selection-card__context-button--danger { color: rgb(238, 177, 164); background-color: rgb(71, 39, 39); border-top-color: rgb(122, 63, 58); border-right-color: rgb(122, 63, 58); border-bottom-color: rgb(122, 63, 58); border-left-color: rgb(122, 63, 58); }

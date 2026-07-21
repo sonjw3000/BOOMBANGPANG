@@ -27,9 +27,10 @@ namespace UniverseLogistics.UI.Toolkit
 			OverviewRows.Add(new SelectionInspectorRow(label, getValue));
 		}
 
-		public void AddAction(string label, Action execute, Func<bool> canExecute = null, bool isDangerous = false)
+		public void AddAction(string label, Action execute, Func<bool> canExecute = null, bool isDangerous = false,
+			Func<UITooltipContent> tooltip = null)
 		{
-			Actions.Add(new SelectionInspectorAction(label, execute, canExecute, isDangerous));
+			Actions.Add(new SelectionInspectorAction(label, execute, canExecute, isDangerous, tooltip));
 		}
 
 		public void AddTab(string label, Func<int> getContentVersion, Func<SelectionDetailPanelModel> buildContent)
@@ -64,6 +65,7 @@ namespace UniverseLogistics.UI.Toolkit
 		public float SliderHighValue { get; set; } = 100.0f;
 		public bool SliderEnabled { get; set; } = true;
 		public Action<float> SliderChanged { get; set; }
+		public Func<UITooltipContent> SliderTooltip { get; set; }
 	}
 
 	public sealed class SelectionDetailRow
@@ -164,13 +166,16 @@ namespace UniverseLogistics.UI.Toolkit
 		public Action Execute { get; }
 		public Func<bool> CanExecute { get; }
 		public bool IsDangerous { get; }
+		public Func<UITooltipContent> Tooltip { get; }
 
-		public SelectionInspectorAction(string label, Action execute, Func<bool> canExecute, bool isDangerous)
+		public SelectionInspectorAction(string label, Action execute, Func<bool> canExecute, bool isDangerous,
+			Func<UITooltipContent> tooltip)
 		{
 			Label = label;
 			Execute = execute;
 			CanExecute = canExecute;
 			IsDangerous = isDangerous;
+			Tooltip = tooltip;
 		}
 	}
 
@@ -438,7 +443,18 @@ namespace UniverseLogistics.UI.Toolkit
 				button.AddToClassList("selection-card__context-button");
 				if (inspectorAction.IsDangerous)
 					button.AddToClassList("selection-card__context-button--danger");
-				contextActions.Add(button);
+				if (inspectorAction.Tooltip != null)
+				{
+					VisualElement control = new();
+					control.AddToClassList("selection-card__context-button-control");
+					control.SetTooltip(inspectorAction.Tooltip);
+					control.Add(button);
+					contextActions.Add(control);
+				}
+				else
+				{
+					contextActions.Add(button);
+				}
 				inspectorActions.Add(new InspectorActionBinding { Action = inspectorAction, Button = button });
 			}
 			CalculateExpandedSize();
@@ -539,6 +555,7 @@ namespace UniverseLogistics.UI.Toolkit
 				activeDetailModel?.SliderChanged?.Invoke(evt.newValue);
 				detailSliderValue.text = $"{evt.newValue:0}%";
 			});
+			detailSliderControl.SetTooltip(() => activeDetailModel?.SliderTooltip?.Invoke() ?? default);
 		}
 
 		private void ToggleDetailTab(int tabIndex)

@@ -39,10 +39,16 @@ namespace UniverseLogistics.UI.Toolkit
 		private DropdownField collectingPolicyField;
 		private VisualElement placingPolicyControl;
 		private DropdownField placingPolicyField;
+		private VisualElement storingBoxFillControl;
+		private Slider storingBoxFillSlider;
+		private Label storingBoxFillValue;
 		private VisualElement pickingPolicyControl;
 		private DropdownField pickingPolicyField;
 		private VisualElement pickingCollectingPolicyControl;
 		private DropdownField pickingCollectingPolicyField;
+		private VisualElement pickingBoxFillControl;
+		private Slider pickingBoxFillSlider;
+		private Label pickingBoxFillValue;
 		private Button linkOutboundDestinationButton;
 		private Label loadingDestinationSummary;
 		private Label messageLabel;
@@ -116,10 +122,16 @@ namespace UniverseLogistics.UI.Toolkit
 			collectingPolicyField = content.Q<DropdownField>("workflow-collecting-policy");
 			placingPolicyControl = content.Q<VisualElement>("workflow-placing-policy-control");
 			placingPolicyField = content.Q<DropdownField>("workflow-placing-policy");
+			storingBoxFillControl = content.Q<VisualElement>("workflow-storing-box-fill-control");
+			storingBoxFillSlider = content.Q<Slider>("workflow-storing-box-fill");
+			storingBoxFillValue = content.Q<Label>("workflow-storing-box-fill-value");
 			pickingPolicyControl = content.Q<VisualElement>("workflow-picking-policy-control");
 			pickingPolicyField = content.Q<DropdownField>("workflow-picking-policy");
 			pickingCollectingPolicyControl = content.Q<VisualElement>("workflow-picking-collecting-policy-control");
 			pickingCollectingPolicyField = content.Q<DropdownField>("workflow-picking-collecting-policy");
+			pickingBoxFillControl = content.Q<VisualElement>("workflow-picking-box-fill-control");
+			pickingBoxFillSlider = content.Q<Slider>("workflow-picking-box-fill");
+			pickingBoxFillValue = content.Q<Label>("workflow-picking-box-fill-value");
 			linkOutboundDestinationButton = content.Q<Button>("workflow-link-outbound-destination-button");
 			loadingDestinationSummary = content.Q<Label>("workflow-loading-destination");
 			messageLabel = content.Q<Label>("workflow-message");
@@ -129,8 +141,10 @@ namespace UniverseLogistics.UI.Toolkit
 				addLandingAreaButton == null || linkLandingAreaButton == null || landingAreaList == null ||
 				landingAreaEmpty == null || unloadingDestinationSummary == null || collectingPolicyControl == null ||
 				collectingPolicyField == null || placingPolicyControl == null || placingPolicyField == null ||
+				storingBoxFillControl == null || storingBoxFillSlider == null || storingBoxFillValue == null ||
 				pickingPolicyControl == null || pickingPolicyField == null ||
 				pickingCollectingPolicyControl == null || pickingCollectingPolicyField == null ||
+				pickingBoxFillControl == null || pickingBoxFillSlider == null || pickingBoxFillValue == null ||
 				linkOutboundDestinationButton == null || loadingDestinationSummary == null ||
 				messageLabel == null)
 			{
@@ -140,8 +154,10 @@ namespace UniverseLogistics.UI.Toolkit
 
 			collectingPolicyControl.SetTooltip(BuildStoringCollectingPolicyTooltip);
 			placingPolicyControl.SetTooltip(BuildStoringPlacingPolicyTooltip);
+			storingBoxFillControl.SetTooltip(BuildStoringBoxFillTooltip);
 			pickingPolicyControl.SetTooltip(BuildPickingPolicyTooltip);
 			pickingCollectingPolicyControl.SetTooltip(BuildPickingCollectingPolicyTooltip);
+			pickingBoxFillControl.SetTooltip(BuildPickingBoxFillTooltip);
 			policyButtonControl.SetTooltip(BuildPolicyTabTooltip);
 			window.SetTitle("Workflow Management");
 			window.SetContent(content);
@@ -155,6 +171,8 @@ namespace UniverseLogistics.UI.Toolkit
 			placingPolicyField.RegisterValueChangedCallback(OnPlacingPolicyChanged);
 			pickingPolicyField.RegisterValueChangedCallback(OnPickingPolicyChanged);
 			pickingCollectingPolicyField.RegisterValueChangedCallback(OnPickingCollectingPolicyChanged);
+			storingBoxFillSlider.RegisterValueChangedCallback(OnStoringBoxFillChanged);
+			pickingBoxFillSlider.RegisterValueChangedCallback(OnPickingBoxFillChanged);
 			initialized = true;
 			SelectTab(WorkflowTab.Inbound);
 			return true;
@@ -172,6 +190,8 @@ namespace UniverseLogistics.UI.Toolkit
 			placingPolicyField?.UnregisterValueChangedCallback(OnPlacingPolicyChanged);
 			pickingPolicyField?.UnregisterValueChangedCallback(OnPickingPolicyChanged);
 			pickingCollectingPolicyField?.UnregisterValueChangedCallback(OnPickingCollectingPolicyChanged);
+			storingBoxFillSlider?.UnregisterValueChangedCallback(OnStoringBoxFillChanged);
+			pickingBoxFillSlider?.UnregisterValueChangedCallback(OnPickingBoxFillChanged);
 		}
 
 		private void BindServices()
@@ -373,6 +393,16 @@ namespace UniverseLogistics.UI.Toolkit
 			pickingPolicyField.SetEnabled(policyUnlocked && pickingPolicies.Count > 1);
 			pickingCollectingPolicyField.SetEnabled(
 				policyUnlocked && currentPickingPolicy == PickingPolicyType.InventoryGuided && pickingCollectingPolicies.Count > 1);
+
+			float storingBoxFill = inboundWorkflow != null ? inboundWorkflow.StoringBoxFillLimitPercent : 80.0f;
+			storingBoxFillSlider.SetValueWithoutNotify(storingBoxFill);
+			storingBoxFillValue.text = $"{storingBoxFill:0}%";
+			storingBoxFillSlider.SetEnabled(optimizationUnlocked);
+
+			float pickingBoxFill = outboundWorkflow != null ? outboundWorkflow.PickingBoxFillLimitPercent : 80.0f;
+			pickingBoxFillSlider.SetValueWithoutNotify(pickingBoxFill);
+			pickingBoxFillValue.text = $"{pickingBoxFill:0}%";
+			pickingBoxFillSlider.SetEnabled(optimizationUnlocked);
 		}
 
 		private void BeginLandingAreaCreation()
@@ -473,6 +503,34 @@ namespace UniverseLogistics.UI.Toolkit
 			RejectPolicyChange();
 		}
 
+		private void OnStoringBoxFillChanged(ChangeEvent<float> evt)
+		{
+			float value = Mathf.Round(evt.newValue);
+			if (inboundWorkflow?.TrySetStoringBoxFillLimitPercent(value) == true)
+			{
+				storingBoxFillSlider.SetValueWithoutNotify(value);
+				storingBoxFillValue.text = $"{value:0}%";
+				messageLabel.text = string.Empty;
+				return;
+			}
+
+			RejectPolicyChange();
+		}
+
+		private void OnPickingBoxFillChanged(ChangeEvent<float> evt)
+		{
+			float value = Mathf.Round(evt.newValue);
+			if (outboundWorkflow?.TrySetPickingBoxFillLimitPercent(value) == true)
+			{
+				pickingBoxFillSlider.SetValueWithoutNotify(value);
+				pickingBoxFillValue.text = $"{value:0}%";
+				messageLabel.text = string.Empty;
+				return;
+			}
+
+			RejectPolicyChange();
+		}
+
 		private void OnAreaChanged(Area area)
 		{
 			RefreshLandingAreas();
@@ -521,6 +579,16 @@ namespace UniverseLogistics.UI.Toolkit
 					"Additional policy requires: Workflow Policy Optimization");
 		}
 
+		private UITooltipContent BuildStoringBoxFillTooltip()
+		{
+			const string title = "Storing box fill limit";
+			const string description = "Stop adding new storing work to a box after it reaches this fill percentage.";
+			return IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization)
+				? UITooltipContent.DescriptionOnly(title, description)
+				: UITooltipContent.Locked(title, description,
+					"Required research: Workflow Policy Optimization");
+		}
+
 		private UITooltipContent BuildPickingPolicyTooltip()
 		{
 			const string title = "Picking method";
@@ -541,6 +609,16 @@ namespace UniverseLogistics.UI.Toolkit
 				? UITooltipContent.DescriptionOnly(title, description)
 				: new UITooltipContent(title, description,
 					"Additional policy requires: Workflow Policy Optimization");
+		}
+
+		private UITooltipContent BuildPickingBoxFillTooltip()
+		{
+			const string title = "Picking box fill limit";
+			const string description = "Stop adding new picking work to a box after it reaches this fill percentage.";
+			return IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization)
+				? UITooltipContent.DescriptionOnly(title, description)
+				: UITooltipContent.Locked(title, description,
+					"Required research: Workflow Policy Optimization");
 		}
 
 		private bool IsResearchCompleted(string researchId)

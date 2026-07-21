@@ -6,6 +6,7 @@ public partial class InboundWorkflowService
 		{
 			StoringCollectingPolicy = StoringCollectingPolicyType,
 			StoringPlacingPolicy = StoringPlacingPolicyType,
+			StoringBoxFillLimitPercent = storingBoxFillLimitPercent,
 			UnloadingDestinationBuildingId = unloadingDestinationBuildingId,
 		};
 	}
@@ -21,6 +22,11 @@ public partial class InboundWorkflowService
 		unloadingDestinationBuildingId = data != null ? data.UnloadingDestinationBuildingId : 0;
 		SetStoringCollectingPolicy(collectingPolicyType);
 		SetStoringPlacingPolicy(placingPolicyType);
+		float boxFillLimit = IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization) &&
+			data != null && data.StoringBoxFillLimitPercent > 0.0f
+			? data.StoringBoxFillLimitPercent
+			: 80.0f;
+		SetStoringBoxFillLimitPercent(boxFillLimit);
 	}
 
 	public void ResetRuntimeState()

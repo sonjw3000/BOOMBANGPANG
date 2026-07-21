@@ -214,6 +214,29 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		return true;
 	}
 
+	public bool TrySetPickingBoxFillLimitPercent(float value)
+	{
+		if (IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization) == false)
+			return false;
+
+		SetPickingBoxFillLimitPercent(value);
+		return true;
+	}
+
+	private void SetPickingBoxFillLimitPercent(float value)
+	{
+		pickingBoxFillLimitPercent = Mathf.Clamp(value, 1.0f, 100.0f);
+		if (BuildingManager == null)
+			return;
+
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is StorageBuilding storageBuilding)
+				storageBuilding.PickingPlanner?.SetBoxFillLimitPercent(pickingBoxFillLimitPercent);
+		}
+	}
+
 	private static bool IsResearchCompleted(string researchId)
 	{
 		return GameContext.HasInstance &&

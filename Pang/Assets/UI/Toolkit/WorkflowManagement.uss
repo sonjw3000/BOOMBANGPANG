@@ -27,4 +27,9 @@
 .workflow-section-label { margin-top: 3px; margin-bottom: 4px; padding-bottom: 3px; border-bottom-width: 1px; border-bottom-color: rgb(65, 78, 88); }
 .workflow-destination-value { margin-top: 4px; font-size: 11px; -unity-font-style: bold; color: rgb(224, 235, 240); }
 .workflow-policy-field { height: 29px; margin-top: 4px; font-size: 9px; }
+.workflow-slider-control { min-height: 43px; margin-top: 5px; padding-top: 4px; padding-right: 7px; padding-left: 7px; background-color: rgba(25, 39, 50, 0.72); }
+.workflow-slider-header { height: 15px; flex-direction: row; }
+.workflow-slider-label { flex-grow: 1; font-size: 8px; color: rgb(151, 177, 188); }
+.workflow-slider-value { font-size: 8px; -unity-font-style: bold; color: rgb(225, 166, 92); }
+.workflow-slider { height: 20px; }
 .workflow-message { height: 20px; margin-top: 5px; font-size: 8px; color: rgb(200, 155, 112); }

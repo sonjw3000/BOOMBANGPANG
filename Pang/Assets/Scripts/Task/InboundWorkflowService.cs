@@ -54,6 +54,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	}
 	public CollectingPolicyType StoringCollectingPolicyType => storingPlanner != null ? storingPlanner.CollectingPolicyType : defaultStoringCollectingPolicyType;
 	public PlacingPolicyType StoringPlacingPolicyType => storingPlanner != null ? storingPlanner.PlacingPolicyType : defaultStoringPlacingPolicyType;
+	public float StoringBoxFillLimitPercent => storingBoxFillLimitPercent;
 	public int HardLandingChange => hardLandingChange;
 	public int DamageRate => damageRate;
 	public int DamagePercent => damagePercent;
@@ -138,6 +139,21 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 		SetStoringPlacingPolicy(policyType);
 		return true;
+	}
+
+	public bool TrySetStoringBoxFillLimitPercent(float value)
+	{
+		if (IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization) == false)
+			return false;
+
+		SetStoringBoxFillLimitPercent(value);
+		return true;
+	}
+
+	private void SetStoringBoxFillLimitPercent(float value)
+	{
+		storingBoxFillLimitPercent = Mathf.Clamp(value, 1.0f, 100.0f);
+		storingPlanner?.SetBoxFillLimitPercent(storingBoxFillLimitPercent);
 	}
 
 	private static bool IsResearchCompleted(string researchId)

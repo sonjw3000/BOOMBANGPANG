@@ -250,7 +250,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 		building.AssignRuntimeBuildingId(runtimeBuildingId);
 		building.SetState(state);
 		building.SetWorkScope(workScope);
-		building.SetOverrideCapsuleThreshold(overrideCapsuleThreshold);
+		building.SetOverrideCapsuleThreshold(overrideCapsuleThreshold && building.CanControlCapsuleThreshold());
 		building.SetCapsuleThresholdPercent(capsuleThresholdPercent);
 		Register(building);
 

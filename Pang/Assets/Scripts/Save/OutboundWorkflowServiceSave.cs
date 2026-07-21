@@ -9,6 +9,7 @@ public partial class OutboundWorkflowService
 		{
 			PickingPolicy = PickingPolicyType,
 			PickingCollectingPolicy = PickingCollectingPolicyType,
+			PickingBoxFillLimitPercent = pickingBoxFillLimitPercent,
 			LoadingDestinationBuildingId = loadingDestinationBuildingId,
 		};
 	}
@@ -24,6 +25,11 @@ public partial class OutboundWorkflowService
 		loadingDestinationBuildingId = data != null ? data.LoadingDestinationBuildingId : 0;
 		SetPickingPolicy(pickingPolicyType);
 		SetPickingCollectingPolicy(collectingPolicyType);
+		float boxFillLimit = IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization) &&
+			data != null && data.PickingBoxFillLimitPercent > 0.0f
+			? data.PickingBoxFillLimitPercent
+			: 80.0f;
+		SetPickingBoxFillLimitPercent(boxFillLimit);
 	}
 
 	public OutboundPickingManifestSaveData CapturePickingManifestState(Func<OrderLine, int> registerOrderLine)

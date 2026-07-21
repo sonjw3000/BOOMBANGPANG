@@ -51,12 +51,26 @@
 			<ui:VisualElement name="workflow-placing-policy-control">
 				<ui:DropdownField name="workflow-placing-policy" label="Shelf placing" class="workflow-policy-field" />
 			</ui:VisualElement>
+			<ui:VisualElement name="workflow-storing-box-fill-control" class="workflow-slider-control">
+				<ui:VisualElement class="workflow-slider-header">
+					<ui:Label text="Storing box fill limit" class="workflow-slider-label" />
+					<ui:Label name="workflow-storing-box-fill-value" text="80%" class="workflow-slider-value" />
+				</ui:VisualElement>
+				<ui:Slider name="workflow-storing-box-fill" low-value="1" high-value="100" value="80" class="workflow-slider" />
+			</ui:VisualElement>
 			<ui:Label text="PICKING POLICY" class="workflow-section-label" />
 			<ui:VisualElement name="workflow-picking-policy-control">
 				<ui:DropdownField name="workflow-picking-policy" label="Picking method" class="workflow-policy-field" />
 			</ui:VisualElement>
 			<ui:VisualElement name="workflow-picking-collecting-policy-control">
 				<ui:DropdownField name="workflow-picking-collecting-policy" label="Guided source priority" class="workflow-policy-field" />
+			</ui:VisualElement>
+			<ui:VisualElement name="workflow-picking-box-fill-control" class="workflow-slider-control">
+				<ui:VisualElement class="workflow-slider-header">
+					<ui:Label text="Picking box fill limit" class="workflow-slider-label" />
+					<ui:Label name="workflow-picking-box-fill-value" text="80%" class="workflow-slider-value" />
+				</ui:VisualElement>
+				<ui:Slider name="workflow-picking-box-fill" low-value="1" high-value="100" value="80" class="workflow-slider" />
 			</ui:VisualElement>
 			<ui:Label text="Inventory-guided picking requires Inventory Digitization research." class="workflow-caption" />
 		</ui:ScrollView>

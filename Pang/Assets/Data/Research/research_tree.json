@@ -23,7 +23,7 @@
 			"uid": "workflow_policy_optimization",
 			"categoryId": "planning_operations",
 			"displayName": "Workflow Policy Optimization",
-			"description": "Adds quantity-aware collecting and fill-aware shelf placement policies.",
+			"description": "Adds quantity-aware collecting, fill-aware placement, box fill limits, and building-specific outbound thresholds.",
 			"cost": 140,
 			"durationWeeks": 2,
 			"prerequisiteUids": ["workflow_policy_management", "inventory_digitization"]
