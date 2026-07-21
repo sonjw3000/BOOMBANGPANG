@@ -70,7 +70,6 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 		Interaction.OnBuildingPlacementPreviewChanged += HandleBuildingPlacementPreviewChanged;
 		Interaction.OnBuildingPlacementConfirmed += HandleBuildingPlacementConfirmed;
-		Interaction.OnResolveSelectionFallback += ResolveBuildingSelection;
 		Interaction.OnHandleBuildingSelection += HandleBuildingSelection;
 		Interaction.OnModeChanged += HandleInteractionModeChanged;
 	}
@@ -82,7 +81,6 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 		Interaction.OnBuildingPlacementPreviewChanged -= HandleBuildingPlacementPreviewChanged;
 		Interaction.OnBuildingPlacementConfirmed -= HandleBuildingPlacementConfirmed;
-		Interaction.OnResolveSelectionFallback -= ResolveBuildingSelection;
 		Interaction.OnHandleBuildingSelection -= HandleBuildingSelection;
 		Interaction.OnModeChanged -= HandleInteractionModeChanged;
 	}
@@ -254,7 +252,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 	private GameObject ResolveBuildingSelection(int3 pos)
 	{
-		if (isVisible == false || pos.y != currentFloor || GridService == null || BuildingManager == null)
+		if (pos.y != currentFloor || GridService == null || BuildingManager == null)
 			return null;
 
 		GridCell cell = GridService.GetCell(pos);
@@ -269,9 +267,6 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 	private bool HandleBuildingSelection(int3 position)
 	{
-		if (isVisible == false)
-			return false;
-
 		GameObject resolved = ResolveBuildingSelection(position);
 		if (resolved != null)
 			Interaction.SelectObject(resolved);

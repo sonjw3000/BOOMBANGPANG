@@ -199,6 +199,17 @@ public class InteractionContext
 		OnItemSelected?.Invoke(null);
 	}
 
+	public void ToggleSelectionDomain()
+	{
+		if (interactionDomain == InteractionDomain.Building)
+		{
+			ExitBuildingMode();
+			return;
+		}
+
+		EnterBuildingSelectMode();
+	}
+
 	public void EnterAreaPlacementMode(AreaType areaType, int floor)
 	{
 		CancelActivePlacementMode();

@@ -50,6 +50,8 @@ public class MousePicking : MonoBehaviour
 			InteractionCtx.OnLeftClick(currentTargetPoint);
 		if (Input.GetMouseButtonDown(1))
 			InteractionCtx.OnRightClick(currentTargetPoint);
+		if (Input.GetKeyDown(KeyCode.B))
+			InteractionCtx.ToggleSelectionDomain();
 		if (Input.GetKeyDown(KeyCode.R))
 			InteractionCtx.RotatePlacement();
 	}
