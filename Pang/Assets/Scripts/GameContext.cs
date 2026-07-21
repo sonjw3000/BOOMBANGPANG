@@ -510,6 +510,7 @@ public class GameContext : MonoBehaviour
 
 		// on game start
 		gridService.OnGameStart();
+		TemperatureSvc.RebuildRuntimeState();
 	}
 
 	private void AddEvent()

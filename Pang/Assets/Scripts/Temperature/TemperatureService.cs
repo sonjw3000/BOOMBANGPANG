@@ -36,6 +36,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	private readonly List<int3> cellScratch = new();
 	private float[] temperatureSnapshot;
 	private float[] nextTemperatureSnapshot;
+	private int3 temperatureBufferSize;
 	private bool eventsBound;
 	private bool rebuildMapOnNextTick = true;
 
@@ -59,6 +60,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	{
 		BindEvents();
 		RebuildModifiers();
+		InitializeTemperatureBuffers();
 	}
 
 	private void OnDisable() => UnbindEvents();
@@ -71,12 +73,14 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		activeCells.Clear();
 		temperatureSnapshot = null;
 		nextTemperatureSnapshot = null;
+		temperatureBufferSize = default;
 		rebuildMapOnNextTick = true;
 	}
 
 	public void RebuildRuntimeState()
 	{
 		RebuildModifiers();
+		InitializeTemperatureBuffers();
 		rebuildMapOnNextTick = true;
 	}
 
@@ -180,25 +184,10 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		if (GridService == null || GridService.IsReady == false)
 			return;
 
-		int3 size = GridService.MapSize;
-		int cellCount = size.x * size.y * size.z;
-		if (temperatureSnapshot == null || temperatureSnapshot.Length != cellCount)
-		{
-			temperatureSnapshot = new float[cellCount];
-			nextTemperatureSnapshot = new float[cellCount];
-		}
+		if (EnsureTemperatureBuffers() == false)
+			return;
 
-		for (int x = 0; x < size.x; ++x)
-		{
-			for (int y = 0; y < size.y; ++y)
-			{
-				for (int z = 0; z < size.z; ++z)
-				{
-					int index = ToIndex(x, y, z, in size);
-					temperatureSnapshot[index] = GridService.GetCell(x, y, z)?.TemperatureCelsius ?? ambientTemperatureCelsius;
-				}
-			}
-		}
+		int3 size = temperatureBufferSize;
 
 		bool changed = false;
 		for (int x = 0; x < size.x; ++x)
@@ -444,11 +433,60 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 
 	private void HandleCellTemperatureChanged(int3 position, float previous, float current)
 	{
+		if (temperatureSnapshot != null &&
+			position.x >= 0 && position.x < temperatureBufferSize.x &&
+			position.y >= 0 && position.y < temperatureBufferSize.y &&
+			position.z >= 0 && position.z < temperatureBufferSize.z)
+		{
+			temperatureSnapshot[ToIndex(position.x, position.y, position.z, in temperatureBufferSize)] = current;
+		}
+
 		float target = targets.TryGetValue(position, out float value) ? value : ambientTemperatureCelsius;
 		if (Mathf.Approximately(current, target))
 			activeCells.Remove(position);
 		else
 			activeCells.Add(position);
+	}
+
+	private bool EnsureTemperatureBuffers()
+	{
+		if (GridService == null || GridService.IsReady == false)
+			return false;
+
+		int3 size = GridService.MapSize;
+		int cellCount = size.x * size.y * size.z;
+		if (temperatureSnapshot != null && nextTemperatureSnapshot != null &&
+			temperatureSnapshot.Length == cellCount && temperatureBufferSize.Equals(size))
+		{
+			return true;
+		}
+
+		InitializeTemperatureBuffers();
+		return temperatureSnapshot != null;
+	}
+
+	private void InitializeTemperatureBuffers()
+	{
+		if (GridService == null || GridService.IsReady == false)
+			return;
+
+		int3 size = GridService.MapSize;
+		int cellCount = size.x * size.y * size.z;
+		temperatureSnapshot = new float[cellCount];
+		nextTemperatureSnapshot = new float[cellCount];
+		temperatureBufferSize = size;
+
+		for (int x = 0; x < size.x; ++x)
+		{
+			for (int y = 0; y < size.y; ++y)
+			{
+				for (int z = 0; z < size.z; ++z)
+				{
+					int index = ToIndex(x, y, z, in size);
+					temperatureSnapshot[index] = GridService.GetCell(x, y, z)?.TemperatureCelsius ?? ambientTemperatureCelsius;
+				}
+			}
+		}
 	}
 
 	private float CalculateNeighborAverage(int x, int y, int z, in int3 size, float fallback)
