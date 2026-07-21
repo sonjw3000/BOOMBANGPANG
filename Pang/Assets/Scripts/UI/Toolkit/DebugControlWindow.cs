@@ -8,10 +8,12 @@ namespace UniverseLogistics.UI.Toolkit
 	public sealed class DebugControlWindow : MonoBehaviour
 	{
 		private const int ExplosionTabIndex = 0;
-		private const int DamageTabIndex = 1;
-		private const int WorkerTabIndex = 2;
-		private const int ItemTabIndex = 3;
+		private const int FireTabIndex = 1;
+		private const int DamageTabIndex = 2;
+		private const int WorkerTabIndex = 3;
+		private const int ItemTabIndex = 4;
 		private const string ExplosionTabName = "debug-explosion-tab";
+		private const string FireTabName = "debug-fire-tab";
 		private const string DamageTabName = "debug-damage-tab";
 		private const string WorkerTabName = "debug-worker-tab";
 		private const string ItemTabName = "debug-item-tab";
@@ -19,6 +21,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private static readonly string[] TabNames =
 		{
 			ExplosionTabName,
+			FireTabName,
 			DamageTabName,
 			WorkerTabName,
 			ItemTabName,
@@ -28,8 +31,10 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualTreeAsset contentTemplate;
 		private IntegerField explosionRadiusField;
 		private IntegerField explosionSeverityField;
+		private IntegerField fireIntensityField;
 		private FloatField damageAmountField;
 		private Label explosionMessage;
+		private Label fireMessage;
 		private Label damageMessage;
 		private Label workerMessage;
 		private Label itemSelection;
@@ -92,10 +97,11 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			TemplateContainer explosionContent = CreateTabContent(ExplosionTabName);
+			TemplateContainer fireContent = CreateTabContent(FireTabName);
 			TemplateContainer damageContent = CreateTabContent(DamageTabName);
 			TemplateContainer workerContent = CreateTabContent(WorkerTabName);
 			TemplateContainer itemContent = CreateTabContent(ItemTabName);
-			if (explosionContent == null || damageContent == null || workerContent == null || itemContent == null)
+			if (explosionContent == null || fireContent == null || damageContent == null || workerContent == null || itemContent == null)
 			{
 				Debug.LogError("[DebugControl] Required tab roots are missing.", this);
 				return false;
@@ -103,8 +109,10 @@ namespace UniverseLogistics.UI.Toolkit
 
 			explosionRadiusField = explosionContent.Q<IntegerField>("debug-explosion-radius");
 			explosionSeverityField = explosionContent.Q<IntegerField>("debug-explosion-severity");
+			fireIntensityField = fireContent.Q<IntegerField>("debug-fire-intensity");
 			damageAmountField = damageContent.Q<FloatField>("debug-damage-amount");
 			explosionMessage = explosionContent.Q<Label>("debug-explosion-message");
+			fireMessage = fireContent.Q<Label>("debug-fire-message");
 			damageMessage = damageContent.Q<Label>("debug-damage-message");
 			workerMessage = workerContent.Q<Label>("debug-worker-message");
 			itemSelection = itemContent.Q<Label>("debug-item-selection");
@@ -115,8 +123,8 @@ namespace UniverseLogistics.UI.Toolkit
 			itemGrantItemField = itemContent.Q<DropdownField>("debug-item-grant-item");
 			itemGrantQuantityField = itemContent.Q<IntegerField>("debug-item-grant-quantity");
 			itemGrantButton = itemContent.Q<Button>("debug-item-grant-button");
-			if (explosionRadiusField == null || explosionSeverityField == null || damageAmountField == null ||
-				explosionMessage == null || damageMessage == null || workerMessage == null ||
+			if (explosionRadiusField == null || explosionSeverityField == null || fireIntensityField == null || damageAmountField == null ||
+				explosionMessage == null || fireMessage == null || damageMessage == null || workerMessage == null ||
 				itemSelection == null || itemEmpty == null || itemMessage == null || itemList == null ||
 				itemRefreshButton == null || itemGrantItemField == null || itemGrantQuantityField == null ||
 				itemGrantButton == null)
@@ -129,6 +137,8 @@ namespace UniverseLogistics.UI.Toolkit
 				explosionRadiusField.SetValueWithoutNotify(Mathf.Max(0, evt.newValue)));
 			explosionSeverityField.RegisterValueChangedCallback(evt =>
 				explosionSeverityField.SetValueWithoutNotify(Mathf.Clamp(evt.newValue, 1, 100)));
+			fireIntensityField.RegisterValueChangedCallback(evt =>
+				fireIntensityField.SetValueWithoutNotify(Mathf.Clamp(evt.newValue, 1, 100)));
 			damageAmountField.RegisterValueChangedCallback(evt =>
 			{
 				float value = float.IsNaN(evt.newValue) || float.IsInfinity(evt.newValue)
@@ -145,6 +155,7 @@ namespace UniverseLogistics.UI.Toolkit
 			window.SetTitle("Debug Controls");
 			window.ClearTabs();
 			window.AddTab("Explosion", explosionContent);
+			window.AddTab("Fire", fireContent);
 			window.AddTab("Damage", damageContent);
 			window.AddTab("Worker", workerContent);
 			window.AddTab("Item", itemContent);
@@ -217,6 +228,10 @@ namespace UniverseLogistics.UI.Toolkit
 					TriggerExplosion(in position);
 					break;
 
+				case FireTabIndex:
+					ApplyFire(in position);
+					break;
+
 				case DamageTabIndex:
 					ApplyDamage(in position);
 					break;
@@ -285,6 +300,23 @@ namespace UniverseLogistics.UI.Toolkit
 			string suffix = destroyed ? " Destroyed." : string.Empty;
 			Report(damageMessage,
 				$"{targetName} damaged by {applied:0.##}: {previousHealth:0.##} -> {currentHealth:0.##}.{suffix}");
+		}
+
+		private void ApplyFire(in int3 position)
+		{
+			int intensity = Mathf.Clamp(fireIntensityField.value, 1, 100);
+			FireService fireService = GameContext.HasInstance ? GameContext.Instance.FireSvc : null;
+			if (fireService == null ||
+				fireService.TryApplyDebugFire(in position, intensity, out int affectedTargets) == false)
+			{
+				Report(fireMessage,
+					$"No IGridPlaceable accepted fire at {FormatPosition(in position)}.",
+					LogType.Warning);
+				return;
+			}
+
+			Report(fireMessage,
+				$"Applied Fire {intensity}% to {affectedTargets} target(s) at {FormatPosition(in position)}.");
 		}
 
 		private void KnockoutWorker(in int3 position)

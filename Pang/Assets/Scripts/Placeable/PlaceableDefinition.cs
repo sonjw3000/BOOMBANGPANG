@@ -21,13 +21,15 @@ public class PlaceableDefinition : ScriptableObject
 	[SerializeField] private string requiredResearchUid = string.Empty;
 
 	[Header("Damage Response")]
-	[SerializeField, Range(0.0f, 1.0f)] private float flammability = 0.1f;
+	[SerializeField, Min(0.0f)] private float ignitionTemperatureCelsius;
 	[SerializeField] private List<DamageIncidentDefinition> damageIncidents = new();
 
 	public int Cost = 10;
 
 	public string RequiredResearchUid => requiredResearchUid;
 	public bool RequiresResearch => string.IsNullOrWhiteSpace(requiredResearchUid) == false;
-	public float Flammability => Mathf.Clamp01(flammability);
+	public float IgnitionTemperatureCelsius => ignitionTemperatureCelsius > 0.0f
+		? ignitionTemperatureCelsius
+		: float.PositiveInfinity;
 	public IReadOnlyList<DamageIncidentDefinition> DamageIncidents => damageIncidents;
 }

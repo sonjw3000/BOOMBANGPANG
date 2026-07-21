@@ -7,6 +7,7 @@ public sealed class RefrigerationUnit : MonoBehaviour, ITemperatureModifier
 	[SerializeField, Min(0f)] private float temperatureReductionCelsius = 10f;
 	[SerializeField, Min(0)] private int powerConsumption = 10;
 	[SerializeField] private HealthState health = new();
+	[SerializeField, Range(0.0f, 100.0f)] private float fireIntensity;
 
 	private int3 gridPosition;
 	private FacingDirection facingDirection;
@@ -21,9 +22,11 @@ public sealed class RefrigerationUnit : MonoBehaviour, ITemperatureModifier
 	public float TemperatureOffsetCelsius => -temperatureReductionCelsius;
 	public float Health => health.Health;
 	public float MaxHealth => health.MaxHealth;
+	public float FireIntensity => fireIntensity;
 
 	public float ApplyDamage(float amount) => health.ApplyDamage(amount);
 	public void RestoreHealth(float value) => health.RestoreHealth(value);
+	public void SetFireIntensity(float intensity) => fireIntensity = Mathf.Clamp(intensity, 0.0f, 100.0f);
 
 	public void OnPositionSet(in int3 position, FacingDirection direction)
 	{

@@ -25,6 +25,8 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer, IGridPlac
 	private bool isPlacedOnGrid;
 	private int3 gridPosition;
 	private FacingDirection facingDirection;
+	private float fireIntensity;
+	private AIWorker currentCarrier;
 
 	protected List<ItemStack> stacks = new();
 	protected Dictionary<uint, int> itemTotals = new();
@@ -48,8 +50,12 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer, IGridPlac
 	public int3 GridPosition => gridPosition;
 	public FacingDirection Direction => facingDirection;
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.Box;
+	public float FireIntensity => fireIntensity;
+	public AIWorker CurrentCarrier => currentCarrier;
 
 	public void SetBoxId(uint id) => boxId = id;
+	public void SetFireIntensity(float intensity) => fireIntensity = Mathf.Clamp(intensity, 0.0f, 100.0f);
+	internal void SetCurrentCarrier(AIWorker carrier) => currentCarrier = carrier;
 
 	public void OnPositionSet(in int3 position, FacingDirection direction)
 	{
@@ -82,6 +88,8 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer, IGridPlac
 
 		isValid = false;
 		isPlacedOnGrid = false;
+		currentCarrier = null;
+		fireIntensity = 0.0f;
 		OnInvalidated?.Invoke(this);
 		OnInvalidated = null;
 		return true;
@@ -96,6 +104,8 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer, IGridPlac
 		itemTotals.Clear();
 		size = 0;
 		itemTags = ItemTag.None;
+		fireIntensity = 0.0f;
+		currentCarrier = null;
 	}
 
 	public void UpdateToteCapacity(float capacity) => this.capacity = capacity;

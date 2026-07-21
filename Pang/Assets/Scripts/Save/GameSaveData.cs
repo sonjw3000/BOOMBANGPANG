@@ -470,6 +470,7 @@ public sealed class PlaceableSaveData
 	public uint FacilityRulePresetId;
 	public bool HasHealth;
 	public float Health;
+	public float FireIntensity;
 	public bool IsFacilityDestroyed;
 
 	public WorkerSaveData Worker;
@@ -579,6 +580,7 @@ public sealed class BoxSaveData
 	public BoxType BoxType;
 	public string ConcreteType;
 	public CapsuleLogisticsState CapsuleLogisticsState;
+	public float FireIntensity;
 	public List<ItemStackSaveData> Stacks = new();
 }
 

@@ -24,6 +24,9 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	[SerializeField] private float ambientTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	[FormerlySerializedAs("degreesPerTick")]
 	[SerializeField, Min(0f)] private float degreesPerQuarterWeek = 1f;
+	[SerializeField, Min(0f)] private float fireHeatDegreesPerTickAtMaxIntensity = 20f;
+	[SerializeField, Range(0f, 0.25f)] private float heatDiffusionRatePerTick = 0.1f;
+	[SerializeField, Min(0f)] private float naturalCoolingDegreesPerTick = 1f;
 
 	private readonly Dictionary<ITemperatureModifier, ModifierState> modifiers = new();
 	private readonly Dictionary<int3, float> targets = new();
@@ -31,6 +34,8 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	private readonly HashSet<int3> activeCells = new();
 	private readonly List<ITemperatureModifier> modifierScratch = new();
 	private readonly List<int3> cellScratch = new();
+	private float[] temperatureSnapshot;
+	private float[] nextTemperatureSnapshot;
 	private bool eventsBound;
 	private bool rebuildMapOnNextTick = true;
 
@@ -64,6 +69,8 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		targets.Clear();
 		dirtyCells.Clear();
 		activeCells.Clear();
+		temperatureSnapshot = null;
+		nextTemperatureSnapshot = null;
 		rebuildMapOnNextTick = true;
 	}
 
@@ -166,6 +173,82 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		RecalculateDirtyTargets();
 		AdvanceActiveTemperatures();
 		OnGridOverlayRefreshRequested?.Invoke();
+	}
+
+	public void ProcessSimulationTick()
+	{
+		if (GridService == null || GridService.IsReady == false)
+			return;
+
+		int3 size = GridService.MapSize;
+		int cellCount = size.x * size.y * size.z;
+		if (temperatureSnapshot == null || temperatureSnapshot.Length != cellCount)
+		{
+			temperatureSnapshot = new float[cellCount];
+			nextTemperatureSnapshot = new float[cellCount];
+		}
+
+		for (int x = 0; x < size.x; ++x)
+		{
+			for (int y = 0; y < size.y; ++y)
+			{
+				for (int z = 0; z < size.z; ++z)
+				{
+					int index = ToIndex(x, y, z, in size);
+					temperatureSnapshot[index] = GridService.GetCell(x, y, z)?.TemperatureCelsius ?? ambientTemperatureCelsius;
+				}
+			}
+		}
+
+		bool changed = false;
+		for (int x = 0; x < size.x; ++x)
+		{
+			for (int y = 0; y < size.y; ++y)
+			{
+				for (int z = 0; z < size.z; ++z)
+				{
+					int index = ToIndex(x, y, z, in size);
+					int3 position = new(x, y, z);
+					GridCell cell = GridService.GetCell(position);
+					if (cell == null)
+						continue;
+
+					float current = temperatureSnapshot[index];
+					float next = current + fireHeatDegreesPerTickAtMaxIntensity *
+						Mathf.Clamp01(cell.FireIntensity / FireService.MaximumFireIntensity);
+					float neighborAverage = CalculateNeighborAverage(x, y, z, in size, current);
+					next += (neighborAverage - current) * heatDiffusionRatePerTick;
+
+					float target = targets.TryGetValue(position, out float value) ? value : ambientTemperatureCelsius;
+					next = Mathf.MoveTowards(next, target, naturalCoolingDegreesPerTick);
+					nextTemperatureSnapshot[index] = Mathf.Max(-273.15f, next);
+				}
+			}
+		}
+
+		for (int x = 0; x < size.x; ++x)
+		{
+			for (int y = 0; y < size.y; ++y)
+			{
+				for (int z = 0; z < size.z; ++z)
+				{
+					int index = ToIndex(x, y, z, in size);
+					int3 position = new(x, y, z);
+					if (Mathf.Approximately(temperatureSnapshot[index], nextTemperatureSnapshot[index]) == false)
+						changed |= GridService.TrySetTemperature(position, nextTemperatureSnapshot[index]);
+				}
+			}
+		}
+
+		if (changed)
+			OnGridOverlayRefreshRequested?.Invoke();
+	}
+
+	public bool ApplyHeatImpulse(in int3 position, float degreesCelsius)
+	{
+		return GridService != null && degreesCelsius > 0.0f &&
+			float.IsNaN(degreesCelsius) == false && float.IsInfinity(degreesCelsius) == false &&
+			GridService.TryAdjustTemperature(position, degreesCelsius);
 	}
 
 	public bool TryFillGridOverlay(Color32[] buffer, int floor)
@@ -367,4 +450,26 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		else
 			activeCells.Add(position);
 	}
+
+	private float CalculateNeighborAverage(int x, int y, int z, in int3 size, float fallback)
+	{
+		float total = 0.0f;
+		int count = 0;
+		AddNeighborTemperature(x + 1, y, z, in size, ref total, ref count);
+		AddNeighborTemperature(x - 1, y, z, in size, ref total, ref count);
+		AddNeighborTemperature(x, y, z + 1, in size, ref total, ref count);
+		AddNeighborTemperature(x, y, z - 1, in size, ref total, ref count);
+		return count > 0 ? total / count : fallback;
+	}
+
+	private void AddNeighborTemperature(int x, int y, int z, in int3 size, ref float total, ref int count)
+	{
+		if (x < 0 || x >= size.x || y < 0 || y >= size.y || z < 0 || z >= size.z)
+			return;
+
+		total += temperatureSnapshot[ToIndex(x, y, z, in size)];
+		++count;
+	}
+
+	private static int ToIndex(int x, int y, int z, in int3 size) => x + size.x * (y + size.y * z);
 }

@@ -116,6 +116,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private int itemDamageIncidentCount;
 	[SerializeField] private HealthState health = new();
 	[SerializeField] private WorkerOperationalState operationalState = WorkerOperationalState.Active;
+	[SerializeField, Range(0.0f, 100.0f)] private float fireIntensity;
 
 	// base stat
 	[SerializeField] private float baseMoveSpeedMultiplier = 1.0f;
@@ -221,6 +222,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public float MaxHealth => health.MaxHealth;
 	public WorkerOperationalState OperationalState => operationalState;
 	public bool IsOperational => operationalState == WorkerOperationalState.Active;
+	public float FireIntensity => fireIntensity;
 
 	public float ApplyDamage(float amount)
 	{
@@ -235,6 +237,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		return applied;
 	}
 	public void RestoreHealth(float value) => health.RestoreHealth(value);
+	public void SetFireIntensity(float intensity) => fireIntensity = Mathf.Clamp(intensity, 0.0f, 100.0f);
 
 	// stat
 	public float BaseMoveSpeedMultiplier => baseMoveSpeedMultiplier;

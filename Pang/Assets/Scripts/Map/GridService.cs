@@ -208,6 +208,11 @@ public partial class GridService : MonoBehaviour
 	public event System.Action OnSpaceRegionsChanged;
 
 	public bool IsPlacedObject(GameObject targetObj) => targetObj != null && placedObjects.ContainsKey(targetObj);
+	public bool TryGetPlacementContext(GameObject targetObj, out PlacementContext context)
+	{
+		context = null;
+		return targetObj != null && placedObjects.TryGetValue(targetObj, out context);
+	}
 
 	public bool TryRegisterDroppedBox(BoxBase box, in int3 position)
 	{
@@ -231,6 +236,7 @@ public partial class GridService : MonoBehaviour
 
 		droppedBoxPositions[box] = position;
 		box.transform.SetParent(null);
+		box.SetCurrentCarrier(null);
 		box.transform.position = new Vector3(position.x, position.y, position.z);
 		box.OnPositionSet(position, FacingDirection.North);
 		return true;

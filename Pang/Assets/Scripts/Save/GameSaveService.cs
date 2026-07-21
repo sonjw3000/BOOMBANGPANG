@@ -186,6 +186,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.PowerSvc.ResetRuntimeState();
 		Ctx.TemperatureSvc.ResetRuntimeState();
 		Ctx.OxygenSvc.ResetRuntimeState();
+		Ctx.FireSvc.ResetRuntimeState();
 		Ctx.ExplosionSvc.ResetRuntimeState();
 		Ctx.StorageService.ResetRuntimeState();
 		Ctx.BuildingFootprintService.ResetRuntimeState();
@@ -296,6 +297,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.FacilityRuleOverlay?.RefreshOverlay();
 		Ctx.TemperatureSvc.RebuildRuntimeState();
 		Ctx.OxygenSvc.RebuildRuntimeState();
+		Ctx.FireSvc.RebuildRuntimeState();
 	}
 
 	private PlaceableSaveData CapturePlaceable(GameObject obj, PlacementContext ctx)
@@ -315,6 +317,8 @@ public sealed class GameSaveService : MonoBehaviour
 			data.HasHealth = true;
 			data.Health = healthOwner.Health;
 		}
+		if (obj.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
+			data.FireIntensity = gridPlaceable.FireIntensity;
 
 		if (obj.TryGetComponent<AIWorker>(out var worker))
 		{
@@ -452,6 +456,8 @@ public sealed class GameSaveService : MonoBehaviour
 
 		if (save.HasHealth && obj.TryGetComponent<IHealth>(out var healthOwner))
 			healthOwner.RestoreHealth(save.Health);
+		if (obj.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
+			gridPlaceable.SetFireIntensity(save.FireIntensity);
 
 		if (obj.TryGetComponent<IFacility>(out var facility))
 		{

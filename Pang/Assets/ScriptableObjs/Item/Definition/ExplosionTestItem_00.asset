@@ -17,6 +17,7 @@ MonoBehaviour:
   tag: 5
   itemPrefab: {fileID: 0}
   price: 100
+  ignitionTemperatureCelsius: 60
   damageIncidents:
   - triggerDamage: 20
     incidentType: 2

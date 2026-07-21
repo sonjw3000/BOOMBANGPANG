@@ -19,5 +19,5 @@ MonoBehaviour:
   gridFootprint: {fileID: 11400000, guid: ae24bbd936d15844a8cda139d7b62278, type: 2}
   definitionType: 1
   placementEnvironment: 3
-  flammability: 0.8
+  ignitionTemperatureCelsius: 60
   damageIncidents: []

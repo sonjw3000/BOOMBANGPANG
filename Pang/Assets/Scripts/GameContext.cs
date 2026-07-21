@@ -343,7 +343,7 @@ public class GameContext : MonoBehaviour
 		_ = FireSvc;
 		_ = ExplosionSvc;
 		simulationTickCoordinator ??= new SimulationTickCoordinator();
-		simulationTickCoordinator.Bind(gameTime, explosionService, oxygenService, temperatureService);
+		simulationTickCoordinator.Bind(gameTime, explosionService, oxygenService, temperatureService, fireService);
 		_ = ContaminationSvc;
 		_ = CorrosionSvc;
 		_ = RadiationSvc;

@@ -11,6 +11,16 @@
 		<ui:Label name="debug-explosion-message" text="Ready. Select a grid cell." class="debug-control-message" />
 	</ui:VisualElement>
 
+	<ui:VisualElement name="debug-fire-tab" class="debug-control-tab">
+		<ui:Label text="FIRE" class="debug-control-heading" />
+		<ui:Label text="Left-click a grid cell to apply FireIntensity to its IGridPlaceable targets and any carried Box." class="debug-control-description" />
+		<ui:VisualElement class="debug-control-fields">
+			<ui:IntegerField name="debug-fire-intensity" label="Fire Intensity" value="25" is-delayed="true" class="debug-control-field" />
+		</ui:VisualElement>
+		<ui:Label text="Fire grows or weakens by 25 per simulation tick. Ignition and sustain require at least 40% oxygen." class="debug-control-hint" />
+		<ui:Label name="debug-fire-message" text="Ready. Select an IGridPlaceable." class="debug-control-message" />
+	</ui:VisualElement>
+
 	<ui:VisualElement name="debug-damage-tab" class="debug-control-tab">
 		<ui:Label text="DAMAGE" class="debug-control-heading" />
 		<ui:Label text="Left-click a grid cell to damage its IHealth GridPlaceable. Facilities at zero health use the normal destruction path." class="debug-control-description" />

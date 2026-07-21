@@ -53,6 +53,7 @@ public class ItemDefinition : ScriptableObject
 	[SerializeField] private GameObject itemPrefab;
 
 	[SerializeField] private int price = 100;
+	[SerializeField, Min(0.0f)] private float ignitionTemperatureCelsius;
 	[SerializeField] private List<DamageIncidentDefinition> damageIncidents = new();
 
 	public uint ItemID => itemID;
@@ -60,5 +61,8 @@ public class ItemDefinition : ScriptableObject
 	public ItemTag Tag => tag;
 	public GameObject ItemPrefab => itemPrefab;
 	public int Price => price;
+	public float IgnitionTemperatureCelsius => ignitionTemperatureCelsius > 0.0f
+		? ignitionTemperatureCelsius
+		: float.PositiveInfinity;
 	public IReadOnlyList<DamageIncidentDefinition> DamageIncidents => damageIncidents;
 }

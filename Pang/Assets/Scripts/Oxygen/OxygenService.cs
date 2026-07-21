@@ -10,6 +10,8 @@ public interface IOxygenSupplier : IFacility
 
 public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 {
+	[SerializeField, Min(0.0f)] private float fireOxygenConsumptionAtMaxIntensity = 5.0f;
+
 	private readonly Dictionary<uint, List<IOxygenSupplier>> suppliersByBuilding = new();
 	private bool eventsBound;
 	private bool clearOutdoorOnNextTick = true;
@@ -67,6 +69,8 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 			IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
 			for (int i = 0; i < buildings.Count; ++i)
 				changed |= ProcessBuilding(buildings[i]);
+
+			changed |= ConsumeOxygenForFires();
 		}
 		finally
 		{
@@ -234,6 +238,33 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 		}
 
 		return total;
+	}
+
+	private bool ConsumeOxygenForFires()
+	{
+		if (fireOxygenConsumptionAtMaxIntensity <= 0.0f)
+			return false;
+
+		bool changed = false;
+		int3 size = GridService.MapSize;
+		for (int x = 0; x < size.x; ++x)
+		{
+			for (int y = 0; y < size.y; ++y)
+			{
+				for (int z = 0; z < size.z; ++z)
+				{
+					GridCell cell = GridService.GetCell(x, y, z);
+					if (cell == null || cell.FireIntensity <= 0.0f || cell.Oxygen <= GridCell.DefaultOxygen)
+						continue;
+
+					float consumption = fireOxygenConsumptionAtMaxIntensity *
+						Mathf.Clamp01(cell.FireIntensity / FireService.MaximumFireIntensity);
+					changed |= GridService.TrySetOxygen(cell, cell.Oxygen - consumption);
+				}
+			}
+		}
+
+		return changed;
 	}
 
 	private bool ClearOutdoorOxygen()

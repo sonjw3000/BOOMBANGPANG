@@ -6,6 +6,7 @@ public class DestroyContext
 	public enum Destroycause
 	{
 		Explosion,
+		Fire,
 		Override,
 		Damage,
 	}
@@ -51,6 +52,8 @@ public interface IGridPlaceable
 
 	public int3 GridPosition { get; }
 	public FacingDirection Direction { get; }
+	public float FireIntensity { get; }
+	public void SetFireIntensity(float intensity);
 
 	public WorkerStatusTarget BuildingTarget { get; }
 }

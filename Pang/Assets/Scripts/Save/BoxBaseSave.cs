@@ -9,6 +9,7 @@ public abstract partial class BoxBase
 			BoxId = boxId,
 			BoxType = boxType,
 			ConcreteType = GetType().Name,
+			FireIntensity = FireIntensity,
 		};
 
 		if (this is CargoCapsule capsule)
@@ -39,6 +40,7 @@ public abstract partial class BoxBase
 
 		if (this is CargoCapsule capsule)
 			capsule.SetLogisticsState(data.CapsuleLogisticsState);
+		SetFireIntensity(data.FireIntensity);
 
 		foreach (var stackData in data.Stacks)
 		{

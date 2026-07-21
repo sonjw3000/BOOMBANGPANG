@@ -277,7 +277,9 @@ public sealed class ExplosionService
 					Debug.Log($"[DebugExplosion] Cell affected: ({x},{origin.y},{z})");
 
 				int3 affectedCell = new(x, origin.y, z);
-				PublishExplosionCue(in affectedCell, CalculateExplosionDamage(in request, in affectedCell));
+				int explosionDamage = CalculateExplosionDamage(in request, in affectedCell);
+				PublishExplosionCue(in affectedCell, explosionDamage);
+				GameContext.Instance.TemperatureSvc?.ApplyHeatImpulse(in affectedCell, explosionDamage);
 				if (cell.ObjectOnGrid != null)
 					TrackAffectedObject(cell.ObjectOnGrid, in affectedCell, in origin);
 				if (cell.OccupancyObjectOnGrid != null)

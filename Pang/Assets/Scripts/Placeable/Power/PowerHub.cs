@@ -5,6 +5,7 @@ using System.Collections.Generic;
 public class PowerHub : MonoBehaviour, IFacility
 {
 	[SerializeField] private HealthState health = new();
+	[SerializeField, Range(0.0f, 100.0f)] private float fireIntensity;
 	private int3 gridPosition;
 	private FacingDirection facingDirection;
 	private uint facilityRulePresetId;
@@ -26,9 +27,11 @@ public class PowerHub : MonoBehaviour, IFacility
 	public int ConnectedBuildingCount => connectedPorts.Count;
 	public float Health => health.Health;
 	public float MaxHealth => health.MaxHealth;
+	public float FireIntensity => fireIntensity;
 
 	public float ApplyDamage(float amount) => health.ApplyDamage(amount);
 	public void RestoreHealth(float value) => health.RestoreHealth(value);
+	public void SetFireIntensity(float intensity) => fireIntensity = Mathf.Clamp(intensity, 0.0f, 100.0f);
 
 	public int CurrentPowerUsage
 	{

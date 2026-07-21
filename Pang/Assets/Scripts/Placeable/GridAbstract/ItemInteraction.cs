@@ -12,6 +12,7 @@ public abstract class ItemInteraction :
 	[SerializeField] private uint facilityRulePresetId;
 	[SerializeField, Min(0)] private int powerConsumption;
 	[SerializeField] private HealthState health = new();
+	[SerializeField, Range(0.0f, 100.0f)] private float fireIntensity;
 
 	protected int3 position;
 	protected FacingDirection facingDirection;
@@ -30,9 +31,11 @@ public abstract class ItemInteraction :
 	public int PowerConsumption => powerConsumption;
 	public float Health => health.Health;
 	public float MaxHealth => health.MaxHealth;
+	public float FireIntensity => fireIntensity;
 
 	public float ApplyDamage(float amount) => health.ApplyDamage(amount);
 	public void RestoreHealth(float value) => health.RestoreHealth(value);
+	public void SetFireIntensity(float intensity) => fireIntensity = Mathf.Clamp(intensity, 0.0f, 100.0f);
 
 	public void SetFacilityRulePresetId(uint presetId)
 	{
