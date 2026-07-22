@@ -426,6 +426,7 @@ public partial class TaskManager : MonoBehaviour
 
 			case TaskType.PackingInput:
 			case TaskType.PackingOutput:
+			case TaskType.LaunchSort:
 				break;
 
 			default:

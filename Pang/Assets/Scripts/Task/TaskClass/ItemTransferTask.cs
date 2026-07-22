@@ -574,7 +574,7 @@ public sealed class ItemTransferTask : WorkerTask
 
 	private static bool IsSupportedTaskType(TaskType taskType)
 	{
-		return taskType is TaskType.Picking or TaskType.Storing or TaskType.PackingInput or TaskType.PackingOutput;
+		return taskType is TaskType.Picking or TaskType.Storing or TaskType.PackingInput or TaskType.PackingOutput or TaskType.LaunchSort;
 	}
 
 	private static bool ReferencesFacility(WorkLine line, IFacility facility)

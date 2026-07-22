@@ -64,6 +64,9 @@ public static class WorkerTaskAssignmentPolicy
 			case WorkerTask.TaskType.PackingOutput:
 				return buildingType == BuildingType.Packing;
 
+			case WorkerTask.TaskType.LaunchSort:
+				return buildingType == BuildingType.Launch;
+
 			default:
 				return false;
 		}

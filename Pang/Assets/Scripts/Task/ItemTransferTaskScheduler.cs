@@ -9,6 +9,7 @@ public enum ItemTransferScheduleMode
 	Storing,
 	PackingInput,
 	PackingOutput,
+	LaunchSort,
 }
 
 public enum ItemTransferScheduleResult
@@ -394,6 +395,7 @@ public sealed class ItemTransferTaskScheduler
 		return mode switch
 		{
 			ItemTransferScheduleMode.PackingOutput => 0,
+			ItemTransferScheduleMode.LaunchSort => 1,
 			ItemTransferScheduleMode.Picking => 5,
 			ItemTransferScheduleMode.Storing => 6,
 			ItemTransferScheduleMode.PackingInput => 10,

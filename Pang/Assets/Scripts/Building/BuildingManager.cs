@@ -295,6 +295,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 			BuildingType.Staging => new StagingBuilding(displayName, ownedCells),
 			BuildingType.Storage => new StorageBuilding(displayName, ownedCells),
 			BuildingType.Packing => new PackingBuilding(displayName, ownedCells),
+			BuildingType.Launch => new LaunchBuilding(displayName, ownedCells),
 			_ => new Building(displayName, ownedCells, buildingType),
 		};
 	}

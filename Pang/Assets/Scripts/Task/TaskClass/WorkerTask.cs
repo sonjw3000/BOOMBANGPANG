@@ -19,6 +19,7 @@ public static class WorkerTaskTypeRequirement
 			WorkerTask.TaskType.Loading => WorkerAbility.CargoHandling,
 			WorkerTask.TaskType.PackingInput => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.PackingOutput => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			WorkerTask.TaskType.LaunchSort => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Labeling => WorkerAbility.Labeling,
 			WorkerTask.TaskType.Undefined => WorkerAbility.None,
 			WorkerTask.TaskType.HandleMistake => WorkerAbility.None,
@@ -51,6 +52,7 @@ public abstract partial class WorkerTask
 		CargoTransfer,
 		PackingInput,
 		PackingOutput,
+		LaunchSort,
 
 		
 		Undefined = 999,

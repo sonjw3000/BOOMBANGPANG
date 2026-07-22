@@ -355,6 +355,17 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	public int TransferPickingManifest(BoxBase from, BoxBase to, OrderLine orderLine, uint itemId, int quantity)
 	{
+		return TransferPickingManifest(from, to, orderLine, itemId, quantity, false);
+	}
+
+	public int TransferPickingManifest(
+		BoxBase from,
+		BoxBase to,
+		OrderLine orderLine,
+		uint itemId,
+		int quantity,
+		bool packed)
+	{
 		if (from == null || to == null || from.BoxId == to.BoxId || quantity <= 0)
 			return 0;
 
@@ -365,11 +376,15 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (targetManifest == null)
 			return 0;
 
-		int moved = sourceManifest.RemovePicked(orderLine, itemId, quantity);
+		int moved = packed
+			? sourceManifest.RemovePacked(orderLine, itemId, quantity)
+			: sourceManifest.RemovePicked(orderLine, itemId, quantity);
 		if (moved <= 0)
 			return 0;
 
-		int added = targetManifest.AddPicked(orderLine, itemId, moved);
+		int added = packed
+			? targetManifest.AddPacked(orderLine, itemId, moved)
+			: targetManifest.AddPicked(orderLine, itemId, moved);
 		if (added != moved)
 			Debug.LogWarning($"[OutboundWorkflowService] Picking manifest transfer mismatch. item={itemId}, moved={moved}, added={added}");
 
