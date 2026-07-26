@@ -89,7 +89,7 @@ public partial class ContractService : MonoBehaviour
 
 	public bool IsCatalogUnlocked(ContractCatalog catalog)
 	{
-		if (catalog == null)
+		if (IsCatalogVisible(catalog) == false)
 			return false;
 
 		IReadOnlyList<ContractLicenseRequirement> requirements = catalog.RequiredLicenses;
@@ -110,6 +110,20 @@ public partial class ContractService : MonoBehaviour
 		}
 
 		return true;
+	}
+
+	public bool IsCatalogVisible(ContractCatalog catalog)
+	{
+		if (catalog == null)
+			return false;
+
+		if (catalog.RequiresResearch == false)
+			return true;
+
+		ResearchService researchService = GameContext.HasInstance
+			? GameContext.Instance.ResearchService
+			: null;
+		return researchService?.IsResearched(catalog.RequiredResearchUid) == true;
 	}
 
 	public bool TryGetCatalog(ContractDefinition definition, out ContractCatalog result)

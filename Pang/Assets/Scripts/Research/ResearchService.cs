@@ -6,6 +6,7 @@ public static class ResearchIds
 	public const string InventoryDigitization = "inventory_digitization";
 	public const string WorkflowPolicyManagement = "workflow_policy_management";
 	public const string WorkflowPolicyOptimization = "workflow_policy_optimization";
+	public const string ThermalOperations = "thermal_operations";
 }
 
 public enum ResearchState

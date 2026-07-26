@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab68d1243c41b0d40a7f4021d254158e, type: 3}
+  m_Name: LunarProduceColdChain
+  m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.Contract.ItemContract.ContractDefinition
+  ContractName: Lunar Produce Cold Chain
+  ContractId: 210
+  ItemToHandle: {fileID: 11400000, guid: a60307fa075f91a41871e6e0a96c8b15, type: 2}
+  DeliveryIntervalWeek: 2
+  ItemCountsPerDelivery: 60
+  MinimumRequiredReputation: 0
+  MaximumRequiredReputation: 100
+  ContractDuration: 12
+  StandardSpec:
+    DeliveryTimeLimitWeeks: 4
+    BaseReward: 1200
+    DelayPenalty: 400
+    ReputationChange: 2
+  ExpressSpec:
+    DeliveryTimeLimitWeeks: 2
+    BaseReward: 1800
+    DelayPenalty: 700
+    ReputationChange: 3
+  RelatedItems: []

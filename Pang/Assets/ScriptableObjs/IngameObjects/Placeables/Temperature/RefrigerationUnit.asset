@@ -19,4 +19,5 @@ MonoBehaviour:
   gridFootprint: {fileID: 11400000, guid: be92e5ebb0f0bd5408e60450a820ec07, type: 2}
   definitionType: 5
   placementEnvironment: 1
+  requiredResearchUid: thermal_operations
   Cost: 100

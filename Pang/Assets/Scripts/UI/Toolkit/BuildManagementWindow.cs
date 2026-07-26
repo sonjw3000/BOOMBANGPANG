@@ -63,6 +63,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private ScrollView placeableList;
 		private Label placeableEmpty;
 		private Button createRuleButton;
+		private Button createColdChainRuleButton;
 		private ScrollView ruleList;
 		private Label ruleEmpty;
 		private Label ruleMessage;
@@ -93,6 +94,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private BuildingFootprintService footprintService;
 		private EconomyService economyService;
 		private FacilityRuleManager ruleManager;
+		private ResearchService researchService;
 		private bool initialized;
 		private bool started;
 		private int selectedTabIndex;
@@ -206,6 +208,7 @@ namespace UniverseLogistics.UI.Toolkit
 			placeableList = content.Q<ScrollView>("build-placeable-list");
 			placeableEmpty = content.Q<Label>("build-placeable-empty");
 			createRuleButton = content.Q<Button>("create-rule-preset-button");
+			createColdChainRuleButton = content.Q<Button>("create-cold-chain-rule-button");
 			ruleList = content.Q<ScrollView>("build-rule-list");
 			ruleEmpty = content.Q<Label>("build-rule-empty");
 			ruleMessage = content.Q<Label>("build-rule-message");
@@ -230,7 +233,8 @@ namespace UniverseLogistics.UI.Toolkit
 				buildingTypeField == null || footprintField == null || buildingSelectionName == null ||
 				buildingSelectionDetails == null || buildingMessage == null || createBuildingButton == null ||
 				categoryList == null || catalogTitle == null || catalogMessage == null || placeableList == null ||
-				placeableEmpty == null || createRuleButton == null || ruleList == null || ruleEmpty == null || ruleMessage == null ||
+				placeableEmpty == null || createRuleButton == null || createColdChainRuleButton == null ||
+				ruleList == null || ruleEmpty == null || ruleMessage == null ||
 				ruleLibrary == null || ruleEditor == null || ruleNameField == null || rulePriorityField == null ||
 				ruleColorPreview == null || ruleItemStatusField == null || ruleWorkerKindField == null || ruleItemField == null)
 			{
@@ -261,6 +265,7 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 			createBuildingButton.clicked += BeginBuildingPlacement;
 			createRuleButton.clicked += CreateRule;
+			createColdChainRuleButton.clicked += CreateColdChainRule;
 			buildingTypeField.choices = BuildTypeChoices();
 			buildingTypeField.SetValueWithoutNotify(buildingTypeField.choices[0]);
 			buildingTypeField.RegisterValueChangedCallback(OnBuildingSelectionChanged);
@@ -298,6 +303,7 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 			if (createBuildingButton != null) createBuildingButton.clicked -= BeginBuildingPlacement;
 			if (createRuleButton != null) createRuleButton.clicked -= CreateRule;
+			if (createColdChainRuleButton != null) createColdChainRuleButton.clicked -= CreateColdChainRule;
 			buildingTypeField?.UnregisterValueChangedCallback(OnBuildingSelectionChanged);
 			footprintField?.UnregisterValueChangedCallback(OnFootprintChanged);
 		}
@@ -310,7 +316,9 @@ namespace UniverseLogistics.UI.Toolkit
 			footprintService = GameContext.Instance.BuildingFootprintService;
 			economyService = GameContext.Instance.EconomyService;
 			ruleManager = GameContext.Instance.FacilityRuleMgr;
+			researchService = GameContext.Instance.ResearchService;
 			if (economyService != null) economyService.OnMoneyChanged += OnMoneyChanged;
+			if (researchService != null) researchService.OnResearchStateChanged += OnResearchStateChanged;
 			if (ruleManager != null)
 			{
 				ruleManager.OnPresetCreated += OnRuleChanged;
@@ -324,6 +332,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private void UnbindServices()
 		{
 			if (economyService != null) economyService.OnMoneyChanged -= OnMoneyChanged;
+			if (researchService != null) researchService.OnResearchStateChanged -= OnResearchStateChanged;
 			if (ruleManager != null)
 			{
 				ruleManager.OnPresetCreated -= OnRuleChanged;
@@ -336,6 +345,7 @@ namespace UniverseLogistics.UI.Toolkit
 			footprintService = null;
 			economyService = null;
 			ruleManager = null;
+			researchService = null;
 		}
 
 		private void OpenBuildings() => SelectTab(0);
@@ -788,11 +798,11 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			categoryList.Clear();
 			IReadOnlyList<BuildPlaceableSection> sections = catalog?.Sections;
-			if (ContainsSection(sections, selectedSection) == false) selectedSection = FirstSection(sections);
+			if (ContainsVisibleSection(sections, selectedSection) == false) selectedSection = FirstVisibleSection(sections);
 			if (sections == null) return;
 			foreach (BuildPlaceableSection section in sections)
 			{
-				if (section == null) continue;
+				if (IsSectionVisible(section) == false) continue;
 				BuildPlaceableSection captured = section;
 				Button button = new(() => SelectSection(captured)) { text = GetSectionName(section) };
 				button.AddToClassList("build-category-button");
@@ -817,7 +827,8 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				foreach (PlaceableDefinition definition in selectedSection.placeables)
 				{
-					if (definition == null || definition.prefab == null || definition.gridFootprint == null) continue;
+					if (definition == null || definition.prefab == null || definition.gridFootprint == null ||
+						IsPlaceableUnlocked(definition) == false) continue;
 					placeableList.Add(CreatePlaceableRow(definition));
 					++count;
 				}
@@ -845,6 +856,11 @@ namespace UniverseLogistics.UI.Toolkit
 		private void BeginFacilityPlacement(PlaceableDefinition definition)
 		{
 			if (definition == null || GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null) return;
+			if (IsPlaceableUnlocked(definition) == false)
+			{
+				catalogMessage.text = $"Requires research: {definition.RequiredResearchUid}.";
+				return;
+			}
 			window.Close();
 			GameContext.Instance.InteractionCtx.EnterPlacementMode(definition);
 		}
@@ -852,6 +868,9 @@ namespace UniverseLogistics.UI.Toolkit
 		private void RefreshRules()
 		{
 			if (ruleList == null) return;
+			createColdChainRuleButton.style.display = IsThermalOperationsResearched()
+				? DisplayStyle.Flex
+				: DisplayStyle.None;
 			ruleList.Clear();
 			IReadOnlyList<FacilityRulePreset> presets = ruleManager?.Presets;
 			int count = presets?.Count ?? 0;
@@ -901,6 +920,18 @@ namespace UniverseLogistics.UI.Toolkit
 			workingRule = new FacilityRule();
 			workingRuleColor = Color.white;
 			ShowRuleEditor("Create Facility Rule", $"Rule {(ruleManager?.Presets.Count ?? 0) + 1}");
+		}
+
+		private void CreateColdChainRule()
+		{
+			if (IsThermalOperationsResearched() == false)
+				return;
+
+			editingRuleId = FacilityRuleManager.NoRulePresetId;
+			workingRule = new FacilityRule();
+			workingRule.ItemRule.SetRequiredItemTags(ItemTag.Food);
+			workingRuleColor = new Color(0.25f, 0.75f, 1.0f);
+			ShowRuleEditor("Create Cold Chain Rule", "Cold Chain");
 		}
 
 		private void EditRule(FacilityRulePreset preset)
@@ -1216,6 +1247,12 @@ namespace UniverseLogistics.UI.Toolkit
 		}
 
 		private void OnMoneyChanged(int _) => DisplaySelectedSection();
+		private void OnResearchStateChanged()
+		{
+			RefreshCategories();
+			DisplaySelectedSection();
+			RefreshRules();
+		}
 
 		private BuildingFootprintPreset GetSelectedPreset() => footprintField.index >= 0 && footprintField.index < footprintPresets.Count ? footprintPresets[footprintField.index] : footprintService?.ActivePreset;
 		private BuildingType GetSelectedBuildingType() => buildingTypeField.index >= 0 && buildingTypeField.index < BuildingTypes.Length ? BuildingTypes[buildingTypeField.index] : BuildingTypes[0];
@@ -1236,16 +1273,38 @@ namespace UniverseLogistics.UI.Toolkit
 			if (outdoor) return "Outdoor";
 			return "Restricted";
 		}
-		private static bool ContainsSection(IReadOnlyList<BuildPlaceableSection> sections, BuildPlaceableSection target)
+		private bool IsPlaceableUnlocked(PlaceableDefinition definition)
 		{
-			if (sections == null || target == null) return false;
-			for (int i = 0; i < sections.Count; ++i) if (sections[i] == target) return true;
+			return definition != null &&
+				(definition.RequiresResearch == false ||
+					researchService?.IsResearched(definition.RequiredResearchUid) == true);
+		}
+		private bool IsThermalOperationsResearched() =>
+			researchService?.IsResearched(ResearchIds.ThermalOperations) == true;
+		private bool IsSectionVisible(BuildPlaceableSection section)
+		{
+			if (section?.placeables == null) return false;
+			for (int i = 0; i < section.placeables.Count; ++i)
+			{
+				PlaceableDefinition definition = section.placeables[i];
+				if (definition != null && definition.prefab != null && definition.gridFootprint != null &&
+					IsPlaceableUnlocked(definition))
+					return true;
+			}
 			return false;
 		}
-		private static BuildPlaceableSection FirstSection(IReadOnlyList<BuildPlaceableSection> sections)
+		private bool ContainsVisibleSection(IReadOnlyList<BuildPlaceableSection> sections, BuildPlaceableSection target)
+		{
+			if (sections == null || target == null) return false;
+			for (int i = 0; i < sections.Count; ++i)
+				if (sections[i] == target && IsSectionVisible(sections[i])) return true;
+			return false;
+		}
+		private BuildPlaceableSection FirstVisibleSection(IReadOnlyList<BuildPlaceableSection> sections)
 		{
 			if (sections == null) return null;
-			for (int i = 0; i < sections.Count; ++i) if (sections[i] != null) return sections[i];
+			for (int i = 0; i < sections.Count; ++i)
+				if (IsSectionVisible(sections[i])) return sections[i];
 			return null;
 		}
 	}

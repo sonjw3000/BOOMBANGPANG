@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 542d0f0995213784086e5ac05e2e9a9e, type: 3}
+  m_Name: ColdChainCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.Contract.ItemContract.ContractCatalog
+  displayName: Cold Chain
+  requiredResearchUid: thermal_operations
+  requiredLicenses:
+  - license: {fileID: 11400000, guid: 9c96f875f8694e8e84350868cc45a201, type: 2}
+    minimumGrade: 2
+  Contracts:
+  - {fileID: 11400000, guid: 853515eaa2493bb46bd1350127d1b5f8, type: 2}

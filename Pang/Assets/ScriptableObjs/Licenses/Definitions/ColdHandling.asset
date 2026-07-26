@@ -15,36 +15,6 @@ MonoBehaviour:
   licenseId: cold_handling
   displayName: Cold Handling
   grades:
-  - grade: 0
-    requiredConditionGroups:
-    - scope: 1
-      matchMode: 0
-      requireActiveBuilding: 1
-      conditions:
-      - metric: 0
-        comparison: 4
-        targetValue: 0
-      - metric: 0
-        comparison: 2
-        targetValue: 10
-      - metric: 1
-        comparison: 4
-        targetValue: 0.8
-  - grade: 1
-    requiredConditionGroups:
-    - scope: 1
-      matchMode: 0
-      requireActiveBuilding: 1
-      conditions:
-      - metric: 0
-        comparison: 4
-        targetValue: 0
-      - metric: 0
-        comparison: 2
-        targetValue: 10
-      - metric: 1
-        comparison: 4
-        targetValue: 0.6
   - grade: 2
     requiredConditionGroups:
     - scope: 1
@@ -59,4 +29,4 @@ MonoBehaviour:
         targetValue: 10
       - metric: 1
         comparison: 4
-        targetValue: 0.3
+        targetValue: 0.8

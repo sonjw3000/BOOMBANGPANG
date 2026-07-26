@@ -45,7 +45,10 @@
 					<ui:Label text="Facility Rule presets" class="build-heading" />
 					<ui:Label text="Create and maintain reusable operating rules. Apply them from the selected facility HUD." class="build-caption" />
 				</ui:VisualElement>
-				<ui:Button name="create-rule-preset-button" text="Create Rule" class="build-primary-button" />
+				<ui:VisualElement class="rule-editor-actions">
+					<ui:Button name="create-cold-chain-rule-button" text="Cold Chain Rule" class="build-primary-button" />
+					<ui:Button name="create-rule-preset-button" text="Create Rule" class="build-primary-button" />
+				</ui:VisualElement>
 			</ui:VisualElement>
 			<ui:ScrollView name="build-rule-list" class="build-list" />
 			<ui:Label name="build-rule-empty" text="No Facility Rule presets." class="build-empty build-rule-empty" />

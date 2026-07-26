@@ -90,6 +90,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ContractService
   contractCatalogs:
   - {fileID: 11400000, guid: 5a9180c7368d4874494ba4a56fd9cdda, type: 2}
+  - {fileID: 11400000, guid: b0e4cd4dad70682409f9aa7d85b88a6a, type: 2}
   expiredContractExtensionMonths: 12
 --- !u!1 &403779057662646938
 GameObject:

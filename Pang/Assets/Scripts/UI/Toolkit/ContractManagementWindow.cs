@@ -39,6 +39,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private ContractService contractService;
 		private VendorService vendorService;
 		private LicenseService licenseService;
+		private ResearchService researchService;
 		private ContractCatalog selectedCatalog;
 		private VendorType selectedVendorType;
 		private bool initialized;
@@ -160,12 +161,15 @@ namespace UniverseLogistics.UI.Toolkit
 			contractService = GameContext.Instance.ContractMgr;
 			vendorService = GameContext.Instance.VendorService;
 			licenseService = GameContext.Instance.LicenseService;
+			researchService = GameContext.Instance.ResearchService;
 			if (contractService != null)
 				contractService.OnContractsChanged += OnContractsChanged;
 			if (vendorService != null)
 				vendorService.OnVendorsChanged += OnVendorsChanged;
 			if (licenseService != null)
 				licenseService.OnLicensesChanged += OnLicensesChanged;
+			if (researchService != null)
+				researchService.OnResearchStateChanged += OnResearchStateChanged;
 		}
 
 		private void UnbindServices()
@@ -176,9 +180,12 @@ namespace UniverseLogistics.UI.Toolkit
 				vendorService.OnVendorsChanged -= OnVendorsChanged;
 			if (licenseService != null)
 				licenseService.OnLicensesChanged -= OnLicensesChanged;
+			if (researchService != null)
+				researchService.OnResearchStateChanged -= OnResearchStateChanged;
 			contractService = null;
 			vendorService = null;
 			licenseService = null;
+			researchService = null;
 		}
 
 		private void OpenActiveSection() => SelectSection(0);
@@ -237,12 +244,12 @@ namespace UniverseLogistics.UI.Toolkit
 
 			catalogList.Clear();
 			IReadOnlyList<ContractCatalog> catalogs = contractService.ContractCatalogs;
-			if (selectedCatalog == null || ContainsCatalog(catalogs, selectedCatalog) == false)
-				selectedCatalog = FindFirstCatalog(catalogs);
+			if (selectedCatalog == null || ContainsVisibleCatalog(catalogs, selectedCatalog) == false)
+				selectedCatalog = FindFirstVisibleCatalog(catalogs);
 
 			foreach (ContractCatalog catalog in catalogs)
 			{
-				if (catalog == null)
+				if (contractService.IsCatalogVisible(catalog) == false)
 					continue;
 				ContractCatalog capturedCatalog = catalog;
 				bool unlocked = contractService.IsCatalogUnlocked(catalog);
@@ -358,10 +365,14 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				if (requirement?.License == null)
 					continue;
-				string current = licenseService != null &&
-					licenseService.TryGetAcquiredGrade(requirement.LicenseId, out LicenseGrade grade)
-					? grade.ToString()
-					: "None";
+				string current = "None";
+				if (licenseService != null &&
+					licenseService.TryGetAcquiredState(requirement.LicenseId, out AcquiredLicenseState state))
+				{
+					current = state.IsCompliant
+						? state.Grade.ToString()
+						: $"{state.Grade} (Non-compliant)";
+				}
 				message.Append($"  Requires {requirement.License.DisplayName} {requirement.MinimumGrade} / Current {current}.");
 			}
 			return message.ToString();
@@ -380,6 +391,12 @@ namespace UniverseLogistics.UI.Toolkit
 		}
 
 		private void OnLicensesChanged()
+		{
+			if (window != null && window.IsOpen)
+				RefreshCatalogs();
+		}
+
+		private void OnResearchStateChanged()
 		{
 			if (window != null && window.IsOpen)
 				RefreshCatalogs();
@@ -406,21 +423,21 @@ namespace UniverseLogistics.UI.Toolkit
 			return vendor != null ? $"Every {vendor.ServiceInterval} weeks{elapsed}" : "Service terms unavailable";
 		}
 
-		private static bool ContainsCatalog(IReadOnlyList<ContractCatalog> catalogs, ContractCatalog target)
+		private bool ContainsVisibleCatalog(IReadOnlyList<ContractCatalog> catalogs, ContractCatalog target)
 		{
 			foreach (ContractCatalog catalog in catalogs)
 			{
-				if (catalog == target)
+				if (catalog == target && contractService.IsCatalogVisible(catalog))
 					return true;
 			}
 			return false;
 		}
 
-		private static ContractCatalog FindFirstCatalog(IReadOnlyList<ContractCatalog> catalogs)
+		private ContractCatalog FindFirstVisibleCatalog(IReadOnlyList<ContractCatalog> catalogs)
 		{
 			foreach (ContractCatalog catalog in catalogs)
 			{
-				if (catalog != null)
+				if (contractService.IsCatalogVisible(catalog))
 					return catalog;
 			}
 			return null;

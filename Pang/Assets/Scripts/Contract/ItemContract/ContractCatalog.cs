@@ -21,6 +21,9 @@ namespace Assets.Scripts.Contract.ItemContract
 		[Header("Catalog Info")]
 		[SerializeField] private string displayName = string.Empty;
 
+		[Header("Research Requirement")]
+		[SerializeField] private string requiredResearchUid = string.Empty;
+
 		[Header("License Requirements")]
 		[Tooltip("Empty means every contract in this catalog is available without a license.")]
 		[SerializeField] private ContractLicenseRequirement[] requiredLicenses = Array.Empty<ContractLicenseRequirement>();
@@ -29,6 +32,8 @@ namespace Assets.Scripts.Contract.ItemContract
 		public ContractDefinition[] Contracts;
 
 		public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
+		public string RequiredResearchUid => requiredResearchUid;
+		public bool RequiresResearch => string.IsNullOrWhiteSpace(requiredResearchUid) == false;
 		public IReadOnlyList<ContractLicenseRequirement> RequiredLicenses =>
 			requiredLicenses ?? Array.Empty<ContractLicenseRequirement>();
 		public bool RequiresLicense => requiredLicenses != null && requiredLicenses.Length > 0;

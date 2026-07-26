@@ -181,6 +181,20 @@ public class InteractionContext
 
 	public void EnterPlacementMode(PlaceableDefinition pd)
 	{
+		if (pd == null)
+			return;
+
+		if (pd.RequiresResearch &&
+			(GameContext.HasInstance == false ||
+				GameContext.Instance.ResearchService?.IsResearched(pd.RequiredResearchUid) != true))
+		{
+			string message = $"{pd.displayName} requires research: {pd.RequiredResearchUid}.";
+			Debug.LogWarning($"[InteractionContext] {message}");
+			if (GameContext.HasInstance)
+				GameContext.Instance.HudEventManager?.Publish(HudEventType.Warning, message);
+			return;
+		}
+
 		CancelActivePlacementMode();
 		SetMode(InteractionDomain.Facility, InteractionAction.Install);
 		toBePlaced = pd;

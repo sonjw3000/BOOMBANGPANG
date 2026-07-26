@@ -148,8 +148,10 @@ public sealed partial class LicenseService : MonoBehaviour
 
 	public bool MeetsRequirement(string licenseId, LicenseGrade minimumGrade)
 	{
-		return TryGetAcquiredGrade(licenseId, out LicenseGrade acquiredGrade) &&
-			LicenseGradeUtility.MeetsRequirement(acquiredGrade, minimumGrade);
+		return TryGetAcquiredState(licenseId, out AcquiredLicenseState state) &&
+			state.IsCompliant &&
+			LicenseGradeUtility.MeetsRequirement(state.Grade, minimumGrade) &&
+			Evaluate(state.Definition, state.Grade).IsSatisfied;
 	}
 
 	public void ReevaluateAcquiredLicenses()
