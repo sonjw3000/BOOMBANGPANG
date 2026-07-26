@@ -185,6 +185,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.FacilityMgr.ResetRuntimeState();
 		Ctx.PowerSvc.ResetRuntimeState();
 		Ctx.TemperatureSvc.ResetRuntimeState();
+		Ctx.ThermalTransferSvc.ResetRuntimeState();
 		Ctx.OxygenSvc.ResetRuntimeState();
 		Ctx.FireSvc.ResetRuntimeState();
 		Ctx.ExplosionSvc.ResetRuntimeState();
@@ -296,6 +297,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.FacilityRuleMgr.RebuildAppliedFacilityLookup();
 		Ctx.FacilityRuleOverlay?.RefreshOverlay();
 		Ctx.TemperatureSvc.RebuildRuntimeState();
+		Ctx.ThermalTransferSvc.RebuildRuntimeState();
 		Ctx.OxygenSvc.RebuildRuntimeState();
 		Ctx.FireSvc.RebuildRuntimeState();
 		Ctx.IBWorkflowSvc.RetryActiveRocketUnloadingTasks();

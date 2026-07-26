@@ -141,16 +141,20 @@ public static class ItemTransferUtility
 			sourceStackPredicate,
 			handlingWorker);
 
-		ItemStack damagedStack = CreateDamagedTransferStack(payload, stack, stack.Quantity, out ItemDamageChange damageChange);
-		ItemStack transferStack = damagedStack ?? stack;
-		if (to.CanAcceptStack(transferStack) == false)
+		if (TryCalculateRemovedTemperature(
+			from,
+			stack.ItemID,
+			stack.Quantity,
+			sourceStackPredicate,
+			out float sourceTemperature) == false)
 		{
-			damagedStack?.Recycle();
 			return new(payload, 0);
 		}
 
-		int available = GetMatchingQuantity(from, stack.ItemID, stack.Quantity, sourceStackPredicate);
-		if (available < stack.Quantity)
+		stack.SetCurrentTemperatureCelsius(sourceTemperature);
+		ItemStack damagedStack = CreateDamagedTransferStack(payload, stack, stack.Quantity, out ItemDamageChange damageChange);
+		ItemStack transferStack = damagedStack ?? stack;
+		if (to.CanAcceptStack(transferStack) == false)
 		{
 			damagedStack?.Recycle();
 			return new(payload, 0);
@@ -336,6 +340,38 @@ public static class ItemTransferUtility
 			stack.Quantity > 0 &&
 			stack.HasItemID(itemId) &&
 			(stackPredicate == null || stackPredicate(stack));
+	}
+
+	private static bool TryCalculateRemovedTemperature(
+		IItemContainer container,
+		uint itemId,
+		int quantity,
+		Predicate<ItemStack> stackPredicate,
+		out float temperatureCelsius)
+	{
+		temperatureCelsius = GridCell.DefaultTemperatureCelsius;
+		if (container?.Stacks == null || quantity <= 0)
+			return false;
+
+		int remaining = quantity;
+		double weightedTemperature = 0.0;
+		for (int i = container.Stacks.Count - 1; i >= 0 && remaining > 0; --i)
+		{
+			ItemStack sourceStack = container.Stacks[i];
+			if (CanMoveStack(sourceStack, itemId, stackPredicate) == false)
+				continue;
+
+			int taken = Math.Min(sourceStack.Quantity, remaining);
+			weightedTemperature += sourceStack.CurrentTemperatureCelsius * taken;
+			remaining -= taken;
+		}
+
+		if (remaining > 0)
+			return false;
+
+		temperatureCelsius = ThermalUtility.SanitizeCelsius(
+			(float)(weightedTemperature / quantity));
+		return true;
 	}
 
 	private static int RemoveMatchingQuantity(

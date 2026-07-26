@@ -12,13 +12,14 @@ public enum BoxType
 	Any = 3,
 }
 
-public abstract partial class BoxBase : MonoBehaviour, IItemContainer, IGridPlaceable
+public abstract partial class BoxBase : MonoBehaviour, IThermalItemContainer, IGridPlaceable
 {
 	public event System.Action<BoxBase> OnInvalidated;
 
 	[SerializeField] BoxType boxType;
 	[SerializeField] private float capacity = 10.0f;
 	[SerializeField] private uint boxId = 0;
+	[SerializeField, Min(0.0f)] private float thermalResponsePerWeek = 4.0f;
 	protected float size = 0.0f;
 	private ItemTag itemTags = ItemTag.None;
 	private bool isValid;
@@ -27,6 +28,7 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer, IGridPlac
 	private FacingDirection facingDirection;
 	private float fireIntensity;
 	private AIWorker currentCarrier;
+	private float currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 
 	protected List<ItemStack> stacks = new();
 	protected Dictionary<uint, int> itemTotals = new();
@@ -52,10 +54,45 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer, IGridPlac
 	public WorkerStatusTarget BuildingTarget => WorkerStatusTarget.Box;
 	public float FireIntensity => fireIntensity;
 	public AIWorker CurrentCarrier => currentCarrier;
+	public float CurrentTemperatureCelsius => currentTemperatureCelsius;
+	public float ThermalResponsePerWeek => Mathf.Max(0.0f, thermalResponsePerWeek);
 
 	public void SetBoxId(uint id) => boxId = id;
 	public void SetFireIntensity(float intensity) => fireIntensity = Mathf.Clamp(intensity, 0.0f, 100.0f);
 	internal void SetCurrentCarrier(AIWorker carrier) => currentCarrier = carrier;
+
+	public void SetCurrentTemperatureCelsius(float temperatureCelsius)
+	{
+		currentTemperatureCelsius = ThermalUtility.SanitizeCelsius(temperatureCelsius);
+	}
+
+	public bool TryGetThermalEnvironmentPosition(out int3 position)
+	{
+		if (currentCarrier != null)
+		{
+			position = currentCarrier.GridPosition;
+			return true;
+		}
+
+		if (isPlacedOnGrid)
+		{
+			position = gridPosition;
+			return true;
+		}
+
+		if (transform.parent != null)
+		{
+			IGridPlaceable parentPlaceable = transform.parent.GetComponentInParent<IGridPlaceable>(true);
+			if (parentPlaceable != null && ReferenceEquals(parentPlaceable, this) == false)
+			{
+				position = parentPlaceable.GridPosition;
+				return true;
+			}
+		}
+
+		position = default;
+		return false;
+	}
 
 	public void OnPositionSet(in int3 position, FacingDirection direction)
 	{
@@ -106,6 +143,7 @@ public abstract partial class BoxBase : MonoBehaviour, IItemContainer, IGridPlac
 		itemTags = ItemTag.None;
 		fireIntensity = 0.0f;
 		currentCarrier = null;
+		currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	}
 
 	public void UpdateToteCapacity(float capacity) => this.capacity = capacity;

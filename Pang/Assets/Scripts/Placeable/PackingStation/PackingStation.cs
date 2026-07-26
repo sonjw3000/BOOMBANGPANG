@@ -19,7 +19,7 @@ public class BoxWithOrder
 
 public partial class PackingStation :
 	BoxInteraction,
-	IItemContainer,
+	IThermalItemContainer,
 	IFacilityUserRemovalGuard
 {
 	[SerializeField] Transform waitStackSlot = null;
@@ -29,6 +29,7 @@ public partial class PackingStation :
 
 	[SerializeField] protected int maxStacks = 16;
 	[SerializeField] protected float sizePerStack = 100;
+	[SerializeField, Min(0.0f)] private float thermalResponsePerWeek = 64.0f;
 
 	private AIWorker currentPackingWorker = null;
 	private AIWorker incomingPickingWorker = null;
@@ -42,6 +43,7 @@ public partial class PackingStation :
 	protected Dictionary<uint, int> itemTotals = new();
 	private float totalSize = 0.0f;
 	private ItemTag itemTags = ItemTag.None;
+	private float currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 
 	public event Action<PackingStation> OnItemContentChanged;
 
@@ -50,7 +52,20 @@ public partial class PackingStation :
 	public float TotalSize => totalSize;
 	public float MaxSize => sizePerStack * maxStacks;
 	public ItemTag ItemTags => itemTags;
+	public float CurrentTemperatureCelsius => currentTemperatureCelsius;
+	public float ThermalResponsePerWeek => Mathf.Max(0.0f, thermalResponsePerWeek);
 	protected ItemDatabase itemDB => GameContext.Instance.ItemDB;
+
+	public bool TryGetThermalEnvironmentPosition(out int3 position)
+	{
+		position = GridPosition;
+		return true;
+	}
+
+	public void SetCurrentTemperatureCelsius(float temperatureCelsius)
+	{
+		currentTemperatureCelsius = ThermalUtility.SanitizeCelsius(temperatureCelsius);
+	}
 
 
 	public bool CanRegister() => maxStacks > Stacks.Count;

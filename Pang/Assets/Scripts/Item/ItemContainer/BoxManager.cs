@@ -16,6 +16,7 @@ public partial class BoxManager : MonoBehaviour
 
 	private float toteCapacity = 80.0f;
 	public float ToteCapacity => toteCapacity;
+	public IReadOnlyList<BoxBase> ActiveBoxes => activeBoxes;
 
 	private void Awake()
 	{

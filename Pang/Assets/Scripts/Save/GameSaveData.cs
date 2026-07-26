@@ -520,6 +520,8 @@ public sealed class WorkerSaveData
 [Serializable]
 public sealed class ShelfContainerSaveData
 {
+	public bool HasTemperatureState;
+	public float CurrentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	public List<ItemStackSaveData> Stacks = new();
 	public List<ItemQuantitySaveData> ReservedPick = new();
 }
@@ -546,6 +548,8 @@ public sealed class CapsuleBufferSaveData
 [Serializable]
 public sealed class PackingStationSaveData
 {
+	public bool HasTemperatureState;
+	public float CurrentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	public List<ItemStackSaveData> PackedItems = new();
 	public BoxWithOrderSaveData WaitingBox;
 	public BoxWithOrderSaveData CurrentBox;
@@ -584,6 +588,8 @@ public sealed class BoxSaveData
 	public string ConcreteType;
 	public CapsuleLogisticsState CapsuleLogisticsState;
 	public float FireIntensity;
+	public bool HasTemperatureState;
+	public float CurrentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	public List<ItemStackSaveData> Stacks = new();
 }
 
@@ -601,6 +607,8 @@ public sealed class ItemStackSaveData
 	public int Quantity;
 	public byte Freshness = 100;
 	public byte Damage;
+	public bool HasTemperatureState;
+	public float CurrentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	public ItemStatus Status = ItemStatus.None;
 	public PackageOutboundStage OutboundStage = PackageOutboundStage.None;
 	public ItemQuality Quality = ItemQuality.None;

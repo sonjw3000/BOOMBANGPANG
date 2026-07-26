@@ -34,6 +34,44 @@ public interface IItemContainer
 	public bool TryRemoveFromStack(ItemStack stack, int quantity, out ItemStack removedStack);
 }
 
+public interface IThermalItemContainer : IItemContainer
+{
+	public float CurrentTemperatureCelsius { get; }
+	public float ThermalResponsePerWeek { get; }
+
+	public bool TryGetThermalEnvironmentPosition(out int3 position);
+
+	public void SetCurrentTemperatureCelsius(float temperatureCelsius);
+}
+
+public static class ThermalUtility
+{
+	public const float AbsoluteZeroCelsius = -273.15f;
+
+	public static float SanitizeCelsius(float temperatureCelsius)
+	{
+		if (float.IsNaN(temperatureCelsius) || float.IsInfinity(temperatureCelsius))
+			return GridCell.DefaultTemperatureCelsius;
+
+		return Mathf.Max(AbsoluteZeroCelsius, temperatureCelsius);
+	}
+
+	public static float ApproachTemperature(
+		float currentTemperatureCelsius,
+		float targetTemperatureCelsius,
+		float responsePerWeek,
+		float elapsedWeeks)
+	{
+		float current = SanitizeCelsius(currentTemperatureCelsius);
+		float target = SanitizeCelsius(targetTemperatureCelsius);
+		if (responsePerWeek <= 0.0f || elapsedWeeks <= 0.0f)
+			return current;
+
+		float blend = 1.0f - Mathf.Exp(-responsePerWeek * elapsedWeeks);
+		return SanitizeCelsius(Mathf.Lerp(current, target, Mathf.Clamp01(blend)));
+	}
+}
+
 public interface IItemPickReservable
 {
 	public IReadOnlyDictionary<uint, int> ItemToBePicked { get; }
@@ -61,6 +99,7 @@ public class ItemStack
 	private int quantity = 0;
 	private byte freshness = DefaultFreshnessValue;
 	private byte damage = DefaultDamageValue;
+	private float currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	private ItemStatus status = ItemStatus.None;
 	private ItemQuality quality = ItemQuality.None;
 	private PackageOutboundStage outboundStage = PackageOutboundStage.None;
@@ -69,6 +108,7 @@ public class ItemStack
 	public int Quantity => quantity;
 	public byte Freshness => freshness;
 	public byte Damage => damage;
+	public float CurrentTemperatureCelsius => currentTemperatureCelsius;
 	public ItemStatus Status => status;
 	public ItemQuality Quality => quality;
 	public PackageOutboundStage OutboundStage => outboundStage;
@@ -86,9 +126,10 @@ public class ItemStack
 		byte damage = 0,
 		ItemStatus status = ItemStatus.None,
 		PackageOutboundStage outboundStage = PackageOutboundStage.None,
-		ItemQuality quality = ItemQuality.None)
+		ItemQuality quality = ItemQuality.None,
+		float currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius)
 	{
-		Initialize(itemID, freshness, damage, status, outboundStage, quality);
+		Initialize(itemID, freshness, damage, status, outboundStage, quality, currentTemperatureCelsius);
 	}
 
 	private static byte ClampPercent(byte value) => (byte)Mathf.Clamp((int)value, 0, 100);
@@ -99,16 +140,17 @@ public class ItemStack
 		byte damage = 0,
 		ItemStatus status = ItemStatus.None,
 		PackageOutboundStage outboundStage = PackageOutboundStage.None,
-		ItemQuality quality = ItemQuality.None)
+		ItemQuality quality = ItemQuality.None,
+		float currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius)
 	{
 		if (pool.Count > 0)
 		{
 			ItemStack stack = pool.Pop();
-			stack.Initialize(itemID, freshness, damage, status, outboundStage, quality);
+			stack.Initialize(itemID, freshness, damage, status, outboundStage, quality, currentTemperatureCelsius);
 			return stack;
 		}
 
-		return new ItemStack(itemID, freshness, damage, status, outboundStage, quality);
+		return new ItemStack(itemID, freshness, damage, status, outboundStage, quality, currentTemperatureCelsius);
 	}
 
 	public static ItemStack RentDefault(uint itemID)
@@ -128,6 +170,11 @@ public class ItemStack
 	public void SetDamage(byte damage)
 	{
 		this.damage = ClampPercent(damage);
+	}
+
+	public void SetCurrentTemperatureCelsius(float temperatureCelsius)
+	{
+		currentTemperatureCelsius = ThermalUtility.SanitizeCelsius(temperatureCelsius);
 	}
 
 	public void SetStatus(ItemStatus status)
@@ -193,7 +240,7 @@ public class ItemStack
 
 	protected virtual ItemStack CreateEmptyLikeThis()
 	{
-		return Rent(itemID, freshness, damage, status, outboundStage, quality);
+		return Rent(itemID, freshness, damage, status, outboundStage, quality, currentTemperatureCelsius);
 	}
 
 	public virtual ItemStack CreateTransferStack(int amount)
@@ -222,13 +269,25 @@ public class ItemStack
 
 	public bool TryMergeFrom(ItemStack other)
 	{
-		if (CanMergeWith(other) == false)
+		if (ReferenceEquals(this, other) || CanMergeWith(other) == false)
 			return false;
 
-		int added = AddItem(other.Quantity);
-		if (added != other.Quantity)
+		int originalQuantity = Quantity;
+		int incomingQuantity = other.Quantity;
+		int mergedQuantity = originalQuantity + incomingQuantity;
+		if (mergedQuantity <= 0)
 			return false;
 
+		float mergedTemperature =
+			(float)(((double)currentTemperatureCelsius * originalQuantity +
+				(double)other.currentTemperatureCelsius * incomingQuantity) /
+				mergedQuantity);
+
+		int added = AddItem(incomingQuantity);
+		if (added != incomingQuantity)
+			return false;
+
+		SetCurrentTemperatureCelsius(mergedTemperature);
 		other.RemoveItem(added);
 		return true;
 	}
@@ -247,12 +306,14 @@ public class ItemStack
 		byte damage,
 		ItemStatus status,
 		PackageOutboundStage outboundStage,
-		ItemQuality quality)
+		ItemQuality quality,
+		float currentTemperatureCelsius)
 	{
 		this.itemID = itemID;
 		quantity = 0;
 		this.freshness = ClampPercent(freshness);
 		this.damage = ClampPercent(damage);
+		this.currentTemperatureCelsius = ThermalUtility.SanitizeCelsius(currentTemperatureCelsius);
 		this.status = status;
 		this.outboundStage = outboundStage;
 		this.quality = quality;
@@ -264,6 +325,7 @@ public class ItemStack
 		quantity = 0;
 		freshness = DefaultFreshnessValue;
 		damage = DefaultDamageValue;
+		currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 		status = ItemStatus.None;
 		quality = ItemQuality.None;
 		outboundStage = PackageOutboundStage.None;

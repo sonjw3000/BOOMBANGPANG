@@ -8,12 +8,13 @@ using UnityEngine;
 
 public abstract partial class ShelfBase :
 	ItemInteraction,
-	IItemContainer,
+	IThermalItemContainer,
 	IItemPickReservable,
 	IFacilityUserRemovalGuard
 {
 	[SerializeField] protected int maxStacks = 16;
 	[SerializeField] protected float sizePerStack;
+	[SerializeField, Min(0.0f)] private float thermalResponsePerWeek = 64.0f;
 
 	protected List<ItemStack> stacks;
 	protected Dictionary<uint, int> itemTotals = new();
@@ -21,6 +22,7 @@ public abstract partial class ShelfBase :
 
 	private float totalSize = 0.0f;
 	private ItemTag itemTags = ItemTag.None;
+	private float currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 
 	public float TotalSize => totalSize;
 	public float MaxSize => sizePerStack * maxStacks;
@@ -43,9 +45,22 @@ public abstract partial class ShelfBase :
 	public IReadOnlyDictionary<uint, int> ItemTotals => itemTotals;
 	public IReadOnlyDictionary<uint, int> ItemToBePicked => itemsReservedPick;
 	public ItemTag ItemTags => itemTags;
+	public float CurrentTemperatureCelsius => currentTemperatureCelsius;
+	public float ThermalResponsePerWeek => Mathf.Max(0.0f, thermalResponsePerWeek);
 	public int GetPickableQuantity(uint itemID) => ItemTotals.GetValueOrDefault(itemID) - ItemToBePicked.GetValueOrDefault(itemID);
 	public bool CanRegister() => MaxStack > Stacks.Count;
 	public float MaxStack => maxStacks;
+
+	public bool TryGetThermalEnvironmentPosition(out int3 position)
+	{
+		position = GridPosition;
+		return true;
+	}
+
+	public void SetCurrentTemperatureCelsius(float temperatureCelsius)
+	{
+		currentTemperatureCelsius = ThermalUtility.SanitizeCelsius(temperatureCelsius);
+	}
 
 	public int GetQuantity(uint itemId)
 	{

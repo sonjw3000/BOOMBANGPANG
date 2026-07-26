@@ -5,7 +5,11 @@ public abstract partial class ShelfBase
 {
 	public virtual ShelfContainerSaveData CaptureState(Func<OrderLine, int> registerOrderLine)
 	{
-		ShelfContainerSaveData data = new();
+		ShelfContainerSaveData data = new()
+		{
+			HasTemperatureState = true,
+			CurrentTemperatureCelsius = CurrentTemperatureCelsius,
+		};
 		foreach (var stack in stacks)
 		{
 			data.Stacks.Add(new ItemStackSaveData
@@ -14,6 +18,8 @@ public abstract partial class ShelfBase
 				Quantity = stack.Quantity,
 				Freshness = stack.Freshness,
 				Damage = stack.Damage,
+				HasTemperatureState = true,
+				CurrentTemperatureCelsius = stack.CurrentTemperatureCelsius,
 				Status = stack.Status,
 				OutboundStage = stack.OutboundStage,
 				Quality = stack.Quality,
@@ -40,12 +46,25 @@ public abstract partial class ShelfBase
 		stacks.Clear();
 		itemTotals.Clear();
 		itemsReservedPick.Clear();
+		SetCurrentTemperatureCelsius(
+			data != null && data.HasTemperatureState
+				? data.CurrentTemperatureCelsius
+				: GridCell.DefaultTemperatureCelsius);
 
 		if (data != null)
 		{
 			foreach (var stackData in data.Stacks)
 			{
-				ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, stackData.OutboundStage, stackData.Quality);
+				ItemStack stack = ItemStack.Rent(
+					stackData.ItemId,
+					stackData.Freshness,
+					stackData.Damage,
+					stackData.Status,
+					stackData.OutboundStage,
+					stackData.Quality,
+					stackData.HasTemperatureState
+						? stackData.CurrentTemperatureCelsius
+						: GridCell.DefaultTemperatureCelsius);
 				stack.AddItem(stackData.Quantity);
 				AddStack(stack);
 				if (stack.Quantity <= 0)

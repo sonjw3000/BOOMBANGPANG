@@ -27,6 +27,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	[SerializeField, Min(0f)] private float fireHeatDegreesPerTickAtMaxIntensity = 20f;
 	[SerializeField, Range(0f, 0.25f)] private float heatDiffusionRatePerTick = 0.1f;
 	[SerializeField, Min(0f)] private float naturalCoolingDegreesPerTick = 1f;
+	[SerializeField, Min(0f)] private float defaultItemThermalResponsePerWeek = 16f;
 
 	private readonly Dictionary<ITemperatureModifier, ModifierState> modifiers = new();
 	private readonly Dictionary<int3, float> targets = new();
@@ -45,6 +46,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 
 	public float AmbientTemperatureCelsius => ambientTemperatureCelsius;
 	public float DegreesPerQuarterWeek => degreesPerQuarterWeek;
+	public float DefaultItemThermalResponsePerWeek => defaultItemThermalResponsePerWeek;
 	public int ActiveCellCount => activeCells.Count;
 
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;

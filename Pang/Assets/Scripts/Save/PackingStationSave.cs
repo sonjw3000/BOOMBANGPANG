@@ -14,12 +14,16 @@ public partial class PackingStation
 	{
 		return new PackingStationSaveData
 		{
+			HasTemperatureState = true,
+			CurrentTemperatureCelsius = CurrentTemperatureCelsius,
 			PackedItems = packedItems.ConvertAll(stack => new ItemStackSaveData
 			{
 				ItemId = stack.ItemID,
 				Quantity = stack.Quantity,
 				Freshness = stack.Freshness,
 				Damage = stack.Damage,
+				HasTemperatureState = true,
+				CurrentTemperatureCelsius = stack.CurrentTemperatureCelsius,
 				Status = stack.Status,
 				OutboundStage = stack.OutboundStage,
 				Quality = stack.Quality,
@@ -57,13 +61,26 @@ public partial class PackingStation
 		currentPackingWorker = null;
 		incomingPickingWorker = null;
 		incomingRequestSuspended = data != null && data.IncomingRequestSuspended;
+		SetCurrentTemperatureCelsius(
+			data != null && data.HasTemperatureState
+				? data.CurrentTemperatureCelsius
+				: GridCell.DefaultTemperatureCelsius);
 
 		if (data == null)
 			return;
 
 		foreach (var stackData in data.PackedItems)
 		{
-			ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, stackData.OutboundStage, stackData.Quality);
+			ItemStack stack = ItemStack.Rent(
+				stackData.ItemId,
+				stackData.Freshness,
+				stackData.Damage,
+				stackData.Status,
+				stackData.OutboundStage,
+				stackData.Quality,
+				stackData.HasTemperatureState
+					? stackData.CurrentTemperatureCelsius
+					: GridCell.DefaultTemperatureCelsius);
 			stack.AddItem(stackData.Quantity);
 			AddStack(stack);
 			if (stack.Quantity <= 0)

@@ -10,6 +10,8 @@ public abstract partial class BoxBase
 			BoxType = boxType,
 			ConcreteType = GetType().Name,
 			FireIntensity = FireIntensity,
+			HasTemperatureState = true,
+			CurrentTemperatureCelsius = CurrentTemperatureCelsius,
 		};
 
 		if (this is CargoCapsule capsule)
@@ -23,6 +25,8 @@ public abstract partial class BoxBase
 				Quantity = stack.Quantity,
 				Freshness = stack.Freshness,
 				Damage = stack.Damage,
+				HasTemperatureState = true,
+				CurrentTemperatureCelsius = stack.CurrentTemperatureCelsius,
 				Status = stack.Status,
 				OutboundStage = stack.OutboundStage,
 				Quality = stack.Quality,
@@ -41,10 +45,23 @@ public abstract partial class BoxBase
 		if (this is CargoCapsule capsule)
 			capsule.SetLogisticsState(data.CapsuleLogisticsState);
 		SetFireIntensity(data.FireIntensity);
+		SetCurrentTemperatureCelsius(
+			data.HasTemperatureState
+				? data.CurrentTemperatureCelsius
+				: GridCell.DefaultTemperatureCelsius);
 
 		foreach (var stackData in data.Stacks)
 		{
-			ItemStack stack = ItemStack.Rent(stackData.ItemId, stackData.Freshness, stackData.Damage, stackData.Status, stackData.OutboundStage, stackData.Quality);
+			ItemStack stack = ItemStack.Rent(
+				stackData.ItemId,
+				stackData.Freshness,
+				stackData.Damage,
+				stackData.Status,
+				stackData.OutboundStage,
+				stackData.Quality,
+				stackData.HasTemperatureState
+					? stackData.CurrentTemperatureCelsius
+					: GridCell.DefaultTemperatureCelsius);
 			stack.AddItem(stackData.Quantity);
 			AddStack(stack);
 			if (stack.Quantity <= 0)

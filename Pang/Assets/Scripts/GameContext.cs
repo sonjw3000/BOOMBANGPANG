@@ -118,6 +118,7 @@ public class GameContext : MonoBehaviour
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
 	private ItemTransferTaskScheduler itemTransferTaskScheduler;
 	private SimulationTickCoordinator simulationTickCoordinator;
+	private ThermalTransferService thermalTransferService;
 
 	private InteractionContext interactionCtx;
 	private bool eventsBound;
@@ -179,6 +180,7 @@ public class GameContext : MonoBehaviour
 	public RobotFixService RobotFixSvc => ResolveOrCreateRobotFixService();
 	public WorkplaceIncidentService WorkplaceIncidentSvc => ResolveOrCreateWorkplaceIncidentService();
 	public TemperatureService TemperatureSvc => ResolveOrCreateTemperatureService();
+	public ThermalTransferService ThermalTransferSvc => thermalTransferService ??= new ThermalTransferService();
 	public OxygenService OxygenSvc => ResolveOrCreateOxygenService();
 	public AreaManager AreaMgr => areaManager;
 	public AirlockService AirlockSvc => airlockService;
@@ -293,6 +295,7 @@ public class GameContext : MonoBehaviour
 	private void OnDisable()
 	{
 		simulationTickCoordinator?.Unbind();
+		thermalTransferService?.Unbind();
 		fireService?.Unbind();
 		workplaceIncidentService?.Unbind();
 		UnbindEvents();
@@ -338,6 +341,7 @@ public class GameContext : MonoBehaviour
 		_ = RobotFixSvc;
 		WorkplaceIncidentSvc.Initialize(WorkerMgr, MedicalSvc, RobotFixSvc, VendorService, EconomyService);
 		_ = TemperatureSvc;
+		ThermalTransferSvc.Bind(FacilityMgr, BoxMgr, gridService, temperatureService);
 		_ = OxygenSvc;
 		_ = ItemHandlingDamage;
 		_ = ItemDamage;
@@ -345,7 +349,13 @@ public class GameContext : MonoBehaviour
 		fireService.Bind(gridService);
 		_ = ExplosionSvc;
 		simulationTickCoordinator ??= new SimulationTickCoordinator();
-		simulationTickCoordinator.Bind(gameTime, explosionService, oxygenService, temperatureService, fireService);
+		simulationTickCoordinator.Bind(
+			gameTime,
+			explosionService,
+			oxygenService,
+			temperatureService,
+			thermalTransferService,
+			fireService);
 		_ = ContaminationSvc;
 		_ = CorrosionSvc;
 		_ = RadiationSvc;
@@ -513,6 +523,7 @@ public class GameContext : MonoBehaviour
 		// on game start
 		gridService.OnGameStart();
 		TemperatureSvc.RebuildRuntimeState();
+		ThermalTransferSvc.RebuildRuntimeState();
 	}
 
 	private void AddEvent()
