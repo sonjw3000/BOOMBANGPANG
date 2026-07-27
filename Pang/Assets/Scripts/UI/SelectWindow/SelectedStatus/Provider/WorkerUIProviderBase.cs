@@ -83,6 +83,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 			? $"{currentTarget.CarryingAbility.CarryingBox.Type} Box #{currentTarget.CarryingAbility.CarryingBox.BoxId}"
 			: "None",
 		HasContainer = currentTarget?.CarryingAbility?.CarryingBox != null,
+		Container = currentTarget?.CarryingAbility?.CarryingBox,
 		Items = ItemContainerDisplayUtility.BuildItemRows(currentTarget?.CarryingAbility?.CarryingBox),
 		ManifestItems = ItemContainerDisplayUtility.BuildManifestRows(currentTarget?.CarryingAbility?.CarryingBox),
 	};

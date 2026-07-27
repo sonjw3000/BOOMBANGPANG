@@ -28,6 +28,7 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 			? $"Docked Capsule #{currentTarget.DockedCapsule.BoxId}"
 			: "Docked Capsule",
 		HasContainer = currentTarget?.DockedCapsule != null,
+		Container = currentTarget?.DockedCapsule,
 		Items = ItemContainerDisplayUtility.BuildItemRows(currentTarget?.DockedCapsule),
 		ManifestItems = ItemContainerDisplayUtility.BuildManifestRows(currentTarget?.DockedCapsule),
 	};

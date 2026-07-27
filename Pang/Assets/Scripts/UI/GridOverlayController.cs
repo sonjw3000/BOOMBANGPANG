@@ -33,7 +33,8 @@ public sealed class GridOverlayController : MonoBehaviour
 
 		HandleItemFilterInput();
 
-		if (Input.GetKeyDown(KeyCode.T))
+		if (Input.GetKeyDown(KeyCode.T) &&
+			GameContext.Instance.ResearchService?.IsResearched(ResearchIds.TemperatureMonitoring) == true)
 			BeginHold(KeyCode.T, GameContext.Instance.TemperatureSvc);
 
 		if (Input.GetKeyDown(KeyCode.O))

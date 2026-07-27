@@ -37,6 +37,12 @@ public sealed partial class ResearchService
 			}
 		}
 
+		if (researchedIds.Contains(ResearchIds.ThermalOperations) ||
+			data.ActiveResearchId == ResearchIds.ThermalOperations)
+		{
+			researchedIds.Add(ResearchIds.TemperatureMonitoring);
+		}
+
 		if (data.RemainingWeeks > 0 &&
 			catalog != null &&
 			catalog.TryGet(data.ActiveResearchId, out _) &&

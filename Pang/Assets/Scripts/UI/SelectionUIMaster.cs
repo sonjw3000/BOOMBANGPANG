@@ -57,6 +57,7 @@ public class SelectionUIMaster : MonoBehaviour
 	private Label modeDomainText = null;
 	private Label modeActionText = null;
 	private SelectionCardHud selectionCardHud = null;
+	private bool temperatureMonitoringUnlocked;
 
 	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
 
@@ -84,6 +85,11 @@ public class SelectionUIMaster : MonoBehaviour
 			Interaction.OnItemSelected += OnSelected;
 			Interaction.OnModeChanged += HandleInteractionModeChanged;
 		}
+		if (GameContext.HasInstance)
+		{
+			temperatureMonitoringUnlocked = IsTemperatureMonitoringUnlocked();
+			GameContext.Instance.ResearchService.OnResearchStateChanged += HandleResearchStateChanged;
+		}
 
 		EnsureSelectionCardHud();
 
@@ -105,6 +111,8 @@ public class SelectionUIMaster : MonoBehaviour
 			Interaction.OnItemSelected -= OnSelected;
 			Interaction.OnModeChanged -= HandleInteractionModeChanged;
 		}
+		if (GameContext.HasInstance)
+			GameContext.Instance.ResearchService.OnResearchStateChanged -= HandleResearchStateChanged;
 
 		HideWorldHighlights();
 	}
@@ -129,6 +137,23 @@ public class SelectionUIMaster : MonoBehaviour
 		SelectionChange();
 		RefreshWorldHighlights();
 		RefreshModeHud();
+	}
+
+	private void HandleResearchStateChanged()
+	{
+		bool isUnlocked = IsTemperatureMonitoringUnlocked();
+		if (temperatureMonitoringUnlocked == isUnlocked)
+			return;
+
+		temperatureMonitoringUnlocked = isUnlocked;
+		if (currentProvider != null && currentObj != null)
+			SelectionChange();
+	}
+
+	private static bool IsTemperatureMonitoringUnlocked()
+	{
+		return GameContext.HasInstance &&
+			GameContext.Instance.ResearchService.IsResearched(ResearchIds.TemperatureMonitoring);
 	}
 
 	private bool GetProvider()

@@ -11,6 +11,8 @@ public sealed class ShelfUIProvider : ShelfBaseUIProviderBase<ShelfBase>, ISelec
 		model.AddOverview("Capacity", () => CapacityDisplay);
 		model.AddOverview("Current Size", () => CurrentSizeDisplay);
 		model.AddOverview("Filled", () => FilledPercentDisplay);
+		if (ItemContainerDisplayUtility.CanDisplayTemperature)
+			model.AddOverview("Temperature", () => $"{currentTarget.CurrentTemperatureCelsius:0.0} °C");
 		model.AddAction("Remove", DeleteObject, isDangerous: true);
 	}
 

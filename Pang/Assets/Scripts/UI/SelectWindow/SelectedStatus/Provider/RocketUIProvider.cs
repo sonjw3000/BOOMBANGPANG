@@ -18,6 +18,7 @@ public sealed class RocketUIProvider : UIProvider<Rocket>, IShelfBaseUIProvider,
 	{
 		ContainerName = "Docked Capsule",
 		HasContainer = currentTarget?.DockedCapsule != null,
+		Container = currentTarget?.DockedCapsule,
 		Items = ItemContainerDisplayUtility.BuildItemRows(currentTarget?.DockedCapsule),
 		ManifestItems = ItemContainerDisplayUtility.BuildManifestRows(currentTarget?.DockedCapsule),
 	};

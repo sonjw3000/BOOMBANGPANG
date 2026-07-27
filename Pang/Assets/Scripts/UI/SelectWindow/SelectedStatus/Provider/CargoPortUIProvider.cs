@@ -30,6 +30,7 @@ public class CargoPortUIProvider : UIProvider<CargoPort>, IShelfBaseUIProvider, 
 			? $"Docked Capsule #{currentTarget.DockedCapsule.BoxId}"
 			: "Docked Capsule",
 		HasContainer = currentTarget?.DockedCapsule != null,
+		Container = currentTarget?.DockedCapsule,
 		Items = ItemContainerDisplayUtility.BuildItemRows(currentTarget?.DockedCapsule),
 		ManifestItems = ItemContainerDisplayUtility.BuildManifestRows(currentTarget?.DockedCapsule),
 	};

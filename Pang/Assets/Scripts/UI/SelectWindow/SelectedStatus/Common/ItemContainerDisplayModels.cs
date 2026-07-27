@@ -7,13 +7,16 @@ public sealed class ItemContainerItemDisplayInfo
 	public int Quantity { get; set; }
 	public int Freshness { get; set; }
 	public int Damage { get; set; }
+	public float TemperatureCelsius { get; set; }
 	public bool ShowsFreshness { get; set; }
+	public bool ShowsTemperature { get; set; }
 }
 
 public sealed class ItemContainerDisplayInfo
 {
 	public string ContainerName { get; set; }
 	public bool HasContainer { get; set; }
+	public IItemContainer Container { get; set; }
 	public IReadOnlyList<ItemContainerItemDisplayInfo> Items { get; set; }
 	public IReadOnlyList<ManifestContainerItemDisplayInfo> ManifestItems { get; set; }
 }
@@ -29,11 +32,16 @@ public sealed class ManifestContainerItemDisplayInfo
 
 public static class ItemContainerDisplayUtility
 {
+	public static bool CanDisplayTemperature =>
+		GameContext.HasInstance &&
+		GameContext.Instance.ResearchService?.IsResearched(ResearchIds.TemperatureMonitoring) == true;
+
 	public static IReadOnlyList<ItemContainerItemDisplayInfo> BuildItemRows(IItemContainer container)
 	{
 		if (container?.Stacks == null)
 			return new List<ItemContainerItemDisplayInfo>();
 
+		bool showsTemperature = CanDisplayTemperature;
 		return container.Stacks
 			.Where(stack => stack != null)
 			.Select(stack => new ItemContainerItemDisplayInfo
@@ -42,7 +50,9 @@ public static class ItemContainerDisplayUtility
 				Quantity = stack.Quantity,
 				Freshness = stack.FreshnessPercent,
 				Damage = stack.DamagePercent,
+				TemperatureCelsius = stack.CurrentTemperatureCelsius,
 				ShowsFreshness = UsesFreshness(stack.ItemID),
+				ShowsTemperature = showsTemperature,
 			})
 			.ToList();
 	}

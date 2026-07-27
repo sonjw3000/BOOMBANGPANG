@@ -95,6 +95,14 @@ namespace UniverseLogistics.UI.Toolkit
 					version = version * 31 + stack.Quantity;
 					version = version * 31 + stack.DamagePercent;
 					version = version * 31 + stack.FreshnessPercent;
+					if (ItemContainerDisplayUtility.CanDisplayTemperature)
+						version = version * 31 + UnityEngine.Mathf.RoundToInt(stack.CurrentTemperatureCelsius * 10.0f);
+				}
+				if (ItemContainerDisplayUtility.CanDisplayTemperature &&
+					container is IThermalItemContainer thermalContainer)
+				{
+					version = version * 31 +
+						UnityEngine.Mathf.RoundToInt(thermalContainer.CurrentTemperatureCelsius * 10.0f);
 				}
 				if (GameContext.HasInstance && GameContext.Instance.GameTime != null)
 					version = version * 31 + GameContext.Instance.GameTime.WeeksPassed;
@@ -116,12 +124,24 @@ namespace UniverseLogistics.UI.Toolkit
 			if (display?.Items == null)
 				return panel;
 
+			if (ItemContainerDisplayUtility.CanDisplayTemperature &&
+				display.Container is IThermalItemContainer thermalContainer)
+			{
+				panel.Rows.Add(new SelectionDetailRow
+				{
+					Primary = "Temperature",
+					Secondary = $"{thermalContainer.CurrentTemperatureCelsius:0.0} °C",
+				});
+			}
+
 			for (int i = 0; i < display.Items.Count; ++i)
 			{
 				ItemContainerItemDisplayInfo item = display.Items[i];
 				string status = $"Damage {item.Damage}%";
 				if (item.ShowsFreshness)
 					status += $"   Fresh {item.Freshness}%";
+				if (item.ShowsTemperature)
+					status += $"   {item.TemperatureCelsius:0.0} °C";
 
 				panel.Rows.Add(new SelectionDetailRow
 				{

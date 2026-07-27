@@ -17,25 +17,32 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	public int FacilityCount => Building != null ? Building.OccupiedFacilities.Count : 0;
 	public int CargoPortCount => Building != null ? Building.OccupiedCargoPorts.Count : 0;
 	public string AverageTemperatureDisplay => Building != null ? $"{Building.AverageTemperatureCelsius:F1} °C" : "Unknown";
+	private bool CanDisplayTemperature =>
+		GameContext.HasInstance &&
+		GameContext.Instance.ResearchService?.IsResearched(ResearchIds.TemperatureMonitoring) == true;
 
 	public override void BuildInfoBlocks()
 	{
 		infoBlocks.Clear();
 		infoBlocks.Add(new KeyValueBlock("State", StateDisplay));
 		infoBlocks.Add(new KeyValueBlock("WorkScope", WorkScopeDisplay));
-		infoBlocks.Add(new KeyValueBlock("Temperature", AverageTemperatureDisplay));
+		if (CanDisplayTemperature)
+			infoBlocks.Add(new KeyValueBlock("Temperature", AverageTemperatureDisplay));
 		infoBlocks.Add(new KeyValueBlock("Facilities", FacilityCount.ToString()));
 	}
 
 	public override void OnUpdate()
 	{
-		if (infoBlocks.Count < 4)
+		int requiredCount = CanDisplayTemperature ? 4 : 3;
+		if (infoBlocks.Count < requiredCount)
 			return;
 
-		(infoBlocks[0] as KeyValueBlock)?.UpdateValue(StateDisplay);
-		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(WorkScopeDisplay);
-		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(AverageTemperatureDisplay);
-		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(FacilityCount.ToString());
+		int index = 0;
+		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(StateDisplay);
+		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(WorkScopeDisplay);
+		if (CanDisplayTemperature)
+			(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(AverageTemperatureDisplay);
+		(infoBlocks[index] as KeyValueBlock)?.UpdateValue(FacilityCount.ToString());
 	}
 
 	public void BuildInspectorModel(SelectionInspectorModel model)
@@ -46,7 +53,8 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		model.AddTab("Settings", GetSettingsVersion, BuildSettingsPanel);
 		model.AddOverview("State", () => StateDisplay);
 		model.AddOverview("Work Scope", () => WorkScopeDisplay);
-		model.AddOverview("Temperature", () => AverageTemperatureDisplay);
+		if (CanDisplayTemperature)
+			model.AddOverview("Temperature", () => AverageTemperatureDisplay);
 		model.AddOverview("Cells", () => CellCount.ToString());
 		model.AddOverview("Facilities", () => FacilityCount.ToString());
 		model.AddOverview("Cargo Ports", () => CargoPortCount.ToString());

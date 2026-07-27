@@ -27,6 +27,7 @@ public abstract class ShelfBaseUIProviderBase<TShelf> : UIProvider<TShelf>, IShe
 	{
 		ContainerName = "Stored Items",
 		HasContainer = currentTarget != null,
+		Container = currentTarget,
 		Items = ItemContainerDisplayUtility.BuildItemRows(currentTarget),
 	};
 
@@ -36,15 +37,20 @@ public abstract class ShelfBaseUIProviderBase<TShelf> : UIProvider<TShelf>, IShe
 		infoBlocks.Add(new KeyValueBlock("Capacity", CapacityDisplay));
 		infoBlocks.Add(new KeyValueBlock("Current Size", CurrentSizeDisplay));
 		infoBlocks.Add(new KeyValueBlock("Filled", FilledPercentDisplay));
+		if (ItemContainerDisplayUtility.CanDisplayTemperature)
+			infoBlocks.Add(new KeyValueBlock("Temperature", $"{currentTarget.CurrentTemperatureCelsius:0.0} °C"));
 	}
 
 	public override void OnUpdate()
 	{
-		if (infoBlocks.Count < 3)
+		int requiredCount = ItemContainerDisplayUtility.CanDisplayTemperature ? 4 : 3;
+		if (infoBlocks.Count < requiredCount)
 			return;
 
 		(infoBlocks[0] as KeyValueBlock)?.UpdateValue(CapacityDisplay);
 		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(CurrentSizeDisplay);
 		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(FilledPercentDisplay);
+		if (ItemContainerDisplayUtility.CanDisplayTemperature)
+			(infoBlocks[3] as KeyValueBlock)?.UpdateValue($"{currentTarget.CurrentTemperatureCelsius:0.0} °C");
 	}
 }

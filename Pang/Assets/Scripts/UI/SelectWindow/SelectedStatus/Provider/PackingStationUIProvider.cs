@@ -19,16 +19,21 @@ public sealed class PackingStationUIProvider : UIProvider<PackingStation>, ISele
 		infoBlocks.Add(new KeyValueBlock("Worker", CurrentWorkerName));
 		infoBlocks.Add(new KeyValueBlock("Status", WorkStatus));
 		infoBlocks.Add(new KeyValueBlock("Stage", WorkStage));
+		if (ItemContainerDisplayUtility.CanDisplayTemperature)
+			infoBlocks.Add(new KeyValueBlock("Temperature", $"{currentTarget.CurrentTemperatureCelsius:0.0} °C"));
 	}
 
 	public override void OnUpdate()
 	{
-		if (infoBlocks.Count < 3)
+		int requiredCount = ItemContainerDisplayUtility.CanDisplayTemperature ? 4 : 3;
+		if (infoBlocks.Count < requiredCount)
 			return;
 
 		(infoBlocks[0] as KeyValueBlock)?.UpdateValue(CurrentWorkerName);
 		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(WorkStatus);
 		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(WorkStage);
+		if (ItemContainerDisplayUtility.CanDisplayTemperature)
+			(infoBlocks[3] as KeyValueBlock)?.UpdateValue($"{currentTarget.CurrentTemperatureCelsius:0.0} °C");
 	}
 
 	public ItemContainerDisplayInfo GetWaitingBoxDisplay() => BuildItemContainerDisplay(currentTarget?.WaitingBox?.Box);
@@ -46,6 +51,8 @@ public sealed class PackingStationUIProvider : UIProvider<PackingStation>, ISele
 		model.AddOverview("Stage", () => WorkStage);
 		model.AddOverview("Incoming Worker", () => IncomingWorkerName);
 		model.AddOverview("Incoming Request", () => IncomingRequestDisplay);
+		if (ItemContainerDisplayUtility.CanDisplayTemperature)
+			model.AddOverview("Temperature", () => $"{currentTarget.CurrentTemperatureCelsius:0.0} °C");
 		model.AddAction("Remove", DeleteObject, isDangerous: true);
 	}
 
@@ -71,6 +78,7 @@ public sealed class PackingStationUIProvider : UIProvider<PackingStation>, ISele
 		{
 			ContainerName = box != null ? $"{box.Type} Box #{box.BoxId}" : "None",
 			HasContainer = box != null,
+			Container = box,
 			Items = ItemContainerDisplayUtility.BuildItemRows(box),
 			ManifestItems = ItemContainerDisplayUtility.BuildManifestRows(box),
 		};

@@ -29,13 +29,22 @@
 			"prerequisiteUids": ["workflow_policy_management", "inventory_digitization"]
 		},
 		{
+			"uid": "temperature_monitoring",
+			"categoryId": "thermal_operations",
+			"displayName": "Temperature Monitoring",
+			"description": "Unlocks temperature readings for buildings, facilities, containers, and items, along with the temperature grid overlay.",
+			"cost": 100,
+			"durationWeeks": 1,
+			"prerequisiteUids": []
+		},
+		{
 			"uid": "thermal_operations",
 			"categoryId": "thermal_operations",
 			"displayName": "Thermal Operations",
 			"description": "Unlocks refrigeration facilities and the operating tools needed to qualify for cold-chain handling.",
 			"cost": 180,
 			"durationWeeks": 2,
-			"prerequisiteUids": []
+			"prerequisiteUids": ["temperature_monitoring"]
 		}
 	]
 }

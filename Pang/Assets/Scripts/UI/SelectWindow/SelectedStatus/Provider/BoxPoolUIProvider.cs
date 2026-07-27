@@ -78,11 +78,14 @@ public class BoxPoolUIProvider : UIProvider<BoxPool>, ISelectionInspectorProvide
 		{
 			if (box == null) continue;
 			float filled = box.MaxSize <= 0.0f ? 0.0f : box.TotalSize / box.MaxSize * 100.0f;
+			string secondary = $"Filled {filled:0.0}% · {box.TotalSize:0.0} / {box.MaxSize:0.0} units";
+			if (ItemContainerDisplayUtility.CanDisplayTemperature)
+				secondary += $" · {box.CurrentTemperatureCelsius:0.0} °C";
 			panel.Rows.Add(new SelectionDetailRow
 			{
 				Primary = $"Box #{box.BoxId}",
 				Trailing = box.Type.ToString(),
-				Secondary = $"Filled {filled:0.0}% · {box.TotalSize:0.0} / {box.MaxSize:0.0} units",
+				Secondary = secondary,
 			});
 		}
 		return panel;
