@@ -54,9 +54,10 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 5;
+	public int Version = 6;
 	public string SavedAtUtc;
 
+	public ScenarioObjectiveSaveData ScenarioObjective = new();
 	public PolicyStateSaveData Policy = new();
 	public TimeSaveData Time = new();
 	public EconomySaveData Economy = new();
@@ -82,6 +83,15 @@ public sealed class GameSaveData
 	public WorkJobCounterSaveData WorkJobCounters = new();
 	public List<PlaceableSaveData> Placeables = new();
 	public List<TaskSaveData> Tasks = new();
+}
+
+[Serializable]
+public sealed class ScenarioObjectiveSaveData
+{
+	public string ScenarioId;
+	public string CurrentObjectiveId;
+	public int CurrentSettledOrderCount;
+	public bool IsCleared;
 }
 
 [Serializable]

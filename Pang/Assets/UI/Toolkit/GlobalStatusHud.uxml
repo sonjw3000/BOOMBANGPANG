@@ -2,6 +2,12 @@
 	<Style src="GlobalStatusHud.uss" />
 	<ui:VisualElement name="global-status-hud" class="global-status-hud" picking-mode="Ignore">
 		<ui:VisualElement class="left-hud" picking-mode="Ignore">
+			<ui:VisualElement name="scenario-objective" class="scenario-objective" picking-mode="Ignore">
+				<ui:Label text="CURRENT OBJECTIVE" class="scenario-objective__eyebrow" />
+				<ui:Label name="scenario-objective-title" text="Objective" class="scenario-objective__title" />
+				<ui:Label name="scenario-objective-description" text="Objective description" class="scenario-objective__description" />
+				<ui:Label name="scenario-objective-progress" text="0 / 1" class="scenario-objective__progress" />
+			</ui:VisualElement>
 			<ui:VisualElement name="hud-event-area" class="hud-event-area" picking-mode="Position">
 				<ui:VisualElement name="hud-event-list" class="hud-event-list" picking-mode="Ignore" />
 			</ui:VisualElement>

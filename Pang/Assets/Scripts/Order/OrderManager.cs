@@ -12,6 +12,7 @@ public partial class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLi
 	public IReadOnlyDictionary<uint, List<OrderLine>> ItemOrderLines => itemOrderLines;
 	public IReadOnlyDictionary<OrderTotalStatus, LinkedList<Order>> OrderStatusMap => orderStatus;
 	public event Action OnOrdersChanged;
+	public event Action<Order> OnOrderSettled;
 
 	private void Start()
 	{
@@ -265,6 +266,7 @@ public partial class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLi
 
 		GameContext.Instance.EconomyService.ApplyTransaction(transaction);
 		Debug.Log($"Order {order.OrderID} settled. Revenue: {totalItemRevenue + totalBonusReward}, Rep: {totalReputationDelta}");
+		OnOrderSettled?.Invoke(order);
 	}
 
 	private int ApplyLineProgress(OrderLine targetOrder, Func<int> mutator)

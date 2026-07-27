@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 24a63b139ef2448b832a225035020894, type: 3}
+  m_Name: DemoScenario
+  m_EditorClassIdentifier: Assembly-CSharp::ScenarioDefinition
+  scenarioId: demo
+  displayName: Demo Scenario
+  objectives:
+  - objectiveId: first_fulfillment
+    title: First Fulfillment
+    description: Complete your first order.
+    requiredSettledOrderCount: 1
+    requireOnTime: 0
+    targetContract: {fileID: 0}
+    requiredResearchUids: []
+    requireMinimumReputation: 0
+    minimumReputation: 0
+  - objectiveId: stable_flow
+    title: Stabilize Outbound Flow
+    description: Complete 3 orders before their deadlines.
+    requiredSettledOrderCount: 3
+    requireOnTime: 1
+    targetContract: {fileID: 0}
+    requiredResearchUids: []
+    requireMinimumReputation: 0
+    minimumReputation: 0
+  - objectiveId: cold_chain_preparation
+    title: Prepare Cold-Chain Operations
+    description: Research Temperature Monitoring and Thermal Operations.
+    requiredSettledOrderCount: 0
+    requireOnTime: 0
+    targetContract: {fileID: 0}
+    requiredResearchUids:
+    - temperature_monitoring
+    - thermal_operations
+    requireMinimumReputation: 0
+    minimumReputation: 0
+  - objectiveId: cold_chain_operation
+    title: Complete the Cold-Chain Trial
+    description: Complete a Lunar Produce Cold Chain order on time and reach 50 reputation.
+    requiredSettledOrderCount: 1
+    requireOnTime: 1
+    targetContract: {fileID: 11400000, guid: 853515eaa2493bb46bd1350127d1b5f8, type: 2}
+    requiredResearchUids: []
+    requireMinimumReputation: 1
+    minimumReputation: 50

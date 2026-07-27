@@ -126,8 +126,14 @@ The player is expected to analyze the results and improve the logistics system a
 
 ## Demo Goal
 
-The current demo clear condition is reaching the configured reputation target.
-The demo goal system reads reputation from the economy owner, announces the target at game start, and announces game clear once the target is reached.
+The demo uses an ordered scenario objective sequence:
+
+1. Complete the first order.
+2. Complete three orders before their deadlines.
+3. Research Temperature Monitoring and Thermal Operations.
+4. Complete a Lunar Produce Cold Chain order on time and reach 50 reputation.
+
+`ScenarioObjectiveService` reads state and events from the owning Order, Research, and Economy systems. It does not mutate their gameplay state. The objective definitions are authored in `DemoScenario.asset`, while only runtime progress is saved.
 
 ---
 

@@ -68,6 +68,10 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualElement economySummary;
 		private VisualElement hudEventArea;
 		private VisualElement hudEventList;
+		private VisualElement scenarioObjective;
+		private Label scenarioObjectiveTitle;
+		private Label scenarioObjectiveDescription;
+		private Label scenarioObjectiveProgress;
 		private Label moneyValue;
 		private Label reputationValue;
 		private Label dateValue;
@@ -98,6 +102,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
 		private ResearchService researchService;
+		private ScenarioObjectiveService scenarioObjectiveService;
 		private bool started;
 		private bool? timeHudDockedRight;
 		private int scaledScreenWidth = -1;
@@ -526,6 +531,10 @@ namespace UniverseLogistics.UI.Toolkit
 			economySummary = root.Q<VisualElement>("economy-summary");
 			hudEventArea = root.Q<VisualElement>("hud-event-area");
 			hudEventList = root.Q<VisualElement>("hud-event-list");
+			scenarioObjective = root.Q<VisualElement>("scenario-objective");
+			scenarioObjectiveTitle = root.Q<Label>("scenario-objective-title");
+			scenarioObjectiveDescription = root.Q<Label>("scenario-objective-description");
+			scenarioObjectiveProgress = root.Q<Label>("scenario-objective-progress");
 			moneyValue = root.Q<Label>("money-value");
 			reputationValue = root.Q<Label>("reputation-value");
 			dateValue = root.Q<Label>("date-value");
@@ -544,7 +553,9 @@ namespace UniverseLogistics.UI.Toolkit
 			managementMenu = root.Q<VisualElement>("management-menu");
 
 			if (leftHud == null || timeCluster == null || economySummary == null || hudEventArea == null ||
-				hudEventList == null || moneyValue == null ||
+				hudEventList == null || scenarioObjective == null ||
+				scenarioObjectiveTitle == null || scenarioObjectiveDescription == null ||
+				scenarioObjectiveProgress == null || moneyValue == null ||
 				reputationValue == null || dateValue == null || speedValue == null || pauseButton == null ||
 				normalSpeedButton == null || doubleSpeedButton == null || managementButton == null || contractManagementButton == null ||
 				inventoryManagementButton == null || ordersManagementButton == null ||
@@ -647,6 +658,7 @@ namespace UniverseLogistics.UI.Toolkit
 			hudEventManager = GameContext.Instance.HudEventManager;
 			gameTime = GameContext.Instance.GameTime;
 			researchService = GameContext.Instance.ResearchService;
+			scenarioObjectiveService = GameContext.Instance.ScenarioObjectiveService;
 
 			if (economyService != null)
 			{
@@ -665,6 +677,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 			if (researchService != null)
 				researchService.OnResearchStateChanged += OnResearchStateChanged;
+
+			if (scenarioObjectiveService != null)
+				scenarioObjectiveService.OnObjectiveChanged += RefreshScenarioObjective;
 
 			RefreshInventoryResearchState();
 			RefreshAll();
@@ -690,10 +705,14 @@ namespace UniverseLogistics.UI.Toolkit
 			if (researchService != null)
 				researchService.OnResearchStateChanged -= OnResearchStateChanged;
 
+			if (scenarioObjectiveService != null)
+				scenarioObjectiveService.OnObjectiveChanged -= RefreshScenarioObjective;
+
 			economyService = null;
 			hudEventManager = null;
 			gameTime = null;
 			researchService = null;
+			scenarioObjectiveService = null;
 		}
 
 		private void OnEconomySummaryClicked(ClickEvent _)
@@ -910,6 +929,39 @@ namespace UniverseLogistics.UI.Toolkit
 			OnReputationChanged(economyService != null ? economyService.Reputation : 0f);
 			RefreshDate();
 			RefreshSpeed(gameTime != null ? gameTime.TimeScale : 1f);
+			RefreshScenarioObjective();
+		}
+
+		private void RefreshScenarioObjective()
+		{
+			if (scenarioObjective == null)
+				return;
+
+			if (scenarioObjectiveService == null || scenarioObjectiveService.IsEnabled == false)
+			{
+				scenarioObjective.style.display = DisplayStyle.None;
+				return;
+			}
+
+			scenarioObjective.style.display = DisplayStyle.Flex;
+			if (scenarioObjectiveService.IsCleared)
+			{
+				scenarioObjectiveTitle.text = "Demo Complete";
+				scenarioObjectiveDescription.text = "All scenario objectives completed.";
+				scenarioObjectiveProgress.text = "Complete";
+				return;
+			}
+
+			ScenarioObjectiveDefinition objective = scenarioObjectiveService.CurrentObjective;
+			if (objective == null)
+			{
+				scenarioObjective.style.display = DisplayStyle.None;
+				return;
+			}
+
+			scenarioObjectiveTitle.text = objective.Title;
+			scenarioObjectiveDescription.text = objective.Description;
+			scenarioObjectiveProgress.text = scenarioObjectiveService.GetProgressText();
 		}
 
 		private void RefreshDate()

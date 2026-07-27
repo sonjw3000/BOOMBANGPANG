@@ -123,6 +123,7 @@ public sealed class GameSaveService : MonoBehaviour
 
 		GameSaveData data = new();
 		data.SavedAtUtc = DateTime.UtcNow.ToString("O");
+		data.ScenarioObjective = Ctx.ScenarioObjectiveService.CaptureState();
 		data.Policy.WorkSpeed = Ctx.WMSys.WorkPolicyService.CaptureState();
 		data.Policy.WorkApproach = Ctx.IBWorkflowSvc.CapturePolicyState();
 		data.Policy.OutboundWorkApproach = Ctx.OBWorkflowSvc.CapturePolicyState();
@@ -169,6 +170,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.TaskMgr.ResetRuntimeState();
 		Ctx.OrderDelivery.ResetRuntimeState();
 		Ctx.ContractMgr.ResetRuntimeState();
+		Ctx.ScenarioObjectiveService.ResetRuntimeState();
 		Ctx.LicenseService.ResetRuntimeState();
 		Ctx.ResearchService.ResetRuntimeState();
 		Ctx.VendorService.ResetRuntimeState();
@@ -303,6 +305,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.WearSvc.RebuildRuntimeState();
 		Ctx.FireSvc.RebuildRuntimeState();
 		Ctx.IBWorkflowSvc.RetryActiveRocketUnloadingTasks();
+		Ctx.ScenarioObjectiveService.RestoreState(data.ScenarioObjective);
 	}
 
 	private PlaceableSaveData CapturePlaceable(GameObject obj, PlacementContext ctx)

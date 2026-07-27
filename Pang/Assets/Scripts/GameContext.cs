@@ -115,7 +115,7 @@ public class GameContext : MonoBehaviour
 	private DeliveryService deliveryService = new();
 	private readonly ResearchService researchService = new();
 	private GameSaveService saveService;
-	private DemoGoalService demoGoalService;
+	private ScenarioObjectiveService scenarioObjectiveService;
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
 	private ItemTransferTaskScheduler itemTransferTaskScheduler;
 	private SimulationTickCoordinator simulationTickCoordinator;
@@ -246,7 +246,8 @@ public class GameContext : MonoBehaviour
 	public DeliveryService DeliveryService => deliveryService;
 	public InteractionContext InteractionCtx => interactionCtx;
 	public GameSaveService SaveService => ResolveManager(ref saveService, nameof(GameSaveService));
-	public DemoGoalService DemoGoalService => ResolveManager(ref demoGoalService, nameof(DemoGoalService));
+	public ScenarioObjectiveService ScenarioObjectiveService =>
+		ResolveManager(ref scenarioObjectiveService, nameof(ScenarioObjectiveService));
 	public CapsuleRelocateCoordinator CapsuleRelocateCoordinator
 	{
 		get
@@ -337,7 +338,7 @@ public class GameContext : MonoBehaviour
 		_ = FloatingTextManager;
 		_ = HudEventManager;
 		_ = SaveService;
-		_ = DemoGoalService;
+		_ = ScenarioObjectiveService;
 		_ = PowerSvc;
 		_ = MedicalSvc;
 		_ = RobotFixSvc;

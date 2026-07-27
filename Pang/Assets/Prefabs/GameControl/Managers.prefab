@@ -1145,7 +1145,7 @@ GameObject:
   - component: {fileID: 979344057121546758}
   - component: {fileID: 925821367657586637}
   m_Layer: 0
-  m_Name: DemoGoalService
+  m_Name: ScenarioObjectiveService
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1177,13 +1177,11 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9b58427d8f2d4d34a9c9df2f8f3e3c9d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DemoGoalService
-  goalEnabled: 1
-  targetReputation: 50
-  startNoticeTitle: Demo Goal
-  startNoticeMessage: Your Goal Is To Reach 50 Rep
+  m_EditorClassIdentifier: Assembly-CSharp::ScenarioObjectiveService
+  scenarioEnabled: 1
+  activeScenario: {fileID: 11400000, guid: 9f63b7d354cb4d2d8dc4bf6a3719aa11, type: 2}
   clearNoticeTitle: Game Clear
-  clearNoticeMessage: Goal Complete! You Reached 50 Rep
+  clearNoticeMessage: Demo complete. The lunar logistics hub is operational.
 --- !u!1 &2974611487511482037
 GameObject:
   m_ObjectHideFlags: 0
