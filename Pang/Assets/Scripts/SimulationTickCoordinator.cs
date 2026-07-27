@@ -4,7 +4,7 @@ public sealed class SimulationTickCoordinator
 	private ExplosionService explosionService;
 	private OxygenService oxygenService;
 	private TemperatureService temperatureService;
-	private ThermalTransferService thermalTransferService;
+	private ItemThermalService itemThermalService;
 	private FireService fireService;
 
 	public void Bind(
@@ -12,14 +12,14 @@ public sealed class SimulationTickCoordinator
 		ExplosionService targetExplosionService,
 		OxygenService targetOxygenService,
 		TemperatureService targetTemperatureService,
-		ThermalTransferService targetThermalTransferService,
+		ItemThermalService targetItemThermalService,
 		FireService targetFireService)
 	{
 		if (gameTime == targetGameTime &&
 			explosionService == targetExplosionService &&
 			oxygenService == targetOxygenService &&
 			temperatureService == targetTemperatureService &&
-			thermalTransferService == targetThermalTransferService &&
+			itemThermalService == targetItemThermalService &&
 			fireService == targetFireService)
 		{
 			return;
@@ -30,7 +30,7 @@ public sealed class SimulationTickCoordinator
 		explosionService = targetExplosionService;
 		oxygenService = targetOxygenService;
 		temperatureService = targetTemperatureService;
-		thermalTransferService = targetThermalTransferService;
+		itemThermalService = targetItemThermalService;
 		fireService = targetFireService;
 
 		if (gameTime != null)
@@ -46,7 +46,7 @@ public sealed class SimulationTickCoordinator
 		explosionService = null;
 		oxygenService = null;
 		temperatureService = null;
-		thermalTransferService = null;
+		itemThermalService = null;
 		fireService = null;
 	}
 
@@ -60,6 +60,6 @@ public sealed class SimulationTickCoordinator
 		if (context.Tick % GameTime.QuarterWeekSimulationTickInterval == 0)
 			temperatureService?.ProcessQuarterWeekTick();
 
-		thermalTransferService?.ProcessSimulationTick(in context);
+		itemThermalService?.ProcessSimulationTick(in context);
 	}
 }

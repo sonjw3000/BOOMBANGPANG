@@ -638,16 +638,16 @@ namespace UniverseLogistics.UI.Toolkit
 			bool usesFreshness = UsesFreshness(stack.ItemID);
 			row.Add(CreateConditionRow(
 				"Freshness",
-				usesFreshness ? stack.Freshness.ToString() : "N/A",
+				usesFreshness ? stack.FreshnessPercent.ToString() : "N/A",
 				usesFreshness,
 				target => AdjustFreshness(stack, target),
-				stack.Freshness));
+				stack.FreshnessPercent));
 			row.Add(CreateConditionRow(
 				"Damage",
-				stack.Damage.ToString(),
+				stack.DamagePercent.ToString(),
 				true,
 				target => AdjustDamage(stack, target),
-				stack.Damage));
+				stack.DamagePercent));
 			return row;
 		}
 
@@ -690,12 +690,12 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 			}
 
-			byte previous = stack.Freshness;
-			byte current = (byte)Mathf.Clamp(targetFreshness, 0, 100);
+			int previous = stack.FreshnessPercent;
+			int current = Mathf.Clamp(targetFreshness, 0, 100);
 			if (current == previous)
 				return;
 
-			stack.SetFreshness(current);
+			stack.SetCurrentFreshness(stack.MaximumFreshness * current / 100.0f);
 			Report(itemMessage,
 				$"{ResolveItemName(stack.ItemID)} x{stack.Quantity} Freshness {previous} -> {current}, Container={inspectedItemContainerName}.");
 			RefreshInspectedItems();
@@ -722,7 +722,7 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			Report(itemMessage,
-				$"{ResolveItemName(stack.ItemID)} x{stack.Quantity} Damage {change.PreviousDamage} -> {change.CurrentDamage} " +
+				$"{ResolveItemName(stack.ItemID)} x{stack.Quantity} Damage {change.PreviousDamage:0.##} -> {change.CurrentDamage:0.##} " +
 				$"at {FormatPosition(in position)}, Container={inspectedItemContainerName}.");
 			RefreshInspectedItems();
 		}

@@ -37,7 +37,7 @@ public interface IItemContainer
 public interface IThermalItemContainer : IItemContainer
 {
 	public float CurrentTemperatureCelsius { get; }
-	public float ThermalResponsePerWeek { get; }
+	public ThermalResponse ThermalResponse { get; }
 
 	public bool TryGetThermalEnvironmentPosition(out int3 position);
 
@@ -47,6 +47,19 @@ public interface IThermalItemContainer : IItemContainer
 public static class ThermalUtility
 {
 	public const float AbsoluteZeroCelsius = -273.15f;
+	public const float SlowResponsePerWeek = 4.0f;
+	public const float NormalResponsePerWeek = 16.0f;
+	public const float FastResponsePerWeek = 64.0f;
+
+	public static float GetResponsePerWeek(ThermalResponse response)
+	{
+		return response switch
+		{
+			ThermalResponse.Slow => SlowResponsePerWeek,
+			ThermalResponse.Fast => FastResponsePerWeek,
+			_ => NormalResponsePerWeek,
+		};
+	}
 
 	public static float SanitizeCelsius(float temperatureCelsius)
 	{
@@ -91,14 +104,13 @@ public interface IItemPickReservable
 [System.Serializable]
 public class ItemStack
 {
-	private const byte DefaultFreshnessValue = 100;
-	private const byte DefaultDamageValue = 0;
+	private const float DefaultConditionMaximum = 1000.0f;
 	private static readonly Stack<ItemStack> pool = new();
 
 	private uint itemID;
 	private int quantity = 0;
-	private byte freshness = DefaultFreshnessValue;
-	private byte damage = DefaultDamageValue;
+	private float currentFreshness = DefaultConditionMaximum;
+	private float currentIntegrity = DefaultConditionMaximum;
 	private float currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	private ItemStatus status = ItemStatus.None;
 	private ItemQuality quality = ItemQuality.None;
@@ -106,38 +118,49 @@ public class ItemStack
 
 	public uint ItemID => itemID;
 	public int Quantity => quantity;
-	public byte Freshness => freshness;
-	public byte Damage => damage;
+	public float CurrentFreshness => currentFreshness;
+	public float CurrentIntegrity => currentIntegrity;
+	public float MaximumFreshness => MaxFreshness;
+	public float MaximumIntegrity => MaxIntegrity;
+	public int FreshnessPercent => CalculatePercent(currentFreshness, MaxFreshness);
+	public int DamagePercent => CalculatePercent(MaxIntegrity - currentIntegrity, MaxIntegrity);
+	public float DamageRatio => Mathf.Clamp01((MaxIntegrity - currentIntegrity) / MaxIntegrity);
+	public bool IsDestroyed => currentIntegrity <= 0.0f;
 	public float CurrentTemperatureCelsius => currentTemperatureCelsius;
 	public ItemStatus Status => status;
 	public ItemQuality Quality => quality;
 	public PackageOutboundStage OutboundStage => outboundStage;
 	public float Size => GameContext.Instance.ItemDB.GetItemSize(ItemID) * Quantity;
 	public bool IsDefaultIdentity =>
-		freshness == DefaultFreshnessValue &&
-		damage == DefaultDamageValue &&
+		FreshnessPercent == 100 &&
+		DamagePercent == 0 &&
 		status == ItemStatus.None &&
 		quality == ItemQuality.None &&
 		outboundStage == PackageOutboundStage.None;
 
 	public ItemStack(
 		uint itemID,
-		byte freshness = 100,
-		byte damage = 0,
+		float currentFreshness = float.PositiveInfinity,
+		float currentIntegrity = float.PositiveInfinity,
 		ItemStatus status = ItemStatus.None,
 		PackageOutboundStage outboundStage = PackageOutboundStage.None,
 		ItemQuality quality = ItemQuality.None,
 		float currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius)
 	{
-		Initialize(itemID, freshness, damage, status, outboundStage, quality, currentTemperatureCelsius);
+		Initialize(
+			itemID,
+			currentFreshness,
+			currentIntegrity,
+			status,
+			outboundStage,
+			quality,
+			currentTemperatureCelsius);
 	}
-
-	private static byte ClampPercent(byte value) => (byte)Mathf.Clamp((int)value, 0, 100);
 
 	public static ItemStack Rent(
 		uint itemID,
-		byte freshness = 100,
-		byte damage = 0,
+		float currentFreshness = float.PositiveInfinity,
+		float currentIntegrity = float.PositiveInfinity,
 		ItemStatus status = ItemStatus.None,
 		PackageOutboundStage outboundStage = PackageOutboundStage.None,
 		ItemQuality quality = ItemQuality.None,
@@ -146,30 +169,64 @@ public class ItemStack
 		if (pool.Count > 0)
 		{
 			ItemStack stack = pool.Pop();
-			stack.Initialize(itemID, freshness, damage, status, outboundStage, quality, currentTemperatureCelsius);
+			stack.Initialize(
+				itemID,
+				currentFreshness,
+				currentIntegrity,
+				status,
+				outboundStage,
+				quality,
+				currentTemperatureCelsius);
 			return stack;
 		}
 
-		return new ItemStack(itemID, freshness, damage, status, outboundStage, quality, currentTemperatureCelsius);
+		return new ItemStack(
+			itemID,
+			currentFreshness,
+			currentIntegrity,
+			status,
+			outboundStage,
+			quality,
+			currentTemperatureCelsius);
 	}
 
 	public static ItemStack RentDefault(uint itemID)
 	{
-		return Rent(itemID, DefaultFreshnessValue, DefaultDamageValue, ItemStatus.None, PackageOutboundStage.None);
+		return Rent(itemID);
 	}
 
 	public bool HasItemID(uint itemID) => this.itemID == itemID;
 	public bool HasStatus(ItemStatus target) => status == target;
 	public bool HasQuality(ItemQuality target) => target != ItemQuality.None && (quality & target) == target;
 
-	public void SetFreshness(byte freshness)
+	public void SetCurrentFreshness(float value)
 	{
-		this.freshness = ClampPercent(freshness);
+		currentFreshness = ClampCondition(value, MaxFreshness);
 	}
 
-	public void SetDamage(byte damage)
+	public void SetCurrentIntegrity(float value)
 	{
-		this.damage = ClampPercent(damage);
+		currentIntegrity = ClampCondition(value, MaxIntegrity);
+	}
+
+	public float ApplyIntegrityDamage(float amount)
+	{
+		if (float.IsNaN(amount) || float.IsInfinity(amount) || amount <= 0.0f || currentIntegrity <= 0.0f)
+			return 0.0f;
+
+		float previous = currentIntegrity;
+		currentIntegrity = Mathf.Max(0.0f, currentIntegrity - amount);
+		return previous - currentIntegrity;
+	}
+
+	public float ApplyFreshnessLoss(float amount)
+	{
+		if (float.IsNaN(amount) || float.IsInfinity(amount) || amount <= 0.0f || currentFreshness <= 0.0f)
+			return 0.0f;
+
+		float previous = currentFreshness;
+		currentFreshness = Mathf.Max(0.0f, currentFreshness - amount);
+		return previous - currentFreshness;
 	}
 
 	public void SetCurrentTemperatureCelsius(float temperatureCelsius)
@@ -198,8 +255,8 @@ public class ItemStack
 			return false;
 
 		return itemID == other.itemID &&
-			freshness == other.freshness &&
-			damage == other.damage &&
+			FreshnessPercent == other.FreshnessPercent &&
+			DamagePercent == other.DamagePercent &&
 			status == other.status &&
 			quality == other.quality &&
 			outboundStage == other.outboundStage;
@@ -240,7 +297,14 @@ public class ItemStack
 
 	protected virtual ItemStack CreateEmptyLikeThis()
 	{
-		return Rent(itemID, freshness, damage, status, outboundStage, quality, currentTemperatureCelsius);
+		return Rent(
+			itemID,
+			currentFreshness,
+			currentIntegrity,
+			status,
+			outboundStage,
+			quality,
+			currentTemperatureCelsius);
 	}
 
 	public virtual ItemStack CreateTransferStack(int amount)
@@ -278,15 +342,31 @@ public class ItemStack
 		if (mergedQuantity <= 0)
 			return false;
 
-		float mergedTemperature =
-			(float)(((double)currentTemperatureCelsius * originalQuantity +
-				(double)other.currentTemperatureCelsius * incomingQuantity) /
-				mergedQuantity);
+		float mergedFreshness = WeightedAverage(
+			currentFreshness,
+			originalQuantity,
+			other.currentFreshness,
+			incomingQuantity,
+			mergedQuantity);
+		float mergedIntegrity = WeightedAverage(
+			currentIntegrity,
+			originalQuantity,
+			other.currentIntegrity,
+			incomingQuantity,
+			mergedQuantity);
+		float mergedTemperature = WeightedAverage(
+			currentTemperatureCelsius,
+			originalQuantity,
+			other.currentTemperatureCelsius,
+			incomingQuantity,
+			mergedQuantity);
 
 		int added = AddItem(incomingQuantity);
 		if (added != incomingQuantity)
 			return false;
 
+		SetCurrentFreshness(mergedFreshness);
+		SetCurrentIntegrity(mergedIntegrity);
 		SetCurrentTemperatureCelsius(mergedTemperature);
 		other.RemoveItem(added);
 		return true;
@@ -302,8 +382,8 @@ public class ItemStack
 
 	private void Initialize(
 		uint itemID,
-		byte freshness,
-		byte damage,
+		float currentFreshness,
+		float currentIntegrity,
 		ItemStatus status,
 		PackageOutboundStage outboundStage,
 		ItemQuality quality,
@@ -311,8 +391,8 @@ public class ItemStack
 	{
 		this.itemID = itemID;
 		quantity = 0;
-		this.freshness = ClampPercent(freshness);
-		this.damage = ClampPercent(damage);
+		this.currentFreshness = ClampCondition(currentFreshness, MaxFreshness);
+		this.currentIntegrity = ClampCondition(currentIntegrity, MaxIntegrity);
 		this.currentTemperatureCelsius = ThermalUtility.SanitizeCelsius(currentTemperatureCelsius);
 		this.status = status;
 		this.outboundStage = outboundStage;
@@ -323,12 +403,58 @@ public class ItemStack
 	{
 		itemID = 0;
 		quantity = 0;
-		freshness = DefaultFreshnessValue;
-		damage = DefaultDamageValue;
+		currentFreshness = DefaultConditionMaximum;
+		currentIntegrity = DefaultConditionMaximum;
 		currentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 		status = ItemStatus.None;
 		quality = ItemQuality.None;
 		outboundStage = PackageOutboundStage.None;
+	}
+
+	private float MaxFreshness => ResolveItemDefinition()?.MaxFreshness ?? DefaultConditionMaximum;
+	private float MaxIntegrity => ResolveItemDefinition()?.MaxIntegrity ?? DefaultConditionMaximum;
+
+	private ItemDefinition ResolveItemDefinition()
+	{
+		if (GameContext.HasInstance == false ||
+			GameContext.Instance.ItemDB == null ||
+			GameContext.Instance.ItemDB.GetItemData(itemID, out ItemDefinition definition) == false)
+		{
+			return null;
+		}
+
+		return definition;
+	}
+
+	private static int CalculatePercent(float value, float maximum)
+	{
+		if (maximum <= 0.0f)
+			return 0;
+
+		return Mathf.Clamp(
+			Mathf.FloorToInt(Mathf.Clamp01(value / maximum) * 100.0f + 0.0001f),
+			0,
+			100);
+	}
+
+	private static float ClampCondition(float value, float maximum)
+	{
+		if (float.IsNaN(value) || float.IsPositiveInfinity(value))
+			return maximum;
+		if (float.IsNegativeInfinity(value))
+			return 0.0f;
+
+		return Mathf.Clamp(value, 0.0f, maximum);
+	}
+
+	private static float WeightedAverage(
+		float first,
+		int firstQuantity,
+		float second,
+		int secondQuantity,
+		int totalQuantity)
+	{
+		return (float)(((double)first * firstQuantity + (double)second * secondQuantity) / totalQuantity);
 	}
 }
 

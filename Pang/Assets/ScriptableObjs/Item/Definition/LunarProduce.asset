@@ -17,5 +17,10 @@ MonoBehaviour:
   tag: 2
   itemPrefab: {fileID: 0}
   price: 140
+  maxFreshness: 1000
+  maxIntegrity: 1000
+  thermalResponse: 1
+  freezingDamageTemperatureCelsius: -273.15
+  heatDamageTemperatureCelsius: -273.15
   ignitionTemperatureCelsius: 0
   damageIncidents: []

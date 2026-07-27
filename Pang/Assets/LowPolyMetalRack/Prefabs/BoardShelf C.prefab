@@ -53,6 +53,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxStacks: 3
   sizePerStack: 1050.2
+  thermalResponse: 2
 --- !u!1001 &569402026656613700
 PrefabInstance:
   m_ObjectHideFlags: 0

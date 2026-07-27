@@ -37,7 +37,7 @@ public class CargoCapsule : BoxBase
 		currentDock = dock;
 	}
 
-	public void ApplyDamage(int damageRate, int damagePercent)
+	public void ApplyDamage(int damageRate, int maximumDamageAmount)
 	{
 		int totalQuantity = 0;
 		for (int i = 0; i < stacks.Count; ++i)
@@ -53,10 +53,10 @@ public class CargoCapsule : BoxBase
 		if (totalQuantity <= 0 || damageRate <= 0)
 			return;
 
-		damagePercent = Mathf.Clamp(damagePercent, 10, 100);
+		maximumDamageAmount = Mathf.Clamp(maximumDamageAmount, 10, 100);
 
 		int damageRateRoll = Random.Range(1, damageRate + 1);
-		int damageAmount = Random.Range(10, damagePercent + 1);
+		int damageAmount = Random.Range(10, maximumDamageAmount + 1);
 		int targetQuantity = Mathf.Clamp(
 			Mathf.CeilToInt(totalQuantity * (damageRateRoll / 100.0f)),
 			1,

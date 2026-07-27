@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-public sealed class ThermalTransferService
+public sealed class ItemThermalService
 {
+	private const float ThermalDamageMultiplier = 0.1f;
+
 	private readonly HashSet<IThermalItemContainer> facilityContainers = new();
 	private readonly HashSet<IThermalItemContainer> processedContainers = new();
 	private readonly List<IThermalItemContainer> facilityContainerScratch = new();
@@ -11,7 +13,8 @@ public sealed class ThermalTransferService
 	private FacilityManager facilityManager;
 	private BoxManager boxManager;
 	private GridService gridService;
-	private TemperatureService temperatureService;
+	private ItemDatabase itemDatabase;
+	private ItemDamageService itemDamageService;
 	private bool eventsBound;
 
 	public int RegisteredFacilityContainerCount => facilityContainers.Count;
@@ -22,12 +25,14 @@ public sealed class ThermalTransferService
 		FacilityManager targetFacilityManager,
 		BoxManager targetBoxManager,
 		GridService targetGridService,
-		TemperatureService targetTemperatureService)
+		ItemDatabase targetItemDatabase,
+		ItemDamageService targetItemDamageService)
 	{
 		if (facilityManager == targetFacilityManager &&
 			boxManager == targetBoxManager &&
 			gridService == targetGridService &&
-			temperatureService == targetTemperatureService &&
+			itemDatabase == targetItemDatabase &&
+			itemDamageService == targetItemDamageService &&
 			eventsBound)
 		{
 			return;
@@ -37,7 +42,8 @@ public sealed class ThermalTransferService
 		facilityManager = targetFacilityManager;
 		boxManager = targetBoxManager;
 		gridService = targetGridService;
-		temperatureService = targetTemperatureService;
+		itemDatabase = targetItemDatabase;
+		itemDamageService = targetItemDamageService;
 
 		if (facilityManager != null)
 		{
@@ -63,7 +69,8 @@ public sealed class ThermalTransferService
 		facilityManager = null;
 		boxManager = null;
 		gridService = null;
-		temperatureService = null;
+		itemDatabase = null;
+		itemDamageService = null;
 		ResetRuntimeState();
 	}
 
@@ -139,7 +146,7 @@ public sealed class ThermalTransferService
 		float containerTemperature = ThermalUtility.ApproachTemperature(
 			container.CurrentTemperatureCelsius,
 			cell.TemperatureCelsius,
-			container.ThermalResponsePerWeek,
+			ThermalUtility.GetResponsePerWeek(container.ThermalResponse),
 			context.ElapsedWeeks);
 		container.SetCurrentTemperatureCelsius(containerTemperature);
 		++LastProcessedContainerCount;
@@ -148,23 +155,69 @@ public sealed class ThermalTransferService
 		if (stacks == null)
 			return;
 
-		float itemResponsePerWeek = temperatureService != null
-			? temperatureService.DefaultItemThermalResponsePerWeek
-			: 0.0f;
 		for (int i = 0; i < stacks.Count; ++i)
 		{
 			ItemStack stack = stacks[i];
 			if (stack == null || stack.Quantity <= 0)
 				continue;
 
+			ItemDefinition definition = ResolveItemDefinition(stack.ItemID);
+			float itemResponsePerWeek = definition != null
+				? ThermalUtility.GetResponsePerWeek(definition.ThermalResponse)
+				: ThermalUtility.NormalResponsePerWeek;
 			float itemTemperature = ThermalUtility.ApproachTemperature(
 				stack.CurrentTemperatureCelsius,
 				containerTemperature,
 				itemResponsePerWeek,
 				context.ElapsedWeeks);
 			stack.SetCurrentTemperatureCelsius(itemTemperature);
+			ApplyThermalDamage(stack, definition, in position, container);
 			++LastProcessedStackCount;
 		}
+	}
+
+	private ItemDefinition ResolveItemDefinition(uint itemId)
+	{
+		return itemDatabase != null &&
+			itemDatabase.GetItemData(itemId, out ItemDefinition definition)
+				? definition
+				: null;
+	}
+
+	private void ApplyThermalDamage(
+		ItemStack stack,
+		ItemDefinition definition,
+		in int3 originCell,
+		IItemContainer container)
+	{
+		if (stack == null || definition == null || itemDamageService == null || stack.IsDestroyed)
+			return;
+
+		float currentTemperature = stack.CurrentTemperatureCelsius;
+		float freezingDifference = definition.FreezingDamageTemperatureCelsius - currentTemperature;
+		if (freezingDifference > 0.0f)
+		{
+			itemDamageService.TryApplyDamage(
+				stack,
+				freezingDifference * ThermalDamageMultiplier,
+				in originCell,
+				container,
+				ItemDamageCause.Freezing,
+				out _);
+			return;
+		}
+
+		float heatDifference = currentTemperature - definition.HeatDamageTemperatureCelsius;
+		if (heatDifference <= 0.0f)
+			return;
+
+		itemDamageService.TryApplyDamage(
+			stack,
+			heatDifference * ThermalDamageMultiplier,
+			in originCell,
+			container,
+			ItemDamageCause.Overheating,
+			out _);
 	}
 
 	private void HandleFacilityRegistered(uint buildingId, IFacility facility)

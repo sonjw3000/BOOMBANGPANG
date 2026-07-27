@@ -13,6 +13,8 @@ public enum ItemDamageCause
 	Contamination,
 	Corrosion,
 	Radiation,
+	Freezing,
+	Overheating,
 	Debug,
 }
 
@@ -20,26 +22,32 @@ public readonly struct ItemDamageChange
 {
 	public readonly uint ItemId;
 	public readonly int AffectedQuantity;
-	public readonly byte PreviousDamage;
-	public readonly byte CurrentDamage;
+	public readonly float PreviousIntegrity;
+	public readonly float CurrentIntegrity;
+	public readonly float PreviousDamage;
+	public readonly float CurrentDamage;
 	public readonly ItemDamageCause Cause;
 	public readonly ItemQuality PreviousQuality;
 	public readonly ItemQuality CurrentQuality;
 
-	public bool WasApplied => CurrentDamage > PreviousDamage;
+	public bool WasApplied => CurrentIntegrity < PreviousIntegrity;
 	public bool QualityChanged => CurrentQuality != PreviousQuality;
 
 	public ItemDamageChange(
 		uint itemId,
 		int affectedQuantity,
-		byte previousDamage,
-		byte currentDamage,
+		float previousIntegrity,
+		float currentIntegrity,
+		float previousDamage,
+		float currentDamage,
 		ItemDamageCause cause,
 		ItemQuality previousQuality,
 		ItemQuality currentQuality)
 	{
 		ItemId = itemId;
 		AffectedQuantity = affectedQuantity;
+		PreviousIntegrity = previousIntegrity;
+		CurrentIntegrity = currentIntegrity;
 		PreviousDamage = previousDamage;
 		CurrentDamage = currentDamage;
 		Cause = cause;
@@ -80,32 +88,35 @@ public class ItemDamageService : MonoBehaviour
 
 	public event Action<ItemDamageIncidentTrigger> OnIncidentTriggered;
 
-	public int CalculateDamageIncrease(ItemStack stack, int baseDamage, ItemDamageCause cause)
+	public float CalculateDamageIncrease(ItemStack stack, float baseDamage, ItemDamageCause cause)
 	{
 		if (stack == null || baseDamage <= 0)
-			return 0;
+			return 0.0f;
 
 		float multiplier = 1.0f;
 		if (cause == ItemDamageCause.Explosion && IsFragile(stack.ItemID))
 			multiplier = Mathf.Max(1.0f, fragileExplosionDamageMultiplier);
 
-		return Mathf.Clamp(Mathf.RoundToInt(baseDamage * multiplier), 0, 100);
+		return Mathf.Max(0.0f, baseDamage * multiplier);
 	}
 
 	public bool WouldTriggerIncident(
 		ItemStack stack,
-		int baseDamage,
+		float baseDamage,
 		ItemDamageCause cause,
 		ItemDamageIncidentType incidentType)
 	{
-		if (stack == null || stack.Quantity <= 0 || stack.Damage >= 100)
+		if (stack == null || stack.Quantity <= 0 || stack.IsDestroyed)
 			return false;
 
-		int damageIncrease = CalculateDamageIncrease(stack, baseDamage, cause);
+		float damageIncrease = CalculateDamageIncrease(stack, baseDamage, cause);
 		if (damageIncrease <= 0 || TryGetItemDefinition(stack.ItemID, out ItemDefinition itemDefinition) == false)
 			return false;
 
-		int predictedDamage = Mathf.Clamp(stack.Damage + damageIncrease, 0, 100);
+		float previousDamage = stack.DamageRatio * 100.0f;
+		float predictedIntegrity = Mathf.Max(0.0f, stack.CurrentIntegrity - damageIncrease);
+		float predictedDamage = Mathf.Clamp01(
+			(stack.MaximumIntegrity - predictedIntegrity) / stack.MaximumIntegrity) * 100.0f;
 		IReadOnlyList<DamageIncidentDefinition> incidents = itemDefinition.DamageIncidents;
 		if (incidents == null)
 			return false;
@@ -115,7 +126,7 @@ public class ItemDamageService : MonoBehaviour
 			DamageIncidentDefinition incident = incidents[i];
 			if (incident != null &&
 				incident.IncidentType == incidentType &&
-				stack.Damage < incident.TriggerDamage &&
+				previousDamage < incident.TriggerDamage &&
 				predictedDamage >= incident.TriggerDamage)
 			{
 				return true;
@@ -136,28 +147,32 @@ public class ItemDamageService : MonoBehaviour
 		if (stack == null || stack.Quantity <= 0)
 			return false;
 
-		byte previousDamage = stack.Damage;
-		byte currentDamage = (byte)Mathf.Clamp(targetDamage, 0, 100);
-		if (currentDamage == previousDamage)
+		float previousIntegrity = stack.CurrentIntegrity;
+		float previousDamage = stack.DamageRatio * 100.0f;
+		float targetDamagePercent = Mathf.Clamp(targetDamage, 0, 100);
+		float targetIntegrity = stack.MaximumIntegrity * (1.0f - targetDamagePercent / 100.0f);
+		if (Mathf.Approximately(targetIntegrity, previousIntegrity))
 			return false;
 
-		if (currentDamage > previousDamage)
+		if (targetIntegrity < previousIntegrity)
 		{
 			return TryApplyDamage(
 				stack,
-				currentDamage - previousDamage,
+				previousIntegrity - targetIntegrity,
 				in originCell,
 				container,
 				ItemDamageCause.Debug,
 				out damageChange);
 		}
 
-		stack.SetDamage(currentDamage);
+		stack.SetCurrentIntegrity(targetIntegrity);
 		damageChange = new ItemDamageChange(
 			stack.ItemID,
 			stack.Quantity,
+			previousIntegrity,
+			stack.CurrentIntegrity,
 			previousDamage,
-			currentDamage,
+			stack.DamageRatio * 100.0f,
 			ItemDamageCause.Debug,
 			stack.Quality,
 			stack.Quality);
@@ -166,14 +181,14 @@ public class ItemDamageService : MonoBehaviour
 
 	public bool TryApplyDamage(
 		ItemStack stack,
-		int damageIncrease,
+		float damageIncrease,
 		in int3 originCell,
 		IItemContainer container,
 		ItemDamageCause cause,
 		out ItemDamageChange damageChange)
 	{
 		damageChange = default;
-		int adjustedDamageIncrease = CalculateDamageIncrease(stack, damageIncrease, cause);
+		float adjustedDamageIncrease = CalculateDamageIncrease(stack, damageIncrease, cause);
 		if (TryApplyDamageValue(stack, adjustedDamageIncrease, cause, out damageChange) == false)
 			return false;
 
@@ -184,14 +199,14 @@ public class ItemDamageService : MonoBehaviour
 	public bool TryCreateDamagedStack(
 		ItemStack sourceStack,
 		int quantity,
-		int damageIncrease,
+		float damageIncrease,
 		ItemDamageCause cause,
 		out ItemStack damagedStack,
 		out ItemDamageChange damageChange)
 	{
 		damagedStack = null;
 		damageChange = default;
-		if (sourceStack == null || quantity <= 0 || damageIncrease <= 0 || sourceStack.Damage >= 100)
+		if (sourceStack == null || quantity <= 0 || damageIncrease <= 0.0f || sourceStack.IsDestroyed)
 			return false;
 
 		damagedStack = sourceStack.CloneWithQuantity(quantity);
@@ -301,27 +316,30 @@ public class ItemDamageService : MonoBehaviour
 
 	private static bool TryApplyDamageValue(
 		ItemStack stack,
-		int damageIncrease,
+		float damageIncrease,
 		ItemDamageCause cause,
 		out ItemDamageChange damageChange)
 	{
 		damageChange = default;
-		if (stack == null || stack.Quantity <= 0 || damageIncrease <= 0 || stack.Damage >= 100)
+		if (stack == null || stack.Quantity <= 0 || damageIncrease <= 0.0f || stack.IsDestroyed)
 			return false;
 
-		byte previousDamage = stack.Damage;
+		float previousIntegrity = stack.CurrentIntegrity;
+		float previousDamage = stack.DamageRatio * 100.0f;
 		ItemQuality previousQuality = stack.Quality;
-		byte currentDamage = (byte)Mathf.Clamp(previousDamage + damageIncrease, 0, 100);
-		if (currentDamage <= previousDamage)
+		float appliedDamage = stack.ApplyIntegrityDamage(damageIncrease);
+		if (appliedDamage <= 0.0f)
 			return false;
 
-		stack.SetDamage(currentDamage);
-		if (currentDamage >= 100 && previousDamage < 100)
+		float currentDamage = stack.DamageRatio * 100.0f;
+		if (stack.IsDestroyed && previousIntegrity > 0.0f)
 			stack.AddQuality(ItemQuality.Waste);
 
 		damageChange = new ItemDamageChange(
 			stack.ItemID,
 			stack.Quantity,
+			previousIntegrity,
+			stack.CurrentIntegrity,
 			previousDamage,
 			currentDamage,
 			cause,

@@ -5,8 +5,8 @@ public sealed class ItemContainerItemDisplayInfo
 {
 	public string ItemName { get; set; }
 	public int Quantity { get; set; }
-	public byte Freshness { get; set; }
-	public byte Damage { get; set; }
+	public int Freshness { get; set; }
+	public int Damage { get; set; }
 	public bool ShowsFreshness { get; set; }
 }
 
@@ -40,8 +40,8 @@ public static class ItemContainerDisplayUtility
 			{
 				ItemName = ResolveItemName(stack.ItemID),
 				Quantity = stack.Quantity,
-				Freshness = stack.Freshness,
-				Damage = stack.Damage,
+				Freshness = stack.FreshnessPercent,
+				Damage = stack.DamagePercent,
 				ShowsFreshness = UsesFreshness(stack.ItemID),
 			})
 			.ToList();

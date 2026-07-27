@@ -19,7 +19,7 @@ public abstract partial class BoxBase : MonoBehaviour, IThermalItemContainer, IG
 	[SerializeField] BoxType boxType;
 	[SerializeField] private float capacity = 10.0f;
 	[SerializeField] private uint boxId = 0;
-	[SerializeField, Min(0.0f)] private float thermalResponsePerWeek = 4.0f;
+	[SerializeField] private ThermalResponse thermalResponse = ThermalResponse.Normal;
 	protected float size = 0.0f;
 	private ItemTag itemTags = ItemTag.None;
 	private bool isValid;
@@ -55,7 +55,7 @@ public abstract partial class BoxBase : MonoBehaviour, IThermalItemContainer, IG
 	public float FireIntensity => fireIntensity;
 	public AIWorker CurrentCarrier => currentCarrier;
 	public float CurrentTemperatureCelsius => currentTemperatureCelsius;
-	public float ThermalResponsePerWeek => Mathf.Max(0.0f, thermalResponsePerWeek);
+	public ThermalResponse ThermalResponse => thermalResponse;
 
 	public void SetBoxId(uint id) => boxId = id;
 	public void SetFireIntensity(float intensity) => fireIntensity = Mathf.Clamp(intensity, 0.0f, 100.0f);

@@ -81,6 +81,7 @@ MonoBehaviour:
   packingSlot: {fileID: 8240977779564108790}
   endStackSlot: {fileID: 5051880783375499280}
   workerSlot: {fileID: 1518565527203556735}
+  thermalResponse: 2
 --- !u!1 &4021306367213139453
 GameObject:
   m_ObjectHideFlags: 0

@@ -12,7 +12,7 @@ public sealed class FireService
 	public const float NeighborIntensityMultiplier = 0.5f;
 
 	private const float HealthDamageAtMaximumIntensity = 10.0f;
-	private const int ItemDamagePercentAtMaximumIntensity = 10;
+	private const float ItemDamageAtMaximumIntensity = 10.0f;
 
 	private static readonly int3[] AffectedDirections =
 	{
@@ -128,10 +128,10 @@ public sealed class FireService
 			TryApplyDebugFire(in trigger.OriginCell, intensity, out _);
 		}
 
-		GameContext.Instance.HudEventManager?.Publish(
-			HudEventType.Warning,
-			$"FIRE item:{trigger.DamageChange.ItemId} @({trigger.OriginCell.x},{trigger.OriginCell.y},{trigger.OriginCell.z}) " +
-			$"I:{intensity:0} D:{trigger.DamageChange.PreviousDamage}>{trigger.DamageChange.CurrentDamage} {trigger.DamageChange.Cause}");
+			GameContext.Instance.HudEventManager?.Publish(
+				HudEventType.Warning,
+				$"FIRE item:{trigger.DamageChange.ItemId} @({trigger.OriginCell.x},{trigger.OriginCell.y},{trigger.OriginCell.z}) " +
+				$"I:{intensity:0} D:{trigger.DamageChange.PreviousDamage:0.##}>{trigger.DamageChange.CurrentDamage:0.##} {trigger.DamageChange.Cause}");
 	}
 
 	public bool TryApplyDebugFire(in int3 position, float intensity, out int affectedTargets)
@@ -199,12 +199,11 @@ public sealed class FireService
 		if (cell == null)
 			return;
 
-		bool hasFuel = TryGetIgnitionTemperature(target, out float ignitionTemperature);
+		bool hasFuel = TryGetIgnitionState(target, cell.TemperatureCelsius, out bool ignitionReady);
 		float current = Mathf.Clamp(target.FireIntensity, 0.0f, MaximumFireIntensity);
 		if (current <= 0.0f)
 		{
-			if (hasFuel && cell.Oxygen >= MinimumIgnitionOxygen &&
-				cell.TemperatureCelsius >= ignitionTemperature)
+			if (hasFuel && ignitionReady && cell.Oxygen >= MinimumIgnitionOxygen)
 			{
 				ApplyIntensity(target, InitialFireIntensity, showFloatingText: true);
 			}
@@ -223,9 +222,12 @@ public sealed class FireService
 		ApplyIntensity(target, next, showFloatingText: true);
 	}
 
-	private bool TryGetIgnitionTemperature(IGridPlaceable target, out float ignitionTemperature)
+	private bool TryGetIgnitionState(
+		IGridPlaceable target,
+		float cellTemperatureCelsius,
+		out bool ignitionReady)
 	{
-		ignitionTemperature = float.PositiveInfinity;
+		ignitionReady = false;
 		bool hasFuel = false;
 
 		if (target is Component component && target is not BoxBase &&
@@ -235,25 +237,25 @@ public sealed class FireService
 			float.IsPositiveInfinity(context.placeableDefinition.IgnitionTemperatureCelsius) == false)
 		{
 			hasFuel = true;
-			ignitionTemperature = context.placeableDefinition.IgnitionTemperatureCelsius;
+			ignitionReady = cellTemperatureCelsius >= context.placeableDefinition.IgnitionTemperatureCelsius;
 		}
 
 		if (GameContext.Instance.ItemDB == null)
 			return hasFuel;
 
 		if (target is IItemContainer container)
-			AccumulateContainerIgnitionTemperature(container, ref hasFuel, ref ignitionTemperature);
+			AccumulateContainerIgnitionState(container, ref hasFuel, ref ignitionReady);
 
 		if (target is AIWorker worker && worker.CarryingAbility?.CarryingBox is BoxBase carryingBox)
-			AccumulateContainerIgnitionTemperature(carryingBox, ref hasFuel, ref ignitionTemperature);
+			AccumulateContainerIgnitionState(carryingBox, ref hasFuel, ref ignitionReady);
 
 		return hasFuel;
 	}
 
-	private static void AccumulateContainerIgnitionTemperature(
+	private static void AccumulateContainerIgnitionState(
 		IItemContainer container,
 		ref bool hasFuel,
-		ref float ignitionTemperature)
+		ref bool ignitionReady)
 	{
 		IReadOnlyList<ItemStack> stacks = container.Stacks;
 		for (int i = 0; i < stacks.Count; ++i)
@@ -267,7 +269,8 @@ public sealed class FireService
 			}
 
 			hasFuel = true;
-			ignitionTemperature = Mathf.Min(ignitionTemperature, definition.IgnitionTemperatureCelsius);
+			if (stack.CurrentTemperatureCelsius >= definition.IgnitionTemperatureCelsius)
+				ignitionReady = true;
 		}
 	}
 
@@ -409,7 +412,7 @@ public sealed class FireService
 			TryResolvePosition(placeable, out int3 resolvedPosition)
 			? resolvedPosition
 			: default;
-		int itemDamage = Mathf.Max(1, Mathf.RoundToInt(ItemDamagePercentAtMaximumIntensity * intensity / MaximumFireIntensity));
+		float itemDamage = ItemDamageAtMaximumIntensity * intensity / MaximumFireIntensity;
 		IReadOnlyList<ItemStack> stacks = container.Stacks;
 		for (int i = stacks.Count - 1; i >= 0; --i)
 		{

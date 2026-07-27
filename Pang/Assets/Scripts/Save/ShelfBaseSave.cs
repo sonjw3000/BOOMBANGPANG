@@ -16,8 +16,8 @@ public abstract partial class ShelfBase
 			{
 				ItemId = stack.ItemID,
 				Quantity = stack.Quantity,
-				Freshness = stack.Freshness,
-				Damage = stack.Damage,
+				CurrentFreshness = stack.CurrentFreshness,
+				CurrentIntegrity = stack.CurrentIntegrity,
 				HasTemperatureState = true,
 				CurrentTemperatureCelsius = stack.CurrentTemperatureCelsius,
 				Status = stack.Status,
@@ -57,8 +57,8 @@ public abstract partial class ShelfBase
 			{
 				ItemStack stack = ItemStack.Rent(
 					stackData.ItemId,
-					stackData.Freshness,
-					stackData.Damage,
+					stackData.CurrentFreshness,
+					stackData.CurrentIntegrity,
 					stackData.Status,
 					stackData.OutboundStage,
 					stackData.Quality,

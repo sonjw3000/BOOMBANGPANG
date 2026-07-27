@@ -93,8 +93,8 @@ namespace UniverseLogistics.UI.Toolkit
 
 					version = version * 31 + (int)stack.ItemID;
 					version = version * 31 + stack.Quantity;
-					version = version * 31 + stack.Damage;
-					version = version * 31 + stack.Freshness;
+					version = version * 31 + stack.DamagePercent;
+					version = version * 31 + stack.FreshnessPercent;
 				}
 				if (GameContext.HasInstance && GameContext.Instance.GameTime != null)
 					version = version * 31 + GameContext.Instance.GameTime.WeeksPassed;

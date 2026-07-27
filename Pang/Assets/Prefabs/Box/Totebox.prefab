@@ -47,6 +47,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   boxType: 1
   capacity: 120
+  thermalResponse: 1
 --- !u!1 &5967057967906346422
 GameObject:
   m_ObjectHideFlags: 0

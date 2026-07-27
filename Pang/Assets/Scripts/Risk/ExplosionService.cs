@@ -364,7 +364,7 @@ public sealed class ExplosionService
 		for (int i = 0; i < stacks.Count; ++i)
 		{
 			ItemStack stack = stacks[i];
-			if (stack == null || stack.Quantity <= 0 || stack.Damage >= 100)
+			if (stack == null || stack.Quantity <= 0 || stack.IsDestroyed)
 				continue;
 
 			hasDamageTarget = true;

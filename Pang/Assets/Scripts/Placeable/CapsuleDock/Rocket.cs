@@ -118,7 +118,7 @@ public partial class Rocket : CapsuleDock
 
 		DockedCapsule.ApplyDamage(
 			InboundWorkflowService.DamageRate,
-			InboundWorkflowService.DamagePercent);
+			InboundWorkflowService.MaximumDamageAmount);
 	}
 
 	// Hook for future extra effects when the landing rocket overrides other objects.

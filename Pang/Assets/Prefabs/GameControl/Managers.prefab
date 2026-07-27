@@ -1802,7 +1802,7 @@ MonoBehaviour:
   inboundRocketSpawnInterval: 10
   hardLandingChange: 30
   damageRate: 30
-  damagePercent: 50
+  maximumDamageAmount: 50
   unloadingDestinationBuildingId: 0
   storingBoxFillLimitPercent: 80
   defaultStoringCollectingPolicyType: 0

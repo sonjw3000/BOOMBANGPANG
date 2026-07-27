@@ -605,8 +605,8 @@ public sealed class ItemStackSaveData
 {
 	public uint ItemId;
 	public int Quantity;
-	public byte Freshness = 100;
-	public byte Damage;
+	public float CurrentFreshness;
+	public float CurrentIntegrity;
 	public bool HasTemperatureState;
 	public float CurrentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	public ItemStatus Status = ItemStatus.None;

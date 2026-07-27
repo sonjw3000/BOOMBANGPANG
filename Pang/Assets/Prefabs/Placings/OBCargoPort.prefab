@@ -155,3 +155,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxStacks: 30
   sizePerStack: 100
+  thermalResponse: 2

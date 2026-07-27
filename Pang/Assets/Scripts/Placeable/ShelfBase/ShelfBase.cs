@@ -14,7 +14,7 @@ public abstract partial class ShelfBase :
 {
 	[SerializeField] protected int maxStacks = 16;
 	[SerializeField] protected float sizePerStack;
-	[SerializeField, Min(0.0f)] private float thermalResponsePerWeek = 64.0f;
+	[SerializeField] private ThermalResponse thermalResponse = ThermalResponse.Fast;
 
 	protected List<ItemStack> stacks;
 	protected Dictionary<uint, int> itemTotals = new();
@@ -46,7 +46,7 @@ public abstract partial class ShelfBase :
 	public IReadOnlyDictionary<uint, int> ItemToBePicked => itemsReservedPick;
 	public ItemTag ItemTags => itemTags;
 	public float CurrentTemperatureCelsius => currentTemperatureCelsius;
-	public float ThermalResponsePerWeek => Mathf.Max(0.0f, thermalResponsePerWeek);
+	public ThermalResponse ThermalResponse => thermalResponse;
 	public int GetPickableQuantity(uint itemID) => ItemTotals.GetValueOrDefault(itemID) - ItemToBePicked.GetValueOrDefault(itemID);
 	public bool CanRegister() => MaxStack > Stacks.Count;
 	public float MaxStack => maxStacks;

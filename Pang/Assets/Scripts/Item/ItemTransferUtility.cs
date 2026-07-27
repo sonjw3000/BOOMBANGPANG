@@ -132,25 +132,50 @@ public static class ItemTransferUtility
 		if (from == null || to == null || stack == null || stack.Quantity <= 0)
 			return new(new ItemTransferPayload(from, to, stack != null ? stack.ItemID : 0, 0), 0);
 
+		if (TryBuildSourceIdentityPredicate(
+			from,
+			stack.ItemID,
+			sourceStackPredicate,
+			out Predicate<ItemStack> sourceIdentityPredicate) == false)
+		{
+			return new(new ItemTransferPayload(from, to, stack.ItemID, stack.Quantity), 0);
+		}
+
+		int requested = stack.Quantity;
+		int conditionQuantity = GetMatchingQuantity(
+			from,
+			stack.ItemID,
+			requested,
+			sourceIdentityPredicate);
+		if (conditionQuantity <= 0)
+			return new(new ItemTransferPayload(from, to, stack.ItemID, requested), 0);
+
+		if (conditionQuantity < requested)
+			stack.RemoveItem(requested - conditionQuantity);
+
 		ItemTransferPayload payload = new(
 			from,
 			to,
 			stack.ItemID,
 			stack.Quantity,
 			consumeSourcePickReservation,
-			sourceStackPredicate,
+			sourceIdentityPredicate,
 			handlingWorker);
 
-		if (TryCalculateRemovedTemperature(
+		if (TryCalculateRemovedCondition(
 			from,
 			stack.ItemID,
 			stack.Quantity,
-			sourceStackPredicate,
+			sourceIdentityPredicate,
+			out float sourceFreshness,
+			out float sourceIntegrity,
 			out float sourceTemperature) == false)
 		{
 			return new(payload, 0);
 		}
 
+		stack.SetCurrentFreshness(sourceFreshness);
+		stack.SetCurrentIntegrity(sourceIntegrity);
 		stack.SetCurrentTemperatureCelsius(sourceTemperature);
 		ItemStack damagedStack = CreateDamagedTransferStack(payload, stack, stack.Quantity, out ItemDamageChange damageChange);
 		ItemStack transferStack = damagedStack ?? stack;
@@ -160,7 +185,12 @@ public static class ItemTransferUtility
 			return new(payload, 0);
 		}
 
-		int removed = RemoveMatchingQuantity(from, stack.ItemID, stack.Quantity, sourceStackPredicate, consumeSourcePickReservation);
+		int removed = RemoveMatchingQuantity(
+			from,
+			stack.ItemID,
+			stack.Quantity,
+			sourceIdentityPredicate,
+			consumeSourcePickReservation);
 		if (removed != stack.Quantity)
 		{
 			damagedStack?.Recycle();
@@ -342,18 +372,59 @@ public static class ItemTransferUtility
 			(stackPredicate == null || stackPredicate(stack));
 	}
 
-	private static bool TryCalculateRemovedTemperature(
+	private static bool TryBuildSourceIdentityPredicate(
+		IItemContainer container,
+		uint itemId,
+		Predicate<ItemStack> sourceStackPredicate,
+		out Predicate<ItemStack> sourceIdentityPredicate)
+	{
+		sourceIdentityPredicate = null;
+		if (container?.Stacks == null)
+			return false;
+
+		for (int i = container.Stacks.Count - 1; i >= 0; --i)
+		{
+			ItemStack source = container.Stacks[i];
+			if (CanMoveStack(source, itemId, sourceStackPredicate) == false)
+				continue;
+
+			int freshnessPercent = source.FreshnessPercent;
+			int damagePercent = source.DamagePercent;
+			ItemStatus status = source.Status;
+			ItemQuality quality = source.Quality;
+			PackageOutboundStage outboundStage = source.OutboundStage;
+			sourceIdentityPredicate = candidate =>
+				candidate != null &&
+				candidate.FreshnessPercent == freshnessPercent &&
+				candidate.DamagePercent == damagePercent &&
+				candidate.Status == status &&
+				candidate.Quality == quality &&
+				candidate.OutboundStage == outboundStage &&
+				(sourceStackPredicate == null || sourceStackPredicate(candidate));
+			return true;
+		}
+
+		return false;
+	}
+
+	private static bool TryCalculateRemovedCondition(
 		IItemContainer container,
 		uint itemId,
 		int quantity,
 		Predicate<ItemStack> stackPredicate,
+		out float currentFreshness,
+		out float currentIntegrity,
 		out float temperatureCelsius)
 	{
+		currentFreshness = 0.0f;
+		currentIntegrity = 0.0f;
 		temperatureCelsius = GridCell.DefaultTemperatureCelsius;
 		if (container?.Stacks == null || quantity <= 0)
 			return false;
 
 		int remaining = quantity;
+		double weightedFreshness = 0.0;
+		double weightedIntegrity = 0.0;
 		double weightedTemperature = 0.0;
 		for (int i = container.Stacks.Count - 1; i >= 0 && remaining > 0; --i)
 		{
@@ -362,6 +433,8 @@ public static class ItemTransferUtility
 				continue;
 
 			int taken = Math.Min(sourceStack.Quantity, remaining);
+			weightedFreshness += sourceStack.CurrentFreshness * taken;
+			weightedIntegrity += sourceStack.CurrentIntegrity * taken;
 			weightedTemperature += sourceStack.CurrentTemperatureCelsius * taken;
 			remaining -= taken;
 		}
@@ -369,6 +442,8 @@ public static class ItemTransferUtility
 		if (remaining > 0)
 			return false;
 
+		currentFreshness = (float)(weightedFreshness / quantity);
+		currentIntegrity = (float)(weightedIntegrity / quantity);
 		temperatureCelsius = ThermalUtility.SanitizeCelsius(
 			(float)(weightedTemperature / quantity));
 		return true;
@@ -532,7 +607,7 @@ public static class ItemTransferUtility
 		damageChange = default;
 		if (payload.HandlingWorker == null ||
 			sourceStack == null ||
-			sourceStack.Damage >= 100 ||
+			sourceStack.IsDestroyed ||
 			quantity <= 0 ||
 			GameContext.HasInstance == false)
 			return null;

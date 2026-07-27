@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   capacity: 100
+  thermalResponse: 1
 --- !u!1 &9136791770186352465
 GameObject:
   m_ObjectHideFlags: 0

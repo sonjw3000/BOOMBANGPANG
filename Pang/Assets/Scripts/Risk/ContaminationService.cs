@@ -6,6 +6,6 @@ public sealed class ContaminationService
 		GameContext.Instance.HudEventManager?.Publish(
 			HudEventType.Warning,
 			$"CONTAMINATION item:{damage.ItemId} @({trigger.OriginCell.x},{trigger.OriginCell.y},{trigger.OriginCell.z}) " +
-			$"R:{trigger.Radius} S:{trigger.Severity} D:{damage.PreviousDamage}>{damage.CurrentDamage} {damage.Cause}");
+			$"R:{trigger.Radius} S:{trigger.Severity} D:{damage.PreviousDamage:0.##}>{damage.CurrentDamage:0.##} {damage.Cause}");
 	}
 }

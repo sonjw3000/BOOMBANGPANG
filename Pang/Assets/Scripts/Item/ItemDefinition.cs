@@ -22,6 +22,13 @@ public enum ItemDamageIncidentType
 	RadiationLeak,
 }
 
+public enum ThermalResponse
+{
+	Slow,
+	Normal,
+	Fast,
+}
+
 [Serializable]
 public sealed class DamageIncidentDefinition
 {
@@ -46,6 +53,8 @@ public sealed class DamageIncidentDefinition
 [CreateAssetMenu(menuName = "Item/ItemDefinition")]
 public class ItemDefinition : ScriptableObject
 {
+	private const float DefaultConditionMaximum = 1000.0f;
+
 	[SerializeField] private uint itemID;
 	[SerializeField] private float size;
 	[SerializeField] private ItemTag tag;
@@ -53,6 +62,11 @@ public class ItemDefinition : ScriptableObject
 	[SerializeField] private GameObject itemPrefab;
 
 	[SerializeField] private int price = 100;
+	[SerializeField, Min(1.0f)] private float maxFreshness = DefaultConditionMaximum;
+	[SerializeField, Min(1.0f)] private float maxIntegrity = DefaultConditionMaximum;
+	[SerializeField] private ThermalResponse thermalResponse = ThermalResponse.Normal;
+	[SerializeField] private float freezingDamageTemperatureCelsius = ThermalUtility.AbsoluteZeroCelsius;
+	[SerializeField] private float heatDamageTemperatureCelsius = ThermalUtility.AbsoluteZeroCelsius;
 	[SerializeField, Min(0.0f)] private float ignitionTemperatureCelsius;
 	[SerializeField] private List<DamageIncidentDefinition> damageIncidents = new();
 
@@ -61,6 +75,15 @@ public class ItemDefinition : ScriptableObject
 	public ItemTag Tag => tag;
 	public GameObject ItemPrefab => itemPrefab;
 	public int Price => price;
+	public float MaxFreshness => Mathf.Max(1.0f, maxFreshness);
+	public float MaxIntegrity => Mathf.Max(1.0f, maxIntegrity);
+	public ThermalResponse ThermalResponse => thermalResponse;
+	public float FreezingDamageTemperatureCelsius =>
+		Mathf.Max(ThermalUtility.AbsoluteZeroCelsius, freezingDamageTemperatureCelsius);
+	public float HeatDamageTemperatureCelsius =>
+		heatDamageTemperatureCelsius <= ThermalUtility.AbsoluteZeroCelsius
+			? float.PositiveInfinity
+			: heatDamageTemperatureCelsius;
 	public float IgnitionTemperatureCelsius => ignitionTemperatureCelsius > 0.0f
 		? ignitionTemperatureCelsius
 		: float.PositiveInfinity;
