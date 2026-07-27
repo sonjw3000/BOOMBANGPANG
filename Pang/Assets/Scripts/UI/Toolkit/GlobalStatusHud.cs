@@ -22,7 +22,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private const float ReferenceWidth = 1920f;
 		private const float ReferenceHeight = 1080f;
 		private const float ReferenceUiScale = 1.0f;
-		private static readonly Vector2 ManagementWindowDefaultSize = new(1200f, 820f);
+		private static readonly Vector2 ManagementWindowDefaultSize = new(1400f, 900f);
 
 		[SerializeField] private VisualTreeAsset visualTreeAsset;
 		[SerializeField] private VisualTreeAsset tooltipVisualTreeAsset;

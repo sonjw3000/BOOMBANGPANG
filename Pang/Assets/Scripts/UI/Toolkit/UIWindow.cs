@@ -45,6 +45,9 @@ namespace UniverseLogistics.UI.Toolkit
 		private Vector2 pointerStart;
 		private Rect windowStartRect;
 		private bool hasAppliedDefaultSize;
+		private bool hasOpened;
+		private bool hasRememberedWindowRect;
+		private Rect rememberedWindowRect;
 
 		public event Action Opened;
 		public event Action Closed;
@@ -65,6 +68,10 @@ namespace UniverseLogistics.UI.Toolkit
 			defaultSize = new Vector2(
 				Mathf.Max(minimumSize.x, size.x),
 				Mathf.Max(minimumSize.y, size.y));
+
+			if (hasRememberedWindowRect)
+				return;
+
 			hasAppliedDefaultSize = false;
 
 			if (initialized)
@@ -98,6 +105,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnDisable()
 		{
+			if (initialized && IsOpen && hasOpened)
+				RememberWindowRect();
+
 			if (closeButton != null)
 				closeButton.clicked -= Close;
 
@@ -266,7 +276,8 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 
 			windowRoot.style.display = DisplayStyle.Flex;
-			windowRoot.schedule.Execute(ClampWindowToPanel);
+			windowRoot.schedule.Execute(RestoreOrClampWindow);
+			hasOpened = true;
 			Opened?.Invoke();
 		}
 
@@ -279,6 +290,9 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (Initialize() == false || IsOpen == false)
 				return;
+
+			if (hasOpened)
+				RememberWindowRect();
 
 			windowRoot.style.display = DisplayStyle.None;
 			if (notify)
@@ -404,6 +418,9 @@ namespace UniverseLogistics.UI.Toolkit
 			if (windowRoot != null && activePointerId >= 0 && windowRoot.HasPointerCapture(activePointerId))
 				windowRoot.ReleasePointer(activePointerId);
 
+			if (isMoving || resizeDirection != ResizeDirection.None)
+				RememberWindowRect();
+
 			activePointerId = -1;
 			isMoving = false;
 			resizeDirection = ResizeDirection.None;
@@ -446,13 +463,52 @@ namespace UniverseLogistics.UI.Toolkit
 			if (windowRoot == null)
 				return;
 
-			Rect current = windowRoot.worldBound;
+			Rect clampedRect = ClampRectToPanel(windowRoot.worldBound);
+			ApplyWindowRect(clampedRect);
+			if (hasRememberedWindowRect)
+				rememberedWindowRect = clampedRect;
+		}
+
+		private Rect ClampRectToPanel(Rect rect)
+		{
 			Vector2 panelSize = GetPanelSize();
-			float width = Mathf.Clamp(current.width, Mathf.Min(minimumSize.x, panelSize.x), panelSize.x);
-			float height = Mathf.Clamp(current.height, Mathf.Min(minimumSize.y, panelSize.y), panelSize.y);
-			float x = Mathf.Clamp(current.x, 0f, Mathf.Max(0f, panelSize.x - width));
-			float y = Mathf.Clamp(current.y, 0f, Mathf.Max(0f, panelSize.y - height));
-			ApplyWindowRect(new Rect(x, y, width, height));
+			float width = Mathf.Clamp(rect.width, Mathf.Min(minimumSize.x, panelSize.x), panelSize.x);
+			float height = Mathf.Clamp(rect.height, Mathf.Min(minimumSize.y, panelSize.y), panelSize.y);
+			float x = Mathf.Clamp(rect.x, 0f, Mathf.Max(0f, panelSize.x - width));
+			float y = Mathf.Clamp(rect.y, 0f, Mathf.Max(0f, panelSize.y - height));
+			return new Rect(x, y, width, height);
+		}
+
+		private void RestoreOrClampWindow()
+		{
+			if (hasRememberedWindowRect)
+			{
+				rememberedWindowRect = ClampRectToPanel(rememberedWindowRect);
+				ApplyWindowRect(rememberedWindowRect);
+				return;
+			}
+
+			ClampWindowToPanel();
+		}
+
+		private void RememberWindowRect()
+		{
+			if (windowRoot == null)
+				return;
+
+			Rect rect = windowRoot.worldBound;
+			if (IsFinite(rect.x) == false || IsFinite(rect.y) == false ||
+				IsFinite(rect.width) == false || IsFinite(rect.height) == false ||
+				rect.width <= 0f || rect.height <= 0f)
+				return;
+
+			rememberedWindowRect = ClampRectToPanel(rect);
+			hasRememberedWindowRect = true;
+		}
+
+		private static bool IsFinite(float value)
+		{
+			return float.IsNaN(value) == false && float.IsInfinity(value) == false;
 		}
 
 		private Vector2 GetPanelSize()
