@@ -118,6 +118,6 @@ public static class ItemContainerDisplayUtility
 
 		return GameContext.Instance.ItemDB.GetItemData(itemId, out ItemDefinition definition) &&
 			definition != null &&
-			(definition.Tag & ItemTag.Food) != 0;
+			definition.UsesFreshness;
 	}
 }

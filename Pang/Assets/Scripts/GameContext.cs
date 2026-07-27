@@ -344,7 +344,7 @@ public class GameContext : MonoBehaviour
 		_ = OxygenSvc;
 		_ = ItemHandlingDamage;
 		_ = ItemDamage;
-		ItemThermalSvc.Bind(FacilityMgr, BoxMgr, gridService, itemDB, itemDamageService);
+		ItemThermalSvc.Bind(FacilityMgr, BoxMgr, BuildingMgr, gridService, itemDB, itemDamageService);
 		_ = FireSvc;
 		fireService.Bind(gridService);
 		_ = ExplosionSvc;

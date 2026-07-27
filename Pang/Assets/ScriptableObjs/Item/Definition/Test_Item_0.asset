@@ -17,6 +17,11 @@ MonoBehaviour:
   tag: 0
   itemPrefab: {fileID: 0}
   maxFreshness: 1000
+  usesFreshness: 0
+  freshnessLossPerTick: 1
+  minimumFreshTemperatureCelsius: 0
+  maximumFreshTemperatureCelsius: 10
+  temperatureFreshnessLossPerDegree: 0.1
   maxIntegrity: 1000
   thermalResponse: 1
   freezingDamageTemperatureCelsius: -273.15

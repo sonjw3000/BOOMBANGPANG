@@ -784,7 +784,7 @@ namespace UniverseLogistics.UI.Toolkit
 				GameContext.Instance.ItemDB != null &&
 				GameContext.Instance.ItemDB.GetItemData(itemId, out ItemDefinition definition) &&
 				definition != null &&
-				(definition.Tag & ItemTag.Food) != 0;
+				definition.UsesFreshness;
 		}
 
 		private static bool TryResolveTarget(in int3 position, out GameObject target)

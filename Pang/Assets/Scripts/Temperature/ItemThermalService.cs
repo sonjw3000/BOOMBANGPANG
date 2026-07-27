@@ -12,6 +12,7 @@ public sealed class ItemThermalService
 
 	private FacilityManager facilityManager;
 	private BoxManager boxManager;
+	private BuildingManager buildingManager;
 	private GridService gridService;
 	private ItemDatabase itemDatabase;
 	private ItemDamageService itemDamageService;
@@ -24,12 +25,14 @@ public sealed class ItemThermalService
 	public void Bind(
 		FacilityManager targetFacilityManager,
 		BoxManager targetBoxManager,
+		BuildingManager targetBuildingManager,
 		GridService targetGridService,
 		ItemDatabase targetItemDatabase,
 		ItemDamageService targetItemDamageService)
 	{
 		if (facilityManager == targetFacilityManager &&
 			boxManager == targetBoxManager &&
+			buildingManager == targetBuildingManager &&
 			gridService == targetGridService &&
 			itemDatabase == targetItemDatabase &&
 			itemDamageService == targetItemDamageService &&
@@ -41,6 +44,7 @@ public sealed class ItemThermalService
 		Unbind();
 		facilityManager = targetFacilityManager;
 		boxManager = targetBoxManager;
+		buildingManager = targetBuildingManager;
 		gridService = targetGridService;
 		itemDatabase = targetItemDatabase;
 		itemDamageService = targetItemDamageService;
@@ -68,6 +72,7 @@ public sealed class ItemThermalService
 		eventsBound = false;
 		facilityManager = null;
 		boxManager = null;
+		buildingManager = null;
 		gridService = null;
 		itemDatabase = null;
 		itemDamageService = null;
@@ -172,6 +177,7 @@ public sealed class ItemThermalService
 				context.ElapsedWeeks);
 			stack.SetCurrentTemperatureCelsius(itemTemperature);
 			ApplyThermalDamage(stack, definition, in position, container);
+			ApplyFreshnessLoss(stack, definition, container);
 			++LastProcessedStackCount;
 		}
 	}
@@ -218,6 +224,48 @@ public sealed class ItemThermalService
 			container,
 			ItemDamageCause.Overheating,
 			out _);
+	}
+
+	private void ApplyFreshnessLoss(
+		ItemStack stack,
+		ItemDefinition definition,
+		IItemContainer container)
+	{
+		if (stack == null ||
+			definition == null ||
+			definition.UsesFreshness == false ||
+			stack.CurrentFreshness <= 0.0f)
+		{
+			return;
+		}
+
+		float currentTemperature = stack.CurrentTemperatureCelsius;
+		float temperatureDifference = 0.0f;
+		if (currentTemperature < definition.MinimumFreshTemperatureCelsius)
+		{
+			temperatureDifference =
+				definition.MinimumFreshTemperatureCelsius - currentTemperature;
+		}
+		else if (currentTemperature > definition.MaximumFreshTemperatureCelsius)
+		{
+			temperatureDifference =
+				currentTemperature - definition.MaximumFreshTemperatureCelsius;
+		}
+
+		float freshnessLoss =
+			definition.FreshnessLossPerTick +
+			temperatureDifference * definition.TemperatureFreshnessLossPerDegree;
+		float previousFreshness = stack.CurrentFreshness;
+		if (stack.ApplyFreshnessLoss(freshnessLoss) <= 0.0f ||
+			previousFreshness <= 0.0f ||
+			stack.CurrentFreshness > 0.0f ||
+			stack.HasQuality(ItemQuality.Waste))
+		{
+			return;
+		}
+
+		stack.AddQuality(ItemQuality.Waste);
+		buildingManager?.RefreshItemContainerState(container);
 	}
 
 	private void HandleFacilityRegistered(uint buildingId, IFacility facility)

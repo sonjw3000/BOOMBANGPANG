@@ -63,6 +63,11 @@ public class ItemDefinition : ScriptableObject
 
 	[SerializeField] private int price = 100;
 	[SerializeField, Min(1.0f)] private float maxFreshness = DefaultConditionMaximum;
+	[SerializeField] private bool usesFreshness;
+	[SerializeField, Min(0.0f)] private float freshnessLossPerTick = 1.0f;
+	[SerializeField] private float minimumFreshTemperatureCelsius;
+	[SerializeField] private float maximumFreshTemperatureCelsius = 10.0f;
+	[SerializeField, Min(0.0f)] private float temperatureFreshnessLossPerDegree = 0.1f;
 	[SerializeField, Min(1.0f)] private float maxIntegrity = DefaultConditionMaximum;
 	[SerializeField] private ThermalResponse thermalResponse = ThermalResponse.Normal;
 	[SerializeField] private float freezingDamageTemperatureCelsius = ThermalUtility.AbsoluteZeroCelsius;
@@ -76,6 +81,16 @@ public class ItemDefinition : ScriptableObject
 	public GameObject ItemPrefab => itemPrefab;
 	public int Price => price;
 	public float MaxFreshness => Mathf.Max(1.0f, maxFreshness);
+	public bool UsesFreshness => usesFreshness;
+	public float FreshnessLossPerTick => Mathf.Max(0.0f, freshnessLossPerTick);
+	public float MinimumFreshTemperatureCelsius =>
+		ThermalUtility.SanitizeCelsius(minimumFreshTemperatureCelsius);
+	public float MaximumFreshTemperatureCelsius =>
+		Mathf.Max(
+			MinimumFreshTemperatureCelsius,
+			ThermalUtility.SanitizeCelsius(maximumFreshTemperatureCelsius));
+	public float TemperatureFreshnessLossPerDegree =>
+		Mathf.Max(0.0f, temperatureFreshnessLossPerDegree);
 	public float MaxIntegrity => Mathf.Max(1.0f, maxIntegrity);
 	public ThermalResponse ThermalResponse => thermalResponse;
 	public float FreezingDamageTemperatureCelsius =>
