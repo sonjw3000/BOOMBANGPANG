@@ -24,7 +24,7 @@ namespace UniverseLogistics.UI.Toolkit
 		[SerializeField] private bool openOnEnable = true;
 		[SerializeField] private bool movable = true;
 		[SerializeField] private bool resizable = true;
-		[SerializeField] private Vector2 defaultSize = new(990f, 690f);
+		[SerializeField] private Vector2 defaultSize = new(1400f, 900f);
 		[SerializeField] private Vector2 minimumSize = new(420f, 300f);
 
 		private readonly List<TabEntry> tabs = new();

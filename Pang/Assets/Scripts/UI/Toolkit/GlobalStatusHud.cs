@@ -22,8 +22,6 @@ namespace UniverseLogistics.UI.Toolkit
 		private const float ReferenceWidth = 1920f;
 		private const float ReferenceHeight = 1080f;
 		private const float ReferenceUiScale = 1.0f;
-		private static readonly Vector2 ManagementWindowDefaultSize = new(1400f, 900f);
-
 		[SerializeField] private VisualTreeAsset visualTreeAsset;
 		[SerializeField] private VisualTreeAsset tooltipVisualTreeAsset;
 		[SerializeField] private VisualTreeAsset hudEventEntryTemplate;
@@ -289,7 +287,6 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
-			window.SetDefaultSize(ManagementWindowDefaultSize);
 			contractManagementWindow = documentObject.AddComponent<ContractManagementWindow>();
 			contractManagementWindow.Configure(window, contractContentTemplate, activeContractRowTemplate,
 				contractMarketRowTemplate, vendorContractRowTemplate);
@@ -319,7 +316,6 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
-			window.SetDefaultSize(ManagementWindowDefaultSize);
 			inventoryManagementWindow = documentObject.AddComponent<InventoryManagementWindow>();
 			inventoryManagementWindow.Configure(window, inventoryContentTemplate, inventoryItemRowTemplate);
 			documentObject.SetActive(true);
@@ -348,7 +344,6 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
-			window.SetDefaultSize(ManagementWindowDefaultSize);
 			orderManagementWindow = documentObject.AddComponent<OrderManagementWindow>();
 			orderManagementWindow.Configure(window, ordersContentTemplate, orderRowTemplate, orderLineRowTemplate);
 			documentObject.SetActive(true);
@@ -386,7 +381,6 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
-			window.SetDefaultSize(ManagementWindowDefaultSize);
 			workforceManagementWindow = documentObject.AddComponent<WorkforceManagementWindow>();
 			workforceManagementWindow.Configure(window, workforceContentTemplate, workforceRosterRowTemplate,
 				workforceCandidateRowTemplate, workforceHumanMarkets, workforceRobotMarkets);
@@ -417,7 +411,6 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
-			window.SetDefaultSize(ManagementWindowDefaultSize);
 			BuildingPlacementOverlayController buildingOverlay = documentObject.AddComponent<BuildingPlacementOverlayController>();
 			buildingOverlay.Configure(buildSelectionProxyPrefab, buildOverlayQuadPrefab, buildOverlayLabelPrefab);
 			RoutingConnectivityOverlayController routingOverlay = documentObject.AddComponent<RoutingConnectivityOverlayController>();
@@ -455,7 +448,6 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
-			window.SetDefaultSize(ManagementWindowDefaultSize);
 			workflowManagementWindow = documentObject.AddComponent<WorkflowManagementWindow>();
 			workflowManagementWindow.Configure(window, workflowContentTemplate, workflowLandingAreaRowTemplate, buildManagementWindow);
 			documentObject.SetActive(true);
@@ -484,7 +476,6 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
-			window.SetDefaultSize(ManagementWindowDefaultSize);
 			companyManagementWindow = documentObject.AddComponent<CompanyManagementWindow>();
 			companyManagementWindow.Configure(window, companyContentTemplate, historyRowTemplate,
 				companyLicenseRowTemplate, companyResearchRowTemplate);
