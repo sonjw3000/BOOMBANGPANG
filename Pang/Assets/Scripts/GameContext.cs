@@ -79,6 +79,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private WorkplaceIncidentService workplaceIncidentService;
 	[SerializeField] private TemperatureService temperatureService;
 	[SerializeField] private OxygenService oxygenService;
+	[SerializeField] private WearService wearService;
 	[SerializeField] private GridOverlayController gridOverlayController;
 
 	[Header("Workflow Managers")]
@@ -182,6 +183,7 @@ public class GameContext : MonoBehaviour
 	public TemperatureService TemperatureSvc => ResolveOrCreateTemperatureService();
 	public ItemThermalService ItemThermalSvc => itemThermalService ??= new ItemThermalService();
 	public OxygenService OxygenSvc => ResolveOrCreateOxygenService();
+	public WearService WearSvc => ResolveOrCreateWearService();
 	public AreaManager AreaMgr => areaManager;
 	public AirlockService AirlockSvc => airlockService;
 	public BuildingManager BuildingMgr => buildingManager;
@@ -342,6 +344,7 @@ public class GameContext : MonoBehaviour
 		WorkplaceIncidentSvc.Initialize(WorkerMgr, MedicalSvc, RobotFixSvc, VendorService, EconomyService);
 		_ = TemperatureSvc;
 		_ = OxygenSvc;
+		_ = WearSvc;
 		_ = ItemHandlingDamage;
 		_ = ItemDamage;
 		ItemThermalSvc.Bind(FacilityMgr, BoxMgr, BuildingMgr, gridService, itemDB, itemDamageService);
@@ -355,7 +358,9 @@ public class GameContext : MonoBehaviour
 			oxygenService,
 			temperatureService,
 			itemThermalService,
-			fireService);
+			fireService,
+			wearService,
+			workerManager);
 		_ = ContaminationSvc;
 		_ = CorrosionSvc;
 		_ = RadiationSvc;
@@ -433,6 +438,18 @@ public class GameContext : MonoBehaviour
 			oxygenService = gameObject.AddComponent<OxygenService>();
 
 		return oxygenService;
+	}
+
+	private WearService ResolveOrCreateWearService()
+	{
+		if (wearService != null)
+			return wearService;
+
+		wearService = GetComponentInChildren<WearService>(true);
+		if (wearService == null)
+			wearService = gameObject.AddComponent<WearService>();
+
+		return wearService;
 	}
 
 	private ItemHandlingDamageService ResolveOrCreateItemHandlingDamageService()

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-public interface IOxygenSupplier : IFacility
+public interface IOxygenSupplier : IWearableFacility
 {
 	float OxygenSupplyPerTick { get; }
 }
@@ -51,7 +51,7 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 		clearOutdoorOnNextTick = true;
 	}
 
-	public void ProcessSimulationTick()
+	public void ProcessSimulationTick(in SimulationTickContext context)
 	{
 		if (GridService == null || GridService.IsReady == false || BuildingManager == null)
 			return;
@@ -68,7 +68,7 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 
 			IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
 			for (int i = 0; i < buildings.Count; ++i)
-				changed |= ProcessBuilding(buildings[i]);
+				changed |= ProcessBuilding(buildings[i], in context);
 
 			changed |= ConsumeOxygenForFires();
 		}
@@ -178,7 +178,7 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 			suppliers.Add(supplier);
 	}
 
-	private bool ProcessBuilding(Building building)
+	private bool ProcessBuilding(Building building, in SimulationTickContext context)
 	{
 		if (building == null || building.RuntimeBuildingId == 0)
 			return false;
@@ -201,6 +201,8 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 
 		float average = oxygenSum / indoorCellCount;
 		float supply = CalculateSupply(building.RuntimeBuildingId);
+		float requestedSupply = (GridCell.MaximumOxygen - average) * indoorCellCount;
+		ReportSupplierOperation(building.RuntimeBuildingId, requestedSupply, supply, context.ElapsedWeeks);
 		float next = Mathf.Clamp(average + supply / indoorCellCount, GridCell.DefaultOxygen, GridCell.MaximumOxygen);
 
 		bool changed = false;
@@ -233,11 +235,37 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 			if (IsBuildingIndoorCell(cell, buildingId) == false)
 				continue;
 
-			float efficiency = Mathf.Clamp01(GameContext.Instance.PowerSvc.GetPowerEfficiency(supplier));
+			float efficiency = FacilityEfficiency.GetOperatingEfficiency(supplier);
 			total += Mathf.Max(0f, supplier.OxygenSupplyPerTick) * efficiency;
 		}
 
 		return total;
+	}
+
+	private void ReportSupplierOperation(uint buildingId, float requestedSupply, float availableSupply, float elapsedWeeks)
+	{
+		if (requestedSupply <= 0.0f || availableSupply <= 0.0f ||
+			suppliersByBuilding.TryGetValue(buildingId, out List<IOxygenSupplier> suppliers) == false)
+		{
+			return;
+		}
+
+		float loadRatio = Mathf.Clamp01(requestedSupply / availableSupply);
+		for (int i = suppliers.Count - 1; i >= 0; --i)
+		{
+			IOxygenSupplier supplier = suppliers[i];
+			if (supplier is UnityEngine.Object unityObject && unityObject == null)
+				continue;
+
+			GridCell cell = GridService.GetCell(supplier.GridPosition);
+			if (IsBuildingIndoorCell(cell, buildingId) == false ||
+				FacilityEfficiency.GetOperatingEfficiency(supplier) <= 0.0f)
+			{
+				continue;
+			}
+
+			GameContext.Instance.WearSvc.ReportOperation(supplier, elapsedWeeks, loadRatio);
+		}
 	}
 
 	private bool ConsumeOxygenForFires()

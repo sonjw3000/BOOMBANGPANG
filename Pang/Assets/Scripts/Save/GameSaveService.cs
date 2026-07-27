@@ -184,6 +184,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.AirlockSvc.ResetRuntimeState();
 		Ctx.FacilityMgr.ResetRuntimeState();
 		Ctx.PowerSvc.ResetRuntimeState();
+		Ctx.WearSvc.ResetRuntimeState();
 		Ctx.TemperatureSvc.ResetRuntimeState();
 		Ctx.ItemThermalSvc.ResetRuntimeState();
 		Ctx.OxygenSvc.ResetRuntimeState();
@@ -299,6 +300,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.TemperatureSvc.RebuildRuntimeState();
 		Ctx.ItemThermalSvc.RebuildRuntimeState();
 		Ctx.OxygenSvc.RebuildRuntimeState();
+		Ctx.WearSvc.RebuildRuntimeState();
 		Ctx.FireSvc.RebuildRuntimeState();
 		Ctx.IBWorkflowSvc.RetryActiveRocketUnloadingTasks();
 	}
@@ -320,6 +322,8 @@ public sealed class GameSaveService : MonoBehaviour
 			data.HasHealth = true;
 			data.Health = healthOwner.Health;
 		}
+		if (obj.TryGetComponent<IWearable>(out var wearable))
+			data.Wear = wearable.Wear;
 		if (obj.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
 			data.FireIntensity = gridPlaceable.FireIntensity;
 
@@ -459,6 +463,8 @@ public sealed class GameSaveService : MonoBehaviour
 
 		if (save.HasHealth && obj.TryGetComponent<IHealth>(out var healthOwner))
 			healthOwner.RestoreHealth(save.Health);
+		if (obj.TryGetComponent<IWearable>(out var wearable))
+			wearable.SetWearFromSave(save.Wear);
 		if (obj.TryGetComponent<IGridPlaceable>(out var gridPlaceable))
 			gridPlaceable.SetFireIntensity(save.FireIntensity);
 

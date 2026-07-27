@@ -3,7 +3,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-public interface ITemperatureModifier : IFacility
+public interface ITemperatureModifier : IWearableFacility
 {
 	int EffectRadius { get; }
 	float TemperatureOffsetCelsius { get; }
@@ -158,7 +158,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 			BuildingId = buildingId,
 			Radius = Mathf.Max(0, modifier.EffectRadius),
 			Offset = modifier.TemperatureOffsetCelsius,
-			Efficiency = Mathf.Clamp01(GameContext.HasInstance ? GameContext.Instance.PowerSvc.GetPowerEfficiency(modifier) : 0f),
+			Efficiency = FacilityEfficiency.GetOperatingEfficiency(modifier),
 		};
 	}
 
@@ -175,6 +175,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 
 		RefreshModifierStates();
 		RecalculateDirtyTargets();
+		ReportModifierOperation();
 		AdvanceActiveTemperatures();
 		OnGridOverlayRefreshRequested?.Invoke();
 	}
@@ -321,6 +322,42 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	{
 		return a.Position.Equals(b.Position) == false || a.BuildingId != b.BuildingId || a.Radius != b.Radius ||
 			Mathf.Approximately(a.Offset, b.Offset) == false || Mathf.Approximately(a.Efficiency, b.Efficiency) == false;
+	}
+
+	private void ReportModifierOperation()
+	{
+		foreach (ModifierState state in modifiers.Values)
+		{
+			if (state.Efficiency <= 0.0f || HasActiveDemand(state) == false)
+				continue;
+
+			GameContext.Instance.WearSvc.ReportOperation(
+				state.Modifier,
+				GameTime.SimulationTickWeeks * GameTime.QuarterWeekSimulationTickInterval);
+		}
+	}
+
+	private bool HasActiveDemand(ModifierState state)
+	{
+		for (int x = -state.Radius; x <= state.Radius; ++x)
+		{
+			int zRange = state.Radius - Mathf.Abs(x);
+			for (int z = -zRange; z <= zRange; ++z)
+			{
+				int3 position = state.Position + new int3(x, 0, z);
+				GridCell cell = GridService.GetCell(position);
+				if (cell == null || Affects(state, position, cell) == false)
+					continue;
+
+				float target = targets.TryGetValue(position, out float value)
+					? value
+					: ambientTemperatureCelsius;
+				if (Mathf.Approximately(cell.TemperatureCelsius, target) == false)
+					return true;
+			}
+		}
+
+		return false;
 	}
 
 	private void MarkAllCellsDirty()

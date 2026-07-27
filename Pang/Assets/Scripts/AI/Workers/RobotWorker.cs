@@ -1,12 +1,17 @@
 using UnityEngine;
 
-public class RobotWorker : AIWorker
+public class RobotWorker : AIWorker, IWearable
 {
 	private static WorkPolicyService WorkPolicy => GameContext.Instance.WMSys.WorkPolicyService;
 	[SerializeField] private float batteryLevel = 100f;
 	private float batteryEfficiency;
+	[SerializeField] private WearState wear = new();
 
 	public float BatteryLevel => batteryLevel;
+	public float Wear => wear.Wear;
+	public float WearEfficiency => wear.Efficiency;
+	public float PassiveWearPerQuarterWeek => wear.PassiveWearPerQuarterWeek;
+	public float OperatingWearPerQuarterWeek => wear.OperatingWearPerQuarterWeek;
 
 	[SerializeField] private int monthlyMaintenanceCost = 100;
 
@@ -30,6 +35,11 @@ public class RobotWorker : AIWorker
 	}
 
 	public override float GetFatigue() => 0;
+	public override float GetWorkSpeedMultiplier() => BaseWorkSpeedMultiplier * WearEfficiency;
+	public override float GetMoveSpeedMultiplier() => BaseMoveSpeedMultiplier * WearEfficiency;
+
+	public void ApplyWear(float amount) => wear.Apply(amount);
+	public void SetWearFromSave(float value) => wear.SetFromSave(value);
 
 	public override bool NeedsRecovery() => batteryLevel <= WorkPolicy.RobotChargeBatteryThreshold;
 

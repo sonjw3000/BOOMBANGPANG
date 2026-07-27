@@ -94,6 +94,29 @@ public partial class WorkerManager : MonoBehaviour
 		OnWorkersChanged?.Invoke();
 	}
 
+	public void ReportRobotWear(in SimulationTickContext context, WearService wearService)
+	{
+		if (wearService == null)
+			return;
+
+		for (int i = 0; i < workers.Count; ++i)
+		{
+			if (workers[i] is not RobotWorker robot || robot.IsOperational == false)
+				continue;
+
+			WorkerStatusAction action = robot.EffectiveStatusAction;
+			if (action != WorkerStatusAction.MovingTo &&
+				action != WorkerStatusAction.UsingAirlock &&
+				action != WorkerStatusAction.Working &&
+				action != WorkerStatusAction.HandlingMistake)
+			{
+				continue;
+			}
+
+			wearService.ReportOperation(robot, context.ElapsedWeeks);
+		}
+	}
+
 	public bool TryRemoveWorker(AIWorker worker)
 	{
 		if (worker == null || workers.Contains(worker) == false || worker.IsOperational == false)

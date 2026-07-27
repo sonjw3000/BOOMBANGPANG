@@ -473,6 +473,7 @@ public sealed class PlaceableSaveData
 	public uint FacilityRulePresetId;
 	public bool HasHealth;
 	public float Health;
+	public float Wear;
 	public float FireIntensity;
 	public bool IsFacilityDestroyed;
 

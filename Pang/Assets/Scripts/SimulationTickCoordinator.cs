@@ -6,6 +6,8 @@ public sealed class SimulationTickCoordinator
 	private TemperatureService temperatureService;
 	private ItemThermalService itemThermalService;
 	private FireService fireService;
+	private WearService wearService;
+	private WorkerManager workerManager;
 
 	public void Bind(
 		GameTime targetGameTime,
@@ -13,14 +15,18 @@ public sealed class SimulationTickCoordinator
 		OxygenService targetOxygenService,
 		TemperatureService targetTemperatureService,
 		ItemThermalService targetItemThermalService,
-		FireService targetFireService)
+		FireService targetFireService,
+		WearService targetWearService,
+		WorkerManager targetWorkerManager)
 	{
 		if (gameTime == targetGameTime &&
 			explosionService == targetExplosionService &&
 			oxygenService == targetOxygenService &&
 			temperatureService == targetTemperatureService &&
 			itemThermalService == targetItemThermalService &&
-			fireService == targetFireService)
+			fireService == targetFireService &&
+			wearService == targetWearService &&
+			workerManager == targetWorkerManager)
 		{
 			return;
 		}
@@ -32,6 +38,8 @@ public sealed class SimulationTickCoordinator
 		temperatureService = targetTemperatureService;
 		itemThermalService = targetItemThermalService;
 		fireService = targetFireService;
+		wearService = targetWearService;
+		workerManager = targetWorkerManager;
 
 		if (gameTime != null)
 			gameTime.OnSimulationTick += OnSimulationTick;
@@ -48,17 +56,23 @@ public sealed class SimulationTickCoordinator
 		temperatureService = null;
 		itemThermalService = null;
 		fireService = null;
+		wearService = null;
+		workerManager = null;
 	}
 
 	private void OnSimulationTick(SimulationTickContext context)
 	{
 		explosionService?.ProcessSimulationTick(in context);
-		oxygenService?.ProcessSimulationTick();
+		workerManager?.ReportRobotWear(in context, wearService);
+		oxygenService?.ProcessSimulationTick(in context);
 		fireService?.ProcessSimulationTick();
 		temperatureService?.ProcessSimulationTick();
 
 		if (context.Tick % GameTime.QuarterWeekSimulationTickInterval == 0)
+		{
 			temperatureService?.ProcessQuarterWeekTick();
+			wearService?.ProcessQuarterWeekTick();
+		}
 
 		itemThermalService?.ProcessSimulationTick(in context);
 	}
