@@ -44,6 +44,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a5108059d84bbce42b77092842a0be88, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameTime
-  secondsPerMonth: 120
+  secondsPerMonth: 360
   timeScale: 1
   maxSpeedExponent: 5
