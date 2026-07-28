@@ -175,7 +175,11 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		currentTarget?.BuildingManager?.SetBuildingWorkScope(Building, next);
 	}
 
-	private bool SupportsCapsuleThreshold() => Building != null && (Building.Type == BuildingType.Storage || Building.Type == BuildingType.Packing);
+	private bool SupportsCapsuleThreshold() =>
+		Building != null &&
+		(Building.Type == BuildingType.Storage ||
+		 Building.Type == BuildingType.Packing ||
+		 Building.Type == BuildingType.Launch);
 	private bool CanControlCapsuleThreshold() => SupportsCapsuleThreshold() && Building.CanControlCapsuleThreshold();
 	private UITooltipContent BuildThresholdTooltip()
 	{
