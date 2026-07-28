@@ -494,7 +494,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		if (request == null || request.GetAllocatableQuantity() <= 0)
 			return FinishManualScan(worker, box, session);
 
-		int quantity = box.GetAcceptableQuantity(request.ItemId, request.GetAllocatableQuantity());
+		int quantity = GetAcceptableQuantityWithinFillLimit(box, request.ItemId, request.GetAllocatableQuantity());
 		if (quantity <= 0)
 		{
 			if (box.Stacks.Count > 0)
@@ -544,13 +544,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		}
 
 		if (session.Request.IsComplete)
-		{
-			requestSource.Remove(session.Request);
-			ReleaseManualSession(worker, keepRequest: false);
-			return box != null && box.Stacks.Count > 0
-				? WorkPlanResult.SwitchPhase
-				: WorkPlanResult.Completed;
-		}
+			return FinishManualScan(worker, box, session);
 
 		if (HasReachedBoxFillLimit(box))
 		{
@@ -613,6 +607,13 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		}
 
 		ReleaseManualSession(worker, keepRequest: false);
+
+		if (HasReachedBoxFillLimit(box))
+			return WorkPlanResult.SwitchPhase;
+
+		if (TryClaimManualRequest(worker))
+			return WorkPlanResult.Issued;
+
 		return box != null && box.Stacks.Count > 0
 			? WorkPlanResult.SwitchPhase
 			: WorkPlanResult.Completed;
@@ -748,7 +749,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			if (allocatable <= 0)
 				continue;
 
-			int acceptable = box.GetAcceptableQuantity(request.ItemId, allocatable);
+			int acceptable = GetAcceptableQuantityWithinFillLimit(box, request.ItemId, allocatable);
 			if (acceptable <= 0)
 				continue;
 
@@ -763,6 +764,29 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		}
 
 		return candidates;
+	}
+
+	private int GetAcceptableQuantityWithinFillLimit(BoxBase box, uint itemId, int requested)
+	{
+		if (box == null || requested <= 0)
+			return 0;
+
+		int acceptable = box.GetAcceptableQuantity(itemId, requested);
+		if (acceptable <= 0 || box.MaxSize <= 0.0f)
+			return acceptable;
+
+		ItemDatabase itemDatabase = GameContext.HasInstance ? GameContext.Instance.ItemDB : null;
+		float itemSize = itemDatabase != null ? itemDatabase.GetItemSize(itemId) : 0.0f;
+		if (itemSize <= 0.0f)
+			return 0;
+
+		float fillLimit = box.MaxSize * Mathf.Clamp(boxFillLimitPercent, 1.0f, 100.0f) / 100.0f;
+		float remainingSize = fillLimit - box.TotalSize;
+		if (remainingSize <= 0.0f)
+			return 0;
+
+		int fillLimitAcceptable = Mathf.FloorToInt((remainingSize / itemSize) + 0.0001f);
+		return Mathf.Min(acceptable, fillLimitAcceptable);
 	}
 
 	private uint ResolveBuildingId(uint buildingId)
