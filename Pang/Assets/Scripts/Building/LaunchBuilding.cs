@@ -20,7 +20,8 @@ public sealed class LaunchBuilding : Building
 		if (capsuleBuffer == null ||
 			capsuleBuffer.DockState != CapsuleDockState.OBStandby ||
 			capsuleBuffer.DockedCapsule == null ||
-			capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby)
+			(capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby &&
+			 capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB))
 		{
 			return false;
 		}
