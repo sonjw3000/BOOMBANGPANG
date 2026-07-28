@@ -169,7 +169,9 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 			return;
 
 		BoxBase sourceBox = ResolveManifestBox(sourceContainer);
-		if (sourceBox == null || targetBox == null || sourceBox.BoxId == targetBox.BoxId)
+		if (sourceBox == null ||
+			targetBox == null ||
+			PickingManifestKey.From(sourceBox) == PickingManifestKey.From(targetBox))
 			return;
 
 		GameContext.Instance.OBWorkflowSvc?.TransferPickingManifest(sourceBox, targetBox, itemId, quantity, false);

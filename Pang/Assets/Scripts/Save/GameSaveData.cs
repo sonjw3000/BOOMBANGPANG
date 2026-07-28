@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 6;
+	public int Version = 7;
 	public string SavedAtUtc;
 
 	public ScenarioObjectiveSaveData ScenarioObjective = new();
@@ -151,6 +151,7 @@ public sealed class OutboundPickingManifestSaveData
 [Serializable]
 public sealed class PickingManifestSaveData
 {
+	public BoxType BoxType = BoxType.None;
 	public uint BoxId;
 	public List<PickingManifestLineSaveData> Lines = new();
 }

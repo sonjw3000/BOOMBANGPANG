@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 public partial class OutboundWorkflowService
 {
@@ -43,7 +44,8 @@ public partial class OutboundWorkflowService
 
 			PickingManifestSaveData manifestData = new()
 			{
-				BoxId = manifestEntry.Key,
+				BoxType = manifestEntry.Key.BoxType,
+				BoxId = manifestEntry.Key.BoxId,
 			};
 
 			foreach (PickingManifestLine line in manifest.Lines)
@@ -76,10 +78,17 @@ public partial class OutboundWorkflowService
 
 		foreach (PickingManifestSaveData manifestData in data.Manifests)
 		{
-			if (manifestData == null || manifestData.BoxId == 0 || manifestData.Lines == null)
+			if (manifestData == null || manifestData.Lines == null)
 				continue;
 
-			PickingManifest manifest = GetPickingManifest(manifestData.BoxId);
+			PickingManifestKey key = new(manifestData.BoxType, manifestData.BoxId);
+			if (key.IsValid == false)
+			{
+				Debug.LogWarning($"[Save] Skipped picking manifest with invalid owner key {key}.");
+				continue;
+			}
+
+			PickingManifest manifest = GetPickingManifest(key);
 			if (manifest == null)
 				continue;
 
@@ -94,7 +103,7 @@ public partial class OutboundWorkflowService
 			}
 
 			if (manifest.IsEmpty)
-				ClearPickingManifest(manifestData.BoxId);
+				ClearPickingManifest(key);
 		}
 	}
 

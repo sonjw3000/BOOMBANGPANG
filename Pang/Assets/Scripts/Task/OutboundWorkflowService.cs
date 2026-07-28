@@ -23,12 +23,12 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private float timeSinceLastOrder = 0.0f;
 	private readonly HashSet<OutboundCargoPort> queuedCargoTransferPorts = new();
 	private readonly Dictionary<OutboundCargoPort, InboundCargoPort> queuedCargoTransferTargets = new();
-	private readonly Dictionary<uint, PickingManifest> pickingManifests = new();
+	private readonly Dictionary<PickingManifestKey, PickingManifest> pickingManifests = new();
 	private readonly List<PickingDispatchCandidate> pickingDispatchCandidates = new();
 
 	public PackingStationService PackingStationService => packingStationService;
 	public LaunchStationService LaunchStationService => launchStationService;
-	public IReadOnlyDictionary<uint, PickingManifest> PickingManifests => pickingManifests;
+	public IReadOnlyDictionary<PickingManifestKey, PickingManifest> PickingManifests => pickingManifests;
 	public PickingPolicyType PickingPolicyType => defaultPickingPolicyType;
 	public CollectingPolicyType PickingCollectingPolicyType => defaultPickingCollectingPolicyType;
 	public float PickingBoxFillLimitPercent => pickingBoxFillLimitPercent;
@@ -270,18 +270,18 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	public PickingManifest GetPickingManifest(BoxBase box)
 	{
-		return box != null ? GetPickingManifest(box.BoxId) : null;
+		return box != null ? GetPickingManifest(PickingManifestKey.From(box)) : null;
 	}
 
-	public PickingManifest GetPickingManifest(uint boxId)
+	private PickingManifest GetPickingManifest(PickingManifestKey key)
 	{
-		if (boxId == 0)
+		if (key.IsValid == false)
 			return null;
 
-		if (pickingManifests.TryGetValue(boxId, out PickingManifest manifest) == false)
+		if (pickingManifests.TryGetValue(key, out PickingManifest manifest) == false)
 		{
 			manifest = new PickingManifest();
-			pickingManifests.Add(boxId, manifest);
+			pickingManifests.Add(key, manifest);
 		}
 
 		return manifest;
@@ -290,25 +290,25 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public bool TryGetPickingManifest(BoxBase box, out PickingManifest manifest)
 	{
 		manifest = null;
-		return box != null && TryGetPickingManifest(box.BoxId, out manifest);
+		return box != null && TryGetPickingManifest(PickingManifestKey.From(box), out manifest);
 	}
 
-	public bool TryGetPickingManifest(uint boxId, out PickingManifest manifest)
+	private bool TryGetPickingManifest(PickingManifestKey key, out PickingManifest manifest)
 	{
 		manifest = null;
-		return boxId != 0 && pickingManifests.TryGetValue(boxId, out manifest);
+		return key.IsValid && pickingManifests.TryGetValue(key, out manifest);
 	}
 
 	public void ClearPickingManifest(BoxBase box)
 	{
 		if (box != null)
-			ClearPickingManifest(box.BoxId);
+			ClearPickingManifest(PickingManifestKey.From(box));
 	}
 
-	public void ClearPickingManifest(uint boxId)
+	private void ClearPickingManifest(PickingManifestKey key)
 	{
-		if (boxId != 0)
-			pickingManifests.Remove(boxId);
+		if (key.IsValid)
+			pickingManifests.Remove(key);
 	}
 
 	public void OnBoxReleased(BoxBase box, bool destroyed)
@@ -366,7 +366,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		int quantity,
 		bool packed)
 	{
-		if (from == null || to == null || from.BoxId == to.BoxId || quantity <= 0)
+		if (from == null || to == null || PickingManifestKey.From(from) == PickingManifestKey.From(to) || quantity <= 0)
 			return 0;
 
 		if (TryGetPickingManifest(from, out PickingManifest sourceManifest) == false)
@@ -409,7 +409,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	public int TransferPickingManifest(BoxBase from, BoxBase to, uint itemId, int quantity, bool packed)
 	{
-		if (from == null || to == null || from.BoxId == to.BoxId || quantity <= 0)
+		if (from == null || to == null || PickingManifestKey.From(from) == PickingManifestKey.From(to) || quantity <= 0)
 			return 0;
 
 		if (TryGetPickingManifest(from, out PickingManifest sourceManifest) == false)

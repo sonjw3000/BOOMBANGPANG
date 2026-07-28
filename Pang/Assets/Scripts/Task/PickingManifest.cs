@@ -1,6 +1,57 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public readonly struct PickingManifestKey : System.IEquatable<PickingManifestKey>
+{
+	public readonly BoxType BoxType;
+	public readonly uint BoxId;
+
+	public bool IsValid => BoxType != BoxType.None && BoxType != BoxType.Any && BoxId != 0;
+
+	public PickingManifestKey(BoxType boxType, uint boxId)
+	{
+		BoxType = boxType;
+		BoxId = boxId;
+	}
+
+	public static PickingManifestKey From(BoxBase box)
+	{
+		return box != null
+			? new PickingManifestKey(box.Type, box.BoxId)
+			: default;
+	}
+
+	public bool Equals(PickingManifestKey other)
+	{
+		return BoxType == other.BoxType && BoxId == other.BoxId;
+	}
+
+	public override bool Equals(object obj)
+	{
+		return obj is PickingManifestKey other && Equals(other);
+	}
+
+	public override int GetHashCode()
+	{
+		return System.HashCode.Combine(BoxType, BoxId);
+	}
+
+	public override string ToString()
+	{
+		return $"{BoxType}:{BoxId}";
+	}
+
+	public static bool operator ==(PickingManifestKey left, PickingManifestKey right)
+	{
+		return left.Equals(right);
+	}
+
+	public static bool operator !=(PickingManifestKey left, PickingManifestKey right)
+	{
+		return left.Equals(right) == false;
+	}
+}
+
 public sealed class PickingManifestLine
 {
 	public readonly OrderLine OrderLine;
