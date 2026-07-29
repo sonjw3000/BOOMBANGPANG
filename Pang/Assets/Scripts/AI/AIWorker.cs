@@ -647,6 +647,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 		currentTask = task;
 		BuildBehaviorTree();
+		if (task != null)
+			enabled = true;
 		return true;
 	}
 
