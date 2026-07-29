@@ -44,6 +44,9 @@ public abstract partial class AIWorker
 			MinimumWorkSpeedMultiplier = minimumWorkSpeedMultiplier,
 			MainTaskType = workerMainTaskType,
 			AssignedTaskTypes = new System.Collections.Generic.List<WorkerTask.TaskType>(workerAssignedTaskTypes),
+			HasPendingAssignment = hasPendingAssignment,
+			PendingPrimaryBuildingId = pendingPrimaryBuildingId,
+			PendingAssignedTaskTypes = new System.Collections.Generic.List<WorkerTask.TaskType>(pendingAssignedTaskTypes),
 			StatusAction = workerState.Action,
 			StatusTarget = workerState.Target,
 			OperationalState = operationalState,
@@ -101,6 +104,23 @@ public abstract partial class AIWorker
 		}
 
 		workerMainTaskType = workerAssignedTaskTypes.Count > 0 ? workerAssignedTaskTypes[0] : WorkerTask.TaskType.Undefined;
+		hasPendingAssignment = data.HasPendingAssignment;
+		pendingPrimaryBuildingId = data.PendingPrimaryBuildingId;
+		pendingAssignedTaskTypes.Clear();
+		if (hasPendingAssignment && data.PendingAssignedTaskTypes != null)
+		{
+			for (int i = 0; i < data.PendingAssignedTaskTypes.Count; ++i)
+			{
+				WorkerTask.TaskType taskType = data.PendingAssignedTaskTypes[i];
+				if (taskType != WorkerTask.TaskType.Undefined &&
+					pendingAssignedTaskTypes.Contains(taskType) == false)
+				{
+					pendingAssignedTaskTypes.Add(taskType);
+				}
+			}
+		}
+		if (hasPendingAssignment == false)
+			pendingPrimaryBuildingId = 0;
 		workerState = new WorkerStatusInfo(data.StatusAction, data.StatusTarget);
 		operationalState = data.OperationalState;
 		preTrafficAction = workerState.Action;

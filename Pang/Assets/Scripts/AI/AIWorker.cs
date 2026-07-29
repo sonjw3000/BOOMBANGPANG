@@ -130,6 +130,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
 	[SerializeField] private List<WorkerTask.TaskType> workerAssignedTaskTypes = new();
 	[SerializeField] private uint primaryBuildingId = 0;
+	[SerializeField] private bool hasPendingAssignment;
+	[SerializeField] private uint pendingPrimaryBuildingId;
+	[SerializeField] private List<WorkerTask.TaskType> pendingAssignedTaskTypes = new();
 
 	[Header("Visual")]
 	[SerializeField] private Transform visualRoot;
@@ -254,6 +257,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public WorkerTask.TaskType TaskType => workerMainTaskType;
 	public IReadOnlyList<WorkerTask.TaskType> AssignedTaskTypes => workerAssignedTaskTypes;
 	public uint PrimaryBuildingId => primaryBuildingId;
+	public bool HasPendingAssignment => hasPendingAssignment;
+	public uint PendingPrimaryBuildingId => pendingPrimaryBuildingId;
+	public IReadOnlyList<WorkerTask.TaskType> PendingAssignedTaskTypes => pendingAssignedTaskTypes;
 	public IInteractionPoint CurrentWorkingBuilding => currentWorkingPoint;
 	public bool IsAssignedToPackingStation => currentWorkingPoint is PackingStation;
 	public CarryBoxAbility CarryingAbility
@@ -603,6 +609,31 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		primaryBuildingId = buildingId;
 	}
 
+	internal void SetPendingAssignment(uint buildingId, IEnumerable<WorkerTask.TaskType> taskTypes)
+	{
+		hasPendingAssignment = true;
+		pendingPrimaryBuildingId = buildingId;
+		pendingAssignedTaskTypes.Clear();
+		if (taskTypes == null)
+			return;
+
+		foreach (WorkerTask.TaskType taskType in taskTypes)
+		{
+			if (taskType != WorkerTask.TaskType.Undefined &&
+				pendingAssignedTaskTypes.Contains(taskType) == false)
+			{
+				pendingAssignedTaskTypes.Add(taskType);
+			}
+		}
+	}
+
+	internal void ClearPendingAssignment()
+	{
+		hasPendingAssignment = false;
+		pendingPrimaryBuildingId = 0;
+		pendingAssignedTaskTypes.Clear();
+	}
+
 	public void SetHumanIdentity(HumanType humanType)
 	{
 		workerKind = WorkerKind.Human;
@@ -663,6 +694,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		BuildBehaviorTree();
 		if (GameContext.HasInstance)
 		{
+			WorkerMgr.TryApplyPendingAssignment(this);
 			if (becomeIdle && IsOperational)
 				WorkerMgr.AddIdleWorker(this);
 			else

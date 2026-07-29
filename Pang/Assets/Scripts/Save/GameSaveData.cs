@@ -519,6 +519,9 @@ public sealed class WorkerSaveData
 	public float MinimumWorkSpeedMultiplier;
 	public WorkerTask.TaskType MainTaskType;
 	public List<WorkerTask.TaskType> AssignedTaskTypes = new();
+	public bool HasPendingAssignment;
+	public uint PendingPrimaryBuildingId;
+	public List<WorkerTask.TaskType> PendingAssignedTaskTypes = new();
 	public WorkerStatusAction StatusAction;
 	public WorkerStatusTarget StatusTarget;
 	public WorkerOperationalState OperationalState;

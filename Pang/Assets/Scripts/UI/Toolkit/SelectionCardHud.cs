@@ -66,6 +66,31 @@ namespace UniverseLogistics.UI.Toolkit
 		public bool SliderEnabled { get; set; } = true;
 		public Action<float> SliderChanged { get; set; }
 		public Func<UITooltipContent> SliderTooltip { get; set; }
+		public SelectionDetailEditorModel Editor { get; set; }
+	}
+
+	public sealed class SelectionDetailEditorModel
+	{
+		public string Message { get; set; }
+		public string DropdownLabel { get; set; }
+		public List<string> DropdownChoices { get; set; } = new();
+		public int DropdownIndex { get; set; }
+		public bool DropdownEnabled { get; set; } = true;
+		public Action<int> DropdownChanged { get; set; }
+		public string ToggleLabel { get; set; }
+		public readonly List<SelectionDetailToggleModel> Toggles = new();
+		public string PrimaryActionLabel { get; set; }
+		public Action PrimaryAction { get; set; }
+		public string SecondaryActionLabel { get; set; }
+		public Action SecondaryAction { get; set; }
+	}
+
+	public sealed class SelectionDetailToggleModel
+	{
+		public string Label { get; set; }
+		public bool Value { get; set; }
+		public bool Enabled { get; set; } = true;
+		public Action<bool> Changed { get; set; }
 	}
 
 	public sealed class SelectionDetailRow
@@ -252,6 +277,15 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label detailSliderLabel;
 		private Slider detailSlider;
 		private Label detailSliderValue;
+		private VisualElement detailEditor;
+		private Label detailEditorMessage;
+		private Label detailEditorDropdownLabel;
+		private DropdownField detailEditorDropdown;
+		private Label detailEditorToggleLabel;
+		private ScrollView detailEditorToggles;
+		private VisualElement detailEditorActions;
+		private Button detailEditorPrimaryAction;
+		private Button detailEditorSecondaryAction;
 		private Button focusButton;
 		private Button detailsButton;
 		private UIProviderBase displayedProvider;
@@ -289,12 +323,24 @@ namespace UniverseLogistics.UI.Toolkit
 			detailSliderLabel = documentRoot.Q<Label>("selection-detail-slider-label");
 			detailSlider = documentRoot.Q<Slider>("selection-detail-slider");
 			detailSliderValue = documentRoot.Q<Label>("selection-detail-slider-value");
+			detailEditor = documentRoot.Q<VisualElement>("selection-detail-editor");
+			detailEditorMessage = documentRoot.Q<Label>("selection-detail-editor-message");
+			detailEditorDropdownLabel = documentRoot.Q<Label>("selection-detail-editor-dropdown-label");
+			detailEditorDropdown = documentRoot.Q<DropdownField>("selection-detail-editor-dropdown");
+			detailEditorToggleLabel = documentRoot.Q<Label>("selection-detail-editor-toggle-label");
+			detailEditorToggles = documentRoot.Q<ScrollView>("selection-detail-editor-toggles");
+			detailEditorActions = documentRoot.Q<VisualElement>("selection-detail-editor-actions");
+			detailEditorPrimaryAction = documentRoot.Q<Button>("selection-detail-editor-primary-action");
+			detailEditorSecondaryAction = documentRoot.Q<Button>("selection-detail-editor-secondary-action");
 			focusButton = documentRoot.Q<Button>("selection-card-focus-button");
 			detailsButton = documentRoot.Q<Button>("selection-card-details-button");
 			if (root == null || icon == null || title == null || subtitle == null || infoList == null ||
 				inspector == null || detailTabs == null || overviewList == null || contextActions == null ||
 				detailPanel == null || detailTitle == null || detailSummary == null || detailList == null || detailEmpty == null ||
 				detailSliderControl == null || detailSliderLabel == null || detailSlider == null || detailSliderValue == null ||
+				detailEditor == null || detailEditorMessage == null || detailEditorDropdownLabel == null || detailEditorDropdown == null ||
+				detailEditorToggleLabel == null || detailEditorToggles == null || detailEditorActions == null ||
+				detailEditorPrimaryAction == null || detailEditorSecondaryAction == null ||
 				focusButton == null || detailsButton == null)
 			{
 				root = null;
@@ -576,6 +622,18 @@ namespace UniverseLogistics.UI.Toolkit
 				detailSliderValue.text = $"{evt.newValue:0}%";
 			});
 			detailSliderControl.SetTooltip(() => activeDetailModel?.SliderTooltip?.Invoke() ?? default);
+			detailEditorDropdown.RegisterValueChangedCallback(evt =>
+			{
+				SelectionDetailEditorModel editor = activeDetailModel?.Editor;
+				if (editor == null)
+					return;
+
+				int index = editor.DropdownChoices.IndexOf(evt.newValue);
+				if (index >= 0)
+					editor.DropdownChanged?.Invoke(index);
+			});
+			detailEditorPrimaryAction.clicked += () => activeDetailModel?.Editor?.PrimaryAction?.Invoke();
+			detailEditorSecondaryAction.clicked += () => activeDetailModel?.Editor?.SecondaryAction?.Invoke();
 		}
 
 		private void ToggleDetailTab(int tabIndex)
@@ -613,6 +671,7 @@ namespace UniverseLogistics.UI.Toolkit
 			activeDetailModel = tab.BuildContent?.Invoke() ?? new SelectionDetailPanelModel();
 			detailTitle.text = activeDetailModel.Title ?? tab.Label;
 			detailSummary.text = activeDetailModel.Summary ?? string.Empty;
+			detailPanel.style.height = activeDetailModel.Editor != null ? 400 : expandedCardHeight;
 			detailSliderControl.style.display = activeDetailModel.HasSlider ? DisplayStyle.Flex : DisplayStyle.None;
 			if (activeDetailModel.HasSlider)
 			{
@@ -623,11 +682,59 @@ namespace UniverseLogistics.UI.Toolkit
 				detailSlider.SetEnabled(activeDetailModel.SliderEnabled);
 				detailSliderValue.text = $"{activeDetailModel.SliderValue:0}%";
 			}
+			RefreshDetailEditor(activeDetailModel.Editor);
 			detailList.itemsSource = activeDetailModel.Rows;
 			detailList.Rebuild();
 			bool isEmpty = activeDetailModel.Rows.Count == 0;
 			detailList.style.display = isEmpty ? DisplayStyle.None : DisplayStyle.Flex;
-			detailEmpty.style.display = isEmpty ? DisplayStyle.Flex : DisplayStyle.None;
+			detailEmpty.style.display = isEmpty && activeDetailModel.Editor == null ? DisplayStyle.Flex : DisplayStyle.None;
+		}
+
+		private void RefreshDetailEditor(SelectionDetailEditorModel editor)
+		{
+			detailEditor.style.display = editor != null ? DisplayStyle.Flex : DisplayStyle.None;
+			if (editor == null)
+				return;
+
+			detailEditorMessage.text = editor.Message ?? string.Empty;
+			detailEditorMessage.style.display = string.IsNullOrWhiteSpace(editor.Message) ? DisplayStyle.None : DisplayStyle.Flex;
+			detailEditorDropdownLabel.text = editor.DropdownLabel ?? string.Empty;
+			detailEditorDropdown.choices = editor.DropdownChoices ?? new List<string>();
+			if (detailEditorDropdown.choices.Count > 0)
+			{
+				int index = UnityEngine.Mathf.Clamp(editor.DropdownIndex, 0, detailEditorDropdown.choices.Count - 1);
+				detailEditorDropdown.SetValueWithoutNotify(detailEditorDropdown.choices[index]);
+			}
+			else
+			{
+				detailEditorDropdown.SetValueWithoutNotify(string.Empty);
+			}
+			detailEditorDropdown.SetEnabled(editor.DropdownEnabled);
+			detailEditorToggleLabel.text = editor.ToggleLabel ?? string.Empty;
+			detailEditorToggles.Clear();
+			for (int i = 0; i < editor.Toggles.Count; ++i)
+			{
+				SelectionDetailToggleModel toggleModel = editor.Toggles[i];
+				Toggle toggle = new(toggleModel.Label) { value = toggleModel.Value };
+				toggle.AddToClassList("selection-detail-editor__toggle");
+				toggle.SetEnabled(toggleModel.Enabled);
+				toggle.RegisterValueChangedCallback(evt => toggleModel.Changed?.Invoke(evt.newValue));
+				detailEditorToggles.Add(toggle);
+			}
+
+			ConfigureEditorAction(detailEditorPrimaryAction, editor.PrimaryActionLabel, editor.PrimaryAction);
+			ConfigureEditorAction(detailEditorSecondaryAction, editor.SecondaryActionLabel, editor.SecondaryAction);
+			bool hasActions =
+				(string.IsNullOrWhiteSpace(editor.PrimaryActionLabel) == false && editor.PrimaryAction != null) ||
+				(string.IsNullOrWhiteSpace(editor.SecondaryActionLabel) == false && editor.SecondaryAction != null);
+			detailEditorActions.style.display = hasActions ? DisplayStyle.Flex : DisplayStyle.None;
+		}
+
+		private static void ConfigureEditorAction(Button button, string label, Action action)
+		{
+			bool visible = string.IsNullOrWhiteSpace(label) == false && action != null;
+			button.text = label ?? string.Empty;
+			button.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
 		}
 
 		private void CloseDetailPanel()

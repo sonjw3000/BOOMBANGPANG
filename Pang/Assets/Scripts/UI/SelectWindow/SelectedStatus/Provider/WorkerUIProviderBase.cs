@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using Unity.Mathematics;
 using UnityEngine;
@@ -134,6 +135,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		model.Clear();
 		model.AddTab("Profile", GetProfileVersion, BuildProfilePanel);
 		model.AddTab("Activity", GetActivityVersion, BuildActivityPanel);
+		model.AddTab("Assignment", GetAssignmentVersion, BuildAssignmentPanel);
 		model.AddTab("Carry", GetCarryVersion, BuildCarryPanel);
 		model.AddOverview(ResourceLabel, () => ResourceDisplay);
 		if (Wearable != null)
@@ -167,6 +169,30 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		unchecked
 		{
 			return SelectionDetailContentUtility.GetItemContainerVersion(box) * 31 + (box != null ? (int)box.BoxId : 0);
+		}
+	}
+
+	private int GetAssignmentVersion()
+	{
+		AIWorker worker = currentTarget;
+		if (worker == null)
+			return 0;
+
+		unchecked
+		{
+			int version = worker.CurrentTask != null ? 1 : 0;
+			version = version * 31 + (int)worker.PrimaryBuildingId;
+			for (int i = 0; i < worker.AssignedTaskTypes.Count; ++i)
+				version = version * 31 + (int)worker.AssignedTaskTypes[i];
+
+			version = version * 31 + (worker.HasPendingAssignment ? 1 : 0);
+			version = version * 31 + (int)worker.PendingPrimaryBuildingId;
+			for (int i = 0; i < worker.PendingAssignedTaskTypes.Count; ++i)
+				version = version * 31 + (int)worker.PendingAssignedTaskTypes[i];
+
+			BuildingManager buildingManager = GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+			version = version * 31 + (buildingManager?.RegisteredBuildings.Count ?? 0);
+			return version;
 		}
 	}
 
@@ -205,6 +231,203 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 			"CARRY",
 			box != null ? $"{GetCarriedBoxDisplay().ContainerName} · Filled {CarriedBoxFillDisplay}" : "Not carrying anything.",
 			GetCarriedBoxDisplay());
+	}
+
+	private SelectionDetailPanelModel BuildAssignmentPanel()
+	{
+		AIWorker worker = currentTarget;
+		if (worker == null)
+			return new SelectionDetailPanelModel { Title = "ASSIGNMENT", Summary = "Worker unavailable." };
+
+		bool working = worker.CurrentTask != null;
+		bool editingPending = worker.HasPendingAssignment;
+		uint editingBuildingId = editingPending ? worker.PendingPrimaryBuildingId : worker.PrimaryBuildingId;
+		IReadOnlyList<WorkerTask.TaskType> editingTaskTypes =
+			editingPending ? worker.PendingAssignedTaskTypes : worker.AssignedTaskTypes;
+
+		List<uint> buildingIds = new();
+		List<string> buildingChoices = new();
+		int buildingIndex = BuildBuildingChoices(editingBuildingId, buildingIds, buildingChoices, out BuildingType? buildingType, out bool buildingValid);
+
+		SelectionDetailPanelModel panel = new()
+		{
+			Title = "ASSIGNMENT",
+			Summary = editingPending
+				? "Scheduled assignment"
+				: working ? "Current assignment · locked while working" : "Current assignment",
+		};
+
+		if (editingPending)
+		{
+			AddDetailValue(panel, "Current Workplace", GetBuildingDisplayName(worker.PrimaryBuildingId));
+			AddDetailValue(panel, "Current Tasks", BuildTaskTypeDisplay(worker.AssignedTaskTypes));
+		}
+
+		SelectionDetailEditorModel editor = new()
+		{
+			Message = GetAssignmentMessage(working, editingPending, buildingValid),
+			DropdownLabel = editingPending ? "Scheduled Workplace" : "Workplace",
+			DropdownChoices = buildingChoices,
+			DropdownIndex = buildingIndex,
+			DropdownEnabled = working == false || editingPending,
+			ToggleLabel = editingPending ? "Scheduled Tasks" : "Assigned Tasks",
+		};
+		panel.Editor = editor;
+
+		if (working && editingPending == false)
+		{
+			editor.PrimaryActionLabel = "Schedule Change";
+			editor.PrimaryAction = () =>
+			{
+				if (GameContext.HasInstance)
+					GameContext.Instance.WorkerMgr.TryScheduleWorkerAssignment(
+						worker,
+						worker.PrimaryBuildingId,
+						worker.AssignedTaskTypes);
+			};
+		}
+		else if (editingPending)
+		{
+			editor.SecondaryActionLabel = "Cancel Scheduled Change";
+			editor.SecondaryAction = () =>
+			{
+				if (GameContext.HasInstance)
+					GameContext.Instance.WorkerMgr.CancelPendingWorkerAssignment(worker);
+			};
+		}
+
+		editor.DropdownChanged = index =>
+		{
+			if (index < 0 || index >= buildingIds.Count || GameContext.HasInstance == false)
+				return;
+
+			uint buildingId = buildingIds[index];
+			if (editingPending)
+				GameContext.Instance.WorkerMgr.TryScheduleWorkerAssignment(worker, buildingId, Array.Empty<WorkerTask.TaskType>());
+			else
+				GameContext.Instance.WorkerMgr.TrySetWorkerAssignment(worker, buildingId, Array.Empty<WorkerTask.TaskType>());
+		};
+
+		List<WorkerTask.TaskType> assignableTaskTypes = new();
+		if (buildingValid)
+			WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, buildingType, assignableTaskTypes);
+		for (int i = 0; i < assignableTaskTypes.Count; ++i)
+		{
+			WorkerTask.TaskType taskType = assignableTaskTypes[i];
+			if (taskType == WorkerTask.TaskType.Undefined)
+				continue;
+
+			SelectionDetailToggleModel toggle = new()
+			{
+				Label = GetTaskTypeDisplayName(taskType),
+				Value = ContainsTaskType(editingTaskTypes, taskType),
+				Enabled = working == false || editingPending,
+			};
+			toggle.Changed = assigned =>
+			{
+				if (GameContext.HasInstance == false)
+					return;
+
+				IReadOnlyList<WorkerTask.TaskType> currentTaskTypes =
+					editingPending ? worker.PendingAssignedTaskTypes : worker.AssignedTaskTypes;
+				uint currentBuildingId =
+					editingPending ? worker.PendingPrimaryBuildingId : worker.PrimaryBuildingId;
+				List<WorkerTask.TaskType> nextTaskTypes = new(currentTaskTypes);
+				if (assigned && nextTaskTypes.Contains(taskType) == false)
+					nextTaskTypes.Add(taskType);
+				else if (assigned == false)
+					nextTaskTypes.Remove(taskType);
+
+				if (editingPending)
+					GameContext.Instance.WorkerMgr.TryScheduleWorkerAssignment(worker, currentBuildingId, nextTaskTypes);
+				else
+					GameContext.Instance.WorkerMgr.TrySetWorkerAssignment(worker, currentBuildingId, nextTaskTypes);
+			};
+			editor.Toggles.Add(toggle);
+		}
+
+		return panel;
+	}
+
+	private static string GetAssignmentMessage(bool working, bool editingPending, bool buildingValid)
+	{
+		if (buildingValid == false)
+			return "Selected workplace no longer exists. Choose a valid workplace.";
+		if (editingPending)
+			return working
+				? "Applies after the current task ends."
+				: "Ready to apply when the assignment becomes valid.";
+		if (working)
+			return "Current assignment cannot be edited while working.";
+		return "Changes apply immediately.";
+	}
+
+	private static int BuildBuildingChoices(
+		uint selectedBuildingId,
+		List<uint> buildingIds,
+		List<string> choices,
+		out BuildingType? selectedBuildingType,
+		out bool selectedBuildingValid)
+	{
+		buildingIds.Add(0);
+		choices.Add("None (Outdoor)");
+		selectedBuildingType = null;
+		selectedBuildingValid = selectedBuildingId == 0;
+		int selectedIndex = 0;
+
+		BuildingManager manager = GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+		if (manager != null)
+		{
+			foreach (Building building in manager.RegisteredBuildings)
+			{
+				if (building == null)
+					continue;
+
+				buildingIds.Add(building.RuntimeBuildingId);
+				choices.Add($"{building.DisplayName} · {building.Type}");
+				if (building.RuntimeBuildingId == selectedBuildingId)
+				{
+					selectedIndex = buildingIds.Count - 1;
+					selectedBuildingType = building.Type;
+					selectedBuildingValid = true;
+				}
+			}
+		}
+
+		if (selectedBuildingId != 0 && selectedBuildingValid == false)
+		{
+			buildingIds.Add(selectedBuildingId);
+			choices.Add($"Missing Building #{selectedBuildingId}");
+			selectedIndex = buildingIds.Count - 1;
+		}
+
+		return selectedIndex;
+	}
+
+	private static string GetBuildingDisplayName(uint buildingId)
+	{
+		if (buildingId == 0)
+			return "None (Outdoor)";
+
+		return GameContext.HasInstance &&
+			GameContext.Instance.BuildingMgr != null &&
+			GameContext.Instance.BuildingMgr.TryGetBuilding(buildingId, out Building building) &&
+			building != null
+				? $"{building.DisplayName} · {building.Type}"
+				: $"Missing Building #{buildingId}";
+	}
+
+	private static bool ContainsTaskType(IReadOnlyList<WorkerTask.TaskType> taskTypes, WorkerTask.TaskType taskType)
+	{
+		if (taskTypes == null)
+			return false;
+
+		for (int i = 0; i < taskTypes.Count; ++i)
+		{
+			if (taskTypes[i] == taskType)
+				return true;
+		}
+		return false;
 	}
 
 	private static void AddDetailValue(SelectionDetailPanelModel panel, string label, string value)
@@ -257,19 +480,24 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 
 	private static string BuildTaskTypeDisplay(AIWorker worker)
 	{
-		if (worker == null || worker.AssignedTaskTypes.Count == 0)
+		return worker == null ? "Undefined" : BuildTaskTypeDisplay(worker.AssignedTaskTypes);
+	}
+
+	private static string BuildTaskTypeDisplay(IReadOnlyList<WorkerTask.TaskType> taskTypes)
+	{
+		if (taskTypes == null || taskTypes.Count == 0)
 			return "Undefined";
 
-		if (worker.AssignedTaskTypes.Count == 1)
-			return GetTaskTypeDisplayName(worker.AssignedTaskTypes[0]);
+		if (taskTypes.Count == 1)
+			return GetTaskTypeDisplayName(taskTypes[0]);
 
 		StringBuilder builder = new();
-		for (int i = 0; i < worker.AssignedTaskTypes.Count; ++i)
+		for (int i = 0; i < taskTypes.Count; ++i)
 		{
 			if (i > 0)
 				builder.Append(", ");
 
-			builder.Append(GetTaskTypeDisplayName(worker.AssignedTaskTypes[i]));
+			builder.Append(GetTaskTypeDisplayName(taskTypes[i]));
 		}
 
 		return builder.ToString();

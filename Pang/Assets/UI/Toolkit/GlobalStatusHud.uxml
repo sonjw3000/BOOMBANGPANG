@@ -59,6 +59,17 @@
 				</ui:VisualElement>
 				<ui:Slider name="selection-detail-slider" low-value="0" high-value="100" class="selection-detail-panel__slider" />
 			</ui:VisualElement>
+			<ui:VisualElement name="selection-detail-editor" class="selection-detail-editor">
+				<ui:Label name="selection-detail-editor-message" class="selection-detail-editor__message" />
+				<ui:Label name="selection-detail-editor-dropdown-label" text="Workplace" class="selection-detail-editor__label" />
+				<ui:DropdownField name="selection-detail-editor-dropdown" class="selection-detail-editor__dropdown" />
+				<ui:Label name="selection-detail-editor-toggle-label" text="Assigned Tasks" class="selection-detail-editor__label" />
+				<ui:ScrollView name="selection-detail-editor-toggles" class="selection-detail-editor__toggles" />
+				<ui:VisualElement name="selection-detail-editor-actions" class="selection-detail-editor__actions">
+					<ui:Button name="selection-detail-editor-primary-action" class="selection-detail-editor__button selection-detail-editor__button--primary" />
+					<ui:Button name="selection-detail-editor-secondary-action" class="selection-detail-editor__button" />
+				</ui:VisualElement>
+			</ui:VisualElement>
 			<ui:ListView name="selection-detail-list" class="selection-detail-panel__list" virtualization-method="FixedHeight" fixed-item-height="44" />
 			<ui:Label name="selection-detail-empty" text="No items stored." class="selection-detail-panel__empty" />
 		</ui:VisualElement>

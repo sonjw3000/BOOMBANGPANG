@@ -313,6 +313,9 @@ namespace UniverseLogistics.UI.Toolkit
 			workerCondition.text = GetCondition(selectedWorker).ToUpperInvariant();
 			workerWear.text = GetWear(selectedWorker).ToUpperInvariant();
 			workerPay.text = $"${selectedWorker.MonthlyCost:N0} / MONTH";
+			bool canEditAssignment = selectedWorker.CurrentTask == null;
+			buildingField.SetEnabled(canEditAssignment);
+			handleField.SetEnabled(canEditAssignment);
 			RefreshBuildingField();
 			if (selectedWorker.AssignedTaskTypes.Count > 0)
 				selectedHandleGroup = GetHandleGroup(selectedWorker.AssignedTaskTypes);
@@ -367,6 +370,7 @@ namespace UniverseLogistics.UI.Toolkit
 				if (GetHandleGroup(type) != selectedHandleGroup) continue;
 				Toggle toggle = new(GetTaskName(type)) { value = selectedWorker.IsAssignedToTaskType(type) };
 				toggle.AddToClassList("workforce-task-toggle");
+				toggle.SetEnabled(selectedWorker.CurrentTask == null);
 				toggle.RegisterValueChangedCallback(evt => SetTaskAssigned(type, evt.newValue));
 				taskToggles.Add(toggle);
 			}

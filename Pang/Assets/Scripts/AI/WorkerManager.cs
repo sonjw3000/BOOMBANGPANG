@@ -163,63 +163,153 @@ public partial class WorkerManager : MonoBehaviour
 
 	public void SetWorkerAssignedTaskTypes(AIWorker worker, IReadOnlyList<TaskType> taskTypes)
 	{
-		if (worker == null)
+		if (worker == null || worker.CurrentTask != null)
 			return;
 
-		List<TaskType> validTypes = new();
-		if (taskTypes != null)
-		{
-			for (int i = 0; i < taskTypes.Count; ++i)
-			{
-				TaskType taskType = taskTypes[i];
-				if (taskType == TaskType.Undefined || validTypes.Contains(taskType))
-					continue;
-
-				if (CanChangeType(worker, taskType) == false || HasRequiredComponent(worker, taskType) == false)
-					continue;
-
-				validTypes.Add(taskType);
-			}
-		}
-
-		UnregisterWorkerTaskTypes(worker);
-		RemoveIdleWorker(worker);
-		worker.SetAssignedTaskTypes(validTypes);
-		RegisterWorkerTaskTypes(worker);
-		SyncWorkerAvailability(worker);
-		OnWorkerChanged?.Invoke(worker);
+		TrySetWorkerAssignment(worker, worker.PrimaryBuildingId, taskTypes);
 	}
 
 	public bool TrySetWorkerPrimaryBuilding(AIWorker worker, uint buildingId)
 	{
-		if (worker == null || workers.Contains(worker) == false)
+		return TrySetWorkerAssignment(worker, buildingId, Array.Empty<TaskType>());
+	}
+
+	public bool TrySetWorkerAssignment(
+		AIWorker worker,
+		uint buildingId,
+		IReadOnlyList<TaskType> taskTypes)
+	{
+		if (worker == null || workers.Contains(worker) == false || worker.CurrentTask != null)
 			return false;
 
-		if (buildingId != 0)
-		{
-			BuildingManager buildingManager = GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
-			bool buildingExists = false;
-			if (buildingManager != null)
-			{
-				foreach (Building building in buildingManager.RegisteredBuildings)
-				{
-					if (building != null && building.RuntimeBuildingId == buildingId)
-					{
-						buildingExists = true;
-						break;
-					}
-				}
-			}
+		if (TryValidateAssignment(worker, buildingId, taskTypes, out List<TaskType> validTypes) == false)
+			return false;
 
-			if (buildingExists == false)
+		ApplyWorkerAssignment(worker, buildingId, validTypes, syncAvailability: true);
+		worker.ClearPendingAssignment();
+		OnWorkerChanged?.Invoke(worker);
+		return true;
+	}
+
+	public bool TryScheduleWorkerAssignment(
+		AIWorker worker,
+		uint buildingId,
+		IReadOnlyList<TaskType> taskTypes)
+	{
+		if (worker == null ||
+			workers.Contains(worker) == false ||
+			(worker.CurrentTask == null && worker.HasPendingAssignment == false))
+			return false;
+
+		if (TryValidateAssignment(worker, buildingId, taskTypes, out List<TaskType> validTypes) == false)
+			return false;
+
+		worker.SetPendingAssignment(buildingId, validTypes);
+		if (worker.CurrentTask == null)
+			return TryApplyPendingAssignment(worker);
+
+		OnWorkerChanged?.Invoke(worker);
+		return true;
+	}
+
+	public bool CancelPendingWorkerAssignment(AIWorker worker)
+	{
+		if (worker == null || workers.Contains(worker) == false || worker.HasPendingAssignment == false)
+			return false;
+
+		worker.ClearPendingAssignment();
+		OnWorkerChanged?.Invoke(worker);
+		return true;
+	}
+
+	public bool TryApplyPendingAssignment(AIWorker worker)
+	{
+		if (worker == null ||
+			workers.Contains(worker) == false ||
+			worker.CurrentTask != null ||
+			worker.HasPendingAssignment == false)
+		{
+			return false;
+		}
+
+		if (TryValidateAssignment(
+				worker,
+				worker.PendingPrimaryBuildingId,
+				worker.PendingAssignedTaskTypes,
+				out List<TaskType> validTypes) == false)
+		{
+			return false;
+		}
+
+		uint buildingId = worker.PendingPrimaryBuildingId;
+		ApplyWorkerAssignment(worker, buildingId, validTypes, syncAvailability: false);
+		worker.ClearPendingAssignment();
+		OnWorkerChanged?.Invoke(worker);
+		return true;
+	}
+
+	private bool TryValidateAssignment(
+		AIWorker worker,
+		uint buildingId,
+		IReadOnlyList<TaskType> taskTypes,
+		out List<TaskType> validTypes)
+	{
+		validTypes = new List<TaskType>();
+		if (worker == null || TryResolveBuildingType(buildingId, out BuildingType? buildingType) == false)
+			return false;
+
+		if (taskTypes == null)
+			return true;
+
+		for (int i = 0; i < taskTypes.Count; ++i)
+		{
+			TaskType taskType = taskTypes[i];
+			if (taskType == TaskType.Undefined || validTypes.Contains(taskType))
+				continue;
+
+			if (WorkerTaskAssignmentPolicy.CanAssign(worker, buildingType, taskType) == false ||
+				HasRequiredComponent(worker, taskType) == false)
 			{
 				return false;
 			}
+
+			validTypes.Add(taskType);
 		}
 
-		worker.SetPrimaryBuildingId(buildingId);
-		SetWorkerAssignedTaskTypes(worker, Array.Empty<TaskType>());
 		return true;
+	}
+
+	private static bool TryResolveBuildingType(uint buildingId, out BuildingType? buildingType)
+	{
+		buildingType = null;
+		if (buildingId == 0)
+			return true;
+
+		BuildingManager buildingManager = GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+		if (buildingManager == null ||
+			buildingManager.TryGetBuilding(buildingId, out Building building) == false ||
+			building == null)
+		{
+			return false;
+		}
+
+		buildingType = building.Type;
+		return true;
+	}
+
+	private void ApplyWorkerAssignment(
+		AIWorker worker,
+		uint buildingId,
+		IReadOnlyList<TaskType> taskTypes,
+		bool syncAvailability)
+	{
+		UnregisterWorkerTaskTypes(worker);
+		RemoveIdleWorker(worker);
+		worker.SetPrimaryBuildingId(buildingId);
+		worker.SetAssignedTaskTypes(taskTypes);
+		RegisterWorkerTaskTypes(worker);
+		if (syncAvailability)
+			SyncWorkerAvailability(worker);
 	}
 
 	public AIWorker GetAvailableWorkers(WorkerTask taskData)

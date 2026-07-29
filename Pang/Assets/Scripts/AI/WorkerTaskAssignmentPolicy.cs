@@ -4,16 +4,25 @@ public static class WorkerTaskAssignmentPolicy
 {
 	public static bool CanAssign(AIWorker worker, WorkerTask.TaskType taskType)
 	{
-		if (worker == null)
-			return false;
+		return CanAssign(worker, ResolvePrimaryBuildingType(worker), taskType);
+	}
 
-		if (worker.HasAbility(WorkerTaskTypeRequirement.GetRequiredAbilities(taskType)) == false)
-			return false;
-
-		return IsTaskTypeAllowedForBuilding(ResolvePrimaryBuildingType(worker), taskType);
+	public static bool CanAssign(AIWorker worker, BuildingType? buildingType, WorkerTask.TaskType taskType)
+	{
+		return worker != null &&
+			worker.HasAbility(WorkerTaskTypeRequirement.GetRequiredAbilities(taskType)) &&
+			IsTaskTypeAllowedForBuilding(buildingType, taskType);
 	}
 
 	public static void GetAssignableTaskTypes(AIWorker worker, List<WorkerTask.TaskType> results)
+	{
+		GetAssignableTaskTypes(worker, ResolvePrimaryBuildingType(worker), results);
+	}
+
+	public static void GetAssignableTaskTypes(
+		AIWorker worker,
+		BuildingType? buildingType,
+		List<WorkerTask.TaskType> results)
 	{
 		if (results == null)
 			return;
@@ -27,7 +36,7 @@ public static class WorkerTaskAssignmentPolicy
 			if (taskType == WorkerTask.TaskType.HandleMistake)
 				continue;
 
-			if (CanAssign(worker, taskType))
+			if (CanAssign(worker, buildingType, taskType))
 				results.Add(taskType);
 		}
 	}
