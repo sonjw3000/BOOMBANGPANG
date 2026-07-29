@@ -31,6 +31,7 @@
 .workforce-worker-row__name { font-size: 10px; -unity-font-style: bold; color: rgb(224, 235, 240); }
 .workforce-worker-row__subtext { margin-top: 2px; font-size: 8px; color: rgb(126, 150, 162); }
 .workforce-worker-row__value { width: 72px; font-size: 8px; color: rgb(181, 201, 210); }
+.workforce-worker-row__wear { width: 64px; font-size: 8px; color: rgb(225, 151, 97); }
 .workforce-worker-row__building { flex-grow: 1; font-size: 8px; -unity-text-align: middle-right; color: rgb(103, 196, 220); }
 .workforce-category-column { width: 150px; margin-right: 10px; padding-right: 9px; border-right-width: 1px; border-right-color: rgb(65, 78, 88); }
 .workforce-candidate-column { flex-grow: 1; }

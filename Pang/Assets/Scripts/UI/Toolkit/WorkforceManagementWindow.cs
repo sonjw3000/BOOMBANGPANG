@@ -40,6 +40,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label workerKind;
 		private Label workerStatus;
 		private Label workerCondition;
+		private Label workerWear;
 		private Label workerPay;
 		private DropdownField buildingField;
 		private DropdownField handleField;
@@ -129,6 +130,7 @@ namespace UniverseLogistics.UI.Toolkit
 			workerKind = content.Q<Label>("worker-detail-kind");
 			workerStatus = content.Q<Label>("worker-detail-status");
 			workerCondition = content.Q<Label>("worker-detail-condition");
+			workerWear = content.Q<Label>("worker-detail-wear");
 			workerPay = content.Q<Label>("worker-detail-pay");
 			buildingField = content.Q<DropdownField>("worker-building-field");
 			handleField = content.Q<DropdownField>("worker-handle-field");
@@ -284,6 +286,7 @@ namespace UniverseLogistics.UI.Toolkit
 			row.Q<Label>("worker-row-kind").text = GetWorkerKind(worker);
 			row.Q<Label>("worker-row-status").text = worker.EffectiveStatusAction.ToString();
 			row.Q<Label>("worker-row-condition").text = GetCondition(worker);
+			row.Q<Label>("worker-row-wear").text = GetWear(worker);
 			row.Q<Label>("worker-row-building").text = GetBuildingName(worker.PrimaryBuildingId);
 			root.EnableInClassList(SelectedRowClass, worker == selectedWorker);
 			root.RegisterCallback<ClickEvent>(_ => SelectWorker(worker));
@@ -308,6 +311,7 @@ namespace UniverseLogistics.UI.Toolkit
 			workerKind.text = GetWorkerKind(selectedWorker);
 			workerStatus.text = $"STATUS  {selectedWorker.EffectiveStatusAction}";
 			workerCondition.text = GetCondition(selectedWorker).ToUpperInvariant();
+			workerWear.text = GetWear(selectedWorker).ToUpperInvariant();
 			workerPay.text = $"${selectedWorker.MonthlyCost:N0} / MONTH";
 			RefreshBuildingField();
 			if (selectedWorker.AssignedTaskTypes.Count > 0)
@@ -513,6 +517,8 @@ namespace UniverseLogistics.UI.Toolkit
 			if (worker is RobotWorker robot) return $"Battery {robot.BatteryLevel:0}%";
 			return "Condition --";
 		}
+		private static string GetWear(AIWorker worker) =>
+			worker is RobotWorker robot ? $"Wear {robot.Wear * 100.0f:0.0}%" : "Wear --";
 		private static string GetBuildingName(uint id)
 		{
 			if (id == 0) return "Outdoor";

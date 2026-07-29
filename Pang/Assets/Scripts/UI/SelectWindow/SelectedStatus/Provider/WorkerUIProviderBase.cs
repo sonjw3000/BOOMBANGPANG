@@ -33,6 +33,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 {
 	protected abstract string ResourceLabel { get; }
 	protected abstract float ResourceValue { get; }
+	protected virtual IWearable Wearable => null;
 
 	public override string Name => currentTarget != null ? currentTarget.Name : "Unknown Worker";
 	public override string Subtitle => currentTarget != null ? GetWorkerTypeLabel(currentTarget) : "Unknown Worker";
@@ -41,6 +42,8 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 
 	public string WorkerTypeLabel => currentTarget != null ? GetWorkerTypeLabel(currentTarget) : "Unknown";
 	public string ResourceDisplay => $"{ResourceValue:0.0}%";
+	public string WearDisplay => Wearable != null ? $"{Wearable.Wear * 100.0f:0.0}%" : "0.0%";
+	public string WearEfficiencyDisplay => Wearable != null ? $"{Wearable.WearEfficiency * 100.0f:0.0}%" : "100.0%";
 	public string MoveSpeedDisplay => currentTarget != null ? $"x{currentTarget.GetMoveSpeedMultiplier():0.00}" : "x0.00";
 	public string WorkSpeedDisplay => currentTarget != null ? $"x{currentTarget.GetWorkSpeedMultiplier():0.00}" : "x0.00";
 	public string MainTaskTypeDisplay => currentTarget != null ? BuildTaskTypeDisplay(currentTarget) : "None";
@@ -92,6 +95,8 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 	{
 		infoBlocks.Clear();
 		infoBlocks.Add(new KeyValueBlock(ResourceLabel, ResourceDisplay));
+		if (Wearable != null)
+			infoBlocks.Add(new KeyValueBlock("Wear", WearDisplay));
 		infoBlocks.Add(new KeyValueBlock("MoveSpeed", MoveSpeedDisplay));
 		infoBlocks.Add(new KeyValueBlock("Position", PositionDisplay));
 		infoBlocks.Add(new KeyValueBlock("MainTaskType", MainTaskTypeDisplay));
@@ -113,12 +118,15 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		if (infoBlocks.Count < 6)
 			return;
 
-		(infoBlocks[0] as KeyValueBlock)?.UpdateValue(ResourceDisplay);
-		(infoBlocks[1] as KeyValueBlock)?.UpdateValue(MoveSpeedDisplay);
-		(infoBlocks[2] as KeyValueBlock)?.UpdateValue(PositionDisplay);
-		(infoBlocks[3] as KeyValueBlock)?.UpdateValue(MainTaskTypeDisplay);
-		(infoBlocks[4] as KeyValueBlock)?.UpdateValue(ActionDisplay);
-		(infoBlocks[5] as KeyValueBlock)?.UpdateValue(TargetDisplay);
+		int index = 0;
+		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(ResourceDisplay);
+		if (Wearable != null)
+			(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(WearDisplay);
+		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(MoveSpeedDisplay);
+		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(PositionDisplay);
+		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(MainTaskTypeDisplay);
+		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(ActionDisplay);
+		(infoBlocks[index] as KeyValueBlock)?.UpdateValue(TargetDisplay);
 	}
 
 	public void BuildInspectorModel(SelectionInspectorModel model)
@@ -128,6 +136,8 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		model.AddTab("Activity", GetActivityVersion, BuildActivityPanel);
 		model.AddTab("Carry", GetCarryVersion, BuildCarryPanel);
 		model.AddOverview(ResourceLabel, () => ResourceDisplay);
+		if (Wearable != null)
+			model.AddOverview("Wear", () => WearDisplay);
 		model.AddOverview("Main Task", () => MainTaskTypeDisplay);
 		model.AddOverview("Action", () => ActionDisplay);
 		model.AddAction("Remove", DeleteObject, isDangerous: true);
@@ -135,7 +145,15 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 
 	private int GetProfileVersion()
 	{
-		return HashCode.Combine(ResourceDisplay, MoveSpeedDisplay, WorkSpeedDisplay, MainTaskTypeDisplay, AbilityDisplay, MonthlyCostDisplay);
+		return HashCode.Combine(
+			ResourceDisplay,
+			WearDisplay,
+			WearEfficiencyDisplay,
+			MoveSpeedDisplay,
+			WorkSpeedDisplay,
+			MainTaskTypeDisplay,
+			AbilityDisplay,
+			MonthlyCostDisplay);
 	}
 
 	private int GetActivityVersion()
@@ -156,6 +174,11 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 	{
 		SelectionDetailPanelModel panel = new() { Title = "PROFILE", Summary = WorkerTypeLabel };
 		AddDetailValue(panel, ResourceLabel, ResourceDisplay);
+		if (Wearable != null)
+		{
+			AddDetailValue(panel, "Wear", WearDisplay);
+			AddDetailValue(panel, "Wear Efficiency", WearEfficiencyDisplay);
+		}
 		AddDetailValue(panel, "Move Speed", MoveSpeedDisplay);
 		AddDetailValue(panel, "Work Speed", WorkSpeedDisplay);
 		AddDetailValue(panel, "Main Task", MainTaskTypeDisplay);

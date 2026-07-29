@@ -34,6 +34,7 @@
 						<ui:VisualElement class="workforce-detail__facts">
 							<ui:Label name="worker-detail-status" text="STATUS Idle" class="workforce-detail__fact" />
 							<ui:Label name="worker-detail-condition" text="FATIGUE 0%" class="workforce-detail__fact" />
+							<ui:Label name="worker-detail-wear" text="WEAR --" class="workforce-detail__fact" />
 							<ui:Label name="worker-detail-pay" text="$0 / MONTH" class="workforce-detail__fact" />
 						</ui:VisualElement>
 						<ui:Label text="PRIMARY BUILDING" class="workforce-field-label" />

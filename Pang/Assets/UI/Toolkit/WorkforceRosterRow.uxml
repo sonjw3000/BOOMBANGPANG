@@ -6,6 +6,7 @@
 		</ui:VisualElement>
 		<ui:Label name="worker-row-status" text="Idle" class="workforce-worker-row__value" />
 		<ui:Label name="worker-row-condition" text="0%" class="workforce-worker-row__value" />
+		<ui:Label name="worker-row-wear" text="Wear --" class="workforce-worker-row__wear" />
 		<ui:Label name="worker-row-building" text="Outdoor" class="workforce-worker-row__building" />
 	</ui:VisualElement>
 </ui:UXML>
