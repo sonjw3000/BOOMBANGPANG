@@ -83,6 +83,19 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			Debug.LogError("No carryBox ability but assigned to capsule relocation task.");
 	}
 
+	protected override void OnTaskInvalidated()
+	{
+		NotifyRelocationEnded();
+	}
+
+	internal void NotifyRelocationEnded()
+	{
+		if (GameContext.HasInstance == false)
+			return;
+
+		GameContext.Instance.CapsuleRelocateCoordinator?.NotifyRelocationEnded(sourceDock, targetDock);
+	}
+
 	protected override IBaseNode BuildWorkNode()
 	{
 		SelectorNode root = new();

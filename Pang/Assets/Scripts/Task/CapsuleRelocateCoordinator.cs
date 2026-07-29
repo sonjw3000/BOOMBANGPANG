@@ -179,6 +179,35 @@ public sealed class CapsuleRelocateCoordinator
 			reservedDocks.Remove(dock);
 	}
 
+	public void NotifyRelocationEnded(CapsuleDock sourceDock, CapsuleDock targetDock)
+	{
+		if (sourceDock != null)
+		{
+			activeRelocationSources.Remove(sourceDock);
+			reservedDocks.Remove(sourceDock);
+		}
+
+		if (targetDock != null)
+		{
+			activeRelocationTargets.Remove(targetDock);
+			reservedDocks.Remove(targetDock);
+		}
+
+		TryMatchPendingSend();
+		TryMatchPendingDemand();
+	}
+
+	public void ResetRuntimeState()
+	{
+		pendingSends.Clear();
+		pendingDemands.Clear();
+		pendingSendNodeBySource.Clear();
+		pendingDemandNodeByTarget.Clear();
+		reservedDocks.Clear();
+		activeRelocationSources.Clear();
+		activeRelocationTargets.Clear();
+	}
+
 	public void CancelPendingRequests(CapsuleDock dock)
 	{
 		if (dock == null)

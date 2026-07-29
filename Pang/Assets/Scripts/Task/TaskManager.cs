@@ -397,6 +397,9 @@ public partial class TaskManager : MonoBehaviour
 		if (task is ItemTransferTask && GameContext.HasInstance)
 			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskCompleted(task);
 
+		if (task is CapsuleRelocationTask relocationTask)
+			relocationTask.NotifyRelocationEnded();
+
 		// todo
 		//
 		switch (task.Type)

@@ -168,6 +168,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Dictionary<uint, AIWorker> workersById = new();
 
 		Ctx.TaskMgr.ResetRuntimeState();
+		Ctx.CapsuleRelocateCoordinator.ResetRuntimeState();
 		Ctx.OrderDelivery.ResetRuntimeState();
 		Ctx.ContractMgr.ResetRuntimeState();
 		Ctx.ScenarioObjectiveService.ResetRuntimeState();
