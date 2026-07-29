@@ -268,10 +268,10 @@ public sealed class FacilityManifestRule
 
 	public bool IsManifestCapable(FacilityManifestFilter filter)
 	{
-		if (IsEmpty)
+		if (IsEmpty || filter == null)
 			return true;
 
-		if (filter?.Destinations == null || filter.Destinations.Count == 0)
+		if (filter.Destinations == null || filter.Destinations.Count == 0)
 			return false;
 
 		for (int i = 0; i < requiredDestinations.Count; ++i)
