@@ -25,6 +25,10 @@ public partial class BoxPool :
 
 	public override bool CanGetBox() => boxes.Count != 0;
 	public override bool CanPutBox() => boxes.Count < maxStack;
+	public bool CanStoreBox(BoxBase box) =>
+		box != null &&
+		box.Type == BoxType.Personal &&
+		boxes.Count < maxStack;
 
 	public override bool GetBox(out BoxBase box)
 	{
@@ -44,7 +48,7 @@ public partial class BoxPool :
 
 	public override bool PutBox(BoxBase box)
 	{
-		if (boxes.Count >= maxStack)
+		if (CanStoreBox(box) == false)
 			return false;
 
 		boxes.Push(box);

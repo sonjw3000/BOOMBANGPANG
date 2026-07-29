@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 7;
+	public int Version = 8;
 	public string SavedAtUtc;
 
 	public ScenarioObjectiveSaveData ScenarioObjective = new();
@@ -640,6 +640,7 @@ public sealed class TaskSaveData
 	public bool IsInProgress;
 	public bool IsReturned;
 	public uint AssignedWorkerId;
+	public BoxReferenceSaveData PayloadBox;
 	public BoxReferenceSaveData RecoveryBox;
 	public Int3SaveData RecoveryPosition = new();
 

@@ -256,7 +256,14 @@ public sealed class GameSaveService : MonoBehaviour
 		{
 			WorkerTask task = CreateTask(taskData, restoredPlaceables, restoredOrderLines);
 			if (task == null)
+			{
+				RecoverFailedCapsuleTransfer(
+					taskData,
+					restoredPlaceables,
+					workersById,
+					"task endpoints could not be restored");
 				continue;
+			}
 
 			if (taskData.RecoveryBox != null)
 			{
@@ -277,15 +284,37 @@ public sealed class GameSaveService : MonoBehaviour
 					continue;
 				}
 
+				BoxBase carriedBox = worker.CarryingAbility?.CarryingBox;
+				if (taskData.PayloadBox != null &&
+					(Ctx.BoxMgr.TryGetBox(taskData.PayloadBox.BoxType, taskData.PayloadBox.BoxId, out BoxBase savedPayload) == false ||
+						carriedBox != savedPayload))
+				{
+					Debug.LogWarning(
+						$"[Save] Worker {taskData.AssignedWorkerId} payload did not match in-progress task {taskData.TaskType}.");
+					RecoverFailedCapsuleTransfer(
+						taskData,
+						restoredPlaceables,
+						workersById,
+						"saved payload did not match its worker");
+					continue;
+				}
+
 				if (worker.SetTask(task))
 				{
-					if (worker.CarryingAbility?.CarryingBox != null)
-						task.TrackPayloadBox(worker.CarryingAbility.CarryingBox);
+					if (carriedBox != null)
+						task.TrackPayloadBox(carriedBox);
 
 					Ctx.TaskMgr.AddRestoredInProgressTask(task);
 				}
 				else
+				{
 					Debug.LogWarning($"[Save] Worker {taskData.AssignedWorkerId} could not restore in-progress task {taskData.TaskType}");
+					RecoverFailedCapsuleTransfer(
+						taskData,
+						restoredPlaceables,
+						workersById,
+						"task could not be assigned to its saved worker");
+				}
 			}
 			else if (taskData.IsReturned)
 			{
@@ -297,6 +326,7 @@ public sealed class GameSaveService : MonoBehaviour
 			}
 		}
 
+		RecoverOrphanedLoadedCapsules(workersById);
 		Ctx.WorkerMgr.RebuildWorkerStatusCaches();
 		Ctx.FacilityRuleMgr.RebuildAppliedFacilityLookup();
 		Ctx.FacilityRuleOverlay?.RefreshOverlay();
@@ -307,6 +337,97 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.FireSvc.RebuildRuntimeState();
 		Ctx.IBWorkflowSvc.RetryActiveRocketUnloadingTasks();
 		Ctx.ScenarioObjectiveService.RestoreState(data.ScenarioObjective);
+	}
+
+	private void RecoverFailedCapsuleTransfer(
+		TaskSaveData taskData,
+		Dictionary<int, GameObject> restoredPlaceables,
+		Dictionary<uint, AIWorker> workersById,
+		string failureReason)
+	{
+		if (taskData == null ||
+			taskData.IsInProgress == false ||
+			taskData.CapsuleTransfer == null ||
+			workersById.TryGetValue(taskData.AssignedWorkerId, out AIWorker worker) == false ||
+			worker == null ||
+			worker.CurrentTask != null ||
+			worker.CarryingAbility?.CarryingBox is not CargoCapsule capsule)
+		{
+			return;
+		}
+
+		CapsuleTransferTaskSaveData transfer = taskData.CapsuleTransfer;
+		if (TryRestoreCarriedCapsuleToDock(worker, capsule, transfer.SourcePlaceableId, restoredPlaceables, out CapsuleDock recoveredDock) ||
+			TryRestoreCarriedCapsuleToDock(worker, capsule, transfer.TargetPlaceableId, restoredPlaceables, out recoveredDock))
+		{
+			Debug.LogWarning(
+				$"[Save] Rolled back carried capsule #{capsule.BoxId} to {recoveredDock.name} because {taskData.TaskType} {failureReason}.");
+			return;
+		}
+
+		if (worker.CarryingAbility.DropBoxToWorld(out BoxBase droppedBox))
+		{
+			Debug.LogWarning(
+				$"[Save] Dropped carried capsule #{droppedBox.BoxId} at worker {worker.WorkerID} because {taskData.TaskType} {failureReason} and neither saved dock was available.");
+			return;
+		}
+
+		Debug.LogError(
+			$"[Save] Could not recover carried capsule #{capsule.BoxId} for worker {worker.WorkerID} after {taskData.TaskType} {failureReason}.");
+	}
+
+	private static void RecoverOrphanedLoadedCapsules(Dictionary<uint, AIWorker> workersById)
+	{
+		foreach (AIWorker worker in workersById.Values)
+		{
+			if (worker == null ||
+				worker.CurrentTask != null ||
+				worker.CarryingAbility?.CarryingBox is not CargoCapsule capsule)
+			{
+				continue;
+			}
+
+			if (worker.CarryingAbility.DropBoxToWorld(out BoxBase droppedBox))
+			{
+				Debug.LogWarning(
+					$"[Save] Dropped orphaned capsule #{droppedBox.BoxId} at worker {worker.WorkerID} because no restored task owned it.");
+				continue;
+			}
+
+			Debug.LogError(
+				$"[Save] Could not release orphaned capsule #{capsule.BoxId} from worker {worker.WorkerID}.");
+		}
+	}
+
+	private static bool TryRestoreCarriedCapsuleToDock(
+		AIWorker worker,
+		CargoCapsule capsule,
+		int placeableId,
+		Dictionary<int, GameObject> restoredPlaceables,
+		out CapsuleDock recoveredDock)
+	{
+		recoveredDock = null;
+		if (worker == null ||
+			capsule == null ||
+			placeableId < 0 ||
+			restoredPlaceables.TryGetValue(placeableId, out GameObject dockObject) == false ||
+			dockObject.TryGetComponent(out CapsuleDock dock) == false ||
+			dock.CanPutBox() == false ||
+			worker.CarryingAbility.GetBox(out BoxBase carriedBox) == false)
+		{
+			return false;
+		}
+
+		if (carriedBox == capsule && dock.PutBox(carriedBox))
+		{
+			recoveredDock = dock;
+			return true;
+		}
+
+		if (worker.CarryingAbility.PutBox(carriedBox) == false)
+			Debug.LogError($"[Save] Worker {worker.WorkerID} could not retain capsule #{capsule.BoxId} after dock recovery failed.");
+
+		return false;
 	}
 
 	private PlaceableSaveData CapturePlaceable(GameObject obj, PlacementContext ctx)
@@ -399,6 +520,18 @@ public sealed class GameSaveService : MonoBehaviour
 			IsReturned = isReturned,
 			AssignedWorkerId = task.OccupyWorker != null ? task.OccupyWorker.WorkerID : 0,
 		};
+
+		BoxBase carriedPayload = isInProgress
+			? task.OccupyWorker?.CarryingAbility?.CarryingBox
+			: null;
+		if (carriedPayload != null)
+		{
+			taskData.PayloadBox = new BoxReferenceSaveData
+			{
+				BoxType = carriedPayload.Type,
+				BoxId = carriedPayload.BoxId,
+			};
+		}
 
 		if (task.TryGetPayloadRecovery(out BoxBase recoveryBox, out int3 recoveryPosition))
 		{

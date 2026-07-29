@@ -134,6 +134,12 @@ public abstract partial class AIWorker
 		context.LocalBlackBoard.TryGetTargetBuilding(out var building);
 		BoxPool pool = building as BoxPool;
 
+		if (pool == null)
+		{
+			context.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			return KeepTaskWaiting(context);
+		}
+
 		if (context.Worker.TryDetachBox(out var box) == false)
 		{
 			// error
@@ -145,6 +151,12 @@ public abstract partial class AIWorker
 
 		if (pool.PutBox(box) == false)
 		{
+			if (context.Worker.TryAttachBox(box) == false)
+			{
+				Debug.LogError($"Worker failed to retain rejected box {box.Type} #{box.BoxId}.");
+				return Failure;
+			}
+
 			// todo
 			// pool이 가득 찼다는 것을 플레이어에게 알려야함
 			// todo worker를 off 후 대기시켜야함
