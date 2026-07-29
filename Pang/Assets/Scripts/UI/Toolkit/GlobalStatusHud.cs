@@ -93,6 +93,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private InventoryManagementWindow inventoryManagementWindow;
 		private OrderManagementWindow orderManagementWindow;
 		private WorkforceManagementWindow workforceManagementWindow;
+		private WorkforceAssignmentModeController workforceAssignmentModeController;
 		private BuildManagementWindow buildManagementWindow;
 		private WorkflowManagementWindow workflowManagementWindow;
 		private CompanyManagementWindow companyManagementWindow;
@@ -369,7 +370,8 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 
 			if (windowVisualTreeAsset == null || workforceContentTemplate == null || workforceRosterRowTemplate == null ||
-				workforceCandidateRowTemplate == null || panelSettings == null)
+				workforceCandidateRowTemplate == null || buildOverlayQuadPrefab == null ||
+				buildOverlayLabelPrefab == null || panelSettings == null)
 			{
 				Debug.LogError("[GlobalStatusHud] Workforce management window assets are missing.", this);
 				return;
@@ -386,9 +388,12 @@ namespace UniverseLogistics.UI.Toolkit
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
+			workforceAssignmentModeController = documentObject.AddComponent<WorkforceAssignmentModeController>();
+			workforceAssignmentModeController.Configure(buildOverlayQuadPrefab, buildOverlayLabelPrefab);
 			workforceManagementWindow = documentObject.AddComponent<WorkforceManagementWindow>();
 			workforceManagementWindow.Configure(window, workforceContentTemplate, workforceRosterRowTemplate,
-				workforceCandidateRowTemplate, workforceHumanMarkets, workforceRobotMarkets);
+				workforceCandidateRowTemplate, workforceHumanMarkets, workforceRobotMarkets,
+				workforceAssignmentModeController);
 			documentObject.SetActive(true);
 		}
 

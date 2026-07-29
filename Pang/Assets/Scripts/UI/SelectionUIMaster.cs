@@ -369,7 +369,9 @@ public class SelectionUIMaster : MonoBehaviour
 
 		if (modeDomainText != null)
 		{
-			modeDomainText.text = Interaction.Domain == InteractionContext.InteractionDomain.Building
+			modeDomainText.text = Interaction.Mode == InteractionContext.InteractionMode.WorkforceAssignment
+				? "Workforce Mode"
+				: Interaction.Domain == InteractionContext.InteractionDomain.Building
 				? "Building Mode"
 				: "Facility Mode";
 		}
@@ -381,6 +383,7 @@ public class SelectionUIMaster : MonoBehaviour
 				InteractionContext.InteractionAction.Install => "Install",
 				InteractionContext.InteractionAction.AreaEdit => "Area Edit",
 				InteractionContext.InteractionAction.LinkEdit => "Link Edit",
+				InteractionContext.InteractionAction.WorkforceAssign => "Assign Workers",
 				_ => "Select",
 			};
 		}

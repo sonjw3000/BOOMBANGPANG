@@ -58,27 +58,37 @@ public class MousePicking : MonoBehaviour
 
 	private void CalculateMousePos()
 	{
-		Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-
-		groundPlane.distance = currentFloor;
-		if (groundPlane.Raycast(ray, out var dist) == false)
-		{
+		if (TryGetGridPosition(Input.mousePosition, out int3 position) == false)
 			return;
-		}
-
-		Vector3 point = ray.GetPoint(dist);
 
 		int3 befPos = currentTargetPoint;
-
-		currentTargetPoint.x = Mathf.FloorToInt(point.x + 0.5f);
-		currentTargetPoint.y = currentFloor;
-		currentTargetPoint.z = Mathf.FloorToInt(point.z + 0.5f);
+		currentTargetPoint = position;
 
 		// ���콺 ��ġ�� �̵��ߴ�
 		if (math.all(befPos == currentTargetPoint) == false)
 		{
 			OnMouseMoved?.Invoke(currentTargetPoint);
 		}
+	}
+
+	public bool TryGetGridPosition(Vector2 screenPosition, out int3 position)
+	{
+		position = default;
+		Camera camera = Camera.main;
+		if (camera == null)
+			return false;
+
+		Ray ray = camera.ScreenPointToRay(screenPosition);
+		groundPlane.SetNormalAndPosition(Vector3.up, new Vector3(0f, currentFloor, 0f));
+		if (groundPlane.Raycast(ray, out float distance) == false)
+			return false;
+
+		Vector3 point = ray.GetPoint(distance);
+		position = new int3(
+			Mathf.FloorToInt(point.x + 0.5f),
+			currentFloor,
+			Mathf.FloorToInt(point.z + 0.5f));
+		return true;
 	}
 
 }

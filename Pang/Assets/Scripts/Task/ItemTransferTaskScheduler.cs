@@ -101,6 +101,7 @@ public sealed class ItemTransferTaskScheduler
 	private readonly Dictionary<WorkerTask, ItemTransferScheduleKey> scheduledKeysByTask = new();
 	private readonly Dictionary<WorkerTask, AIWorker> scheduledWorkersByTask = new();
 	private readonly HashSet<AIWorker> reservedWorkers = new();
+	private readonly HashSet<AIWorker> assignmentChangingWorkers = new();
 
 	private TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 
@@ -153,7 +154,10 @@ public sealed class ItemTransferTaskScheduler
 
 	public void NotifyIdleWorker(AIWorker worker)
 	{
-		if (worker == null || worker.CurrentTask != null || reservedWorkers.Contains(worker))
+		if (worker == null ||
+			worker.CurrentTask != null ||
+			reservedWorkers.Contains(worker) ||
+			assignmentChangingWorkers.Contains(worker))
 			return;
 
 		for (int i = 0; i < worker.AssignedTaskTypes.Count; ++i)
@@ -171,6 +175,36 @@ public sealed class ItemTransferTaskScheduler
 	public void NotifyWorkerUnavailable(AIWorker worker)
 	{
 		RemoveIdleWorker(worker);
+	}
+
+	public bool CancelReadyReservationForAssignmentChange(AIWorker worker)
+	{
+		if (worker == null)
+			return false;
+
+		WorkerTask scheduledTask = null;
+		foreach (var entry in scheduledWorkersByTask)
+		{
+			if (entry.Value != worker || entry.Key == null || entry.Key.CurrentStatus != WorkerTask.Status.Ready)
+				continue;
+
+			scheduledTask = entry.Key;
+			break;
+		}
+
+		if (scheduledTask == null || TaskManager == null)
+			return false;
+
+		assignmentChangingWorkers.Add(worker);
+		RemoveIdleWorker(worker);
+		try
+		{
+			return TaskManager.InvalidateTask(scheduledTask);
+		}
+		finally
+		{
+			assignmentChangingWorkers.Remove(worker);
+		}
 	}
 
 	public void NotifyTaskCompleted(WorkerTask task)
@@ -289,6 +323,7 @@ public sealed class ItemTransferTaskScheduler
 			if (worker == null ||
 				worker.CurrentTask != null ||
 				reservedWorkers.Contains(worker) ||
+				assignmentChangingWorkers.Contains(worker) ||
 				worker.CanAcceptGeneralTask(taskType) == false)
 			{
 				continue;
@@ -350,6 +385,7 @@ public sealed class ItemTransferTaskScheduler
 			worker != null &&
 			worker.CurrentTask == null &&
 			reservedWorkers.Contains(worker) == false &&
+			assignmentChangingWorkers.Contains(worker) == false &&
 			worker.CanAcceptGeneralTask(entry.TaskType);
 	}
 

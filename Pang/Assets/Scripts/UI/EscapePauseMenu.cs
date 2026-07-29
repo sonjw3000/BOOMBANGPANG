@@ -65,6 +65,12 @@ public sealed class EscapePauseMenu : MonoBehaviour
 
 		if (isOpen)
 			ResumeGame();
+		else if (GameContext.HasInstance &&
+			GameContext.Instance.InteractionCtx != null &&
+			GameContext.Instance.InteractionCtx.TryCancelActiveMode())
+		{
+			return;
+		}
 		else
 			Open();
 	}

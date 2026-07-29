@@ -18,13 +18,19 @@
 				<ui:VisualElement class="workforce-roster-column">
 					<ui:VisualElement class="workforce-toolbar">
 						<ui:Label text="WORKERS" class="workforce-column-label" />
+						<ui:Button name="workforce-assignment-mode-button" text="Assign on Map" class="workforce-assignment-mode-button" />
 						<ui:DropdownField name="worker-filter-field" class="workforce-filter" />
 					</ui:VisualElement>
+					<ui:Label name="workforce-assignment-status" text="" class="workforce-assignment-status" />
 					<ui:ScrollView name="worker-list" class="workforce-list" />
 					<ui:Label name="worker-list-empty" text="No workers match this filter." class="workforce-empty" />
+					<ui:VisualElement name="workforce-outdoor-drop-zone" class="workforce-outdoor-drop-zone">
+						<ui:Label text="PUBLIC LOGISTICS" class="workforce-outdoor-drop-zone__title" />
+						<ui:Label text="Drop here for Loading / Unloading / Cargo Transfer" class="workforce-outdoor-drop-zone__description" />
+					</ui:VisualElement>
 				</ui:VisualElement>
 				<ui:VisualElement class="workforce-detail-column">
-					<ui:Label text="SELECTED WORKER" class="workforce-column-label" />
+					<ui:Label name="workforce-detail-title" text="SELECTED WORKER" class="workforce-column-label" />
 					<ui:VisualElement name="worker-detail-empty" class="workforce-detail-empty">
 						<ui:Label text="Select a worker to inspect and configure." />
 					</ui:VisualElement>
@@ -43,6 +49,13 @@
 						<ui:DropdownField name="worker-handle-field" class="workforce-field" />
 						<ui:Label text="ALLOWED TASKS" class="workforce-field-label" />
 						<ui:ScrollView name="worker-task-toggles" class="workforce-task-list" />
+						<ui:Label name="worker-assignment-message" text="" class="workforce-assignment-message" />
+					</ui:VisualElement>
+					<ui:VisualElement name="workforce-building-detail" class="workforce-building-detail">
+						<ui:Label name="workforce-building-name" text="Building" class="workforce-detail__name" />
+						<ui:Label name="workforce-building-summary" text="WORKERS 0" class="workforce-building-summary" />
+						<ui:ScrollView name="workforce-building-matrix" mode="VerticalAndHorizontal" class="workforce-building-matrix" />
+						<ui:Label name="workforce-building-empty" text="No workers are assigned to this building." class="workforce-building-empty" />
 					</ui:VisualElement>
 				</ui:VisualElement>
 			</ui:VisualElement>

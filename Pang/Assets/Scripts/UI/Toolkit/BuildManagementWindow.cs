@@ -317,6 +317,7 @@ namespace UniverseLogistics.UI.Toolkit
 			economyService = GameContext.Instance.EconomyService;
 			ruleManager = GameContext.Instance.FacilityRuleMgr;
 			researchService = GameContext.Instance.ResearchService;
+			GameContext.Instance.InteractionCtx.OnModeChanged += OnInteractionModeChanged;
 			if (economyService != null) economyService.OnMoneyChanged += OnMoneyChanged;
 			if (researchService != null) researchService.OnResearchStateChanged += OnResearchStateChanged;
 			if (ruleManager != null)
@@ -331,6 +332,8 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void UnbindServices()
 		{
+			if (GameContext.HasInstance && GameContext.Instance.InteractionCtx != null)
+				GameContext.Instance.InteractionCtx.OnModeChanged -= OnInteractionModeChanged;
 			if (economyService != null) economyService.OnMoneyChanged -= OnMoneyChanged;
 			if (researchService != null) researchService.OnResearchStateChanged -= OnResearchStateChanged;
 			if (ruleManager != null)
@@ -346,6 +349,14 @@ namespace UniverseLogistics.UI.Toolkit
 			economyService = null;
 			ruleManager = null;
 			researchService = null;
+		}
+
+		private void OnInteractionModeChanged(
+			InteractionContext.InteractionDomain _,
+			InteractionContext.InteractionAction action)
+		{
+			if (applyModeActive && action != InteractionContext.InteractionAction.Select)
+				EndApplyMode();
 		}
 
 		private void OpenBuildings() => SelectTab(0);

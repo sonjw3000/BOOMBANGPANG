@@ -15,6 +15,7 @@ public class InteractionContext
 		Install,
 		AreaEdit,
 		LinkEdit,
+		WorkforceAssign,
 	}
 
 	public enum InteractionMode
@@ -25,6 +26,7 @@ public class InteractionContext
 		BuildingPlacement,
 		AreaEdit,
 		BuildingLinkEdit,
+		WorkforceAssignment,
 	}
 
 	public readonly struct AreaPlacementPreview
@@ -61,6 +63,8 @@ public class InteractionContext
 
 	private InteractionDomain interactionDomain = InteractionDomain.Facility;
 	private InteractionAction interactionAction = InteractionAction.Select;
+	private InteractionDomain workforceReturnDomain = InteractionDomain.Facility;
+	private InteractionAction workforceReturnAction = InteractionAction.Select;
 	private int3 mousePos;
 
 	// select
@@ -90,6 +94,8 @@ public class InteractionContext
 	public event System.Func<int3, GameObject> OnResolveSelectionFallback;
 	public event System.Func<int3, bool> OnHandleBuildingSelection;
 	public event System.Func<int3, bool> OnHandleBuildingLinkSelection;
+	public event System.Func<int3, bool> OnHandleWorkforceAssignmentSelection;
+	public event System.Action<int3> OnMouseGridPositionChanged;
 
 	// area placement event
 	public event System.Action<AreaPlacementPreview> OnAreaPlacementPreviewChanged;
@@ -117,6 +123,7 @@ public class InteractionContext
 			(InteractionDomain.Building, InteractionAction.Install) => InteractionMode.BuildingPlacement,
 			(InteractionDomain.Facility, InteractionAction.AreaEdit) => InteractionMode.AreaEdit,
 			(InteractionDomain.Building, InteractionAction.LinkEdit) => InteractionMode.BuildingLinkEdit,
+			(InteractionDomain.Building, InteractionAction.WorkforceAssign) => InteractionMode.WorkforceAssignment,
 			_ => InteractionMode.FacilitySelect,
 		};
 	}
@@ -139,24 +146,35 @@ public class InteractionContext
 
 	private void CancelActivePlacementMode()
 	{
+		TryCancelActiveMode();
+	}
+
+	public bool TryCancelActiveMode()
+	{
 		switch (Mode)
 		{
 			case InteractionMode.FacilityPlacement:
 				ExitPlacementMode();
-				break;
+				return true;
 
 			case InteractionMode.BuildingPlacement:
 				ExitBuildingPlacementMode();
-				break;
+				return true;
 
 			case InteractionMode.AreaEdit:
 				ExitAreaPlacementMode();
-				break;
+				return true;
 
 			case InteractionMode.BuildingLinkEdit:
 				ExitBuildingLinkMode();
-				break;
+				return true;
+
+			case InteractionMode.WorkforceAssignment:
+				ExitWorkforceAssignmentMode();
+				return true;
 		}
+
+		return false;
 	}
 
 	private void RaiseAreaPlacementPreview(in int3 currentPos)
@@ -264,6 +282,22 @@ public class InteractionContext
 		OnItemSelected?.Invoke(null);
 	}
 
+	public void EnterWorkforceAssignmentMode()
+	{
+		if (Mode == InteractionMode.WorkforceAssignment)
+			return;
+
+		CancelActivePlacementMode();
+		workforceReturnDomain = interactionDomain;
+		workforceReturnAction = interactionAction;
+		SetMode(InteractionDomain.Building, InteractionAction.WorkforceAssign);
+		toBePlaced = null;
+		hasAreaPlacementStart = false;
+		selectedObject = null;
+
+		OnItemSelected?.Invoke(null);
+	}
+
 	public void ExitPlacementMode()
 	{
 		SetMode(InteractionDomain.Facility, InteractionAction.Select);
@@ -307,6 +341,13 @@ public class InteractionContext
 		OnItemSelected?.Invoke(null);
 	}
 
+	public void ExitWorkforceAssignmentMode()
+	{
+		SetMode(workforceReturnDomain, workforceReturnAction);
+		selectedObject = null;
+		OnItemSelected?.Invoke(null);
+	}
+
 	public void ClearSelection()
 	{
 		OnSelectionChange(null);
@@ -328,6 +369,7 @@ public class InteractionContext
 	public void OnMouseMove(int3 pos)
 	{
 		mousePos = pos;
+		OnMouseGridPositionChanged?.Invoke(mousePos);
 
 		switch (Mode)
 		{
@@ -402,6 +444,19 @@ public class InteractionContext
 				}
 				break;
 
+			case InteractionMode.WorkforceAssignment:
+				bool workforceHandled = false;
+				if (OnHandleWorkforceAssignmentSelection != null)
+				{
+					foreach (System.Func<int3, bool> handler in OnHandleWorkforceAssignmentSelection.GetInvocationList())
+					{
+						workforceHandled = handler(pos);
+						if (workforceHandled)
+							break;
+					}
+				}
+				break;
+
 			case InteractionMode.FacilityPlacement:
 				PlacementContext ctx = new(
 					center: mousePos,
@@ -457,6 +512,10 @@ public class InteractionContext
 
 			case InteractionMode.BuildingLinkEdit:
 				ExitBuildingLinkMode();
+				break;
+
+			case InteractionMode.WorkforceAssignment:
+				ExitWorkforceAssignmentMode();
 				break;
 		}
 	}

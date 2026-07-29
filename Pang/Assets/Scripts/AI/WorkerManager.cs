@@ -174,6 +174,19 @@ public partial class WorkerManager : MonoBehaviour
 		return TrySetWorkerAssignment(worker, buildingId, Array.Empty<TaskType>());
 	}
 
+	public bool TryRequestWorkerAssignment(
+		AIWorker worker,
+		uint buildingId,
+		IReadOnlyList<TaskType> taskTypes)
+	{
+		if (worker == null)
+			return false;
+
+		return worker.CurrentTask != null
+			? TryScheduleWorkerAssignment(worker, buildingId, taskTypes)
+			: TrySetWorkerAssignment(worker, buildingId, taskTypes);
+	}
+
 	public bool TrySetWorkerAssignment(
 		AIWorker worker,
 		uint buildingId,
@@ -303,6 +316,10 @@ public partial class WorkerManager : MonoBehaviour
 		IReadOnlyList<TaskType> taskTypes,
 		bool syncAvailability)
 	{
+		if (GameContext.HasInstance)
+			GameContext.Instance.ItemTransferTaskScheduler?.CancelReadyReservationForAssignmentChange(worker);
+
+		ReleasePackingStationAssignmentIfNeeded(worker, buildingId, taskTypes);
 		UnregisterWorkerTaskTypes(worker);
 		RemoveIdleWorker(worker);
 		worker.SetPrimaryBuildingId(buildingId);
@@ -310,6 +327,38 @@ public partial class WorkerManager : MonoBehaviour
 		RegisterWorkerTaskTypes(worker);
 		if (syncAvailability)
 			SyncWorkerAvailability(worker);
+	}
+
+	private static void ReleasePackingStationAssignmentIfNeeded(
+		AIWorker worker,
+		uint buildingId,
+		IReadOnlyList<TaskType> taskTypes)
+	{
+		if (worker?.CurrentWorkingBuilding is not PackingStation station)
+			return;
+
+		bool keepsPackingTask = taskTypes != null;
+		if (keepsPackingTask)
+		{
+			keepsPackingTask = false;
+			for (int i = 0; i < taskTypes.Count; ++i)
+			{
+				if (taskTypes[i] != TaskType.Packing)
+					continue;
+
+				keepsPackingTask = true;
+				break;
+			}
+		}
+
+		bool keepsStation = keepsPackingTask &&
+			buildingId != 0 &&
+			GameContext.HasInstance &&
+			GameContext.Instance.FacilityMgr != null &&
+			GameContext.Instance.FacilityMgr.TryGetBuildingId(station, out uint stationBuildingId) &&
+			stationBuildingId == buildingId;
+		if (keepsStation == false)
+			station.CurrentPackingWorker = null;
 	}
 
 	public AIWorker GetAvailableWorkers(WorkerTask taskData)

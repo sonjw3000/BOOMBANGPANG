@@ -13,6 +13,9 @@
 .workforce-detail-column { position: relative; flex-grow: 1; padding-left: 10px; }
 .workforce-toolbar { height: 29px; flex-direction: row; align-items: center; }
 .workforce-column-label { height: 22px; flex-grow: 1; font-size: 8px; -unity-font-style: bold; letter-spacing: 1px; color: rgb(113, 154, 173); }
+.workforce-assignment-mode-button { width: 105px; height: 24px; margin-right: 5px; font-size: 8px; -unity-font-style: bold; color: rgb(196, 220, 228); background-color: rgb(38, 62, 73); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(64, 108, 124); border-right-color: rgb(64, 108, 124); border-top-color: rgb(64, 108, 124); border-bottom-color: rgb(64, 108, 124); }
+.workforce-assignment-mode-button:hover, .workforce-assignment-mode-button--active { color: rgb(239, 249, 251); background-color: rgb(36, 108, 125); border-left-color: rgb(74, 186, 218); border-right-color: rgb(74, 186, 218); border-top-color: rgb(74, 186, 218); border-bottom-color: rgb(74, 186, 218); }
+.workforce-assignment-status { min-height: 18px; margin-bottom: 4px; font-size: 8px; color: rgb(112, 184, 204); }
 .workforce-filter { width: 120px; font-size: 9px; }
 .workforce-list { flex-grow: 1; }
 .workforce-empty, .workforce-detail-empty { position: absolute; left: 0; right: 10px; top: 90px; font-size: 10px; -unity-text-align: middle-center; color: rgb(112, 132, 143); }
@@ -25,14 +28,33 @@
 .workforce-field { height: 25px; font-size: 9px; }
 .workforce-task-list { height: 125px; padding: 5px; background-color: rgb(27, 36, 43); }
 .workforce-task-toggle { height: 23px; font-size: 9px; color: rgb(187, 207, 216); }
+.workforce-assignment-message { min-height: 20px; margin-top: 5px; font-size: 8px; color: rgb(225, 171, 97); white-space: normal; }
 .workforce-worker-row { min-height: 42px; flex-direction: row; align-items: center; margin-bottom: 3px; padding-left: 8px; padding-right: 7px; background-color: rgb(32, 42, 50); border-left-width: 2px; border-left-color: rgb(62, 91, 104); }
 .workforce-worker-row:hover, .workforce-worker-row--selected { background-color: rgb(38, 60, 71); border-left-color: rgb(74, 186, 218); }
+.workforce-worker-row--dragging { opacity: 0.55; background-color: rgb(35, 82, 96); border-left-color: rgb(101, 213, 171); }
 .workforce-worker-row__identity { width: 145px; }
 .workforce-worker-row__name { font-size: 10px; -unity-font-style: bold; color: rgb(224, 235, 240); }
 .workforce-worker-row__subtext { margin-top: 2px; font-size: 8px; color: rgb(126, 150, 162); }
 .workforce-worker-row__value { width: 72px; font-size: 8px; color: rgb(181, 201, 210); }
 .workforce-worker-row__wear { width: 64px; font-size: 8px; color: rgb(225, 151, 97); }
 .workforce-worker-row__building { flex-grow: 1; font-size: 8px; -unity-text-align: middle-right; color: rgb(103, 196, 220); }
+.workforce-outdoor-drop-zone { min-height: 44px; margin-top: 5px; padding-left: 8px; padding-top: 5px; background-color: rgb(27, 36, 43); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(60, 82, 92); border-right-color: rgb(60, 82, 92); border-top-color: rgb(60, 82, 92); border-bottom-color: rgb(60, 82, 92); }
+.workforce-outdoor-drop-zone--active { background-color: rgb(43, 77, 88); border-left-color: rgb(74, 186, 218); border-right-color: rgb(74, 186, 218); border-top-color: rgb(74, 186, 218); border-bottom-color: rgb(74, 186, 218); }
+.workforce-outdoor-drop-zone__title { font-size: 8px; -unity-font-style: bold; letter-spacing: 1px; color: rgb(113, 154, 173); }
+.workforce-outdoor-drop-zone__description { margin-top: 2px; font-size: 8px; color: rgb(142, 164, 175); }
+.workforce-building-detail { display: none; flex-grow: 1; }
+.workforce-building-summary { min-height: 25px; margin-top: 6px; margin-bottom: 6px; padding-left: 7px; padding-top: 7px; font-size: 8px; -unity-font-style: bold; color: rgb(162, 186, 197); background-color: rgb(29, 39, 47); }
+.workforce-building-matrix { flex-grow: 1; }
+.workforce-building-empty { margin-top: 30px; font-size: 9px; -unity-text-align: middle-center; color: rgb(112, 132, 143); }
+.workforce-building-matrix__header, .workforce-building-matrix__row { min-height: 36px; flex-direction: row; align-items: center; margin-bottom: 3px; padding-left: 6px; padding-right: 4px; }
+.workforce-building-matrix__header { min-height: 30px; background-color: rgb(25, 34, 41); }
+.workforce-building-matrix__row { background-color: rgb(32, 42, 50); border-left-width: 2px; border-left-color: rgb(62, 91, 104); }
+.workforce-building-matrix__identity { width: 118px; flex-shrink: 0; }
+.workforce-building-matrix__identity-header { font-size: 7px; color: rgb(113, 154, 173); }
+.workforce-building-matrix__name { font-size: 9px; -unity-font-style: bold; color: rgb(224, 235, 240); }
+.workforce-building-matrix__state { margin-top: 2px; font-size: 7px; color: rgb(126, 150, 162); }
+.workforce-building-matrix__task-header { width: 82px; flex-shrink: 0; font-size: 7px; white-space: normal; -unity-text-align: middle-center; color: rgb(113, 154, 173); }
+.workforce-building-matrix__task { width: 82px; flex-shrink: 0; font-size: 8px; -unity-text-align: middle-center; color: rgb(187, 207, 216); }
 .workforce-category-column { width: 150px; margin-right: 10px; padding-right: 9px; border-right-width: 1px; border-right-color: rgb(65, 78, 88); }
 .workforce-candidate-column { flex-grow: 1; }
 .workforce-hiring-toolbar { height: 28px; flex-direction: row; align-items: flex-start; }
