@@ -98,6 +98,11 @@ namespace UniverseLogistics.UI.Toolkit
 		public string Primary { get; set; }
 		public string Trailing { get; set; }
 		public string Secondary { get; set; }
+		public string ActionLabel { get; set; }
+		public Action Action { get; set; }
+		public Func<bool> CanExecute { get; set; }
+		public bool IsDangerous { get; set; }
+		public string DisabledReason { get; set; }
 	}
 
 	public static class SelectionDetailContentUtility
@@ -598,10 +603,33 @@ namespace UniverseLogistics.UI.Toolkit
 				primary.AddToClassList("selection-detail-row__primary");
 				Label trailing = new() { name = "trailing" };
 				trailing.AddToClassList("selection-detail-row__trailing");
+				VisualElement actionControl = new() { name = "action-control" };
+				actionControl.AddToClassList("selection-detail-row__action-control");
+				Button actionButton = new() { name = "action" };
+				actionButton.AddToClassList("selection-detail-row__action");
+				actionButton.clicked += () =>
+				{
+					if (actionButton.userData is SelectionDetailRow boundRow)
+						boundRow.Action?.Invoke();
+				};
+				actionControl.SetTooltip(() =>
+				{
+					if (actionButton.userData is not SelectionDetailRow boundRow ||
+						string.IsNullOrWhiteSpace(boundRow.DisabledReason))
+					{
+						return default;
+					}
+
+					return UITooltipContent.DescriptionOnly(
+						boundRow.ActionLabel ?? "Unavailable",
+						boundRow.DisabledReason);
+				});
+				actionControl.Add(actionButton);
 				Label secondary = new() { name = "secondary" };
 				secondary.AddToClassList("selection-detail-row__secondary");
 				top.Add(primary);
 				top.Add(trailing);
+				top.Add(actionControl);
 				row.Add(top);
 				row.Add(secondary);
 				return row;
@@ -615,6 +643,20 @@ namespace UniverseLogistics.UI.Toolkit
 				element.Q<Label>("primary").text = row.Primary ?? string.Empty;
 				element.Q<Label>("trailing").text = row.Trailing ?? string.Empty;
 				element.Q<Label>("secondary").text = row.Secondary ?? string.Empty;
+				VisualElement actionControl = element.Q<VisualElement>("action-control");
+				Button actionButton = element.Q<Button>("action");
+				bool hasAction = string.IsNullOrWhiteSpace(row.ActionLabel) == false && row.Action != null;
+				actionControl.style.display = hasAction ? DisplayStyle.Flex : DisplayStyle.None;
+				actionButton.text = row.ActionLabel ?? string.Empty;
+				actionButton.userData = hasAction ? row : null;
+				actionButton.SetEnabled(hasAction && (row.CanExecute?.Invoke() ?? true));
+				actionButton.EnableInClassList("selection-detail-row__action--danger", hasAction && row.IsDangerous);
+			};
+			detailList.unbindItem = (element, _) =>
+			{
+				Button actionButton = element.Q<Button>("action");
+				if (actionButton != null)
+					actionButton.userData = null;
 			};
 			detailSlider.RegisterValueChangedCallback(evt =>
 			{

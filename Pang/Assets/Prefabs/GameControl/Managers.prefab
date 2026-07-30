@@ -1018,6 +1018,7 @@ MonoBehaviour:
   airlockService: {fileID: 6100386177182458250}
   buildingManager: {fileID: 7596847546117217656}
   buildingFootprintService: {fileID: 3372337595302751063}
+  buildingAddonCatalog: {fileID: 11400000, guid: bf34b70e68ad4fdf992501bb76595929, type: 2}
   trafficCoordinator: {fileID: 9128034459082980668}
   vendorService: {fileID: 1311799558366903411}
   powerService: {fileID: 910556871236450999}

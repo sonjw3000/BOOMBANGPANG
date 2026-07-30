@@ -36,6 +36,8 @@ public sealed class BuildingFootprintPreset : ScriptableObject
 	[SerializeField, Min(MinimumDiameter)] private int height = 15;
 	[SerializeField] private Vector2Int pivot = new(7, 7);
 	[SerializeField] private BuildingFootprintCell[] cells;
+	[Header("Addon")]
+	[SerializeField, Min(0)] private int addonSlotCapacity;
 
 	public string PresetId => presetId;
 	public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? $"Diameter {width}" : displayName;
@@ -45,6 +47,7 @@ public sealed class BuildingFootprintPreset : ScriptableObject
 	public int Width => width;
 	public int Height => height;
 	public Vector2Int Pivot => pivot;
+	public int AddonSlotCapacity => Mathf.Max(0, addonSlotCapacity);
 	public bool IsValid =>
 		string.IsNullOrWhiteSpace(presetId) == false &&
 		width >= MinimumDiameter &&

@@ -163,7 +163,10 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 		}
 
 		List<GridCell> ownedCells = BuildOwnedCells(center, preset, floor);
-		Building createdBuilding = BuildingManager.CreateBuilding(ownedCells, buildingType);
+		Building createdBuilding = BuildingManager.CreateBuilding(
+			ownedCells,
+			buildingType,
+			addonSlotCapacity: preset.AddonSlotCapacity);
 		if (createdBuilding == null)
 		{
 			RollbackCreatedWalls(createdWalls);

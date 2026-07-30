@@ -12,6 +12,8 @@ public sealed class WearService : MonoBehaviour
 
 	private FacilityManager FacilityManager => GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
 	private WorkerManager WorkerManager => GameContext.HasInstance ? GameContext.Instance.WorkerMgr : null;
+	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+	private BuildingAddonService BuildingAddonService => GameContext.HasInstance ? GameContext.Instance.BuildingAddonSvc : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 
 	private void OnEnable()
@@ -84,11 +86,13 @@ public sealed class WearService : MonoBehaviour
 
 	private void BindEvents()
 	{
-		if (eventsBound || FacilityManager == null || WorkerManager == null)
+		if (eventsBound || FacilityManager == null || WorkerManager == null || BuildingAddonService == null)
 			return;
 
 		FacilityManager.SubscribeFacilityRegister<IWearableFacility>(HandleFacilityRegistered, HandleFacilityUnregistered);
 		WorkerManager.OnWorkersChanged += HandleWorkersChanged;
+		BuildingAddonService.OnAddonInstalled += HandleAddonInstalled;
+		BuildingAddonService.OnAddonRemoved += HandleAddonRemoved;
 		eventsBound = true;
 	}
 
@@ -101,6 +105,11 @@ public sealed class WearService : MonoBehaviour
 			FacilityManager.UnsubscribeFacilityRegister<IWearableFacility>(HandleFacilityRegistered, HandleFacilityUnregistered);
 		if (WorkerManager != null)
 			WorkerManager.OnWorkersChanged -= HandleWorkersChanged;
+		if (BuildingAddonService != null)
+		{
+			BuildingAddonService.OnAddonInstalled -= HandleAddonInstalled;
+			BuildingAddonService.OnAddonRemoved -= HandleAddonRemoved;
+		}
 		eventsBound = false;
 	}
 
@@ -117,6 +126,21 @@ public sealed class WearService : MonoBehaviour
 					FacilityManager.GetFacilities<IWearableFacility>(buildingIds[i]);
 				for (int j = 0; j < facilities.Count; ++j)
 					Register(facilities[j]);
+			}
+		}
+
+		if (BuildingManager != null)
+		{
+			IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+			for (int buildingIndex = 0; buildingIndex < buildings.Count; ++buildingIndex)
+			{
+				Building building = buildings[buildingIndex];
+				if (building == null)
+					continue;
+
+				IReadOnlyList<BuildingAddon> addons = building.InstalledAddons;
+				for (int addonIndex = 0; addonIndex < addons.Count; ++addonIndex)
+					Register(addons[addonIndex]);
 			}
 		}
 
@@ -141,6 +165,16 @@ public sealed class WearService : MonoBehaviour
 	{
 		if (facility is IWearableFacility wearable)
 			Unregister(wearable);
+	}
+
+	private void HandleAddonInstalled(Building building, BuildingAddon addon)
+	{
+		Register(addon);
+	}
+
+	private void HandleAddonRemoved(Building building, BuildingAddon addon)
+	{
+		Unregister(addon);
 	}
 
 	private void HandleWorkersChanged()

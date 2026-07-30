@@ -68,7 +68,6 @@ public class SelectionUIMaster : MonoBehaviour
 		providerTypes.Add(typeof(PowerHubUIProvider));
 		providerTypes.Add(typeof(CargoPortUIProvider));
 		providerTypes.Add(typeof(AirlockUIProvider));
-		providerTypes.Add(typeof(OxygenSupplyUnitUIProvider));
 		providerTypes.Add(typeof(RefrigerationUnitUIProvider));
 		providerTypes.Add(typeof(PackingStationUIProvider));
 		providerTypes.Add(typeof(RocketUIProvider));

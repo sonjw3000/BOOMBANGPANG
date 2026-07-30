@@ -34,7 +34,11 @@ public sealed partial class BuildingManager : MonoBehaviour
 		building.SetRegistered(true);
 	}
 
-	public Building CreateBuilding(List<GridCell> ownedCells, BuildingType buildingType = BuildingType.Generic, string displayName = null)
+	public Building CreateBuilding(
+		List<GridCell> ownedCells,
+		BuildingType buildingType = BuildingType.Generic,
+		string displayName = null,
+		int addonSlotCapacity = 0)
 	{
 		if (ownedCells == null || ownedCells.Count <= 0)
 			return null;
@@ -50,7 +54,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 			? BuildDefaultBuildingName(buildingType)
 			: displayName;
 
-		Building building = CreateBuildingInstance(resolvedName, ownedCells, buildingType);
+		Building building = CreateBuildingInstance(resolvedName, ownedCells, buildingType, addonSlotCapacity);
 		Register(building);
 
 		for (int i = 0; i < ownedCells.Count; ++i)
@@ -63,6 +67,9 @@ public sealed partial class BuildingManager : MonoBehaviour
 	{
 		if (building == null)
 			return;
+
+		if (GameContext.HasInstance)
+			GameContext.Instance.BuildingAddonSvc?.RemoveAll(building);
 
 		RemoveBuildingLinks(building);
 		registeredBuildings.Remove(building);
@@ -241,12 +248,13 @@ public sealed partial class BuildingManager : MonoBehaviour
 		BuildingState state,
 		BuildingWorkScope workScope,
 		bool overrideCapsuleThreshold,
-		float capsuleThresholdPercent)
+		float capsuleThresholdPercent,
+		int addonSlotCapacity = 0)
 	{
 		if (ownedCells == null || ownedCells.Count <= 0)
 			return null;
 
-		Building building = CreateBuildingInstance(displayName, ownedCells, buildingType);
+		Building building = CreateBuildingInstance(displayName, ownedCells, buildingType, addonSlotCapacity);
 		building.AssignRuntimeBuildingId(runtimeBuildingId);
 		building.SetState(state);
 		building.SetWorkScope(workScope);
@@ -288,9 +296,13 @@ public sealed partial class BuildingManager : MonoBehaviour
 		}
 	}
 
-	private static Building CreateBuildingInstance(string displayName, List<GridCell> ownedCells, BuildingType buildingType)
+	private static Building CreateBuildingInstance(
+		string displayName,
+		List<GridCell> ownedCells,
+		BuildingType buildingType,
+		int addonSlotCapacity)
 	{
-		return buildingType switch
+		Building building = buildingType switch
 		{
 			BuildingType.Staging => new StagingBuilding(displayName, ownedCells),
 			BuildingType.Storage => new StorageBuilding(displayName, ownedCells),
@@ -298,6 +310,9 @@ public sealed partial class BuildingManager : MonoBehaviour
 			BuildingType.Launch => new LaunchBuilding(displayName, ownedCells),
 			_ => new Building(displayName, ownedCells, buildingType),
 		};
+
+		building.SetAddonSlotCapacity(addonSlotCapacity);
+		return building;
 	}
 
 	private bool IsRuntimeIdInUse(uint runtimeId, Building currentBuilding)

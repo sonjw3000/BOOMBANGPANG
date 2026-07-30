@@ -6,6 +6,12 @@ using UniverseLogistics.UI.Toolkit;
 public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISelectionInspectorProvider
 {
 	private Building Building => currentTarget != null ? currentTarget.Building : null;
+	private BuildingAddonService AddonService =>
+		GameContext.HasInstance ? GameContext.Instance.BuildingAddonSvc : null;
+	private EconomyService EconomyService =>
+		GameContext.HasInstance ? GameContext.Instance.EconomyService : null;
+	private string addonActionMessage = string.Empty;
+	private int addonActionVersion;
 
 	public override string Name => Building != null ? Building.DisplayName : "Unknown Building";
 	public override string Subtitle => Building != null ? Building.Type.ToString() : "Unknown Building";
@@ -49,6 +55,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	{
 		model.Clear();
 		model.AddTab("Facilities", GetFacilitiesVersion, BuildFacilitiesPanel);
+		model.AddTab("Addons", GetAddonsVersion, BuildAddonsPanel);
 		model.AddTab("Flow", GetFlowVersion, BuildFlowPanel);
 		model.AddTab("Settings", GetSettingsVersion, BuildSettingsPanel);
 		model.AddOverview("State", () => StateDisplay);
@@ -92,6 +99,177 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		foreach (KeyValuePair<string, int> pair in counts)
 			panel.Rows.Add(new SelectionDetailRow { Primary = pair.Key, Trailing = $"×{pair.Value}", Secondary = "Installed in this building" });
 		return panel;
+	}
+
+	private int GetAddonsVersion()
+	{
+		if (Building == null)
+			return addonActionVersion;
+
+		unchecked
+		{
+			int version = HashCode.Combine(
+				Building.State,
+				Building.AddonSlotCapacity,
+				Building.AvailableAddonSlots,
+				EconomyService != null ? EconomyService.Money : 0,
+				addonActionVersion);
+			IReadOnlyList<BuildingAddon> installedAddons = Building.InstalledAddons;
+			if (installedAddons != null)
+			{
+				for (int i = 0; i < installedAddons.Count; ++i)
+				{
+					BuildingAddon addon = installedAddons[i];
+					if (addon == null)
+						continue;
+
+					version = version * 31 + GetStableHash(addon.Definition?.AddonId);
+					version = version * 31 + Mathf.RoundToInt(addon.Health * 10.0f);
+					version = version * 31 + Mathf.RoundToInt(addon.MaxHealth * 10.0f);
+					version = version * 31 + Mathf.RoundToInt(addon.Wear * 1000.0f);
+					version = version * 31 + Mathf.RoundToInt(addon.WearEfficiency * 1000.0f);
+					version = version * 31 + addon.PowerConsumption;
+					version = version * 31 + Mathf.RoundToInt(addon.OxygenSupplyPerTick * 100.0f);
+				}
+			}
+
+			IReadOnlyList<BuildingAddonDefinition> definitions = AddonService?.Definitions;
+			if (definitions != null)
+			{
+				for (int i = 0; i < definitions.Count; ++i)
+				{
+					BuildingAddonDefinition definition = definitions[i];
+					if (definition == null || definition.IsAllowedFor(Building.Type) == false)
+						continue;
+
+					version = version * 31 + GetStableHash(definition.AddonId);
+					version = version * 31 + definition.Cost;
+					version = version * 31 + definition.PowerConsumption;
+					version = version * 31 + Mathf.RoundToInt(definition.OxygenSupplyPerTick * 100.0f);
+				}
+			}
+
+			return version;
+		}
+	}
+
+	private SelectionDetailPanelModel BuildAddonsPanel()
+	{
+		int installedCount = Building?.InstalledAddons?.Count ?? 0;
+		int slotCapacity = Building?.AddonSlotCapacity ?? 0;
+		SelectionDetailPanelModel panel = new()
+		{
+			Title = "ADDONS",
+			Summary = Building == null
+				? "Building unavailable."
+				: $"{installedCount} / {slotCapacity} slots used · {Building.AvailableAddonSlots} free",
+		};
+
+		if (string.IsNullOrWhiteSpace(addonActionMessage) == false)
+			panel.Summary += $" · {addonActionMessage}";
+
+		if (Building == null)
+			return panel;
+
+		IReadOnlyList<BuildingAddon> installedAddons = Building.InstalledAddons;
+		if (installedAddons != null)
+		{
+			for (int i = 0; i < installedAddons.Count; ++i)
+			{
+				BuildingAddon addon = installedAddons[i];
+				if (addon?.Definition == null)
+					continue;
+
+				BuildingAddon boundAddon = addon;
+				panel.Rows.Add(new SelectionDetailRow
+				{
+					Primary = addon.Definition.DisplayName,
+					Trailing = $"O₂ {addon.OxygenSupplyPerTick:0.##}/tick",
+					Secondary =
+						$"Power {addon.PowerConsumption} · HP {addon.Health:0.#}/{addon.MaxHealth:0.#} · Wear {addon.Wear * 100.0f:0.#}% · Eff {addon.WearEfficiency * 100.0f:0.#}%",
+					ActionLabel = "Remove",
+					Action = () => RemoveAddon(boundAddon),
+					CanExecute = () => Building != null && AddonService != null,
+					IsDangerous = true,
+					DisabledReason = AddonService == null ? "Addon service is unavailable." : string.Empty,
+				});
+			}
+		}
+
+		IReadOnlyList<BuildingAddonDefinition> definitions = AddonService?.Definitions;
+		if (definitions == null)
+			return panel;
+
+		for (int i = 0; i < definitions.Count; ++i)
+		{
+			BuildingAddonDefinition definition = definitions[i];
+			if (definition == null || definition.IsAllowedFor(Building.Type) == false)
+				continue;
+
+			BuildingAddonDefinition boundDefinition = definition;
+			bool canInstall = AddonService.CanInstall(Building, definition, out string reason);
+			if (canInstall == false && string.IsNullOrWhiteSpace(reason))
+				reason = "This add-on cannot be installed right now.";
+
+			panel.Rows.Add(new SelectionDetailRow
+			{
+				Primary = definition.DisplayName,
+				Trailing = $"${definition.Cost:N0}",
+				Secondary = canInstall
+					? $"Available · O₂ {definition.OxygenSupplyPerTick:0.##}/tick · Power {definition.PowerConsumption}"
+					: $"Available · O₂ {definition.OxygenSupplyPerTick:0.##}/tick · Power {definition.PowerConsumption} · {reason}",
+				ActionLabel = "Install",
+				Action = () => InstallAddon(boundDefinition),
+				CanExecute = () =>
+					Building != null &&
+					AddonService != null &&
+					AddonService.CanInstall(Building, boundDefinition, out _),
+				DisabledReason = canInstall ? string.Empty : reason,
+			});
+		}
+
+		return panel;
+	}
+
+	private void InstallAddon(BuildingAddonDefinition definition)
+	{
+		if (Building == null || AddonService == null || definition == null)
+			return;
+
+		if (AddonService.TryInstall(Building, definition, out string reason))
+			addonActionMessage = $"{definition.DisplayName} installed";
+		else
+			addonActionMessage = string.IsNullOrWhiteSpace(reason) ? "Installation failed" : reason;
+
+		addonActionVersion += 1;
+	}
+
+	private void RemoveAddon(BuildingAddon addon)
+	{
+		if (Building == null || AddonService == null || addon == null)
+			return;
+
+		string displayName = addon.Definition != null ? addon.Definition.DisplayName : "Addon";
+		if (AddonService.TryRemove(Building, addon, out string reason))
+			addonActionMessage = $"{displayName} removed";
+		else
+			addonActionMessage = string.IsNullOrWhiteSpace(reason) ? "Removal failed" : reason;
+
+		addonActionVersion += 1;
+	}
+
+	private static int GetStableHash(string value)
+	{
+		if (string.IsNullOrEmpty(value))
+			return 0;
+
+		unchecked
+		{
+			int hash = 17;
+			for (int i = 0; i < value.Length; ++i)
+				hash = hash * 31 + value[i];
+			return hash;
+		}
 	}
 
 	private int GetFlowVersion()

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingFootprintPreset
   presetId: circle_15
   displayName: Diameter 15
+  addonSlotCapacity: 4
   width: 15
   height: 15
   pivot: {x: 7, y: 7}

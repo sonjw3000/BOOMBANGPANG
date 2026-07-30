@@ -7,6 +7,8 @@ using UnityEngine;
 
 public sealed class GameSaveService : MonoBehaviour
 {
+	private const string LegacyOxygenSupplyUnitPlaceableId = "oxygen_supply_unit_00";
+
 	[SerializeField] private string saveFileName = "savegame_";
 	[SerializeField] private string saveFileNameDef = "savegame.json";
 	private readonly string fileExt = ".json";
@@ -152,6 +154,12 @@ public sealed class GameSaveService : MonoBehaviour
 
 		foreach (var entry in Ctx.GridService.GetPlacedObjectsSnapshot().OrderBy(e => e.Value.center.x).ThenBy(e => e.Value.center.y).ThenBy(e => e.Value.center.z))
 		{
+			if (entry.Value.placeableDefinition != null &&
+				entry.Value.placeableDefinition.placeableID == LegacyOxygenSupplyUnitPlaceableId)
+			{
+				continue;
+			}
+
 			data.Placeables.Add(CapturePlaceable(entry.Key, entry.Value));
 		}
 
@@ -211,6 +219,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.GameTime.RestoreState(data.Time);
 		Ctx.EconomyService.RestoreState(data.Economy);
 		Ctx.ResearchService.RestoreState(data.Research);
+		Ctx.BuildingAddonSvc.RestoreState(data.Buildings);
 		Ctx.IBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);
 		Ctx.OBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.OutboundWorkApproach : null);
 		Ctx.LicenseService.RestoreState(data.Licenses);
@@ -580,6 +589,9 @@ public sealed class GameSaveService : MonoBehaviour
 		Dictionary<uint, AIWorker> workersById,
 		Dictionary<int, OrderLine> restoredOrderLines)
 	{
+		if (save == null || save.PlaceableId == LegacyOxygenSupplyUnitPlaceableId)
+			return;
+
 		PlaceableDefinition definition = Ctx.PlaceableCatalog.FindById(save.PlaceableId);
 		if (definition == null || definition.prefab == null)
 		{

@@ -46,11 +46,6 @@ public abstract class WearableFacilityUIProvider<TFacility> : UIProvider<TFacili
 	}
 }
 
-public sealed class OxygenSupplyUnitUIProvider : WearableFacilityUIProvider<OxygenSupplyUnit>
-{
-	protected override string FacilityTypeLabel => "Oxygen Supply Unit";
-}
-
 public sealed class RefrigerationUnitUIProvider : WearableFacilityUIProvider<RefrigerationUnit>
 {
 	protected override string FacilityTypeLabel => "Refrigeration Unit";

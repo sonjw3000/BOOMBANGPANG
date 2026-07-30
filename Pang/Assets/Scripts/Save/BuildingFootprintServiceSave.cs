@@ -57,6 +57,7 @@ public sealed partial class BuildingFootprintService
 			RectInt bounds;
 			Vector2Int center;
 			List<GridCell> ownedCells;
+			int addonSlotCapacity = 0;
 			if (string.IsNullOrWhiteSpace(savedFootprint.PresetId))
 			{
 				bounds = new RectInt(savedFootprint.Bounds.X, savedFootprint.Bounds.Y, savedFootprint.Bounds.Width, savedFootprint.Bounds.Height);
@@ -80,6 +81,7 @@ public sealed partial class BuildingFootprintService
 
 				center = new Vector2Int(savedFootprint.CenterX, savedFootprint.CenterZ);
 				bounds = preset.GetBounds(center);
+				addonSlotCapacity = preset.AddonSlotCapacity;
 				int3 centerPosition = new(center.x, savedFootprint.Floor, center.y);
 				ownedCells = BuildOwnedCells(centerPosition, preset, savedFootprint.Floor);
 			}
@@ -94,7 +96,8 @@ public sealed partial class BuildingFootprintService
 				savedBuilding != null ? savedBuilding.State : BuildingState.Active,
 				savedBuilding != null ? savedBuilding.WorkScope : BuildingWorkScope.HomeOnly,
 				savedBuilding != null && savedBuilding.OverrideCapsuleThreshold,
-				savedBuilding != null ? savedBuilding.CapsuleThresholdPercent : 80.0f);
+				savedBuilding != null ? savedBuilding.CapsuleThresholdPercent : 80.0f,
+				addonSlotCapacity);
 
 			if (restoredBuilding == null)
 			{

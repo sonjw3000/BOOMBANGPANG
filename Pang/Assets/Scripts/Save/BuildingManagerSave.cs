@@ -17,7 +17,7 @@ public sealed partial class BuildingManager
 			if (building == null)
 				continue;
 
-			data.Buildings.Add(new BuildingSaveData
+			BuildingSaveData buildingData = new()
 			{
 				RuntimeBuildingId = building.RuntimeBuildingId,
 				Name = building.DisplayName,
@@ -27,7 +27,23 @@ public sealed partial class BuildingManager
 				OverrideCapsuleThreshold = building.OverrideCapsuleThreshold,
 				CapsuleThresholdPercent = building.CapsuleThresholdPercent,
 				OutputBuildingIds = new List<uint>(building.OutputBuildingIds),
-			});
+			};
+
+			for (int i = 0; i < building.InstalledAddons.Count; ++i)
+			{
+				var addon = building.InstalledAddons[i];
+				if (addon == null || addon.Definition == null || string.IsNullOrWhiteSpace(addon.Definition.AddonId))
+					continue;
+
+				buildingData.Addons.Add(new BuildingAddonSaveData
+				{
+					DefinitionId = addon.Definition.AddonId,
+					Health = addon.Health,
+					Wear = addon.Wear,
+				});
+			}
+
+			data.Buildings.Add(buildingData);
 		}
 
 		return data;

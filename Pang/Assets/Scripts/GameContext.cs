@@ -91,6 +91,7 @@ public class GameContext : MonoBehaviour
 	[Header("InGame Objects")]
 	[SerializeField] private PlaceableCatalog catalog;
 	[SerializeField] private BuildPlaceableCatalog buildCatalog;
+	[SerializeField] private BuildingAddonCatalog buildingAddonCatalog;
 	[SerializeField] private TileCatalog baseTiles;
 
 	[Header("Risk Service")]
@@ -114,6 +115,7 @@ public class GameContext : MonoBehaviour
 
 	private DeliveryService deliveryService = new();
 	private readonly ResearchService researchService = new();
+	private readonly BuildingAddonService buildingAddonService = new();
 	private GameSaveService saveService;
 	private ScenarioObjectiveService scenarioObjectiveService;
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
@@ -127,6 +129,7 @@ public class GameContext : MonoBehaviour
 	private void OnValidate()
 	{
 		researchCatalog?.ValidateKeys();
+		buildingAddonCatalog?.ValidateKeys();
 	}
 
 	//public Resources MapResources => mapResources;
@@ -187,6 +190,7 @@ public class GameContext : MonoBehaviour
 	public AreaManager AreaMgr => areaManager;
 	public AirlockService AirlockSvc => airlockService;
 	public BuildingManager BuildingMgr => buildingManager;
+	public BuildingAddonService BuildingAddonSvc => buildingAddonService;
 	public FacilityManager FacilityMgr => facilityManager;
 	public FacilityRuleManager FacilityRuleMgr => facilityRuleManager;
 	public FacilityRuleOverlayController FacilityRuleOverlay => facilityRuleOverlayController;
@@ -332,6 +336,7 @@ public class GameContext : MonoBehaviour
 	{
 		deliveryService ??= new DeliveryService();
 		researchService.Initialize(researchCatalog, economyService, gameTime);
+		buildingAddonService.Initialize(buildingAddonCatalog, buildingManager, economyService);
 		interactionCtx ??= new InteractionContext();
 		capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
 		itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();

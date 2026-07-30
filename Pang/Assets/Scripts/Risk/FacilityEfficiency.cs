@@ -19,4 +19,14 @@ public static class FacilityEfficiency
 			GetHealthEfficiency(facility) *
 			Mathf.Clamp01(facility.WearEfficiency);
 	}
+
+	public static float GetOperatingEfficiency(Building building, IHealth health, IWearable wearable)
+	{
+		if (building == null || health == null || wearable == null)
+			return 0.0f;
+
+		return Mathf.Clamp01(building.PowerEfficiency) *
+			GetHealthEfficiency(health) *
+			Mathf.Clamp01(wearable.WearEfficiency);
+	}
 }

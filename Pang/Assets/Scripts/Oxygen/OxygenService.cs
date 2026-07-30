@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-public interface IOxygenSupplier : IWearableFacility
+public interface IOxygenSupplier : IHealth, IWearable
 {
 	float OxygenSupplyPerTick { get; }
 }
@@ -12,7 +12,6 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 {
 	[SerializeField, Min(0.0f)] private float fireOxygenConsumptionAtMaxIntensity = 5.0f;
 
-	private readonly Dictionary<uint, List<IOxygenSupplier>> suppliersByBuilding = new();
 	private bool eventsBound;
 	private bool clearOutdoorOnNextTick = true;
 	private bool isProcessingTick;
@@ -22,32 +21,27 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
-	private FacilityManager FacilityManager => GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
 
 	private void OnEnable()
 	{
 		BindEvents();
-		RebuildSuppliers();
 	}
 
 	private void Start()
 	{
 		BindEvents();
-		RebuildSuppliers();
 	}
 
 	private void OnDisable() => UnbindEvents();
 
 	public void ResetRuntimeState()
 	{
-		suppliersByBuilding.Clear();
 		clearOutdoorOnNextTick = true;
 		isProcessingTick = false;
 	}
 
 	public void RebuildRuntimeState()
 	{
-		RebuildSuppliers();
 		clearOutdoorOnNextTick = true;
 	}
 
@@ -104,10 +98,9 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 
 	private void BindEvents()
 	{
-		if (eventsBound || FacilityManager == null || GridService == null)
+		if (eventsBound || GridService == null)
 			return;
 
-		FacilityManager.SubscribeFacilityRegister<IOxygenSupplier>(HandleRegistered, HandleUnregistered);
 		GridService.OnCellOxygenChanged += HandleCellOxygenChanged;
 		GridService.OnSpaceRegionsChanged += HandleSpaceRegionsChanged;
 		eventsBound = true;
@@ -118,64 +111,12 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 		if (eventsBound == false)
 			return;
 
-		if (FacilityManager != null)
-			FacilityManager.UnsubscribeFacilityRegister<IOxygenSupplier>(HandleRegistered, HandleUnregistered);
 		if (GridService != null)
 		{
 			GridService.OnCellOxygenChanged -= HandleCellOxygenChanged;
 			GridService.OnSpaceRegionsChanged -= HandleSpaceRegionsChanged;
 		}
 		eventsBound = false;
-	}
-
-	private void RebuildSuppliers()
-	{
-		suppliersByBuilding.Clear();
-		if (FacilityManager == null)
-			return;
-
-		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
-		for (int i = 0; i < buildingIds.Count; ++i)
-		{
-			uint buildingId = buildingIds[i];
-			IReadOnlyList<IOxygenSupplier> suppliers = FacilityManager.GetFacilities<IOxygenSupplier>(buildingId);
-			for (int j = 0; j < suppliers.Count; ++j)
-				Register(buildingId, suppliers[j]);
-		}
-	}
-
-	private void HandleRegistered(uint buildingId, IFacility facility)
-	{
-		if (facility is IOxygenSupplier supplier)
-			Register(buildingId, supplier);
-	}
-
-	private void HandleUnregistered(uint buildingId, IFacility facility)
-	{
-		if (facility is not IOxygenSupplier supplier ||
-			suppliersByBuilding.TryGetValue(buildingId, out List<IOxygenSupplier> suppliers) == false)
-		{
-			return;
-		}
-
-		suppliers.Remove(supplier);
-		if (suppliers.Count == 0)
-			suppliersByBuilding.Remove(buildingId);
-	}
-
-	private void Register(uint buildingId, IOxygenSupplier supplier)
-	{
-		if (buildingId == 0 || supplier == null)
-			return;
-
-		if (suppliersByBuilding.TryGetValue(buildingId, out List<IOxygenSupplier> suppliers) == false)
-		{
-			suppliers = new List<IOxygenSupplier>();
-			suppliersByBuilding[buildingId] = suppliers;
-		}
-
-		if (suppliers.Contains(supplier) == false)
-			suppliers.Add(supplier);
 	}
 
 	private bool ProcessBuilding(Building building, in SimulationTickContext context)
@@ -200,9 +141,9 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 			return false;
 
 		float average = oxygenSum / indoorCellCount;
-		float supply = CalculateSupply(building.RuntimeBuildingId);
+		float supply = CalculateSupply(building);
 		float requestedSupply = (GridCell.MaximumOxygen - average) * indoorCellCount;
-		ReportSupplierOperation(building.RuntimeBuildingId, requestedSupply, supply, context.ElapsedWeeks);
+		ReportSupplierOperation(building, requestedSupply, supply, context.ElapsedWeeks);
 		float next = Mathf.Clamp(average + supply / indoorCellCount, GridCell.DefaultOxygen, GridCell.MaximumOxygen);
 
 		bool changed = false;
@@ -216,53 +157,43 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 		return changed;
 	}
 
-	private float CalculateSupply(uint buildingId)
+	private static float CalculateSupply(Building building)
 	{
-		if (suppliersByBuilding.TryGetValue(buildingId, out List<IOxygenSupplier> suppliers) == false)
+		if (building == null)
 			return 0f;
 
 		float total = 0f;
-		for (int i = suppliers.Count - 1; i >= 0; --i)
+		IReadOnlyList<BuildingAddon> addons = building.InstalledAddons;
+		for (int i = 0; i < addons.Count; ++i)
 		{
-			IOxygenSupplier supplier = suppliers[i];
-			if (supplier is UnityEngine.Object unityObject && unityObject == null)
-			{
-				suppliers.RemoveAt(i);
-				continue;
-			}
-
-			GridCell cell = GridService.GetCell(supplier.GridPosition);
-			if (IsBuildingIndoorCell(cell, buildingId) == false)
+			if (addons[i] is not IOxygenSupplier supplier)
 				continue;
 
-			float efficiency = FacilityEfficiency.GetOperatingEfficiency(supplier);
+			float efficiency = FacilityEfficiency.GetOperatingEfficiency(building, supplier, supplier);
 			total += Mathf.Max(0f, supplier.OxygenSupplyPerTick) * efficiency;
 		}
 
 		return total;
 	}
 
-	private void ReportSupplierOperation(uint buildingId, float requestedSupply, float availableSupply, float elapsedWeeks)
+	private static void ReportSupplierOperation(
+		Building building,
+		float requestedSupply,
+		float availableSupply,
+		float elapsedWeeks)
 	{
-		if (requestedSupply <= 0.0f || availableSupply <= 0.0f ||
-			suppliersByBuilding.TryGetValue(buildingId, out List<IOxygenSupplier> suppliers) == false)
-		{
+		if (building == null || requestedSupply <= 0.0f || availableSupply <= 0.0f)
 			return;
-		}
 
 		float loadRatio = Mathf.Clamp01(requestedSupply / availableSupply);
-		for (int i = suppliers.Count - 1; i >= 0; --i)
+		IReadOnlyList<BuildingAddon> addons = building.InstalledAddons;
+		for (int i = 0; i < addons.Count; ++i)
 		{
-			IOxygenSupplier supplier = suppliers[i];
-			if (supplier is UnityEngine.Object unityObject && unityObject == null)
+			if (addons[i] is not IOxygenSupplier supplier)
 				continue;
 
-			GridCell cell = GridService.GetCell(supplier.GridPosition);
-			if (IsBuildingIndoorCell(cell, buildingId) == false ||
-				FacilityEfficiency.GetOperatingEfficiency(supplier) <= 0.0f)
-			{
+			if (FacilityEfficiency.GetOperatingEfficiency(building, supplier, supplier) <= 0.0f)
 				continue;
-			}
 
 			GameContext.Instance.WearSvc.ReportOperation(supplier, elapsedWeeks, loadRatio);
 		}

@@ -70,6 +70,7 @@ public class Building
 	private BuildingItemIndex itemIndex;
 	private PowerPort powerPort;
 	private int currentPowerConsumption;
+	private int addonSlotCapacity;
 
 	private bool isRegistered;
 	private bool isTrackingTemperature;
@@ -78,6 +79,7 @@ public class Building
 	private readonly List<GridCell> occupiedCells;
 
 	private readonly List<IFacility> occupiedFacilities = new();
+	private readonly List<BuildingAddon> installedAddons = new();
 	private readonly List<CargoPort> occupiedCargoPorts = new();
 	private readonly List<CapsuleBuffer> occupiedCapsuleBuffers = new();
 	private readonly HashSet<uint> inputBuildingIds = new();
@@ -112,6 +114,9 @@ public class Building
 	public BuildingItemIndex ItemIndex => itemIndex;
 	public PowerPort PowerPort => powerPort;
 	public int CurrentPowerConsumption => currentPowerConsumption;
+	public int AddonSlotCapacity => addonSlotCapacity;
+	public int AvailableAddonSlots => UnityEngine.Mathf.Max(0, addonSlotCapacity - installedAddons.Count);
+	public IReadOnlyList<BuildingAddon> InstalledAddons => installedAddons;
 	public float PowerEfficiency => powerPort != null ? powerPort.PowerEfficiency : 0f;
 	public float AverageTemperatureCelsius => occupiedCells.Count > 0
 		? occupiedCellTemperatureSum / occupiedCells.Count
@@ -151,6 +156,7 @@ public class Building
 
 	internal void SetOverrideCapsuleThreshold(bool value) => overrideCapsuleThreshold = value;
 	internal void SetCapsuleThresholdPercent(float value) => capsuleThresholdPercent = UnityEngine.Mathf.Clamp(value, 0.0f, 100.0f);
+	internal void SetAddonSlotCapacity(int value) => addonSlotCapacity = UnityEngine.Mathf.Max(0, value);
 	internal void AssignRuntimeBuildingId(uint id) => runtimeBuildingId = id;
 	internal void SetRegistered(bool registered)
 	{
@@ -387,12 +393,43 @@ public class Building
 		return removed;
 	}
 
+	internal bool TryAddAddon(BuildingAddon addon)
+	{
+		if (addon == null || installedAddons.Contains(addon) || installedAddons.Count >= addonSlotCapacity)
+			return false;
+
+		installedAddons.Add(addon);
+		RecalculatePowerConsumption();
+		return true;
+	}
+
+	internal bool TryRemoveAddon(BuildingAddon addon)
+	{
+		if (addon == null || installedAddons.Remove(addon) == false)
+			return false;
+
+		RecalculatePowerConsumption();
+		return true;
+	}
+
+	internal bool ContainsAddon(BuildingAddon addon)
+	{
+		return addon != null && installedAddons.Contains(addon);
+	}
+
 	public int RecalculatePowerConsumption()
 	{
 		int totalConsumption = 0;
 		for (int i = 0; i < occupiedFacilities.Count; ++i)
 		{
 			totalConsumption += UnityEngine.Mathf.Max(0, occupiedFacilities[i].PowerConsumption);
+		}
+
+		for (int i = 0; i < installedAddons.Count; ++i)
+		{
+			BuildingAddon addon = installedAddons[i];
+			if (addon != null)
+				totalConsumption += UnityEngine.Mathf.Max(0, addon.PowerConsumption);
 		}
 
 		currentPowerConsumption = totalConsumption;
