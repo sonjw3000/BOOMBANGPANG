@@ -17,6 +17,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string WorkflowDocumentObjectName = "WorkflowManagementWindowDocument";
 		private const string CompanyDocumentObjectName = "CompanyManagementWindowDocument";
 		private const string DebugDocumentObjectName = "DebugControlWindowDocument";
+		private const string BuildingAddonCatalogDocumentObjectName = "BuildingAddonCatalogWindowDocument";
 		private const int MaxVisibleEvents = 5;
 		private const float EventFadeSeconds = 0.8f;
 		private const float ReferenceWidth = 1920f;
@@ -54,6 +55,8 @@ namespace UniverseLogistics.UI.Toolkit
 		[SerializeField] private VisualTreeAsset companyLicenseRowTemplate;
 		[SerializeField] private VisualTreeAsset companyResearchRowTemplate;
 		[SerializeField] private VisualTreeAsset debugContentTemplate;
+		[SerializeField] private VisualTreeAsset buildingAddonCatalogContentTemplate;
+		[SerializeField] private VisualTreeAsset buildingAddonCatalogRowTemplate;
 		[SerializeField] private PanelSettings panelSettings;
 		[SerializeField] private int sortingOrder = 100;
 
@@ -98,6 +101,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private WorkflowManagementWindow workflowManagementWindow;
 		private CompanyManagementWindow companyManagementWindow;
 		private DebugControlWindow debugControlWindow;
+		private BuildingAddonCatalogWindow buildingAddonCatalogWindow;
 		private SelectionCardHud selectionCard;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
@@ -133,6 +137,7 @@ namespace UniverseLogistics.UI.Toolkit
 			EnsureWorkflowManagementWindow();
 			EnsureCompanyManagementWindow();
 			EnsureDebugControlWindow();
+			EnsureBuildingAddonCatalogWindow();
 			BindControls();
 
 			if (started)
@@ -518,6 +523,44 @@ namespace UniverseLogistics.UI.Toolkit
 			debugControlWindow = documentObject.AddComponent<DebugControlWindow>();
 			debugControlWindow.Configure(window, debugContentTemplate);
 			documentObject.SetActive(true);
+		}
+
+		private void EnsureBuildingAddonCatalogWindow()
+		{
+			if (buildingAddonCatalogWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || buildingAddonCatalogContentTemplate == null ||
+				buildingAddonCatalogRowTemplate == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Building add-on catalog window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(BuildingAddonCatalogDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument catalogDocument = documentObject.AddComponent<UIDocument>();
+			catalogDocument.panelSettings = panelSettings;
+			catalogDocument.visualTreeAsset = windowVisualTreeAsset;
+			catalogDocument.sortingOrder = sortingOrder + 100;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(new Vector2(760f, 580f));
+			buildingAddonCatalogWindow = documentObject.AddComponent<BuildingAddonCatalogWindow>();
+			buildingAddonCatalogWindow.Configure(
+				window,
+				buildingAddonCatalogContentTemplate,
+				buildingAddonCatalogRowTemplate);
+			documentObject.SetActive(true);
+		}
+
+		public bool OpenBuildingAddonCatalog(Building building)
+		{
+			EnsureBuildingAddonCatalogWindow();
+			return buildingAddonCatalogWindow != null && buildingAddonCatalogWindow.Open(building);
 		}
 
 		private void BindControls()

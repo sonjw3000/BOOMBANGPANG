@@ -8,8 +8,6 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	private Building Building => currentTarget != null ? currentTarget.Building : null;
 	private BuildingAddonService AddonService =>
 		GameContext.HasInstance ? GameContext.Instance.BuildingAddonSvc : null;
-	private EconomyService EconomyService =>
-		GameContext.HasInstance ? GameContext.Instance.EconomyService : null;
 	private string addonActionMessage = string.Empty;
 	private int addonActionVersion;
 
@@ -112,7 +110,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 				Building.State,
 				Building.AddonSlotCapacity,
 				Building.AvailableAddonSlots,
-				EconomyService != null ? EconomyService.Money : 0,
+				Mathf.RoundToInt(Building.PowerEfficiency * 1000.0f),
 				addonActionVersion);
 			IReadOnlyList<BuildingAddon> installedAddons = Building.InstalledAddons;
 			if (installedAddons != null)
@@ -130,22 +128,6 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 					version = version * 31 + Mathf.RoundToInt(addon.WearEfficiency * 1000.0f);
 					version = version * 31 + addon.PowerConsumption;
 					version = version * 31 + Mathf.RoundToInt(addon.OxygenSupplyPerTick * 100.0f);
-				}
-			}
-
-			IReadOnlyList<BuildingAddonDefinition> definitions = AddonService?.Definitions;
-			if (definitions != null)
-			{
-				for (int i = 0; i < definitions.Count; ++i)
-				{
-					BuildingAddonDefinition definition = definitions[i];
-					if (definition == null || definition.IsAllowedFor(Building.Type) == false)
-						continue;
-
-					version = version * 31 + GetStableHash(definition.AddonId);
-					version = version * 31 + definition.Cost;
-					version = version * 31 + definition.PowerConsumption;
-					version = version * 31 + Mathf.RoundToInt(definition.OxygenSupplyPerTick * 100.0f);
 				}
 			}
 
@@ -181,12 +163,17 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 					continue;
 
 				BuildingAddon boundAddon = addon;
+				float operatingEfficiency =
+					FacilityEfficiency.GetOperatingEfficiency(Building, addon, addon);
 				panel.Rows.Add(new SelectionDetailRow
 				{
 					Primary = addon.Definition.DisplayName,
 					Trailing = $"O₂ {addon.OxygenSupplyPerTick:0.##}/tick",
 					Secondary =
-						$"Power {addon.PowerConsumption} · HP {addon.Health:0.#}/{addon.MaxHealth:0.#} · Wear {addon.Wear * 100.0f:0.#}% · Eff {addon.WearEfficiency * 100.0f:0.#}%",
+						$"Power {addon.PowerConsumption} · Operating {operatingEfficiency * 100.0f:0.#}% · " +
+						$"HP {addon.Health:0.#}/{addon.MaxHealth:0.#} · Wear {addon.Wear * 100.0f:0.#}%",
+					Thumbnail = addon.Definition.Icon,
+					IsSlot = true,
 					ActionLabel = "Remove",
 					Action = () => RemoveAddon(boundAddon),
 					CanExecute = () => Building != null && AddonService != null,
@@ -196,51 +183,35 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 			}
 		}
 
-		IReadOnlyList<BuildingAddonDefinition> definitions = AddonService?.Definitions;
-		if (definitions == null)
-			return panel;
-
-		for (int i = 0; i < definitions.Count; ++i)
+		for (int slotIndex = installedCount; slotIndex < slotCapacity; ++slotIndex)
 		{
-			BuildingAddonDefinition definition = definitions[i];
-			if (definition == null || definition.IsAllowedFor(Building.Type) == false)
-				continue;
-
-			BuildingAddonDefinition boundDefinition = definition;
-			bool canInstall = AddonService.CanInstall(Building, definition, out string reason);
-			if (canInstall == false && string.IsNullOrWhiteSpace(reason))
-				reason = "This add-on cannot be installed right now.";
-
 			panel.Rows.Add(new SelectionDetailRow
 			{
-				Primary = definition.DisplayName,
-				Trailing = $"${definition.Cost:N0}",
-				Secondary = canInstall
-					? $"Available · O₂ {definition.OxygenSupplyPerTick:0.##}/tick · Power {definition.PowerConsumption}"
-					: $"Available · O₂ {definition.OxygenSupplyPerTick:0.##}/tick · Power {definition.PowerConsumption} · {reason}",
-				ActionLabel = "Install",
-				Action = () => InstallAddon(boundDefinition),
-				CanExecute = () =>
-					Building != null &&
-					AddonService != null &&
-					AddonService.CanInstall(Building, boundDefinition, out _),
-				DisabledReason = canInstall ? string.Empty : reason,
+				Primary = "Empty Slot",
+				Secondary = "Select + to browse the add-on catalog.",
+				IsSlot = true,
+				IsEmptySlot = true,
+				ActionLabel = "Add Add-on",
+				Action = OpenAddonCatalog,
+				CanExecute = () => Building != null && Building.AvailableAddonSlots > 0,
+				DisabledReason = string.Empty,
 			});
 		}
 
 		return panel;
 	}
 
-	private void InstallAddon(BuildingAddonDefinition definition)
+	private void OpenAddonCatalog()
 	{
-		if (Building == null || AddonService == null || definition == null)
+		if (Building == null)
 			return;
 
-		if (AddonService.TryInstall(Building, definition, out string reason))
-			addonActionMessage = $"{definition.DisplayName} installed";
+		GlobalStatusHud hud =
+			UnityEngine.Object.FindAnyObjectByType<GlobalStatusHud>(FindObjectsInactive.Include);
+		if (hud != null && hud.OpenBuildingAddonCatalog(Building))
+			addonActionMessage = string.Empty;
 		else
-			addonActionMessage = string.IsNullOrWhiteSpace(reason) ? "Installation failed" : reason;
-
+			addonActionMessage = "Add-on catalog is unavailable";
 		addonActionVersion += 1;
 	}
 

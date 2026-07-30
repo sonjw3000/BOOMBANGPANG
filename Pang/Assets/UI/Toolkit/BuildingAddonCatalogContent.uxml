@@ -1,0 +1,22 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="BuildingAddonCatalog.uss" />
+	<ui:VisualElement class="addon-catalog-content">
+		<ui:VisualElement class="addon-catalog-header">
+			<ui:VisualElement class="addon-catalog-header__identity">
+				<ui:Label text="INSTALL INTO" class="addon-catalog-eyebrow" />
+				<ui:Label name="addon-catalog-building-name" text="Building" class="addon-catalog-building-name" />
+			</ui:VisualElement>
+			<ui:VisualElement class="addon-catalog-header__summary">
+				<ui:Label name="addon-catalog-slot-summary" text="0 / 0 slots used" class="addon-catalog-slot-summary" />
+				<ui:Label name="addon-catalog-money-summary" text="Available funds  $0" class="addon-catalog-money-summary" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:Label name="addon-catalog-message" text="Choose an add-on to install in the available slot." class="addon-catalog-message" />
+		<ui:VisualElement class="addon-catalog-column-header">
+			<ui:Label text="AVAILABLE ADD-ONS" class="addon-catalog-column-header__title" />
+			<ui:Label text="Duplicate installations are allowed." class="addon-catalog-column-header__note" />
+		</ui:VisualElement>
+		<ui:ScrollView name="addon-catalog-list" class="addon-catalog-list" />
+		<ui:Label name="addon-catalog-empty" text="No compatible add-ons are available for this building." class="addon-catalog-empty" />
+	</ui:VisualElement>
+</ui:UXML>

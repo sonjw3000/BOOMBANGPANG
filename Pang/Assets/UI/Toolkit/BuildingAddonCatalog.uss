@@ -1,0 +1,234 @@
+.addon-catalog-content {
+	flex-grow: 1;
+	padding-top: 2px;
+}
+
+.addon-catalog-header {
+	height: 70px;
+	flex-direction: row;
+	align-items: center;
+	padding-left: 14px;
+	padding-right: 14px;
+	background-color: rgb(27, 39, 47);
+	border-left-width: 3px;
+	border-left-color: rgb(69, 164, 194);
+}
+
+.addon-catalog-header__identity {
+	flex-grow: 1;
+}
+
+.addon-catalog-eyebrow,
+.addon-catalog-column-header__title {
+	font-size: 8px;
+	-unity-font-style: bold;
+	letter-spacing: 1px;
+	color: rgb(100, 174, 198);
+}
+
+.addon-catalog-building-name {
+	margin-top: 4px;
+	font-size: 18px;
+	-unity-font-style: bold;
+	color: rgb(231, 241, 245);
+}
+
+.addon-catalog-header__summary {
+	align-items: flex-end;
+}
+
+.addon-catalog-slot-summary {
+	font-size: 10px;
+	-unity-font-style: bold;
+	color: rgb(194, 217, 226);
+}
+
+.addon-catalog-money-summary {
+	margin-top: 5px;
+	font-size: 9px;
+	color: rgb(102, 209, 170);
+}
+
+.addon-catalog-message {
+	min-height: 28px;
+	margin-top: 8px;
+	padding-left: 10px;
+	padding-top: 7px;
+	font-size: 9px;
+	color: rgb(143, 169, 181);
+	background-color: rgb(22, 31, 37);
+}
+
+.addon-catalog-column-header {
+	height: 32px;
+	flex-direction: row;
+	align-items: flex-end;
+	padding-left: 5px;
+	padding-right: 5px;
+	padding-bottom: 6px;
+}
+
+.addon-catalog-column-header__title {
+	flex-grow: 1;
+}
+
+.addon-catalog-column-header__note {
+	font-size: 8px;
+	color: rgb(111, 137, 150);
+}
+
+.addon-catalog-list {
+	flex-grow: 1;
+}
+
+.addon-catalog-empty {
+	display: none;
+	margin-top: 40px;
+	font-size: 10px;
+	-unity-text-align: middle-center;
+	color: rgb(116, 139, 151);
+}
+
+.addon-catalog-row {
+	min-height: 104px;
+	margin-bottom: 6px;
+	padding: 8px;
+	background-color: rgb(30, 42, 50);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 3px;
+	border-top-color: rgb(48, 63, 72);
+	border-right-color: rgb(48, 63, 72);
+	border-bottom-color: rgb(48, 63, 72);
+	border-left-color: rgb(67, 155, 185);
+}
+
+.addon-catalog-row:hover {
+	background-color: rgb(35, 51, 60);
+}
+
+.addon-catalog-row--unavailable {
+	opacity: 0.72;
+	border-left-color: rgb(117, 126, 131);
+}
+
+.addon-catalog-row__main {
+	flex-direction: row;
+	align-items: center;
+}
+
+.addon-catalog-row__thumbnail {
+	width: 68px;
+	height: 68px;
+	margin-right: 12px;
+	align-items: center;
+	justify-content: center;
+	background-color: rgb(21, 31, 38);
+	-unity-background-scale-mode: scale-to-fit;
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgb(61, 83, 94);
+	border-right-color: rgb(61, 83, 94);
+	border-bottom-color: rgb(61, 83, 94);
+	border-left-color: rgb(61, 83, 94);
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
+}
+
+.addon-catalog-row__thumbnail-fallback {
+	font-size: 20px;
+	-unity-font-style: bold;
+	-unity-text-align: middle-center;
+	color: rgb(91, 196, 221);
+}
+
+.addon-catalog-row__identity {
+	flex-grow: 1;
+	min-width: 230px;
+}
+
+.addon-catalog-row__name {
+	font-size: 14px;
+	-unity-font-style: bold;
+	color: rgb(229, 239, 243);
+}
+
+.addon-catalog-row__function {
+	margin-top: 4px;
+	font-size: 9px;
+	color: rgb(147, 171, 182);
+}
+
+.addon-catalog-row__metrics {
+	flex-direction: row;
+	margin-top: 8px;
+}
+
+.addon-catalog-row__metric {
+	min-width: 88px;
+	font-size: 9px;
+	-unity-font-style: bold;
+	color: rgb(212, 227, 233);
+}
+
+.addon-catalog-row__metric--output {
+	color: rgb(92, 193, 218);
+}
+
+.addon-catalog-row__purchase {
+	width: 102px;
+	align-items: flex-end;
+}
+
+.addon-catalog-row__cost {
+	margin-bottom: 6px;
+	font-size: 14px;
+	-unity-font-style: bold;
+	color: rgb(105, 213, 173);
+}
+
+.addon-catalog-row__install {
+	width: 96px;
+	height: 29px;
+	font-size: 9px;
+	-unity-font-style: bold;
+	color: rgb(231, 242, 246);
+	background-color: rgb(33, 105, 127);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgb(77, 172, 200);
+	border-right-color: rgb(77, 172, 200);
+	border-bottom-color: rgb(77, 172, 200);
+	border-left-color: rgb(77, 172, 200);
+}
+
+.addon-catalog-row__install:hover {
+	background-color: rgb(43, 128, 151);
+}
+
+.addon-catalog-row__install:disabled {
+	color: rgb(110, 126, 134);
+	background-color: rgb(40, 50, 56);
+	border-top-color: rgb(63, 74, 80);
+	border-right-color: rgb(63, 74, 80);
+	border-bottom-color: rgb(63, 74, 80);
+	border-left-color: rgb(63, 74, 80);
+}
+
+.addon-catalog-row__availability {
+	margin-top: 6px;
+	margin-left: 80px;
+	font-size: 8px;
+	color: rgb(206, 151, 87);
+}
+
+.addon-catalog-row__availability--ready {
+	color: rgb(93, 192, 157);
+}

@@ -1,0 +1,23 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="BuildingAddonCatalog.uss" />
+	<ui:VisualElement name="addon-catalog-row" class="addon-catalog-row">
+		<ui:VisualElement class="addon-catalog-row__main">
+			<ui:VisualElement name="addon-catalog-row-thumbnail" class="addon-catalog-row__thumbnail">
+				<ui:Label name="addon-catalog-row-thumbnail-fallback" text="+" class="addon-catalog-row__thumbnail-fallback" />
+			</ui:VisualElement>
+			<ui:VisualElement class="addon-catalog-row__identity">
+				<ui:Label name="addon-catalog-row-name" text="Add-on" class="addon-catalog-row__name" />
+				<ui:Label name="addon-catalog-row-function" text="Operational function" class="addon-catalog-row__function" />
+				<ui:VisualElement class="addon-catalog-row__metrics">
+					<ui:Label name="addon-catalog-row-power" text="Power  0" class="addon-catalog-row__metric" />
+					<ui:Label name="addon-catalog-row-output" text="Output  —" class="addon-catalog-row__metric addon-catalog-row__metric--output" />
+				</ui:VisualElement>
+			</ui:VisualElement>
+			<ui:VisualElement class="addon-catalog-row__purchase">
+				<ui:Label name="addon-catalog-row-cost" text="$0" class="addon-catalog-row__cost" />
+				<ui:Button name="addon-catalog-row-install" text="Install" class="addon-catalog-row__install" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:Label name="addon-catalog-row-unavailable" text="Ready to install" class="addon-catalog-row__availability" />
+	</ui:VisualElement>
+</ui:UXML>

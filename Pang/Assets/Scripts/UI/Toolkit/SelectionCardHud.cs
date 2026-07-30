@@ -98,6 +98,9 @@ namespace UniverseLogistics.UI.Toolkit
 		public string Primary { get; set; }
 		public string Trailing { get; set; }
 		public string Secondary { get; set; }
+		public UnityEngine.Sprite Thumbnail { get; set; }
+		public bool IsSlot { get; set; }
+		public bool IsEmptySlot { get; set; }
 		public string ActionLabel { get; set; }
 		public Action Action { get; set; }
 		public Func<bool> CanExecute { get; set; }
@@ -597,6 +600,36 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				VisualElement row = new();
 				row.AddToClassList("selection-detail-row");
+				VisualElement content = new();
+				content.AddToClassList("selection-detail-row__content");
+				VisualElement thumbnailControl = new() { name = "thumbnail-control" };
+				thumbnailControl.AddToClassList("selection-detail-row__thumbnail-control");
+				Image thumbnail = new() { name = "thumbnail" };
+				thumbnail.AddToClassList("selection-detail-row__thumbnail");
+				thumbnail.scaleMode = UnityEngine.ScaleMode.ScaleToFit;
+				Button thumbnailAction = new() { name = "thumbnail-action", text = "+" };
+				thumbnailAction.AddToClassList("selection-detail-row__thumbnail-action");
+				thumbnailAction.clicked += () =>
+				{
+					if (thumbnailAction.userData is SelectionDetailRow boundRow)
+						boundRow.Action?.Invoke();
+				};
+				thumbnailControl.SetTooltip(() =>
+				{
+					if (thumbnailAction.userData is not SelectionDetailRow boundRow ||
+						string.IsNullOrWhiteSpace(boundRow.DisabledReason))
+					{
+						return default;
+					}
+
+					return UITooltipContent.DescriptionOnly(
+						boundRow.ActionLabel ?? "Unavailable",
+						boundRow.DisabledReason);
+				});
+				thumbnailControl.Add(thumbnail);
+				thumbnailControl.Add(thumbnailAction);
+				VisualElement text = new();
+				text.AddToClassList("selection-detail-row__text");
 				VisualElement top = new();
 				top.AddToClassList("selection-detail-row__top");
 				Label primary = new() { name = "primary" };
@@ -630,8 +663,11 @@ namespace UniverseLogistics.UI.Toolkit
 				top.Add(primary);
 				top.Add(trailing);
 				top.Add(actionControl);
-				row.Add(top);
-				row.Add(secondary);
+				text.Add(top);
+				text.Add(secondary);
+				content.Add(thumbnailControl);
+				content.Add(text);
+				row.Add(content);
 				return row;
 			};
 			detailList.bindItem = (element, index) =>
@@ -640,12 +676,28 @@ namespace UniverseLogistics.UI.Toolkit
 					return;
 
 				SelectionDetailRow row = activeDetailModel.Rows[index];
+				bool isSlot = row.IsSlot || row.IsEmptySlot || row.Thumbnail != null;
+				bool isEmptySlot = row.IsEmptySlot;
+				element.EnableInClassList("selection-detail-row--slot", isSlot);
+				element.EnableInClassList("selection-detail-row--empty-slot", isEmptySlot);
 				element.Q<Label>("primary").text = row.Primary ?? string.Empty;
 				element.Q<Label>("trailing").text = row.Trailing ?? string.Empty;
 				element.Q<Label>("secondary").text = row.Secondary ?? string.Empty;
+				VisualElement thumbnailControl = element.Q<VisualElement>("thumbnail-control");
+				Image thumbnail = element.Q<Image>("thumbnail");
+				Button thumbnailAction = element.Q<Button>("thumbnail-action");
+				thumbnailControl.style.display = isSlot ? DisplayStyle.Flex : DisplayStyle.None;
+				thumbnail.style.display = isSlot && isEmptySlot == false ? DisplayStyle.Flex : DisplayStyle.None;
+				thumbnail.sprite = isEmptySlot ? null : row.Thumbnail;
+				thumbnailAction.style.display = isEmptySlot ? DisplayStyle.Flex : DisplayStyle.None;
+				thumbnailAction.userData = isEmptySlot && row.Action != null ? row : null;
+				thumbnailAction.SetEnabled(isEmptySlot && row.Action != null && (row.CanExecute?.Invoke() ?? true));
 				VisualElement actionControl = element.Q<VisualElement>("action-control");
 				Button actionButton = element.Q<Button>("action");
-				bool hasAction = string.IsNullOrWhiteSpace(row.ActionLabel) == false && row.Action != null;
+				bool hasAction =
+					isEmptySlot == false &&
+					string.IsNullOrWhiteSpace(row.ActionLabel) == false &&
+					row.Action != null;
 				actionControl.style.display = hasAction ? DisplayStyle.Flex : DisplayStyle.None;
 				actionButton.text = row.ActionLabel ?? string.Empty;
 				actionButton.userData = hasAction ? row : null;
@@ -657,6 +709,9 @@ namespace UniverseLogistics.UI.Toolkit
 				Button actionButton = element.Q<Button>("action");
 				if (actionButton != null)
 					actionButton.userData = null;
+				Button thumbnailAction = element.Q<Button>("thumbnail-action");
+				if (thumbnailAction != null)
+					thumbnailAction.userData = null;
 			};
 			detailSlider.RegisterValueChangedCallback(evt =>
 			{

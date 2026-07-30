@@ -470,6 +470,15 @@
 .selection-detail-panel__list { flex-grow: 1; margin-top: 6px; background-color: rgba(0, 0, 0, 0); border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0; }
 .selection-detail-panel__empty { display: none; flex-grow: 1; font-size: 9px; color: rgb(112, 137, 149); -unity-text-align: middle-center; }
 .selection-detail-row { height: 42px; padding-top: 4px; padding-right: 7px; padding-bottom: 4px; padding-left: 7px; margin-bottom: 2px; background-color: rgba(25, 39, 50, 0.72); border-left-width: 2px; border-left-color: rgba(73, 126, 153, 0.45); }
+.selection-detail-row--slot { background-color: rgba(27, 44, 56, 0.86); border-left-color: rgba(79, 151, 179, 0.82); }
+.selection-detail-row--empty-slot { background-color: rgba(20, 32, 42, 0.72); border-left-color: rgba(73, 126, 153, 0.38); }
+.selection-detail-row__content { height: 34px; flex-direction: row; align-items: center; }
+.selection-detail-row__thumbnail-control { display: none; width: 34px; height: 34px; min-width: 34px; margin-right: 7px; background-color: rgba(11, 21, 29, 0.9); border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; border-top-color: rgba(74, 124, 146, 0.72); border-right-color: rgba(74, 124, 146, 0.72); border-bottom-color: rgba(74, 124, 146, 0.72); border-left-color: rgba(74, 124, 146, 0.72); }
+.selection-detail-row__thumbnail { width: 32px; height: 32px; flex-shrink: 0; }
+.selection-detail-row__thumbnail-action { display: none; position: absolute; left: 0; top: 0; width: 32px; height: 32px; margin: 0; padding: 0; font-size: 20px; -unity-font-style: bold; color: rgb(118, 198, 220); background-color: rgba(24, 48, 62, 0.92); border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0; }
+.selection-detail-row__thumbnail-action:hover { color: rgb(235, 249, 252); background-color: rgba(39, 88, 108, 0.96); }
+.selection-detail-row__thumbnail-action:disabled { opacity: 0.42; }
+.selection-detail-row__text { min-width: 0; flex-grow: 1; }
 .selection-detail-row__top { height: 17px; flex-direction: row; align-items: center; }
 .selection-detail-row__primary { flex-grow: 1; font-size: 9px; -unity-font-style: bold; color: rgb(218, 231, 236); white-space: nowrap; }
 .selection-detail-row__trailing { font-size: 9px; -unity-font-style: bold; color: rgb(103, 196, 220); -unity-text-align: middle-right; white-space: nowrap; }
