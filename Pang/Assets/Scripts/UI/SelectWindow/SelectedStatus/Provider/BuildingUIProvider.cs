@@ -128,6 +128,30 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 					version = version * 31 + Mathf.RoundToInt(addon.WearEfficiency * 1000.0f);
 					version = version * 31 + addon.PowerConsumption;
 					version = version * 31 + Mathf.RoundToInt(addon.OxygenSupplyPerTick * 100.0f);
+					if (addon.Definition != null)
+					{
+						version = version * 31 + (int)addon.Definition.AddonType;
+						version = version * 31 +
+							Mathf.RoundToInt(addon.Definition.MinimumTargetTemperatureCelsius * 10.0f);
+						version = version * 31 +
+							Mathf.RoundToInt(addon.Definition.MaximumTargetTemperatureCelsius * 10.0f);
+						version = version * 31 +
+							Mathf.RoundToInt(addon.Definition.TemperatureControlDegreesPerQuarterWeek * 100.0f);
+						if (addon.Definition.AddonType == BuildingAddonType.TemperatureControl)
+						{
+							version = version * 31 +
+								Mathf.RoundToInt(Building.TargetTemperatureCelsius * 10.0f);
+							if (CanDisplayTemperature)
+							{
+								version = version * 31 +
+									Mathf.RoundToInt(Building.AverageTemperatureCelsius * 10.0f);
+							}
+							TemperatureService temperatureService =
+								GameContext.HasInstance ? GameContext.Instance.TemperatureSvc : null;
+							version = version * 31 +
+								(temperatureService?.IsTemperatureControlOperating(Building, addon) == true ? 1 : 0);
+						}
+					}
 				}
 			}
 
@@ -153,6 +177,34 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		if (Building == null)
 			return panel;
 
+		if (AddonService != null &&
+			AddonService.TryGetTargetTemperatureRange(
+				Building,
+				out float minimumTargetTemperature,
+				out float maximumTargetTemperature))
+		{
+			panel.HasSlider = true;
+			panel.SliderLabel =
+				$"Target Temperature · Available " +
+				$"{minimumTargetTemperature:0.#}–{maximumTargetTemperature:0.#} °C";
+			panel.SliderValue = Building.TargetTemperatureCelsius;
+			panel.SliderLowValue = minimumTargetTemperature;
+			panel.SliderHighValue = maximumTargetTemperature;
+			panel.SliderValueSuffix = " °C";
+			panel.SliderChanged = SetTargetTemperature;
+			panel.Rows.Add(new SelectionDetailRow
+			{
+				Primary = "Climate Control",
+				Trailing =
+					$"{minimumTargetTemperature:0.#}–{maximumTargetTemperature:0.#} °C",
+				Secondary =
+					$"Target {Building.TargetTemperatureCelsius:0.#} °C · " +
+					(CanDisplayTemperature
+						? $"Current {Building.AverageTemperatureCelsius:0.#} °C"
+						: "Current temperature requires Temperature Monitoring"),
+			});
+		}
+
 		IReadOnlyList<BuildingAddon> installedAddons = Building.InstalledAddons;
 		if (installedAddons != null)
 		{
@@ -165,13 +217,21 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 				BuildingAddon boundAddon = addon;
 				float operatingEfficiency =
 					FacilityEfficiency.GetOperatingEfficiency(Building, addon, addon);
+				bool isTemperatureControl =
+					addon.Definition.AddonType == BuildingAddonType.TemperatureControl;
+				string trailing = isTemperatureControl
+					? FormatTemperatureRange(addon.Definition)
+					: $"O₂ {addon.OxygenSupplyPerTick:0.##}/tick";
+				string secondary = isTemperatureControl
+					? BuildTemperatureControlSecondary(addon, operatingEfficiency)
+					:
+						$"Power {addon.PowerConsumption} · Operating {operatingEfficiency * 100.0f:0.#}% · " +
+						$"HP {addon.Health:0.#}/{addon.MaxHealth:0.#} · Wear {addon.Wear * 100.0f:0.#}%";
 				panel.Rows.Add(new SelectionDetailRow
 				{
 					Primary = addon.Definition.DisplayName,
-					Trailing = $"O₂ {addon.OxygenSupplyPerTick:0.##}/tick",
-					Secondary =
-						$"Power {addon.PowerConsumption} · Operating {operatingEfficiency * 100.0f:0.#}% · " +
-						$"HP {addon.Health:0.#}/{addon.MaxHealth:0.#} · Wear {addon.Wear * 100.0f:0.#}%",
+					Trailing = trailing,
+					Secondary = secondary,
 					Thumbnail = addon.Definition.Icon,
 					IsSlot = true,
 					ActionLabel = "Remove",
@@ -199,6 +259,74 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		}
 
 		return panel;
+	}
+
+	private void SetTargetTemperature(float value)
+	{
+		if (Building == null || AddonService == null)
+			return;
+
+		float targetTemperature = Mathf.Round(value);
+		if (Mathf.Approximately(Building.TargetTemperatureCelsius, targetTemperature))
+			return;
+
+		if (AddonService.TrySetTargetTemperature(Building, targetTemperature, out string reason))
+			addonActionMessage = string.Empty;
+		else
+			addonActionMessage =
+				string.IsNullOrWhiteSpace(reason) ? "Target temperature could not be changed" : reason;
+
+		addonActionVersion += 1;
+	}
+
+	private string BuildTemperatureControlSecondary(
+		BuildingAddon addon,
+		float operatingEfficiency)
+	{
+		BuildingAddonDefinition definition = addon.Definition;
+		string status;
+		if (addon.Health <= 0.0f)
+		{
+			status = "Out of Service";
+		}
+		else if (Building.PowerEfficiency <= 0.0f)
+		{
+			status = "No Power";
+		}
+		else
+		{
+			TemperatureService temperatureService =
+				GameContext.HasInstance ? GameContext.Instance.TemperatureSvc : null;
+			status =
+				temperatureService != null &&
+				temperatureService.IsTemperatureControlOperating(Building, addon)
+					? "Operating"
+					: "Standby";
+		}
+
+		return
+			$"{BuildDirectionDescription(definition)} · " +
+			$"Output {definition.TemperatureControlDegreesPerQuarterWeek:0.##} °C/quarter-week · {status} · " +
+			$"Power {addon.PowerConsumption} · Efficiency {operatingEfficiency * 100.0f:0.#}% · " +
+			$"HP {addon.Health:0.#}/{addon.MaxHealth:0.#} · Wear {addon.Wear * 100.0f:0.#}%";
+	}
+
+	private static string FormatTemperatureRange(BuildingAddonDefinition definition)
+	{
+		return
+			$"{definition.MinimumTargetTemperatureCelsius:0.#}–" +
+			$"{definition.MaximumTargetTemperatureCelsius:0.#} °C";
+	}
+
+	private static string BuildDirectionDescription(BuildingAddonDefinition definition)
+	{
+		if (definition.CanCool && definition.CanHeat)
+			return "Cooling + Heating";
+		if (definition.CanCool)
+			return "Cooling";
+		if (definition.CanHeat)
+			return "Heating";
+		return "No control";
 	}
 
 	private void OpenAddonCatalog()

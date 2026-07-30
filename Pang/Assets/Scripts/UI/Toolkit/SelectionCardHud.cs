@@ -63,6 +63,7 @@ namespace UniverseLogistics.UI.Toolkit
 		public float SliderValue { get; set; }
 		public float SliderLowValue { get; set; }
 		public float SliderHighValue { get; set; } = 100.0f;
+		public string SliderValueSuffix { get; set; } = "%";
 		public bool SliderEnabled { get; set; } = true;
 		public Action<float> SliderChanged { get; set; }
 		public Func<UITooltipContent> SliderTooltip { get; set; }
@@ -716,7 +717,7 @@ namespace UniverseLogistics.UI.Toolkit
 			detailSlider.RegisterValueChangedCallback(evt =>
 			{
 				activeDetailModel?.SliderChanged?.Invoke(evt.newValue);
-				detailSliderValue.text = $"{evt.newValue:0}%";
+				detailSliderValue.text = $"{evt.newValue:0}{activeDetailModel?.SliderValueSuffix ?? "%"}";
 			});
 			detailSliderControl.SetTooltip(() => activeDetailModel?.SliderTooltip?.Invoke() ?? default);
 			detailEditorDropdown.RegisterValueChangedCallback(evt =>
@@ -777,7 +778,8 @@ namespace UniverseLogistics.UI.Toolkit
 				detailSlider.highValue = activeDetailModel.SliderHighValue;
 				detailSlider.SetValueWithoutNotify(activeDetailModel.SliderValue);
 				detailSlider.SetEnabled(activeDetailModel.SliderEnabled);
-				detailSliderValue.text = $"{activeDetailModel.SliderValue:0}%";
+				detailSliderValue.text =
+					$"{activeDetailModel.SliderValue:0}{activeDetailModel.SliderValueSuffix ?? "%"}";
 			}
 			RefreshDetailEditor(activeDetailModel.Editor);
 			detailList.itemsSource = activeDetailModel.Rows;

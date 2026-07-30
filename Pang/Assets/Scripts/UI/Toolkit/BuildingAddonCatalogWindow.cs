@@ -18,6 +18,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private BuildingAddonService addonService;
 		private BuildingManager buildingManager;
 		private EconomyService economyService;
+		private ResearchService researchService;
 		private Building targetBuilding;
 		private bool initialized;
 		private bool started;
@@ -68,7 +69,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (InitializeView() == false)
 				return false;
 
-			if (addonService == null || buildingManager == null || economyService == null)
+			if (addonService == null || buildingManager == null || economyService == null || researchService == null)
 				BindServices();
 
 			targetBuilding = building;
@@ -135,6 +136,7 @@ namespace UniverseLogistics.UI.Toolkit
 			addonService = context.BuildingAddonSvc;
 			buildingManager = context.BuildingMgr;
 			economyService = context.EconomyService;
+			researchService = context.ResearchService;
 
 			if (addonService != null)
 			{
@@ -144,6 +146,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 			if (economyService != null)
 				economyService.OnMoneyChanged += OnMoneyChanged;
+
+			if (researchService != null)
+				researchService.OnResearchStateChanged += OnResearchStateChanged;
 		}
 
 		private void UnbindServices()
@@ -157,9 +162,13 @@ namespace UniverseLogistics.UI.Toolkit
 			if (economyService != null)
 				economyService.OnMoneyChanged -= OnMoneyChanged;
 
+			if (researchService != null)
+				researchService.OnResearchStateChanged -= OnResearchStateChanged;
+
 			addonService = null;
 			buildingManager = null;
 			economyService = null;
+			researchService = null;
 		}
 
 		private void OnWindowClosed()
@@ -179,6 +188,12 @@ namespace UniverseLogistics.UI.Toolkit
 		}
 
 		private void OnMoneyChanged(int _)
+		{
+			if (installing == false && window != null && window.IsOpen)
+				RefreshAll();
+		}
+
+		private void OnResearchStateChanged()
 		{
 			if (installing == false && window != null && window.IsOpen)
 				RefreshAll();
@@ -206,17 +221,55 @@ namespace UniverseLogistics.UI.Toolkit
 			catalogList.Clear();
 			int compatibleCount = 0;
 			IReadOnlyList<BuildingAddonDefinition> definitions = addonService.Definitions;
+			compatibleCount += AppendCategory(
+				definitions,
+				BuildingAddonCategory.LifeSupport,
+				"LIFE SUPPORT");
+			compatibleCount += AppendCategory(
+				definitions,
+				BuildingAddonCategory.ClimateControl,
+				"CLIMATE CONTROL");
+
+			emptyLabel.style.display = compatibleCount == 0 ? DisplayStyle.Flex : DisplayStyle.None;
+		}
+
+		private int AppendCategory(
+			IReadOnlyList<BuildingAddonDefinition> definitions,
+			BuildingAddonCategory category,
+			string heading)
+		{
+			if (definitions == null)
+				return 0;
+
+			int categoryCount = 0;
 			for (int i = 0; i < definitions.Count; ++i)
 			{
 				BuildingAddonDefinition definition = definitions[i];
-				if (definition == null || definition.IsAllowedFor(targetBuilding.Type) == false)
+				if (definition == null ||
+					definition.Category != category ||
+					definition.IsAllowedFor(targetBuilding.Type) == false)
+				{
 					continue;
+				}
+
+				if (categoryCount == 0)
+					catalogList.Add(CreateCategoryHeading(category, heading));
 
 				catalogList.Add(CreateCatalogRow(definition));
-				compatibleCount += 1;
+				categoryCount += 1;
 			}
 
-			emptyLabel.style.display = compatibleCount == 0 ? DisplayStyle.Flex : DisplayStyle.None;
+			return categoryCount;
+		}
+
+		private static Label CreateCategoryHeading(BuildingAddonCategory category, string heading)
+		{
+			Label label = new(heading);
+			label.AddToClassList("addon-catalog-category");
+			label.EnableInClassList(
+				"addon-catalog-category--climate",
+				category == BuildingAddonCategory.ClimateControl);
+			return label;
 		}
 
 		private VisualElement CreateCatalogRow(BuildingAddonDefinition definition)
@@ -227,6 +280,7 @@ namespace UniverseLogistics.UI.Toolkit
 			Label fallback = row.Q<Label>("addon-catalog-row-thumbnail-fallback");
 			Label name = row.Q<Label>("addon-catalog-row-name");
 			Label function = row.Q<Label>("addon-catalog-row-function");
+			Label research = row.Q<Label>("addon-catalog-row-research");
 			Label power = row.Q<Label>("addon-catalog-row-power");
 			Label output = row.Q<Label>("addon-catalog-row-output");
 			Label cost = row.Q<Label>("addon-catalog-row-cost");
@@ -247,6 +301,17 @@ namespace UniverseLogistics.UI.Toolkit
 
 			name.text = definition.DisplayName;
 			function.text = BuildFunctionDescription(definition);
+			bool requiresResearch = string.IsNullOrWhiteSpace(definition.RequiredResearchUid) == false;
+			bool researchUnlocked =
+				requiresResearch == false ||
+				researchService?.IsResearched(definition.RequiredResearchUid) == true;
+			research.text = requiresResearch
+				? $"Research  {GetResearchDisplayName(definition.RequiredResearchUid)} · " +
+					$"{(researchUnlocked ? "Unlocked" : "Required")}"
+				: "Research  None";
+			research.EnableInClassList(
+				"addon-catalog-row__research--required",
+				requiresResearch && researchUnlocked == false);
 			power.text = $"Power  {definition.PowerConsumption:N0}";
 			output.text = BuildOutputSummary(definition);
 			cost.text = $"${definition.Cost:N0}";
@@ -322,6 +387,8 @@ namespace UniverseLogistics.UI.Toolkit
 			return definition.AddonType switch
 			{
 				BuildingAddonType.OxygenSupply => "Supplies breathable air to this building.",
+				BuildingAddonType.TemperatureControl =>
+					$"Target range {FormatTemperatureRange(definition)} · {BuildDirectionDescription(definition)}",
 				_ => "Adds a building-level operational function.",
 			};
 		}
@@ -331,6 +398,8 @@ namespace UniverseLogistics.UI.Toolkit
 			return definition.AddonType switch
 			{
 				BuildingAddonType.OxygenSupply => $"O₂  {definition.OxygenSupplyPerTick:0.##}/tick",
+				BuildingAddonType.TemperatureControl =>
+					$"Control  {definition.TemperatureControlDegreesPerQuarterWeek:0.##} °C/quarter-week",
 				_ => "Output  —",
 			};
 		}
@@ -340,8 +409,53 @@ namespace UniverseLogistics.UI.Toolkit
 			return definition.AddonType switch
 			{
 				BuildingAddonType.OxygenSupply => "O₂",
+				BuildingAddonType.TemperatureControl => "°C",
 				_ => "+",
 			};
+		}
+
+		private static string FormatTemperatureRange(BuildingAddonDefinition definition)
+		{
+			return
+				$"{definition.MinimumTargetTemperatureCelsius:0.#}–" +
+				$"{definition.MaximumTargetTemperatureCelsius:0.#} °C";
+		}
+
+		private static string BuildDirectionDescription(BuildingAddonDefinition definition)
+		{
+			if (definition.CanCool && definition.CanHeat)
+				return "Cooling + Heating";
+			if (definition.CanCool)
+				return "Cooling";
+			if (definition.CanHeat)
+				return "Heating";
+			return "No temperature control";
+		}
+
+		private string GetResearchDisplayName(string researchUid)
+		{
+			if (researchService?.Catalog != null &&
+				researchService.Catalog.TryGet(researchUid, out ResearchDefinition definition) &&
+				string.IsNullOrWhiteSpace(definition.DisplayName) == false)
+			{
+				return definition.DisplayName;
+			}
+
+			if (string.IsNullOrWhiteSpace(researchUid))
+				return "None";
+
+			string[] words = researchUid.Split('_');
+			for (int i = 0; i < words.Length; ++i)
+			{
+				if (words[i].Length <= 0)
+					continue;
+
+				words[i] =
+					char.ToUpperInvariant(words[i][0]).ToString() +
+					words[i].Substring(1);
+			}
+
+			return string.Join(" ", words);
 		}
 	}
 }

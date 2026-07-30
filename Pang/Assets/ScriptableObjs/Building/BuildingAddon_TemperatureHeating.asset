@@ -10,22 +10,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ba23c5f96cdd4003962880d6a97c50b2, type: 3}
-  m_Name: BuildingAddon_OxygenSupply
+  m_Name: BuildingAddon_TemperatureHeating
   m_EditorClassIdentifier: Assembly-CSharp::BuildingAddonDefinition
-  addonId: oxygen_supply
-  displayName: Air Supply
-  icon: {fileID: 7441548948828755950, guid: 83c044260d3230e45b3a6cb006416df2, type: 3}
-  addonType: 1
-  category: 0
+  addonId: temperature_heating
+  displayName: Heating Controller
+  icon: {fileID: -5746951479812568267, guid: 8b75ff1a4e6dd3b4d97bd28dc17ff4b9, type: 3}
+  addonType: 2
+  category: 1
   cost: 100
   powerConsumption: 10
-  oxygenSupplyPerTick: 10
-  minimumTargetTemperatureCelsius: 0
-  maximumTargetTemperatureCelsius: 20
+  oxygenSupplyPerTick: 0
+  minimumTargetTemperatureCelsius: 20
+  maximumTargetTemperatureCelsius: 40
   canCool: 0
-  canHeat: 0
-  temperatureControlDegreesPerQuarterWeek: 0
-  requiredResearchUid:
+  canHeat: 1
+  temperatureControlDegreesPerQuarterWeek: 1
+  requiredResearchUid: thermal_operations
   allowedBuildingTypes:
   - 0
   - 1

@@ -10,9 +10,11 @@ public sealed class BuildingAddonService
 	private BuildingAddonCatalog catalog;
 	private BuildingManager buildingManager;
 	private EconomyService economyService;
+	private ResearchService researchService;
 
 	public event Action<Building, BuildingAddon> OnAddonInstalled;
 	public event Action<Building, BuildingAddon> OnAddonRemoved;
+	public event Action<Building, float, float> OnTargetTemperatureChanged;
 
 	public IReadOnlyList<BuildingAddonDefinition> Definitions =>
 		catalog != null ? catalog.Definitions : EmptyDefinitions;
@@ -20,11 +22,13 @@ public sealed class BuildingAddonService
 	public void Initialize(
 		BuildingAddonCatalog targetCatalog,
 		BuildingManager targetBuildingManager,
-		EconomyService targetEconomyService)
+		EconomyService targetEconomyService,
+		ResearchService targetResearchService)
 	{
 		catalog = targetCatalog;
 		buildingManager = targetBuildingManager;
 		economyService = targetEconomyService;
+		researchService = targetResearchService;
 	}
 
 	public bool CanInstall(
@@ -32,7 +36,7 @@ public sealed class BuildingAddonService
 		BuildingAddonDefinition definition,
 		out string reason)
 	{
-		return CanInstall(building, definition, checkEconomy: true, out reason);
+		return CanInstall(building, definition, checkPurchaseRequirements: true, out reason);
 	}
 
 	public bool TryInstall(
@@ -40,7 +44,7 @@ public sealed class BuildingAddonService
 		BuildingAddonDefinition definition,
 		out string reason)
 	{
-		if (CanInstall(building, definition, checkEconomy: true, out reason) == false)
+		if (CanInstall(building, definition, checkPurchaseRequirements: true, out reason) == false)
 			return false;
 
 		BuildingAddon addon = CreateRuntimeAddon(definition);
@@ -50,6 +54,7 @@ public sealed class BuildingAddonService
 			return false;
 		}
 
+		ClampTargetTemperatureToSupportedRange(building);
 		economyService.ApplyTransaction(new EconomyTransaction
 		{
 			moneyDelta = -definition.Cost,
@@ -87,8 +92,68 @@ public sealed class BuildingAddonService
 			return false;
 		}
 
+		ClampTargetTemperatureToSupportedRange(building);
 		OnAddonRemoved?.Invoke(building, addon);
 		reason = string.Empty;
+		return true;
+	}
+
+	public bool TrySetTargetTemperature(Building building, float targetTemperatureCelsius)
+	{
+		return TrySetTargetTemperature(building, targetTemperatureCelsius, out _);
+	}
+
+	public bool TrySetTargetTemperature(
+		Building building,
+		float targetTemperatureCelsius,
+		out string reason)
+	{
+		if (IsRegisteredBuilding(building) == false)
+		{
+			reason = "The building is not registered.";
+			return false;
+		}
+
+		if (float.IsNaN(targetTemperatureCelsius) || float.IsInfinity(targetTemperatureCelsius))
+		{
+			reason = "The target temperature is invalid.";
+			return false;
+		}
+
+		List<TemperatureRange> ranges = GetSupportedTemperatureRanges(building);
+		if (ranges.Count <= 0)
+		{
+			reason = "No installed addon supports temperature control.";
+			return false;
+		}
+
+		if (IsTemperatureSupported(targetTemperatureCelsius, ranges) == false)
+		{
+			reason = "The installed addons do not support this target temperature.";
+			return false;
+		}
+
+		ApplyTargetTemperature(building, targetTemperatureCelsius);
+		reason = string.Empty;
+		return true;
+	}
+
+	public bool TryGetTargetTemperatureRange(
+		Building building,
+		out float minimumTemperatureCelsius,
+		out float maximumTemperatureCelsius)
+	{
+		List<TemperatureRange> ranges = GetSupportedTemperatureRanges(building);
+		if (ranges.Count <= 0)
+		{
+			minimumTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
+			maximumTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
+			return false;
+		}
+
+		TemperatureRange selected = FindNearestRange(building.TargetTemperatureCelsius, ranges);
+		minimumTemperatureCelsius = selected.Minimum;
+		maximumTemperatureCelsius = selected.Maximum;
 		return true;
 	}
 
@@ -102,42 +167,46 @@ public sealed class BuildingAddonService
 			BuildingSaveData buildingData = data.Buildings[buildingIndex];
 			if (buildingData == null ||
 				buildingData.RuntimeBuildingId == 0 ||
-				buildingData.Addons == null ||
 				buildingManager == null ||
 				buildingManager.TryGetBuilding(buildingData.RuntimeBuildingId, out Building building) == false)
 			{
 				continue;
 			}
 
-			for (int addonIndex = 0; addonIndex < buildingData.Addons.Count; ++addonIndex)
+			if (buildingData.Addons != null)
 			{
-				BuildingAddonSaveData addonData = buildingData.Addons[addonIndex];
-				if (addonData == null)
-					continue;
-
-				BuildingAddonDefinition definition = catalog?.FindById(addonData.DefinitionId);
-				if (definition == null)
+				for (int addonIndex = 0; addonIndex < buildingData.Addons.Count; ++addonIndex)
 				{
-					Debug.LogWarning(
-						$"[Save] Missing building addon definition {addonData.DefinitionId} for building {building.RuntimeBuildingId}.");
-					continue;
+					BuildingAddonSaveData addonData = buildingData.Addons[addonIndex];
+					if (addonData == null)
+						continue;
+
+					BuildingAddonDefinition definition = catalog?.FindById(addonData.DefinitionId);
+					if (definition == null)
+					{
+						Debug.LogWarning(
+							$"[Save] Missing building addon definition {addonData.DefinitionId} for building {building.RuntimeBuildingId}.");
+						continue;
+					}
+
+					if (CanInstall(building, definition, checkPurchaseRequirements: false, out string reason) == false)
+					{
+						Debug.LogWarning(
+							$"[Save] Could not restore building addon {definition.AddonId} for building {building.RuntimeBuildingId}: {reason}");
+						continue;
+					}
+
+					BuildingAddon addon = CreateRuntimeAddon(definition);
+					addon.RestoreHealth(addonData.Health);
+					addon.SetWearFromSave(addonData.Wear);
+					if (building.TryAddAddon(addon) == false)
+						continue;
+
+					OnAddonInstalled?.Invoke(building, addon);
 				}
-
-				if (CanInstall(building, definition, checkEconomy: false, out string reason) == false)
-				{
-					Debug.LogWarning(
-						$"[Save] Could not restore building addon {definition.AddonId} for building {building.RuntimeBuildingId}: {reason}");
-					continue;
-				}
-
-				BuildingAddon addon = CreateRuntimeAddon(definition);
-				addon.RestoreHealth(addonData.Health);
-				addon.SetWearFromSave(addonData.Wear);
-				if (building.TryAddAddon(addon) == false)
-					continue;
-
-				OnAddonInstalled?.Invoke(building, addon);
 			}
+
+			RestoreTargetTemperature(building, buildingData.TargetTemperatureCelsius);
 		}
 	}
 
@@ -151,14 +220,17 @@ public sealed class BuildingAddonService
 		{
 			BuildingAddon addon = addons[i];
 			if (building.TryRemoveAddon(addon))
+			{
+				ClampTargetTemperatureToSupportedRange(building);
 				OnAddonRemoved?.Invoke(building, addon);
+			}
 		}
 	}
 
 	private bool CanInstall(
 		Building building,
 		BuildingAddonDefinition definition,
-		bool checkEconomy,
+		bool checkPurchaseRequirements,
 		out string reason)
 	{
 		if (IsRegisteredBuilding(building) == false)
@@ -188,7 +260,16 @@ public sealed class BuildingAddonService
 			return false;
 		}
 
-		if (checkEconomy && (economyService == null || economyService.CanAfford(definition.Cost) == false))
+		if (checkPurchaseRequirements &&
+			definition.RequiresResearch &&
+			(researchService == null || researchService.IsResearched(definition.RequiredResearchUid) == false))
+		{
+			reason = $"Requires research: {definition.RequiredResearchUid}.";
+			return false;
+		}
+
+		if (checkPurchaseRequirements &&
+			(economyService == null || economyService.CanAfford(definition.Cost) == false))
 		{
 			reason = "Not enough money.";
 			return false;
@@ -212,7 +293,152 @@ public sealed class BuildingAddonService
 		return definition?.AddonType switch
 		{
 			BuildingAddonType.OxygenSupply => new OxygenSupplyBuildingAddon(definition),
+			BuildingAddonType.TemperatureControl => new TemperatureControlBuildingAddon(definition),
 			_ => new BuildingAddon(definition),
 		};
+	}
+
+	private void RestoreTargetTemperature(Building building, float savedTargetTemperatureCelsius)
+	{
+		float target = float.IsNaN(savedTargetTemperatureCelsius) ||
+			float.IsInfinity(savedTargetTemperatureCelsius)
+			? GridCell.DefaultTemperatureCelsius
+			: savedTargetTemperatureCelsius;
+
+		List<TemperatureRange> ranges = GetSupportedTemperatureRanges(building);
+		if (ranges.Count > 0)
+			target = FindNearestSupportedTemperature(target, ranges);
+		else
+			target = GridCell.DefaultTemperatureCelsius;
+
+		ApplyTargetTemperature(building, target);
+	}
+
+	private void ClampTargetTemperatureToSupportedRange(Building building)
+	{
+		if (building == null)
+			return;
+
+		List<TemperatureRange> ranges = GetSupportedTemperatureRanges(building);
+		float target = ranges.Count > 0
+			? FindNearestSupportedTemperature(building.TargetTemperatureCelsius, ranges)
+			: GridCell.DefaultTemperatureCelsius;
+		ApplyTargetTemperature(building, target);
+	}
+
+	private void ApplyTargetTemperature(Building building, float targetTemperatureCelsius)
+	{
+		if (building == null)
+			return;
+
+		float previous = building.TargetTemperatureCelsius;
+		if (Mathf.Approximately(previous, targetTemperatureCelsius))
+			return;
+
+		building.SetTargetTemperatureCelsius(targetTemperatureCelsius);
+		OnTargetTemperatureChanged?.Invoke(building, previous, targetTemperatureCelsius);
+	}
+
+	private static List<TemperatureRange> GetSupportedTemperatureRanges(Building building)
+	{
+		List<TemperatureRange> ranges = new();
+		if (building == null)
+			return ranges;
+
+		IReadOnlyList<BuildingAddon> addons = building.InstalledAddons;
+		for (int i = 0; i < addons.Count; ++i)
+		{
+			if (addons[i] is not TemperatureControlBuildingAddon addon ||
+				(addon.CanCool == false && addon.CanHeat == false))
+			{
+				continue;
+			}
+
+			ranges.Add(new TemperatureRange(
+				addon.MinimumTargetTemperatureCelsius,
+				addon.MaximumTargetTemperatureCelsius));
+		}
+
+		if (ranges.Count <= 1)
+			return ranges;
+
+		ranges.Sort((left, right) => left.Minimum.CompareTo(right.Minimum));
+		List<TemperatureRange> merged = new();
+		TemperatureRange current = ranges[0];
+		for (int i = 1; i < ranges.Count; ++i)
+		{
+			TemperatureRange next = ranges[i];
+			if (next.Minimum <= current.Maximum || Mathf.Approximately(next.Minimum, current.Maximum))
+			{
+				current = new TemperatureRange(
+					current.Minimum,
+					Mathf.Max(current.Maximum, next.Maximum));
+				continue;
+			}
+
+			merged.Add(current);
+			current = next;
+		}
+
+		merged.Add(current);
+		return merged;
+	}
+
+	private static bool IsTemperatureSupported(float temperatureCelsius, List<TemperatureRange> ranges)
+	{
+		for (int i = 0; i < ranges.Count; ++i)
+		{
+			TemperatureRange range = ranges[i];
+			if (temperatureCelsius >= range.Minimum &&
+				temperatureCelsius <= range.Maximum)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static float FindNearestSupportedTemperature(
+		float temperatureCelsius,
+		List<TemperatureRange> ranges)
+	{
+		TemperatureRange nearest = FindNearestRange(temperatureCelsius, ranges);
+		return Mathf.Clamp(temperatureCelsius, nearest.Minimum, nearest.Maximum);
+	}
+
+	private static TemperatureRange FindNearestRange(
+		float temperatureCelsius,
+		List<TemperatureRange> ranges)
+	{
+		TemperatureRange nearest = ranges[0];
+		float nearestValue = Mathf.Clamp(temperatureCelsius, nearest.Minimum, nearest.Maximum);
+		float nearestDistance = Mathf.Abs(temperatureCelsius - nearestValue);
+
+		for (int i = 1; i < ranges.Count; ++i)
+		{
+			TemperatureRange candidate = ranges[i];
+			float candidateValue = Mathf.Clamp(temperatureCelsius, candidate.Minimum, candidate.Maximum);
+			float candidateDistance = Mathf.Abs(temperatureCelsius - candidateValue);
+			if (candidateDistance >= nearestDistance)
+				continue;
+
+			nearest = candidate;
+			nearestDistance = candidateDistance;
+		}
+
+		return nearest;
+	}
+
+	private readonly struct TemperatureRange
+	{
+		public readonly float Minimum;
+		public readonly float Maximum;
+
+		public TemperatureRange(float minimum, float maximum)
+		{
+			Minimum = Mathf.Min(minimum, maximum);
+			Maximum = Mathf.Max(minimum, maximum);
+		}
 	}
 }

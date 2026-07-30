@@ -71,6 +71,7 @@ public class Building
 	private PowerPort powerPort;
 	private int currentPowerConsumption;
 	private int addonSlotCapacity;
+	private float targetTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 
 	private bool isRegistered;
 	private bool isTrackingTemperature;
@@ -117,6 +118,7 @@ public class Building
 	public int AddonSlotCapacity => addonSlotCapacity;
 	public int AvailableAddonSlots => UnityEngine.Mathf.Max(0, addonSlotCapacity - installedAddons.Count);
 	public IReadOnlyList<BuildingAddon> InstalledAddons => installedAddons;
+	public float TargetTemperatureCelsius => targetTemperatureCelsius;
 	public float PowerEfficiency => powerPort != null ? powerPort.PowerEfficiency : 0f;
 	public float AverageTemperatureCelsius => occupiedCells.Count > 0
 		? occupiedCellTemperatureSum / occupiedCells.Count
@@ -157,6 +159,7 @@ public class Building
 	internal void SetOverrideCapsuleThreshold(bool value) => overrideCapsuleThreshold = value;
 	internal void SetCapsuleThresholdPercent(float value) => capsuleThresholdPercent = UnityEngine.Mathf.Clamp(value, 0.0f, 100.0f);
 	internal void SetAddonSlotCapacity(int value) => addonSlotCapacity = UnityEngine.Mathf.Max(0, value);
+	internal void SetTargetTemperatureCelsius(float value) => targetTemperatureCelsius = value;
 	internal void AssignRuntimeBuildingId(uint id) => runtimeBuildingId = id;
 	internal void SetRegistered(bool registered)
 	{

@@ -14,3 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingAddonCatalog
   definitions:
   - {fileID: 11400000, guid: 8d9a93f2cb97473ea759234143056ec8, type: 2}
+  - {fileID: 11400000, guid: b35c8cc3c0f14f56b5c1d9db5c3f0a10, type: 2}
+  - {fileID: 11400000, guid: 6f6e4baf3d7c43d2857f2ce1b3124ad9, type: 2}
+  - {fileID: 11400000, guid: d8d84a3613c44feca7c1b7387086376f, type: 2}

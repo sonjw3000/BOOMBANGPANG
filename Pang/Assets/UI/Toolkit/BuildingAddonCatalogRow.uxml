@@ -8,6 +8,7 @@
 			<ui:VisualElement class="addon-catalog-row__identity">
 				<ui:Label name="addon-catalog-row-name" text="Add-on" class="addon-catalog-row__name" />
 				<ui:Label name="addon-catalog-row-function" text="Operational function" class="addon-catalog-row__function" />
+				<ui:Label name="addon-catalog-row-research" text="No research required" class="addon-catalog-row__research" />
 				<ui:VisualElement class="addon-catalog-row__metrics">
 					<ui:Label name="addon-catalog-row-power" text="Power  0" class="addon-catalog-row__metric" />
 					<ui:Label name="addon-catalog-row-output" text="Output  —" class="addon-catalog-row__metric addon-catalog-row__metric--output" />

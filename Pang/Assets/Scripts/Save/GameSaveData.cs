@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 9;
+	public int Version = 10;
 	public string SavedAtUtc;
 
 	public ScenarioObjectiveSaveData ScenarioObjective = new();
@@ -206,6 +206,7 @@ public sealed class BuildingSaveData
 	public BuildingWorkScope WorkScope;
 	public bool OverrideCapsuleThreshold;
 	public float CapsuleThresholdPercent;
+	public float TargetTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	public List<uint> OutputBuildingIds = new();
 	public List<BuildingAddonSaveData> Addons = new();
 }

@@ -30,6 +30,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 
 	private readonly Dictionary<ITemperatureModifier, ModifierState> modifiers = new();
 	private readonly Dictionary<int3, float> targets = new();
+	private readonly Dictionary<GridCell, int3> cellPositions = new();
 	private readonly HashSet<int3> dirtyCells = new();
 	private readonly HashSet<int3> activeCells = new();
 	private readonly List<ITemperatureModifier> modifierScratch = new();
@@ -37,6 +38,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	private float[] temperatureSnapshot;
 	private float[] nextTemperatureSnapshot;
 	private int3 temperatureBufferSize;
+	private int3 cellPositionMapSize;
 	private bool eventsBound;
 	private bool rebuildMapOnNextTick = true;
 
@@ -49,11 +51,15 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private FacilityManager FacilityManager => GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
+	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
+	private BuildingAddonService BuildingAddonService =>
+		GameContext.HasInstance ? GameContext.Instance.BuildingAddonSvc : null;
 
 	private void OnEnable()
 	{
 		BindEvents();
 		RebuildModifiers();
+		rebuildMapOnNextTick = true;
 	}
 
 	private void Start()
@@ -69,11 +75,13 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 	{
 		modifiers.Clear();
 		targets.Clear();
+		cellPositions.Clear();
 		dirtyCells.Clear();
 		activeCells.Clear();
 		temperatureSnapshot = null;
 		nextTemperatureSnapshot = null;
 		temperatureBufferSize = default;
+		cellPositionMapSize = default;
 		rebuildMapOnNextTick = true;
 	}
 
@@ -86,11 +94,14 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 
 	private void BindEvents()
 	{
-		if (eventsBound || FacilityManager == null || GridService == null)
+		if (eventsBound || FacilityManager == null || GridService == null || BuildingAddonService == null)
 			return;
 
 		FacilityManager.SubscribeFacilityRegister<ITemperatureModifier>(HandleRegistered, HandleUnregistered);
 		GridService.OnCellTemperatureChanged += HandleCellTemperatureChanged;
+		BuildingAddonService.OnAddonInstalled += OnAddonInstalled;
+		BuildingAddonService.OnAddonRemoved += OnAddonRemoved;
+		BuildingAddonService.OnTargetTemperatureChanged += OnTargetTemperatureChanged;
 		eventsBound = true;
 	}
 
@@ -103,6 +114,12 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 			FacilityManager.UnsubscribeFacilityRegister<ITemperatureModifier>(HandleRegistered, HandleUnregistered);
 		if (GridService != null)
 			GridService.OnCellTemperatureChanged -= HandleCellTemperatureChanged;
+		if (BuildingAddonService != null)
+		{
+			BuildingAddonService.OnAddonInstalled -= OnAddonInstalled;
+			BuildingAddonService.OnAddonRemoved -= OnAddonRemoved;
+			BuildingAddonService.OnTargetTemperatureChanged -= OnTargetTemperatureChanged;
+		}
 		eventsBound = false;
 	}
 
@@ -134,6 +151,23 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 
 		MarkAffectedDirty(state);
 		modifiers.Remove(modifier);
+	}
+
+	private void OnAddonInstalled(Building building, BuildingAddon addon)
+	{
+		if (addon is TemperatureControlBuildingAddon)
+			MarkBuildingCellsDirty(building);
+	}
+
+	private void OnAddonRemoved(Building building, BuildingAddon addon)
+	{
+		if (addon is TemperatureControlBuildingAddon)
+			MarkBuildingCellsDirty(building);
+	}
+
+	private void OnTargetTemperatureChanged(Building building, float previous, float current)
+	{
+		MarkBuildingCellsDirty(building);
 	}
 
 	private void Register(uint buildingId, ITemperatureModifier modifier)
@@ -174,10 +208,39 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		}
 
 		RefreshModifierStates();
+		MarkClimateControlCellsDirty();
 		RecalculateDirtyTargets();
 		ReportModifierOperation();
+		ReportTemperatureControlOperation();
 		AdvanceActiveTemperatures();
 		OnGridOverlayRefreshRequested?.Invoke();
+	}
+
+	public bool IsTemperatureControlOperating(Building building, BuildingAddon addon)
+	{
+		if (building == null ||
+			addon is not TemperatureControlBuildingAddon temperatureControl ||
+			building.ContainsAddon(addon) == false)
+		{
+			return false;
+		}
+
+		IReadOnlyList<GridCell> cells = building.OccupiedCells;
+		for (int i = 0; i < cells.Count; ++i)
+		{
+			GridCell cell = cells[i];
+			if (IsBuildingIndoorCell(cell, building.RuntimeBuildingId) &&
+				CalculateTemperatureControlOutput(
+					building,
+					temperatureControl,
+					cell.TemperatureCelsius,
+					building.TargetTemperatureCelsius) > 0.0f)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	public void ProcessSimulationTick()
@@ -209,8 +272,12 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 					float neighborAverage = CalculateNeighborAverage(x, y, z, in size, current);
 					next += (neighborAverage - current) * heatDiffusionRatePerTick;
 
-					float target = targets.TryGetValue(position, out float value) ? value : ambientTemperatureCelsius;
-					next = Mathf.MoveTowards(next, target, naturalCoolingDegreesPerTick);
+					float target = CalculateTarget(position, cell, next);
+					bool climateControlIsActive = Mathf.Approximately(
+						CalculateTemperatureControlDelta(cell, next),
+						0.0f) == false;
+					if (climateControlIsActive == false || HasAffectingModifier(position, cell))
+						next = Mathf.MoveTowards(next, target, naturalCoolingDegreesPerTick);
 					nextTemperatureSnapshot[index] = Mathf.Max(-273.15f, next);
 				}
 			}
@@ -337,6 +404,29 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		}
 	}
 
+	private void ReportTemperatureControlOperation()
+	{
+		if (BuildingManager == null || GameContext.HasInstance == false || GameContext.Instance.WearSvc == null)
+			return;
+
+		float elapsedWeeks = GameTime.SimulationTickWeeks * GameTime.QuarterWeekSimulationTickInterval;
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int buildingIndex = 0; buildingIndex < buildings.Count; ++buildingIndex)
+		{
+			Building building = buildings[buildingIndex];
+			if (building == null)
+				continue;
+
+			IReadOnlyList<BuildingAddon> addons = building.InstalledAddons;
+			for (int addonIndex = 0; addonIndex < addons.Count; ++addonIndex)
+			{
+				BuildingAddon addon = addons[addonIndex];
+				if (IsTemperatureControlOperating(building, addon))
+					GameContext.Instance.WearSvc.ReportOperation(addon, elapsedWeeks);
+			}
+		}
+	}
+
 	private bool HasActiveDemand(ModifierState state)
 	{
 		for (int x = -state.Radius; x <= state.Radius; ++x)
@@ -367,6 +457,41 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 			for (int y = 0; y < size.y; ++y)
 				for (int z = 0; z < size.z; ++z)
 					dirtyCells.Add(new int3(x, y, z));
+	}
+
+	private void MarkClimateControlCellsDirty()
+	{
+		if (BuildingManager == null || GridService == null)
+			return;
+
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			Building building = buildings[i];
+			if (building != null && HasTemperatureControlAddon(building))
+				MarkBuildingCellsDirty(building);
+		}
+	}
+
+	private void MarkBuildingCellsDirty(Building building)
+	{
+		if (building == null || building.RuntimeBuildingId == 0 || GridService == null || GridService.IsReady == false)
+			return;
+
+		EnsureCellPositionLookup();
+		uint buildingId = building.RuntimeBuildingId;
+		IReadOnlyList<GridCell> cells = building.OccupiedCells;
+		for (int i = 0; i < cells.Count; ++i)
+		{
+			GridCell cell = cells[i];
+			if (cell != null &&
+				cell.BuildingId == buildingId &&
+				cellPositions.TryGetValue(cell, out int3 position) &&
+				(cell.IsIndoor || targets.ContainsKey(position)))
+			{
+				dirtyCells.Add(position);
+			}
+		}
 	}
 
 	private void MarkAffectedDirty(ModifierState state)
@@ -405,7 +530,7 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 				continue;
 			}
 
-			float target = CalculateTarget(position, cell);
+			float target = CalculateTarget(position, cell, cell.TemperatureCelsius);
 			targets[position] = target;
 			if (Mathf.Approximately(cell.TemperatureCelsius, target))
 			{
@@ -420,9 +545,14 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		}
 	}
 
-	private float CalculateTarget(in int3 position, GridCell cell)
+	private float CalculateTarget(in int3 position, GridCell cell, float currentTemperatureCelsius)
 	{
-		float target = ambientTemperatureCelsius;
+		float target = TryGetOperationalClimateTarget(
+			cell,
+			currentTemperatureCelsius,
+			out float climateTarget)
+			? climateTarget
+			: ambientTemperatureCelsius;
 		foreach (ModifierState state in modifiers.Values)
 		{
 			if (Affects(state, position, cell))
@@ -431,12 +561,62 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		return Mathf.Max(-273.15f, target);
 	}
 
+	private bool TryGetOperationalClimateTarget(
+		GridCell cell,
+		float currentTemperatureCelsius,
+		out float target)
+	{
+		target = ambientTemperatureCelsius;
+		if (cell == null ||
+			IsBuildingIndoorCell(cell, cell.BuildingId) == false ||
+			BuildingManager == null ||
+			BuildingManager.TryGetBuilding(cell.BuildingId, out Building building) == false ||
+			building == null)
+		{
+			return false;
+		}
+
+		float requestedTarget = building.TargetTemperatureCelsius;
+		if (float.IsNaN(requestedTarget) || float.IsInfinity(requestedTarget))
+			return false;
+
+		IReadOnlyList<BuildingAddon> addons = building.InstalledAddons;
+		for (int i = 0; i < addons.Count; ++i)
+		{
+			if (addons[i] is not TemperatureControlBuildingAddon addon ||
+				CalculateTemperatureControlOutput(
+					building,
+					addon,
+					currentTemperatureCelsius,
+					requestedTarget) <= 0.0f)
+			{
+				continue;
+			}
+
+			target = requestedTarget;
+			return true;
+		}
+
+		return false;
+	}
+
 	private static bool Affects(ModifierState state, in int3 position, GridCell cell)
 	{
 		if (state.Efficiency <= 0f || cell.BuildingId != state.BuildingId || cell.IsIndoor == false || position.y != state.Position.y)
 			return false;
 
 		return Mathf.Abs(position.x - state.Position.x) + Mathf.Abs(position.z - state.Position.z) <= state.Radius;
+	}
+
+	private bool HasAffectingModifier(in int3 position, GridCell cell)
+	{
+		foreach (ModifierState state in modifiers.Values)
+		{
+			if (Affects(state, position, cell))
+				return true;
+		}
+
+		return false;
 	}
 
 	private void AdvanceActiveTemperatures()
@@ -457,7 +637,14 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 			}
 
 			float target = targets.TryGetValue(position, out float value) ? value : ambientTemperatureCelsius;
-			float next = Mathf.MoveTowards(cell.TemperatureCelsius, target, degreesPerQuarterWeek);
+			float current = cell.TemperatureCelsius;
+			float climateDelta = CalculateTemperatureControlDelta(cell, current);
+			bool applyBaseRate = Mathf.Approximately(climateDelta, 0.0f) ||
+				HasAffectingModifier(position, cell);
+			float next = applyBaseRate
+				? Mathf.MoveTowards(current, target, degreesPerQuarterWeek)
+				: current;
+			next = Mathf.Max(-273.15f, next + climateDelta);
 			GridService.TrySetTemperature(position, next);
 			if (Mathf.Approximately(next, target))
 			{
@@ -466,6 +653,89 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 					targets.Remove(position);
 			}
 		}
+	}
+
+	private float CalculateTemperatureControlDelta(GridCell cell, float current)
+	{
+		if (cell == null ||
+			IsBuildingIndoorCell(cell, cell.BuildingId) == false ||
+			BuildingManager == null ||
+			BuildingManager.TryGetBuilding(cell.BuildingId, out Building building) == false ||
+			building == null)
+		{
+			return 0.0f;
+		}
+
+		float target = building.TargetTemperatureCelsius;
+		if (Mathf.Approximately(current, target))
+			return 0.0f;
+
+		float availableDegrees = 0.0f;
+		IReadOnlyList<BuildingAddon> addons = building.InstalledAddons;
+		for (int i = 0; i < addons.Count; ++i)
+		{
+			if (addons[i] is TemperatureControlBuildingAddon addon)
+				availableDegrees += CalculateTemperatureControlOutput(building, addon, current, target);
+		}
+
+		if (availableDegrees <= 0.0f)
+			return 0.0f;
+
+		return Mathf.MoveTowards(current, target, availableDegrees) - current;
+	}
+
+	private static float CalculateTemperatureControlOutput(
+		Building building,
+		TemperatureControlBuildingAddon addon,
+		float current,
+		float target)
+	{
+		// BuildingAddonService validates the combined target range. Each installed controller
+		// contributes here by direction so 0–20 cooling + 20–40 heating controls the full 0–40 range.
+		if (building == null ||
+			addon == null ||
+			float.IsNaN(current) ||
+			float.IsInfinity(current) ||
+			float.IsNaN(target) ||
+			float.IsInfinity(target) ||
+			HasTemperatureControlDemand(addon, current, target) == false)
+		{
+			return 0.0f;
+		}
+
+		float efficiency = FacilityEfficiency.GetOperatingEfficiency(building, addon, addon);
+		return addon.TemperatureControlDegreesPerQuarterWeek * efficiency;
+	}
+
+	private static bool HasTemperatureControlDemand(
+		TemperatureControlBuildingAddon addon,
+		float current,
+		float target)
+	{
+		if (Mathf.Approximately(current, target))
+			return false;
+
+		return current > target ? addon.CanCool : addon.CanHeat;
+	}
+
+	private static bool HasTemperatureControlAddon(Building building)
+	{
+		if (building == null)
+			return false;
+
+		IReadOnlyList<BuildingAddon> addons = building.InstalledAddons;
+		for (int i = 0; i < addons.Count; ++i)
+		{
+			if (addons[i] is TemperatureControlBuildingAddon)
+				return true;
+		}
+
+		return false;
+	}
+
+	private static bool IsBuildingIndoorCell(GridCell cell, uint buildingId)
+	{
+		return cell != null && buildingId != 0 && cell.BuildingId == buildingId && cell.IsIndoor;
 	}
 
 	private void HandleCellTemperatureChanged(int3 position, float previous, float current)
@@ -502,6 +772,31 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		return temperatureSnapshot != null;
 	}
 
+	private void EnsureCellPositionLookup()
+	{
+		if (GridService == null || GridService.IsReady == false)
+			return;
+
+		int3 size = GridService.MapSize;
+		if (cellPositions.Count > 0 && cellPositionMapSize.Equals(size))
+			return;
+
+		cellPositions.Clear();
+		cellPositionMapSize = size;
+		for (int x = 0; x < size.x; ++x)
+		{
+			for (int y = 0; y < size.y; ++y)
+			{
+				for (int z = 0; z < size.z; ++z)
+				{
+					GridCell cell = GridService.GetCell(x, y, z);
+					if (cell != null)
+						cellPositions[cell] = new int3(x, y, z);
+				}
+			}
+		}
+	}
+
 	private void InitializeTemperatureBuffers()
 	{
 		if (GridService == null || GridService.IsReady == false)
@@ -512,6 +807,8 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 		temperatureSnapshot = new float[cellCount];
 		nextTemperatureSnapshot = new float[cellCount];
 		temperatureBufferSize = size;
+		cellPositions.Clear();
+		cellPositionMapSize = size;
 
 		for (int x = 0; x < size.x; ++x)
 		{
@@ -520,7 +817,10 @@ public sealed class TemperatureService : MonoBehaviour, IGridOverlayProvider
 				for (int z = 0; z < size.z; ++z)
 				{
 					int index = ToIndex(x, y, z, in size);
-					temperatureSnapshot[index] = GridService.GetCell(x, y, z)?.TemperatureCelsius ?? ambientTemperatureCelsius;
+					GridCell cell = GridService.GetCell(x, y, z);
+					temperatureSnapshot[index] = cell?.TemperatureCelsius ?? ambientTemperatureCelsius;
+					if (cell != null)
+						cellPositions[cell] = new int3(x, y, z);
 				}
 			}
 		}

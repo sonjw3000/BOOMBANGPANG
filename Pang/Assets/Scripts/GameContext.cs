@@ -336,7 +336,7 @@ public class GameContext : MonoBehaviour
 	{
 		deliveryService ??= new DeliveryService();
 		researchService.Initialize(researchCatalog, economyService, gameTime);
-		buildingAddonService.Initialize(buildingAddonCatalog, buildingManager, economyService);
+		buildingAddonService.Initialize(buildingAddonCatalog, buildingManager, economyService, researchService);
 		interactionCtx ??= new InteractionContext();
 		capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
 		itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();
