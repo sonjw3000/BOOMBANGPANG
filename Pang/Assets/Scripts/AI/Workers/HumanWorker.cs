@@ -27,7 +27,6 @@ public class HumanWorker : AIWorker
 	[SerializeField] private float fatigueIncreasePerTask = 2.0f;
 	[SerializeField] private bool isSuitRemoved;
 
-	public float Fatigue => fatigue;
 	public bool IsSuitRemoved => isSuitRemoved;
 
 	protected override IBaseNode BuildWorkerBaseNode()
@@ -39,7 +38,7 @@ public class HumanWorker : AIWorker
 	}
 
 	public override float GetWorkSpeedMultiplier()
-		=> Mathf.Lerp(BaseWorkSpeedMultiplier, MinimumWorkSpeedMultiplier, fatigue / 100.0f);
+		// => Mathf.Lerp(BaseWorkSpeedMultiplier, MinimumWorkSpeedMultiplier, fatigue / 100.0f);
 	{
 		float workerMultiplier = Mathf.Lerp(
 			BaseWorkSpeedMultiplier,
@@ -241,6 +240,8 @@ public class HumanWorker : AIWorker
 
 		float loadRatio = weight / SafeHandlingWeightKg;
 		AddFatigue(0.05f * Mathf.Max(1.0f, loadRatio) * travelledCells);
+	}
+
 	internal void PrepareForAirlockTransit(AirlockDirection direction)
 	{
 		if (direction == AirlockDirection.InsideToOutside)
