@@ -2,9 +2,7 @@ using UnityEngine;
 
 public class ItemHandlingDamageService : MonoBehaviour
 {
-	[Header("Worker Handling Risk")]
-	[SerializeField, Range(0.0f, 1.0f)] private float humanBaseDamageChance = 0.01f;
-	[SerializeField, Range(0.0f, 1.0f)] private float humanFatigueDamageChance = 0.09f;
+	[Header("Robot Handling Risk")]
 	[SerializeField, Range(0.0f, 1.0f)] private float robotBaseDamageChance = 0.01f;
 
 	[Header("Damage")]
@@ -39,8 +37,9 @@ public class ItemHandlingDamageService : MonoBehaviour
 		if (worker.WorkerKind == WorkerKind.Robot)
 			return robotBaseDamageChance;
 
-		float fatigue = Mathf.Clamp01(worker.GetFatigue() / 100.0f);
-		return humanBaseDamageChance + humanFatigueDamageChance * fatigue;
+		// Human handling damage is owned by HumanIncidentService so that its
+		// fixed worker roll and saved RNG state cannot be bypassed by reloading.
+		return 0.0f;
 	}
 
 	private static float CalculateWorkerItemRisk(AIWorker worker, ItemStack stack)

@@ -151,7 +151,11 @@ public partial class PackingTask : WorkerTask
 	public static NodeState PackEnd(in BTContext ctx)
 	{
 		var station = GetStation(ctx);
-		return station != null && station.EndWorkingBox() ? Success : Failure;
+		BoxBase box = station?.CurrentPackingBox?.Box;
+		if (station == null || station.EndWorkingBox() == false)
+			return Failure;
+		ctx.Worker.ReportBoxHandling(box);
+		return Success;
 	}
 
 	public static NodeState MarkTaskComplete(in BTContext ctx)
@@ -209,6 +213,8 @@ public partial class PackingTask : WorkerTask
 			station,
 			packedStack,
 			handlingWorker: ctx.Worker);
+		if (result.Moved > 0)
+			ctx.Worker.ReportItemHandling(result.ItemId, result.Moved, station);
 		if (result.Kind != TransferResultKind.Complete)
 		{
 			if (packedStack.Quantity > 0)
@@ -253,6 +259,9 @@ public partial class PackingTask : WorkerTask
 	public static NodeState PrepareBox(in BTContext ctx)
 	{
 		var station = GetStation(ctx);
-		return station != null && station.PrepareBox() ? Success : Failure;
+		if (station == null || station.PrepareBox() == false)
+			return Failure;
+		ctx.Worker.ReportBoxHandling(station.CurrentPackingBox?.Box);
+		return Success;
 	}
 }

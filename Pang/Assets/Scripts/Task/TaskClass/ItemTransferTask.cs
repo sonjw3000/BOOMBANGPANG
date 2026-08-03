@@ -265,6 +265,8 @@ public sealed class ItemTransferTask : WorkerTask
 		ItemTransferResult result = task.job.CollectType == TransferObjectType.Box
 			? MoveCollectBox(ctx.Worker, line)
 			: MoveCollectItem(ctx.Worker, line);
+		if (task.job.CollectType == TransferObjectType.Item && result.Moved > 0)
+			ctx.Worker.ReportItemHandling(result.ItemId, result.Moved, ctx.Worker.CarryingAbility?.CarryingBox);
 
 		if (result.Moved > 0)
 			task.collectedLines.Add(new ItemTransferCollectedLine(CopyLineWithQuantity(line, result.Moved)));
@@ -331,6 +333,8 @@ public sealed class ItemTransferTask : WorkerTask
 		ItemTransferResult result = task.job.PlaceType == TransferObjectType.Box
 			? MovePlaceBox(ctx.Worker, placeLine)
 			: MovePlaceItem(ctx.Worker, placeLine);
+		if (task.job.PlaceType == TransferObjectType.Item && result.Moved > 0)
+			ctx.Worker.ReportItemHandling(result.ItemId, result.Moved, placeLine.Container);
 
 		placeLine.CompleteQuantity += result.Moved;
 		task.ReportPlaceProgress(ctx.Worker, collectedLine, result);
@@ -440,6 +444,7 @@ public sealed class ItemTransferTask : WorkerTask
 			return new(payload, 0);
 		}
 
+		worker.ReportBoxHandling(box);
 		return new(payload, 1);
 	}
 
@@ -458,6 +463,7 @@ public sealed class ItemTransferTask : WorkerTask
 			return new(payload, 0);
 		}
 
+		worker.ReportBoxHandling(box);
 		return new(payload, 1);
 	}
 

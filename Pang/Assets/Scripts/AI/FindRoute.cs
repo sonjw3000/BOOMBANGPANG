@@ -33,6 +33,8 @@ public class FindRoute : MonoBehaviour
 	private int3 currentGoalPos;
 	private int3 pendingGoalPos;
 	private GridCell waitingCell = null;
+	private int travelledCellsSinceLastConsume;
+	public int TravelledCellsSinceLastConsume => Mathf.Max(0, travelledCellsSinceLastConsume);
 
 	private HashSet<FindRoute> blockingRoutes = new();
 	private readonly HashSet<int3> plannedPathCells = new();
@@ -244,6 +246,8 @@ public class FindRoute : MonoBehaviour
 		}
 
 		worker.SetPosition(pathResultBuffer.CurrentNode.Position);
+		if (worker.CarryingAbility?.CarryingBox != null && travelledCellsSinceLastConsume < int.MaxValue)
+			++travelledCellsSinceLastConsume;
 
 		if (worker.GridPosition.Equals(previousPos) == false)
 		{
@@ -600,6 +604,9 @@ public class FindRoute : MonoBehaviour
 
 	public void CancelCurrentRoute()
 	{
+		if (travelledCellsSinceLastConsume > 0)
+			worker?.ApplyCarriedMovementFatigue(ConsumeTravelledCells());
+
 		if (GameContext.HasInstance)
 			TrafficCoordinator.CancelRoute(this);
 
@@ -622,6 +629,16 @@ public class FindRoute : MonoBehaviour
 		hasPendingGoal = false;
 		movementState = MovementState.Idle;
 	}
+
+	public int ConsumeTravelledCells()
+	{
+		int result = travelledCellsSinceLastConsume;
+		travelledCellsSinceLastConsume = 0;
+		return result;
+	}
+
+	public void RestoreTravelledCells(int travelledCells)
+		=> travelledCellsSinceLastConsume = Mathf.Max(0, travelledCells);
 
 	public void SetAIMaster(AIWorker worker)
 	{

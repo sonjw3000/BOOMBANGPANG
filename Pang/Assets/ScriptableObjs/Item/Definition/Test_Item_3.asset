@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemID: 13421
   size: 8
+  weight: 0.5
   tag: 0
   itemPrefab: {fileID: 0}
   price: 100

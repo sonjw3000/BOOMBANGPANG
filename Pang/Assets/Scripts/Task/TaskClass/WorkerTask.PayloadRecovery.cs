@@ -93,7 +93,7 @@ public abstract partial class WorkerTask
 
 		SequenceNode recover = new();
 		recover.Add(new ActionNode(MoveToPayloadRecovery));
-		recover.Add(new ActionNode(PickPayloadRecovery));
+		recover.Add(AIWorker.BuildWorkTimeInteract(WorkActionType.PickBox, PickPayloadRecovery));
 		root.Add(recover);
 		return root;
 	}
@@ -119,6 +119,7 @@ public abstract partial class WorkerTask
 			{
 				route.enabled = false;
 				route.ConsumeArrivedGoal();
+				worker.ApplyCarriedMovementFatigue(route.ConsumeTravelledCells());
 				return IBaseNode.NodeState.Success;
 			}
 
@@ -174,6 +175,7 @@ public abstract partial class WorkerTask
 		if (carryAbility.PutBox(payloadBox) == false)
 			return IBaseNode.NodeState.Failure;
 
+		ctx.Worker.ReportBoxHandling(payloadBox);
 		hasPendingPayloadRecovery = false;
 		return IBaseNode.NodeState.Success;
 	}

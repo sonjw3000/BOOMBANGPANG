@@ -300,6 +300,8 @@ public sealed partial class PickingTask : WorkerTask
 		ItemStack pickedStack = ItemStack.Rent(curLine.ItemID);
 		pickedStack.AddItem(remainingQuantity);
 		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(curLine.Container, box, pickedStack, consumeSourcePickReservation: true);
+		if (result.Moved > 0)
+			ctx.Worker.ReportItemHandling(result.ItemId, result.Moved, box);
 		if (result.Kind != TransferResultKind.Complete && pickedStack.Quantity > 0)
 			pickedStack.Recycle();
 
@@ -366,6 +368,8 @@ public sealed partial class PickingTask : WorkerTask
 			line.ItemID,
 			remainingQuantity,
 			handlingWorker: ctx.Worker));
+		if (result.Moved > 0)
+			ctx.Worker.ReportItemHandling(result.ItemId, result.Moved, line.Container);
 		line.CompleteQuantity += result.Moved;
 
 		if (line.IsComplete == false)

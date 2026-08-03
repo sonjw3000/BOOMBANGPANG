@@ -233,6 +233,7 @@ public abstract partial class AIWorker
 	public static SequenceNode MoveToTarget(WorkerStatusTarget target, InteractionKind kind, ActionFunc settingTargetBuilding = null)
 	{
 		SequenceNode node = new();
+		node.Add(new ActionNode(WaitForPendingIncident));
 
 		if (settingTargetBuilding != null)
 			node.Add(new ActionNode(settingTargetBuilding));
@@ -282,7 +283,10 @@ public abstract partial class AIWorker
 					ctx.Worker.routeFinder.ConsumeArrivedGoal();
 
 					if (hasTransit == false)
+					{
+						ctx.Worker.ApplyCarriedMovementFatigue(ctx.Worker.routeFinder.ConsumeTravelledCells());
 						return Success;
+					}
 
 					NodeState transitResult = TryUseTransitAirlockIfNeeded(ctx);
 					if (transitResult == Running || transitResult == Failure || transitResult == Abort)
@@ -565,6 +569,7 @@ public abstract partial class AIWorker
 	public static SequenceNode BuildWorkTimeInteract(WorkActionType actionType, ActionFunc interact)
 	{
 		SequenceNode node = new();
+		node.Add(new ActionNode(WaitForPendingIncident));
 
 		var setWorkTime = new ActionNode((in BTContext ctx) => {
 			ctx.LocalBlackBoard.Set(actionType.ToString(), WorkPolicyService.GetWorkTime(ctx.Worker, actionType));
@@ -572,42 +577,61 @@ public abstract partial class AIWorker
 		});
 		var work = new DoWorkNode(actionType);
 
-		var calculateFatigue = new ActionNode((in BTContext ctx) => {
-			float fatigue = WorkPolicyService.GetWorkFatigue(ctx.Worker, actionType);
-			ctx.Worker.AddFatigue(fatigue);
-			return Success;
-		});
-
 		node.Add(setWorkTime);
 		node.Add(work);
 		if (interact != null)
 		{
-			node.Add(new ActionNode(interact));
+			node.Add(new ActionNode((in BTContext ctx) =>
+			{
+				ctx.Worker.ClearPendingWorkHandling();
+				NodeState interactionResult = interact(ctx);
+				bool hasHandling = ctx.Worker.TryConsumePendingWorkHandling(out HumanWorkHandlingResult handling);
+				if (hasHandling || interactionResult == Success)
+					ApplyCompletedWork(ctx, actionType, in handling);
+				return interactionResult;
+			}));
 			node.Add(new ActionNode(TryRemoveTargetBuilding));
 		}
-		node.Add(calculateFatigue);
-		node.Add(new ActionNode((in BTContext ctx) =>
+		else
 		{
-			if (ctx.Worker is HumanWorker == false)
+			node.Add(new ActionNode((in BTContext ctx) =>
+			{
+				HumanWorkHandlingResult handling = default;
+				ApplyCompletedWork(ctx, actionType, in handling);
 				return Success;
-
-			var res = HumanIncident.TryCreateIncident(ctx.Worker, actionType);
-
-			if (res == null)
-				return Success;
-
-			ctx.LocalBlackBoard.Set("IncidentState", res.responseType);
-			return Success;
-		}));
+			}));
+		}
 
 		return node;
 	}
 
+	private static void ApplyCompletedWork(
+		in BTContext ctx,
+		WorkActionType actionType,
+		in HumanWorkHandlingResult handling)
+	{
+		float baseFatigue = WorkPolicyService.GetWorkFatigue(ctx.Worker, actionType);
+		if (ctx.Worker is not HumanWorker human)
+		{
+			ctx.Worker.AddFatigue(baseFatigue);
+			return;
+		}
+
+		float actualFatigue = HumanIncident.CalculateActionFatigue(human, baseFatigue, in handling);
+		human.AddFatigue(actualFatigue);
+		HumanIncident.TryCreateIncident(human, actionType, in handling);
+	}
+
+	private static NodeState WaitForPendingIncident(in BTContext ctx)
+		=> ctx.Worker is HumanWorker human && human.HasPendingIncident
+			? Running
+			: Success;
+
 	// for incident
 	protected static NodeState CheckWorkerIncident(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
-			responseType != HumanIncidentResponseType.None)
+		if (TryGetPendingIncident(ctx.Worker, out HumanIncidentPayload payload) &&
+			payload.ResponseType != HumanIncidentResponseType.None)
 		{
 			return Success;
 		}
@@ -617,8 +641,8 @@ public abstract partial class AIWorker
 
 	protected static NodeState IsIncidentWorkMistake(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
-			responseType == HumanIncidentResponseType.WorkMistake)
+		if (TryGetPendingIncident(ctx.Worker, out HumanIncidentPayload payload) &&
+			payload.ResponseType == HumanIncidentResponseType.WorkMistake)
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.HandlingMistake);
 			return Success;
@@ -627,10 +651,18 @@ public abstract partial class AIWorker
 		return Failure;
 	}
 
+	protected static NodeState IsIncidentMinorInjury(in BTContext ctx)
+	{
+		return TryGetPendingIncident(ctx.Worker, out HumanIncidentPayload payload) &&
+			payload.ResponseType == HumanIncidentResponseType.MinorInjury
+			? Success
+			: Failure;
+	}
+
 	protected static NodeState IsIncidentCollapse(in BTContext ctx)
 	{
-		if (ctx.LocalBlackBoard.TryGet<HumanIncidentResponseType>("IncidentState", out var responseType) &&
-			responseType == HumanIncidentResponseType.AbortTask)
+		if (TryGetPendingIncident(ctx.Worker, out HumanIncidentPayload payload) &&
+			payload.ResponseType == HumanIncidentResponseType.AbortTask)
 		{
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.Collapse);
 
@@ -642,16 +674,30 @@ public abstract partial class AIWorker
 
 	protected static NodeState AbortTask(in BTContext ctx)
 	{
-		return ctx.Worker.EnterIncapacitatedState(WorkerOperationalState.Knockout)
-			? Success
-			: Failure;
+		bool entered = ctx.Worker.EnterIncapacitatedState(WorkerOperationalState.Knockout);
+		if (ctx.Worker is HumanWorker human)
+			human.ClearPendingIncident();
+		return entered ? Success : Failure;
 	}
 
 	protected static NodeState EndWorkerIncident(in BTContext ctx)
 	{
-		ctx.LocalBlackBoard.Set("IncidentState", HumanIncidentResponseType.None);
-
+		if (ctx.Worker is HumanWorker human)
+		{
+			human.ClearPendingIncident();
+			if (human.CurrentTask == null && human.IsOperational && GameContext.HasInstance)
+				GameContext.Instance.WorkerMgr.AddIdleWorker(human);
+		}
 		return Success;
+	}
+
+	private static bool TryGetPendingIncident(AIWorker worker, out HumanIncidentPayload payload)
+	{
+		if (worker is HumanWorker human)
+			return human.TryGetPendingIncident(out payload);
+
+		payload = null;
+		return false;
 	}
 
 	protected static SequenceNode BuildHumanIncidentNode()
@@ -664,11 +710,27 @@ public abstract partial class AIWorker
 
 		SequenceNode mistake= new SequenceNode();
 		mistake.Add(new ActionNode(IsIncidentWorkMistake));
+		mistake.Add(new ActionNode((in BTContext ctx) =>
+		{
+			ctx.LocalBlackBoard.Set(WorkActionType.HandleMistake.ToString(), HumanIncident.GetMistakeCleanupSeconds());
+			return Success;
+		}));
 		mistake.Add(new DoWorkNode(WorkActionType.HandleMistake));
 		mistake.Add(new ActionNode(EndWorkerIncident));
 
+		SequenceNode minorInjury = new();
+		minorInjury.Add(new ActionNode(IsIncidentMinorInjury));
+		minorInjury.Add(new ActionNode((in BTContext ctx) =>
+		{
+			ctx.LocalBlackBoard.Set(WorkActionType.HandleMistake.ToString(), HumanIncident.GetMistakeCleanupSeconds() * 1.5f);
+			return Success;
+		}));
+		minorInjury.Add(new DoWorkNode(WorkActionType.HandleMistake));
+		minorInjury.Add(new ActionNode(EndWorkerIncident));
+
 		SelectorNode handleIncident = new SelectorNode();
 		handleIncident.Add(collapse);
+		handleIncident.Add(minorInjury);
 		handleIncident.Add(mistake);
 
 		root.Add(new ActionNode(CheckWorkerIncident));

@@ -12,26 +12,62 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5aeaa6bada110de418262f67c87fd171, type: 3}
   m_Name: HuamIncidentChance
   m_EditorClassIdentifier: Assembly-CSharp::HumanIncidentDefinition
-  incidenceChance:
-    _serializedList:
-    - Key: 0
-      Value:
-        _serializedList:
-        - Key: 0
-          Value: 0.005
-        - Key: 1
-          Value: 0.01
-    - Key: 1
-      Value:
-        _serializedList:
-        - Key: 0
-          Value: 0.008
-        - Key: 1
-          Value: 0.01
-    - Key: 2
-      Value:
-        _serializedList:
-        - Key: 0
-          Value: 0.01
-        - Key: 1
-          Value: 0.005
+  chancePoints:
+  - RiskScore: 0
+    Chance: 0
+  - RiskScore: 59
+    Chance: 0
+  - RiskScore: 60
+    Chance: 0.05
+  - RiskScore: 80
+    Chance: 0.5
+  - RiskScore: 95
+    Chance: 1
+  severityBands:
+  - MinimumRiskScore: 60
+    MistakeWeight: 85
+    MinorInjuryWeight: 15
+    MajorIncidentWeight: 0
+  - MinimumRiskScore: 70
+    MistakeWeight: 70
+    MinorInjuryWeight: 28
+    MajorIncidentWeight: 2
+  - MinimumRiskScore: 80
+    MistakeWeight: 50
+    MinorInjuryWeight: 42
+    MajorIncidentWeight: 8
+  - MinimumRiskScore: 90
+    MistakeWeight: 30
+    MinorInjuryWeight: 50
+    MajorIncidentWeight: 20
+  - MinimumRiskScore: 95
+    MistakeWeight: 15
+    MinorInjuryWeight: 45
+    MajorIncidentWeight: 40
+  - MinimumRiskScore: 105
+    MistakeWeight: 5
+    MinorInjuryWeight: 30
+    MajorIncidentWeight: 65
+  handlingFatiguePoints:
+  - LoadRatio: 0
+    Multiplier: 0.75
+  - LoadRatio: 0.5
+    Multiplier: 1
+  - LoadRatio: 1
+    Multiplier: 1.5
+  - LoadRatio: 1.5
+    Multiplier: 2
+  - LoadRatio: 2
+    Multiplier: 3
+  - LoadRatio: 3
+    Multiplier: 4
+  maximumUnsafeExposure: 40
+  unqualifiedHazardExposure: 10
+  recoveryExposurePerSecond: 2
+  mistakeCleanupSeconds: 6
+  minorInjuryHealthDamage: {x: 5, y: 20}
+  majorIncidentHealthDamage: {x: 30, y: 60}
+  mistakeItemDamage: {x: 5, y: 15}
+  mistakeItemDamageChance: 0.5
+  fragileDamageChanceMultiplier: 1.5
+  fragileDamageAmountMultiplier: 1.5

@@ -35,6 +35,14 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 	protected abstract string ResourceLabel { get; }
 	protected abstract float ResourceValue { get; }
 	protected virtual IWearable Wearable => null;
+	protected virtual string ExtraProfileLabel => null;
+	protected virtual string ExtraProfileDisplay => null;
+	protected virtual string DebugProfileLabel => null;
+	protected virtual string DebugProfileDisplay => null;
+	private bool ShowDebugProfile =>
+		GameContext.HasInstance &&
+		(GameContext.Instance.GameCheat || Debug.isDebugBuild) &&
+		string.IsNullOrWhiteSpace(DebugProfileLabel) == false;
 
 	public override string Name => currentTarget != null ? currentTarget.Name : "Unknown Worker";
 	public override string Subtitle => currentTarget != null ? GetWorkerTypeLabel(currentTarget) : "Unknown Worker";
@@ -98,6 +106,10 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		infoBlocks.Add(new KeyValueBlock(ResourceLabel, ResourceDisplay));
 		if (Wearable != null)
 			infoBlocks.Add(new KeyValueBlock("Wear", WearDisplay));
+		if (string.IsNullOrWhiteSpace(ExtraProfileLabel) == false)
+			infoBlocks.Add(new KeyValueBlock(ExtraProfileLabel, ExtraProfileDisplay));
+		if (ShowDebugProfile)
+			infoBlocks.Add(new KeyValueBlock(DebugProfileLabel, DebugProfileDisplay));
 		infoBlocks.Add(new KeyValueBlock("MoveSpeed", MoveSpeedDisplay));
 		infoBlocks.Add(new KeyValueBlock("Position", PositionDisplay));
 		infoBlocks.Add(new KeyValueBlock("MainTaskType", MainTaskTypeDisplay));
@@ -123,6 +135,10 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(ResourceDisplay);
 		if (Wearable != null)
 			(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(WearDisplay);
+		if (string.IsNullOrWhiteSpace(ExtraProfileLabel) == false)
+			(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(ExtraProfileDisplay);
+		if (ShowDebugProfile)
+			(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(DebugProfileDisplay);
 		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(MoveSpeedDisplay);
 		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(PositionDisplay);
 		(infoBlocks[index++] as KeyValueBlock)?.UpdateValue(MainTaskTypeDisplay);
@@ -140,6 +156,10 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		model.AddOverview(ResourceLabel, () => ResourceDisplay);
 		if (Wearable != null)
 			model.AddOverview("Wear", () => WearDisplay);
+		if (string.IsNullOrWhiteSpace(ExtraProfileLabel) == false)
+			model.AddOverview(ExtraProfileLabel, () => ExtraProfileDisplay);
+		if (ShowDebugProfile)
+			model.AddOverview(DebugProfileLabel, () => DebugProfileDisplay);
 		model.AddOverview("Main Task", () => MainTaskTypeDisplay);
 		model.AddOverview("Action", () => ActionDisplay);
 		model.AddAction("Remove", DeleteObject, isDangerous: true);
@@ -147,7 +167,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 
 	private int GetProfileVersion()
 	{
-		return HashCode.Combine(
+		int baseVersion = HashCode.Combine(
 			ResourceDisplay,
 			WearDisplay,
 			WearEfficiencyDisplay,
@@ -156,6 +176,10 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 			MainTaskTypeDisplay,
 			AbilityDisplay,
 			MonthlyCostDisplay);
+		return HashCode.Combine(
+			baseVersion,
+			ExtraProfileDisplay,
+			ShowDebugProfile ? DebugProfileDisplay : string.Empty);
 	}
 
 	private int GetActivityVersion()
@@ -205,6 +229,10 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 			AddDetailValue(panel, "Wear", WearDisplay);
 			AddDetailValue(panel, "Wear Efficiency", WearEfficiencyDisplay);
 		}
+		if (string.IsNullOrWhiteSpace(ExtraProfileLabel) == false)
+			AddDetailValue(panel, ExtraProfileLabel, ExtraProfileDisplay);
+		if (ShowDebugProfile)
+			AddDetailValue(panel, DebugProfileLabel, DebugProfileDisplay);
 		AddDetailValue(panel, "Move Speed", MoveSpeedDisplay);
 		AddDetailValue(panel, "Work Speed", WorkSpeedDisplay);
 		AddDetailValue(panel, "Main Task", MainTaskTypeDisplay);

@@ -73,7 +73,10 @@ public class DoWorkNode : IBaseNode
 	{
 		if (isRunning == false)
 		{
-			ctx.Worker.SetWorkerAction(WorkerStatusAction.Working);
+			ctx.Worker.SetWorkerAction(
+				workActionType == WorkActionType.HandleMistake
+					? WorkerStatusAction.HandlingMistake
+					: WorkerStatusAction.Working);
 
 			if (ctx.LocalBlackBoard.TryGet(workActionType.ToString(), out waitTime) == false)
 			{

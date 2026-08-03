@@ -111,6 +111,7 @@ public sealed partial class CargoTransferTask : WorkerTask
 			return Failure;
 		}
 
+		worker.ReportBoxHandling(box);
 		return Success;
 	}
 
@@ -139,6 +140,7 @@ public sealed partial class CargoTransferTask : WorkerTask
 
 		if (task.targetPort.PutBox(box))
 		{
+			ctx.Worker.ReportBoxHandling(box);
 			task.isTaskEnd = true;
 			return Success;
 		}

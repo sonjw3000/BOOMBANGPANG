@@ -25,7 +25,7 @@ MonoBehaviour:
   workerVisuals:
   - {fileID: 11400000, guid: 6f14fda8193ced74cb2ccaa0aa3930e7, type: 2}
   workerType: 2
-  minimumAbility: -1
+  minimumAbility: 31
   additionalAbilities: 
   installCost: 0
   minimumMonthlyCost: 10

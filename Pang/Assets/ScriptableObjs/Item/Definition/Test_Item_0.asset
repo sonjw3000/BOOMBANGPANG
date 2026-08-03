@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemID: 111111
   size: 10
+  weight: 0.5
   tag: 0
   itemPrefab: {fileID: 0}
   maxFreshness: 1000

@@ -34,8 +34,9 @@ public class RobotWorker : AIWorker, IWearable
 	}
 
 	public override float GetFatigue() => 0;
-	public override float GetWorkSpeedMultiplier() => BaseWorkSpeedMultiplier * WearEfficiency;
-	public override float GetMoveSpeedMultiplier() => BaseMoveSpeedMultiplier * WearEfficiency;
+	private float BatterySpeedMultiplier => batteryLevel <= 0.0f ? 0.01f : 1.0f;
+	public override float GetWorkSpeedMultiplier() => BaseWorkSpeedMultiplier * WearEfficiency * BatterySpeedMultiplier;
+	public override float GetMoveSpeedMultiplier() => BaseMoveSpeedMultiplier * WearEfficiency * BatterySpeedMultiplier;
 
 	public void ApplyWear(float amount) => wear.Apply(amount);
 	public void SetWearFromSave(float value) => wear.SetFromSave(value);

@@ -14,6 +14,7 @@ public enum WorkerAbility
 	Packing = 1 << 2,
 	Labeling = 1 << 3,
 	CargoHandling = 1 << 4,
+	HazardHandling = 1 << 5,
 	// ...
 }
 
@@ -124,9 +125,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	[SerializeField] private float minimumMoveSpeedMultiplier = 0.5f;
 	[SerializeField] private float baseWorkSpeedMultiplier = 1.0f;
 	[SerializeField] private float minimumWorkSpeedMultiplier = 0.5f;
+	[SerializeField, Min(1.0f)] private float safeHandlingWeightKg = 20.0f;
 	
 	// task and bt
 	[SerializeField] private int tick = 0;
+	private int restoredCarriedMovementCells;
 	[SerializeField] private WorkerTask currentTask = null;
 	[SerializeField] private WorkerTask.TaskType workerMainTaskType = WorkerTask.TaskType.Undefined;
 	[SerializeField] private List<WorkerTask.TaskType> workerAssignedTaskTypes = new();
@@ -226,6 +229,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public float MaxHealth => health.MaxHealth;
 	public WorkerOperationalState OperationalState => operationalState;
 	public bool IsOperational => operationalState == WorkerOperationalState.Active;
+	public virtual bool HasPendingBlockingIncident => false;
 	public float FireIntensity => fireIntensity;
 
 	public float ApplyDamage(float amount)
@@ -248,6 +252,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public float MinimumMoveSpeedMultiplier => minimumMoveSpeedMultiplier;
 	public float BaseWorkSpeedMultiplier => baseWorkSpeedMultiplier;
 	public float MinimumWorkSpeedMultiplier => minimumWorkSpeedMultiplier;
+	public float SafeHandlingWeightKg => Mathf.Max(1.0f, safeHandlingWeightKg);
 
 	// grid
 	public int3 GridPosition => position;
@@ -380,6 +385,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		minimumMoveSpeedMultiplier = archetype.WorkerBaseStat.minimumMoveSpeedMultiplier;
 		baseWorkSpeedMultiplier = archetype.WorkerBaseStat.baseWorkSpeedMultiplier;
 		minimumWorkSpeedMultiplier = archetype.WorkerBaseStat.minimumWorkSpeedMultiplier;
+		safeHandlingWeightKg = archetype.WorkerBaseStat.safeHandlingWeightKg > 0.0f
+			? archetype.WorkerBaseStat.safeHandlingWeightKg
+			: 20.0f;
 
 		ApplyVisual(archetype.WorkerVisualDefinition);
 		archetype.SetupWorker(this);
@@ -868,7 +876,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptGeneralTask(WorkerTask.TaskType taskType)
 	{
-		if (IsOperational == false || currentTask != null || IsAssignedToTaskType(taskType) == false)
+		if (IsOperational == false || HasPendingBlockingIncident ||
+			currentTask != null || IsAssignedToTaskType(taskType) == false)
 			return false;
 
 		if (IsAssignedToPackingStation)
@@ -887,7 +896,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptPreferredTask(WorkerTask task)
 	{
-		if (IsOperational == false || currentTask != null || task == null || IsAssignedToTaskType(task.Type) == false || IsRecovering)
+		if (IsOperational == false || HasPendingBlockingIncident || currentTask != null ||
+			task == null || IsAssignedToTaskType(task.Type) == false || IsRecovering)
 			return false;
 
 		if (task is PackingTask packingTask)
@@ -908,7 +918,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public void UpdatePackingRecoveryState()
 	{
 		if (CurrentWorkingBuilding is PackingStation station)
-			station.SetIncomingRequestSuspended(NeedsRecovery());
+			station.SetIncomingRequestSuspended(ShouldPrioritizeRecovery());
 	}
 
 	public bool CanLeaveAssignedStationForRecovery()
@@ -960,6 +970,15 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public virtual float GetRecoveryEfficiencyMultiplier() => 1.0f;
 	public abstract void AddFatigue(float fatigue);
 	public abstract float GetFatigue();
+	public virtual void ClearPendingWorkHandling() { }
+	public virtual void ReportItemHandling(uint itemId, int quantity, IItemContainer destination) { }
+	public virtual void ReportBoxHandling(BoxBase box, float handlingFactor = 1.0f) { }
+	public virtual bool TryConsumePendingWorkHandling(out HumanWorkHandlingResult result)
+	{
+		result = default;
+		return false;
+	}
+	public virtual void ApplyCarriedMovementFatigue(int travelledCells) { }
 
 	// decreased chance by researches or some pieces of equipment
 	public virtual float GetIncidentMitigationMultiplier() { return 1.0f; }

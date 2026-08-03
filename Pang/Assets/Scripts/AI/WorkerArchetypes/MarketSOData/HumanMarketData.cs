@@ -88,5 +88,6 @@ public class HumanMarketData : WorkforceMarketData_SO
 		target.WorkerBaseStat.baseMoveSpeedMultiplier = maxMove;
 		target.WorkerBaseStat.minimumWorkSpeedMultiplier = minWork;
 		target.WorkerBaseStat.baseWorkSpeedMultiplier = maxWork;
+		target.WorkerBaseStat.safeHandlingWeightKg = 20.0f;
 	}
 }

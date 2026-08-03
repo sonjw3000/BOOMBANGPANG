@@ -117,6 +117,7 @@ public partial class UnloadingTask : WorkerTask
 		if (rocket.CanGetBox() == false)
 			GameContext.Instance.RocketSvc.DisableRocket(task.targetRocket);
 
+		worker.ReportBoxHandling(box);
 		return Success;
 	}
 
@@ -152,6 +153,7 @@ public partial class UnloadingTask : WorkerTask
 
 		if (task.cargoPort.PutBox(box))
 		{
+			ctx.Worker.ReportBoxHandling(box);
 			task.IsUnloadEnd = true;
 			return Success;
 		}

@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 10;
+	public int Version = 11;
 	public string SavedAtUtc;
 
 	public ScenarioObjectiveSaveData ScenarioObjective = new();
@@ -71,6 +71,7 @@ public sealed class GameSaveData
 	public LicenseServiceSaveData Licenses = new();
 	public ResearchServiceSaveData Research = new();
 	public VendorServiceSaveData Vendors = new();
+	public HumanIncidentSaveData HumanIncidents = new();
 	public WorkplaceIncidentSaveData WorkplaceIncidents = new();
 	public OrderManagerSaveData Orders = new();
 	public OutboundPickingManifestSaveData OutboundPickingManifests = new();
@@ -83,6 +84,12 @@ public sealed class GameSaveData
 	public WorkJobCounterSaveData WorkJobCounters = new();
 	public List<PlaceableSaveData> Placeables = new();
 	public List<TaskSaveData> Tasks = new();
+}
+
+[Serializable]
+public sealed class HumanIncidentSaveData
+{
+	public uint GlobalSeed;
 }
 
 [Serializable]
@@ -527,6 +534,7 @@ public sealed class WorkerSaveData
 	public float MinimumMoveSpeedMultiplier;
 	public float BaseWorkSpeedMultiplier;
 	public float MinimumWorkSpeedMultiplier;
+	public float SafeHandlingWeightKg;
 	public WorkerTask.TaskType MainTaskType;
 	public List<WorkerTask.TaskType> AssignedTaskTypes = new();
 	public bool HasPendingAssignment;
@@ -535,8 +543,22 @@ public sealed class WorkerSaveData
 	public WorkerStatusAction StatusAction;
 	public WorkerStatusTarget StatusTarget;
 	public WorkerOperationalState OperationalState;
+	public int CarriedMovementCells;
 	public float Fatigue;
 	public float Experience;
+	public bool HasHumanIncidentState;
+	public float UnsafeExposure;
+	public uint IncidentRandomState;
+	public float IncidentRoll;
+	public int HumanIncidentCount;
+	public bool HasPendingHumanIncident;
+	public HumanIncidentType PendingHumanIncidentType;
+	public HumanIncidentResponseType PendingHumanIncidentResponse;
+	public HumanIncidentCause PendingHumanIncidentCause;
+	public float PendingHumanIncidentRiskScore;
+	public float PendingHumanIncidentChance;
+	public float PendingHumanIncidentExposureGain;
+	public float PendingHumanIncidentHealthDamage;
 	public float BatteryLevel;
 	public float BatteryEfficiency;
 	public BoxReferenceSaveData CarryingBox;

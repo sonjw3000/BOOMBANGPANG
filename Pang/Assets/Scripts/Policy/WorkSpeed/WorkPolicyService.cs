@@ -51,7 +51,7 @@ public partial class WorkPolicyService : MonoBehaviour
 		=> GetWorkProfile(targetWorker.WorkerPolicyType, actionType).WorkDuration
 		/ GetWorkBoost(targetWorker.WorkerPolicyType, actionType)
 		/ GetWorkSpeedMultiplier(targetWorker.WorkerPolicyType)
-		/ Mathf.Max(targetWorker.GetWorkSpeedMultiplier(), 0.01f);
+		/ Mathf.Max(targetWorker.GetWorkSpeedMultiplier(), 0.0001f);
 
 	public float GetWorkFatigue(AIWorker targetWorker, WorkActionType actionType)
 		=> GetWorkProfile(targetWorker.WorkerPolicyType, actionType).FatiguePerTask

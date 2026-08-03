@@ -1664,7 +1664,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69ca3abc4f08afc4ebb0e5495b4b507e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HumanIncidentService
-  baseChance: {fileID: 11400000, guid: 07cb22cb8bff3014e9529dd34990d288, type: 2}
+  definition: {fileID: 11400000, guid: 07cb22cb8bff3014e9529dd34990d288, type: 2}
+  globalIncidentSeed: 2366825891
 --- !u!1 &4939391971776210250
 GameObject:
   m_ObjectHideFlags: 0

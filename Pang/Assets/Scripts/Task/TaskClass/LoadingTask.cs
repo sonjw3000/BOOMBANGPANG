@@ -150,6 +150,7 @@ public partial class LoadingTask : WorkerTask
 			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
+		ctx.Worker.ReportBoxHandling(box);
 		return Success;
 	}
 
@@ -215,6 +216,7 @@ public partial class LoadingTask : WorkerTask
 			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
+		ctx.Worker.ReportBoxHandling(box);
 		task.isLoadEnd = true;
 		return Success;
 	}

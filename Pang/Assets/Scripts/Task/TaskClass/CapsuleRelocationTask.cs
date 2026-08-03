@@ -256,6 +256,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		if (task.sourceDock is Rocket rocket && rocket.CanGetBox() == false)
 			GameContext.Instance.RocketSvc.DisableRocket(rocket);
 
+		worker.ReportBoxHandling(box);
 		return Success;
 	}
 
@@ -320,6 +321,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 		if (task.targetDock.PutBox(box))
 		{
+			ctx.Worker.ReportBoxHandling(box);
 			task.isTaskEnd = true;
 			return Success;
 		}

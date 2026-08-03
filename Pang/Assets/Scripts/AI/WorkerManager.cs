@@ -73,6 +73,14 @@ public partial class WorkerManager : MonoBehaviour
 			worker.SetWorkerID(nextWorkerID++);
 		}
 
+		if (worker is HumanWorker human && GameContext.HasInstance)
+		{
+			if (preserveWorkerId)
+				GameContext.Instance.HumanIncident?.InitializeWorker(human);
+			else
+				GameContext.Instance.HumanIncident?.InitializeNewWorker(human);
+		}
+
 		monthlyCost += worker.MonthlyCost;
 		SubscribeWorker(worker);
 		RegisterWorkerStatus(worker);

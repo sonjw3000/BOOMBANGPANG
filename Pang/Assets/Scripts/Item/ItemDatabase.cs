@@ -75,6 +75,15 @@ public class ItemDatabase : MonoBehaviour
 		}
 	}
 
+	public float GetItemWeight(uint itemID)
+	{
+		if (GetItemData(itemID, out ItemDefinition data))
+			return data.Weight;
+
+		Debug.LogError($"ItemID {itemID} does not exist in ItemDB.");
+		return 0.0f;
+	}
+
 	public uint GetRandomItemID()
 	{
 		uint itemID = itemIDMap.FirstOrDefault().Key;

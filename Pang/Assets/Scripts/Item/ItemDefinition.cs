@@ -57,6 +57,7 @@ public class ItemDefinition : ScriptableObject
 
 	[SerializeField] private uint itemID;
 	[SerializeField] private float size;
+	[SerializeField, Min(0.0f)] private float weight = 0.5f;
 	[SerializeField] private ItemTag tag;
 	// 혹시 모를 render를 위한 프리팹
 	[SerializeField] private GameObject itemPrefab;
@@ -77,6 +78,7 @@ public class ItemDefinition : ScriptableObject
 
 	public uint ItemID => itemID;
 	public float Size => size;
+	public float Weight => Mathf.Max(0.0f, weight);
 	public ItemTag Tag => tag;
 	public GameObject ItemPrefab => itemPrefab;
 	public int Price => price;

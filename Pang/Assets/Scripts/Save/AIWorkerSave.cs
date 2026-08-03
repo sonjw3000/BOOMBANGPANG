@@ -19,6 +19,8 @@ public abstract partial class AIWorker
 		isRegistered = true;
 
 		routeFinder.SetAIMaster(this);
+		routeFinder.RestoreTravelledCells(restoredCarriedMovementCells);
+		restoredCarriedMovementCells = 0;
 		BuildBehaviorTree();
 	}
 
@@ -42,6 +44,7 @@ public abstract partial class AIWorker
 			MinimumMoveSpeedMultiplier = minimumMoveSpeedMultiplier,
 			BaseWorkSpeedMultiplier = baseWorkSpeedMultiplier,
 			MinimumWorkSpeedMultiplier = minimumWorkSpeedMultiplier,
+			SafeHandlingWeightKg = SafeHandlingWeightKg,
 			MainTaskType = workerMainTaskType,
 			AssignedTaskTypes = new System.Collections.Generic.List<WorkerTask.TaskType>(workerAssignedTaskTypes),
 			HasPendingAssignment = hasPendingAssignment,
@@ -50,6 +53,7 @@ public abstract partial class AIWorker
 			StatusAction = workerState.Action,
 			StatusTarget = workerState.Target,
 			OperationalState = operationalState,
+			CarriedMovementCells = routeFinder != null ? routeFinder.TravelledCellsSinceLastConsume : 0,
 			CarryingBox = null,
 		};
 
@@ -80,7 +84,13 @@ public abstract partial class AIWorker
 			SetRobotIdentity(data.RobotType);
 		else
 			SetHumanIdentity(data.HumanType);
-		abilities = data.Abilities;
+		abilities = data.WorkerKind != WorkerKind.Robot && (int)data.Abilities == -1
+			? WorkerAbility.CarryBox |
+				WorkerAbility.PickingStoring |
+				WorkerAbility.Packing |
+				WorkerAbility.Labeling |
+				WorkerAbility.CargoHandling
+			: data.Abilities;
 		monthlyCost = data.MonthlyCost;
 		hiredAtElapsedWeek = Mathf.Max(0, data.HiredAtElapsedWeek);
 		itemDamageIncidentCount = Mathf.Max(0, data.ItemDamageIncidentCount);
@@ -88,6 +98,7 @@ public abstract partial class AIWorker
 		minimumMoveSpeedMultiplier = data.MinimumMoveSpeedMultiplier;
 		baseWorkSpeedMultiplier = data.BaseWorkSpeedMultiplier;
 		minimumWorkSpeedMultiplier = data.MinimumWorkSpeedMultiplier;
+		safeHandlingWeightKg = data.SafeHandlingWeightKg > 0.0f ? data.SafeHandlingWeightKg : 20.0f;
 		workerMainTaskType = data.MainTaskType;
 		workerAssignedTaskTypes.Clear();
 		if (data.AssignedTaskTypes != null && data.AssignedTaskTypes.Count > 0)
@@ -128,6 +139,7 @@ public abstract partial class AIWorker
 			workerState = new WorkerStatusInfo(WorkerStatusAction.Idle, WorkerStatusTarget.None);
 		}
 		operationalState = data.OperationalState;
+		restoredCarriedMovementCells = Mathf.Max(0, data.CarriedMovementCells);
 		preTrafficAction = workerState.Action;
 		isTrafficBlocked = false;
 		tick = 0;

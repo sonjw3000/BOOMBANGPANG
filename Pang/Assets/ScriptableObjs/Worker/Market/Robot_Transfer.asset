@@ -28,3 +28,4 @@ MonoBehaviour:
       minimumMoveSpeedMultiplier: 1
       baseWorkSpeedMultiplier: 1
       minimumWorkSpeedMultiplier: 1
+      safeHandlingWeightKg: 20
