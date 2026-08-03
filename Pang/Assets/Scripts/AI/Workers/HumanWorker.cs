@@ -7,8 +7,10 @@ public class HumanWorker : AIWorker
 
 	[SerializeField] private float fatigue;
 	[SerializeField] private float fatigueIncreasePerTask = 2.0f;
+	[SerializeField] private bool isSuitRemoved;
 
 	public float Fatigue => fatigue;
+	public bool IsSuitRemoved => isSuitRemoved;
 
 	protected override IBaseNode BuildWorkerBaseNode()
 	{
@@ -21,7 +23,14 @@ public class HumanWorker : AIWorker
 
 	public override float GetWorkSpeedMultiplier()
 	{
-		return Mathf.Lerp(BaseWorkSpeedMultiplier, MinimumWorkSpeedMultiplier, fatigue / 100.0f);
+		float workerMultiplier = Mathf.Lerp(
+			BaseWorkSpeedMultiplier,
+			MinimumWorkSpeedMultiplier,
+			fatigue / 100.0f);
+		if (isSuitRemoved == false || GameContext.HasInstance == false)
+			return workerMultiplier;
+
+		return workerMultiplier * GameContext.Instance.OxygenSvc.GetSuitlessWorkSpeedMultiplier(this);
 	}
 
 	public override float GetMoveSpeedMultiplier()
@@ -61,15 +70,46 @@ public class HumanWorker : AIWorker
 
 	public override WorkerStatusAction GetRecoveryAction() => WorkerStatusAction.Resting;
 
+	internal void PrepareForAirlockTransit(AirlockDirection direction)
+	{
+		if (direction == AirlockDirection.InsideToOutside)
+			isSuitRemoved = false;
+	}
+
+	internal void ReconcileSuitStateFromCurrentLocation()
+	{
+		isSuitRemoved = CanRemoveSuitAtCurrentLocation();
+	}
+
+	internal void ForceSuitOn() => isSuitRemoved = false;
+
+	private bool CanRemoveSuitAtCurrentLocation()
+	{
+		if (GameContext.HasInstance == false)
+			return false;
+
+		GridService gridService = GameContext.Instance.GridService;
+		BuildingManager buildingManager = GameContext.Instance.BuildingMgr;
+		GridCell cell = gridService?.GetCell(GridPosition);
+		return cell != null &&
+			cell.IsIndoor &&
+			buildingManager != null &&
+			buildingManager.TryGetBuilding(cell.BuildingId, out Building building) &&
+			building != null &&
+			building.IsSuitRemovalPolicyActive;
+	}
+
 	protected override void CaptureSubclassState(WorkerSaveData data)
 	{
 		data.Fatigue = fatigue;
 		data.Experience = experience;
+		data.IsSuitRemoved = isSuitRemoved;
 	}
 
 	protected override void RestoreSubclassState(WorkerSaveData data)
 	{
 		fatigue = data.Fatigue;
 		experience = data.Experience;
+		isSuitRemoved = data.IsSuitRemoved && CanRemoveSuitAtCurrentLocation();
 	}
 }

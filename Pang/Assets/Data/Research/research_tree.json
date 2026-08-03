@@ -45,6 +45,15 @@
 			"cost": 180,
 			"durationWeeks": 2,
 			"prerequisiteUids": ["temperature_monitoring"]
+		},
+		{
+			"uid": "indoor_work_protocols",
+			"categoryId": "habitat_operations",
+			"displayName": "Indoor Work Protocols",
+			"description": "Allows buildings to let human workers remove EVA suits after entering through an airlock. Suitless workers work faster but consume indoor oxygen and take damage in critically low oxygen.",
+			"cost": 120,
+			"durationWeeks": 1,
+			"prerequisiteUids": []
 		}
 	]
 }

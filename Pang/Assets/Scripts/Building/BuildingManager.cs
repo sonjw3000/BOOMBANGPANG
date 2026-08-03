@@ -147,6 +147,61 @@ public sealed partial class BuildingManager : MonoBehaviour
 		return true;
 	}
 
+	public bool TrySetSuitRemovalAllowed(Building building, bool allowed)
+	{
+		if (building == null || registeredBuildings.Contains(building) == false)
+			return false;
+
+		if (allowed && building.CanControlSuitRemoval() == false)
+			return false;
+
+		building.SetSuitRemovalAllowed(allowed);
+		if (allowed == false)
+			ForceSuitsOnInsideHumans(building.RuntimeBuildingId);
+		return true;
+	}
+
+	public void NormalizeResearchGatedPolicies()
+	{
+		for (int i = 0; i < registeredBuildings.Count; ++i)
+		{
+			Building building = registeredBuildings[i];
+			if (building == null)
+				continue;
+
+			if (building.OverrideCapsuleThreshold && building.CanControlCapsuleThreshold() == false)
+				building.SetOverrideCapsuleThreshold(false);
+
+			if (building.SuitRemovalAllowed && building.CanControlSuitRemoval() == false)
+			{
+				building.SetSuitRemovalAllowed(false);
+				ForceSuitsOnInsideHumans(building.RuntimeBuildingId);
+			}
+		}
+	}
+
+	private static void ForceSuitsOnInsideHumans(uint buildingId)
+	{
+		if (buildingId == 0 || GameContext.HasInstance == false)
+			return;
+
+		WorkerManager workerManager = GameContext.Instance.WorkerMgr;
+		GridService gridService = GameContext.Instance.GridService;
+		if (workerManager == null || gridService == null)
+			return;
+
+		IReadOnlyList<AIWorker> workers = workerManager.Workers;
+		for (int i = 0; i < workers.Count; ++i)
+		{
+			if (workers[i] is not HumanWorker human)
+				continue;
+
+			GridCell cell = gridService.GetCell(human.GridPosition);
+			if (cell != null && cell.BuildingId == buildingId)
+				human.ForceSuitOn();
+		}
+	}
+
 	public bool CanLinkBuildings(Building sourceBuilding, Building targetBuilding, out string reason)
 	{
 		reason = string.Empty;
@@ -249,6 +304,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 		BuildingWorkScope workScope,
 		bool overrideCapsuleThreshold,
 		float capsuleThresholdPercent,
+		bool suitRemovalAllowed,
 		int addonSlotCapacity = 0)
 	{
 		if (ownedCells == null || ownedCells.Count <= 0)
@@ -258,8 +314,9 @@ public sealed partial class BuildingManager : MonoBehaviour
 		building.AssignRuntimeBuildingId(runtimeBuildingId);
 		building.SetState(state);
 		building.SetWorkScope(workScope);
-		building.SetOverrideCapsuleThreshold(overrideCapsuleThreshold && building.CanControlCapsuleThreshold());
+		building.SetOverrideCapsuleThreshold(overrideCapsuleThreshold);
 		building.SetCapsuleThresholdPercent(capsuleThresholdPercent);
+		building.SetSuitRemovalAllowed(suitRemovalAllowed);
 		Register(building);
 
 		for (int i = 0; i < ownedCells.Count; ++i)

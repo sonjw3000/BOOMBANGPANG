@@ -8,6 +8,7 @@ public static class ResearchIds
 	public const string WorkflowPolicyOptimization = "workflow_policy_optimization";
 	public const string TemperatureMonitoring = "temperature_monitoring";
 	public const string ThermalOperations = "thermal_operations";
+	public const string IndoorWorkProtocols = "indoor_work_protocols";
 }
 
 public enum ResearchState

@@ -97,6 +97,7 @@ public sealed partial class BuildingFootprintService
 				savedBuilding != null ? savedBuilding.WorkScope : BuildingWorkScope.HomeOnly,
 				savedBuilding != null && savedBuilding.OverrideCapsuleThreshold,
 				savedBuilding != null ? savedBuilding.CapsuleThresholdPercent : 80.0f,
+				savedBuilding != null && savedBuilding.SuitRemovalAllowed,
 				addonSlotCapacity);
 
 			if (restoredBuilding == null)

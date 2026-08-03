@@ -26,6 +26,9 @@ public sealed class Airlock : ItemInteraction, IFacilityUserRemovalGuard
 	private AIWorker reservedWorker;
 	private AirlockDirection reservedDirection;
 	private AirlockState state = AirlockState.Idle;
+	private bool hasHumanSuitSnapshot;
+	private bool reservedHumanSuitRemovedBeforeTransit;
+	private bool transitCommitted;
 
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 
@@ -43,6 +46,9 @@ public sealed class Airlock : ItemInteraction, IFacilityUserRemovalGuard
 
 		reservedWorker = worker;
 		reservedDirection = direction;
+		hasHumanSuitSnapshot = false;
+		reservedHumanSuitRemovedBeforeTransit = false;
+		transitCommitted = false;
 		state = AirlockState.Reserved;
 		return true;
 	}
@@ -85,6 +91,9 @@ public sealed class Airlock : ItemInteraction, IFacilityUserRemovalGuard
 		}
 
 		reservedWorker = null;
+		hasHumanSuitSnapshot = false;
+		reservedHumanSuitRemovedBeforeTransit = false;
+		transitCommitted = false;
 		state = AirlockState.Idle;
 	}
 
@@ -126,6 +135,13 @@ public sealed class Airlock : ItemInteraction, IFacilityUserRemovalGuard
 			yield break;
 		}
 
+		if (worker is HumanWorker enteringHuman)
+		{
+			hasHumanSuitSnapshot = true;
+			reservedHumanSuitRemovedBeforeTransit = enteringHuman.IsSuitRemoved;
+			enteringHuman.PrepareForAirlockTransit(reservedDirection);
+		}
+
 		worker.RouteFinder?.PauseForExternalTransit();
 		worker.SetWorkerTarget(WorkerStatusTarget.Airlock);
 		worker.SetWorkerAction(WorkerStatusAction.UsingAirlock);
@@ -162,6 +178,9 @@ public sealed class Airlock : ItemInteraction, IFacilityUserRemovalGuard
 			yield break;
 		}
 
+		transitCommitted = true;
+		if (worker is HumanWorker exitedHuman)
+			exitedHuman.ReconcileSuitStateFromCurrentLocation();
 		worker.enabled = true;
 		Release(worker);
 
@@ -222,6 +241,13 @@ public sealed class Airlock : ItemInteraction, IFacilityUserRemovalGuard
 
 		reservedWorker.transform.position = ToWorld(reservedWorker.GridPosition);
 		reservedWorker.transform.rotation = Quaternion.Euler(0f, FacingToYaw(reservedWorker.Direction), 0f);
+		if (reservedWorker is HumanWorker human && (transitCommitted || hasHumanSuitSnapshot))
+		{
+			if (transitCommitted || reservedHumanSuitRemovedBeforeTransit)
+				human.ReconcileSuitStateFromCurrentLocation();
+			else
+				human.ForceSuitOn();
+		}
 		reservedWorker.enabled = true;
 	}
 

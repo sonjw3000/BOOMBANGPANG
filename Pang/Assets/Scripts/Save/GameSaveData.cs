@@ -206,6 +206,7 @@ public sealed class BuildingSaveData
 	public BuildingWorkScope WorkScope;
 	public bool OverrideCapsuleThreshold;
 	public float CapsuleThresholdPercent;
+	public bool SuitRemovalAllowed;
 	public float TargetTemperatureCelsius = GridCell.DefaultTemperatureCelsius;
 	public List<uint> OutputBuildingIds = new();
 	public List<BuildingAddonSaveData> Addons = new();
@@ -539,6 +540,7 @@ public sealed class WorkerSaveData
 	public float Experience;
 	public float BatteryLevel;
 	public float BatteryEfficiency;
+	public bool IsSuitRemoved;
 	public BoxReferenceSaveData CarryingBox;
 }
 

@@ -67,6 +67,13 @@ namespace UniverseLogistics.UI.Toolkit
 		public bool SliderEnabled { get; set; } = true;
 		public Action<float> SliderChanged { get; set; }
 		public Func<UITooltipContent> SliderTooltip { get; set; }
+		public bool HasToggle { get; set; }
+		public string ToggleLabel { get; set; }
+		public string ToggleDescription { get; set; }
+		public bool ToggleValue { get; set; }
+		public bool ToggleEnabled { get; set; } = true;
+		public Action<bool> ToggleChanged { get; set; }
+		public Func<UITooltipContent> ToggleTooltip { get; set; }
 		public SelectionDetailEditorModel Editor { get; set; }
 	}
 
@@ -286,6 +293,9 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label detailSliderLabel;
 		private Slider detailSlider;
 		private Label detailSliderValue;
+		private VisualElement detailToggleControl;
+		private Toggle detailToggle;
+		private Label detailToggleDescription;
 		private VisualElement detailEditor;
 		private Label detailEditorMessage;
 		private Label detailEditorDropdownLabel;
@@ -332,6 +342,9 @@ namespace UniverseLogistics.UI.Toolkit
 			detailSliderLabel = documentRoot.Q<Label>("selection-detail-slider-label");
 			detailSlider = documentRoot.Q<Slider>("selection-detail-slider");
 			detailSliderValue = documentRoot.Q<Label>("selection-detail-slider-value");
+			detailToggleControl = documentRoot.Q<VisualElement>("selection-detail-toggle-control");
+			detailToggle = documentRoot.Q<Toggle>("selection-detail-toggle");
+			detailToggleDescription = documentRoot.Q<Label>("selection-detail-toggle-description");
 			detailEditor = documentRoot.Q<VisualElement>("selection-detail-editor");
 			detailEditorMessage = documentRoot.Q<Label>("selection-detail-editor-message");
 			detailEditorDropdownLabel = documentRoot.Q<Label>("selection-detail-editor-dropdown-label");
@@ -347,6 +360,7 @@ namespace UniverseLogistics.UI.Toolkit
 				inspector == null || detailTabs == null || overviewList == null || contextActions == null ||
 				detailPanel == null || detailTitle == null || detailSummary == null || detailList == null || detailEmpty == null ||
 				detailSliderControl == null || detailSliderLabel == null || detailSlider == null || detailSliderValue == null ||
+				detailToggleControl == null || detailToggle == null || detailToggleDescription == null ||
 				detailEditor == null || detailEditorMessage == null || detailEditorDropdownLabel == null || detailEditorDropdown == null ||
 				detailEditorToggleLabel == null || detailEditorToggles == null || detailEditorActions == null ||
 				detailEditorPrimaryAction == null || detailEditorSecondaryAction == null ||
@@ -720,6 +734,8 @@ namespace UniverseLogistics.UI.Toolkit
 				detailSliderValue.text = $"{evt.newValue:0}{activeDetailModel?.SliderValueSuffix ?? "%"}";
 			});
 			detailSliderControl.SetTooltip(() => activeDetailModel?.SliderTooltip?.Invoke() ?? default);
+			detailToggle.RegisterValueChangedCallback(evt => activeDetailModel?.ToggleChanged?.Invoke(evt.newValue));
+			detailToggleControl.SetTooltip(() => activeDetailModel?.ToggleTooltip?.Invoke() ?? default);
 			detailEditorDropdown.RegisterValueChangedCallback(evt =>
 			{
 				SelectionDetailEditorModel editor = activeDetailModel?.Editor;
@@ -780,6 +796,14 @@ namespace UniverseLogistics.UI.Toolkit
 				detailSlider.SetEnabled(activeDetailModel.SliderEnabled);
 				detailSliderValue.text =
 					$"{activeDetailModel.SliderValue:0}{activeDetailModel.SliderValueSuffix ?? "%"}";
+			}
+			detailToggleControl.style.display = activeDetailModel.HasToggle ? DisplayStyle.Flex : DisplayStyle.None;
+			if (activeDetailModel.HasToggle)
+			{
+				detailToggle.text = activeDetailModel.ToggleLabel ?? string.Empty;
+				detailToggle.SetValueWithoutNotify(activeDetailModel.ToggleValue);
+				detailToggle.SetEnabled(activeDetailModel.ToggleEnabled);
+				detailToggleDescription.text = activeDetailModel.ToggleDescription ?? string.Empty;
 			}
 			RefreshDetailEditor(activeDetailModel.Editor);
 			detailList.itemsSource = activeDetailModel.Rows;

@@ -26,6 +26,7 @@ public sealed partial class BuildingManager
 				WorkScope = building.WorkScope,
 				OverrideCapsuleThreshold = building.OverrideCapsuleThreshold,
 				CapsuleThresholdPercent = building.CapsuleThresholdPercent,
+				SuitRemovalAllowed = building.SuitRemovalAllowed,
 				TargetTemperatureCelsius = building.TargetTemperatureCelsius,
 				OutputBuildingIds = new List<uint>(building.OutputBuildingIds),
 			};
