@@ -24,6 +24,11 @@ public class HumanWorker : AIWorker
 	public int IncidentCount => Mathf.Max(0, incidentCount);
 	public bool HasPendingIncident => pendingIncident != null;
 	public override bool HasPendingBlockingIncident => HasPendingIncident;
+	[SerializeField] private float fatigueIncreasePerTask = 2.0f;
+	[SerializeField] private bool isSuitRemoved;
+
+	public float Fatigue => fatigue;
+	public bool IsSuitRemoved => isSuitRemoved;
 
 	protected override IBaseNode BuildWorkerBaseNode()
 	{
@@ -35,6 +40,16 @@ public class HumanWorker : AIWorker
 
 	public override float GetWorkSpeedMultiplier()
 		=> Mathf.Lerp(BaseWorkSpeedMultiplier, MinimumWorkSpeedMultiplier, fatigue / 100.0f);
+	{
+		float workerMultiplier = Mathf.Lerp(
+			BaseWorkSpeedMultiplier,
+			MinimumWorkSpeedMultiplier,
+			fatigue / 100.0f);
+		if (isSuitRemoved == false || GameContext.HasInstance == false)
+			return workerMultiplier;
+
+		return workerMultiplier * GameContext.Instance.OxygenSvc.GetSuitlessWorkSpeedMultiplier(this);
+	}
 
 	public override float GetMoveSpeedMultiplier()
 		=> Mathf.Lerp(BaseMoveSpeedMultiplier, MinimumMoveSpeedMultiplier, fatigue / 100.0f);
@@ -226,6 +241,33 @@ public class HumanWorker : AIWorker
 
 		float loadRatio = weight / SafeHandlingWeightKg;
 		AddFatigue(0.05f * Mathf.Max(1.0f, loadRatio) * travelledCells);
+	internal void PrepareForAirlockTransit(AirlockDirection direction)
+	{
+		if (direction == AirlockDirection.InsideToOutside)
+			isSuitRemoved = false;
+	}
+
+	internal void ReconcileSuitStateFromCurrentLocation()
+	{
+		isSuitRemoved = CanRemoveSuitAtCurrentLocation();
+	}
+
+	internal void ForceSuitOn() => isSuitRemoved = false;
+
+	private bool CanRemoveSuitAtCurrentLocation()
+	{
+		if (GameContext.HasInstance == false)
+			return false;
+
+		GridService gridService = GameContext.Instance.GridService;
+		BuildingManager buildingManager = GameContext.Instance.BuildingMgr;
+		GridCell cell = gridService?.GetCell(GridPosition);
+		return cell != null &&
+			cell.IsIndoor &&
+			buildingManager != null &&
+			buildingManager.TryGetBuilding(cell.BuildingId, out Building building) &&
+			building != null &&
+			building.IsSuitRemovalPolicyActive;
 	}
 
 	protected override void CaptureSubclassState(WorkerSaveData data)
@@ -248,6 +290,7 @@ public class HumanWorker : AIWorker
 			data.PendingHumanIncidentExposureGain = pendingIncident.ExposureGain;
 			data.PendingHumanIncidentHealthDamage = pendingIncident.HealthDamage;
 		}
+		data.IsSuitRemoved = isSuitRemoved;
 	}
 
 	protected override void RestoreSubclassState(WorkerSaveData data)
@@ -273,5 +316,6 @@ public class HumanWorker : AIWorker
 				Mathf.Max(0.0f, data.PendingHumanIncidentExposureGain),
 				Mathf.Max(0.0f, data.PendingHumanIncidentHealthDamage))
 			: null;
+		isSuitRemoved = data.IsSuitRemoved && CanRemoveSuitAtCurrentLocation();
 	}
 }

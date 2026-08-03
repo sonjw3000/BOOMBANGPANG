@@ -8,16 +8,39 @@ public interface IOxygenSupplier : IHealth, IWearable
 	float OxygenSupplyPerTick { get; }
 }
 
+public enum BuildingOxygenAlertLevel
+{
+	Normal,
+	Warning,
+	Critical,
+}
+
 public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 {
 	[SerializeField, Min(0.0f)] private float fireOxygenConsumptionAtMaxIntensity = 5.0f;
+	[SerializeField, Min(0.0f)] private float humanOxygenConsumptionPerTick = 1.0f;
+	[SerializeField, Range(0.0f, 100.0f)] private float lowOxygenWarningThreshold = 30.0f;
+	[SerializeField, Range(0.0f, 100.0f)] private float criticalOxygenThreshold = 20.0f;
+	[SerializeField, Min(0.0f)] private float criticalOxygenDamagePerTick = 2.0f;
 
 	private bool eventsBound;
 	private bool clearOutdoorOnNextTick = true;
 	private bool isProcessingTick;
+	private readonly List<HumanWorker> suitlessHumans = new();
+	private readonly Dictionary<uint, BuildingOxygenAlertLevel> alertLevelsByBuildingId = new();
 
 	public event Action OnGridOverlayRefreshRequested;
 	public bool HideZeroAlphaPixels => true;
+	public float HumanOxygenConsumptionPerTick => Mathf.Max(0.0f, humanOxygenConsumptionPerTick);
+	public float LowOxygenWarningThreshold => Mathf.Clamp(
+		lowOxygenWarningThreshold,
+		CriticalOxygenThreshold,
+		GridCell.MaximumOxygen);
+	public float CriticalOxygenThreshold => Mathf.Clamp(
+		criticalOxygenThreshold,
+		GridCell.DefaultOxygen,
+		GridCell.MaximumOxygen);
+	public float CriticalOxygenDamagePerTick => Mathf.Max(0.0f, criticalOxygenDamagePerTick);
 
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
@@ -38,11 +61,75 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 	{
 		clearOutdoorOnNextTick = true;
 		isProcessingTick = false;
+		alertLevelsByBuildingId.Clear();
 	}
 
 	public void RebuildRuntimeState()
 	{
 		clearOutdoorOnNextTick = true;
+		alertLevelsByBuildingId.Clear();
+	}
+
+	public float GetAverageOxygen(Building building)
+	{
+		return TryGetBuildingOxygen(building, out float average, out _) ? average : GridCell.DefaultOxygen;
+	}
+
+	public int GetSuitlessHumanCount(Building building)
+	{
+		return CollectSuitlessHumans(building, null);
+	}
+
+	public float GetHumanOxygenConsumptionPerTick(Building building)
+	{
+		return GetSuitlessHumanCount(building) * HumanOxygenConsumptionPerTick;
+	}
+
+	public float GetOxygenSupplyPerTick(Building building) => CalculateSupply(building);
+	public float GetFireOxygenConsumptionPerTick(Building building)
+	{
+		if (building == null)
+			return 0.0f;
+
+		float total = 0.0f;
+		IReadOnlyList<GridCell> occupiedCells = building.OccupiedCells;
+		for (int i = 0; i < occupiedCells.Count; ++i)
+		{
+			GridCell cell = occupiedCells[i];
+			if (IsBuildingIndoorCell(cell, building.RuntimeBuildingId))
+				total += CalculateFireOxygenConsumption(cell);
+		}
+
+		return total;
+	}
+
+	public float GetNetOxygenPerTick(Building building)
+	{
+		return GetOxygenSupplyPerTick(building) -
+			GetHumanOxygenConsumptionPerTick(building) -
+			GetFireOxygenConsumptionPerTick(building);
+	}
+
+	public float GetSuitlessWorkSpeedMultiplier(HumanWorker human)
+	{
+		if (human == null || human.IsSuitRemoved == false || GridService == null)
+			return 1.0f;
+
+		GridCell cell = GridService.GetCell(human.GridPosition);
+		return cell != null && cell.IsIndoor
+			? EvaluateSuitlessWorkSpeedMultiplier(cell.Oxygen)
+			: 1.0f;
+	}
+
+	public static float EvaluateSuitlessWorkSpeedMultiplier(float oxygen)
+	{
+		float value = Mathf.Clamp(oxygen, GridCell.DefaultOxygen, GridCell.MaximumOxygen);
+		if (value <= 20.0f)
+			return Mathf.Lerp(0.25f, 0.5f, value / 20.0f);
+		if (value <= 80.0f)
+			return Mathf.Lerp(0.5f, 1.0f, (value - 20.0f) / 60.0f);
+
+		return Mathf.Lerp(1.0f, 2.0f, (value - 80.0f) / 20.0f);
 	}
 
 	public void ProcessSimulationTick(in SimulationTickContext context)
@@ -65,6 +152,9 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 				changed |= ProcessBuilding(buildings[i], in context);
 
 			changed |= ConsumeOxygenForFires();
+
+			for (int i = 0; i < buildings.Count; ++i)
+				ProcessBuildingHazards(buildings[i]);
 		}
 		finally
 		{
@@ -124,29 +214,22 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 		if (building == null || building.RuntimeBuildingId == 0)
 			return false;
 
-		IReadOnlyList<GridCell> occupiedCells = building.OccupiedCells;
-		int indoorCellCount = 0;
-		float oxygenSum = 0f;
-		for (int i = 0; i < occupiedCells.Count; ++i)
-		{
-			GridCell cell = occupiedCells[i];
-			if (IsBuildingIndoorCell(cell, building.RuntimeBuildingId) == false)
-				continue;
-
-			++indoorCellCount;
-			oxygenSum += cell.Oxygen;
-		}
-
-		if (indoorCellCount == 0)
+		if (TryGetBuildingOxygen(building, out float average, out int indoorCellCount) == false)
 			return false;
 
-		float average = oxygenSum / indoorCellCount;
+		int suitlessHumanCount = CollectSuitlessHumans(building, null);
+		float humanConsumption = suitlessHumanCount * HumanOxygenConsumptionPerTick;
 		float supply = CalculateSupply(building);
-		float requestedSupply = (GridCell.MaximumOxygen - average) * indoorCellCount;
+		float requestedSupply =
+			(GridCell.MaximumOxygen - average) * indoorCellCount + humanConsumption;
 		ReportSupplierOperation(building, requestedSupply, supply, context.ElapsedWeeks);
-		float next = Mathf.Clamp(average + supply / indoorCellCount, GridCell.DefaultOxygen, GridCell.MaximumOxygen);
+		float next = Mathf.Clamp(
+			average + (supply - humanConsumption) / indoorCellCount,
+			GridCell.DefaultOxygen,
+			GridCell.MaximumOxygen);
 
 		bool changed = false;
+		IReadOnlyList<GridCell> occupiedCells = building.OccupiedCells;
 		for (int i = 0; i < occupiedCells.Count; ++i)
 		{
 			GridCell cell = occupiedCells[i];
@@ -155,6 +238,165 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 		}
 
 		return changed;
+	}
+
+	private void ProcessBuildingHazards(Building building)
+	{
+		if (TryGetBuildingOxygen(building, out float average, out _) == false)
+			return;
+
+		suitlessHumans.Clear();
+		int suitlessHumanCount = CollectSuitlessHumans(building, suitlessHumans);
+		ApplyCriticalOxygenDamage(average, suitlessHumans);
+		UpdateBuildingOxygenAlert(building, average, suitlessHumanCount);
+	}
+
+	private bool TryGetBuildingOxygen(Building building, out float average, out int indoorCellCount)
+	{
+		average = GridCell.DefaultOxygen;
+		indoorCellCount = 0;
+		if (building == null || building.RuntimeBuildingId == 0)
+			return false;
+
+		float oxygenSum = 0.0f;
+		IReadOnlyList<GridCell> occupiedCells = building.OccupiedCells;
+		for (int i = 0; i < occupiedCells.Count; ++i)
+		{
+			GridCell cell = occupiedCells[i];
+			if (IsBuildingIndoorCell(cell, building.RuntimeBuildingId) == false)
+				continue;
+
+			indoorCellCount += 1;
+			oxygenSum += cell.Oxygen;
+		}
+
+		if (indoorCellCount <= 0)
+			return false;
+
+		average = oxygenSum / indoorCellCount;
+		return true;
+	}
+
+	private int CollectSuitlessHumans(Building building, List<HumanWorker> results)
+	{
+		if (building == null || building.IsSuitRemovalPolicyActive == false || GameContext.HasInstance == false)
+			return 0;
+
+		WorkerManager workerManager = GameContext.Instance.WorkerMgr;
+		if (workerManager == null || GridService == null)
+			return 0;
+
+		int count = 0;
+		IReadOnlyList<AIWorker> workers = workerManager.Workers;
+		for (int i = 0; i < workers.Count; ++i)
+		{
+			if (workers[i] is not HumanWorker human ||
+				human.Health <= 0.0f ||
+				human.IsSuitRemoved == false)
+			{
+				continue;
+			}
+
+			GridCell cell = GridService.GetCell(human.GridPosition);
+			if (IsBuildingIndoorCell(cell, building.RuntimeBuildingId) == false)
+				continue;
+
+			count += 1;
+			results?.Add(human);
+		}
+
+		return count;
+	}
+
+	private void ApplyCriticalOxygenDamage(float oxygen, IReadOnlyList<HumanWorker> humans)
+	{
+		if (oxygen > CriticalOxygenThreshold || CriticalOxygenDamagePerTick <= 0.0f || humans == null)
+			return;
+
+		for (int i = 0; i < humans.Count; ++i)
+		{
+			HumanWorker human = humans[i];
+			if (human != null && human.Health > 0.0f && human.IsSuitRemoved)
+				human.ApplyDamage(CriticalOxygenDamagePerTick);
+		}
+	}
+
+	private void UpdateBuildingOxygenAlert(Building building, float oxygen, int suitlessHumanCount)
+	{
+		if (building == null || building.RuntimeBuildingId == 0)
+			return;
+
+		uint buildingId = building.RuntimeBuildingId;
+		if (building.IsSuitRemovalPolicyActive == false || suitlessHumanCount <= 0)
+		{
+			alertLevelsByBuildingId.Remove(buildingId);
+			return;
+		}
+
+		alertLevelsByBuildingId.TryGetValue(buildingId, out BuildingOxygenAlertLevel previous);
+		BuildingOxygenAlertLevel next = ResolveAlertLevel(previous, oxygen);
+		alertLevelsByBuildingId[buildingId] = next;
+		if (next <= previous)
+			return;
+
+		if (next == BuildingOxygenAlertLevel.Critical)
+			ShowBuildingOxygenAlert(
+				building,
+				FloatingTextPreset.Error,
+				$"Low O2 - {CriticalOxygenThreshold:0}%");
+		else if (next == BuildingOxygenAlertLevel.Warning)
+			ShowBuildingOxygenAlert(
+				building,
+				FloatingTextPreset.Warning,
+				$"Warning: Low O2 - {LowOxygenWarningThreshold:0}%");
+	}
+
+	private BuildingOxygenAlertLevel ResolveAlertLevel(BuildingOxygenAlertLevel previous, float oxygen)
+	{
+		const float recoveryMargin = 5.0f;
+		if (previous == BuildingOxygenAlertLevel.Critical)
+		{
+			if (oxygen > LowOxygenWarningThreshold + recoveryMargin)
+				return BuildingOxygenAlertLevel.Normal;
+			if (oxygen > CriticalOxygenThreshold + recoveryMargin)
+				return BuildingOxygenAlertLevel.Warning;
+			return BuildingOxygenAlertLevel.Critical;
+		}
+
+		if (previous == BuildingOxygenAlertLevel.Warning)
+		{
+			if (oxygen <= CriticalOxygenThreshold)
+				return BuildingOxygenAlertLevel.Critical;
+			return oxygen > LowOxygenWarningThreshold + recoveryMargin
+				? BuildingOxygenAlertLevel.Normal
+				: BuildingOxygenAlertLevel.Warning;
+		}
+
+		if (oxygen <= CriticalOxygenThreshold)
+			return BuildingOxygenAlertLevel.Critical;
+		return oxygen <= LowOxygenWarningThreshold
+			? BuildingOxygenAlertLevel.Warning
+			: BuildingOxygenAlertLevel.Normal;
+	}
+
+	private static void ShowBuildingOxygenAlert(
+		Building building,
+		FloatingTextPreset preset,
+		string message)
+	{
+		if (building == null || GameContext.HasInstance == false)
+			return;
+
+		BuildingFootprintService footprintService = GameContext.Instance.BuildingFootprintService;
+		if (footprintService == null ||
+			footprintService.TryGetFootprint(building.RuntimeBuildingId, out BuildingFootprintRecord footprint) == false ||
+			footprint == null)
+		{
+			return;
+		}
+
+		Vector3 worldPosition = new(footprint.Center.x, footprint.Floor + 1.5f, footprint.Center.y);
+		GameContext.Instance.FloatingTextManager?.ShowWorld(preset, message, worldPosition, 2.0f);
 	}
 
 	private static float CalculateSupply(Building building)
@@ -216,14 +458,23 @@ public sealed class OxygenService : MonoBehaviour, IGridOverlayProvider
 					if (cell == null || cell.FireIntensity <= 0.0f || cell.Oxygen <= GridCell.DefaultOxygen)
 						continue;
 
-					float consumption = fireOxygenConsumptionAtMaxIntensity *
-						Mathf.Clamp01(cell.FireIntensity / FireService.MaximumFireIntensity);
+					float consumption = CalculateFireOxygenConsumption(cell);
 					changed |= GridService.TrySetOxygen(cell, cell.Oxygen - consumption);
 				}
 			}
 		}
 
 		return changed;
+	}
+
+	private float CalculateFireOxygenConsumption(GridCell cell)
+	{
+		if (cell == null || cell.FireIntensity <= 0.0f || cell.Oxygen <= GridCell.DefaultOxygen)
+			return 0.0f;
+
+		float requested = fireOxygenConsumptionAtMaxIntensity *
+			Mathf.Clamp01(cell.FireIntensity / FireService.MaximumFireIntensity);
+		return Mathf.Min(requested, cell.Oxygen - GridCell.DefaultOxygen);
 	}
 
 	private bool ClearOutdoorOxygen()

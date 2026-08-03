@@ -67,6 +67,7 @@ public class Building
 
 	private bool overrideCapsuleThreshold = false;
 	private float capsuleThresholdPercent = 80.0f;
+	private bool suitRemovalAllowed;
 	private BuildingItemIndex itemIndex;
 	private PowerPort powerPort;
 	private int currentPowerConsumption;
@@ -126,6 +127,8 @@ public class Building
 
 	public bool OverrideCapsuleThreshold => overrideCapsuleThreshold;
 	public float CapsuleThresholdPercent => capsuleThresholdPercent;
+	public bool SuitRemovalAllowed => suitRemovalAllowed;
+	public bool IsSuitRemovalPolicyActive => suitRemovalAllowed && CanControlSuitRemoval();
 
 	protected TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
@@ -136,6 +139,12 @@ public class Building
 	{
 		return GameContext.HasInstance &&
 			GameContext.Instance.ResearchService?.IsResearched(ResearchIds.WorkflowPolicyOptimization) == true;
+	}
+
+	public bool CanControlSuitRemoval()
+	{
+		return GameContext.HasInstance &&
+			GameContext.Instance.ResearchService?.IsResearched(ResearchIds.IndoorWorkProtocols) == true;
 	}
 
 	public bool TrySetOverrideCapsuleThreshold(bool value)
@@ -158,6 +167,7 @@ public class Building
 
 	internal void SetOverrideCapsuleThreshold(bool value) => overrideCapsuleThreshold = value;
 	internal void SetCapsuleThresholdPercent(float value) => capsuleThresholdPercent = UnityEngine.Mathf.Clamp(value, 0.0f, 100.0f);
+	internal void SetSuitRemovalAllowed(bool value) => suitRemovalAllowed = value;
 	internal void SetAddonSlotCapacity(int value) => addonSlotCapacity = UnityEngine.Mathf.Max(0, value);
 	internal void SetTargetTemperatureCelsius(float value) => targetTemperatureCelsius = value;
 	internal void AssignRuntimeBuildingId(uint id) => runtimeBuildingId = id;

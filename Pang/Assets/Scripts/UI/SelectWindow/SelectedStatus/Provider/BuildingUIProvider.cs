@@ -8,6 +8,8 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	private Building Building => currentTarget != null ? currentTarget.Building : null;
 	private BuildingAddonService AddonService =>
 		GameContext.HasInstance ? GameContext.Instance.BuildingAddonSvc : null;
+	private OxygenService OxygenService =>
+		GameContext.HasInstance ? GameContext.Instance.OxygenSvc : null;
 	private string addonActionMessage = string.Empty;
 	private int addonActionVersion;
 
@@ -413,7 +415,15 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	private int GetSettingsVersion()
 	{
 		if (Building == null) return 0;
-		return HashCode.Combine(Building.WorkScope, Building.OverrideCapsuleThreshold, Mathf.RoundToInt(Building.CapsuleThresholdPercent));
+		return HashCode.Combine(
+			Building.WorkScope,
+			Building.OverrideCapsuleThreshold,
+			Mathf.RoundToInt(Building.CapsuleThresholdPercent),
+			Building.SuitRemovalAllowed,
+			Building.CanControlSuitRemoval(),
+			Mathf.RoundToInt((OxygenService?.GetAverageOxygen(Building) ?? 0.0f) * 10.0f),
+			OxygenService?.GetSuitlessHumanCount(Building) ?? 0,
+			Mathf.RoundToInt((OxygenService?.GetNetOxygenPerTick(Building) ?? 0.0f) * 100.0f));
 	}
 
 	private SelectionDetailPanelModel BuildSettingsPanel()
@@ -422,12 +432,40 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		SelectionDetailPanelModel panel = new()
 		{
 			Title = "SETTINGS",
-			Summary = SupportsCapsuleThreshold()
-				? thresholdUnlocked ? "Outbound capsule release settings" : "Threshold control requires Workflow Policy Optimization."
-				: "No capsule threshold setting for this building type."
+			Summary = "Building operating policies",
 		};
 		if (Building == null) return panel;
 		panel.Rows.Add(new SelectionDetailRow { Primary = "Work Scope", Secondary = WorkScopeDisplay });
+
+		float averageOxygen = OxygenService?.GetAverageOxygen(Building) ?? GridCell.DefaultOxygen;
+		int suitlessHumanCount = OxygenService?.GetSuitlessHumanCount(Building) ?? 0;
+		float oxygenConsumption =
+			suitlessHumanCount * (OxygenService?.HumanOxygenConsumptionPerTick ?? 0.0f);
+		float oxygenSupply = OxygenService?.GetOxygenSupplyPerTick(Building) ?? 0.0f;
+		float fireConsumption = OxygenService?.GetFireOxygenConsumptionPerTick(Building) ?? 0.0f;
+		float netOxygen = oxygenSupply - oxygenConsumption - fireConsumption;
+		panel.Rows.Add(new SelectionDetailRow
+		{
+			Primary = "Indoor O2",
+			Trailing = $"{averageOxygen:0.#}%",
+			Secondary =
+				$"{suitlessHumanCount} suitless humans · Consumption {oxygenConsumption:0.##}/tick · " +
+				$"Net {netOxygen:+0.##;-0.##;0}/tick",
+		});
+
+		bool suitPolicyUnlocked = Building.CanControlSuitRemoval();
+		panel.HasToggle = true;
+		panel.ToggleLabel = "Allow EVA Suit Removal";
+		panel.ToggleValue = Building.SuitRemovalAllowed;
+		panel.ToggleEnabled = suitPolicyUnlocked;
+		panel.ToggleChanged = SetSuitRemovalAllowed;
+		panel.ToggleTooltip = BuildSuitRemovalTooltip;
+		float oxygenPerHuman = OxygenService?.HumanOxygenConsumptionPerTick ?? 1.0f;
+		panel.ToggleDescription = suitPolicyUnlocked
+			? Building.SuitRemovalAllowed
+				? $"After airlock entry: 200% speed at 100 O2, 100% at 80 O2; {oxygenPerHuman:0.##} O2/tick each."
+				: "Humans keep EVA suits on and do not consume building oxygen."
+			: "Required research: Indoor Work Protocols";
 		if (SupportsCapsuleThreshold())
 		{
 			panel.Rows.Add(new SelectionDetailRow { Primary = "Threshold Override", Secondary = Building.OverrideCapsuleThreshold ? "Enabled" : "Disabled" });
@@ -467,8 +505,24 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 			: UITooltipContent.Locked(title, description,
 				"Required research: Workflow Policy Optimization");
 	}
+	private UITooltipContent BuildSuitRemovalTooltip()
+	{
+		const string title = "Allow EVA Suit Removal";
+		float oxygenPerHuman = OxygenService?.HumanOxygenConsumptionPerTick ?? 1.0f;
+		string description =
+			"Human workers remove suits only after completing outside-to-inside airlock transit. " +
+			$"Work speed is 200% at 100 O2 and 100% at 80 O2. They consume {oxygenPerHuman:0.##} O2 per tick and take damage at critical O2.";
+		return Building?.CanControlSuitRemoval() == true
+			? UITooltipContent.DescriptionOnly(title, description)
+			: UITooltipContent.Locked(title, description, "Required research: Indoor Work Protocols");
+	}
 	private void ToggleThresholdOverride() { if (SupportsCapsuleThreshold()) Building.TrySetOverrideCapsuleThreshold(Building.OverrideCapsuleThreshold == false); }
 	private void SetThreshold(float value) { if (SupportsCapsuleThreshold()) Building.TrySetCapsuleThresholdPercent(value); }
+	private void SetSuitRemovalAllowed(bool allowed)
+	{
+		if (Building != null)
+			currentTarget?.BuildingManager?.TrySetSuitRemovalAllowed(Building, allowed);
+	}
 	private void MarkPendingDemolition() { if (Building != null) currentTarget?.BuildingManager?.SetBuildingState(Building, BuildingState.PendingDemolition); }
 	private void RestoreActive() { if (Building != null) currentTarget?.BuildingManager?.SetBuildingState(Building, BuildingState.Active); }
 }

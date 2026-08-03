@@ -223,6 +223,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.GameTime.RestoreState(data.Time);
 		Ctx.EconomyService.RestoreState(data.Economy);
 		Ctx.ResearchService.RestoreState(data.Research);
+		Ctx.BuildingMgr.NormalizeResearchGatedPolicies();
 		Ctx.BuildingAddonSvc.RestoreState(data.Buildings);
 		Ctx.IBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.WorkApproach : null);
 		Ctx.OBWorkflowSvc.RestorePolicyState(data.Policy != null ? data.Policy.OutboundWorkApproach : null);

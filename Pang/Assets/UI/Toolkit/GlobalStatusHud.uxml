@@ -59,6 +59,10 @@
 				</ui:VisualElement>
 				<ui:Slider name="selection-detail-slider" low-value="0" high-value="100" class="selection-detail-panel__slider" />
 			</ui:VisualElement>
+			<ui:VisualElement name="selection-detail-toggle-control" class="selection-detail-panel__toggle-control">
+				<ui:Toggle name="selection-detail-toggle" text="Policy" class="selection-detail-panel__toggle" />
+				<ui:Label name="selection-detail-toggle-description" class="selection-detail-panel__toggle-description" />
+			</ui:VisualElement>
 			<ui:VisualElement name="selection-detail-editor" class="selection-detail-editor">
 				<ui:Label name="selection-detail-editor-message" class="selection-detail-editor__message" />
 				<ui:Label name="selection-detail-editor-dropdown-label" text="Workplace" class="selection-detail-editor__label" />

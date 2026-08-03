@@ -458,6 +458,9 @@
 .selection-detail-panel__slider-label { flex-grow: 1; font-size: 8px; color: rgb(151, 177, 188); }
 .selection-detail-panel__slider-value { font-size: 8px; -unity-font-style: bold; color: rgb(103, 196, 220); -unity-text-align: middle-right; }
 .selection-detail-panel__slider { height: 20px; margin-top: 2px; }
+.selection-detail-panel__toggle-control { display: none; min-height: 48px; margin-top: 6px; padding-top: 5px; padding-right: 7px; padding-bottom: 5px; padding-left: 7px; background-color: rgba(25, 39, 50, 0.72); }
+.selection-detail-panel__toggle { height: 20px; font-size: 9px; -unity-font-style: bold; color: rgb(209, 226, 233); }
+.selection-detail-panel__toggle-description { min-height: 17px; margin-top: 2px; font-size: 8px; color: rgb(126, 153, 166); white-space: normal; }
 .selection-detail-editor { display: none; min-height: 210px; margin-top: 6px; padding-top: 7px; padding-right: 7px; padding-bottom: 7px; padding-left: 7px; background-color: rgba(25, 39, 50, 0.72); }
 .selection-detail-editor__message { min-height: 16px; margin-bottom: 5px; font-size: 8px; color: rgb(199, 174, 108); white-space: normal; }
 .selection-detail-editor__label { height: 15px; margin-top: 2px; font-size: 8px; -unity-font-style: bold; color: rgb(151, 177, 188); }

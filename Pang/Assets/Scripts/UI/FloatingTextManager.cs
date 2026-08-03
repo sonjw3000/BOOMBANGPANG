@@ -7,10 +7,11 @@ using UnityEngine.UI;
 
 public enum FloatingTextPreset
 {
-	Error,
-	MoneyLoss,
-	MoneyGain,
-	WorkerStatus,
+	Error = 0,
+	MoneyLoss = 1,
+	MoneyGain = 2,
+	WorkerStatus = 3,
+	Warning = 4,
 }
 
 public enum FloatingTextPositionType
@@ -266,6 +267,7 @@ public sealed class FloatingTextManager : MonoBehaviour
 		ApplyDefaultStyle(FloatingTextPreset.MoneyLoss);
 		ApplyDefaultStyle(FloatingTextPreset.MoneyGain);
 		ApplyDefaultStyle(FloatingTextPreset.WorkerStatus);
+		ApplyDefaultStyle(FloatingTextPreset.Warning);
 	}
 
 	private void ApplyDefaultStyle(FloatingTextPreset preset)
@@ -393,6 +395,7 @@ public sealed class FloatingTextManager : MonoBehaviour
 			FloatingTextPreset.MoneyLoss => new FloatingTextStyle(1.0f, 30f, new Color(1f, 0.82f, 0.3f, 1f)),
 			FloatingTextPreset.MoneyGain => new FloatingTextStyle(1.0f, 30f, new Color(0.45f, 1f, 0.45f, 1f)),
 			FloatingTextPreset.WorkerStatus => new FloatingTextStyle(0.9f, 30f, new Color(0.9f, 0.96f, 1f, 1f)),
+			FloatingTextPreset.Warning => new FloatingTextStyle(1.6f, 30f, new Color(1f, 0.55f, 0.15f, 1f)),
 			_ => new FloatingTextStyle(1f, 30f, Color.white),
 		};
 	}
