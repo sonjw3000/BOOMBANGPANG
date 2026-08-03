@@ -170,6 +170,22 @@ public partial class FacilityManager : MonoBehaviour
 		return facilityBuildingIds.TryGetValue(facility, out buildingId);
 	}
 
+	public bool ReportPowerConsumptionChanged(IFacility facility)
+	{
+		if (facility == null ||
+			TryGetBuildingId(facility, out uint buildingId) == false ||
+			buildingId == 0 ||
+			GameContext.HasInstance == false ||
+			GameContext.Instance.BuildingMgr == null ||
+			GameContext.Instance.BuildingMgr.TryGetBuilding(buildingId, out Building building) == false)
+		{
+			return false;
+		}
+
+		building.RecalculatePowerConsumption();
+		return true;
+	}
+
 	public bool IsInvalidating(IFacility facility)
 	{
 		return facility != null &&

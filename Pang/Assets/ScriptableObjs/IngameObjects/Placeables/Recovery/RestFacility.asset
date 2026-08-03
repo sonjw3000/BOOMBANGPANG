@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ea39cd9d2906294b915277300334413, type: 3}
+  m_Name: RestFacility
+  m_EditorClassIdentifier: Assembly-CSharp::PlaceableDefinition
+  placeableID: rest_facility_00
+  displayName: Rest Facility
+  icon: {fileID: 0}
+  prefab: {fileID: 381538812679589898, guid: c592e9a8549324e01b3cc39bc58df3d0, type: 3}
+  gridFootprint: {fileID: 11400000, guid: b86d4292db91c4c4c92da6b06b3fee75, type: 2}
+  definitionType: 5
+  placementEnvironment: 1
+  requiredResearchUid: 
+  ignitionTemperatureCelsius: 0
+  damageIncidents: []
+  Cost: 100

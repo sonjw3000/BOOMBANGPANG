@@ -79,6 +79,7 @@ public enum WorkerStatusTarget
 	PowerHub,
 	RefrigerationUnit,
 	OxygenSupplyUnit,
+	RestFacility,
 }
 
 public struct WorkerStatusInfo
@@ -485,6 +486,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	private void OnDestroy()
 	{
+		CancelRecovery(false);
+
 		// unregister AI
 		if (isRegistered == false || GameContext.HasInstance == false)
 			return;
@@ -659,7 +662,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool SetTask(WorkerTask task)
 	{
-		if (task != null && IsOperational == false)
+		if (task != null && (IsOperational == false || IsRecovering))
 			return false;
 
 		if (GameContext.HasInstance && task != null)
@@ -689,8 +692,10 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			return;
 
 		currentTask = null;
+		CancelRecovery(false);
 		routeFinder?.CancelCurrentRoute();
 		localBlackBoard.Clear();
+		UpdatePackingRecoveryState();
 		BuildBehaviorTree();
 		if (GameContext.HasInstance)
 		{
@@ -722,6 +727,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 		WorkerOperationalState previousState = operationalState;
 		operationalState = state;
+		CancelRecovery(false);
 		routeFinder?.CancelCurrentRoute();
 		localBlackBoard.Clear();
 
@@ -821,6 +827,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			return true;
 
 		isRemovalPrepared = true;
+		CancelRecovery(false);
 		routeFinder?.CancelCurrentRoute();
 		localBlackBoard.Clear();
 
@@ -867,6 +874,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		if (IsAssignedToPackingStation)
 			return false;
 
+		if (ShouldPrioritizeRecovery())
+			return false;
+
 		return true;
 	}
 
@@ -877,7 +887,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptPreferredTask(WorkerTask task)
 	{
-		if (IsOperational == false || currentTask != null || task == null || IsAssignedToTaskType(task.Type) == false)
+		if (IsOperational == false || currentTask != null || task == null || IsAssignedToTaskType(task.Type) == false || IsRecovering)
 			return false;
 
 		if (task is PackingTask packingTask)
@@ -886,7 +896,10 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			if (targetStation == null)
 				return false;
 
-			return targetStation.CurrentPackingWorker == this;
+			if (targetStation.CurrentPackingWorker != this)
+				return false;
+
+			return ShouldPrioritizeRecovery() == false || CanLeaveAssignedStationForRecovery() == false;
 		}
 
 		return CanAcceptGeneralTask(task);
@@ -942,7 +955,9 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	public virtual void TickVitals(float deltaTime) { }
 	public abstract bool NeedsRecovery();
 	public abstract bool IsRecoveryComplete();
-	public abstract void TickRecovery(float deltaTime);
+	public abstract void TickRecovery(float recoveryPerSecond, float deltaTime);
+	public abstract WorkerStatusAction GetRecoveryAction();
+	public virtual float GetRecoveryEfficiencyMultiplier() => 1.0f;
 	public abstract void AddFatigue(float fatigue);
 	public abstract float GetFatigue();
 

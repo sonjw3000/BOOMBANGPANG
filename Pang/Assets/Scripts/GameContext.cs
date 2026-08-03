@@ -66,6 +66,8 @@ public class GameContext : MonoBehaviour
 	[FormerlySerializedAs("zoneManager")]
 	[SerializeField] private AreaManager areaManager;
 	[SerializeField] private FacilityManager facilityManager;
+	[SerializeField] private ChargingFacilityService chargingFacilityService;
+	[SerializeField] private RestFacilityService restFacilityService;
 	[SerializeField] private FacilityRuleManager facilityRuleManager;
 	[SerializeField] private FacilityRuleOverlayController facilityRuleOverlayController;
 	[SerializeField] private AirlockService airlockService;
@@ -192,6 +194,10 @@ public class GameContext : MonoBehaviour
 	public BuildingManager BuildingMgr => buildingManager;
 	public BuildingAddonService BuildingAddonSvc => buildingAddonService;
 	public FacilityManager FacilityMgr => facilityManager;
+	public ChargingFacilityService ChargingFacilitySvc =>
+		ResolveManager(ref chargingFacilityService, nameof(ChargingFacilityService));
+	public RestFacilityService RestFacilitySvc =>
+		ResolveManager(ref restFacilityService, nameof(RestFacilityService));
 	public FacilityRuleManager FacilityRuleMgr => facilityRuleManager;
 	public FacilityRuleOverlayController FacilityRuleOverlay => facilityRuleOverlayController;
 

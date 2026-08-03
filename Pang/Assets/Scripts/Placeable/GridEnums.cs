@@ -139,6 +139,7 @@ public enum InteractionKind : byte
 	Work = 1 << 2,
 	Charge = 1 << 3,
 	Enter = 1 << 4,
+	Rest = 1 << 5,
 }
 
 public enum FootprintCellEnvironmentRequirement : byte

@@ -653,8 +653,8 @@ public class FindRoute : MonoBehaviour
 			movementState = MovementState.Failed;
 			RefreshPlannedPathRegistration();
 			Debug.Log($"[FindRoute] {transform.name}, ID: {worker.WorkerID} could not find a route to the goal.");
-			//worker.enabled = true;
-			enabled = true;
+			worker.enabled = true;
+			enabled = false;
 			return;
 		}
 

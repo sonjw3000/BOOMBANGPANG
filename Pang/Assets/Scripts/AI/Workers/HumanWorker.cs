@@ -14,6 +14,7 @@ public class HumanWorker : AIWorker
 	{
 		SelectorNode root = new SelectorNode();
 		root.Add(BuildHumanIncidentNode());
+		root.Add(BuildRecoveryNode(WorkerStatusTarget.RestFacility, InteractionKind.Rest));
 
 		return root;
 	}
@@ -53,10 +54,12 @@ public class HumanWorker : AIWorker
 
 	public override bool IsRecoveryComplete() => fatigue <= WorkPolicy.WorkerRestTargetFatigue;
 
-	public override void TickRecovery(float deltaTime)
+	public override void TickRecovery(float recoveryPerSecond, float deltaTime)
 	{
-		fatigue = Mathf.Max(0.0f, fatigue - WorkPolicy.WorkerRestRecoveryPerSecond * deltaTime);
+		fatigue = Mathf.Max(0.0f, fatigue - Mathf.Max(0.0f, recoveryPerSecond) * deltaTime);
 	}
+
+	public override WorkerStatusAction GetRecoveryAction() => WorkerStatusAction.Resting;
 
 	protected override void CaptureSubclassState(WorkerSaveData data)
 	{

@@ -105,6 +105,7 @@ MonoBehaviour:
   workerMainTaskType: 999
   visualRoot: {fileID: 3145472337838494173}
   batteryLevel: 100
+  chargingType: 1
   monthlyMaintenanceCost: 100
 --- !u!1 &4306318324985286381
 GameObject:

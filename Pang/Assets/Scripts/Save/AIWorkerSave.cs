@@ -122,6 +122,11 @@ public abstract partial class AIWorker
 		if (hasPendingAssignment == false)
 			pendingPrimaryBuildingId = 0;
 		workerState = new WorkerStatusInfo(data.StatusAction, data.StatusTarget);
+		if (workerState.Action == WorkerStatusAction.Resting ||
+			workerState.Action == WorkerStatusAction.Charging)
+		{
+			workerState = new WorkerStatusInfo(WorkerStatusAction.Idle, WorkerStatusTarget.None);
+		}
 		operationalState = data.OperationalState;
 		preTrafficAction = workerState.Action;
 		isTrafficBlocked = false;

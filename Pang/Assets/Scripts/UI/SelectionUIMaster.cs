@@ -69,6 +69,8 @@ public class SelectionUIMaster : MonoBehaviour
 		providerTypes.Add(typeof(CargoPortUIProvider));
 		providerTypes.Add(typeof(AirlockUIProvider));
 		providerTypes.Add(typeof(RefrigerationUnitUIProvider));
+		providerTypes.Add(typeof(ChargingFacilityUIProvider));
+		providerTypes.Add(typeof(RestFacilityUIProvider));
 		providerTypes.Add(typeof(PackingStationUIProvider));
 		providerTypes.Add(typeof(RocketUIProvider));
 		providerTypes.Add(typeof(ShelfUIProvider));
@@ -509,6 +511,7 @@ public class SelectionUIMaster : MonoBehaviour
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Work, "WORK");
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Charge, "CHARGE");
 		AppendInteractionLabel(builder, interactionKind, InteractionKind.Enter, "ENTER");
+		AppendInteractionLabel(builder, interactionKind, InteractionKind.Rest, "REST");
 		return builder.ToString();
 	}
 

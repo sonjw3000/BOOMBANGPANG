@@ -408,6 +408,9 @@ public partial class WorkerManager : MonoBehaviour
 
 		foreach (TaskType taskType in worker.AssignedTaskTypes)
 		{
+			if (worker.CanAcceptGeneralTask(taskType) == false)
+				continue;
+
 			if (idleWorkersSet[taskType].Add(worker) == false)
 				continue;
 
@@ -515,6 +518,11 @@ public partial class WorkerManager : MonoBehaviour
 		foreach (var worker in workers)
 		{
 			// SyncWorkerAvailability(worker);
+			if (worker == null)
+				continue;
+
+			if (worker.IsOperational)
+				worker.TickVitals(Time.deltaTime);
 
 			if (worker.enabled)
 				worker.RunBT(globalBlackboard);

@@ -4,10 +4,12 @@ public class RobotWorker : AIWorker, IWearable
 {
 	private static WorkPolicyService WorkPolicy => GameContext.Instance.WMSys.WorkPolicyService;
 	[SerializeField] private float batteryLevel = 100f;
+	[SerializeField] private ChargingType chargingType = ChargingType.Standard;
 	private float batteryEfficiency;
 	[SerializeField] private WearState wear = new();
 
 	public float BatteryLevel => batteryLevel;
+	public ChargingType ChargingType => chargingType;
 	public float Wear => wear.Wear;
 	public float WearEfficiency => wear.Efficiency;
 	public float PassiveWearPerQuarterWeek => wear.PassiveWearPerQuarterWeek;
@@ -17,17 +19,14 @@ public class RobotWorker : AIWorker, IWearable
 
 	protected override IBaseNode BuildWorkerBaseNode()
 	{
-		return null;
+		SelectorNode root = new();
+		root.Add(BuildRecoveryNode(WorkerStatusTarget.Charger, InteractionKind.Charge));
+		return root;
 	}
 
 	public override void TickVitals(float deltaTime)
 	{
-		batteryEfficiency -= deltaTime * 0.01f;
-
-		// todo
-		// efficiency가 낮아질수록 배터리 소모량이 늘어나도록 해야
-
-		batteryLevel -= deltaTime * 0.01f;
+		batteryLevel = Mathf.Max(0.0f, batteryLevel - Mathf.Max(0.0f, deltaTime) * 0.01f);
 	}
 
 	public override void AddFatigue(float fatigue)
@@ -45,10 +44,12 @@ public class RobotWorker : AIWorker, IWearable
 
 	public override bool IsRecoveryComplete() => batteryLevel >= WorkPolicy.RobotChargeTargetBattery;
 
-	public override void TickRecovery(float deltaTime)
+	public override void TickRecovery(float recoveryPerSecond, float deltaTime)
 	{
-		batteryLevel = Mathf.Min(100.0f, batteryLevel + WorkPolicy.RobotChargeRecoveryPerSecond * deltaTime);
+		batteryLevel = Mathf.Min(100.0f, batteryLevel + Mathf.Max(0.0f, recoveryPerSecond) * deltaTime);
 	}
+
+	public override WorkerStatusAction GetRecoveryAction() => WorkerStatusAction.Charging;
 
 	protected override void CaptureSubclassState(WorkerSaveData data)
 	{

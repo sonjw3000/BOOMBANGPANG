@@ -16,6 +16,16 @@ public abstract partial class AIWorker
 	private static readonly string TransitStartedKey = "TransitStarted";
 
 	protected virtual IBaseNode BuildWorkerBaseNode() { return null; }
+	protected static SequenceNode BuildRecoveryNode(
+		WorkerStatusTarget target,
+		InteractionKind interactionKind)
+	{
+		SequenceNode root = new();
+		root.Add(new ActionNode(CheckRecoveryNeeded));
+		root.Add(MoveToTarget(target, interactionKind));
+		root.Add(new ActionNode(Recover));
+		return root;
+	}
 	// AI's basic actions
 	public static NodeState CheckFulfilled(in BTContext ctx)
 	{
@@ -231,6 +241,16 @@ public abstract partial class AIWorker
 		{
 			ctx.Worker.SetWorkerTarget(target);
 
+			if (ctx.Worker.routeFinder.CurrentMovementState == FindRoute.MovementState.Failed)
+			{
+				ctx.Worker.routeFinder.CancelCurrentRoute();
+				ClearTransitState(ctx.LocalBlackBoard);
+				ctx.LocalBlackBoard.RemoveTargetBuilding();
+				if (ctx.Worker.IsRecovering)
+					ctx.Worker.CancelRecovery(true);
+				return Failure;
+			}
+
 			if (ctx.LocalBlackBoard.TryGetTargetBuilding(out var building) == false ||
 				building == null)
 			{
@@ -352,6 +372,12 @@ public abstract partial class AIWorker
 			}
 		}
 
+		if (ctx.Worker.IsRecovering)
+		{
+			ctx.Worker.CancelRecovery(true);
+			return Failure;
+		}
+
 		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 		return KeepTaskWaiting(ctx);
 	}
@@ -365,12 +391,25 @@ public abstract partial class AIWorker
 		if (targetPlaceable is not IInteractionPoint interaction)
 			return false;
 
-		if (InteractionPointSelector.TryGetInteractionPoint(
-			interaction,
-			interactionKind,
-			ctx.Worker.position,
-			out int3 goalPos,
-			out _) == false)
+		int3 goalPos = default;
+		bool foundReservedPoint =
+			targetPlaceable is IWorkerInteractionReservation reservation &&
+			reservation.TryGetReservedInteractionPoint(
+				ctx.Worker,
+				interactionKind,
+				out goalPos);
+
+		if (foundReservedPoint)
+		{
+			if (GridService.IsSameRegion(ctx.Worker.position, goalPos) == false)
+				return false;
+		}
+		else if (InteractionPointSelector.TryGetInteractionPoint(
+				interaction,
+				interactionKind,
+				ctx.Worker.position,
+				out goalPos,
+				out _) == false)
 		{
 			return false;
 		}
@@ -483,6 +522,33 @@ public abstract partial class AIWorker
 	public static NodeState KeepTaskWaiting(in BTContext ctx)
 	{
 		return Running;
+	}
+
+	private static NodeState CheckRecoveryNeeded(in BTContext ctx)
+	{
+		if (ctx.Worker.CurrentTask != null)
+			return Failure;
+
+		return ctx.Worker.TryCanBeginRecovery() ? Success : Failure;
+	}
+
+	private static NodeState Recover(in BTContext ctx)
+	{
+		if (ctx.Worker.IsRecoveryReservationValid() == false ||
+			ctx.Worker.TryBeginRecoveryUse() == false)
+		{
+			ctx.Worker.CancelRecovery(true);
+			return Failure;
+		}
+
+		ctx.Worker.SetWorkerAction(ctx.Worker.GetRecoveryAction());
+		ctx.Worker.TickRecovery(ctx.Worker.GetEffectiveRecoveryPerSecond(), ctx.DeltaTime);
+		if (ctx.Worker.IsRecoveryComplete() == false)
+			return Running;
+
+		ctx.Worker.SetWorkerAction(WorkerStatusAction.None);
+		ctx.Worker.CompleteRecovery();
+		return Success;
 	}
 
 	public static SelectorNode CheckBoxAndGet(BoxType boxRequirement)
