@@ -50,6 +50,7 @@ public class GridCell
 	private int tile = 0;
 	private GridFlags flags = GridFlags.None;
 	private int regionId = 0;
+	private int navigationRegionId = 0;
 	private uint buildingId = 0;
 	private float temperatureCelsius = DefaultTemperatureCelsius;
 	private float oxygen = DefaultOxygen;
@@ -69,6 +70,7 @@ public class GridCell
 	public int Tile => tile;
 	public GridFlags Flags => flags;
 	public int RegionId => regionId;
+	public int NavigationRegionId => navigationRegionId;
 	public uint BuildingId => buildingId;
 	public float TemperatureCelsius => temperatureCelsius;
 	public float Oxygen => oxygen;
@@ -140,6 +142,7 @@ public class GridCell
 	{
 		flags = GridFlags.None;
 		regionId = 0;
+		navigationRegionId = 0;
 		buildingId = 0;
 		oxygen = DefaultOxygen;
 		flagsByObject.Clear();
@@ -197,6 +200,11 @@ public class GridCell
 	public void SetRegionId(int value)
 	{
 		regionId = value < 0 ? 0 : value;
+	}
+
+	internal void SetNavigationRegionId(int value)
+	{
+		navigationRegionId = value < 0 ? 0 : value;
 	}
 
 	public void SetBuildingId(uint value)

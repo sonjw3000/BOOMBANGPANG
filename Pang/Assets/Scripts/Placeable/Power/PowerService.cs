@@ -6,7 +6,10 @@ public sealed class PowerService : MonoBehaviour
 {
 	private readonly List<PowerHub> installedHubs = new();
 	private readonly List<PowerPort> installedPorts = new();
+	private readonly List<NavigationHub> installedNavigationHubs = new();
 	private bool eventsBound;
+
+	public event System.Action OnPowerNetworkChanged;
 
 	private FacilityManager FacilityManager => GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
@@ -77,6 +80,9 @@ public sealed class PowerService : MonoBehaviour
 
 	public void ResetRuntimeState()
 	{
+		for (int i = 0; i < installedNavigationHubs.Count; ++i)
+			installedNavigationHubs[i]?.DisconnectPower();
+
 		for (int i = 0; i < installedPorts.Count; ++i)
 			installedPorts[i]?.Disconnect();
 
@@ -85,6 +91,8 @@ public sealed class PowerService : MonoBehaviour
 
 		installedPorts.Clear();
 		installedHubs.Clear();
+		installedNavigationHubs.Clear();
+		OnPowerNetworkChanged?.Invoke();
 	}
 
 	public void RebuildConnections()
@@ -96,6 +104,9 @@ public sealed class PowerService : MonoBehaviour
 
 		for (int i = 0; i < installedPorts.Count; ++i)
 			installedPorts[i]?.Disconnect();
+
+		for (int i = 0; i < installedNavigationHubs.Count; ++i)
+			installedNavigationHubs[i]?.DisconnectPower();
 
 		for (int portIndex = 0; portIndex < installedPorts.Count; ++portIndex)
 		{
@@ -113,6 +124,33 @@ public sealed class PowerService : MonoBehaviour
 				break;
 			}
 		}
+
+		for (int navigationIndex = 0; navigationIndex < installedNavigationHubs.Count; ++navigationIndex)
+		{
+			NavigationHub navigationHub = installedNavigationHubs[navigationIndex];
+			if (navigationHub == null)
+				continue;
+
+			for (int hubIndex = 0; hubIndex < installedHubs.Count; ++hubIndex)
+			{
+				PowerHub hub = installedHubs[hubIndex];
+				if (hub == null || hub.HasPower == false || IsInSupplyRange(hub, navigationHub) == false)
+					continue;
+
+				navigationHub.ConnectPower(hub);
+				break;
+			}
+		}
+
+		OnPowerNetworkChanged?.Invoke();
+	}
+
+	public void NotifyPowerSourceStateChanged(PowerHub hub)
+	{
+		if (hub == null || installedHubs.Contains(hub) == false)
+			return;
+
+		RebuildConnections();
 	}
 
 	private void BindEvents()
@@ -122,6 +160,7 @@ public sealed class PowerService : MonoBehaviour
 
 		FacilityManager.SubscribeFacilityRegister<PowerHub>(HandleHubRegistered, HandleHubUnregistered);
 		FacilityManager.SubscribeFacilityRegister<PowerPort>(HandlePortRegistered, HandlePortUnregistered);
+		FacilityManager.SubscribeFacilityRegister<NavigationHub>(HandleNavigationHubRegistered, HandleNavigationHubUnregistered);
 		VendorService.OnVendorsChanged += HandleVendorsChanged;
 		eventsBound = true;
 	}
@@ -135,6 +174,7 @@ public sealed class PowerService : MonoBehaviour
 		{
 			FacilityManager.UnsubscribeFacilityRegister<PowerHub>(HandleHubRegistered, HandleHubUnregistered);
 			FacilityManager.UnsubscribeFacilityRegister<PowerPort>(HandlePortRegistered, HandlePortUnregistered);
+			FacilityManager.UnsubscribeFacilityRegister<NavigationHub>(HandleNavigationHubRegistered, HandleNavigationHubUnregistered);
 		}
 
 		if (VendorService != null)
@@ -150,6 +190,7 @@ public sealed class PowerService : MonoBehaviour
 
 		installedHubs.Clear();
 		installedPorts.Clear();
+		installedNavigationHubs.Clear();
 
 		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
 		for (int i = 0; i < buildingIds.Count; ++i)
@@ -166,6 +207,10 @@ public sealed class PowerService : MonoBehaviour
 				AddUnique(installedPorts, port);
 				AssignBuilding(buildingId, port);
 			}
+
+			IReadOnlyList<NavigationHub> navigationHubs = FacilityManager.GetFacilities<NavigationHub>(buildingId);
+			for (int navigationIndex = 0; navigationIndex < navigationHubs.Count; ++navigationIndex)
+				AddUnique(installedNavigationHubs, navigationHubs[navigationIndex]);
 		}
 
 		RebuildConnections();
@@ -208,6 +253,25 @@ public sealed class PowerService : MonoBehaviour
 		installedPorts.Remove(port);
 		port.Disconnect();
 		port.SetConnectedBuilding(null);
+		RebuildConnections();
+	}
+
+	private void HandleNavigationHubRegistered(uint buildingId, IFacility facility)
+	{
+		if (facility is not NavigationHub navigationHub)
+			return;
+
+		AddUnique(installedNavigationHubs, navigationHub);
+		RebuildConnections();
+	}
+
+	private void HandleNavigationHubUnregistered(uint buildingId, IFacility facility)
+	{
+		if (facility is not NavigationHub navigationHub)
+			return;
+
+		installedNavigationHubs.Remove(navigationHub);
+		navigationHub.DisconnectPower();
 		RebuildConnections();
 	}
 
@@ -270,6 +334,12 @@ public sealed class PowerService : MonoBehaviour
 	private static bool IsInSupplyRange(PowerHub hub, PowerPort port)
 	{
 		int3 delta = math.abs(hub.GridPosition - port.GridPosition);
+		return delta.x + delta.y + delta.z <= hub.SupplyRadius;
+	}
+
+	private static bool IsInSupplyRange(PowerHub hub, NavigationHub navigationHub)
+	{
+		int3 delta = math.abs(hub.GridPosition - navigationHub.GridPosition);
 		return delta.x + delta.y + delta.z <= hub.SupplyRadius;
 	}
 

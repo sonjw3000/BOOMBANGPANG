@@ -89,6 +89,22 @@ Examples:
 - `StorageBuilding`, `Packing`, and `Staging` are building-level identities
 - fragile handling, hazard restrictions, and item filters are facility-rule policies
 
+---
+
+## 5 Robot Navigation Coverage
+
+`RobotNavigationService` owns robot navigation coverage derived from outdoor `NavigationHub` and `RelayNode` facilities.
+
+Current rules:
+- an operational Navigation Hub starts one Hub-owned coverage area
+- a Relay belongs to one Hub and becomes active when its center cell is already inside that Hub's active coverage
+- an active Relay extends the same Hub-owned coverage, so chained Relays can expand the network
+- one grid cell may be influenced by multiple Hubs
+- `GridCell.NavigationRegionId` is a derived runtime cache for the influencing Hub combination; the service remains the owner of its meaning
+- coverage and region IDs are rebuilt after facility, power, or operational-state changes and are not persistent grid state
+
+Navigation Hubs receive power directly from an in-range `PowerHub`. Active Relays add their configured power load to their owning Navigation Hub. Robot compute allocation and movement restrictions consume this coverage in later implementation stages; they are not owned by the grid cache.
+
 Current implementation note:
 - the present building creation flow may still use simple rectangular wall-based construction
 - this should be treated as an implementation stage, not the final conceptual boundary of the building system

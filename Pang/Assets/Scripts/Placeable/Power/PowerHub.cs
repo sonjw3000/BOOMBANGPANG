@@ -13,6 +13,7 @@ public class PowerHub : MonoBehaviour, IFacility
 	[SerializeField] private int supplyRadius;
 
 	private readonly List<PowerPort> connectedPorts = new();
+	private readonly List<NavigationHub> connectedNavigationHubs = new();
 	private PowerVendor activeVendor;
 
 	public int3 GridPosition => gridPosition;
@@ -23,14 +24,28 @@ public class PowerHub : MonoBehaviour, IFacility
 	public uint PowerVendorId => powerVendorId;
 	public int SupplyRadius => supplyRadius;
 	public int PowerCapacity => activeVendor != null ? activeVendor.PowerCapacity : 0;
-	public bool HasPower => activeVendor != null;
+	public bool HasPower => activeVendor != null && Health > 0.0f;
 	public int ConnectedBuildingCount => connectedPorts.Count;
 	public float Health => health.Health;
 	public float MaxHealth => health.MaxHealth;
 	public float FireIntensity => fireIntensity;
 
-	public float ApplyDamage(float amount) => health.ApplyDamage(amount);
-	public void RestoreHealth(float value) => health.RestoreHealth(value);
+	public float ApplyDamage(float amount)
+	{
+		bool hadPower = HasPower;
+		float applied = health.ApplyDamage(amount);
+		if (applied > 0.0f && hadPower != HasPower)
+			NotifyPowerStateChanged();
+
+		return applied;
+	}
+	public void RestoreHealth(float value)
+	{
+		bool hadPower = HasPower;
+		health.RestoreHealth(value);
+		if (hadPower != HasPower)
+			NotifyPowerStateChanged();
+	}
 	public void SetFireIntensity(float intensity) => fireIntensity = Mathf.Clamp(intensity, 0.0f, 100.0f);
 
 	public int CurrentPowerUsage
@@ -41,6 +56,11 @@ public class PowerHub : MonoBehaviour, IFacility
 			foreach (var port in connectedPorts)
 			{
 				totalUsage += port.CurrentPowerUsage;
+			}
+			foreach (var navigationHub in connectedNavigationHubs)
+			{
+				if (navigationHub != null)
+					totalUsage += navigationHub.PowerConsumption;
 			}
 			return totalUsage;
 		}
@@ -79,9 +99,25 @@ public class PowerHub : MonoBehaviour, IFacility
 			connectedPorts.Remove(port);
 	}
 
+	internal bool TryConnect(NavigationHub navigationHub)
+	{
+		if (navigationHub == null || connectedNavigationHubs.Contains(navigationHub))
+			return false;
+
+		connectedNavigationHubs.Add(navigationHub);
+		return true;
+	}
+
+	internal void Disconnect(NavigationHub navigationHub)
+	{
+		if (navigationHub != null)
+			connectedNavigationHubs.Remove(navigationHub);
+	}
+
 	internal void ClearConnections()
 	{
 		connectedPorts.Clear();
+		connectedNavigationHubs.Clear();
 	}
 
 	public void OnPositionSet(in int3 position, FacingDirection direction)
@@ -97,5 +133,11 @@ public class PowerHub : MonoBehaviour, IFacility
 	public void SetFacilityRulePresetId(uint presetId)
 	{
 		facilityRulePresetId = presetId;
+	}
+
+	private void NotifyPowerStateChanged()
+	{
+		if (GameContext.HasInstance)
+			GameContext.Instance.PowerSvc?.NotifyPowerSourceStateChanged(this);
 	}
 }
