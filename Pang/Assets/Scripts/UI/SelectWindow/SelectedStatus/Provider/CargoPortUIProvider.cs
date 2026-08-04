@@ -22,7 +22,10 @@ public class CargoPortUIProvider : UIProvider<CargoPort>, IShelfBaseUIProvider, 
 	public string InputReadyDisplay => currentTarget != null && currentTarget.CanPutBox() ? "Yes" : "No";
 	public string InteriorAccessDisplay => CanUseFromInterior(currentTarget) ? "Open" : "Closed";
 	public string ExteriorAccessDisplay => CanUseFromExterior(currentTarget) ? "Open" : "Closed";
-	public bool CanForceLoad => currentTarget is OutboundCargoPort && GameContext.HasInstance && GameContext.Instance.OBWorkflowSvc != null;
+	public bool CanForceLoad => currentTarget is OutboundCargoPort &&
+		currentTarget.DockedCapsule?.RouteKind == CargoRouteKind.Standard &&
+		GameContext.HasInstance &&
+		GameContext.Instance.OBWorkflowSvc != null;
 
 	public ItemContainerDisplayInfo GetItemDisplay() => new()
 	{

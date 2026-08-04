@@ -904,7 +904,9 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	public void BuildLoadingTask(CargoPort cargoPort)
 	{
-		if (cargoPort is not OutboundCargoPort || cargoPort.CanGetBox() == false)
+		if (cargoPort is not OutboundCargoPort ||
+			cargoPort.DockedCapsule?.RouteKind != CargoRouteKind.Standard ||
+			cargoPort.CanGetBox() == false)
 			return;
 
 		uint requestedBuildingId = ResolveSourceBuilding(cargoPort, out Building sourceBuilding)

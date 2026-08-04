@@ -118,8 +118,11 @@ public sealed class WasteCollectionPlanner :
 
 			for (int portIndex = 0; portIndex < building.OccupiedCargoPorts.Count; ++portIndex)
 			{
-				if (building.OccupiedCargoPorts[portIndex] is WasteOutboundPort outboundPort)
+				if (building.OccupiedCargoPorts[portIndex] is OutboundCargoPort outboundPort &&
+					outboundPort.DockedCapsule?.RouteKind == CargoRouteKind.Waste)
+				{
 					TryRequestExternalExport(outboundPort);
+				}
 			}
 		}
 	}
@@ -329,8 +332,11 @@ public sealed class WasteCollectionPlanner :
 			NotifyBuildingChanged(building);
 		}
 
-		if (task.TargetDock is WasteOutboundPort outboundPort)
+		if (task.TargetDock is OutboundCargoPort outboundPort &&
+			outboundPort.DockedCapsule?.RouteKind == CargoRouteKind.Waste)
+		{
 			TryRequestExternalExport(outboundPort);
+		}
 	}
 
 	private void RegisterSchedulerHandler()
@@ -744,10 +750,12 @@ public sealed class WasteCollectionPlanner :
 		if (building == null || GameContext.HasInstance == false)
 			return;
 
-		WasteOutboundPort target = null;
+		OutboundCargoPort target = null;
 		for (int i = 0; i < building.OccupiedCargoPorts.Count; ++i)
 		{
-			if (building.OccupiedCargoPorts[i] is WasteOutboundPort candidate && candidate.CanPutBox())
+			if (building.OccupiedCargoPorts[i] is OutboundCargoPort candidate &&
+				candidate.CanAcceptCargoRoute(CargoRouteKind.Waste) &&
+				candidate.CanPutBox())
 			{
 				target = candidate;
 				break;
@@ -771,7 +779,7 @@ public sealed class WasteCollectionPlanner :
 				source,
 				CapsuleDockState.WasteBin,
 				CapsuleLogisticsState.Waste,
-				CapsuleDockState.WasteOutbound,
+				CapsuleDockState.OB,
 				CapsuleRelocateScope.SameBuilding,
 				building.RuntimeBuildingId,
 				onMatched: EnqueueWasteRelocation,
@@ -780,7 +788,7 @@ public sealed class WasteCollectionPlanner :
 		}
 	}
 
-	private void TryRequestExternalExport(WasteOutboundPort source)
+	private void TryRequestExternalExport(OutboundCargoPort source)
 	{
 		if (source?.DockedCapsule is not WasteBin wasteBin || wasteBin.IsFull == false || GameContext.HasInstance == false)
 			return;
@@ -790,7 +798,7 @@ public sealed class WasteCollectionPlanner :
 		wasteBin.SetLogisticsState(CapsuleLogisticsState.Waste);
 		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
 			source,
-			CapsuleDockState.WasteOutbound,
+			CapsuleDockState.OB,
 			CapsuleLogisticsState.Waste,
 			CapsuleDockState.WasteContainer,
 			CapsuleRelocateScope.GlobalAllowed,
@@ -818,7 +826,8 @@ public sealed class WasteCollectionPlanner :
 		if (isRestoring)
 			return;
 
-		if (dock is WasteOutboundPort outboundPort)
+		if (dock is OutboundCargoPort outboundPort &&
+			outboundPort.DockedCapsule?.RouteKind == CargoRouteKind.Waste)
 		{
 			TryRequestExternalExport(outboundPort);
 			return;
@@ -833,7 +842,7 @@ public sealed class WasteCollectionPlanner :
 		if (isRestoring)
 			return;
 
-		if ((dock is WasteBinDock || dock is WasteOutboundPort) &&
+		if ((dock is WasteBinDock || dock is OutboundCargoPort) &&
 			BuildingManager?.TryGetBuilding(buildingId, out Building building) == true)
 		{
 			NotifyBuildingChanged(building);

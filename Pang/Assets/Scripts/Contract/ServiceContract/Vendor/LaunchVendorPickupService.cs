@@ -104,6 +104,7 @@ public class LaunchVendorPickupService : VendorProcessor
 	{
 		return port is OutboundCargoPort &&
 			port.DockedCapsule != null &&
+			port.DockedCapsule.RouteKind == CargoRouteKind.Standard &&
 			port.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB &&
 			IsPackedCargo(port.DockedCapsule);
 	}

@@ -9,7 +9,9 @@ public sealed class LoadingTaskBuildRequest : TaskBuildRequest<LoadingTask>
 
 	public override WorkerTask.TaskType TaskType => WorkerTask.TaskType.Loading;
 	public override object RequestKey => GetRequestKey(sourcePort);
-	public override bool IsStillValid => sourcePort is OutboundCargoPort && sourcePort.CanGetBox();
+	public override bool IsStillValid => sourcePort is OutboundCargoPort &&
+		sourcePort.DockedCapsule?.RouteKind == CargoRouteKind.Standard &&
+		sourcePort.CanGetBox();
 	public override bool DependsOnFacility(IFacility facility) => ReferenceEquals(sourcePort, facility);
 
 	public static object GetRequestKey(CargoPort sourcePort)

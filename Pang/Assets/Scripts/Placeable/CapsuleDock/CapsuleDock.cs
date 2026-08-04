@@ -10,7 +10,6 @@ public enum CapsuleDockState
 	OB = 4,
 	InboundSource = 5,
 	WasteBin = 6,
-	WasteOutbound = 7,
 	WasteContainer = 8,
 }
 
@@ -26,6 +25,7 @@ public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
 	public virtual CapsuleDockState DockState => CapsuleDockState.Empty;
 	public bool HasCapsule => dockedCapsule != null;
 	protected virtual CargoRouteKind SupportedCargoRouteKind => acceptedCargoRouteKind;
+	protected virtual bool SupportsCargoRoute(CargoRouteKind routeKind) => SupportedCargoRouteKind == routeKind;
 	public CargoRouteKind AcceptedCargoRouteKind => SupportedCargoRouteKind;
 	public float TotalSize => dockedCapsule != null ? dockedCapsule.TotalSize : 0.0f;
 	public float MaxSize => dockedCapsule != null ? dockedCapsule.MaxSize : 0.0f;
@@ -50,7 +50,7 @@ public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
 		return true;
 	}
 
-	public bool CanAcceptCargoRoute(CargoRouteKind routeKind) => SupportedCargoRouteKind == routeKind;
+	public bool CanAcceptCargoRoute(CargoRouteKind routeKind) => SupportsCargoRoute(routeKind);
 
 	public bool TryUndockCapsule(out CargoCapsule capsule)
 	{
