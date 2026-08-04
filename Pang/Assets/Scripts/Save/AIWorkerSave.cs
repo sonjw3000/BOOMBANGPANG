@@ -53,6 +53,7 @@ public abstract partial class AIWorker
 			StatusAction = workerState.Action,
 			StatusTarget = workerState.Target,
 			OperationalState = operationalState,
+			ControlMode = ControlMode,
 			CarriedMovementCells = routeFinder != null ? routeFinder.TravelledCellsSinceLastConsume : 0,
 			CarryingBox = null,
 		};
@@ -139,6 +140,7 @@ public abstract partial class AIWorker
 			workerState = new WorkerStatusInfo(WorkerStatusAction.Idle, WorkerStatusTarget.None);
 		}
 		operationalState = data.OperationalState;
+		RestorePlayerOverrideState(data.ControlMode);
 		restoredCarriedMovementCells = Mathf.Max(0, data.CarriedMovementCells);
 		preTrafficAction = workerState.Action;
 		isTrafficBlocked = false;

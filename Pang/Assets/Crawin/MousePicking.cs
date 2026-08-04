@@ -14,10 +14,14 @@ public class MousePicking : MonoBehaviour
 
 	[SerializeField] private GameObject floorhighLight;
 	[SerializeField] private GameObject goalPositionHighlight;
+	[SerializeField, Min(0.0f)] private float rightClickDragThreshold = 6.0f;
 
 	private GameObject removeButton;
 	private Animator rightClickMenuAnimator;
 	private GameObject selectedObject;
+	private bool isRightPointerDown;
+	private bool hasRightPointerDragged;
+	private Vector2 rightPointerDownPosition;
 
 
 	private int currentFloor = 0;
@@ -41,19 +45,50 @@ public class MousePicking : MonoBehaviour
 	// Update is called once per frame
 	private void Update()
 	{
-		if (IsPointerOverUI)
-			return;
+		bool isPointerOverUI = IsPointerOverUI;
+		if (isPointerOverUI == false)
+			CalculateMousePos();
 
-		CalculateMousePos();
+		HandleRightPointer(isPointerOverUI);
+		if (isPointerOverUI)
+			return;
 
 		if (Input.GetMouseButtonDown(0))
 			InteractionCtx.OnLeftClick(currentTargetPoint);
-		if (Input.GetMouseButtonDown(1))
-			InteractionCtx.OnRightClick(currentTargetPoint);
 		if (Input.GetKeyDown(KeyCode.B))
 			InteractionCtx.ToggleSelectionDomain();
 		if (Input.GetKeyDown(KeyCode.R))
 			InteractionCtx.RotatePlacement();
+	}
+
+	private void HandleRightPointer(bool isPointerOverUI)
+	{
+		if (Input.GetMouseButtonDown(1))
+		{
+			isRightPointerDown = isPointerOverUI == false;
+			hasRightPointerDragged = false;
+			rightPointerDownPosition = Input.mousePosition;
+		}
+
+		if (isRightPointerDown && Input.GetMouseButton(1))
+		{
+			float threshold = Mathf.Max(0.0f, rightClickDragThreshold);
+			Vector2 pointerDelta = (Vector2)Input.mousePosition - rightPointerDownPosition;
+			if (pointerDelta.sqrMagnitude > threshold * threshold)
+				hasRightPointerDragged = true;
+		}
+
+		if (Input.GetMouseButtonUp(1) == false)
+			return;
+
+		bool shouldHandleClick = isRightPointerDown &&
+			hasRightPointerDragged == false &&
+			isPointerOverUI == false;
+		isRightPointerDown = false;
+		hasRightPointerDragged = false;
+
+		if (shouldHandleClick)
+			InteractionCtx.OnRightClick(currentTargetPoint);
 	}
 
 	private void CalculateMousePos()

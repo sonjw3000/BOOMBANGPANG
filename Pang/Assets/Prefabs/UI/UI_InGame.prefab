@@ -102,6 +102,8 @@ MonoBehaviour:
   debugContentTemplate: {fileID: 9197481963319205126, guid: e6ae5504b67b4f2eb73d4aa84cba22c7, type: 3}
   buildingAddonCatalogContentTemplate: {fileID: 9197481963319205126, guid: 1cefe9055f7b4bf8ae31cc3f12fa3929, type: 3}
   buildingAddonCatalogRowTemplate: {fileID: 9197481963319205126, guid: d54c8c12bc07445c9793ef23d2b33f28, type: 3}
+  playerInteractionContentTemplate: {fileID: 9197481963319205126, guid: 81a56f2a0b0f4efda60ead179558af5b, type: 3}
+  playerInteractionItemRowTemplate: {fileID: 9197481963319205126, guid: ec163c859fed4c1eb589249a256ff932, type: 3}
   panelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
   sortingOrder: 100
 --- !u!114 &7714475366775286390

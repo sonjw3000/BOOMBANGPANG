@@ -65,6 +65,11 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 	public string CurrentTaskSummary => currentTarget?.CurrentTask != null ? currentTarget.CurrentTask.GetStatusSummary() : "No assigned task.";
 	public bool HasAssignedTask => currentTarget?.CurrentTask != null;
 	public bool HasCarriedBox => currentTarget?.CarryingAbility?.CarryingBox != null;
+	public string ControlDisplay => currentTarget == null
+		? "Unavailable"
+		: currentTarget.IsPlayerOverride
+			? $"Player Override · {currentTarget.PlayerOverridePhase}"
+			: "Automatic";
 	public float CarriedBoxFillPercent
 	{
 		get
@@ -162,7 +167,68 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 			model.AddOverview(DebugProfileLabel, () => DebugProfileDisplay);
 		model.AddOverview("Main Task", () => MainTaskTypeDisplay);
 		model.AddOverview("Action", () => ActionDisplay);
+		model.AddOverview("Control", () => ControlDisplay);
+		model.AddAction("Take Control", TakePlayerControl, CanTakePlayerControl);
+		model.AddAction("Interact", RequestInteractionWindow, CanRequestInteractionWindow);
+		model.AddAction("Release Control", ReleasePlayerControl, CanReleasePlayerControl);
 		model.AddAction("Remove", DeleteObject, isDangerous: true);
+	}
+
+	private bool CanTakePlayerControl()
+	{
+		return currentTarget != null &&
+			currentTarget.IsPlayerOverride == false &&
+			GameContext.HasInstance &&
+			GameContext.Instance.PlayerOverrideSvc != null;
+	}
+
+	private bool CanRequestInteractionWindow()
+	{
+		return currentTarget != null &&
+			currentTarget.IsPlayerOverride &&
+			currentTarget.PlayerOverridePhase == PlayerOverridePhase.AwaitingCommand &&
+			GameContext.HasInstance &&
+			GameContext.Instance.PlayerOverrideSvc != null;
+	}
+
+	private bool CanReleasePlayerControl()
+	{
+		return currentTarget != null &&
+			currentTarget.IsPlayerOverride &&
+			GameContext.HasInstance &&
+			GameContext.Instance.PlayerOverrideSvc != null;
+	}
+
+	private void TakePlayerControl()
+	{
+		if (CanTakePlayerControl() == false)
+			return;
+
+		if (GameContext.Instance.PlayerOverrideSvc.TryTakeControl(currentTarget, out string reason) == false &&
+			string.IsNullOrWhiteSpace(reason) == false)
+		{
+			Debug.LogWarning($"[WorkerUIProvider] Unable to take control of {currentTarget.Name}: {reason}");
+			GameContext.Instance.HudEventManager?.Publish(HudEventType.Warning, reason, currentTarget);
+		}
+	}
+
+	private void RequestInteractionWindow()
+	{
+		if (CanRequestInteractionWindow())
+			GameContext.Instance.PlayerOverrideSvc.RequestInteractionWindow(currentTarget);
+	}
+
+	private void ReleasePlayerControl()
+	{
+		if (CanReleasePlayerControl() == false)
+			return;
+
+		if (GameContext.Instance.PlayerOverrideSvc.TryReleaseControl(currentTarget, out string reason) == false &&
+			string.IsNullOrWhiteSpace(reason) == false)
+		{
+			Debug.LogWarning($"[WorkerUIProvider] Unable to release control of {currentTarget.Name}: {reason}");
+			GameContext.Instance.HudEventManager?.Publish(HudEventType.Warning, reason, currentTarget);
+		}
 	}
 
 	private int GetProfileVersion()

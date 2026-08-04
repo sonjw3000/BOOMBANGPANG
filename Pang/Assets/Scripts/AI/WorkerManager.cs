@@ -411,7 +411,7 @@ public partial class WorkerManager : MonoBehaviour
 
 	public void AddIdleWorker(AIWorker worker)
 	{
-		if (worker == null || worker.IsOperational == false || worker.CurrentTask != null)
+		if (worker == null || worker.IsOperational == false || worker.IsPlayerOverride || worker.CurrentTask != null)
 			return;
 
 		foreach (TaskType taskType in worker.AssignedTaskTypes)

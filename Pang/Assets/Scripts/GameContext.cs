@@ -118,6 +118,7 @@ public class GameContext : MonoBehaviour
 	private DeliveryService deliveryService = new();
 	private readonly ResearchService researchService = new();
 	private readonly BuildingAddonService buildingAddonService = new();
+	private readonly PlayerOverrideService playerOverrideService = new();
 	private GameSaveService saveService;
 	private ScenarioObjectiveService scenarioObjectiveService;
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
@@ -255,6 +256,7 @@ public class GameContext : MonoBehaviour
 		}
 	}
 	public DeliveryService DeliveryService => deliveryService;
+	public PlayerOverrideService PlayerOverrideSvc => playerOverrideService;
 	public InteractionContext InteractionCtx => interactionCtx;
 	public GameSaveService SaveService => ResolveManager(ref saveService, nameof(GameSaveService));
 	public ScenarioObjectiveService ScenarioObjectiveService =>

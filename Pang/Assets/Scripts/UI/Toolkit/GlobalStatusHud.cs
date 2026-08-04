@@ -18,6 +18,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string CompanyDocumentObjectName = "CompanyManagementWindowDocument";
 		private const string DebugDocumentObjectName = "DebugControlWindowDocument";
 		private const string BuildingAddonCatalogDocumentObjectName = "BuildingAddonCatalogWindowDocument";
+		private const string PlayerInteractionDocumentObjectName = "PlayerInteractionWindowDocument";
 		private const int MaxVisibleEvents = 5;
 		private const float EventFadeSeconds = 0.8f;
 		private const float ReferenceWidth = 1920f;
@@ -57,6 +58,8 @@ namespace UniverseLogistics.UI.Toolkit
 		[SerializeField] private VisualTreeAsset debugContentTemplate;
 		[SerializeField] private VisualTreeAsset buildingAddonCatalogContentTemplate;
 		[SerializeField] private VisualTreeAsset buildingAddonCatalogRowTemplate;
+		[SerializeField] private VisualTreeAsset playerInteractionContentTemplate;
+		[SerializeField] private VisualTreeAsset playerInteractionItemRowTemplate;
 		[SerializeField] private PanelSettings panelSettings;
 		[SerializeField] private int sortingOrder = 100;
 
@@ -102,6 +105,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private CompanyManagementWindow companyManagementWindow;
 		private DebugControlWindow debugControlWindow;
 		private BuildingAddonCatalogWindow buildingAddonCatalogWindow;
+		private PlayerInteractionWindow playerInteractionWindow;
 		private SelectionCardHud selectionCard;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
@@ -138,6 +142,7 @@ namespace UniverseLogistics.UI.Toolkit
 			EnsureCompanyManagementWindow();
 			EnsureDebugControlWindow();
 			EnsureBuildingAddonCatalogWindow();
+			EnsurePlayerInteractionWindow();
 			BindControls();
 
 			if (started)
@@ -561,6 +566,44 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			EnsureBuildingAddonCatalogWindow();
 			return buildingAddonCatalogWindow != null && buildingAddonCatalogWindow.Open(building);
+		}
+
+		private void EnsurePlayerInteractionWindow()
+		{
+			if (playerInteractionWindow != null)
+				return;
+
+			if (windowVisualTreeAsset == null || playerInteractionContentTemplate == null ||
+				playerInteractionItemRowTemplate == null || panelSettings == null)
+			{
+				Debug.LogError("[GlobalStatusHud] Player interaction window assets are missing.", this);
+				return;
+			}
+
+			GameObject documentObject = new(PlayerInteractionDocumentObjectName);
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+
+			UIDocument interactionDocument = documentObject.AddComponent<UIDocument>();
+			interactionDocument.panelSettings = panelSettings;
+			interactionDocument.visualTreeAsset = windowVisualTreeAsset;
+			interactionDocument.sortingOrder = sortingOrder + 110;
+
+			UIWindow window = documentObject.AddComponent<UIWindow>();
+			window.SetOpenOnEnable(false);
+			window.SetDefaultSize(new Vector2(1040f, 680f));
+			playerInteractionWindow = documentObject.AddComponent<PlayerInteractionWindow>();
+			playerInteractionWindow.Configure(
+				window,
+				playerInteractionContentTemplate,
+				playerInteractionItemRowTemplate);
+			documentObject.SetActive(true);
+		}
+
+		public bool OpenPlayerInteraction(AIWorker worker)
+		{
+			EnsurePlayerInteractionWindow();
+			return playerInteractionWindow != null && playerInteractionWindow.Open(worker);
 		}
 
 		private void BindControls()

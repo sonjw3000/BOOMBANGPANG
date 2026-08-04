@@ -550,6 +550,7 @@ public sealed class WorkerSaveData
 	public WorkerStatusAction StatusAction;
 	public WorkerStatusTarget StatusTarget;
 	public WorkerOperationalState OperationalState;
+	public WorkerControlMode ControlMode;
 	public int CarriedMovementCells;
 	public float Fatigue;
 	public float Experience;

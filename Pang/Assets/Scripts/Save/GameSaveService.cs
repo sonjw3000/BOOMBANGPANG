@@ -118,6 +118,7 @@ public sealed class GameSaveService : MonoBehaviour
 
 	private GameSaveData Capture()
 	{
+		Ctx.PlayerOverrideSvc.PrepareForSave(Ctx.WorkerMgr.Workers);
 		placeableIds.Clear();
 		orderLineIds.Clear();
 		nextPlaceableId = 1;
@@ -177,6 +178,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Dictionary<uint, AIWorker> workersById = new();
 
 		Ctx.TaskMgr.ResetRuntimeState();
+		Ctx.PlayerOverrideSvc.ResetRuntimeState();
 		Ctx.CapsuleRelocateCoordinator.ResetRuntimeState();
 		Ctx.CapsuleRelocateCoordinator.BeginRestore();
 		Ctx.ItemTransferTaskScheduler.ResetRuntimeState();
@@ -533,6 +535,7 @@ public sealed class GameSaveService : MonoBehaviour
 		foreach (AIWorker worker in workersById.Values)
 		{
 			if (worker == null ||
+				worker.IsPlayerOverride ||
 				worker.CurrentTask != null ||
 				worker.CarryingAbility?.CarryingBox is not CargoCapsule capsule)
 			{

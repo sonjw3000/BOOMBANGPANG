@@ -51,6 +51,7 @@ public enum WorkerStatusAction
 	Knockout,
 	Death,
 	Malfunction,
+	AwaitingPlayerCommand,
 }
 
 public enum WorkerOperationalState
@@ -343,6 +344,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	{
 		SelectorNode root = new();
 		root.Add(new ActionNode(HoldIncapacitatedState));
+		root.Add(new ActionNode(RunPlayerOverride));
 
 		IBaseNode workerBaseNode = BuildWorkerBaseNode();
 		ActionNode performTask = new(DoWork);
@@ -449,7 +451,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	{
 		EnsureEmploymentInitialized();
 		InitializeForSaveLoad();
-		if (currentTask == null && IsOperational)
+		if (currentTask == null && IsOperational && IsPlayerOverride == false)
 		{
 			WorkerMgr.AddIdleWorker(this);
 		}
@@ -670,19 +672,19 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool SetTask(WorkerTask task)
 	{
-		if (task != null && (IsOperational == false || IsRecovering))
+		if (task != null && (IsOperational == false || IsRecovering || IsPlayerOverride))
 			return false;
 
 		if (GameContext.HasInstance && task != null)
 			WorkerMgr.RemoveIdleWorker(this);
-		else if (IsOperational)
+		else if (IsOperational && IsPlayerOverride == false)
 		{
 			WorkerMgr.AddIdleWorker(this);
 		}
 
 		if (task != null && task.SetAIWorker(this) == false)
 		{
-			if (GameContext.HasInstance && IsOperational)
+			if (GameContext.HasInstance && IsOperational && IsPlayerOverride == false)
 				WorkerMgr.AddIdleWorker(this);
 			return false;
 		}
@@ -708,7 +710,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		if (GameContext.HasInstance)
 		{
 			WorkerMgr.TryApplyPendingAssignment(this);
-			if (becomeIdle && IsOperational)
+			if (becomeIdle && IsOperational && IsPlayerOverride == false)
 				WorkerMgr.AddIdleWorker(this);
 			else
 				WorkerMgr.RemoveIdleWorker(this);
@@ -735,6 +737,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 		WorkerOperationalState previousState = operationalState;
 		operationalState = state;
+		if (IsPlayerOverride)
+			CancelPlayerOverride();
 		CancelRecovery(false);
 		routeFinder?.CancelCurrentRoute();
 		localBlackBoard.Clear();
@@ -835,6 +839,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			return true;
 
 		isRemovalPrepared = true;
+		if (IsPlayerOverride)
+			CancelPlayerOverride(becomeIdle: false);
 		CancelRecovery(false);
 		routeFinder?.CancelCurrentRoute();
 		localBlackBoard.Clear();
@@ -876,7 +882,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptGeneralTask(WorkerTask.TaskType taskType)
 	{
-		if (IsOperational == false || HasPendingBlockingIncident ||
+		if (IsOperational == false || IsPlayerOverride || HasPendingBlockingIncident ||
 			currentTask != null || IsAssignedToTaskType(taskType) == false)
 			return false;
 
@@ -896,7 +902,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptPreferredTask(WorkerTask task)
 	{
-		if (IsOperational == false || HasPendingBlockingIncident || currentTask != null ||
+		if (IsOperational == false || IsPlayerOverride || HasPendingBlockingIncident || currentTask != null ||
 			task == null || IsAssignedToTaskType(task.Type) == false || IsRecovering)
 			return false;
 

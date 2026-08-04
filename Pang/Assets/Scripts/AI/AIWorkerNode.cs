@@ -427,12 +427,19 @@ public abstract partial class AIWorker
 	private static bool TryRouteToAirlock(
 		in BTContext ctx,
 		uint buildingId,
-		AirlockDirection direction)
+		AirlockDirection direction,
+		bool includeBusy = false)
 	{
 		if (AirlockService == null || buildingId == 0)
 			return false;
 
-		if (AirlockService.TryFindDestination(buildingId, ctx.Worker.GridPosition, InteractionKind.Enter, FacilityFilter.ForWorker(ctx.Worker), out Airlock airlock) == false || airlock == null)
+		if (AirlockService.TryFindTransitDestination(
+			buildingId,
+			ctx.Worker.GridPosition,
+			InteractionKind.Enter,
+			FacilityFilter.ForWorker(ctx.Worker),
+			includeBusy,
+			out Airlock airlock) == false || airlock == null)
 			return false;
 
 		if (InteractionPointSelector.TryGetInteractionPoint(

@@ -58,6 +58,7 @@ public class SelectionUIMaster : MonoBehaviour
 	private Label modeActionText = null;
 	private SelectionCardHud selectionCardHud = null;
 	private bool temperatureMonitoringUnlocked;
+	private IGridPlaceable currentPlaceable = null;
 
 	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
 
@@ -122,6 +123,8 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void Update()
 	{
+		UpdateSelectedHighlightPosition();
+
 		if (currentProvider != null)
 		{
 			currentProvider.OnUpdate();
@@ -136,6 +139,7 @@ public class SelectionUIMaster : MonoBehaviour
 	private void OnSelected(GameObject gridObj)
 	{
 		currentObj = gridObj;
+		currentPlaceable = currentObj != null ? currentObj.GetComponent<IGridPlaceable>() : null;
 		GetProvider();
 		SelectionChange();
 		RefreshWorldHighlights();
@@ -431,6 +435,20 @@ public class SelectionUIMaster : MonoBehaviour
 			GameObject label = interactionLabelPool.Get();
 			ConfigureInteractionLabel(label, points[i]);
 		}
+	}
+
+	private void UpdateSelectedHighlightPosition()
+	{
+		if (currentObj == null ||
+			currentPlaceable == null ||
+			selectedHighlight == null ||
+			selectedHighlight.activeSelf == false)
+		{
+			return;
+		}
+
+		WorldHighlightVisualConfig selectedVisual = GetHighlightVisual(WorldHighlightType.SelectedTile);
+		selectedHighlight.transform.position = BuildHighlightPosition(currentPlaceable.GridPosition, selectedVisual.Height);
 	}
 
 	private void HideWorldHighlights()

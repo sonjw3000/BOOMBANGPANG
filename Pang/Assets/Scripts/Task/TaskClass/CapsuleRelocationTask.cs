@@ -13,6 +13,13 @@ public enum CapsuleRelocationReason
 	WasteExport,
 }
 
+internal enum CapsuleDockPlayerPreemptionAction
+{
+	None,
+	Reevaluate,
+	Invalidate,
+}
+
 public sealed class CapsuleRelocationTask : WorkerTask
 {
 	private readonly CapsuleDock sourceDock;
@@ -34,6 +41,8 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	internal CapsuleRelocationReason Reason => reason;
 	internal CargoRouteKind RouteKind => routeKind;
 	internal bool HasPickedCapsulePayload => ActivePayload is CargoCapsule;
+	internal bool UsesDock(CapsuleDock dock) =>
+		dock != null && (ReferenceEquals(sourceDock, dock) || ReferenceEquals(targetDock, dock));
 
 	public CapsuleRelocationTask(
 		TaskType taskType,
@@ -100,6 +109,25 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			return;
 
 		GameContext.Instance.CapsuleRelocateCoordinator?.NotifyRelocationEnded(sourceDock, targetDock);
+	}
+
+	internal CapsuleDockPlayerPreemptionAction PreemptDockForPlayer(CapsuleDock dock)
+	{
+		if (dock == null)
+			return CapsuleDockPlayerPreemptionAction.None;
+
+		if (ReferenceEquals(targetDock, dock))
+		{
+			targetDock = null;
+			if (GameContext.HasInstance)
+				GameContext.Instance.CapsuleRelocateCoordinator?.NotifyRelocationTargetReleased(dock);
+			return CapsuleDockPlayerPreemptionAction.Reevaluate;
+		}
+
+		if (ReferenceEquals(sourceDock, dock) && HasActivePayload == false)
+			return CapsuleDockPlayerPreemptionAction.Invalidate;
+
+		return CapsuleDockPlayerPreemptionAction.None;
 	}
 
 	protected override IBaseNode BuildWorkNode()
