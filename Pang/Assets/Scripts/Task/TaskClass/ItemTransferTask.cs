@@ -70,6 +70,16 @@ public interface IItemTransferTaskInvalidationHandler
 	void OnTaskInvalidated(ItemTransferTask task);
 }
 
+public interface IItemTransferCollectGate
+{
+	WorkPlanResult EvaluateBeforeCollect(AIWorker worker, WorkLine line, out bool allowTransfer);
+}
+
+public interface IItemTransferTaskCompletionHandler
+{
+	void OnTaskCompleted(ItemTransferTask task);
+}
+
 public sealed class ItemTransferTask : WorkerTask
 {
 	private readonly ItemTransferJob job;
@@ -79,11 +89,13 @@ public sealed class ItemTransferTask : WorkerTask
 	private WorkLine currentLine;
 	private int placingLineIndex;
 	private bool isTaskEnd;
+	private bool isReevaluatingFacility;
 
 	public uint BuildingId => job != null ? job.BuildingId : 0;
 	public ItemTransferPhase Phase => phase;
 	public WorkLine CurrentLine => currentLine;
 	public IReadOnlyList<ItemTransferCollectedLine> CollectedLines => collectedLines;
+	internal bool IsReevaluatingFacility => isReevaluatingFacility;
 
 	public ItemTransferTask(TaskType taskType, ItemTransferJob job) : base(taskType)
 	{
@@ -97,6 +109,9 @@ public sealed class ItemTransferTask : WorkerTask
 	{
 		if (WorkerCarryBox == null)
 			Debug.LogError($"[ItemTransferTask] No carry box ability but assigned to {Type}.");
+
+		if (Type == TaskType.WasteCollection && job?.Planner is WasteCollectionPlanner wastePlanner)
+			wastePlanner.OnTaskAssigned(this, OccupyWorker);
 	}
 
 	protected override void OnTaskInvalidated()
@@ -173,7 +188,17 @@ public sealed class ItemTransferTask : WorkerTask
 			return FacilityTaskInvalidationAction.Invalidate;
 
 		if (job?.Planner is IItemTransferTaskInvalidationHandler handler)
-			handler.OnTaskInvalidated(this);
+		{
+			isReevaluatingFacility = true;
+			try
+			{
+				handler.OnTaskInvalidated(this);
+			}
+			finally
+			{
+				isReevaluatingFacility = false;
+			}
+		}
 
 		currentLine = null;
 		return FacilityTaskInvalidationAction.Reevaluate;
@@ -181,6 +206,9 @@ public sealed class ItemTransferTask : WorkerTask
 
 	public override bool TryGetPreferredWorker(out AIWorker worker)
 	{
+		if (Type == TaskType.WasteCollection && job?.Planner is WasteCollectionPlanner wastePlanner)
+			return wastePlanner.TryGetPreferredWorker(this, out worker);
+
 		worker = job?.PreferredWorker;
 		return worker != null;
 	}
@@ -262,6 +290,16 @@ public sealed class ItemTransferTask : WorkerTask
 			return Failure;
 
 		WorkLine line = task.currentLine;
+		if (task.job.Planner is IItemTransferCollectGate collectGate)
+		{
+			WorkPlanResult gateResult = collectGate.EvaluateBeforeCollect(ctx.Worker, line, out bool allowTransfer);
+			if (allowTransfer == false)
+			{
+				task.currentLine = null;
+				return task.ApplyPlanResult(ctx, gateResult);
+			}
+		}
+
 		ItemTransferResult result = task.job.CollectType == TransferObjectType.Box
 			? MoveCollectBox(ctx.Worker, line)
 			: MoveCollectItem(ctx.Worker, line);
@@ -405,7 +443,10 @@ public sealed class ItemTransferTask : WorkerTask
 			line.ItemID,
 			remainingQuantity,
 			consumeSourcePickReservation: line.ConsumeSourcePickReservation && line.Container is IItemPickReservable,
-			stackPredicate: stack => line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value)));
+			stackPredicate: stack =>
+				(line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value)) &&
+				(line.RequiredQuality.HasValue == false || stack.HasQuality(line.RequiredQuality.Value)) &&
+				(line.ExcludedQuality.HasValue == false || stack.HasQuality(line.ExcludedQuality.Value) == false)));
 	}
 
 	private static ItemTransferResult MovePlaceItem(AIWorker worker, WorkLine line)
@@ -423,7 +464,10 @@ public sealed class ItemTransferTask : WorkerTask
 			line.Container,
 			line.ItemID,
 			remainingQuantity,
-			stackPredicate: stack => line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value),
+			stackPredicate: stack =>
+				(line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value)) &&
+				(line.RequiredQuality.HasValue == false || stack.HasQuality(line.RequiredQuality.Value)) &&
+				(line.ExcludedQuality.HasValue == false || stack.HasQuality(line.ExcludedQuality.Value) == false),
 			handlingWorker: worker));
 	}
 
@@ -560,7 +604,9 @@ public sealed class ItemTransferTask : WorkerTask
 			quantity,
 			source.RelatedOrderLine,
 			source.RequiredStatus,
-			source.ConsumeSourcePickReservation);
+			source.RequiredQuality,
+			source.ConsumeSourcePickReservation,
+			source.ExcludedQuality);
 		line.CompleteQuantity = quantity;
 		return line;
 	}
@@ -580,7 +626,144 @@ public sealed class ItemTransferTask : WorkerTask
 
 	private static bool IsSupportedTaskType(TaskType taskType)
 	{
-		return taskType is TaskType.Picking or TaskType.Storing or TaskType.PackingInput or TaskType.PackingOutput or TaskType.LaunchSort;
+		return taskType is TaskType.Picking or TaskType.Storing or TaskType.PackingInput or TaskType.PackingOutput or TaskType.LaunchSort or TaskType.WasteCollection;
+	}
+
+	internal void NotifyPlannerCompleted()
+	{
+		if (job?.Planner is IItemTransferTaskCompletionHandler handler)
+			handler.OnTaskCompleted(this);
+	}
+
+	internal ItemTransferTaskSaveData CaptureState()
+	{
+		AIWorker preferredWorker = job?.PreferredWorker ?? OccupyWorker;
+		return new ItemTransferTaskSaveData
+		{
+			BuildingId = BuildingId,
+			PreferredWorkerId = preferredWorker != null ? preferredWorker.WorkerID : 0,
+			Phase = phase,
+		};
+	}
+
+	internal bool RestoreCollectedLaunchSortPayload(BoxBase payloadBox)
+	{
+		if (payloadBox == null ||
+			payloadBox.Type != BoxType.Personal ||
+			GameContext.HasInstance == false ||
+			GameContext.Instance.OBWorkflowSvc == null)
+			return false;
+
+		Dictionary<uint, int> normalPackedQuantityByItemId = new();
+		List<WorkLine> wasteLines = new();
+		for (int i = 0; i < payloadBox.Stacks.Count; ++i)
+		{
+			ItemStack stack = payloadBox.Stacks[i];
+			if (stack == null || stack.Quantity <= 0)
+				continue;
+
+			if (stack.HasQuality(ItemQuality.Waste))
+			{
+				wasteLines.Add(new WorkLine(
+					WorkLineAction.Pick,
+					payloadBox,
+					payloadBox,
+					stack.ItemID,
+					stack.Quantity,
+					requiredStatus: stack.Status,
+					requiredQuality: ItemQuality.Waste,
+					consumeSourcePickReservation: false));
+				continue;
+			}
+
+			if (stack.Status != ItemStatus.Packed)
+				return false;
+
+			normalPackedQuantityByItemId[stack.ItemID] =
+				normalPackedQuantityByItemId.GetValueOrDefault(stack.ItemID) + stack.Quantity;
+		}
+
+		List<WorkLine> restoredLines = new(wasteLines);
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		if (outbound.TryGetPickingManifest(payloadBox, out PickingManifest manifest))
+		{
+			for (int i = 0; i < manifest.Lines.Count; ++i)
+			{
+				PickingManifestLine manifestLine = manifest.Lines[i];
+				if (manifestLine?.OrderLine == null || manifestLine.PackedQuantity <= 0)
+					return false;
+
+				int available = normalPackedQuantityByItemId.GetValueOrDefault(manifestLine.ItemId);
+				if (available < manifestLine.PackedQuantity)
+					return false;
+
+				normalPackedQuantityByItemId[manifestLine.ItemId] = available - manifestLine.PackedQuantity;
+				restoredLines.Add(new WorkLine(
+					WorkLineAction.Pick,
+					payloadBox,
+					payloadBox,
+					manifestLine.ItemId,
+					manifestLine.PackedQuantity,
+					manifestLine.OrderLine,
+					ItemStatus.Packed,
+					consumeSourcePickReservation: false));
+			}
+		}
+
+		foreach (var entry in normalPackedQuantityByItemId)
+		{
+			if (entry.Value > 0)
+				return false;
+		}
+
+		if (restoredLines.Count <= 0)
+			return false;
+
+		collectedLines.Clear();
+		for (int i = 0; i < restoredLines.Count; ++i)
+		{
+			collectedLines.Add(new ItemTransferCollectedLine(restoredLines[i]));
+		}
+
+		phase = ItemTransferPhase.Place;
+		currentLine = null;
+		placingLineIndex = 0;
+		isTaskEnd = false;
+		return true;
+	}
+
+	internal bool RestoreCollectedWastePayload(BoxBase payloadBox)
+	{
+		if (payloadBox == null)
+			return false;
+
+		collectedLines.Clear();
+		for (int i = 0; i < payloadBox.Stacks.Count; ++i)
+		{
+			ItemStack stack = payloadBox.Stacks[i];
+			if (stack == null || stack.Quantity <= 0 || stack.HasQuality(ItemQuality.Waste) == false)
+				continue;
+
+			WorkLine restoredLine = new(
+				WorkLineAction.Pick,
+				payloadBox,
+				payloadBox,
+				stack.ItemID,
+				stack.Quantity,
+				requiredStatus: stack.Status,
+				requiredQuality: ItemQuality.Waste,
+				consumeSourcePickReservation: false);
+			collectedLines.Add(new ItemTransferCollectedLine(restoredLine));
+		}
+
+		if (collectedLines.Count <= 0)
+			return false;
+
+		phase = ItemTransferPhase.Place;
+		currentLine = null;
+		placingLineIndex = 0;
+		isTaskEnd = false;
+		return true;
 	}
 
 	private static bool ReferencesFacility(WorkLine line, IFacility facility)

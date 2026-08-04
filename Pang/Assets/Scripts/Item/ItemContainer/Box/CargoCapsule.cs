@@ -9,6 +9,13 @@ public enum CapsuleLogisticsState
 	Empty,
 	OBStandby,
 	OB,
+	Waste,
+}
+
+public enum CargoRouteKind
+{
+	Standard,
+	Waste,
 }
 
 public class CargoCapsule : BoxBase
@@ -20,6 +27,7 @@ public class CargoCapsule : BoxBase
 	private CapsuleDock currentDock;
 
 	public CapsuleLogisticsState LogisticsState => logisticsState;
+	public virtual CargoRouteKind RouteKind => CargoRouteKind.Standard;
 	public CapsuleDock CurrentDock => currentDock;
 	public CapsuleBuffer CurrentBuffer => currentDock as CapsuleBuffer;
 

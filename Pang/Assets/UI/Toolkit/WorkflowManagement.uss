@@ -32,4 +32,6 @@
 .workflow-slider-label { flex-grow: 1; font-size: 8px; color: rgb(151, 177, 188); }
 .workflow-slider-value { font-size: 8px; -unity-font-style: bold; color: rgb(225, 166, 92); }
 .workflow-slider { height: 20px; }
+.workflow-quality-control { min-height: 112px; margin-top: 5px; padding: 6px 7px; background-color: rgba(25, 39, 50, 0.72); }
+.workflow-quality-toggle { height: 25px; margin-bottom: 3px; font-size: 9px; color: rgb(187, 207, 215); }
 .workflow-message { height: 20px; margin-top: 5px; font-size: 8px; color: rgb(200, 155, 112); }

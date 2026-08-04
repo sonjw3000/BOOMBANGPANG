@@ -12,6 +12,9 @@ public partial class OutboundWorkflowService
 			PickingCollectingPolicy = PickingCollectingPolicyType,
 			PickingBoxFillLimitPercent = pickingBoxFillLimitPercent,
 			LoadingDestinationBuildingId = loadingDestinationBuildingId,
+			QualityControlEnabled = OutboundQualityControlEnabled,
+			MinimumFreshnessPercent = minimumOutboundFreshnessPercent,
+			MaximumDamagePercent = maximumOutboundDamagePercent,
 		};
 	}
 
@@ -31,6 +34,14 @@ public partial class OutboundWorkflowService
 			? data.PickingBoxFillLimitPercent
 			: 80.0f;
 		SetPickingBoxFillLimitPercent(boxFillLimit);
+		minimumOutboundFreshnessPercent = data != null
+			? Mathf.Clamp(data.MinimumFreshnessPercent, 0.0f, 100.0f)
+			: QualityControlPolicy.DefaultMinimumFreshnessPercent;
+		maximumOutboundDamagePercent = data != null
+			? Mathf.Clamp(data.MaximumDamagePercent, 0.0f, 100.0f)
+			: QualityControlPolicy.DefaultMaximumDamagePercent;
+		outboundQualityControlEnabled = IsResearchCompleted(ResearchIds.QualityControl) && data?.QualityControlEnabled == true;
+		EvaluateLaunchSortWork();
 	}
 
 	public OutboundPickingManifestSaveData CapturePickingManifestState(Func<OrderLine, int> registerOrderLine)

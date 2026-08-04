@@ -178,6 +178,11 @@ public sealed class GameSaveService : MonoBehaviour
 
 		Ctx.TaskMgr.ResetRuntimeState();
 		Ctx.CapsuleRelocateCoordinator.ResetRuntimeState();
+		Ctx.CapsuleRelocateCoordinator.BeginRestore();
+		Ctx.ItemTransferTaskScheduler.ResetRuntimeState();
+		Ctx.ItemTransferTaskScheduler.BeginRestore();
+		Ctx.WasteCollectionPlanner.ResetRuntimeState();
+		Ctx.WasteCollectionPlanner.BeginRestore();
 		Ctx.OrderDelivery.ResetRuntimeState();
 		Ctx.ContractMgr.ResetRuntimeState();
 		Ctx.ScenarioObjectiveService.ResetRuntimeState();
@@ -269,7 +274,7 @@ public sealed class GameSaveService : MonoBehaviour
 
 		foreach (TaskSaveData taskData in data.Tasks)
 		{
-			WorkerTask task = CreateTask(taskData, restoredPlaceables, restoredOrderLines);
+			WorkerTask task = CreateTask(taskData, restoredPlaceables, restoredOrderLines, workersById);
 			if (task == null)
 			{
 				RecoverFailedCapsuleTransfer(
@@ -289,12 +294,34 @@ public sealed class GameSaveService : MonoBehaviour
 					Debug.LogWarning($"[Save] Missing recovery box for task {taskData.TaskType}.");
 					continue;
 				}
+
+				if (task is ItemTransferTask recoveredWasteTask && task.Type == WorkerTask.TaskType.WasteCollection)
+					recoveredWasteTask.RestoreCollectedWastePayload(recoveryBox);
+				if (task is ItemTransferTask recoveredLaunchSortTask &&
+					task.Type == WorkerTask.TaskType.LaunchSort &&
+					taskData.ItemTransfer?.Phase == ItemTransferPhase.Place &&
+					recoveredLaunchSortTask.RestoreCollectedLaunchSortPayload(recoveryBox) == false)
+				{
+					task.MarkInvalidated(out _);
+					Debug.LogWarning("[Save] LaunchSort recovery payload did not match its packed manifest.");
+					continue;
+				}
+			}
+			else if (task.Type == WorkerTask.TaskType.LaunchSort &&
+				taskData.ItemTransfer?.Phase == ItemTransferPhase.Place &&
+				taskData.IsInProgress == false)
+			{
+				task.MarkInvalidated(out _);
+				Debug.LogWarning("[Save] LaunchSort place phase had no recovery payload.");
+				continue;
 			}
 
 			if (taskData.IsInProgress)
 			{
 				if (workersById.TryGetValue(taskData.AssignedWorkerId, out var worker) == false)
 				{
+					if (task is ItemTransferTask)
+						task.MarkInvalidated(out _);
 					Debug.LogWarning($"[Save] Missing worker {taskData.AssignedWorkerId} for in-progress task {taskData.TaskType}");
 					continue;
 				}
@@ -304,6 +331,8 @@ public sealed class GameSaveService : MonoBehaviour
 					(Ctx.BoxMgr.TryGetBox(taskData.PayloadBox.BoxType, taskData.PayloadBox.BoxId, out BoxBase savedPayload) == false ||
 						carriedBox != savedPayload))
 				{
+					if (task is ItemTransferTask)
+						task.MarkInvalidated(out _);
 					Debug.LogWarning(
 						$"[Save] Worker {taskData.AssignedWorkerId} payload did not match in-progress task {taskData.TaskType}.");
 					RecoverFailedCapsuleTransfer(
@@ -314,15 +343,43 @@ public sealed class GameSaveService : MonoBehaviour
 					continue;
 				}
 
+				if (task is ItemTransferTask inProgressWasteTask &&
+					task.Type == WorkerTask.TaskType.WasteCollection &&
+					carriedBox != null)
+				{
+					inProgressWasteTask.RestoreCollectedWastePayload(carriedBox);
+				}
+				if (task is ItemTransferTask inProgressLaunchSortTask &&
+					task.Type == WorkerTask.TaskType.LaunchSort &&
+					taskData.ItemTransfer?.Phase == ItemTransferPhase.Place &&
+					(carriedBox == null || inProgressLaunchSortTask.RestoreCollectedLaunchSortPayload(carriedBox) == false))
+				{
+					task.MarkInvalidated(out _);
+					Debug.LogWarning("[Save] In-progress LaunchSort payload did not match its packed manifest.");
+					continue;
+				}
+
+				if (RestoreItemTransferScheduling(taskData, task, workersById) == false)
+				{
+					task.MarkInvalidated(out _);
+					continue;
+				}
+
 				if (worker.SetTask(task))
 				{
 					if (carriedBox != null)
 						task.TrackPayloadBox(carriedBox);
 
 					Ctx.TaskMgr.AddRestoredInProgressTask(task);
+					RestoreCoordinatorOwnership(task);
 				}
 				else
 				{
+					if (task is ItemTransferTask)
+					{
+						task.MarkInvalidated(out _);
+						Ctx.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
+					}
 					Debug.LogWarning($"[Save] Worker {taskData.AssignedWorkerId} could not restore in-progress task {taskData.TaskType}");
 					RecoverFailedCapsuleTransfer(
 						taskData,
@@ -333,14 +390,31 @@ public sealed class GameSaveService : MonoBehaviour
 			}
 			else if (taskData.IsReturned)
 			{
+				if (RestoreItemTransferScheduling(taskData, task, workersById) == false)
+				{
+					task.MarkInvalidated(out _);
+					continue;
+				}
+
 				Ctx.TaskMgr.AddRestoredReturnedTask(task);
+				RestoreCoordinatorOwnership(task);
 			}
 			else
 			{
+				if (RestoreItemTransferScheduling(taskData, task, workersById) == false)
+				{
+					task.MarkInvalidated(out _);
+					continue;
+				}
+
 				Ctx.TaskMgr.EnqueueTask(task);
+				RestoreCoordinatorOwnership(task);
 			}
 		}
 
+		Ctx.CapsuleRelocateCoordinator.EndRestore();
+		Ctx.WasteCollectionPlanner.EndRestore();
+		Ctx.ItemTransferTaskScheduler.EndRestore();
 		RecoverOrphanedLoadedCapsules(workersById);
 		Ctx.WorkerMgr.RebuildWorkerStatusCaches();
 		Ctx.FacilityRuleMgr.RebuildAppliedFacilityLookup();
@@ -352,6 +426,69 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.FireSvc.RebuildRuntimeState();
 		Ctx.IBWorkflowSvc.RetryActiveRocketUnloadingTasks();
 		Ctx.ScenarioObjectiveService.RestoreState(data.ScenarioObjective);
+	}
+
+	private void RestoreCoordinatorOwnership(WorkerTask task)
+	{
+		if (task is CapsuleRelocationTask relocationTask)
+		{
+			Ctx.CapsuleRelocateCoordinator.RestoreActiveRelocation(
+				relocationTask.SourceDock,
+				relocationTask.TargetDock,
+				relocationTask.HasPickedCapsulePayload,
+				relocationTask.Type == WorkerTask.TaskType.OB &&
+				relocationTask.HasPickedCapsulePayload &&
+				ReferenceEquals(relocationTask.SourceDock, relocationTask.TargetDock) == false);
+		}
+	}
+
+	private bool RestoreItemTransferScheduling(
+		TaskSaveData taskData,
+		WorkerTask task,
+		IReadOnlyDictionary<uint, AIWorker> workersById)
+	{
+		if (taskData == null || task is not ItemTransferTask)
+			return true;
+		if (workersById == null)
+			return false;
+
+		uint buildingId;
+		uint preferredWorkerId;
+		ItemTransferScheduleMode mode;
+		switch (task.Type)
+		{
+			case WorkerTask.TaskType.LaunchSort when taskData.ItemTransfer != null:
+				buildingId = taskData.ItemTransfer.BuildingId;
+				preferredWorkerId = taskData.ItemTransfer.PreferredWorkerId;
+				mode = ItemTransferScheduleMode.LaunchSort;
+				break;
+
+			case WorkerTask.TaskType.WasteCollection when taskData.WasteCollection != null:
+				buildingId = 0;
+				preferredWorkerId = taskData.WasteCollection.PreferredWorkerId;
+				mode = ItemTransferScheduleMode.WasteCollection;
+				break;
+
+			default:
+				return true;
+		}
+
+		if (taskData.IsInProgress)
+			preferredWorkerId = taskData.AssignedWorkerId;
+		workersById.TryGetValue(preferredWorkerId, out AIWorker preferredWorker);
+		bool reservePreferredWorker = preferredWorker != null;
+		if (Ctx.ItemTransferTaskScheduler.RestoreScheduledTask(
+			task,
+			buildingId,
+			mode,
+			preferredWorker,
+			reservePreferredWorker) == false)
+		{
+			Debug.LogWarning($"[Save] Failed to restore scheduler ownership for {task.Type}.");
+			return false;
+		}
+
+		return true;
 	}
 
 	private void RecoverFailedCapsuleTransfer(
@@ -584,6 +721,12 @@ public sealed class GameSaveService : MonoBehaviour
 			case LabelingTask labeling:
 				taskData.Labeling = labeling.CaptureState(GetPlaceableIdOrDefault);
 				break;
+			case ItemTransferTask itemTransfer when itemTransfer.Type == WorkerTask.TaskType.LaunchSort:
+				taskData.ItemTransfer = itemTransfer.CaptureState();
+				break;
+			case ItemTransferTask itemTransfer when itemTransfer.Type == WorkerTask.TaskType.WasteCollection:
+				taskData.WasteCollection = Ctx.WasteCollectionPlanner.CaptureTaskState(itemTransfer);
+				break;
 		}
 
 		return taskData;
@@ -685,7 +828,11 @@ public sealed class GameSaveService : MonoBehaviour
 			Ctx.FacilityMgr?.RestoreDestroyedFacility(destroyedFacility);
 	}
 
-	private WorkerTask CreateTask(TaskSaveData taskData, Dictionary<int, GameObject> restoredPlaceables, Dictionary<int, OrderLine> restoredOrderLines)
+	private WorkerTask CreateTask(
+		TaskSaveData taskData,
+		Dictionary<int, GameObject> restoredPlaceables,
+		Dictionary<int, OrderLine> restoredOrderLines,
+		Dictionary<uint, AIWorker> workersById)
 	{
 		switch (taskData.TaskType)
 		{
@@ -708,9 +855,45 @@ public sealed class GameSaveService : MonoBehaviour
 				return taskData.Packing?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Labeling:
 				return taskData.Labeling?.Restore(restoredPlaceables);
+			case WorkerTask.TaskType.LaunchSort:
+				return RestoreLaunchSortTask(taskData.ItemTransfer, workersById);
+			case WorkerTask.TaskType.WasteCollection:
+				if (taskData.WasteCollection == null ||
+					workersById == null ||
+					workersById.TryGetValue(taskData.WasteCollection.PreferredWorkerId, out AIWorker preferredWorker) == false)
+				{
+					return null;
+				}
+
+				return Ctx.WasteCollectionPlanner.RestoreTaskState(taskData.WasteCollection, preferredWorker);
 			default:
 				return null;
 		}
+	}
+
+	private ItemTransferTask RestoreLaunchSortTask(
+		ItemTransferTaskSaveData data,
+		Dictionary<uint, AIWorker> workersById)
+	{
+		if (data == null ||
+			data.BuildingId == 0 ||
+			workersById == null ||
+			workersById.TryGetValue(data.PreferredWorkerId, out AIWorker preferredWorker) == false ||
+			Ctx.BuildingMgr.TryGetBuilding(data.BuildingId, out Building building) == false ||
+			building is not LaunchBuilding launchBuilding)
+		{
+			return null;
+		}
+
+		ItemTransferTask task = new(
+			WorkerTask.TaskType.LaunchSort,
+			new ItemTransferJob(
+				launchBuilding.LaunchSortPlanner,
+				TransferObjectType.Item,
+				TransferObjectType.Item,
+				data.BuildingId,
+				preferredWorker));
+		return task;
 	}
 
 	private int RegisterPlaceable(GameObject obj)
@@ -834,7 +1017,7 @@ public static class TaskSaveDataExtensions
 		WorkerTask.TaskType taskType = data.HasTaskType
 			? data.TaskType
 			: data.IsInbound ? WorkerTask.TaskType.IB : WorkerTask.TaskType.OB;
-		CapsuleRelocationReason reason = taskType switch
+		CapsuleRelocationReason reason = data.HasReason ? data.Reason : taskType switch
 		{
 			WorkerTask.TaskType.Unloading => CapsuleRelocationReason.SourceMustClear,
 			WorkerTask.TaskType.IB => CapsuleRelocationReason.SourceMustClear,
@@ -844,7 +1027,8 @@ public static class TaskSaveDataExtensions
 			WorkerTask.TaskType.CargoTransfer => CapsuleRelocationReason.SourceMustClear,
 			_ => CapsuleRelocationReason.StateMismatch,
 		};
-		return new CapsuleRelocationTask(taskType, sourceDock, targetDock, data.BuildingId, reason);
+		CargoRouteKind? routeKind = data.HasRouteKind ? data.RouteKind : null;
+		return new CapsuleRelocationTask(taskType, sourceDock, targetDock, data.BuildingId, reason, routeKind);
 	}
 
 	public static PackingTask Restore(this PackingTaskSaveData data, Dictionary<int, GameObject> placeables)
@@ -901,7 +1085,17 @@ public static class TaskSaveDataExtensions
 			return null;
 
 		orderLines.TryGetValue(data.RelatedOrderLineId, out var relatedOrderLine);
-		WorkLine line = new(data.Action, container, target, data.ItemId, data.Quantity, relatedOrderLine);
+		WorkLine line = new(
+			data.Action,
+			container,
+			target,
+			data.ItemId,
+			data.Quantity,
+			relatedOrderLine,
+			data.HasRequiredStatus ? data.RequiredStatus : null,
+			data.HasRequiredQuality ? data.RequiredQuality : null,
+			consumeSourcePickReservation: data.HasConsumeSourcePickReservation == false || data.ConsumeSourcePickReservation,
+			excludedQuality: data.HasExcludedQuality ? data.ExcludedQuality : null);
 		line.CompleteQuantity = data.CompleteQuantity;
 		return line;
 	}

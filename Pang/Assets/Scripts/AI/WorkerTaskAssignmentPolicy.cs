@@ -55,6 +55,7 @@ public static class WorkerTaskAssignmentPolicy
 				return buildingType.HasValue;
 
 			case WorkerTask.TaskType.CargoTransfer:
+			case WorkerTask.TaskType.WasteCollection:
 				return buildingType.HasValue == false;
 
 			case WorkerTask.TaskType.Unloading:

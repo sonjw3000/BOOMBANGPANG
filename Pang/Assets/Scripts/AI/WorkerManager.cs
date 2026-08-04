@@ -497,6 +497,7 @@ public partial class WorkerManager : MonoBehaviour
 			case TaskType.Storing:
 			case TaskType.Picking:
 			case TaskType.LaunchSort:
+			case TaskType.WasteCollection:
 				if (worker.GetComponent<CarryBoxAbility>() == false)
 				{
 					Debug.Log("No CarryBoxAbility");

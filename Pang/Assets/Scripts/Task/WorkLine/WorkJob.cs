@@ -37,6 +37,8 @@ public sealed class WorkLine
 	public readonly int Quantity;
 	public readonly OrderLine RelatedOrderLine = null;
 	public readonly ItemStatus? RequiredStatus = null;
+	public readonly ItemQuality? RequiredQuality = null;
+	public readonly ItemQuality? ExcludedQuality = null;
 	public readonly bool ConsumeSourcePickReservation;
 	public int CompleteQuantity = 0;
 
@@ -44,8 +46,22 @@ public sealed class WorkLine
 	public Component TargetComponent => Target as Component;
 	public string TargetName => TargetComponent != null ? TargetComponent.name : "None";
 
-	public WorkLine(ShelfBase source, uint itemID, int quantity, OrderLine relatedOrderLine = null, bool consumeSourcePickReservation = true)
-		: this(WorkLineAction.Pick, source, source, itemID, quantity, relatedOrderLine, consumeSourcePickReservation: consumeSourcePickReservation)
+	public WorkLine(
+		ShelfBase source,
+		uint itemID,
+		int quantity,
+		OrderLine relatedOrderLine = null,
+		bool consumeSourcePickReservation = true,
+		ItemQuality? excludedQuality = null)
+		: this(
+			WorkLineAction.Pick,
+			source,
+			source,
+			itemID,
+			quantity,
+			relatedOrderLine,
+			consumeSourcePickReservation: consumeSourcePickReservation,
+			excludedQuality: excludedQuality)
 	{
 	}
 
@@ -57,7 +73,9 @@ public sealed class WorkLine
 		int quantity,
 		OrderLine relatedOrderLine = null,
 		ItemStatus? requiredStatus = null,
-		bool consumeSourcePickReservation = true)
+		ItemQuality? requiredQuality = null,
+		bool consumeSourcePickReservation = true,
+		ItemQuality? excludedQuality = null)
 	{
 		Action = action;
 		Container = container;
@@ -66,6 +84,8 @@ public sealed class WorkLine
 		Quantity = quantity;
 		RelatedOrderLine = relatedOrderLine;
 		RequiredStatus = requiredStatus;
+		RequiredQuality = requiredQuality;
+		ExcludedQuality = excludedQuality;
 		ConsumeSourcePickReservation = consumeSourcePickReservation;
 	}
 }

@@ -19,6 +19,14 @@ public partial class StoringTask
 				Quantity = currentLine.Quantity,
 				CompleteQuantity = currentLine.CompleteQuantity,
 				RelatedOrderLineId = registerOrderLine != null && currentLine.RelatedOrderLine != null ? registerOrderLine(currentLine.RelatedOrderLine) : -1,
+				HasRequiredStatus = currentLine.RequiredStatus.HasValue,
+				RequiredStatus = currentLine.RequiredStatus.GetValueOrDefault(),
+				HasRequiredQuality = currentLine.RequiredQuality.HasValue,
+				RequiredQuality = currentLine.RequiredQuality.GetValueOrDefault(),
+				HasExcludedQuality = currentLine.ExcludedQuality.HasValue,
+				ExcludedQuality = currentLine.ExcludedQuality.GetValueOrDefault(),
+				HasConsumeSourcePickReservation = true,
+				ConsumeSourcePickReservation = currentLine.ConsumeSourcePickReservation,
 			},
 		};
 	}

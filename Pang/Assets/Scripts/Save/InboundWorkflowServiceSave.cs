@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public partial class InboundWorkflowService
 {
 	public InboundWorkflowPolicySaveData CapturePolicyState()
@@ -8,6 +10,9 @@ public partial class InboundWorkflowService
 			StoringPlacingPolicy = StoringPlacingPolicyType,
 			StoringBoxFillLimitPercent = storingBoxFillLimitPercent,
 			UnloadingDestinationBuildingId = unloadingDestinationBuildingId,
+			QualityControlEnabled = InboundQualityControlEnabled,
+			MinimumFreshnessPercent = minimumInboundFreshnessPercent,
+			MaximumDamagePercent = maximumInboundDamagePercent,
 		};
 	}
 
@@ -27,6 +32,14 @@ public partial class InboundWorkflowService
 			? data.StoringBoxFillLimitPercent
 			: 80.0f;
 		SetStoringBoxFillLimitPercent(boxFillLimit);
+		minimumInboundFreshnessPercent = data != null
+			? Mathf.Clamp(data.MinimumFreshnessPercent, 0.0f, 100.0f)
+			: QualityControlPolicy.DefaultMinimumFreshnessPercent;
+		maximumInboundDamagePercent = data != null
+			? Mathf.Clamp(data.MaximumDamagePercent, 0.0f, 100.0f)
+			: QualityControlPolicy.DefaultMaximumDamagePercent;
+		inboundQualityControlEnabled = IsResearchCompleted(ResearchIds.QualityControl) && data?.QualityControlEnabled == true;
+		ReevaluateLabelingWork();
 	}
 
 	public void ResetRuntimeState()

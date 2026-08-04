@@ -206,7 +206,16 @@ public partial class StoringTask : WorkerTask
 			return Failure;
 
 		int remainingQuantity = line.Quantity - line.CompleteQuantity;
-		ItemTransferResult result = ItemTransferUtility.MoveItem(new(line.Container, box, line.ItemID, remainingQuantity));
+		ItemTransferResult result = ItemTransferUtility.MoveItem(new(
+			line.Container,
+			box,
+			line.ItemID,
+			remainingQuantity,
+			stackPredicate: stack =>
+				stack.HasQuality(ItemQuality.Waste) == false &&
+				(line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value)) &&
+				(line.RequiredQuality.HasValue == false || stack.HasQuality(line.RequiredQuality.Value)) &&
+				(line.ExcludedQuality.HasValue == false || stack.HasQuality(line.ExcludedQuality.Value) == false)));
 		if (result.Moved > 0)
 			ctx.Worker.ReportItemHandling(result.ItemId, result.Moved, box);
 		line.CompleteQuantity += result.Moved;

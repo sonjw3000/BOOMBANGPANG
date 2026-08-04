@@ -9,11 +9,15 @@ public enum CapsuleDockState
 	IBStandby = 3,
 	OB = 4,
 	InboundSource = 5,
+	WasteBin = 6,
+	WasteOutbound = 7,
+	WasteContainer = 8,
 }
 
 public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
 {
 	protected CargoCapsule dockedCapsule = null;
+	[SerializeField] private CargoRouteKind acceptedCargoRouteKind = CargoRouteKind.Standard;
 
 	public event Action<CapsuleDock> OnCapsuleDocked;
 	public event Action<CapsuleDock> OnCapsuleUndocked;
@@ -21,6 +25,8 @@ public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
 	public CargoCapsule DockedCapsule => dockedCapsule;
 	public virtual CapsuleDockState DockState => CapsuleDockState.Empty;
 	public bool HasCapsule => dockedCapsule != null;
+	protected virtual CargoRouteKind SupportedCargoRouteKind => acceptedCargoRouteKind;
+	public CargoRouteKind AcceptedCargoRouteKind => SupportedCargoRouteKind;
 	public float TotalSize => dockedCapsule != null ? dockedCapsule.TotalSize : 0.0f;
 	public float MaxSize => dockedCapsule != null ? dockedCapsule.MaxSize : 0.0f;
 	public float FilledPercent => MaxSize <= 0.0f ? 0.0f : (TotalSize / MaxSize) * 100.0f;
@@ -28,7 +34,7 @@ public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
 
 	public bool TryDockCapsule(CargoCapsule capsule)
 	{
-		if (capsule == null || dockedCapsule != null)
+		if (capsule == null || dockedCapsule != null || CanAcceptCargoRoute(capsule.RouteKind) == false)
 			return false;
 
 		dockedCapsule = capsule;
@@ -43,6 +49,8 @@ public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
 
 		return true;
 	}
+
+	public bool CanAcceptCargoRoute(CargoRouteKind routeKind) => SupportedCargoRouteKind == routeKind;
 
 	public bool TryUndockCapsule(out CargoCapsule capsule)
 	{

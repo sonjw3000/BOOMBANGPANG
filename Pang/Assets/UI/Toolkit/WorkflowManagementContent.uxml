@@ -58,6 +58,20 @@
 				</ui:VisualElement>
 				<ui:Slider name="workflow-storing-box-fill" low-value="1" high-value="100" value="80" class="workflow-slider" />
 			</ui:VisualElement>
+			<ui:Label text="INBOUND QUALITY CONTROL" class="workflow-section-label" />
+			<ui:VisualElement name="workflow-inbound-qc-control" class="workflow-quality-control">
+				<ui:Toggle name="workflow-inbound-qc-enabled" label="Inspect during Labeling" class="workflow-quality-toggle" />
+				<ui:VisualElement class="workflow-slider-header">
+					<ui:Label text="Minimum freshness" class="workflow-slider-label" />
+					<ui:Label name="workflow-inbound-qc-freshness-value" text="50%" class="workflow-slider-value" />
+				</ui:VisualElement>
+				<ui:Slider name="workflow-inbound-qc-freshness" low-value="0" high-value="100" value="50" class="workflow-slider" />
+				<ui:VisualElement class="workflow-slider-header">
+					<ui:Label text="Maximum damage" class="workflow-slider-label" />
+					<ui:Label name="workflow-inbound-qc-damage-value" text="50%" class="workflow-slider-value" />
+				</ui:VisualElement>
+				<ui:Slider name="workflow-inbound-qc-damage" low-value="0" high-value="100" value="50" class="workflow-slider" />
+			</ui:VisualElement>
 			<ui:Label text="PICKING POLICY" class="workflow-section-label" />
 			<ui:VisualElement name="workflow-picking-policy-control">
 				<ui:DropdownField name="workflow-picking-policy" label="Picking method" class="workflow-policy-field" />
@@ -71,6 +85,20 @@
 					<ui:Label name="workflow-picking-box-fill-value" text="80%" class="workflow-slider-value" />
 				</ui:VisualElement>
 				<ui:Slider name="workflow-picking-box-fill" low-value="1" high-value="100" value="80" class="workflow-slider" />
+			</ui:VisualElement>
+			<ui:Label text="OUTBOUND QUALITY CONTROL" class="workflow-section-label" />
+			<ui:VisualElement name="workflow-outbound-qc-control" class="workflow-quality-control">
+				<ui:Toggle name="workflow-outbound-qc-enabled" label="Inspect during LaunchSort" class="workflow-quality-toggle" />
+				<ui:VisualElement class="workflow-slider-header">
+					<ui:Label text="Minimum freshness" class="workflow-slider-label" />
+					<ui:Label name="workflow-outbound-qc-freshness-value" text="50%" class="workflow-slider-value" />
+				</ui:VisualElement>
+				<ui:Slider name="workflow-outbound-qc-freshness" low-value="0" high-value="100" value="50" class="workflow-slider" />
+				<ui:VisualElement class="workflow-slider-header">
+					<ui:Label text="Maximum damage" class="workflow-slider-label" />
+					<ui:Label name="workflow-outbound-qc-damage-value" text="50%" class="workflow-slider-value" />
+				</ui:VisualElement>
+				<ui:Slider name="workflow-outbound-qc-damage" low-value="0" high-value="100" value="50" class="workflow-slider" />
 			</ui:VisualElement>
 			<ui:Label text="Inventory-guided picking requires Inventory Digitization research." class="workflow-caption" />
 		</ui:ScrollView>

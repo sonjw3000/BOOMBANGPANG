@@ -375,11 +375,21 @@ public partial class TaskManager : MonoBehaviour
 
 			case TaskType.CapsuleSupply:
 			case TaskType.OB:
-			case TaskType.CargoTransfer:
 			case TaskType.Picking:
 			case TaskType.Packing:
 			case TaskType.Loading:
 				OBService?.OnTaskInvalidated(task);
+				break;
+
+			case TaskType.CargoTransfer:
+				if (task is CapsuleRelocationTask invalidatedRelocation &&
+					invalidatedRelocation.RouteKind == CargoRouteKind.Waste)
+					GameContext.Instance.WasteCollectionPlanner?.OnCargoRelocationEnded(invalidatedRelocation);
+				else
+					OBService?.OnTaskInvalidated(task);
+				break;
+
+			case TaskType.WasteCollection:
 				break;
 		}
 	}
@@ -390,6 +400,8 @@ public partial class TaskManager : MonoBehaviour
 			return;
 
 		taskOnProgress[task.Type].Remove(task);
+		if (task is ItemTransferTask completedTransferTask)
+			completedTransferTask.NotifyPlannerCompleted();
 		worker.OnTaskCompleted();
 		worker.ClearTask(task, becomeIdle: true);
 		Stats.CompleteProcess(task.Type);
@@ -418,7 +430,6 @@ public partial class TaskManager : MonoBehaviour
 			// OB
 			case TaskType.CapsuleSupply:
 			case TaskType.OB:
-			case TaskType.CargoTransfer:
 			case TaskType.Picking:
 			case TaskType.Packing:
 			//case TaskType.Sorting:
@@ -427,9 +438,18 @@ public partial class TaskManager : MonoBehaviour
 				OBService.OnTaskCompleted(task);
 				break;
 
+			case TaskType.CargoTransfer:
+				if (task is CapsuleRelocationTask completedRelocation &&
+					completedRelocation.RouteKind == CargoRouteKind.Waste)
+					GameContext.Instance.WasteCollectionPlanner?.OnCargoRelocationEnded(completedRelocation);
+				else
+					OBService.OnTaskCompleted(task);
+				break;
+
 			case TaskType.PackingInput:
 			case TaskType.PackingOutput:
 			case TaskType.LaunchSort:
+			case TaskType.WasteCollection:
 				break;
 
 			default:

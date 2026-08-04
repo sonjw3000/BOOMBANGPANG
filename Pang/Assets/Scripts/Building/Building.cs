@@ -591,6 +591,8 @@ public class Building
 		CargoCapsule capsule = dock.DockedCapsule;
 		if (capsule == null)
 			return;
+		if (capsule.RouteKind != CargoRouteKind.Standard)
+			return;
 
 		switch (dock.DockState)
 		{
@@ -734,7 +736,9 @@ public class Building
 	private void RegisterDockedCapsule(CapsuleDock dock)
 	{
 		CargoCapsule capsule = dock != null ? dock.DockedCapsule : null;
-		if (capsule == null || registeredCapsuleStates.ContainsKey(capsule))
+		if (capsule == null ||
+			capsule.RouteKind != CargoRouteKind.Standard ||
+			registeredCapsuleStates.ContainsKey(capsule))
 			return;
 
 		CapsuleLogisticsState state = capsule.LogisticsState;
@@ -773,7 +777,8 @@ public class Building
 
 	protected virtual void OnCapsuleBufferContentChanged(CapsuleBuffer capsuleBuffer)
 	{
-		if (capsuleBuffer?.DockedCapsule != null)
+		if (capsuleBuffer?.DockedCapsule != null &&
+			capsuleBuffer.DockedCapsule.RouteKind == CargoRouteKind.Standard)
 		{
 			CargoCapsule capsule = capsuleBuffer.DockedCapsule;
 			if (capsule.LogisticsState == CapsuleLogisticsState.IB && capsuleBuffer.IsCapsuleEmpty())
@@ -788,8 +793,10 @@ public class Building
 		if (capsuleBuffer == null)
 			return;
 
-		if (capsuleBuffer.HasCapsule)
+		if (capsuleBuffer.HasCapsule && capsuleBuffer.DockedCapsule?.RouteKind == CargoRouteKind.Standard)
 			OnCapsuleDocked(capsuleBuffer);
+		if (capsuleBuffer.HasCapsule && capsuleBuffer.DockedCapsule?.RouteKind != CargoRouteKind.Standard)
+			return;
 
 		if (capsuleBuffer.CanReceiveFromInbound())
 			TryEnqueuePendingInboundTasks();

@@ -540,6 +540,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 			WorkerTask.TaskType.CapsuleSupply => "CapsuleRelocation (Supply)",
 			WorkerTask.TaskType.OB => "CapsuleRelocation (Outbound)",
 			WorkerTask.TaskType.LaunchSort => "Launch Sort",
+			WorkerTask.TaskType.WasteCollection => "Waste Collection",
 			_ => taskType.ToString(),
 		};
 	}

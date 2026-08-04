@@ -5,10 +5,20 @@ public abstract partial class CargoPort
 {
 	public CargoPortSaveData CaptureState(Func<GameObject, int> getPlaceableId)
 	{
-		return new CargoPortSaveData
+		CargoPortSaveData data = new CargoPortSaveData
 		{
 			InputReady = HasPayload == false,
 		};
+		if (DockedCapsule != null)
+		{
+			data.Box = new BoxReferenceSaveData
+			{
+				BoxType = DockedCapsule.Type,
+				BoxId = DockedCapsule.BoxId,
+			};
+		}
+
+		return data;
 	}
 
 	public void RestoreState(CargoPortSaveData data)
@@ -16,7 +26,10 @@ public abstract partial class CargoPort
 		if (data == null)
 			return;
 
-		// Current CargoPort runtime state is driven by the docked capsule itself.
-		// Keep the method for save compatibility even though InputReady is no longer stored here.
+		if (data.Box == null || HasCapsule)
+			return;
+
+		if (GameContext.Instance.BoxMgr.TryGetBox(data.Box.BoxType, data.Box.BoxId, out BoxBase box))
+			PutBox(box);
 	}
 }

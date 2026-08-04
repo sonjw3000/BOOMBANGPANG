@@ -7,12 +7,27 @@ public sealed partial class BuildingManager : MonoBehaviour
 	[SerializeField] [HideInInspector] private uint nextRuntimeBuildingId = 1;
 
 	private readonly Dictionary<uint, Building> buildingsById = new();
+	private readonly HashSet<LaunchBuilding> pendingLaunchQualityEvaluations = new();
+	private readonly List<LaunchBuilding> launchQualityEvaluationScratch = new();
 
 	public IReadOnlyList<Building> RegisteredBuildings => registeredBuildings;
 
 	private void Awake()
 	{
 		RebuildLookup();
+	}
+
+	private void LateUpdate()
+	{
+		if (pendingLaunchQualityEvaluations.Count <= 0)
+			return;
+
+		launchQualityEvaluationScratch.Clear();
+		launchQualityEvaluationScratch.AddRange(pendingLaunchQualityEvaluations);
+		pendingLaunchQualityEvaluations.Clear();
+		for (int i = 0; i < launchQualityEvaluationScratch.Count; ++i)
+			launchQualityEvaluationScratch[i]?.EvaluateLaunchSortWork();
+		launchQualityEvaluationScratch.Clear();
 	}
 
 	public void Register(Building building)
@@ -73,6 +88,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 
 		RemoveBuildingLinks(building);
 		registeredBuildings.Remove(building);
+		if (building is LaunchBuilding launchBuilding)
+			pendingLaunchQualityEvaluations.Remove(launchBuilding);
 		if (building.RuntimeBuildingId != 0)
 			buildingsById.Remove(building.RuntimeBuildingId);
 
@@ -106,10 +123,19 @@ public sealed partial class BuildingManager : MonoBehaviour
 		if (container == null)
 			return;
 
+		IItemContainer indexedContainer = container;
+		if (container is CargoCapsule capsule && capsule.CurrentDock is IItemContainer dockContainer)
+			indexedContainer = dockContainer;
+
 		for (int i = 0; i < registeredBuildings.Count; ++i)
 		{
 			Building building = registeredBuildings[i];
-			building?.ItemIndex.RefreshContainer(container);
+			if (building == null || building.ItemIndex.ContainsContainer(indexedContainer) == false)
+				continue;
+
+			building.ItemIndex.RefreshContainer(indexedContainer);
+			if (building is LaunchBuilding launchBuilding)
+				pendingLaunchQualityEvaluations.Add(launchBuilding);
 		}
 	}
 
@@ -135,6 +161,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 			return false;
 
 		building.SetState(newState);
+		if (GameContext.HasInstance)
+			GameContext.Instance.WasteCollectionPlanner?.NotifyBuildingChanged(building);
 		return true;
 	}
 
@@ -276,6 +304,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 	public void RebuildLookup()
 	{
 		buildingsById.Clear();
+		pendingLaunchQualityEvaluations.Clear();
+		launchQualityEvaluationScratch.Clear();
 		registeredBuildings.RemoveAll(building => building == null);
 
 		foreach (var building in registeredBuildings)

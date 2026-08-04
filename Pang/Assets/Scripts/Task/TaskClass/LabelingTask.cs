@@ -9,6 +9,7 @@ public sealed partial class LabelingTask : WorkerTask
 	private readonly IItemContainer targetContainer;
 	private readonly IGridPlaceable targetPlaceable;
 	private bool isTaskEnd;
+	private int rejectedQuantity;
 
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
 
@@ -108,7 +109,7 @@ public sealed partial class LabelingTask : WorkerTask
 	public override string GetStatusSummary()
 	{
 		return isTaskEnd
-			? $"Target: {TargetName}\nLabeling complete."
+			? $"Target: {TargetName}\nLabeling complete. Rejected: {rejectedQuantity}."
 			: $"Target: {TargetName}\nApplying labels.";
 	}
 
@@ -143,13 +144,17 @@ public sealed partial class LabelingTask : WorkerTask
 		if (task?.building == null)
 			return Failure;
 
-		if (task.building.TryLabelItems(task.targetContainer, out int labeledQuantity) == false)
+		if (task.building.TryLabelItems(
+			task.targetContainer,
+			out int labeledQuantity,
+			out int rejectedQuantity) == false)
 			return Failure;
 
 		task.isTaskEnd = true;
+		task.rejectedQuantity = rejectedQuantity;
 		task.building.OnLabelingTaskFinished(task.targetContainer);
 
-		if (labeledQuantity <= 0)
+		if (labeledQuantity <= 0 && rejectedQuantity <= 0)
 			Debug.LogWarning($"[LabelingTask] Completed without labeled items. target={task.TargetName}");
 
 		return Success;

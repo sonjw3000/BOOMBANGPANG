@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ea39cd9d2906294b915277300334413, type: 3}
+  m_Name: WasteBinDock
+  m_EditorClassIdentifier: 
+  placeableID: WasteBinDock
+  displayName: Waste Bin Dock
+  icon: {fileID: -6347119455914417019, guid: 7ed692b56605d6a4489fb866afa88c2c, type: 3}
+  prefab: {fileID: 4088784275203520354, guid: 87bae59349e284ab7a28ceca5c1c3ac0, type: 3}
+  gridFootprint: {fileID: 11400000, guid: 0f1e2d3c4b5a69788796a5b4c3d2e1f0, type: 2}
+  definitionType: 5
+  placementEnvironment: 1
+  Cost: 10

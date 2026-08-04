@@ -26,7 +26,28 @@ public sealed class StagingBuilding : Building
 
 	internal bool HasLabelingWork(IItemContainer container)
 	{
-		return container != null && HasAvailableItemStatus(container, ItemStatus.None);
+		if (container == null)
+			return false;
+
+		for (int i = 0; i < container.Stacks.Count; ++i)
+		{
+			ItemStack stack = container.Stacks[i];
+			if (stack == null || stack.Quantity <= 0 || stack.Status != ItemStatus.None)
+				continue;
+
+			if (stack.HasQuality(ItemQuality.Waste))
+				continue;
+
+			return true;
+		}
+
+		return false;
+	}
+
+	internal void EvaluateLabelingWork()
+	{
+		for (int i = 0; i < OccupiedCapsuleBuffers.Count; ++i)
+			TryRequestLabelingTask(OccupiedCapsuleBuffers[i]);
 	}
 
 	internal bool HasQueuedLabelingTask(IItemContainer container)
@@ -64,11 +85,15 @@ public sealed class StagingBuilding : Building
 			queuedLabelingContainers.Remove(container);
 	}
 
-	internal bool TryLabelItems(IItemContainer container, out int labeledQuantity)
+	internal bool TryLabelItems(IItemContainer container, out int labeledQuantity, out int rejectedQuantity)
 	{
 		labeledQuantity = 0;
+		rejectedQuantity = 0;
 		if (container == null)
 			return false;
+
+		InboundWorkflowService inbound = GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;
+		bool qualityControlEnabled = inbound?.InboundQualityControlEnabled == true;
 
 		for (int i = 0; i < container.Stacks.Count; ++i)
 		{
@@ -76,11 +101,26 @@ public sealed class StagingBuilding : Building
 			if (stack == null || stack.Quantity <= 0 || stack.Status != ItemStatus.None)
 				continue;
 
+			// Waste is owned by the waste flow, even while inbound QC is disabled.
+			if (stack.HasQuality(ItemQuality.Waste))
+				continue;
+
+			if (qualityControlEnabled)
+			{
+				QualityInspectionResult inspection = inbound.InspectInboundQuality(stack);
+				if (inspection.Accepted == false)
+				{
+					stack.AddQuality(ItemQuality.Waste);
+					rejectedQuantity += stack.Quantity;
+					continue;
+				}
+			}
+
 			stack.SetStatus(ItemStatus.Labeled);
 			labeledQuantity += stack.Quantity;
 		}
 
-		if (labeledQuantity <= 0)
+		if (labeledQuantity <= 0 && rejectedQuantity <= 0)
 			return false;
 
 		ItemIndex.RefreshContainer(container);
@@ -90,6 +130,18 @@ public sealed class StagingBuilding : Building
 			TryPromoteToOutboundState(capsuleBuffer);
 
 		return true;
+	}
+
+	protected override void OnCapsuleBufferContentChanged(CapsuleBuffer capsuleBuffer)
+	{
+		base.OnCapsuleBufferContentChanged(capsuleBuffer);
+		if (capsuleBuffer == null)
+			return;
+
+		if (HasLabelingWork(capsuleBuffer))
+			TryRequestLabelingTask(capsuleBuffer);
+
+		TryPromoteToOutboundState(capsuleBuffer);
 	}
 
 	private bool TryRequestLabelingTask(CapsuleBuffer capsuleBuffer)

@@ -122,6 +122,7 @@ public class GameContext : MonoBehaviour
 	private ScenarioObjectiveService scenarioObjectiveService;
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
 	private ItemTransferTaskScheduler itemTransferTaskScheduler;
+	private WasteCollectionPlanner wasteCollectionPlanner;
 	private SimulationTickCoordinator simulationTickCoordinator;
 	private ItemThermalService itemThermalService;
 
@@ -267,6 +268,15 @@ public class GameContext : MonoBehaviour
 		}
 	}
 	public ItemTransferTaskScheduler ItemTransferTaskScheduler => itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();
+	public WasteCollectionPlanner WasteCollectionPlanner
+	{
+		get
+		{
+			wasteCollectionPlanner ??= new WasteCollectionPlanner();
+			wasteCollectionPlanner.Initialize(ItemTransferTaskScheduler, CapsuleDockSvc);
+			return wasteCollectionPlanner;
+		}
+	}
 
 	private T ResolveManager<T>(ref T field, string componentName) where T : Component
 	{
@@ -307,6 +317,7 @@ public class GameContext : MonoBehaviour
 
 	private void OnDisable()
 	{
+		wasteCollectionPlanner?.Unbind();
 		simulationTickCoordinator?.Unbind();
 		itemThermalService?.Unbind();
 		fireService?.Unbind();
@@ -316,6 +327,7 @@ public class GameContext : MonoBehaviour
 
 	private void OnDestroy()
 	{
+		wasteCollectionPlanner?.Unbind();
 		UnbindEvents();
 		if (instance == this)
 			instance = null;
@@ -346,6 +358,8 @@ public class GameContext : MonoBehaviour
 		interactionCtx ??= new InteractionContext();
 		capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
 		itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();
+		wasteCollectionPlanner ??= new WasteCollectionPlanner();
+		wasteCollectionPlanner.Initialize(itemTransferTaskScheduler, CapsuleDockSvc);
 		_ = FloatingTextManager;
 		_ = HudEventManager;
 		_ = SaveService;

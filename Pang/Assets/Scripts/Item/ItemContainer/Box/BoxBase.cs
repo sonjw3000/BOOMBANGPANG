@@ -10,6 +10,7 @@ public enum BoxType
 	Personal = 1,
 	Capsule = 2,
 	Any = 3,
+	WasteBin = 4,
 }
 
 public abstract partial class BoxBase : MonoBehaviour, IThermalItemContainer, IGridPlaceable
@@ -155,7 +156,7 @@ public abstract partial class BoxBase : MonoBehaviour, IThermalItemContainer, IG
 		return itemTotals.GetValueOrDefault(itemId);
 	}
 
-	public int GetAcceptableQuantity(uint itemId, int requested)
+	public virtual int GetAcceptableQuantity(uint itemId, int requested)
 	{
 		if (requested <= 0)
 			return 0;
@@ -171,7 +172,7 @@ public abstract partial class BoxBase : MonoBehaviour, IThermalItemContainer, IG
 		return Mathf.Clamp(Mathf.FloorToInt(availableSize / itemSize), 0, requested);
 	}
 
-	public bool CanAcceptStack(ItemStack stack)
+	public virtual bool CanAcceptStack(ItemStack stack)
 	{
 		if (stack == null || stack.Quantity <= 0)
 			return false;
@@ -205,7 +206,7 @@ public abstract partial class BoxBase : MonoBehaviour, IThermalItemContainer, IG
 		return payload.Count <= 0;
 	}
 
-	public int AddItem(uint itemId, int quantity)
+	public virtual int AddItem(uint itemId, int quantity)
 	{
 		if (quantity <= 0)
 			return 0;

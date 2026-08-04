@@ -299,7 +299,12 @@ public sealed partial class PickingTask : WorkerTask
 		int remainingQuantity = curLine.Quantity - curLine.CompleteQuantity;
 		ItemStack pickedStack = ItemStack.Rent(curLine.ItemID);
 		pickedStack.AddItem(remainingQuantity);
-		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(curLine.Container, box, pickedStack, consumeSourcePickReservation: true);
+		ItemTransferResult result = ItemTransferUtility.MoveItemAsStack(
+			curLine.Container,
+			box,
+			pickedStack,
+			consumeSourcePickReservation: true,
+			sourceStackPredicate: stack => stack.HasQuality(ItemQuality.Waste) == false);
 		if (result.Moved > 0)
 			ctx.Worker.ReportItemHandling(result.ItemId, result.Moved, box);
 		if (result.Kind != TransferResultKind.Complete && pickedStack.Quantity > 0)

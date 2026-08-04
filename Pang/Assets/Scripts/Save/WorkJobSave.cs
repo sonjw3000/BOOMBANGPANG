@@ -28,6 +28,14 @@ public sealed partial class WorkJob
 				Quantity = line.Quantity,
 				CompleteQuantity = line.CompleteQuantity,
 				RelatedOrderLineId = registerOrderLine != null && line.RelatedOrderLine != null ? registerOrderLine(line.RelatedOrderLine) : -1,
+				HasRequiredStatus = line.RequiredStatus.HasValue,
+				RequiredStatus = line.RequiredStatus.GetValueOrDefault(),
+				HasRequiredQuality = line.RequiredQuality.HasValue,
+				RequiredQuality = line.RequiredQuality.GetValueOrDefault(),
+				HasExcludedQuality = line.ExcludedQuality.HasValue,
+				ExcludedQuality = line.ExcludedQuality.GetValueOrDefault(),
+				HasConsumeSourcePickReservation = true,
+				ConsumeSourcePickReservation = line.ConsumeSourcePickReservation,
 			});
 		}
 

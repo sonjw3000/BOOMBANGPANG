@@ -21,6 +21,7 @@ public static class WorkerTaskTypeRequirement
 			WorkerTask.TaskType.PackingOutput => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.LaunchSort => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Labeling => WorkerAbility.Labeling,
+			WorkerTask.TaskType.WasteCollection => WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
 			WorkerTask.TaskType.Undefined => WorkerAbility.None,
 			WorkerTask.TaskType.HandleMistake => WorkerAbility.None,
 
@@ -53,6 +54,7 @@ public abstract partial class WorkerTask
 		PackingInput,
 		PackingOutput,
 		LaunchSort,
+		WasteCollection,
 
 		
 		Undefined = 999,

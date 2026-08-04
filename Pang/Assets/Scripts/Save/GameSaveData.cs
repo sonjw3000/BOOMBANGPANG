@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 11;
+	public int Version = 12;
 	public string SavedAtUtc;
 
 	public ScenarioObjectiveSaveData ScenarioObjective = new();
@@ -138,6 +138,9 @@ public sealed class InboundWorkflowPolicySaveData
 	public PlacingPolicyType StoringPlacingPolicy = PlacingPolicyType.Nearest;
 	public float StoringBoxFillLimitPercent = 80.0f;
 	public uint UnloadingDestinationBuildingId;
+	public bool QualityControlEnabled;
+	public float MinimumFreshnessPercent = QualityControlPolicy.DefaultMinimumFreshnessPercent;
+	public float MaximumDamagePercent = QualityControlPolicy.DefaultMaximumDamagePercent;
 }
 
 [Serializable]
@@ -147,6 +150,9 @@ public sealed class OutboundWorkflowPolicySaveData
 	public CollectingPolicyType PickingCollectingPolicy = CollectingPolicyType.Nearest;
 	public float PickingBoxFillLimitPercent = 80.0f;
 	public uint LoadingDestinationBuildingId;
+	public bool QualityControlEnabled;
+	public float MinimumFreshnessPercent = QualityControlPolicy.DefaultMinimumFreshnessPercent;
+	public float MaximumDamagePercent = QualityControlPolicy.DefaultMaximumDamagePercent;
 }
 
 [Serializable]
@@ -579,6 +585,7 @@ public sealed class ShelfContainerSaveData
 public sealed class CargoPortSaveData
 {
 	public bool InputReady;
+	public BoxReferenceSaveData Box;
 }
 
 [Serializable]
@@ -689,6 +696,23 @@ public sealed class TaskSaveData
 	public CargoTransferTaskSaveData CargoTransfer;
 	public PackingTaskSaveData Packing;
 	public LabelingTaskSaveData Labeling;
+	public ItemTransferTaskSaveData ItemTransfer;
+	public WasteCollectionTaskSaveData WasteCollection;
+}
+
+[Serializable]
+public sealed class ItemTransferTaskSaveData
+{
+	public uint BuildingId;
+	public uint PreferredWorkerId;
+	public ItemTransferPhase Phase;
+}
+
+[Serializable]
+public sealed class WasteCollectionTaskSaveData
+{
+	public uint PreferredWorkerId;
+	public uint SessionBuildingId;
 }
 
 [Serializable]
@@ -734,6 +758,10 @@ public sealed class CapsuleTransferTaskSaveData
 	public bool HasTaskType;
 	public WorkerTask.TaskType TaskType;
 	public bool IsInbound;
+	public bool HasReason;
+	public CapsuleRelocationReason Reason;
+	public bool HasRouteKind;
+	public CargoRouteKind RouteKind;
 	public uint BuildingId;
 	public int SourcePlaceableId = -1;
 	public int TargetPlaceableId = -1;
@@ -779,6 +807,14 @@ public sealed class WorkLineSaveData
 	public int Quantity;
 	public int CompleteQuantity;
 	public int RelatedOrderLineId;
+	public bool HasRequiredStatus;
+	public ItemStatus RequiredStatus;
+	public bool HasRequiredQuality;
+	public ItemQuality RequiredQuality;
+	public bool HasExcludedQuality;
+	public ItemQuality ExcludedQuality;
+	public bool HasConsumeSourcePickReservation;
+	public bool ConsumeSourcePickReservation;
 }
 
 [Serializable]

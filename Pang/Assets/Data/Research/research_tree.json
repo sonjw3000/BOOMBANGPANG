@@ -29,6 +29,15 @@
 			"prerequisiteUids": ["workflow_policy_management", "inventory_digitization"]
 		},
 		{
+			"uid": "quality_control",
+			"categoryId": "planning_operations",
+			"displayName": "Quality Control",
+			"description": "Allows Labeling and LaunchSort workers to inspect item freshness and damage against configurable inbound and outbound acceptance policies.",
+			"cost": 120,
+			"durationWeeks": 1,
+			"prerequisiteUids": ["workflow_policy_management"]
+		},
+		{
 			"uid": "temperature_monitoring",
 			"categoryId": "thermal_operations",
 			"displayName": "Temperature Monitoring",

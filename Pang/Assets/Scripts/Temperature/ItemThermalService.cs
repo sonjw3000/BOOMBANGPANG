@@ -256,16 +256,25 @@ public sealed class ItemThermalService
 			definition.FreshnessLossPerTick +
 			temperatureDifference * definition.TemperatureFreshnessLossPerDegree;
 		float previousFreshness = stack.CurrentFreshness;
-		if (stack.ApplyFreshnessLoss(freshnessLoss) <= 0.0f ||
-			previousFreshness <= 0.0f ||
-			stack.CurrentFreshness > 0.0f ||
-			stack.HasQuality(ItemQuality.Waste))
-		{
+		int previousFreshnessPercent = stack.FreshnessPercent;
+		if (stack.ApplyFreshnessLoss(freshnessLoss) <= 0.0f)
 			return;
-		}
 
-		stack.AddQuality(ItemQuality.Waste);
-		buildingManager?.RefreshItemContainerState(container);
+		bool becameWaste = previousFreshness > 0.0f &&
+			stack.CurrentFreshness <= 0.0f &&
+			stack.HasQuality(ItemQuality.Waste) == false;
+		if (becameWaste)
+			stack.AddQuality(ItemQuality.Waste);
+
+		OutboundWorkflowService outbound = GameContext.HasInstance
+			? GameContext.Instance.OBWorkflowSvc
+			: null;
+		bool crossedOutboundThreshold = outbound != null &&
+			outbound.OutboundQualityControlEnabled &&
+			previousFreshnessPercent >= outbound.MinimumOutboundFreshnessPercent &&
+			stack.FreshnessPercent < outbound.MinimumOutboundFreshnessPercent;
+		if (becameWaste || crossedOutboundThreshold)
+			buildingManager?.RefreshItemContainerState(container);
 	}
 
 	private void HandleFacilityRegistered(uint buildingId, IFacility facility)

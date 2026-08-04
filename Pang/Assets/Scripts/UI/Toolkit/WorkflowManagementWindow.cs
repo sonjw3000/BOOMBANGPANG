@@ -42,6 +42,12 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualElement storingBoxFillControl;
 		private Slider storingBoxFillSlider;
 		private Label storingBoxFillValue;
+		private VisualElement inboundQualityControl;
+		private Toggle inboundQualityControlEnabled;
+		private Slider inboundQualityFreshnessSlider;
+		private Label inboundQualityFreshnessValue;
+		private Slider inboundQualityDamageSlider;
+		private Label inboundQualityDamageValue;
 		private VisualElement pickingPolicyControl;
 		private DropdownField pickingPolicyField;
 		private VisualElement pickingCollectingPolicyControl;
@@ -49,6 +55,12 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualElement pickingBoxFillControl;
 		private Slider pickingBoxFillSlider;
 		private Label pickingBoxFillValue;
+		private VisualElement outboundQualityControl;
+		private Toggle outboundQualityControlEnabled;
+		private Slider outboundQualityFreshnessSlider;
+		private Label outboundQualityFreshnessValue;
+		private Slider outboundQualityDamageSlider;
+		private Label outboundQualityDamageValue;
 		private Button linkOutboundDestinationButton;
 		private Label loadingDestinationSummary;
 		private Label messageLabel;
@@ -125,6 +137,12 @@ namespace UniverseLogistics.UI.Toolkit
 			storingBoxFillControl = content.Q<VisualElement>("workflow-storing-box-fill-control");
 			storingBoxFillSlider = content.Q<Slider>("workflow-storing-box-fill");
 			storingBoxFillValue = content.Q<Label>("workflow-storing-box-fill-value");
+			inboundQualityControl = content.Q<VisualElement>("workflow-inbound-qc-control");
+			inboundQualityControlEnabled = content.Q<Toggle>("workflow-inbound-qc-enabled");
+			inboundQualityFreshnessSlider = content.Q<Slider>("workflow-inbound-qc-freshness");
+			inboundQualityFreshnessValue = content.Q<Label>("workflow-inbound-qc-freshness-value");
+			inboundQualityDamageSlider = content.Q<Slider>("workflow-inbound-qc-damage");
+			inboundQualityDamageValue = content.Q<Label>("workflow-inbound-qc-damage-value");
 			pickingPolicyControl = content.Q<VisualElement>("workflow-picking-policy-control");
 			pickingPolicyField = content.Q<DropdownField>("workflow-picking-policy");
 			pickingCollectingPolicyControl = content.Q<VisualElement>("workflow-picking-collecting-policy-control");
@@ -132,6 +150,12 @@ namespace UniverseLogistics.UI.Toolkit
 			pickingBoxFillControl = content.Q<VisualElement>("workflow-picking-box-fill-control");
 			pickingBoxFillSlider = content.Q<Slider>("workflow-picking-box-fill");
 			pickingBoxFillValue = content.Q<Label>("workflow-picking-box-fill-value");
+			outboundQualityControl = content.Q<VisualElement>("workflow-outbound-qc-control");
+			outboundQualityControlEnabled = content.Q<Toggle>("workflow-outbound-qc-enabled");
+			outboundQualityFreshnessSlider = content.Q<Slider>("workflow-outbound-qc-freshness");
+			outboundQualityFreshnessValue = content.Q<Label>("workflow-outbound-qc-freshness-value");
+			outboundQualityDamageSlider = content.Q<Slider>("workflow-outbound-qc-damage");
+			outboundQualityDamageValue = content.Q<Label>("workflow-outbound-qc-damage-value");
 			linkOutboundDestinationButton = content.Q<Button>("workflow-link-outbound-destination-button");
 			loadingDestinationSummary = content.Q<Label>("workflow-loading-destination");
 			messageLabel = content.Q<Label>("workflow-message");
@@ -142,9 +166,15 @@ namespace UniverseLogistics.UI.Toolkit
 				landingAreaEmpty == null || unloadingDestinationSummary == null || collectingPolicyControl == null ||
 				collectingPolicyField == null || placingPolicyControl == null || placingPolicyField == null ||
 				storingBoxFillControl == null || storingBoxFillSlider == null || storingBoxFillValue == null ||
+				inboundQualityControl == null || inboundQualityControlEnabled == null ||
+				inboundQualityFreshnessSlider == null || inboundQualityFreshnessValue == null ||
+				inboundQualityDamageSlider == null || inboundQualityDamageValue == null ||
 				pickingPolicyControl == null || pickingPolicyField == null ||
 				pickingCollectingPolicyControl == null || pickingCollectingPolicyField == null ||
 				pickingBoxFillControl == null || pickingBoxFillSlider == null || pickingBoxFillValue == null ||
+				outboundQualityControl == null || outboundQualityControlEnabled == null ||
+				outboundQualityFreshnessSlider == null || outboundQualityFreshnessValue == null ||
+				outboundQualityDamageSlider == null || outboundQualityDamageValue == null ||
 				linkOutboundDestinationButton == null || loadingDestinationSummary == null ||
 				messageLabel == null)
 			{
@@ -155,9 +185,11 @@ namespace UniverseLogistics.UI.Toolkit
 			collectingPolicyControl.SetTooltip(BuildStoringCollectingPolicyTooltip);
 			placingPolicyControl.SetTooltip(BuildStoringPlacingPolicyTooltip);
 			storingBoxFillControl.SetTooltip(BuildStoringBoxFillTooltip);
+			inboundQualityControl.SetTooltip(BuildInboundQualityControlTooltip);
 			pickingPolicyControl.SetTooltip(BuildPickingPolicyTooltip);
 			pickingCollectingPolicyControl.SetTooltip(BuildPickingCollectingPolicyTooltip);
 			pickingBoxFillControl.SetTooltip(BuildPickingBoxFillTooltip);
+			outboundQualityControl.SetTooltip(BuildOutboundQualityControlTooltip);
 			policyButtonControl.SetTooltip(BuildPolicyTabTooltip);
 			window.SetTitle("Workflow Management");
 			window.SetContent(content);
@@ -173,6 +205,12 @@ namespace UniverseLogistics.UI.Toolkit
 			pickingCollectingPolicyField.RegisterValueChangedCallback(OnPickingCollectingPolicyChanged);
 			storingBoxFillSlider.RegisterValueChangedCallback(OnStoringBoxFillChanged);
 			pickingBoxFillSlider.RegisterValueChangedCallback(OnPickingBoxFillChanged);
+			inboundQualityControlEnabled.RegisterValueChangedCallback(OnInboundQualityControlChanged);
+			inboundQualityFreshnessSlider.RegisterValueChangedCallback(OnInboundQualityFreshnessChanged);
+			inboundQualityDamageSlider.RegisterValueChangedCallback(OnInboundQualityDamageChanged);
+			outboundQualityControlEnabled.RegisterValueChangedCallback(OnOutboundQualityControlChanged);
+			outboundQualityFreshnessSlider.RegisterValueChangedCallback(OnOutboundQualityFreshnessChanged);
+			outboundQualityDamageSlider.RegisterValueChangedCallback(OnOutboundQualityDamageChanged);
 			initialized = true;
 			SelectTab(WorkflowTab.Inbound);
 			return true;
@@ -192,6 +230,12 @@ namespace UniverseLogistics.UI.Toolkit
 			pickingCollectingPolicyField?.UnregisterValueChangedCallback(OnPickingCollectingPolicyChanged);
 			storingBoxFillSlider?.UnregisterValueChangedCallback(OnStoringBoxFillChanged);
 			pickingBoxFillSlider?.UnregisterValueChangedCallback(OnPickingBoxFillChanged);
+			inboundQualityControlEnabled?.UnregisterValueChangedCallback(OnInboundQualityControlChanged);
+			inboundQualityFreshnessSlider?.UnregisterValueChangedCallback(OnInboundQualityFreshnessChanged);
+			inboundQualityDamageSlider?.UnregisterValueChangedCallback(OnInboundQualityDamageChanged);
+			outboundQualityControlEnabled?.UnregisterValueChangedCallback(OnOutboundQualityControlChanged);
+			outboundQualityFreshnessSlider?.UnregisterValueChangedCallback(OnOutboundQualityFreshnessChanged);
+			outboundQualityDamageSlider?.UnregisterValueChangedCallback(OnOutboundQualityDamageChanged);
 		}
 
 		private void BindServices()
@@ -338,6 +382,7 @@ namespace UniverseLogistics.UI.Toolkit
 			bool policyUnlocked = IsResearchCompleted(ResearchIds.WorkflowPolicyManagement);
 			bool optimizationUnlocked = IsResearchCompleted(ResearchIds.WorkflowPolicyOptimization);
 			bool inventoryUnlocked = IsResearchCompleted(ResearchIds.InventoryDigitization);
+			bool qualityControlUnlocked = IsResearchCompleted(ResearchIds.QualityControl);
 			policyButton.SetEnabled(policyUnlocked);
 			if (policyUnlocked == false && policyButton.ClassListContains(SelectedTabClass))
 				SelectTab(WorkflowTab.Inbound);
@@ -403,6 +448,41 @@ namespace UniverseLogistics.UI.Toolkit
 			pickingBoxFillSlider.SetValueWithoutNotify(pickingBoxFill);
 			pickingBoxFillValue.text = $"{pickingBoxFill:0}%";
 			pickingBoxFillSlider.SetEnabled(optimizationUnlocked);
+
+			bool inboundQualityEnabled = inboundWorkflow?.InboundQualityControlEnabled == true;
+			float inboundFreshness = inboundWorkflow != null
+				? inboundWorkflow.MinimumInboundFreshnessPercent
+				: QualityControlPolicy.DefaultMinimumFreshnessPercent;
+			float inboundDamage = inboundWorkflow != null
+				? inboundWorkflow.MaximumInboundDamagePercent
+				: QualityControlPolicy.DefaultMaximumDamagePercent;
+			inboundQualityControlEnabled.SetValueWithoutNotify(inboundQualityEnabled);
+			inboundQualityControlEnabled.SetEnabled(qualityControlUnlocked);
+			SetQualitySlider(inboundQualityFreshnessSlider, inboundQualityFreshnessValue, inboundFreshness,
+				qualityControlUnlocked && inboundQualityEnabled);
+			SetQualitySlider(inboundQualityDamageSlider, inboundQualityDamageValue, inboundDamage,
+				qualityControlUnlocked && inboundQualityEnabled);
+
+			bool outboundQualityEnabled = outboundWorkflow?.OutboundQualityControlEnabled == true;
+			float outboundFreshness = outboundWorkflow != null
+				? outboundWorkflow.MinimumOutboundFreshnessPercent
+				: QualityControlPolicy.DefaultMinimumFreshnessPercent;
+			float outboundDamage = outboundWorkflow != null
+				? outboundWorkflow.MaximumOutboundDamagePercent
+				: QualityControlPolicy.DefaultMaximumDamagePercent;
+			outboundQualityControlEnabled.SetValueWithoutNotify(outboundQualityEnabled);
+			outboundQualityControlEnabled.SetEnabled(qualityControlUnlocked);
+			SetQualitySlider(outboundQualityFreshnessSlider, outboundQualityFreshnessValue, outboundFreshness,
+				qualityControlUnlocked && outboundQualityEnabled);
+			SetQualitySlider(outboundQualityDamageSlider, outboundQualityDamageValue, outboundDamage,
+				qualityControlUnlocked && outboundQualityEnabled);
+		}
+
+		private static void SetQualitySlider(Slider slider, Label valueLabel, float value, bool enabled)
+		{
+			slider.SetValueWithoutNotify(value);
+			slider.SetEnabled(enabled);
+			valueLabel.text = $"{value:0}%";
 		}
 
 		private void BeginLandingAreaCreation()
@@ -531,6 +611,74 @@ namespace UniverseLogistics.UI.Toolkit
 			RejectPolicyChange();
 		}
 
+		private void OnInboundQualityControlChanged(ChangeEvent<bool> evt)
+		{
+			if (inboundWorkflow?.TrySetInboundQualityControlEnabled(evt.newValue) == true)
+			{
+				messageLabel.text = string.Empty;
+				RefreshPolicies();
+				return;
+			}
+
+			RejectPolicyChange();
+		}
+
+		private void OnInboundQualityFreshnessChanged(ChangeEvent<float> evt)
+		{
+			TrySetInboundQualityThresholds(Mathf.Round(evt.newValue), inboundWorkflow?.MaximumInboundDamagePercent ?? 0.0f);
+		}
+
+		private void OnInboundQualityDamageChanged(ChangeEvent<float> evt)
+		{
+			TrySetInboundQualityThresholds(inboundWorkflow?.MinimumInboundFreshnessPercent ?? 0.0f, Mathf.Round(evt.newValue));
+		}
+
+		private void TrySetInboundQualityThresholds(float minimumFreshness, float maximumDamage)
+		{
+			if (inboundWorkflow?.TrySetInboundQualityThresholds(minimumFreshness, maximumDamage) == true)
+			{
+				messageLabel.text = string.Empty;
+				RefreshPolicies();
+				return;
+			}
+
+			RejectPolicyChange();
+		}
+
+		private void OnOutboundQualityControlChanged(ChangeEvent<bool> evt)
+		{
+			if (outboundWorkflow?.TrySetOutboundQualityControlEnabled(evt.newValue) == true)
+			{
+				messageLabel.text = string.Empty;
+				RefreshPolicies();
+				return;
+			}
+
+			RejectPolicyChange();
+		}
+
+		private void OnOutboundQualityFreshnessChanged(ChangeEvent<float> evt)
+		{
+			TrySetOutboundQualityThresholds(Mathf.Round(evt.newValue), outboundWorkflow?.MaximumOutboundDamagePercent ?? 0.0f);
+		}
+
+		private void OnOutboundQualityDamageChanged(ChangeEvent<float> evt)
+		{
+			TrySetOutboundQualityThresholds(outboundWorkflow?.MinimumOutboundFreshnessPercent ?? 0.0f, Mathf.Round(evt.newValue));
+		}
+
+		private void TrySetOutboundQualityThresholds(float minimumFreshness, float maximumDamage)
+		{
+			if (outboundWorkflow?.TrySetOutboundQualityThresholds(minimumFreshness, maximumDamage) == true)
+			{
+				messageLabel.text = string.Empty;
+				RefreshPolicies();
+				return;
+			}
+
+			RejectPolicyChange();
+		}
+
 		private void OnAreaChanged(Area area)
 		{
 			RefreshLandingAreas();
@@ -619,6 +767,24 @@ namespace UniverseLogistics.UI.Toolkit
 				? UITooltipContent.DescriptionOnly(title, description)
 				: UITooltipContent.Locked(title, description,
 					"Required research: Workflow Policy Optimization");
+		}
+
+		private UITooltipContent BuildInboundQualityControlTooltip()
+		{
+			const string title = "Inbound quality control";
+			const string description = "Labeling workers reject items below the freshness limit or above the damage limit.";
+			return IsResearchCompleted(ResearchIds.QualityControl)
+				? UITooltipContent.DescriptionOnly(title, description)
+				: UITooltipContent.Locked(title, description, "Required research: Quality Control");
+		}
+
+		private UITooltipContent BuildOutboundQualityControlTooltip()
+		{
+			const string title = "Outbound quality control";
+			const string description = "LaunchSort workers reject unsuitable packed cargo and request replacement picking.";
+			return IsResearchCompleted(ResearchIds.QualityControl)
+				? UITooltipContent.DescriptionOnly(title, description)
+				: UITooltipContent.Locked(title, description, "Required research: Quality Control");
 		}
 
 		private bool IsResearchCompleted(string researchId)

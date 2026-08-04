@@ -10,6 +10,7 @@ public enum ItemTransferScheduleMode
 	PackingInput,
 	PackingOutput,
 	LaunchSort,
+	WasteCollection,
 }
 
 public enum ItemTransferScheduleResult
@@ -102,6 +103,7 @@ public sealed class ItemTransferTaskScheduler
 	private readonly Dictionary<WorkerTask, AIWorker> scheduledWorkersByTask = new();
 	private readonly HashSet<AIWorker> reservedWorkers = new();
 	private readonly HashSet<AIWorker> assignmentChangingWorkers = new();
+	private bool isRestoring;
 
 	private TaskManager TaskManager => GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
 
@@ -115,7 +117,7 @@ public sealed class ItemTransferTaskScheduler
 		ItemTransferTaskBuildHandler handler)
 	{
 		ItemTransferScheduleKey key = new(buildingId, mode);
-		if (buildingId == 0 ||
+		if ((buildingId == 0 && mode != ItemTransferScheduleMode.WasteCollection) ||
 			mode == ItemTransferScheduleMode.Undefined ||
 			taskType == WorkerTask.TaskType.Undefined ||
 			handler == null)
@@ -124,7 +126,7 @@ public sealed class ItemTransferTaskScheduler
 		}
 
 		entriesByKey[key] = new ScheduleEntry(taskType, handler);
-		if (dirtyKeys.Contains(key))
+		if (isRestoring == false && dirtyKeys.Contains(key))
 			TryScheduleDirtyKeys();
 
 		return true;
@@ -144,7 +146,50 @@ public sealed class ItemTransferTaskScheduler
 			return;
 
 		dirtyKeys.Add(key);
+		if (isRestoring == false)
+			TryScheduleDirtyKeys();
+	}
+
+	public void BeginRestore()
+	{
+		isRestoring = true;
+	}
+
+	public void EndRestore()
+	{
+		isRestoring = false;
 		TryScheduleDirtyKeys();
+	}
+
+	public bool RestoreScheduledTask(
+		WorkerTask task,
+		uint buildingId,
+		ItemTransferScheduleMode mode,
+		AIWorker preferredWorker,
+		bool reservePreferredWorker)
+	{
+		ItemTransferScheduleKey key = new(buildingId, mode);
+		if (task == null ||
+			isRestoring == false ||
+			IsValidKey(key) == false ||
+			entriesByKey.TryGetValue(key, out ScheduleEntry entry) == false ||
+			entry.TaskType != task.Type ||
+			(reservePreferredWorker && preferredWorker == null) ||
+			(reservePreferredWorker && reservedWorkers.Contains(preferredWorker)) ||
+			scheduledKeysByTask.ContainsKey(task))
+		{
+			return false;
+		}
+
+		scheduledKeysByTask[task] = key;
+		if (reservePreferredWorker && preferredWorker != null)
+		{
+			scheduledWorkersByTask[task] = preferredWorker;
+			reservedWorkers.Add(preferredWorker);
+			RemoveIdleWorker(preferredWorker);
+		}
+
+		return true;
 	}
 
 	public void ClearDirty(uint buildingId, ItemTransferScheduleMode mode)
@@ -169,7 +214,8 @@ public sealed class ItemTransferTaskScheduler
 			AddIdleWorker(worker, taskType);
 		}
 
-		TrySchedule(worker);
+		if (isRestoring == false)
+			TrySchedule(worker);
 	}
 
 	public void NotifyWorkerUnavailable(AIWorker worker)
@@ -255,9 +301,21 @@ public sealed class ItemTransferTaskScheduler
 		return idleWorkersByTaskType.TryGetValue(taskType, out WorkerQueue queue) ? queue.Set.Count : 0;
 	}
 
+	public void ResetRuntimeState()
+	{
+		isRestoring = false;
+		dirtyKeys.Clear();
+		idleWorkersByTaskType.Clear();
+		scheduledKeysByTask.Clear();
+		scheduledWorkersByTask.Clear();
+		reservedWorkers.Clear();
+		assignmentChangingWorkers.Clear();
+		entriesByKey.Clear();
+	}
+
 	private bool TrySchedule(AIWorker worker)
 	{
-		if (worker == null || worker.CurrentTask != null || reservedWorkers.Contains(worker))
+		if (isRestoring || worker == null || worker.CurrentTask != null || reservedWorkers.Contains(worker))
 			return false;
 
 		foreach (ItemTransferScheduleKey key in CopyDirtyKeys())
@@ -275,6 +333,9 @@ public sealed class ItemTransferTaskScheduler
 
 	private bool TryScheduleDirtyKeys()
 	{
+		if (isRestoring)
+			return false;
+
 		foreach (ItemTransferScheduleKey key in CopyDirtyKeys())
 		{
 			if (TrySchedule(key))
@@ -391,7 +452,7 @@ public sealed class ItemTransferTaskScheduler
 
 	private static bool IsValidKey(ItemTransferScheduleKey key)
 	{
-		return key.BuildingId != 0 &&
+		return (key.BuildingId != 0 || key.Mode == ItemTransferScheduleMode.WasteCollection) &&
 			key.Mode != ItemTransferScheduleMode.Undefined;
 	}
 
@@ -432,6 +493,7 @@ public sealed class ItemTransferTaskScheduler
 		{
 			ItemTransferScheduleMode.PackingOutput => 0,
 			ItemTransferScheduleMode.LaunchSort => 1,
+			ItemTransferScheduleMode.WasteCollection => 2,
 			ItemTransferScheduleMode.Picking => 5,
 			ItemTransferScheduleMode.Storing => 6,
 			ItemTransferScheduleMode.PackingInput => 10,

@@ -111,7 +111,12 @@ public sealed class StoringPlanner : IItemTransferPlanner
 			foreach (var itemTotal in buffer.ItemTotals)
 			{
 				uint itemId = itemTotal.Key;
-				int available = ItemTransferUtility.GetMovableQuantity(buffer, box, itemId, itemTotal.Value);
+				int available = ItemTransferUtility.GetMovableQuantity(
+					buffer,
+					box,
+					itemId,
+					itemTotal.Value,
+					stack => stack.HasQuality(ItemQuality.Waste) == false);
 				if (available <= 0)
 					continue;
 
@@ -143,7 +148,13 @@ public sealed class StoringPlanner : IItemTransferPlanner
 
 		if (bestBuffer != null && bestQuantity > 0)
 		{
-			line = new WorkLine(WorkLineAction.Pick, bestBuffer, bestBuffer, bestItemId, bestQuantity);
+			line = new WorkLine(
+				WorkLineAction.Pick,
+				bestBuffer,
+				bestBuffer,
+				bestItemId,
+				bestQuantity,
+				excludedQuality: ItemQuality.Waste);
 			return WorkPlanResult.Issued;
 		}
 
@@ -256,7 +267,17 @@ public sealed class StoringPlanner : IItemTransferPlanner
 
 	private static bool HasCollectableItem(CapsuleBuffer buffer)
 	{
-		return buffer != null && buffer.CanProvideInboundItems() && buffer.ItemTotals.Count > 0;
+		if (buffer == null || buffer.CanProvideInboundItems() == false)
+			return false;
+
+		for (int i = 0; i < buffer.Stacks.Count; ++i)
+		{
+			ItemStack stack = buffer.Stacks[i];
+			if (stack != null && stack.Quantity > 0 && stack.HasQuality(ItemQuality.Waste) == false)
+				return true;
+		}
+
+		return false;
 	}
 
 	private bool IsShelfInBuilding(ShelfBase shelf, uint buildingId)

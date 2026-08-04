@@ -167,7 +167,7 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 
 	private static bool CanAcceptBox(CargoPort port, BoxBase box, InteractionKind interactionKind)
 	{
-		if (port == null || box is not CargoCapsule)
+		if (port == null || box is not CargoCapsule capsule || port.CanAcceptCargoRoute(capsule.RouteKind) == false)
 			return false;
 
 		return interactionKind == InteractionKind.Put ? port.CanPutBox() : port.CanGetBox();

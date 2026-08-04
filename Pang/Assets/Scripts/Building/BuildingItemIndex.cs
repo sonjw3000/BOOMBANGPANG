@@ -40,6 +40,7 @@ public sealed class BuildingItemIndex
 	{
 		public readonly Dictionary<BuildingItemKey, int> Quantities = new();
 		public readonly Dictionary<BuildingItemKey, int> ReservedQuantities = new();
+		public int WasteQuantity;
 	}
 
 	private readonly Building owner;
@@ -48,14 +49,17 @@ public sealed class BuildingItemIndex
 	private readonly Dictionary<uint, int> totalQuantityByItemId = new();
 	private readonly Dictionary<BuildingItemKey, Dictionary<IItemContainer, int>> quantityByKeyAndContainer = new();
 	private readonly Dictionary<BuildingItemKey, Dictionary<IItemContainer, int>> reservedByKeyAndContainer = new();
+	private readonly Dictionary<IItemContainer, int> wasteQuantityByContainer = new();
 
 	public Building Owner => owner;
 	public IReadOnlyCollection<IItemContainer> Containers => containers;
 	public IReadOnlyDictionary<uint, int> TotalQuantityByItemId => totalQuantityByItemId;
 	public IReadOnlyDictionary<BuildingItemKey, Dictionary<IItemContainer, int>> QuantityByKeyAndContainer => quantityByKeyAndContainer;
 	public IReadOnlyDictionary<BuildingItemKey, Dictionary<IItemContainer, int>> ReservedByKeyAndContainer => reservedByKeyAndContainer;
+	public IReadOnlyDictionary<IItemContainer, int> WasteQuantityByContainer => wasteQuantityByContainer;
 
 	public event Action<uint, ItemStatus, IItemContainer> OnItemStatusAdded;
+	public event Action<Building, IItemContainer, int, int> OnWasteQuantityChanged;
 
 	public BuildingItemIndex(Building owner)
 	{
@@ -71,6 +75,7 @@ public sealed class BuildingItemIndex
 		ApplySnapshot(container, snapshots[container], 1);
 		PublishItemStatusAdded(container, snapshots[container]);
 		Subscribe(container);
+		PublishWasteQuantityChanged(container, 0, snapshots[container].WasteQuantity);
 		return true;
 	}
 
@@ -84,6 +89,7 @@ public sealed class BuildingItemIndex
 		{
 			ApplySnapshot(container, snapshot, -1);
 			snapshots.Remove(container);
+			PublishWasteQuantityChanged(container, snapshot.WasteQuantity, 0);
 		}
 
 		return true;
@@ -99,12 +105,18 @@ public sealed class BuildingItemIndex
 			snapshots[container] = snapshot;
 			ApplySnapshot(container, snapshot, 1);
 			PublishItemStatusAdded(container, snapshot);
+			PublishWasteQuantityChanged(container, 0, snapshot.WasteQuantity);
 		}
 	}
 
 	public int GetTotalQuantity(uint itemId)
 	{
 		return totalQuantityByItemId.GetValueOrDefault(itemId);
+	}
+
+	internal bool ContainsContainer(IItemContainer container)
+	{
+		return container != null && containers.Contains(container);
 	}
 
 	public IReadOnlyDictionary<IItemContainer, int> GetContainers(uint itemId, ItemStatus status)
@@ -137,6 +149,7 @@ public sealed class BuildingItemIndex
 		snapshots[container] = newSnapshot;
 		ApplySnapshot(container, newSnapshot, 1);
 		PublishItemStatusAdded(container, newSnapshot);
+		PublishWasteQuantityChanged(container, oldSnapshot?.WasteQuantity ?? 0, newSnapshot.WasteQuantity);
 	}
 
 	private ContainerSnapshot BuildSnapshot(IItemContainer container)
@@ -152,6 +165,8 @@ public sealed class BuildingItemIndex
 				continue;
 
 			AddTo(snapshot.Quantities, new BuildingItemKey(stack.ItemID, stack.Status), stack.Quantity);
+			if (stack.HasQuality(ItemQuality.Waste))
+				snapshot.WasteQuantity += stack.Quantity;
 		}
 
 		if (container is IItemPickReservable reservable)
@@ -179,6 +194,26 @@ public sealed class BuildingItemIndex
 
 		foreach (var entry in snapshot.ReservedQuantities)
 			ApplyNested(reservedByKeyAndContainer, entry.Key, container, entry.Value * sign);
+
+		int nextWaste = wasteQuantityByContainer.GetValueOrDefault(container) + snapshot.WasteQuantity * sign;
+		if (nextWaste > 0)
+			wasteQuantityByContainer[container] = nextWaste;
+		else
+			wasteQuantityByContainer.Remove(container);
+	}
+
+	private void PublishWasteQuantityChanged(IItemContainer container, int previous, int current)
+	{
+		if (container == null)
+			return;
+
+		if (previous != current)
+			OnWasteQuantityChanged?.Invoke(owner, container, previous, current);
+
+		// Reservations, status and manifest ownership can change whether an existing
+		// Waste stack is collectable without changing its quantity.
+		if (GameContext.HasInstance && (previous > 0 || current > 0))
+			GameContext.Instance.WasteCollectionPlanner?.NotifyBuildingChanged(owner);
 	}
 
 	private void PublishItemStatusAdded(IItemContainer container, ContainerSnapshot snapshot)
@@ -256,6 +291,7 @@ public sealed class BuildingItemIndex
 		totalQuantityByItemId.Clear();
 		quantityByKeyAndContainer.Clear();
 		reservedByKeyAndContainer.Clear();
+		wasteQuantityByContainer.Clear();
 		snapshots.Clear();
 	}
 

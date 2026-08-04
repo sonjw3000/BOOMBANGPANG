@@ -32,6 +32,9 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	[SerializeField] [Range(1f, 100f)] private float storingBoxFillLimitPercent = 80.0f;
 	[SerializeField] private CollectingPolicyType defaultStoringCollectingPolicyType = DefaultCollectingPolicyType;
 	[SerializeField] private PlacingPolicyType defaultStoringPlacingPolicyType = DefaultPlacingPolicyType;
+	[SerializeField] private bool inboundQualityControlEnabled;
+	[SerializeField] [Range(0f, 100f)] private float minimumInboundFreshnessPercent = QualityControlPolicy.DefaultMinimumFreshnessPercent;
+	[SerializeField] [Range(0f, 100f)] private float maximumInboundDamagePercent = QualityControlPolicy.DefaultMaximumDamagePercent;
 
 	private StoringPlanner storingPlanner;
 	private float timeSinceLastInboundRocketSpawn = 0.0f;
@@ -59,6 +62,50 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	public int DamageRate => damageRate;
 	public int MaximumDamageAmount => maximumDamageAmount;
 	public uint UnloadingDestinationBuildingId => unloadingDestinationBuildingId;
+	public bool InboundQualityControlEnabled => inboundQualityControlEnabled && IsResearchCompleted(ResearchIds.QualityControl);
+	public float MinimumInboundFreshnessPercent => minimumInboundFreshnessPercent;
+	public float MaximumInboundDamagePercent => maximumInboundDamagePercent;
+
+	public QualityInspectionResult InspectInboundQuality(ItemStack stack)
+	{
+		return QualityControlPolicy.Inspect(
+			stack,
+			minimumInboundFreshnessPercent,
+			maximumInboundDamagePercent);
+	}
+
+	public bool TrySetInboundQualityControlEnabled(bool enabled)
+	{
+		if (IsResearchCompleted(ResearchIds.QualityControl) == false)
+			return false;
+
+		inboundQualityControlEnabled = enabled;
+		ReevaluateLabelingWork();
+		return true;
+	}
+
+	public bool TrySetInboundQualityThresholds(float minimumFreshnessPercent, float maximumDamagePercent)
+	{
+		if (IsResearchCompleted(ResearchIds.QualityControl) == false)
+			return false;
+
+		minimumInboundFreshnessPercent = Mathf.Clamp(minimumFreshnessPercent, 0.0f, 100.0f);
+		maximumInboundDamagePercent = Mathf.Clamp(maximumDamagePercent, 0.0f, 100.0f);
+		return true;
+	}
+
+	private void ReevaluateLabelingWork()
+	{
+		if (GameContext.HasInstance == false || GameContext.Instance.BuildingMgr == null)
+			return;
+
+		IReadOnlyList<Building> buildings = GameContext.Instance.BuildingMgr.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is StagingBuilding stagingBuilding)
+				stagingBuilding.EvaluateLabelingWork();
+		}
+	}
 
 	public bool TryGetUnloadingDestinationBuilding(out Building building)
 	{

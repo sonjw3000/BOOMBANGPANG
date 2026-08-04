@@ -229,7 +229,14 @@ public class ItemDamageService : MonoBehaviour
 		if (damageChange.WasApplied == false || GameContext.HasInstance == false)
 			return;
 
-		if (damageChange.QualityChanged)
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		int previousDamagePercent = CalculateDamagePercent(damageChange.PreviousDamage);
+		int currentDamagePercent = CalculateDamagePercent(damageChange.CurrentDamage);
+		bool crossedOutboundThreshold = outbound != null &&
+			outbound.OutboundQualityControlEnabled &&
+			previousDamagePercent <= outbound.MaximumOutboundDamagePercent &&
+			currentDamagePercent > outbound.MaximumOutboundDamagePercent;
+		if (damageChange.QualityChanged || crossedOutboundThreshold)
 			GameContext.Instance.BuildingMgr?.RefreshItemContainerState(container);
 
 		ItemDatabase itemDatabase = GameContext.Instance.ItemDB;
@@ -306,6 +313,14 @@ public class ItemDamageService : MonoBehaviour
 			GameContext.Instance.ItemDB != null &&
 			GameContext.Instance.ItemDB.GetItemData(itemId, out itemDefinition) &&
 			itemDefinition != null;
+	}
+
+	private static int CalculateDamagePercent(float damagePercent)
+	{
+		return Mathf.Clamp(
+			Mathf.FloorToInt(Mathf.Clamp(damagePercent, 0.0f, 100.0f) + 0.0001f),
+			0,
+			100);
 	}
 
 	private static bool IsFragile(uint itemId)

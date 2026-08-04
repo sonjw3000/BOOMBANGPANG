@@ -51,10 +51,32 @@ public sealed class StorageBuilding : Building
 		foreach (ShelfBase source in GameContext.Instance.StorageService.GetSources(RuntimeBuildingId, itemId))
 		{
 			if (source != null)
-				quantity += source.GetPickableQuantity(itemId);
+				quantity += GetNonWastePickableQuantity(source, itemId);
 		}
 
 		return quantity;
+	}
+
+	internal static int GetNonWastePickableQuantity(ShelfBase source, uint itemId)
+	{
+		if (source == null || itemId == 0)
+			return 0;
+
+		int quantity = 0;
+		for (int i = 0; i < source.Stacks.Count; ++i)
+		{
+			ItemStack stack = source.Stacks[i];
+			if (stack != null &&
+				stack.ItemID == itemId &&
+				stack.Quantity > 0 &&
+				stack.HasQuality(ItemQuality.Waste) == false)
+			{
+				quantity += stack.Quantity;
+			}
+		}
+
+		int reserved = source.ItemToBePicked.TryGetValue(itemId, out int value) ? value : 0;
+		return UnityEngine.Mathf.Max(0, quantity - reserved);
 	}
 
 	public bool HasPendingPickingRequest()

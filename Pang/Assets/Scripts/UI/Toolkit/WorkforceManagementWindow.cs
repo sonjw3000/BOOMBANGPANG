@@ -1169,7 +1169,7 @@ namespace UniverseLogistics.UI.Toolkit
 			return type switch
 			{
 				WorkerTask.TaskType.IB or WorkerTask.TaskType.CapsuleClear or WorkerTask.TaskType.CapsuleSupply or WorkerTask.TaskType.OB or WorkerTask.TaskType.CargoTransfer or WorkerTask.TaskType.Loading or WorkerTask.TaskType.Unloading => HandleGroup.Cargo,
-				WorkerTask.TaskType.Picking or WorkerTask.TaskType.Storing or WorkerTask.TaskType.PackingInput or WorkerTask.TaskType.PackingOutput or WorkerTask.TaskType.LaunchSort or WorkerTask.TaskType.Packing or WorkerTask.TaskType.Labeling => HandleGroup.Item,
+				WorkerTask.TaskType.Picking or WorkerTask.TaskType.Storing or WorkerTask.TaskType.PackingInput or WorkerTask.TaskType.PackingOutput or WorkerTask.TaskType.LaunchSort or WorkerTask.TaskType.Packing or WorkerTask.TaskType.Labeling or WorkerTask.TaskType.WasteCollection => HandleGroup.Item,
 				_ => HandleGroup.Undefined,
 			};
 		}
@@ -1180,6 +1180,7 @@ namespace UniverseLogistics.UI.Toolkit
 			WorkerTask.TaskType.CapsuleSupply => "Capsule Relocation (Supply)",
 			WorkerTask.TaskType.OB => "Capsule Relocation (Outbound)",
 			WorkerTask.TaskType.LaunchSort => "Launch Sort",
+			WorkerTask.TaskType.WasteCollection => "Waste Collection",
 			_ => type.ToString(),
 		};
 	}

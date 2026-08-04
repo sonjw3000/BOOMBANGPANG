@@ -221,6 +221,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			return OnManualCollectCompleted(worker, line, result);
 
 		ReleaseUnmovedReservation(line, result);
+		ReleaseUnmovedPickingAllocation(line, result);
 
 		if (line == null || result.Moved <= 0)
 			return WorkPlanResult.Waiting;
@@ -403,7 +404,8 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			if (source == null || remaining <= 0)
 				continue;
 
-			int reserved = source.ReservePicking(orderLine.ItemID, remaining);
+			int available = StorageBuilding.GetNonWastePickableQuantity(source, orderLine.ItemID);
+			int reserved = source.ReservePicking(orderLine.ItemID, Mathf.Min(remaining, available));
 			if (reserved <= 0)
 				continue;
 
@@ -516,9 +518,10 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			shelf,
 			shelf,
 			request.ItemId,
-			quantity,
+			Mathf.Min(quantity, GetNonWasteQuantity(shelf, request.ItemId)),
 			request.OrderLine,
-			consumeSourcePickReservation: false);
+			consumeSourcePickReservation: false,
+			excludedQuality: ItemQuality.Waste);
 		return WorkPlanResult.Issued;
 	}
 
@@ -568,6 +571,8 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		foreach (IItemContainer container in ownerBuilding.ItemIndex.Containers)
 		{
 			if (container is not ShelfBase shelf || session.VisitedShelves.Contains(shelf))
+				continue;
+			if (GetNonWasteQuantity(shelf, session.Request.ItemId) <= 0)
 				continue;
 
 			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
@@ -671,6 +676,36 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			moved);
 	}
 
+	private void ReleaseUnmovedPickingAllocation(WorkLine line, ItemTransferResult result)
+	{
+		if (line == null ||
+			line.ConsumeSourcePickReservation == false ||
+			line.RelatedOrderLine == null)
+		{
+			return;
+		}
+
+		int unmoved = Mathf.Max(0, line.Quantity - result.Moved);
+		if (unmoved <= 0)
+			return;
+
+		int released = requestSource.ReleaseFailedAllocation(
+			line.RelatedOrderLine,
+			line.Container as ShelfBase,
+			line.ItemID,
+			unmoved);
+		OrderManager orderManager = GameContext.HasInstance ? GameContext.Instance.OrderMgr : null;
+		int releasedOrderAllocation = orderManager != null
+			? orderManager.ReleasePickingAllocation(line.RelatedOrderLine, released)
+			: 0;
+		if (released != unmoved ||
+			(orderManager != null && releasedOrderAllocation != released))
+		{
+			Debug.LogWarning(
+				$"[PickingPlanner] Failed collect rollback mismatch. requested={unmoved}, request={released}, order={releasedOrderAllocation}");
+		}
+	}
+
 	private void MarkPickingDirty()
 	{
 		if (BuildingId != 0 && GameContext.HasInstance)
@@ -756,7 +791,9 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			if (request.Source == null)
 				continue;
 
-			int quantity = Mathf.Min(acceptable, allocatable);
+			int quantity = Mathf.Min(
+				Mathf.Min(acceptable, allocatable),
+				GetNonWasteQuantity(request.Source, request.ItemId));
 			if (quantity <= 0)
 				continue;
 
@@ -792,6 +829,27 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 	private uint ResolveBuildingId(uint buildingId)
 	{
 		return BuildingId != 0 ? BuildingId : buildingId;
+	}
+
+	private static int GetNonWasteQuantity(IItemContainer container, uint itemId)
+	{
+		if (container == null || itemId == 0)
+			return 0;
+
+		int quantity = 0;
+		for (int i = 0; i < container.Stacks.Count; ++i)
+		{
+			ItemStack stack = container.Stacks[i];
+			if (stack != null &&
+				stack.ItemID == itemId &&
+				stack.Quantity > 0 &&
+				stack.HasQuality(ItemQuality.Waste) == false)
+			{
+				quantity += stack.Quantity;
+			}
+		}
+
+		return quantity;
 	}
 
 	private static void RemoveDispatchedCandidate(
@@ -971,13 +1029,43 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			return quantity - remaining;
 		}
 
+		public int ReleaseFailedAllocation(OrderLine orderLine, ShelfBase source, uint itemId, int quantity)
+		{
+			int remaining = Mathf.Max(0, quantity);
+			for (int i = 0; i < requests.Count && remaining > 0; ++i)
+			{
+				PickingRequest request = requests[i];
+				if (request == null ||
+					request.OrderLine != orderLine ||
+					request.Source != source ||
+					request.ItemId != itemId)
+				{
+					continue;
+				}
+
+				int released = request.ReleaseAllocated(remaining);
+				int releasedReservation = request.ReleaseReserved(released);
+				if (releasedReservation != released)
+					Debug.LogWarning($"[PickingPlanner] Request reservation rollback mismatch. allocation={released}, reservation={releasedReservation}");
+
+				remaining -= releasedReservation;
+			}
+
+			return quantity - remaining;
+		}
+
 		public WorkLine CreateWorkLine(ShelfBase source, uint itemId, int quantity, PickingRequest requestLine)
 		{
 			ShelfBase requestSource = requestLine?.Source;
 			ShelfBase resolvedSource = requestSource != null ? requestSource : source;
 			return resolvedSource == null || requestLine?.OrderLine == null
 				? null
-				: new WorkLine(resolvedSource, itemId, quantity, requestLine.OrderLine);
+				: new WorkLine(
+					resolvedSource,
+					itemId,
+					quantity,
+					requestLine.OrderLine,
+					excludedQuality: ItemQuality.Waste);
 		}
 
 	}

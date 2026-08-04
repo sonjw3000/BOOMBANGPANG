@@ -6,6 +6,7 @@ public static class ResearchIds
 	public const string InventoryDigitization = "inventory_digitization";
 	public const string WorkflowPolicyManagement = "workflow_policy_management";
 	public const string WorkflowPolicyOptimization = "workflow_policy_optimization";
+	public const string QualityControl = "quality_control";
 	public const string TemperatureMonitoring = "temperature_monitoring";
 	public const string ThermalOperations = "thermal_operations";
 	public const string IndoorWorkProtocols = "indoor_work_protocols";

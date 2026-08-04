@@ -19,6 +19,9 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	[SerializeField] private PickingPolicyType defaultPickingPolicyType = DefaultPickingPolicyType;
 	[SerializeField] private CollectingPolicyType defaultPickingCollectingPolicyType = DefaultCollectingPolicyType;
 	[SerializeField] private uint loadingDestinationBuildingId = 0;
+	[SerializeField] private bool outboundQualityControlEnabled;
+	[SerializeField] [Range(0f, 100f)] private float minimumOutboundFreshnessPercent = QualityControlPolicy.DefaultMinimumFreshnessPercent;
+	[SerializeField] [Range(0f, 100f)] private float maximumOutboundDamagePercent = QualityControlPolicy.DefaultMaximumDamagePercent;
 
 	private float timeSinceLastOrder = 0.0f;
 	private readonly HashSet<OutboundCargoPort> queuedCargoTransferPorts = new();
@@ -34,6 +37,9 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public float PickingBoxFillLimitPercent => pickingBoxFillLimitPercent;
 	public float CargoPortThresholdPercent => cargoPortThresholdPercent;
 	public uint LoadingDestinationBuildingId => loadingDestinationBuildingId;
+	public bool OutboundQualityControlEnabled => outboundQualityControlEnabled && IsResearchCompleted(ResearchIds.QualityControl);
+	public float MinimumOutboundFreshnessPercent => minimumOutboundFreshnessPercent;
+	public float MaximumOutboundDamagePercent => maximumOutboundDamagePercent;
 	private OrderManager OrderMgr => GameContext.Instance.OrderMgr;
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
 	private CargoPortService CargoPortService => GameContext.Instance.CargoPortSvc;
@@ -49,6 +55,48 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		{
 			Building = building;
 			PickableQuantity = pickableQuantity;
+		}
+	}
+
+	public QualityInspectionResult InspectOutboundQuality(ItemStack stack)
+	{
+		return QualityControlPolicy.Inspect(
+			stack,
+			minimumOutboundFreshnessPercent,
+			maximumOutboundDamagePercent);
+	}
+
+	public bool TrySetOutboundQualityControlEnabled(bool enabled)
+	{
+		if (IsResearchCompleted(ResearchIds.QualityControl) == false)
+			return false;
+
+		outboundQualityControlEnabled = enabled;
+		EvaluateLaunchSortWork();
+		return true;
+	}
+
+	public bool TrySetOutboundQualityThresholds(float minimumFreshnessPercent, float maximumDamagePercent)
+	{
+		if (IsResearchCompleted(ResearchIds.QualityControl) == false)
+			return false;
+
+		minimumOutboundFreshnessPercent = Mathf.Clamp(minimumFreshnessPercent, 0.0f, 100.0f);
+		maximumOutboundDamagePercent = Mathf.Clamp(maximumDamagePercent, 0.0f, 100.0f);
+		EvaluateLaunchSortWork();
+		return true;
+	}
+
+	private void EvaluateLaunchSortWork()
+	{
+		if (BuildingManager == null)
+			return;
+
+		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is LaunchBuilding launchBuilding)
+				launchBuilding.EvaluateLaunchSortWork();
 		}
 	}
 
@@ -518,6 +566,334 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		return TryGetPackableManifestLine(box, orderLine, itemId, out PickingManifestLine line) ? line.PackableQuantity : 0;
 	}
 
+	public int RejectPackedCargo(
+		CapsuleBuffer sourceBuffer,
+		OrderLine orderLine,
+		uint itemId,
+		int quantity)
+	{
+		return sourceBuffer?.DockedCapsule != null
+			? RejectPackedCargo(sourceBuffer, sourceBuffer.DockedCapsule, orderLine, itemId, quantity)
+			: 0;
+	}
+
+	public int RejectPackedCargo(
+		BoxBase sourceBox,
+		OrderLine orderLine,
+		uint itemId,
+		int quantity)
+	{
+		return sourceBox != null
+			? RejectPackedCargo(sourceBox, sourceBox, orderLine, itemId, quantity)
+			: 0;
+	}
+
+	private int RejectPackedCargo(
+		IItemContainer sourceContainer,
+		BoxBase manifestOwner,
+		OrderLine orderLine,
+		uint itemId,
+		int quantity)
+	{
+		if (sourceContainer == null ||
+			manifestOwner == null ||
+			orderLine == null ||
+			itemId == 0 ||
+			quantity <= 0 ||
+			OrderMgr == null ||
+			TryGetPickingManifest(manifestOwner, out PickingManifest manifest) == false)
+		{
+			return 0;
+		}
+
+		PickingManifestLine manifestLine = manifest.FindLine(orderLine, itemId);
+		if (manifestLine == null || manifestLine.PackedQuantity <= 0)
+			return 0;
+
+		int requested = Mathf.Min(quantity, manifestLine.PackedQuantity);
+		if (CanRollbackRejectedCargo(orderLine, requested, manifestLine.OutboundStage) == false)
+		{
+			Debug.LogWarning(
+				$"[OutboundQualityControl] Reject rollback precondition failed. item={itemId}, quantity={requested}, stage={manifestLine.OutboundStage}");
+			return 0;
+		}
+
+		int rejectedQuantity = MarkRejectedPackedStacksAsWaste(
+			sourceContainer,
+			itemId,
+			requested);
+		if (rejectedQuantity <= 0)
+			return 0;
+
+		PackageOutboundStage outboundStage = manifestLine.OutboundStage;
+		int removed = manifest.RemovePacked(orderLine, itemId, rejectedQuantity);
+		if (removed <= 0)
+			return 0;
+
+		int rolledBack = OrderMgr.RollbackDestroyedCargo(orderLine, removed, removed, outboundStage);
+		if (rolledBack != removed)
+		{
+			Debug.LogWarning(
+				$"[OutboundQualityControl] Reject rollback mismatch. item={itemId}, rejected={removed}, rolledBack={rolledBack}");
+		}
+
+		if (manifest.IsEmpty)
+			ClearPickingManifest(manifestOwner);
+
+		BuildingManager?.RefreshItemContainerState(sourceContainer);
+		return removed;
+	}
+
+	public int RejectInvalidPackedCargo(CapsuleBuffer sourceBuffer)
+	{
+		if (sourceBuffer?.DockedCapsule == null ||
+			TryGetPickingManifest(sourceBuffer.DockedCapsule, out PickingManifest manifest) == false)
+		{
+			return 0;
+		}
+
+		List<PickingManifestLine> lines = new(manifest.Lines);
+		int rejected = 0;
+		for (int i = 0; i < lines.Count; ++i)
+		{
+			PickingManifestLine line = lines[i];
+			if (line?.OrderLine == null || line.PackedQuantity <= 0)
+				continue;
+
+			int rejectedQuantity = GetRejectedPackedQuantity(
+				sourceBuffer,
+				line.ItemId,
+				line.PackedQuantity,
+				excludeReserved: false);
+			if (rejectedQuantity > 0)
+				rejected += RejectPackedCargo(sourceBuffer, line.OrderLine, line.ItemId, rejectedQuantity);
+		}
+
+		return rejected;
+	}
+
+	internal int GetRejectedPackedQuantity(
+		CapsuleBuffer sourceBuffer,
+		uint itemId,
+		int limit,
+		bool excludeReserved)
+	{
+		if (sourceBuffer == null || itemId == 0 || limit <= 0)
+			return 0;
+
+		int reserved = excludeReserved
+			? sourceBuffer.ItemToBePicked.GetValueOrDefault(itemId)
+			: 0;
+		return GetRejectedPackedQuantity(sourceBuffer, itemId, limit, reserved);
+	}
+
+	internal int GetRejectedPackedQuantity(
+		IItemContainer sourceContainer,
+		uint itemId,
+		int limit)
+	{
+		return GetRejectedPackedQuantity(sourceContainer, itemId, limit, 0);
+	}
+
+	private int GetRejectedPackedQuantity(
+		IItemContainer sourceContainer,
+		uint itemId,
+		int limit,
+		int reserved)
+	{
+		if (sourceContainer == null || itemId == 0 || limit <= 0)
+			return 0;
+
+		int physicalLimit = limit + Mathf.Max(0, reserved);
+		int rejected = 0;
+		for (int i = sourceContainer.Stacks.Count - 1; i >= 0 && rejected < physicalLimit; --i)
+		{
+			ItemStack stack = sourceContainer.Stacks[i];
+			if (stack == null ||
+				stack.Quantity <= 0 ||
+				stack.ItemID != itemId ||
+				ShouldRejectOutboundStack(stack) == false)
+			{
+				continue;
+			}
+
+			rejected += Mathf.Min(stack.Quantity, physicalLimit - rejected);
+		}
+
+		return Mathf.Clamp(rejected - Mathf.Max(0, reserved), 0, limit);
+	}
+
+	internal bool HasDispatchBlockingCargo(CapsuleBuffer sourceBuffer)
+	{
+		return HasDispatchBlockingCargo((IItemContainer)sourceBuffer);
+	}
+
+	internal bool HasDispatchBlockingCargo(IItemContainer sourceContainer)
+	{
+		if (sourceContainer == null)
+			return true;
+
+		for (int i = 0; i < sourceContainer.Stacks.Count; ++i)
+		{
+			ItemStack stack = sourceContainer.Stacks[i];
+			if (stack == null || stack.Quantity <= 0)
+				continue;
+
+			if (stack.Status != ItemStatus.Packed ||
+				stack.HasQuality(ItemQuality.Waste) ||
+				ShouldRejectOutboundStack(stack))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	internal bool HasCompleteDispatchManifest(CapsuleBuffer sourceBuffer)
+	{
+		return sourceBuffer?.DockedCapsule != null &&
+			HasCompleteDispatchManifest(sourceBuffer, sourceBuffer.DockedCapsule);
+	}
+
+	internal bool HasCompleteDispatchManifest(BoxBase sourceBox)
+	{
+		return sourceBox != null && HasCompleteDispatchManifest(sourceBox, sourceBox);
+	}
+
+	private bool HasCompleteDispatchManifest(IItemContainer sourceContainer, BoxBase manifestOwner)
+	{
+		if (sourceContainer == null ||
+			manifestOwner == null ||
+			TryGetPickingManifest(manifestOwner, out PickingManifest manifest) == false)
+		{
+			return false;
+		}
+
+		Dictionary<uint, int> physicalPackedQuantityByItemId = new();
+		for (int i = 0; i < sourceContainer.Stacks.Count; ++i)
+		{
+			ItemStack stack = sourceContainer.Stacks[i];
+			if (stack == null || stack.Quantity <= 0)
+				continue;
+
+			if (stack.ItemID == 0 || stack.Status != ItemStatus.Packed)
+				return false;
+
+			physicalPackedQuantityByItemId[stack.ItemID] =
+				physicalPackedQuantityByItemId.GetValueOrDefault(stack.ItemID) + stack.Quantity;
+		}
+
+		if (physicalPackedQuantityByItemId.Count <= 0)
+			return false;
+
+		Dictionary<uint, int> manifestPackedQuantityByItemId = new();
+		for (int i = 0; i < manifest.Lines.Count; ++i)
+		{
+			PickingManifestLine line = manifest.Lines[i];
+			if (line?.OrderLine == null ||
+				line.ItemId == 0 ||
+				line.OrderLine.ItemID != line.ItemId ||
+				line.PackedQuantity <= 0 ||
+				line.PickedQuantity != line.PackedQuantity)
+			{
+				return false;
+			}
+
+			manifestPackedQuantityByItemId[line.ItemId] =
+				manifestPackedQuantityByItemId.GetValueOrDefault(line.ItemId) + line.PackedQuantity;
+		}
+
+		if (manifestPackedQuantityByItemId.Count != physicalPackedQuantityByItemId.Count)
+			return false;
+
+		foreach (var entry in physicalPackedQuantityByItemId)
+		{
+			if (manifestPackedQuantityByItemId.TryGetValue(entry.Key, out int manifestQuantity) == false ||
+				manifestQuantity != entry.Value)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	internal bool ShouldRejectOutboundStack(ItemStack stack)
+	{
+		return stack != null &&
+			stack.Quantity > 0 &&
+			stack.Status == ItemStatus.Packed &&
+			(stack.HasQuality(ItemQuality.Waste) ||
+			 (OutboundQualityControlEnabled && InspectOutboundQuality(stack).Accepted == false));
+	}
+
+	private static bool CanRollbackRejectedCargo(
+		OrderLine orderLine,
+		int quantity,
+		PackageOutboundStage outboundStage)
+	{
+		if (orderLine == null ||
+			quantity <= 0 ||
+			outboundStage == PackageOutboundStage.Completed ||
+			orderLine.PickingCompletedQuantity < quantity ||
+			orderLine.PackagingCompletedQuantity < quantity)
+		{
+			return false;
+		}
+
+		if (outboundStage >= PackageOutboundStage.WaitingForShipping && orderLine.WaitingForShippingQuantity < quantity)
+			return false;
+		if (outboundStage >= PackageOutboundStage.Shipping && orderLine.ShippingQuantity < quantity)
+			return false;
+		if (outboundStage >= PackageOutboundStage.InDelivery && orderLine.InDeliveryQuantity < quantity)
+			return false;
+
+		return true;
+	}
+
+	private int MarkRejectedPackedStacksAsWaste(IItemContainer sourceContainer, uint itemId, int quantity)
+	{
+		int remaining = quantity;
+		int rejected = 0;
+		for (int i = sourceContainer.Stacks.Count - 1; i >= 0 && remaining > 0; --i)
+		{
+			ItemStack stack = sourceContainer.Stacks[i];
+			if (stack == null ||
+				stack.Quantity <= 0 ||
+				stack.ItemID != itemId ||
+				ShouldRejectOutboundStack(stack) == false)
+			{
+				continue;
+			}
+
+			int targetQuantity = Mathf.Min(remaining, stack.Quantity);
+			if (targetQuantity == stack.Quantity)
+			{
+				stack.AddQuality(ItemQuality.Waste);
+				stack.SetStatus(ItemStatus.None);
+			}
+			else
+			{
+				if (sourceContainer.TryRemoveFromStack(stack, targetQuantity, out ItemStack rejectedStack) == false || rejectedStack == null)
+					continue;
+
+				rejectedStack.AddQuality(ItemQuality.Waste);
+				rejectedStack.SetStatus(ItemStatus.None);
+				if (sourceContainer.AddStack(rejectedStack) == false)
+				{
+					Debug.LogError($"[OutboundQualityControl] Failed to restore rejected split. item={itemId}, quantity={targetQuantity}");
+					continue;
+				}
+			}
+
+			rejected += targetQuantity;
+			remaining -= targetQuantity;
+		}
+
+		return rejected;
+	}
+
 	public int ReportOutboundProgressFromManifest(BoxBase box, PackageOutboundStage targetStage)
 	{
 		if (box == null || TryGetPickingManifest(box, out PickingManifest manifest) == false)
@@ -647,7 +1023,8 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void HandleCapsuleDocked(uint buildingId, CargoPort cargoPort)
 	{
-		if (cargoPort is not OutboundCargoPort outboundCargoPort)
+		if (cargoPort is not OutboundCargoPort outboundCargoPort ||
+			outboundCargoPort.DockedCapsule?.RouteKind != CargoRouteKind.Standard)
 			return;
 
 		TryEnqueueCargoTransferTask(outboundCargoPort, buildingId);
