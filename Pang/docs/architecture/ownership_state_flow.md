@@ -112,3 +112,16 @@ UI should request:
 - facility-rule changes through `FacilityRuleManager`
 
 ---
+
+## 8 RobotNavigationService
+
+`RobotNavigationService` owns:
+- Navigation Hub and Relay runtime registration
+- Relay-to-Hub ownership and active connection state
+- Hub-expanded coverage calculation
+- the mapping from navigation region IDs to influencing Hubs
+- navigation coverage version changes
+
+`GridCell.NavigationRegionId` is only a fast derived projection. `GridService` does not decide Hub membership, Relay activation, or robot orchestration capacity.
+
+---

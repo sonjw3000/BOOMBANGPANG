@@ -76,6 +76,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private TrafficCoordinator trafficCoordinator;
 	[SerializeField] private VendorService vendorService;
 	[SerializeField] private PowerService powerService;
+	[SerializeField] private RobotNavigationService robotNavigationService;
 	[SerializeField] private MedicalService medicalService;
 	[SerializeField] private RobotFixService robotFixService;
 	[SerializeField] private WorkplaceIncidentService workplaceIncidentService;
@@ -183,6 +184,7 @@ public class GameContext : MonoBehaviour
 	public VendorService VendorService => ResolveManager(ref vendorService, nameof(VendorService));
 	public VendorService VendeorService => VendorService;
 	public PowerService PowerSvc => ResolveOrCreatePowerService();
+	public RobotNavigationService RobotNavigationSvc => ResolveOrCreateRobotNavigationService();
 	public MedicalService MedicalSvc => ResolveOrCreateMedicalService();
 	public RobotFixService RobotFixSvc => ResolveOrCreateRobotFixService();
 	public WorkplaceIncidentService WorkplaceIncidentSvc => ResolveOrCreateWorkplaceIncidentService();
@@ -353,6 +355,7 @@ public class GameContext : MonoBehaviour
 		_ = SaveService;
 		_ = ScenarioObjectiveService;
 		_ = PowerSvc;
+		RobotNavigationSvc.Bind(FacilityMgr, gridService, PowerSvc);
 		_ = MedicalSvc;
 		_ = RobotFixSvc;
 		WorkplaceIncidentSvc.Initialize(WorkerMgr, MedicalSvc, RobotFixSvc, VendorService, EconomyService);
@@ -392,6 +395,18 @@ public class GameContext : MonoBehaviour
 			powerService = gameObject.AddComponent<PowerService>();
 
 		return powerService;
+	}
+
+	private RobotNavigationService ResolveOrCreateRobotNavigationService()
+	{
+		if (robotNavigationService != null)
+			return robotNavigationService;
+
+		robotNavigationService = GetComponentInChildren<RobotNavigationService>(true);
+		if (robotNavigationService == null)
+			robotNavigationService = gameObject.AddComponent<RobotNavigationService>();
+
+		return robotNavigationService;
 	}
 
 	private MedicalService ResolveOrCreateMedicalService()
@@ -555,6 +570,7 @@ public class GameContext : MonoBehaviour
 		gridService.OnGameStart();
 		TemperatureSvc.RebuildRuntimeState();
 		ItemThermalSvc.RebuildRuntimeState();
+		RobotNavigationSvc.RebuildRuntimeState();
 	}
 
 	private void AddEvent()

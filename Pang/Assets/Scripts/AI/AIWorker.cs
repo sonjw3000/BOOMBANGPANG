@@ -82,6 +82,8 @@ public enum WorkerStatusTarget
 	RefrigerationUnit,
 	OxygenSupplyUnit,
 	RestFacility,
+	NavigationHub,
+	RelayNode,
 }
 
 public struct WorkerStatusInfo

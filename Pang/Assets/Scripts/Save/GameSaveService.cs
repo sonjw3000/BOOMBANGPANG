@@ -200,6 +200,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.BuildingMgr.ResetRuntimeState();
 		Ctx.AirlockSvc.ResetRuntimeState();
 		Ctx.FacilityMgr.ResetRuntimeState();
+		Ctx.RobotNavigationSvc.ResetRuntimeState();
 		Ctx.PowerSvc.ResetRuntimeState();
 		Ctx.WearSvc.ResetRuntimeState();
 		Ctx.TemperatureSvc.ResetRuntimeState();
@@ -351,6 +352,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.ItemThermalSvc.RebuildRuntimeState();
 		Ctx.OxygenSvc.RebuildRuntimeState();
 		Ctx.WearSvc.RebuildRuntimeState();
+		Ctx.RobotNavigationSvc.RebuildRuntimeState();
 		Ctx.FireSvc.RebuildRuntimeState();
 		Ctx.IBWorkflowSvc.RetryActiveRocketUnloadingTasks();
 		Ctx.ScenarioObjectiveService.RestoreState(data.ScenarioObjective);
