@@ -655,6 +655,8 @@ public class TrafficCoordinator : MonoBehaviour
 		AIWorker worker = blocker?.Worker;
 		if (worker == null)
 			return false;
+		if (worker.IsPlayerOverride)
+			return false;
 
 		if (worker.CurrentTask == null)
 			return true;

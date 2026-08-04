@@ -102,6 +102,7 @@ public sealed class CapsuleRelocateCoordinator
 	private readonly HashSet<CapsuleDock> reservedDocks = new();
 	private readonly HashSet<CapsuleDock> activeRelocationSources = new();
 	private readonly HashSet<CapsuleDock> activeRelocationTargets = new();
+	private readonly HashSet<CapsuleDock> playerClaimedDocks = new();
 	private readonly Func<uint, uint, bool> canUseLinkedBuilding;
 
 	public int PendingSendCount => pendingSendNodeBySource.Count;
@@ -197,6 +198,18 @@ public sealed class CapsuleRelocateCoordinator
 		TryMatchPendingDemand();
 	}
 
+	public void NotifyRelocationTargetReleased(CapsuleDock targetDock)
+	{
+		if (targetDock != null)
+		{
+			activeRelocationTargets.Remove(targetDock);
+			reservedDocks.Remove(targetDock);
+		}
+
+		TryMatchPendingSend();
+		TryMatchPendingDemand();
+	}
+
 	public void ResetRuntimeState()
 	{
 		pendingSends.Clear();
@@ -206,6 +219,7 @@ public sealed class CapsuleRelocateCoordinator
 		reservedDocks.Clear();
 		activeRelocationSources.Clear();
 		activeRelocationTargets.Clear();
+		playerClaimedDocks.Clear();
 	}
 
 	public void CancelPendingRequests(CapsuleDock dock)
@@ -225,12 +239,18 @@ public sealed class CapsuleRelocateCoordinator
 		activeRelocationSources.Remove(dock);
 		activeRelocationTargets.Remove(dock);
 		reservedDocks.Remove(dock);
+		playerClaimedDocks.Remove(dock);
 		CancelPendingRequests(dock);
 	}
 
 	public bool IsReserved(CapsuleDock dock)
 	{
-		return dock != null && reservedDocks.Contains(dock);
+		return dock != null && (reservedDocks.Contains(dock) || playerClaimedDocks.Contains(dock));
+	}
+
+	public bool IsPlayerClaimed(CapsuleDock dock)
+	{
+		return dock != null && playerClaimedDocks.Contains(dock);
 	}
 
 	public bool IsRelocationSourceActive(CapsuleDock dock)
@@ -248,6 +268,7 @@ public sealed class CapsuleRelocateCoordinator
 		if (IsFacilityAvailable(dock) == false ||
 			dock.CanPutBox() == false ||
 			reservedDocks.Contains(dock) ||
+			playerClaimedDocks.Contains(dock) ||
 			activeRelocationTargets.Contains(dock))
 		{
 			return false;
@@ -256,6 +277,28 @@ public sealed class CapsuleRelocateCoordinator
 		reservedDocks.Add(dock);
 		activeRelocationTargets.Add(dock);
 		return true;
+	}
+
+	public bool TryClaimForPlayer(CapsuleDock dock)
+	{
+		if (IsFacilityAvailable(dock) == false ||
+			playerClaimedDocks.Contains(dock))
+		{
+			return false;
+		}
+
+		playerClaimedDocks.Add(dock);
+		CancelPendingRequests(dock);
+		return true;
+	}
+
+	public void ReleasePlayerClaim(CapsuleDock dock)
+	{
+		if (dock == null || playerClaimedDocks.Remove(dock) == false)
+			return;
+
+		TryMatchPendingSend();
+		TryMatchPendingDemand();
 	}
 
 	private bool TryMatchPendingSend()
@@ -371,6 +414,8 @@ public sealed class CapsuleRelocateCoordinator
 		if (targetDock == null ||
 			IsFacilityAvailable(request.SourceDock) == false ||
 			IsFacilityAvailable(targetDock) == false ||
+			playerClaimedDocks.Contains(request.SourceDock) ||
+			playerClaimedDocks.Contains(targetDock) ||
 			reservedDocks.Contains(request.SourceDock) ||
 			reservedDocks.Contains(targetDock) ||
 			activeRelocationSources.Contains(request.SourceDock) ||
@@ -390,6 +435,8 @@ public sealed class CapsuleRelocateCoordinator
 		if (sourceDock == null ||
 			IsFacilityAvailable(sourceDock) == false ||
 			IsFacilityAvailable(demand.TargetDock) == false ||
+			playerClaimedDocks.Contains(sourceDock) ||
+			playerClaimedDocks.Contains(demand.TargetDock) ||
 			reservedDocks.Contains(sourceDock) ||
 			reservedDocks.Contains(demand.TargetDock) ||
 			activeRelocationSources.Contains(sourceDock) ||
@@ -425,6 +472,7 @@ public sealed class CapsuleRelocateCoordinator
 	{
 		return request.SourceDock != null &&
 			IsFacilityAvailable(request.SourceDock) &&
+			playerClaimedDocks.Contains(request.SourceDock) == false &&
 			(checkReservation == false || reservedDocks.Contains(request.SourceDock) == false) &&
 			activeRelocationSources.Contains(request.SourceDock) == false &&
 			request.SourceDock.DockState == request.RequiredSourceDockState &&
@@ -436,6 +484,7 @@ public sealed class CapsuleRelocateCoordinator
 	{
 		return demand.TargetDock != null &&
 			IsFacilityAvailable(demand.TargetDock) &&
+			playerClaimedDocks.Contains(demand.TargetDock) == false &&
 			(checkReservation == false || reservedDocks.Contains(demand.TargetDock) == false) &&
 			activeRelocationTargets.Contains(demand.TargetDock) == false &&
 			demand.TargetDock.DockState == demand.RequiredTargetDockState &&

@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="PlayerInteraction.uss" />
+	<ui:VisualElement name="player-interaction-item-row" class="player-interaction-item-row">
+		<ui:VisualElement class="player-interaction-item-row__identity">
+			<ui:Label name="player-interaction-item-name" text="Item" class="player-interaction-item-row__name" />
+			<ui:Label name="player-interaction-item-state" text="Normal" class="player-interaction-item-row__state" />
+		</ui:VisualElement>
+		<ui:Label name="player-interaction-item-quantity" text="0" class="player-interaction-item-row__quantity" />
+		<ui:VisualElement class="player-interaction-item-row__command">
+			<ui:IntegerField name="player-interaction-item-move-quantity" value="1" is-delayed="true" class="player-interaction-item-row__field" />
+			<ui:Button name="player-interaction-item-move" text="Move" class="player-interaction-item-row__button" />
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,67 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+	<Style src="PlayerInteraction.uss" />
+	<ui:VisualElement name="player-interaction-content" class="player-interaction-content">
+		<ui:VisualElement class="player-interaction-header">
+			<ui:VisualElement class="player-interaction-header__identity">
+				<ui:Label name="player-interaction-worker-name" text="Worker" class="player-interaction-title" />
+				<ui:Label name="player-interaction-worker-state" text="PLAYER OVERRIDE" class="player-interaction-subtitle" />
+			</ui:VisualElement>
+			<ui:Button name="player-interaction-refresh" text="Refresh" class="player-interaction-refresh" />
+		</ui:VisualElement>
+
+		<ui:VisualElement class="player-interaction-target-bar">
+			<ui:Label text="INTERACTION TARGET" class="player-interaction-field-label" />
+			<ui:DropdownField name="player-interaction-target" class="player-interaction-target" />
+			<ui:Label name="player-interaction-kinds" text="No interaction" class="player-interaction-kinds" />
+		</ui:VisualElement>
+
+		<ui:Label name="player-interaction-message" text="Move the worker to an interaction point." class="player-interaction-message" />
+
+		<ui:VisualElement class="player-interaction-panes">
+			<ui:VisualElement class="player-interaction-pane player-interaction-pane--carried">
+				<ui:VisualElement class="player-interaction-pane__header">
+					<ui:VisualElement class="player-interaction-pane__identity">
+						<ui:Label text="CARRIED CONTAINER" class="player-interaction-pane__eyebrow" />
+						<ui:Label name="player-interaction-carried-name" text="No carried container" class="player-interaction-pane__title" />
+					</ui:VisualElement>
+					<ui:Label name="player-interaction-carried-capacity" text="0 / 0" class="player-interaction-pane__capacity" />
+				</ui:VisualElement>
+				<ui:VisualElement class="player-interaction-list-header">
+					<ui:Label text="ITEM" class="player-interaction-list-header__item" />
+					<ui:Label text="STORED" class="player-interaction-list-header__quantity" />
+					<ui:Label text="MOVE" class="player-interaction-list-header__move" />
+				</ui:VisualElement>
+				<ui:ScrollView name="player-interaction-carried-list" mode="Vertical" class="player-interaction-list" />
+				<ui:Label name="player-interaction-carried-empty" text="The worker is not carrying a container." class="player-interaction-empty" />
+				<ui:Button name="player-interaction-put-box" text="Put Carried Container" class="player-interaction-whole-button" />
+			</ui:VisualElement>
+
+			<ui:VisualElement class="player-interaction-pane-separator">
+				<ui:Label text="⇄" class="player-interaction-pane-separator__icon" />
+			</ui:VisualElement>
+
+			<ui:VisualElement class="player-interaction-pane player-interaction-pane--target">
+				<ui:VisualElement class="player-interaction-pane__header">
+					<ui:VisualElement class="player-interaction-pane__identity">
+						<ui:Label text="FACILITY CONTAINER" class="player-interaction-pane__eyebrow" />
+						<ui:Label name="player-interaction-target-name" text="No interaction target" class="player-interaction-pane__title" />
+					</ui:VisualElement>
+					<ui:Label name="player-interaction-target-capacity" text="0 / 0" class="player-interaction-pane__capacity" />
+				</ui:VisualElement>
+				<ui:VisualElement class="player-interaction-list-header">
+					<ui:Label text="ITEM" class="player-interaction-list-header__item" />
+					<ui:Label text="STORED" class="player-interaction-list-header__quantity" />
+					<ui:Label text="MOVE" class="player-interaction-list-header__move" />
+				</ui:VisualElement>
+				<ui:ScrollView name="player-interaction-target-list" mode="Vertical" class="player-interaction-list" />
+				<ui:Label name="player-interaction-target-empty" text="No item container is available at this interaction point." class="player-interaction-empty" />
+				<ui:Button name="player-interaction-pick-box" text="Pick Entire Container" class="player-interaction-whole-button player-interaction-whole-button--primary" />
+			</ui:VisualElement>
+		</ui:VisualElement>
+
+		<ui:VisualElement class="player-interaction-footer">
+			<ui:Label text="Direct actions still obey ability, capacity, reservation, and manifest rules." class="player-interaction-footer__hint" />
+			<ui:Button name="player-interaction-release-control" text="Release Control" class="player-interaction-release" />
+		</ui:VisualElement>
+	</ui:VisualElement>
+</ui:UXML>

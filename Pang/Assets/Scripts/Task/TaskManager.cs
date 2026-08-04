@@ -12,6 +12,7 @@ public partial class TaskManager : MonoBehaviour
 	private readonly LinkedList<TaskBuildRequest> taskBuildQueue = new();
 	private readonly Dictionary<object, LinkedListNode<TaskBuildRequest>> taskBuildRequestsByKey = new();
 	private readonly HashSet<WorkerTask> facilityAffectedTasks = new();
+	private readonly HashSet<CapsuleRelocationTask> playerPreemptedCapsuleTasks = new();
 	private FacilityManager boundFacilityManager;
 
 	private ProcessStatsCollector Stats => GameContext.Instance.ProcessStats;
@@ -232,6 +233,55 @@ public partial class TaskManager : MonoBehaviour
 		}
 
 		return false;
+	}
+
+	public bool TryPreemptCapsuleDockForPlayer(CapsuleDock dock)
+	{
+		if (dock == null)
+			return false;
+
+		playerPreemptedCapsuleTasks.Clear();
+		CollectCapsuleTasksUsingDock(taskQueue.Values, dock);
+		CollectCapsuleTasksUsingDock(taskOnProgress.Values, dock);
+		CollectCapsuleTasksUsingDock(returnedTaskQueue, dock);
+
+		foreach (CapsuleRelocationTask task in playerPreemptedCapsuleTasks)
+		{
+			if (task == null)
+				continue;
+
+			switch (task.PreemptDockForPlayer(dock))
+			{
+				case CapsuleDockPlayerPreemptionAction.Reevaluate:
+					if (task.CurrentStatus == WorkerTask.Status.Assigned)
+						task.OccupyWorker?.ReevaluateTask(task);
+					break;
+
+				case CapsuleDockPlayerPreemptionAction.Invalidate:
+					InvalidateTask(task);
+					break;
+			}
+		}
+
+		playerPreemptedCapsuleTasks.Clear();
+		return true;
+	}
+
+	private void CollectCapsuleTasksUsingDock(
+		IEnumerable<LinkedList<WorkerTask>> queues,
+		CapsuleDock dock)
+	{
+		foreach (LinkedList<WorkerTask> queue in queues)
+			CollectCapsuleTasksUsingDock(queue, dock);
+	}
+
+	private void CollectCapsuleTasksUsingDock(IEnumerable<WorkerTask> tasks, CapsuleDock dock)
+	{
+		foreach (WorkerTask task in tasks)
+		{
+			if (task is CapsuleRelocationTask relocationTask && relocationTask.UsesDock(dock))
+				playerPreemptedCapsuleTasks.Add(relocationTask);
+		}
 	}
 
 	// dispatch task to workers

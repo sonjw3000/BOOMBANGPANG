@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 11;
+	public int Version = 12;
 	public string SavedAtUtc;
 
 	public ScenarioObjectiveSaveData ScenarioObjective = new();
@@ -544,6 +544,7 @@ public sealed class WorkerSaveData
 	public WorkerStatusAction StatusAction;
 	public WorkerStatusTarget StatusTarget;
 	public WorkerOperationalState OperationalState;
+	public WorkerControlMode ControlMode;
 	public int CarriedMovementCells;
 	public float Fatigue;
 	public float Experience;

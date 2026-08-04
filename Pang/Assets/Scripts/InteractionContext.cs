@@ -495,6 +495,9 @@ public class InteractionContext
 		switch (Mode)
 		{
 			case InteractionMode.FacilitySelect:
+				TryRequestSelectedWorkerMove(pos);
+				break;
+
 			case InteractionMode.BuildingSelect:
 				break;
 
@@ -518,6 +521,30 @@ public class InteractionContext
 				ExitWorkforceAssignmentMode();
 				break;
 		}
+	}
+
+	private bool TryRequestSelectedWorkerMove(in int3 destination)
+	{
+		if (selectedObject == null ||
+			selectedObject.TryGetComponent(out AIWorker worker) == false)
+		{
+			return false;
+		}
+
+		string message = string.Empty;
+		bool accepted = GameContext.HasInstance &&
+			GameContext.Instance.PlayerOverrideSvc != null &&
+			GameContext.Instance.PlayerOverrideSvc.TryRequestMove(worker, destination, out message);
+		if (accepted)
+			return true;
+
+		if (string.IsNullOrWhiteSpace(message))
+			message = "Unable to move the selected worker.";
+
+		Debug.LogWarning($"[InteractionContext] {message}");
+		if (GameContext.HasInstance)
+			GameContext.Instance.HudEventManager?.Publish(HudEventType.Warning, message, worker);
+		return true;
 	}
 
 	public void RotatePlacement()
