@@ -232,7 +232,12 @@ namespace UniverseLogistics.UI.Toolkit
 		private void EnsureTooltip()
 		{
 			if (tooltipPresenter != null)
+			{
+				tooltipDocument ??= tooltipPresenter.GetComponent<UIDocument>();
+				if (tooltipDocument != null)
+					tooltipPresenter.Initialize(tooltipDocument.rootVisualElement);
 				return;
+			}
 
 			if (tooltipVisualTreeAsset == null || panelSettings == null)
 			{

@@ -23,8 +23,10 @@ public sealed class WorkforceAssignmentModeController : MonoBehaviour
 	private Building hoveredBuilding;
 	private bool isEditing;
 	private bool persistentMode;
+	[NonSerialized] private InteractionContext boundInteraction;
 
-	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+	private InteractionContext Interaction => boundInteraction ??
+		(GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null);
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private BuildingFootprintService FootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
@@ -51,22 +53,61 @@ public sealed class WorkforceAssignmentModeController : MonoBehaviour
 	{
 		EnsureOverlayRoot();
 		mousePicking = FindAnyObjectByType<MousePicking>();
-		if (Interaction == null)
+	}
+
+	private void OnEnable()
+	{
+		EnsureOverlayRoot();
+		overlayRoot.SetActive(true);
+		mousePicking ??= FindAnyObjectByType<MousePicking>();
+		BindInteraction();
+		if (isEditing)
+			RefreshOverlay();
+	}
+
+	private void Start()
+	{
+		BindInteraction();
+	}
+
+	private void OnDisable()
+	{
+		UnbindInteraction();
+		ClearOverlay();
+		overlayRoot?.SetActive(false);
+	}
+
+	private void BindInteraction()
+	{
+		InteractionContext interaction = GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+		if (interaction == null)
 			return;
 
-		Interaction.OnHandleWorkforceAssignmentSelection += HandleBuildingSelection;
-		Interaction.OnMouseGridPositionChanged += HandleMouseGridPositionChanged;
-		Interaction.OnModeChanged += HandleModeChanged;
+		if (boundInteraction != null && boundInteraction != interaction)
+			UnbindInteraction();
+
+		boundInteraction = interaction;
+		boundInteraction.OnHandleWorkforceAssignmentSelection -= HandleBuildingSelection;
+		boundInteraction.OnMouseGridPositionChanged -= HandleMouseGridPositionChanged;
+		boundInteraction.OnModeChanged -= HandleModeChanged;
+		boundInteraction.OnHandleWorkforceAssignmentSelection += HandleBuildingSelection;
+		boundInteraction.OnMouseGridPositionChanged += HandleMouseGridPositionChanged;
+		boundInteraction.OnModeChanged += HandleModeChanged;
+	}
+
+	private void UnbindInteraction()
+	{
+		if (boundInteraction == null)
+			return;
+
+		boundInteraction.OnHandleWorkforceAssignmentSelection -= HandleBuildingSelection;
+		boundInteraction.OnMouseGridPositionChanged -= HandleMouseGridPositionChanged;
+		boundInteraction.OnModeChanged -= HandleModeChanged;
+		boundInteraction = null;
 	}
 
 	private void OnDestroy()
 	{
-		if (Interaction != null)
-		{
-			Interaction.OnHandleWorkforceAssignmentSelection -= HandleBuildingSelection;
-			Interaction.OnMouseGridPositionChanged -= HandleMouseGridPositionChanged;
-			Interaction.OnModeChanged -= HandleModeChanged;
-		}
 
 		ClearOverlay();
 		if (overlayRoot != null)

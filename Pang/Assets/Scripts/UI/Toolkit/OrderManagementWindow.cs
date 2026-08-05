@@ -46,7 +46,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private OrderSection currentSection;
 		private int? selectedOrderId;
 		private uint? filteredItemId;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 
 		public void Configure(UIWindow targetWindow, VisualTreeAsset targetContentTemplate,

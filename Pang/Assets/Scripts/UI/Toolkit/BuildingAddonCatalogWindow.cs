@@ -20,7 +20,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private EconomyService economyService;
 		private ResearchService researchService;
 		private Building targetBuilding;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 		private bool installing;
 

@@ -24,7 +24,7 @@ namespace Assets.Scripts.UI
 		private Button confirmButton;
 		private Button extraActionButton;
 		private EventNoticeRequest currentRequest;
-		private bool initialized;
+		[NonSerialized] private bool initialized;
 		private bool pauseHeld;
 		private Action<EventNoticeWindow> dismissedCallback;
 

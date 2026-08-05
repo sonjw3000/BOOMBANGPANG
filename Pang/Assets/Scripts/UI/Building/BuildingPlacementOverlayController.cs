@@ -26,10 +26,13 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 	private bool isVisible;
 	private bool oneShotCreate;
 	private bool startingOneShotCreate;
+	[System.NonSerialized] private InteractionContext boundInteraction;
+	[System.NonSerialized] private bool runtimeInitialized;
 
 	public BuildingType SelectedBuildingType => NormalizeSelectableBuildingType(selectedBuildingType);
 
-	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
+	private InteractionContext Interaction => boundInteraction ??
+		(GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null);
 	private BuildingManager BuildingManager => GameContext.Instance.BuildingMgr;
 	private GridService GridService => GameContext.Instance.GridService;
 	private BuildingFootprintService FootprintService
@@ -53,6 +56,28 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 	private void Awake()
 	{
+		EnsureRuntimeState();
+	}
+
+	private void OnEnable()
+	{
+		EnsureRuntimeState();
+		proxyRoot.SetActive(true);
+		previewRoot.SetActive(isVisible);
+		BindInteraction();
+	}
+
+	private void EnsureRuntimeState()
+	{
+		if (runtimeInitialized && previewRoot != null && proxyRoot != null && previewLabel != null)
+			return;
+
+		if (previewRoot != null) Destroy(previewRoot);
+		if (proxyRoot != null) Destroy(proxyRoot);
+		previewCells.Clear();
+		previewRenderers.Clear();
+		proxies.Clear();
+
 		previewRoot = new GameObject("BuildingPreviewRoot");
 		proxyRoot = new GameObject("BuildingProxyRoot");
 		Transform worldParent = GameContext.HasInstance ? GameContext.Instance.transform : null;
@@ -67,22 +92,58 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 			previewLabel.SetActive(false);
 
 		previewRoot.SetActive(false);
+		runtimeInitialized = true;
+	}
 
-		Interaction.OnBuildingPlacementPreviewChanged += HandleBuildingPlacementPreviewChanged;
-		Interaction.OnBuildingPlacementConfirmed += HandleBuildingPlacementConfirmed;
-		Interaction.OnHandleBuildingSelection += HandleBuildingSelection;
-		Interaction.OnModeChanged += HandleInteractionModeChanged;
+	private void Start()
+	{
+		BindInteraction();
+	}
+
+	private void OnDisable()
+	{
+		UnbindInteraction();
+		HidePreview();
+		previewRoot?.SetActive(false);
+		proxyRoot?.SetActive(false);
+	}
+
+	private void BindInteraction()
+	{
+		InteractionContext interaction = GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+		if (interaction == null)
+			return;
+
+		if (boundInteraction != null && boundInteraction != interaction)
+			UnbindInteraction();
+
+		boundInteraction = interaction;
+		boundInteraction.OnBuildingPlacementPreviewChanged -= HandleBuildingPlacementPreviewChanged;
+		boundInteraction.OnBuildingPlacementConfirmed -= HandleBuildingPlacementConfirmed;
+		boundInteraction.OnHandleBuildingSelection -= HandleBuildingSelection;
+		boundInteraction.OnModeChanged -= HandleInteractionModeChanged;
+		boundInteraction.OnBuildingPlacementPreviewChanged += HandleBuildingPlacementPreviewChanged;
+		boundInteraction.OnBuildingPlacementConfirmed += HandleBuildingPlacementConfirmed;
+		boundInteraction.OnHandleBuildingSelection += HandleBuildingSelection;
+		boundInteraction.OnModeChanged += HandleInteractionModeChanged;
+	}
+
+	private void UnbindInteraction()
+	{
+		if (boundInteraction == null)
+			return;
+
+		boundInteraction.OnBuildingPlacementPreviewChanged -= HandleBuildingPlacementPreviewChanged;
+		boundInteraction.OnBuildingPlacementConfirmed -= HandleBuildingPlacementConfirmed;
+		boundInteraction.OnHandleBuildingSelection -= HandleBuildingSelection;
+		boundInteraction.OnModeChanged -= HandleInteractionModeChanged;
+		boundInteraction = null;
 	}
 
 	private void OnDestroy()
 	{
-		if (GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null)
-			return;
-
-		Interaction.OnBuildingPlacementPreviewChanged -= HandleBuildingPlacementPreviewChanged;
-		Interaction.OnBuildingPlacementConfirmed -= HandleBuildingPlacementConfirmed;
-		Interaction.OnHandleBuildingSelection -= HandleBuildingSelection;
-		Interaction.OnModeChanged -= HandleInteractionModeChanged;
+		if (previewRoot != null) Destroy(previewRoot);
+		if (proxyRoot != null) Destroy(proxyRoot);
 	}
 
 	public void SetOverlayVisible(bool visible)

@@ -25,8 +25,10 @@ public sealed class WorkflowDestinationLinkModeController : MonoBehaviour
 	private AreaOverlayController areaOverlay;
 	private bool routingVisible;
 	private string lastStatusMessage = string.Empty;
+	[System.NonSerialized] private InteractionContext boundInteraction;
 
-	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+	private InteractionContext Interaction => boundInteraction ??
+		(GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null);
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
 	private BuildingManager BuildingManager => GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
 	private BuildingFootprintService FootprintService => GameContext.HasInstance ? GameContext.Instance.BuildingFootprintService : null;
@@ -59,18 +61,57 @@ public sealed class WorkflowDestinationLinkModeController : MonoBehaviour
 	private void Awake()
 	{
 		EnsureOverlayRoot();
-		if (Interaction == null) return;
-		Interaction.OnHandleBuildingLinkSelection += HandleBuildingSelection;
-		Interaction.OnModeChanged += HandleModeChanged;
+	}
+
+	private void OnEnable()
+	{
+		EnsureOverlayRoot();
+		overlayRoot.SetActive(true);
+		BindInteraction();
+		if (IsEditing)
+			RefreshOverlay();
+	}
+
+	private void Start()
+	{
+		BindInteraction();
+	}
+
+	private void OnDisable()
+	{
+		UnbindInteraction();
+		ClearOverlay();
+		overlayRoot?.SetActive(false);
+	}
+
+	private void BindInteraction()
+	{
+		InteractionContext interaction = GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+		if (interaction == null)
+			return;
+
+		if (boundInteraction != null && boundInteraction != interaction)
+			UnbindInteraction();
+
+		boundInteraction = interaction;
+		boundInteraction.OnHandleBuildingLinkSelection -= HandleBuildingSelection;
+		boundInteraction.OnModeChanged -= HandleModeChanged;
+		boundInteraction.OnHandleBuildingLinkSelection += HandleBuildingSelection;
+		boundInteraction.OnModeChanged += HandleModeChanged;
+	}
+
+	private void UnbindInteraction()
+	{
+		if (boundInteraction == null)
+			return;
+
+		boundInteraction.OnHandleBuildingLinkSelection -= HandleBuildingSelection;
+		boundInteraction.OnModeChanged -= HandleModeChanged;
+		boundInteraction = null;
 	}
 
 	private void OnDestroy()
 	{
-		if (Interaction != null)
-		{
-			Interaction.OnHandleBuildingLinkSelection -= HandleBuildingSelection;
-			Interaction.OnModeChanged -= HandleModeChanged;
-		}
 
 		ClearOverlay();
 		if (overlayRoot != null) Destroy(overlayRoot);

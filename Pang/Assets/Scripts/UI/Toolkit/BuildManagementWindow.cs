@@ -95,7 +95,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private EconomyService economyService;
 		private FacilityRuleManager ruleManager;
 		private ResearchService researchService;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 		private int selectedTabIndex;
 		private RoutingSourceKind selectedRoutingSourceKind;

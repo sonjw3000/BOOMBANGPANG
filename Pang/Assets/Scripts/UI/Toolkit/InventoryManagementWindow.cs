@@ -37,7 +37,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private GameTime gameTime;
 		private Action<uint> openOrdersForItem;
 		private uint? selectedItemId;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 
 		private sealed class ItemSnapshot

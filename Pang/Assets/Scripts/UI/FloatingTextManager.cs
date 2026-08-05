@@ -78,6 +78,8 @@ public sealed class FloatingTextManager : MonoBehaviour
 	private RectTransform canvasRect;
 	private RectTransform textRoot;
 	private AIWorker selectedWorker;
+	[System.NonSerialized] private InteractionContext boundInteraction;
+	[System.NonSerialized] private bool runtimeInitialized;
 
 	private sealed class Entry
 	{
@@ -92,17 +94,44 @@ public sealed class FloatingTextManager : MonoBehaviour
 
 	private void Awake()
 	{
+		EnsureRuntimeState();
+	}
+
+	private void OnEnable()
+	{
+		EnsureRuntimeState();
+		SubscribeSelection();
+	}
+
+	private void Start()
+	{
+		SubscribeSelection();
+	}
+
+	private void OnDisable()
+	{
+		UnsubscribeSelection();
+		DetachSelectedWorker();
+	}
+
+	private void EnsureRuntimeState()
+	{
+		if (runtimeInitialized && canvas != null && canvasRect != null && textRoot != null)
+			return;
+
+		if (canvas != null)
+			Destroy(canvas.gameObject);
+
+		canvas = null;
+		canvasRect = null;
+		textRoot = null;
+		pooledEntries.Clear();
+		activeEntries.Clear();
 		EnsurePresetStyles();
 		EnsurePrefabs();
 		EnsureCanvas();
 		WarmPool();
-		SubscribeSelection();
-	}
-
-	private void OnDestroy()
-	{
-		UnsubscribeSelection();
-		DetachSelectedWorker();
+		runtimeInitialized = canvas != null && canvasRect != null && textRoot != null;
 	}
 
 	private void OnValidate()
@@ -176,19 +205,27 @@ public sealed class FloatingTextManager : MonoBehaviour
 
 	private void SubscribeSelection()
 	{
-		if (GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null)
+		InteractionContext interaction = GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+		if (interaction == null)
 			return;
 
-		GameContext.Instance.InteractionCtx.OnItemSelected -= HandleSelectionChanged;
-		GameContext.Instance.InteractionCtx.OnItemSelected += HandleSelectionChanged;
+		if (boundInteraction != null && boundInteraction != interaction)
+			UnsubscribeSelection();
+
+		boundInteraction = interaction;
+		boundInteraction.OnItemSelected -= HandleSelectionChanged;
+		boundInteraction.OnItemSelected += HandleSelectionChanged;
+		DetachSelectedWorker();
+		HandleSelectionChanged(boundInteraction.SelectedObject);
 	}
 
 	private void UnsubscribeSelection()
 	{
-		if (GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null)
+		if (boundInteraction == null)
 			return;
 
-		GameContext.Instance.InteractionCtx.OnItemSelected -= HandleSelectionChanged;
+		boundInteraction.OnItemSelected -= HandleSelectionChanged;
+		boundInteraction = null;
 	}
 
 	private void HandleSelectionChanged(GameObject selectedObject)

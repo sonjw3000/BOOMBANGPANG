@@ -25,7 +25,8 @@ public sealed class TitleSceneController : MonoBehaviour
 	private RuntimeSimpleWindow settingsWindow;
 	private bool transitionInProgress;
 
-	private void Awake()
+	// Runtime-created window callbacks must be rebuilt after a domain reload.
+	private void OnEnable()
 	{
 		if (TryCacheReferences() == false)
 		{
@@ -38,7 +39,7 @@ public sealed class TitleSceneController : MonoBehaviour
 		BindButtons();
 	}
 
-	private void OnDestroy()
+	private void OnDisable()
 	{
 		UnbindButtons();
 	}
@@ -70,6 +71,7 @@ public sealed class TitleSceneController : MonoBehaviour
 
 	private void BindButtons()
 	{
+		UnbindButtons();
 		startNewButton.onClick.AddListener(HandleNewGameClicked);
 		loadButton.onClick.AddListener(HandleLoadClicked);
 		settingsButton.onClick.AddListener(HandleSettingsClicked);
@@ -179,6 +181,13 @@ public sealed class TitleSceneController : MonoBehaviour
 
 	private RuntimeSimpleWindow CreateSettingsWindow()
 	{
+		Transform existingRoot = canvas.transform.Find("SettingsWindow");
+		if (existingRoot != null && TryBindExistingSettingsWindow(existingRoot, out RuntimeSimpleWindow existingWindow))
+			return existingWindow;
+
+		if (existingRoot != null)
+			Destroy(existingRoot.gameObject);
+
 		RuntimeModalRoot modal = CreateModalRoot("SettingsWindow", "Settings");
 		modal.Message.text = "Settings will be added here later.";
 
@@ -186,6 +195,22 @@ public sealed class TitleSceneController : MonoBehaviour
 		RuntimeSimpleWindow window = new RuntimeSimpleWindow(modal.Root);
 		closeButton.onClick.AddListener(window.Close);
 		return window;
+	}
+
+	private static bool TryBindExistingSettingsWindow(Transform root, out RuntimeSimpleWindow window)
+	{
+		window = null;
+		TMP_Text message = root.Find("Panel/Message")?.GetComponent<TMP_Text>();
+		Button closeButton = root.Find("Panel/Footer/CloseButton")?.GetComponent<Button>();
+		if (message == null || closeButton == null)
+			return false;
+
+		message.text = "Settings will be added here later.";
+		window = new RuntimeSimpleWindow(root.gameObject);
+		closeButton.onClick.RemoveAllListeners();
+		closeButton.onClick.AddListener(window.Close);
+		window.Close();
+		return true;
 	}
 
 	private RuntimeModalRoot CreateModalRoot(string objectName, string title)

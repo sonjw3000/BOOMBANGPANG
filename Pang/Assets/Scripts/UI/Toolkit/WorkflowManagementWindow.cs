@@ -69,7 +69,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private InboundWorkflowService inboundWorkflow;
 		private OutboundWorkflowService outboundWorkflow;
 		private ResearchService researchService;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 
 		public void Configure(UIWindow targetWindow, VisualTreeAsset targetContentTemplate,

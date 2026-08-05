@@ -17,7 +17,7 @@ public sealed class FacilityRuleOverlayController : MonoBehaviour
 	private MaterialPropertyBlock propertyBlock;
 	private GameObjectPool tilePool;
 	private GameObject overlayRoot;
-	private bool initialized;
+	[System.NonSerialized] private bool initialized;
 
 	private void Awake()
 	{
@@ -72,6 +72,12 @@ public sealed class FacilityRuleOverlayController : MonoBehaviour
 	{
 		if (initialized)
 			return;
+
+		if (overlayRoot != null && tilePool == null)
+		{
+			Destroy(overlayRoot);
+			overlayRoot = null;
+		}
 
 		if (overlayRoot == null)
 		{

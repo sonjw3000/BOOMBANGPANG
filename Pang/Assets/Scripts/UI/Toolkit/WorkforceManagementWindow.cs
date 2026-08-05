@@ -81,7 +81,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private bool workerDragStarted;
 		private bool endingWorkerPointer;
 		private bool rosterRefreshPending;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 
 		public void Configure(UIWindow targetWindow, VisualTreeAsset targetContentTemplate,

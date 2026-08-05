@@ -63,7 +63,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private GameObject inspectedItemTarget;
 		private IItemContainer inspectedItemContainer;
 		private string inspectedItemContainerName;
-		private bool initialized;
+		// The VisualElement graph is recreated by UIDocument and cannot survive a domain reload.
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 
 		public void Configure(UIWindow targetWindow, VisualTreeAsset targetContentTemplate)

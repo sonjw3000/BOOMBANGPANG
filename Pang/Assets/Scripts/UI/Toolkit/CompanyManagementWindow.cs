@@ -45,7 +45,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private ResearchService researchService;
 		private LicenseDefinition selectedLicense;
 		private LicenseGrade selectedGrade = LicenseGrade.None;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 
 		public void Configure(UIWindow targetWindow, VisualTreeAsset targetContentTemplate,

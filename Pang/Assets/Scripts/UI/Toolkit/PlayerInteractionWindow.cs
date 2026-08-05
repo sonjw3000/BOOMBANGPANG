@@ -32,7 +32,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private AIWorker targetWorker;
 		private int selectedTargetIndex = -1;
 		private string statusMessage = string.Empty;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 
 		public void Configure(

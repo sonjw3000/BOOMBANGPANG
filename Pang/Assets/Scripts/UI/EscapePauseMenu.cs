@@ -36,7 +36,7 @@ public sealed class EscapePauseMenu : MonoBehaviour
 	private Button backFromSettingsButton;
 	private Button confirmTitleButton;
 	private Button cancelTitleButton;
-	private bool initialized;
+	[System.NonSerialized] private bool initialized;
 	private bool isOpen;
 	private bool loadingTitleScene;
 

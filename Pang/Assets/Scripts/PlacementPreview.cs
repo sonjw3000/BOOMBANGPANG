@@ -51,14 +51,49 @@ public class PlacementPreview : MonoBehaviour
 	private GameObjectPool blockedTiles= null;
 	private GameObjectPool spaceOverlayTiles = null;
 	private GameObjectPool interactionLabelPool = null;
+	// Event-owner caches are valid only for the current scripting domain.
+	[System.NonSerialized] private InteractionContext boundInteraction;
 
-	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
-	private GridService GridService => GameContext.Instance.GridService;
+	private InteractionContext Interaction => boundInteraction ??
+		(GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null);
+	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
+
+	private void Awake()
+	{
+		EnsureRuntimeState();
+	}
+
+	private void OnEnable()
+	{
+		EnsureRuntimeState();
+		BindInteraction();
+	}
 
 	private void Start()
 	{
-		Interaction.OnMouseChangedOnPlacement += SelectedPosChanged;
-		Interaction.OnPlacementChanged += OnPrefabChanged;
+		BindInteraction();
+	}
+
+	private void OnDisable()
+	{
+		UnbindInteraction();
+		possibleTiles?.ReleaseAll();
+		blockedTiles?.ReleaseAll();
+		interactionLabelPool?.ReleaseAll();
+		if (currentPreview != null)
+			currentPreview.SetActive(false);
+	}
+
+	private void EnsureRuntimeState()
+	{
+		if (previewPoolRoot != null && possibleRoot != null && blockedRoot != null &&
+			spaceOverlayRoot != null && interactionLabelRoot != null && possibleTiles != null &&
+			blockedTiles != null && interactionLabelPool != null)
+		{
+			return;
+		}
+
+		DestroyRuntimeRoots();
 
 		previewPoolRoot = new GameObject("Preview Root");
 		possibleRoot = new GameObject("possibleRoot");
@@ -79,13 +114,56 @@ public class PlacementPreview : MonoBehaviour
 		spaceOverlayRoot.SetActive(false);
 	}
 
+	private void BindInteraction()
+	{
+		InteractionContext interaction = GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+		if (interaction == null)
+			return;
+
+		if (boundInteraction != null && boundInteraction != interaction)
+			UnbindInteraction();
+
+		boundInteraction = interaction;
+		boundInteraction.OnMouseChangedOnPlacement -= SelectedPosChanged;
+		boundInteraction.OnPlacementChanged -= OnPrefabChanged;
+		boundInteraction.OnMouseChangedOnPlacement += SelectedPosChanged;
+		boundInteraction.OnPlacementChanged += OnPrefabChanged;
+	}
+
+	private void UnbindInteraction()
+	{
+		if (boundInteraction == null)
+			return;
+
+		boundInteraction.OnMouseChangedOnPlacement -= SelectedPosChanged;
+		boundInteraction.OnPlacementChanged -= OnPrefabChanged;
+		boundInteraction = null;
+	}
+
 	private void OnDestroy()
 	{
-		if (GameContext.HasInstance && GameContext.Instance.InteractionCtx != null)
-		{
-			Interaction.OnMouseChangedOnPlacement -= SelectedPosChanged;
-			Interaction.OnPlacementChanged -= OnPrefabChanged;
-		}
+		DestroyRuntimeRoots();
+	}
+
+	private void DestroyRuntimeRoots()
+	{
+		if (previewPoolRoot != null) Destroy(previewPoolRoot);
+		if (possibleRoot != null) Destroy(possibleRoot);
+		if (blockedRoot != null) Destroy(blockedRoot);
+		if (spaceOverlayRoot != null) Destroy(spaceOverlayRoot);
+		if (interactionLabelRoot != null) Destroy(interactionLabelRoot);
+
+		previewPoolRoot = null;
+		possibleRoot = null;
+		blockedRoot = null;
+		spaceOverlayRoot = null;
+		interactionLabelRoot = null;
+		possibleTiles = null;
+		blockedTiles = null;
+		spaceOverlayTiles = null;
+		interactionLabelPool = null;
+		currentPreview = null;
+		pollingPreview.Clear();
 	}
 
 	public void SelectedPosChanged(int3 pos)

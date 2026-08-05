@@ -42,7 +42,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private ResearchService researchService;
 		private ContractCatalog selectedCatalog;
 		private VendorType selectedVendorType;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 
 		public void Configure(UIWindow targetWindow, VisualTreeAsset targetContentTemplate,

@@ -38,7 +38,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualElement contentRoot;
 		private VisualElement standaloneContent;
 		private int selectedTabIndex = -1;
-		private bool initialized;
+		// UI Toolkit elements belong to the current panel and must be queried again after a domain reload.
+		[NonSerialized] private bool initialized;
 		private bool isMoving;
 		private ResizeDirection resizeDirection;
 		private int activePointerId = -1;
@@ -118,8 +119,10 @@ namespace UniverseLogistics.UI.Toolkit
 
 		public bool Initialize()
 		{
-			if (initialized)
+			if (initialized && HasRequiredElements())
 				return true;
+
+			initialized = false;
 
 			uiDocument ??= GetComponent<UIDocument>();
 			if (uiDocument == null)
@@ -164,6 +167,12 @@ namespace UniverseLogistics.UI.Toolkit
 			if (selectedTabIndex >= 0)
 				SelectTab(selectedTabIndex);
 			return true;
+		}
+
+		private bool HasRequiredElements()
+		{
+			return windowRoot != null && titleBar != null && iconElement != null && titleLabel != null &&
+				closeButton != null && tabBar != null && contentRoot != null;
 		}
 
 		public void SetTitle(string title)

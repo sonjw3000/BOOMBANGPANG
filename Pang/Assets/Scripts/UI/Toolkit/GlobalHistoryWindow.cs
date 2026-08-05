@@ -21,7 +21,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label eventEmptyLabel;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 		private bool started;
 
 		public void Configure(UIWindow targetWindow, VisualTreeAsset targetContentTemplate, VisualTreeAsset targetRowTemplate)

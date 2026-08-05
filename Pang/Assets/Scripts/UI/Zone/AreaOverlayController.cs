@@ -41,14 +41,52 @@ public class AreaOverlayController : MonoBehaviour
 	private bool oneShotCreate;
 	private bool startingOneShotCreate;
 	private AreaType activeAreaType = AreaType.RocketLanding;
+	[System.NonSerialized] private AreaManager boundAreaManager;
+	[System.NonSerialized] private InteractionContext boundInteraction;
 
 	public AreaType ActiveAreaType => activeAreaType;
 	public int CurrentFloor => currentFloor;
 
-	private InteractionContext Interaction => GameContext.Instance.InteractionCtx;
+	private InteractionContext Interaction => boundInteraction ??
+		(GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null);
 
 	private void Awake()
 	{
+		EnsureRuntimeState();
+	}
+
+	private void OnEnable()
+	{
+		EnsureRuntimeState();
+		proxyRoot.SetActive(true);
+		BindSources();
+		RefreshOverlayState();
+	}
+
+	private void Start()
+	{
+		BindSources();
+	}
+
+	private void OnDisable()
+	{
+		UnbindSources();
+		HideAllVisuals();
+		HidePreview();
+		overlayRoot?.SetActive(false);
+		previewRoot?.SetActive(false);
+		proxyRoot?.SetActive(false);
+	}
+
+	private void EnsureRuntimeState()
+	{
+		if (overlayRoot != null && previewRoot != null && proxyRoot != null && quadPool != null &&
+			labelPool != null && previewQuad != null && previewLabel != null)
+		{
+			return;
+		}
+
+		DestroyRuntimeRoots();
 		areaManager ??= GetComponent<AreaManager>();
 		overlayRoot = CreateRoot("AreaOverlayRoot");
 		previewRoot = CreateRoot("AreaPreviewRoot");
@@ -61,38 +99,71 @@ public class AreaOverlayController : MonoBehaviour
 		HidePreview();
 		overlayRoot.SetActive(false);
 		previewRoot.SetActive(false);
+	}
 
-		if (areaManager != null)
+	private void BindSources()
+	{
+		UnbindSources();
+		boundAreaManager = areaManager;
+		if (boundAreaManager != null)
 		{
-			areaManager.OnAreaAdded += HandleAreaListChanged;
-			areaManager.OnAreaChanged += HandleAreaListChanged;
-			areaManager.OnAreaRemoved += HandleAreaRemoved;
-			areaManager.OnAreasRebuilt += RefreshVisibleAreas;
+			boundAreaManager.OnAreaAdded += HandleAreaListChanged;
+			boundAreaManager.OnAreaChanged += HandleAreaListChanged;
+			boundAreaManager.OnAreaRemoved += HandleAreaRemoved;
+			boundAreaManager.OnAreasRebuilt += RefreshVisibleAreas;
 		}
 
-		Interaction.OnResolveSelectionFallback += ResolveAreaSelection;
-		Interaction.OnModeChanged += HandleInteractionModeChanged;
-		Interaction.OnAreaPlacementPreviewChanged += HandleAreaPlacementPreviewChanged;
-		Interaction.OnAreaPlacementConfirmed += HandleAreaPlacementConfirmed;
+		boundInteraction = GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+		if (boundInteraction != null)
+		{
+			boundInteraction.OnResolveSelectionFallback += ResolveAreaSelection;
+			boundInteraction.OnModeChanged += HandleInteractionModeChanged;
+			boundInteraction.OnAreaPlacementPreviewChanged += HandleAreaPlacementPreviewChanged;
+			boundInteraction.OnAreaPlacementConfirmed += HandleAreaPlacementConfirmed;
+		}
+	}
+
+	private void UnbindSources()
+	{
+		if (boundAreaManager != null)
+		{
+			boundAreaManager.OnAreaAdded -= HandleAreaListChanged;
+			boundAreaManager.OnAreaChanged -= HandleAreaListChanged;
+			boundAreaManager.OnAreaRemoved -= HandleAreaRemoved;
+			boundAreaManager.OnAreasRebuilt -= RefreshVisibleAreas;
+			boundAreaManager = null;
+		}
+
+		if (boundInteraction != null)
+		{
+			boundInteraction.OnResolveSelectionFallback -= ResolveAreaSelection;
+			boundInteraction.OnModeChanged -= HandleInteractionModeChanged;
+			boundInteraction.OnAreaPlacementPreviewChanged -= HandleAreaPlacementPreviewChanged;
+			boundInteraction.OnAreaPlacementConfirmed -= HandleAreaPlacementConfirmed;
+			boundInteraction = null;
+		}
 	}
 
 	private void OnDestroy()
 	{
-		if (areaManager != null)
-		{
-			areaManager.OnAreaAdded -= HandleAreaListChanged;
-			areaManager.OnAreaChanged -= HandleAreaListChanged;
-			areaManager.OnAreaRemoved -= HandleAreaRemoved;
-			areaManager.OnAreasRebuilt -= RefreshVisibleAreas;
-		}
+		DestroyRuntimeRoots();
+	}
 
-		if (GameContext.HasInstance == false || GameContext.Instance.InteractionCtx == null)
-			return;
+	private void DestroyRuntimeRoots()
+	{
+		if (overlayRoot != null) Destroy(overlayRoot);
+		if (previewRoot != null) Destroy(previewRoot);
+		if (proxyRoot != null) Destroy(proxyRoot);
 
-		Interaction.OnResolveSelectionFallback -= ResolveAreaSelection;
-		Interaction.OnModeChanged -= HandleInteractionModeChanged;
-		Interaction.OnAreaPlacementPreviewChanged -= HandleAreaPlacementPreviewChanged;
-		Interaction.OnAreaPlacementConfirmed -= HandleAreaPlacementConfirmed;
+		overlayRoot = null;
+		previewRoot = null;
+		proxyRoot = null;
+		previewQuad = null;
+		previewLabel = null;
+		quadPool = null;
+		labelPool = null;
+		proxies.Clear();
+		activeVisuals.Clear();
 	}
 
 	public void SetAreaModeActive(bool active, AreaType areaType, int floor = 0)

@@ -20,7 +20,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private IVisualElementScheduledItem pendingShow;
 		private VisualElement requestedTarget;
 		private Vector2 requestedPosition;
-		private bool initialized;
+		[System.NonSerialized] private bool initialized;
 
 		public void Initialize(VisualElement root)
 		{
