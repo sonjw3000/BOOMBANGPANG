@@ -74,6 +74,7 @@ public class PathRequest
 	public readonly bool IncludeCongestion;
 	public readonly Func<int3, bool> CanTraverseBlockedCell;
 	public readonly Func<int3, bool> CanTraverseCell;
+	public readonly int NavigationCoverageVersion;
 	public bool WasTraversalRejected { get; private set; }
 
 	public readonly int MovementCost;
@@ -88,7 +89,8 @@ public class PathRequest
 		int3 endPosition,
 		FacingDirection startFacingDirection,
 		FindRoute avoidTarget = null,
-		Func<int3, bool> canTraverseCell = null)
+		Func<int3, bool> canTraverseCell = null,
+		int navigationCoverageVersion = 0)
 	{
 		this.target = target;
 		this.startPosition = startPosition;
@@ -99,6 +101,7 @@ public class PathRequest
 		IncludeCongestion = true;
 		CanTraverseBlockedCell = null;
 		CanTraverseCell = canTraverseCell;
+		NavigationCoverageVersion = Mathf.Max(0, navigationCoverageVersion);
 
 		MovementCost = 1;
 		RotationCost = 2;
@@ -119,6 +122,7 @@ public class PathRequest
 		IncludeCongestion = false;
 		CanTraverseBlockedCell = canTraverseBlockedCell;
 		CanTraverseCell = null;
+		NavigationCoverageVersion = 0;
 		MovementCost = 1;
 		RotationCost = 2;
 	}
@@ -431,7 +435,12 @@ public sealed class PathSearchJob
 		if (index == -1)
 		{
 			// Debug.LogWarning("Failed to build path result: No valid goal state found in buffer.");
-			return new PathResultBuffer(new LinkedList<PathNode>(), request.target, request.AvoidTarget, request.WasTraversalRejected);
+			return new PathResultBuffer(
+				new LinkedList<PathNode>(),
+				request.target,
+				request.AvoidTarget,
+				request.WasTraversalRejected,
+				request.NavigationCoverageVersion);
 		}
 
 		LinkedList<PathNode> path = new();
@@ -445,7 +454,12 @@ public sealed class PathSearchJob
 			if (++guard > maxSteps || visited.Add(index) == false)
 			{
 				Debug.LogError($"[PathSearchJob] Detected cyclic or overlong parent chain while building path. Start: {request.startPosition}, Goal: {request.endPosition}, StateIndex: {index}");
-				return new PathResultBuffer(new LinkedList<PathNode>(), request.target, request.AvoidTarget, request.WasTraversalRejected);
+				return new PathResultBuffer(
+					new LinkedList<PathNode>(),
+					request.target,
+					request.AvoidTarget,
+					request.WasTraversalRejected,
+					request.NavigationCoverageVersion);
 			}
 
 			PathNode node = PathResultBuffer.GetNewNode(buffer.GetPosition(index), buffer.GetFacingDirection(index));
@@ -458,7 +472,12 @@ public sealed class PathSearchJob
 			nodeRecord = buffer.GetStateRecordByStateIndex(index);
 		}
 
-		var result = new PathResultBuffer(path, request.target, request.AvoidTarget, request.WasTraversalRejected);
+		var result = new PathResultBuffer(
+			path,
+			request.target,
+			request.AvoidTarget,
+			request.WasTraversalRejected,
+			request.NavigationCoverageVersion);
 		return result;
 	}
 
@@ -493,8 +512,27 @@ public class PathResultBuffer
 	private PathResultBuffer subPathResult = null;
 
 	private LinkedList<PathNode> path = new();
+	private int navigationCoverageVersion;
 	public int CurrentIndex = 0;
 	public bool WasTraversalRejected { get; }
+	public int NavigationCoverageVersion
+	{
+		get
+		{
+			PathResultBuffer root = this;
+			while (root.parentBuffer != null)
+				root = root.parentBuffer;
+
+			int version = root.navigationCoverageVersion;
+			for (PathResultBuffer buffer = root.subPathResult; buffer != null; buffer = buffer.subPathResult)
+			{
+				if (buffer.navigationCoverageVersion != version)
+					return -1;
+			}
+
+			return version;
+		}
+	}
 
 	static public PathNode GetNewNode(in int3 position, FacingDirection direction)
 	{
@@ -504,12 +542,18 @@ public class PathResultBuffer
 		return node;
 	}
 
-	public PathResultBuffer(LinkedList<PathNode> path, FindRoute target, FindRoute toAvoid = null, bool wasTraversalRejected = false)
+	public PathResultBuffer(
+		LinkedList<PathNode> path,
+		FindRoute target,
+		FindRoute toAvoid = null,
+		bool wasTraversalRejected = false,
+		int navigationCoverageVersion = 0)
 	{
 		this.path = path;
 		this.target = target;
 		this.toAvoid = toAvoid;
 		WasTraversalRejected = wasTraversalRejected;
+		this.navigationCoverageVersion = Mathf.Max(0, navigationCoverageVersion);
 
 		currentNode = path.First;
 	}
@@ -659,6 +703,40 @@ public class PathResultBuffer
 				positions.Add(node.Value.Position);
 			}
 		}
+	}
+
+	public bool AreRemainingPositionsValid(Func<int3, bool> predicate)
+	{
+		if (predicate == null || IsGoalReached)
+			return true;
+
+		PathResultBuffer leaf = FindLeafBuffer(this);
+		for (var node = leaf.currentNode; node != null; node = node.Next)
+		{
+			if (predicate(node.Value.Position) == false)
+				return false;
+		}
+
+		for (var parent = leaf.parentBuffer; parent != null; parent = parent.parentBuffer)
+		{
+			for (var node = parent.currentNode?.Next; node != null; node = node.Next)
+			{
+				if (predicate(node.Value.Position) == false)
+					return false;
+			}
+		}
+
+		return true;
+	}
+
+	public void MarkNavigationCoverageVersion(int version)
+	{
+		int value = Mathf.Max(0, version);
+		PathResultBuffer root = this;
+		while (root.parentBuffer != null)
+			root = root.parentBuffer;
+		for (PathResultBuffer buffer = root; buffer != null; buffer = buffer.subPathResult)
+			buffer.navigationCoverageVersion = value;
 	}
 
 	public void MoveToNextNode()

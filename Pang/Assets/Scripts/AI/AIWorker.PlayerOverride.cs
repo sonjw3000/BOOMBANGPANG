@@ -31,18 +31,26 @@ internal interface IPlayerOverrideAction
 
 public abstract partial class AIWorker
 {
+	private readonly BlackBoard playerOverrideBlackBoard = new();
 	private WorkerControlMode controlMode = WorkerControlMode.Automatic;
 	private PlayerOverridePhase playerOverridePhase = OverridePhase.None;
 	private IPlayerOverrideAction playerOverrideAction;
 	private float playerOverrideActionSecondsRemaining;
+	private bool navigationRescueOverride;
+	private WorkerTask navigationRescueTask;
+	private BoxBase navigationRescueBox;
+	private bool hasNavigationRescueGoal;
+	private int3 navigationRescueGoal;
 
 	internal event Action<AIWorker> PlayerOverrideStateChanged;
 
 	public WorkerControlMode ControlMode => controlMode;
 	public PlayerOverridePhase PlayerOverridePhase => playerOverridePhase;
 	public bool IsPlayerOverride => controlMode == WorkerControlMode.PlayerOverride;
+	public bool IsNavigationRescueOverride => IsPlayerOverride && navigationRescueOverride;
+	public bool IsManualNavigation => IsPlayerOverride && this is RobotWorker;
 
-	internal bool TryEnterPlayerOverride(out string message)
+	internal bool TryEnterPlayerOverride(bool preserveNavigationTask, out string message)
 	{
 		message = string.Empty;
 		if (IsPlayerOverride)
@@ -54,15 +62,30 @@ public abstract partial class AIWorker
 			return false;
 		}
 
-		if (currentTask != null)
+		if (currentTask != null && preserveNavigationTask == false)
 		{
 			message = "The worker must leave its current task before player control can begin.";
 			return false;
 		}
+		if (preserveNavigationTask && (currentTask == null || IsWaitingForNavigation == false))
+		{
+			message = "Only a navigation-waiting task can be preserved for rescue control.";
+			return false;
+		}
 
 		CancelRecovery(false);
+		navigationRescueOverride = preserveNavigationTask;
+		navigationRescueTask = preserveNavigationTask ? currentTask : null;
+		navigationRescueBox = preserveNavigationTask ? CarryingAbility?.CarryingBox : null;
+		hasNavigationRescueGoal = preserveNavigationTask &&
+			routeFinder != null &&
+			routeFinder.TryGetCurrentGoalCell(out navigationRescueGoal);
+		if (preserveNavigationTask)
+			SuspendNavigationWaitForPlayerOverride();
 		routeFinder?.CancelCurrentRoute();
-		localBlackBoard.Clear();
+		if (preserveNavigationTask == false)
+			localBlackBoard.Clear();
+		playerOverrideBlackBoard.Clear();
 		controlMode = WorkerControlMode.PlayerOverride;
 		SetPlayerOverridePhase(OverridePhase.AwaitingCommand);
 		SetWorkerTarget(WorkerStatusTarget.None);
@@ -138,6 +161,10 @@ public abstract partial class AIWorker
 		CancelPendingPlayerOverrideAction();
 		CancelPendingPlayerOverrideMove();
 		controlMode = mode;
+		navigationRescueOverride = false;
+		navigationRescueTask = null;
+		navigationRescueBox = null;
+		hasNavigationRescueGoal = false;
 		playerOverridePhase = mode == WorkerControlMode.PlayerOverride
 			? OverridePhase.AwaitingCommand
 			: OverridePhase.None;
@@ -166,17 +193,31 @@ public abstract partial class AIWorker
 
 	internal void CancelPlayerOverride(bool becomeIdle = true)
 	{
+		bool resumeNavigationTask = navigationRescueOverride &&
+			currentTask != null &&
+			currentTask == navigationRescueTask &&
+			CarryingAbility?.CarryingBox == navigationRescueBox;
+		bool resumeNavigationGoal = resumeNavigationTask && hasNavigationRescueGoal;
+		int3 resumeGoal = navigationRescueGoal;
+
 		CancelPendingPlayerOverrideAction();
 		CancelPendingPlayerOverrideMove();
-		localBlackBoard.Clear();
+		if (resumeNavigationTask == false)
+			localBlackBoard.Clear();
 		controlMode = WorkerControlMode.Automatic;
 		playerOverridePhase = OverridePhase.None;
+		navigationRescueOverride = false;
+		navigationRescueTask = null;
+		navigationRescueBox = null;
+		hasNavigationRescueGoal = false;
 		SetWorkerTarget(WorkerStatusTarget.None);
 		if (IsOperational)
 			SetWorkerAction(WorkerStatusAction.Idle);
 
 		BuildBehaviorTree();
 		enabled = true;
+		if (resumeNavigationGoal)
+			routeFinder?.RestoreNavigationGoal(resumeGoal);
 		if (GameContext.HasInstance)
 		{
 			if (this is RobotWorker robot &&
@@ -188,7 +229,9 @@ public abstract partial class AIWorker
 			else
 			{
 				EndNavigationWait();
-				if (becomeIdle && IsOperational && currentTask == null)
+				if (resumeNavigationGoal)
+					routeFinder?.RequestFreshRouteToCurrentGoal();
+				else if (becomeIdle && IsOperational && currentTask == null)
 					WorkerMgr.AddIdleWorker(this);
 				else
 					WorkerMgr.RemoveIdleWorker(this);

@@ -546,7 +546,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	{
 		BTContext btx;
 		btx.DeltaTime = Time.deltaTime;
-		btx.LocalBlackBoard = localBlackBoard;
+		btx.LocalBlackBoard = IsPlayerOverride ? playerOverrideBlackBoard : localBlackBoard;
 		btx.GlobalBlackBoard = GlobalBlackboard;
 		btx.Worker = this;
 		btx.Tick = tick++;

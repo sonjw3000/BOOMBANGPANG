@@ -166,7 +166,8 @@ public sealed class PlayerOverrideService
 			return false;
 		}
 
-		if (worker.CurrentTask != null)
+		bool preserveNavigationTask = worker.CurrentTask != null && worker.IsWaitingForNavigation;
+		if (worker.CurrentTask != null && preserveNavigationTask == false)
 		{
 			WorkerTask task = worker.CurrentTask;
 			TaskManager taskManager = GameContext.HasInstance ? GameContext.Instance.TaskMgr : null;
@@ -184,14 +185,23 @@ public sealed class PlayerOverrideService
 				return false;
 			}
 		}
-		else
+		else if (preserveNavigationTask == false)
 		{
 			worker.PrepareForPlayerControlPreemption();
 		}
 
 		Observe(worker);
-		if (worker.TryEnterPlayerOverride(out message))
+		if (worker.TryEnterPlayerOverride(preserveNavigationTask, out message))
+		{
+			if (worker.IsManualNavigation && GameContext.HasInstance)
+			{
+				GameContext.Instance.HudEventManager?.Publish(
+					HudEventType.Warning,
+					"Manual Navigation ignores coverage limits. Changing navigation regions releases the current hub allocation.",
+					worker);
+			}
 			return true;
+		}
 
 		StopObserving(worker);
 		if (GameContext.HasInstance && worker.IsOperational && worker.CurrentTask == null)
@@ -249,7 +259,7 @@ public sealed class PlayerOverrideService
 			return false;
 		}
 
-		if (worker.CarryingAbility?.CarryingBox != null)
+		if (worker.CarryingAbility?.CarryingBox != null && worker.IsNavigationRescueOverride == false)
 		{
 			message = "Put down the carried box or capsule before releasing control.";
 			return false;
@@ -262,7 +272,8 @@ public sealed class PlayerOverrideService
 	public void RequestInteractionWindow(AIWorker worker)
 	{
 		if (worker == null || worker.IsPlayerOverride == false ||
-			worker.PlayerOverridePhase != PlayerOverridePhase.AwaitingCommand)
+			worker.PlayerOverridePhase != PlayerOverridePhase.AwaitingCommand ||
+			worker.IsNavigationRescueOverride)
 		{
 			return;
 		}
@@ -539,6 +550,12 @@ public sealed class PlayerOverrideService
 		if (worker.IsOperational == false)
 		{
 			message = "The worker is not operational.";
+			return false;
+		}
+
+		if (worker.IsNavigationRescueOverride)
+		{
+			message = "Navigation rescue control supports movement only.";
 			return false;
 		}
 

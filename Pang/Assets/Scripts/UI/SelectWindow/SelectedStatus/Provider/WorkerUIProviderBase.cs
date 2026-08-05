@@ -68,7 +68,9 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 	public string ControlDisplay => currentTarget == null
 		? "Unavailable"
 		: currentTarget.IsPlayerOverride
-			? $"Player Override · {currentTarget.PlayerOverridePhase}"
+			? currentTarget.IsManualNavigation
+				? $"Player Override · Manual Navigation · {currentTarget.PlayerOverridePhase}"
+				: $"Player Override · {currentTarget.PlayerOverridePhase}"
 			: "Automatic";
 	public float CarriedBoxFillPercent
 	{
@@ -186,6 +188,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 	{
 		return currentTarget != null &&
 			currentTarget.IsPlayerOverride &&
+			currentTarget.IsNavigationRescueOverride == false &&
 			currentTarget.PlayerOverridePhase == PlayerOverridePhase.AwaitingCommand &&
 			GameContext.HasInstance &&
 			GameContext.Instance.PlayerOverrideSvc != null;

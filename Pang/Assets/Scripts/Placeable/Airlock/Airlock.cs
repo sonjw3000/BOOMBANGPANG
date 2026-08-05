@@ -181,6 +181,16 @@ public sealed class Airlock : ItemInteraction, IFacilityUserRemovalGuard
 		transitCommitted = true;
 		if (worker is HumanWorker exitedHuman)
 			exitedHuman.ReconcileSuitStateFromCurrentLocation();
+		else if (worker is RobotWorker exitedRobot && GameContext.HasInstance)
+		{
+			RobotNavigationService navigation = GameContext.Instance.RobotNavigationSvc;
+			if (navigation != null &&
+				navigation.ReconcileExternalRelocation(exitedRobot, exitPoint, out RobotNavigationWaitReason reason) == false &&
+				exitedRobot.IsPlayerOverride == false)
+			{
+				exitedRobot.BeginNavigationWait(reason);
+			}
+		}
 		worker.enabled = true;
 		Release(worker);
 

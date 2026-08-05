@@ -243,6 +243,29 @@ public sealed class RobotNavigationService : MonoBehaviour
 		return TryAcquireCurrentAllocation(robot, out reason);
 	}
 
+	public bool CanAcceptNewAutomaticTask(RobotWorker robot, out RobotNavigationWaitReason reason)
+	{
+		if (CanRunAutomatic(robot, out reason) == false)
+			return false;
+
+		if (robot == null || robot.RequiresOrchestrationCompute == false ||
+			robotAllocations.TryGetValue(robot, out RobotAllocation allocation) == false)
+		{
+			return true;
+		}
+
+		foreach (uint hubId in allocation.Shares.Keys)
+		{
+			if (TryGetHub(hubId, out NavigationHub hub) && hub.IsComputeOverloaded)
+			{
+				reason = RobotNavigationWaitReason.OrchestrationCapacity;
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	public bool TryGetRobotComputeShares(RobotWorker robot, out IReadOnlyDictionary<uint, int> shares)
 	{
 		if (robot != null && robotAllocations.TryGetValue(robot, out RobotAllocation allocation))
@@ -265,6 +288,66 @@ public sealed class RobotNavigationService : MonoBehaviour
 	{
 		if (robot != null)
 			waitingRobots.Remove(robot);
+	}
+
+	public void ReconcileManualMovement(RobotWorker robot, in int3 position)
+	{
+		if (robot == null)
+			return;
+
+		int regionId = GetNavigationRegionId(position);
+		if (robot.NavigationCoverageVersion == CoverageVersion && robot.NavigationRegionId == regionId)
+			return;
+
+		ReleaseAllocation(robot);
+		robot.SetNavigationCache(regionId, CoverageVersion);
+		RefreshHubComputeUsage();
+		RefreshWaitingRobotStates(robot);
+	}
+
+	public bool ReconcileExternalRelocation(
+		RobotWorker robot,
+		in int3 position,
+		out RobotNavigationWaitReason reason)
+	{
+		reason = RobotNavigationWaitReason.None;
+		if (robot == null)
+			return true;
+
+		if (robot.IsPlayerOverride)
+		{
+			ReconcileManualMovement(robot, position);
+			return true;
+		}
+
+		int regionId = GetNavigationRegionId(position);
+		if (robot.NavigationDependency == RobotNavigationDependency.FullyAutonomous)
+		{
+			ReleaseAllocation(robot);
+			robot.SetNavigationCache(regionId, CoverageVersion);
+			RefreshHubComputeUsage();
+			return true;
+		}
+
+		if (robot.RequiresNavigationCoverage && regionId == 0)
+		{
+			ReleaseAllocation(robot);
+			RefreshHubComputeUsage();
+			RefreshWaitingRobotStates(robot);
+			reason = RobotNavigationWaitReason.Coverage;
+			return false;
+		}
+
+		if (TryAcquireCurrentAllocation(robot, out reason))
+		{
+			RefreshWaitingRobotStates(robot);
+			return true;
+		}
+
+		ReleaseAllocation(robot);
+		RefreshHubComputeUsage();
+		RefreshWaitingRobotStates(robot);
+		return false;
 	}
 
 	public bool CanBeginAutomaticRoute(RobotWorker robot, in int3 goalPosition, out RobotNavigationWaitReason reason)
@@ -540,7 +623,10 @@ public sealed class RobotNavigationService : MonoBehaviour
 			List<RobotWorker> unallocated = new();
 			for (int i = 0; i < workerManager.Workers.Count; ++i)
 			{
-				if (workerManager.Workers[i] is RobotWorker robot && robot.IsOperational && robotAllocations.ContainsKey(robot) == false)
+				if (workerManager.Workers[i] is RobotWorker robot &&
+					robot.IsOperational &&
+					robot.IsPlayerOverride == false &&
+					robotAllocations.ContainsKey(robot) == false)
 					unallocated.Add(robot);
 			}
 
@@ -577,7 +663,11 @@ public sealed class RobotNavigationService : MonoBehaviour
 			if (workerManager.Workers[i] is not RobotWorker robot || robot.IsOperational == false || robot.IsPlayerOverride)
 				continue;
 
-			if (CanRunAutomatic(robot, out RobotNavigationWaitReason reason))
+			RobotNavigationWaitReason reason;
+			bool canRun = robot.CurrentTask == null
+				? CanAcceptNewAutomaticTask(robot, out reason)
+				: CanRunAutomatic(robot, out reason);
+			if (canRun)
 				robot.EndNavigationWait();
 			else
 				robot.BeginNavigationWait(reason);
@@ -611,7 +701,11 @@ public sealed class RobotNavigationService : MonoBehaviour
 			if (robot == excludedRobot || robot.IsOperational == false || robot.IsPlayerOverride)
 				continue;
 
-			if (CanRunAutomatic(robot, out RobotNavigationWaitReason reason))
+			RobotNavigationWaitReason reason;
+			bool canRun = robot.CurrentTask == null
+				? CanAcceptNewAutomaticTask(robot, out reason)
+				: CanRunAutomatic(robot, out reason);
+			if (canRun)
 				robot.EndNavigationWait();
 			else
 				robot.BeginNavigationWait(reason);
@@ -895,7 +989,7 @@ public sealed class RobotNavigationService : MonoBehaviour
 			return;
 		}
 
-		if (TryAcquireCurrentAllocation(robot, out RobotNavigationWaitReason reason))
+		if (CanAcceptNewAutomaticTask(robot, out RobotNavigationWaitReason reason))
 			robot.EndNavigationWait();
 		else
 			robot.BeginNavigationWait(reason);
@@ -932,7 +1026,7 @@ public sealed class RobotNavigationService : MonoBehaviour
 			return;
 		}
 
-		if (TryAcquireCurrentAllocation(robot, out RobotNavigationWaitReason reason))
+		if (CanAcceptNewAutomaticTask(robot, out RobotNavigationWaitReason reason))
 			robot.EndNavigationWait();
 		else
 			robot.BeginNavigationWait(reason);

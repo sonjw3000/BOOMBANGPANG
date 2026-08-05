@@ -61,7 +61,7 @@ public abstract partial class AIWorker
 
 	internal void PrepareForPlayerControlPreemption()
 	{
-		ReleaseActiveAirlockTransit();
+		ReleaseActiveAirlockTransit(localBlackBoard);
 		routeFinder?.CancelCurrentRoute();
 		ClearTransitState(localBlackBoard);
 	}
@@ -209,7 +209,7 @@ public abstract partial class AIWorker
 	private void CompletePlayerOverrideMove()
 	{
 		hasPlayerOverrideMoveDestination = false;
-		ClearTransitState(localBlackBoard);
+		ClearTransitState(playerOverrideBlackBoard);
 		SetPlayerOverridePhase(OverridePhase.AwaitingCommand);
 		SetWorkerTarget(WorkerStatusTarget.None);
 		SetWorkerAction(WorkerStatusAction.AwaitingPlayerCommand);
@@ -231,15 +231,15 @@ public abstract partial class AIWorker
 
 	private void CancelPendingPlayerOverrideMove()
 	{
-		ReleaseActiveAirlockTransit();
+		ReleaseActiveAirlockTransit(playerOverrideBlackBoard);
 		routeFinder?.CancelCurrentRoute();
-		ClearTransitState(localBlackBoard);
+		ClearTransitState(playerOverrideBlackBoard);
 		hasPlayerOverrideMoveDestination = false;
 	}
 
-	private void ReleaseActiveAirlockTransit()
+	private void ReleaseActiveAirlockTransit(BlackBoard blackBoard)
 	{
-		if (localBlackBoard.TryGet(TransitAirlockKey, out Airlock airlock) == false || airlock == null)
+		if (blackBoard == null || blackBoard.TryGet(TransitAirlockKey, out Airlock airlock) == false || airlock == null)
 			return;
 
 		if (GameContext.HasInstance && AirlockService != null)

@@ -42,6 +42,8 @@ public class FindRoute : MonoBehaviour
 	private GridCell waitingCell = null;
 	private int travelledCellsSinceLastConsume;
 	private NavigationTransitionReservation navigationReservation;
+	private int reservedNavigationCoverageVersion = -1;
+	private System.Func<int3, bool> navigationTraversalPredicate;
 	public int TravelledCellsSinceLastConsume => Mathf.Max(0, travelledCellsSinceLastConsume);
 
 	private HashSet<FindRoute> blockingRoutes = new();
@@ -188,6 +190,9 @@ public class FindRoute : MonoBehaviour
 
 		if (isNextNodeReserved == false)
 		{
+			if (TryRefreshStaleNavigationPath())
+				return;
+
 			TileReservationResult reservationResult = TryReserveNextTile();
 			if (reservationResult == TileReservationResult.Success)
 			{
@@ -238,12 +243,12 @@ public class FindRoute : MonoBehaviour
 			return;
 
 		transform.position = targetPos;
-		if (ValidateNavigationTransition(out RobotNavigationWaitReason transitionFailure) == false)
+		bool transitionNeedsReconcile = ValidateNavigationTransition(out RobotNavigationWaitReason transitionFailure) == false;
+		if (transitionNeedsReconcile)
 		{
-			transform.position = new Vector3(worker.GridPosition.x, worker.GridPosition.y, worker.GridPosition.z);
-			ReleaseReservedNextTile();
-			worker.BeginNavigationWait(transitionFailure);
-			return;
+			// The robot was already between cells when the network changed.
+			// Finish this physical step, then derive allocation from the actual arrival cell.
+			CancelNavigationTransition();
 		}
 
 		int3 previousPos = worker.GridPosition;
@@ -266,7 +271,11 @@ public class FindRoute : MonoBehaviour
 		}
 
 		worker.SetPosition(pathResultBuffer.CurrentNode.Position);
-		bool navigationCommitted = CommitNavigationTransition();
+		bool navigationCommitted = CommitOrReconcileNavigationTransition(
+			pathResultBuffer.CurrentNode.Position,
+			transitionNeedsReconcile,
+			ref transitionFailure);
+		reservedNavigationCoverageVersion = -1;
 		if (worker.CarryingAbility?.CarryingBox != null && travelledCellsSinceLastConsume < int.MaxValue)
 			++travelledCellsSinceLastConsume;
 
@@ -279,9 +288,13 @@ public class FindRoute : MonoBehaviour
 		isNextNodeReserved = false;
 		if (navigationCommitted == false)
 		{
-			RobotNavigationWaitReason reason = RobotNavigationWaitReason.Coverage;
-			if (worker is RobotWorker robot && GameContext.HasInstance)
-				GameContext.Instance.RobotNavigationSvc?.CanRunAutomatic(robot, out reason);
+			RobotNavigationWaitReason reason = transitionFailure;
+			if (reason == RobotNavigationWaitReason.None)
+			{
+				reason = RobotNavigationWaitReason.Coverage;
+				if (worker is RobotWorker robot && GameContext.HasInstance)
+					GameContext.Instance.RobotNavigationSvc?.CanRunAutomatic(robot, out reason);
+			}
 			worker.BeginNavigationWait(reason);
 			return;
 		}
@@ -309,6 +322,7 @@ public class FindRoute : MonoBehaviour
 	private void ReleaseReservedNextTile()
 	{
 		CancelNavigationTransition();
+		reservedNavigationCoverageVersion = -1;
 		if (isNextNodeReserved == false || worker == null || GameContext.HasInstance == false)
 			return;
 
@@ -411,12 +425,14 @@ public class FindRoute : MonoBehaviour
 		if (worker is RobotWorker robot && robot.IsPlayerOverride == false && GameContext.HasInstance)
 		{
 			RobotNavigationService navigation = GameContext.Instance.RobotNavigationSvc;
+			reservedNavigationCoverageVersion = navigation?.CoverageVersion ?? -1;
 			if (navigation != null && navigation.TryReserveTransition(
 				robot,
 				nodeToReserve.Position,
 				out navigationReservation,
 				out RobotNavigationWaitReason reason) == false)
 			{
+				reservedNavigationCoverageVersion = -1;
 				worker.BeginNavigationWait(reason);
 				return TileReservationResult.NavigationBlocked;
 			}
@@ -426,6 +442,7 @@ public class FindRoute : MonoBehaviour
 			return TileReservationResult.Success;
 
 		CancelNavigationTransition();
+		reservedNavigationCoverageVersion = -1;
 		return TileReservationResult.GridBlocked;
 	}
 
@@ -458,13 +475,51 @@ public class FindRoute : MonoBehaviour
 
 	private PathRequest CreatePathRequest(in int3 start, in int3 goal, FindRoute avoidTarget = null)
 	{
+		int coverageVersion = 0;
+		if (worker is RobotWorker robot && robot.IsPlayerOverride == false && robot.RequiresNavigationCoverage && GameContext.HasInstance)
+			coverageVersion = GameContext.Instance.RobotNavigationSvc?.CoverageVersion ?? 0;
+
+		navigationTraversalPredicate ??= CanTraverseNavigationCell;
 		return new PathRequest(
 			this,
 			start,
 			goal,
 			worker.Direction,
 			avoidTarget,
-			CanTraverseNavigationCell);
+			navigationTraversalPredicate,
+			coverageVersion);
+	}
+
+	private bool TryRefreshStaleNavigationPath()
+	{
+		if (pathResultBuffer == null ||
+			worker is not RobotWorker robot ||
+			robot.IsPlayerOverride ||
+			robot.RequiresNavigationCoverage == false ||
+			GameContext.HasInstance == false)
+		{
+			return false;
+		}
+
+		RobotNavigationService navigation = GameContext.Instance.RobotNavigationSvc;
+		if (navigation == null || pathResultBuffer.NavigationCoverageVersion == navigation.CoverageVersion)
+			return false;
+
+		if (navigation.CanRunAutomatic(robot, out RobotNavigationWaitReason reason) == false)
+		{
+			worker.BeginNavigationWait(reason);
+			return true;
+		}
+
+		navigationTraversalPredicate ??= CanTraverseNavigationCell;
+		if (pathResultBuffer.AreRemainingPositionsValid(navigationTraversalPredicate))
+		{
+			pathResultBuffer.MarkNavigationCoverageVersion(navigation.CoverageVersion);
+			return false;
+		}
+
+		RequestFreshRouteToCurrentGoal();
+		return true;
 	}
 
 	private bool CanTraverseNavigationCell(int3 position)
@@ -492,6 +547,20 @@ public class FindRoute : MonoBehaviour
 	private bool ValidateNavigationTransition(out RobotNavigationWaitReason reason)
 	{
 		reason = RobotNavigationWaitReason.None;
+		if (worker is RobotWorker robot &&
+			robot.IsPlayerOverride == false &&
+			robot.RequiresNavigationCoverage &&
+			reservedNavigationCoverageVersion >= 0 &&
+			GameContext.HasInstance)
+		{
+			RobotNavigationService versionService = GameContext.Instance.RobotNavigationSvc;
+			if (versionService != null && versionService.CoverageVersion != reservedNavigationCoverageVersion)
+			{
+				reason = RobotNavigationWaitReason.Coverage;
+				return false;
+			}
+		}
+
 		if (navigationReservation.RequiresCommit == false || GameContext.HasInstance == false)
 			return true;
 
@@ -509,6 +578,31 @@ public class FindRoute : MonoBehaviour
 		return GameContext.HasInstance == false ||
 			GameContext.Instance.RobotNavigationSvc == null ||
 			GameContext.Instance.RobotNavigationSvc.CommitTransition(reservation);
+	}
+
+	private bool CommitOrReconcileNavigationTransition(
+		in int3 arrivedPosition,
+		bool forceReconcile,
+		ref RobotNavigationWaitReason reason)
+	{
+		if (worker is not RobotWorker robot || GameContext.HasInstance == false)
+			return true;
+
+		RobotNavigationService navigation = GameContext.Instance.RobotNavigationSvc;
+		if (navigation == null)
+			return true;
+
+		if (robot.IsPlayerOverride)
+		{
+			navigation.ReconcileManualMovement(robot, arrivedPosition);
+			return true;
+		}
+
+		if (forceReconcile == false && CommitNavigationTransition())
+			return true;
+
+		CancelNavigationTransition();
+		return navigation.ReconcileExternalRelocation(robot, arrivedPosition, out reason);
 	}
 
 	private void CancelNavigationTransition()
@@ -654,6 +748,16 @@ public class FindRoute : MonoBehaviour
 		return RequestFreshRouteToCurrentGoal();
 	}
 
+	internal void RestoreNavigationGoal(in int3 goal)
+	{
+		currentGoalPos = goal;
+		hasCurrentGoal = true;
+		hasPendingGoal = false;
+		stopAfterCurrentStep = false;
+		isYieldMove = false;
+		movementState = MovementState.Blocked;
+	}
+
 	public void CompleteIdleYieldMove()
 	{
 		ClearWait();
@@ -794,6 +898,7 @@ public class FindRoute : MonoBehaviour
 	public void SetAIMaster(AIWorker worker)
 	{
 		this.worker = worker;
+		navigationTraversalPredicate = CanTraverseNavigationCell;
 
 		//Debug.Log($"Init Grid Position!, GridPos: {worker.GridPosition}");
 		// Reserve the current tile from initialization time.

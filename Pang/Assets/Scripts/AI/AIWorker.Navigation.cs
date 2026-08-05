@@ -14,7 +14,9 @@ public abstract partial class AIWorker
 			return true;
 
 		RobotNavigationService service = GameContext.Instance.RobotNavigationSvc;
-		return service == null || service.CanRunAutomatic(robot, out reason);
+		return service == null || (currentTask == null
+			? service.CanAcceptNewAutomaticTask(robot, out reason)
+			: service.CanRunAutomatic(robot, out reason));
 	}
 
 	public void BeginNavigationWait(RobotNavigationWaitReason reason)
@@ -63,6 +65,16 @@ public abstract partial class AIWorker
 		}
 
 		enabled = true;
+	}
+
+	internal void SuspendNavigationWaitForPlayerOverride()
+	{
+		if (navigationWaitReason == RobotNavigationWaitReason.None)
+			return;
+
+		navigationWaitReason = RobotNavigationWaitReason.None;
+		if (this is RobotWorker robot && GameContext.HasInstance)
+			GameContext.Instance.RobotNavigationSvc?.UnregisterWaitingRobot(robot);
 	}
 
 	private static IBaseNode.NodeState HoldNavigationWait(in BTContext ctx)
