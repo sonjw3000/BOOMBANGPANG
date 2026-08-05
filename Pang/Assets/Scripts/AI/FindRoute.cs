@@ -702,11 +702,11 @@ public class FindRoute : MonoBehaviour
 		return true;
 	}
 
-	public void SuspendForTraffic()
+	public void SuspendForTraffic(WorkerStatusAction blockAction = WorkerStatusAction.TrafficBlock)
 	{
 		ClearWait();
 		movementState = MovementState.Blocked;
-		worker?.BeginTrafficBlock();
+		worker?.BeginTrafficBlock(blockAction);
 		enabled = false;
 	}
 

@@ -414,6 +414,7 @@ public sealed class FloatingTextManager : MonoBehaviour
 				: "Waiting For Target",
 			WorkerStatusAction.WaitingForItems => "Waiting For Items",
 			WorkerStatusAction.TrafficBlock => "Traffic Blocked",
+			WorkerStatusAction.BlockedByCasualty => "Blocked By Casualty",
 			WorkerStatusAction.HandlingMistake => "Handling Mistake",
 			WorkerStatusAction.UsingAirlock => "Using Airlock",
 			WorkerStatusAction.Working => "Working",

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public static class WorkplaceIncidentDecision
@@ -21,6 +22,7 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 	private readonly Dictionary<int, WorkerIncidentCase> incidentsById = new();
 	private readonly Dictionary<uint, WorkerIncidentCase> currentIncidentByWorker = new();
 	private readonly Dictionary<uint, bool> claimProcessingByWorker = new();
+	private readonly Dictionary<uint, WorkerIncidentContext> pendingIncidentContextByWorker = new();
 
 	private WorkerManager workerManager;
 	private MedicalService medicalService;
@@ -99,6 +101,51 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 			: true;
 	}
 
+	public bool TryPrepareRobotCollision(
+		RobotWorker robot,
+		HumanWorker human,
+		in int3 position,
+		ulong simulationTick)
+	{
+		if (robot == null || human == null ||
+			currentIncidentByWorker.ContainsKey(human.WorkerID) ||
+			pendingIncidentContextByWorker.ContainsKey(human.WorkerID))
+		{
+			return false;
+		}
+
+		pendingIncidentContextByWorker[human.WorkerID] = new WorkerIncidentContext(
+			WorkerIncidentCause.RobotCollision,
+			robot.WorkerID,
+			human.WorkerID,
+			position,
+			simulationTick);
+		return true;
+	}
+
+	public WorkerIncidentCase CompletePreparedRobotCollision(HumanWorker human)
+	{
+		if (human == null)
+			return null;
+
+		if (currentIncidentByWorker.TryGetValue(human.WorkerID, out WorkerIncidentCase current))
+			return current;
+
+		if (human.IsOperational ||
+			pendingIncidentContextByWorker.Remove(human.WorkerID, out WorkerIncidentContext context) == false)
+		{
+			return null;
+		}
+
+		return CreateIncident(human, human.OperationalState, in context);
+	}
+
+	public void CancelPreparedRobotCollision(HumanWorker human)
+	{
+		if (human != null)
+			pendingIncidentContextByWorker.Remove(human.WorkerID);
+	}
+
 	public WorkplaceIncidentSaveData CaptureState()
 	{
 		WorkplaceIncidentSaveData data = new()
@@ -163,6 +210,7 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 		incidentsById.Clear();
 		currentIncidentByWorker.Clear();
 		claimProcessingByWorker.Clear();
+		pendingIncidentContextByWorker.Clear();
 		nextIncidentId = 1;
 		isAccidentFree = true;
 	}
@@ -181,13 +229,32 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 			return;
 		}
 
+		WorkerIncidentContext context = default;
+		if (pendingIncidentContextByWorker.TryGetValue(worker.WorkerID, out context))
+			pendingIncidentContextByWorker.Remove(worker.WorkerID);
+
+		CreateIncident(worker, nextState, in context);
+	}
+
+	private WorkerIncidentCase CreateIncident(
+		AIWorker worker,
+		WorkerOperationalState operationalState,
+		in WorkerIncidentContext context)
+	{
 		WorkerIncidentCase incident = new()
 		{
 			IncidentId = nextIncidentId++,
+			Cause = context.Cause,
 			WorkerId = worker.WorkerID,
+			InstigatorWorkerId = context.InstigatorWorkerId,
+			VictimWorkerId = context.VictimWorkerId,
+			PositionX = context.Position.x,
+			PositionY = context.Position.y,
+			PositionZ = context.Position.z,
+			OccurredAtSimulationTick = context.OccurredAtSimulationTick,
 			WorkerKind = worker.WorkerKind,
 			HumanType = worker.HumanType,
-			OperationalState = nextState,
+			OperationalState = operationalState,
 			ResponseKind = worker.WorkerKind == WorkerKind.Human
 				? WorkerIncidentResponseKind.Medical
 				: WorkerIncidentResponseKind.RobotFix,
@@ -206,6 +273,7 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 		currentIncidentByWorker[incident.WorkerId] = incident;
 		OnIncidentCreated?.Invoke(incident);
 		TryRequestService(incident, worker);
+		return incident;
 	}
 
 	private void RetryPendingIncidents()
@@ -228,6 +296,10 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 	private void TryRequestService(WorkerIncidentCase incident, AIWorker worker)
 	{
 		if (incident == null || worker == null || incident.State != WorkerIncidentCaseState.AwaitingService)
+			return;
+		if (incident.ResponseKind == WorkerIncidentResponseKind.Medical && medicalService == null)
+			return;
+		if (incident.ResponseKind == WorkerIncidentResponseKind.RobotFix && robotFixService == null)
 			return;
 
 		incident.State = WorkerIncidentCaseState.ServiceRequested;
@@ -329,7 +401,14 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 		return new WorkerIncidentCase
 		{
 			IncidentId = source.IncidentId,
+			Cause = source.Cause,
 			WorkerId = source.WorkerId,
+			InstigatorWorkerId = source.InstigatorWorkerId,
+			VictimWorkerId = source.VictimWorkerId,
+			PositionX = source.PositionX,
+			PositionY = source.PositionY,
+			PositionZ = source.PositionZ,
+			OccurredAtSimulationTick = source.OccurredAtSimulationTick,
 			WorkerKind = source.WorkerKind,
 			HumanType = source.HumanType,
 			OperationalState = source.OperationalState,

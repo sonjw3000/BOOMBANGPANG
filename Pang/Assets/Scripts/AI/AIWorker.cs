@@ -54,6 +54,7 @@ public enum WorkerStatusAction
 	AwaitingPlayerCommand,
 	WaitingForNavigationCoverage,
 	WaitingForOrchestrationCapacity,
+	BlockedByCasualty,
 }
 
 public enum WorkerOperationalState
@@ -320,14 +321,27 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	}
 	public void SetWorkerTarget(WorkerStatusTarget target) => workerState.Target = target;
 
-	public void BeginTrafficBlock()
+	public void BeginTrafficBlock(WorkerStatusAction blockAction = WorkerStatusAction.TrafficBlock)
 	{
+		if (blockAction != WorkerStatusAction.TrafficBlock &&
+			blockAction != WorkerStatusAction.BlockedByCasualty)
+		{
+			blockAction = WorkerStatusAction.TrafficBlock;
+		}
+
 		if (isTrafficBlocked)
+		{
+			if (workerState.Action != blockAction)
+			{
+				workerState.Action = blockAction;
+				OnActionChanged?.Invoke(workerState.Action);
+			}
 			return;
+		}
 
 		isTrafficBlocked = true;
 		preTrafficAction = workerState.Action;
-		workerState.Action = WorkerStatusAction.TrafficBlock;
+		workerState.Action = blockAction;
 		OnActionChanged?.Invoke(workerState.Action);
 		OnTrafficBlockChanged?.Invoke(this, true);
 	}

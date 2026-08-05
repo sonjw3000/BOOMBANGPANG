@@ -80,6 +80,7 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private MedicalService medicalService;
 	[SerializeField] private RobotFixService robotFixService;
 	[SerializeField] private WorkplaceIncidentService workplaceIncidentService;
+	[SerializeField] private RobotHumanCollisionService robotHumanCollisionService;
 	[SerializeField] private TemperatureService temperatureService;
 	[SerializeField] private OxygenService oxygenService;
 	[SerializeField] private WearService wearService;
@@ -189,6 +190,7 @@ public class GameContext : MonoBehaviour
 	public MedicalService MedicalSvc => ResolveOrCreateMedicalService();
 	public RobotFixService RobotFixSvc => ResolveOrCreateRobotFixService();
 	public WorkplaceIncidentService WorkplaceIncidentSvc => ResolveOrCreateWorkplaceIncidentService();
+	public RobotHumanCollisionService RobotHumanCollisionSvc => ResolveOrCreateRobotHumanCollisionService();
 	public TemperatureService TemperatureSvc => ResolveOrCreateTemperatureService();
 	public ItemThermalService ItemThermalSvc => itemThermalService ??= new ItemThermalService();
 	public OxygenService OxygenSvc => ResolveOrCreateOxygenService();
@@ -373,6 +375,7 @@ public class GameContext : MonoBehaviour
 		_ = MedicalSvc;
 		_ = RobotFixSvc;
 		WorkplaceIncidentSvc.Initialize(WorkerMgr, MedicalSvc, RobotFixSvc, VendorService, EconomyService);
+		RobotHumanCollisionSvc.Initialize(gridService, WorkplaceIncidentSvc, gameTime, HudEventManager);
 		_ = TemperatureSvc;
 		_ = OxygenSvc;
 		_ = WearSvc;
@@ -457,6 +460,18 @@ public class GameContext : MonoBehaviour
 			workplaceIncidentService = gameObject.AddComponent<WorkplaceIncidentService>();
 
 		return workplaceIncidentService;
+	}
+
+	private RobotHumanCollisionService ResolveOrCreateRobotHumanCollisionService()
+	{
+		if (robotHumanCollisionService != null)
+			return robotHumanCollisionService;
+
+		robotHumanCollisionService = GetComponentInChildren<RobotHumanCollisionService>(true);
+		if (robotHumanCollisionService == null)
+			robotHumanCollisionService = gameObject.AddComponent<RobotHumanCollisionService>();
+
+		return robotHumanCollisionService;
 	}
 
 	private TemperatureService ResolveOrCreateTemperatureService()

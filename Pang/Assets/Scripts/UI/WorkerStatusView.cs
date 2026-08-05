@@ -59,6 +59,11 @@ public class WorkerStatusView : MonoBehaviour
 		{
 			spriteRenderer.sprite = sprite;
 		}
+		else if (action == WorkerStatusAction.BlockedByCasualty &&
+			spriteMap.TryGetValue(WorkerStatusAction.TrafficBlock, out sprite))
+		{
+			spriteRenderer.sprite = sprite;
+		}
 		else
 		{
 			spriteRenderer.sprite = null;
@@ -105,6 +110,7 @@ public class WorkerStatusView : MonoBehaviour
 	{
 		return action == WorkerStatusAction.WaitingForItems ||
 			   action == WorkerStatusAction.TrafficBlock ||
+			   action == WorkerStatusAction.BlockedByCasualty ||
 			   action == WorkerStatusAction.WaitingForTargetBuilding ||
 			   action == WorkerStatusAction.HandlingMistake ||
 			   action == WorkerStatusAction.Collapse ||

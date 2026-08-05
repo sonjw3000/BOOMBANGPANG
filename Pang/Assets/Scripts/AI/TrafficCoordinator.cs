@@ -35,6 +35,7 @@ public class TrafficCoordinator : MonoBehaviour
 	private GridService GridService => Ctx.GridService;
 	private WorkPolicyService WorkPolicy => Ctx.WMSys.WorkPolicyService;
 	private ResearchService Research => Ctx.ResearchService;
+	private RobotHumanCollisionService RobotHumanCollision => Ctx.RobotHumanCollisionSvc;
 
 	private readonly Queue<FindRoute> trafficResolveQueue = new();
 	private readonly HashSet<FindRoute> queuedRoutes = new();
@@ -232,6 +233,9 @@ public class TrafficCoordinator : MonoBehaviour
 			return;
 		}
 
+		if (TryResolveRobotHumanCollision(requestedRoute, blockedBy, desiredCell))
+			return;
+
 		if (CanResolveTraffic(requestedRoute) == false)
 		{
 			RegisterWait(requestedRoute, desiredCell);
@@ -251,6 +255,51 @@ public class TrafficCoordinator : MonoBehaviour
 		}
 
 		RegisterWait(requestedRoute, desiredCell);
+	}
+
+	private bool TryResolveRobotHumanCollision(
+		FindRoute requestedRoute,
+		FindRoute blockedBy,
+		in int3 desiredCell)
+	{
+		if (requestedRoute?.Worker is not RobotWorker robot ||
+			robot.IsPlayerOverride ||
+			blockedBy?.Worker is not HumanWorker human)
+		{
+			return false;
+		}
+
+		if (human.IsOperational == false)
+		{
+			RegisterWait(requestedRoute, desiredCell, WorkerStatusAction.BlockedByCasualty);
+			return true;
+		}
+
+		if (Research?.IsResearched(ResearchIds.HumanRecognition) == true)
+			return false;
+
+		RobotHumanCollisionResult result = RobotHumanCollision.TryResolve(robot, human, desiredCell);
+		switch (result)
+		{
+			case RobotHumanCollisionResult.HumanRelocated:
+				UnregisterWait(requestedRoute);
+				if (robot.IsOperational)
+					requestedRoute.ResumeFromTraffic();
+				return true;
+
+			case RobotHumanCollisionResult.BlockedByCasualty:
+				if (robot.IsOperational)
+					RegisterWait(requestedRoute, desiredCell, WorkerStatusAction.BlockedByCasualty);
+				return true;
+
+			case RobotHumanCollisionResult.DuplicateIgnored:
+				if (robot.IsOperational)
+					RegisterWait(requestedRoute, desiredCell);
+				return true;
+
+			default:
+				return false;
+		}
 	}
 
 	private void ResolveStaticBlocker(FindRoute requestedRoute, FindRoute blockedBy, in int3 desiredCell)
@@ -719,12 +768,15 @@ public class TrafficCoordinator : MonoBehaviour
 		return destination.Equals(blockedBy.TrafficFromCell);
 	}
 
-	private void RegisterWait(FindRoute route, in int3 desiredCell)
+	private void RegisterWait(
+		FindRoute route,
+		in int3 desiredCell,
+		WorkerStatusAction blockAction = WorkerStatusAction.TrafficBlock)
 	{
 		if (route == null)
 			return;
 
-		route.SuspendForTraffic();
+		route.SuspendForTraffic(blockAction);
 		waitingRoutes[route] = new TrafficWaitEntry(desiredCell, Time.time);
 
 		GridCell cell = GridService.GetCell(desiredCell);
