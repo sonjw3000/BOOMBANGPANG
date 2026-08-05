@@ -87,12 +87,16 @@ public partial class ShelfStorageService : FacilityService<Shelf>, ICollectSuppl
 	// ---------------------------
 	private void RegisterContainer(ShelfBase container)
 	{
-		if (container == null || containers.Contains(container))
+		if (container == null)
 			return;
 
+		container.OnItemPresentChanged -= OnItemPresentChanged;
+		container.OnItemQuantityChanged -= OnQuantityDelta;
 		container.OnItemPresentChanged += OnItemPresentChanged;
 		container.OnItemQuantityChanged += OnQuantityDelta;
-		containers.Add(container);
+
+		if (containers.Contains(container) == false)
+			containers.Add(container);
 
 		foreach (var item in container.ItemTotals)
 		{

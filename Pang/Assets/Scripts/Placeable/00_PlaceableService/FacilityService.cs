@@ -6,11 +6,14 @@ using Unity.Mathematics;
 public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 {
 	protected readonly Dictionary<uint, List<T>> registeredFacilities = new();
+	// Unbind from the exact owners used during binding so teardown never depends on GameContext ordering.
+	private FacilityManager boundFacilityManager;
+	private GridService boundGridService;
 
 	protected delegate bool FacilityDistanceResolver(T facility, in int3 from, out int score);
 
-	protected FacilityManager FacilityManager => GameContext.Instance.FacilityMgr;
-	protected GridService GridService => GameContext.Instance.GridService;
+	protected FacilityManager FacilityManager => boundFacilityManager;
+	protected GridService GridService => boundGridService;
 
 	protected IReadOnlyList<T> BuildingFacilities(uint buildingId) => FacilityManager.GetFacilities<T>(buildingId);
 	protected bool TryGetBuildingFacilities(uint buildingId, out IReadOnlyList<T> facilities) => FacilityManager.TryGetFacilities(buildingId, out facilities);
@@ -108,15 +111,19 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		return found;
 	}
 
-	protected virtual void Start()
+	protected virtual void OnEnable()
 	{
-		FacilityManager.SubscribeFacilityRegister<T>(HandleFacilityRegistered, HandleFacilityUnregistered);
-		RebuildRegisteredFacilities();
+		TryBindFacilityManager();
 	}
 
-	protected virtual void OnDestroy()
+	protected virtual void Start()
 	{
-		FacilityManager.UnsubscribeFacilityRegister<T>(HandleFacilityRegistered, HandleFacilityUnregistered);
+		TryBindFacilityManager();
+	}
+
+	protected virtual void OnDisable()
+	{
+		UnbindFacilityManager();
 	}
 
 	public bool TryFindDestination(
@@ -183,6 +190,11 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 
 	private void RebuildRegisteredFacilities()
 	{
+		if (FacilityManager == null)
+			return;
+
+		RemoveStaleRegisteredFacilities();
+
 		IReadOnlyList<uint> buildingIds = FacilityManager.GetBuildingIds();
 		for (int i = 0; i < buildingIds.Count; ++i)
 		{
@@ -193,6 +205,73 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
 				RegisterFacility(buildingId, facilities[facilityIndex]);
 		}
+	}
+
+	private void TryBindFacilityManager()
+	{
+		if (boundFacilityManager != null)
+			return;
+
+		if (GameContext.HasInstance == false)
+			return;
+
+		GameContext context = GameContext.Instance;
+		FacilityManager facilityManager = context.FacilityMgr;
+		if (facilityManager == null)
+			return;
+
+		boundFacilityManager = facilityManager;
+		boundGridService = context.GridService;
+		boundFacilityManager.SubscribeFacilityRegister<T>(HandleFacilityRegistered, HandleFacilityUnregistered);
+		RebuildRegisteredFacilities();
+	}
+
+	private void UnbindFacilityManager()
+	{
+		if (boundFacilityManager != null)
+		{
+			boundFacilityManager.UnsubscribeFacilityRegister<T>(HandleFacilityRegistered, HandleFacilityUnregistered);
+		}
+
+		boundFacilityManager = null;
+		boundGridService = null;
+	}
+
+	private void RemoveStaleRegisteredFacilities()
+	{
+		List<(uint BuildingId, T Facility)> staleFacilities = new();
+		foreach (var buildingEntry in registeredFacilities)
+		{
+			uint buildingId = buildingEntry.Key;
+			IReadOnlyList<T> currentFacilities = FacilityManager.GetFacilities<T>(buildingId);
+			List<T> cachedFacilities = buildingEntry.Value;
+			for (int i = 0; i < cachedFacilities.Count; ++i)
+			{
+				T cachedFacility = cachedFacilities[i];
+				if (ContainsFacility(currentFacilities, cachedFacility) == false)
+					staleFacilities.Add((buildingId, cachedFacility));
+			}
+		}
+
+		for (int i = 0; i < staleFacilities.Count; ++i)
+		{
+			(uint buildingId, T facility) = staleFacilities[i];
+			UnregisterFacility(buildingId, facility);
+		}
+	}
+
+	private static bool ContainsFacility(IReadOnlyList<T> facilities, T target)
+	{
+		if (facilities == null)
+			return false;
+
+		for (int i = 0; i < facilities.Count; ++i)
+		{
+			if (EqualityComparer<T>.Default.Equals(facilities[i], target))
+				return true;
+		}
+
+		return false;
 	}
 
 	private void HandleFacilityRegistered(uint buildingId, IFacility facility)
@@ -252,11 +331,16 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		if (facility == null)
 			return;
 
-		if (!registeredFacilities.ContainsKey(buildingId))
+		if (!registeredFacilities.TryGetValue(buildingId, out List<T> facilities))
 		{
-			registeredFacilities[buildingId] = new List<T>();
+			facilities = new List<T>();
+			registeredFacilities[buildingId] = facilities;
 		}
-		registeredFacilities[buildingId].Add(facility);
+
+		if (ContainsFacility(facilities, facility))
+			return;
+
+		facilities.Add(facility);
 
 		OnRegisterFacility(buildingId, facility);
 	}
@@ -266,10 +350,12 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 		if (facility == null)
 			return;
 
-		if (registeredFacilities.ContainsKey(buildingId))
-		{
-			registeredFacilities[buildingId].Remove(facility);
-		}
+		if (registeredFacilities.TryGetValue(buildingId, out List<T> facilities) == false ||
+			facilities.Remove(facility) == false)
+			return;
+
+		if (facilities.Count == 0)
+			registeredFacilities.Remove(buildingId);
 
 		OnUnregisterFacility(buildingId, facility);
 	}

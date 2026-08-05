@@ -7,14 +7,19 @@ public abstract class RecoveryFacilityService<TFacility> : FacilityService<TFaci
 	private readonly Dictionary<AIWorker, TFacility> reservations = new();
 	private readonly List<AIWorker> workerBuffer = new();
 
+	protected override void OnEnable()
+	{
+		base.OnEnable();
+	}
+
 	protected override void Start()
 	{
 		base.Start();
 	}
 
-	protected override void OnDestroy()
+	protected override void OnDisable()
 	{
-		base.OnDestroy();
+		base.OnDisable();
 	}
 
 	public bool HasCompatibleFacility(AIWorker worker)

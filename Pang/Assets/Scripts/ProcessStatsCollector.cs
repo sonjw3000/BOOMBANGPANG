@@ -14,29 +14,57 @@ public class ProcessStats
 public class ProcessStatsCollector : MonoBehaviour
 {
 	private readonly Dictionary<WorkerTask.TaskType, ProcessStats> stats = new();
+	private GameTime boundGameTime;
 
 	private void Awake()
 	{
-		foreach (WorkerTask.TaskType workerTask in Enum.GetValues(typeof(WorkerTask.TaskType)))
-		{
-			stats[workerTask] = new ProcessStats();
-		}
+		EnsureStatsInitialized();
+	}
+
+	private void OnEnable()
+	{
+		EnsureStatsInitialized();
+		TryBindGameTime();
 	}
 
 	private void Start()
 	{
-		if (GameContext.Instance.GameTime != null)
+		TryBindGameTime();
+	}
+
+	private void OnDisable()
+	{
+		UnbindGameTime();
+	}
+
+	private void EnsureStatsInitialized()
+	{
+		foreach (WorkerTask.TaskType workerTask in Enum.GetValues(typeof(WorkerTask.TaskType)))
 		{
-			GameContext.Instance.GameTime.OnWeekPassed += HandleWeekPassed;
+			if (stats.ContainsKey(workerTask) == false)
+				stats[workerTask] = new ProcessStats();
 		}
 	}
 
-	private void OnDestroy()
+	private void TryBindGameTime()
 	{
-		if (GameContext.Instance != null && GameContext.Instance.GameTime != null)
-		{
-			GameContext.Instance.GameTime.OnWeekPassed -= HandleWeekPassed;
-		}
+		if (boundGameTime != null || GameContext.HasInstance == false)
+			return;
+
+		GameTime gameTime = GameContext.Instance.GameTime;
+		if (gameTime == null)
+			return;
+
+		boundGameTime = gameTime;
+		boundGameTime.OnWeekPassed += HandleWeekPassed;
+	}
+
+	private void UnbindGameTime()
+	{
+		if (boundGameTime != null)
+			boundGameTime.OnWeekPassed -= HandleWeekPassed;
+
+		boundGameTime = null;
 	}
 
 	private void HandleWeekPassed()

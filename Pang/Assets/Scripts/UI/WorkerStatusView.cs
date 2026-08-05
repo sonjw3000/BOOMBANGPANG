@@ -15,42 +15,83 @@ public class WorkerStatusView : MonoBehaviour
 	[SerializeField] private float heightOffset = 1.5f;
 
 	private AIWorker worker;
-	private Dictionary<WorkerStatusAction, Sprite> spriteMap = new();
+	private readonly Dictionary<WorkerStatusAction, Sprite> spriteMap = new();
+	private InteractionContext boundInteraction;
+	private bool workerActionBound;
 
 	private void Awake()
 	{
-		worker = GetComponentInParent<AIWorker>();
-		foreach (var ss in statusSprites)
-		{
-			spriteMap[ss.action] = ss.sprite;
-		}
+		EnsureRuntimeReferences();
+	}
 
-		if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
+	private void OnEnable()
+	{
+		EnsureRuntimeReferences();
+		BindEvents();
+		RefreshStatus();
 	}
 
 	private void Start()
 	{
-		if (worker != null)
-		{
-			worker.OnActionChanged += HandleActionChanged;
-			HandleActionChanged(worker.WorkerState.Action);
-		}
-
-		if (GameContext.Instance != null && GameContext.Instance.InteractionCtx != null)
-		{
-			GameContext.Instance.InteractionCtx.OnItemSelected += HandleSelectionChanged;
-		}
-
-		UpdateVisibility();
+		BindEvents();
+		RefreshStatus();
 	}
 
-	private void OnDestroy()
+	private void OnDisable()
 	{
-		if (worker != null) worker.OnActionChanged -= HandleActionChanged;
-		if (GameContext.Instance != null && GameContext.Instance.InteractionCtx != null)
+		UnbindEvents();
+	}
+
+	private void EnsureRuntimeReferences()
+	{
+		if (worker == null)
+			worker = GetComponentInParent<AIWorker>();
+
+		if (spriteRenderer == null)
+			spriteRenderer = GetComponent<SpriteRenderer>();
+
+		spriteMap.Clear();
+		if (statusSprites == null)
+			return;
+
+		foreach (StatusSprite statusSprite in statusSprites)
+			spriteMap[statusSprite.action] = statusSprite.sprite;
+	}
+
+	private void BindEvents()
+	{
+		if (worker != null && workerActionBound == false)
 		{
-			GameContext.Instance.InteractionCtx.OnItemSelected -= HandleSelectionChanged;
+			worker.OnActionChanged += HandleActionChanged;
+			workerActionBound = true;
 		}
+
+		if (boundInteraction != null || GameContext.HasInstance == false)
+			return;
+
+		boundInteraction = GameContext.Instance.InteractionCtx;
+		if (boundInteraction != null)
+			boundInteraction.OnItemSelected += HandleSelectionChanged;
+	}
+
+	private void UnbindEvents()
+	{
+		if (worker != null && workerActionBound)
+			worker.OnActionChanged -= HandleActionChanged;
+
+		workerActionBound = false;
+		if (boundInteraction != null)
+			boundInteraction.OnItemSelected -= HandleSelectionChanged;
+
+		boundInteraction = null;
+	}
+
+	private void RefreshStatus()
+	{
+		if (worker != null)
+			HandleActionChanged(worker.WorkerState.Action);
+		else
+			UpdateVisibility();
 	}
 
 	private void HandleActionChanged(WorkerStatusAction action)
@@ -89,7 +130,7 @@ public class WorkerStatusView : MonoBehaviour
 
 		bool isAlwaysVisible = IsAlwaysVisible(action);
 
-		GameObject selected = GameContext.Instance.InteractionCtx.SelectedObject;
+		GameObject selected = boundInteraction?.SelectedObject;
 		bool isSelected = selected != null && (selected == worker.gameObject || selected.transform.IsChildOf(worker.transform));
 
 		if (isAlwaysVisible)
