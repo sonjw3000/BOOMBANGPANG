@@ -29,11 +29,22 @@ public class WorkerSpawnManager : MonoBehaviour
 
 	public Transform SpawnedWorkerRoot => spawnedWorkerRoot;
 
-	public bool TryHireWorker(WorkerArchetype archetype, UnityEngine.Object requester, out AIWorker spawnedWorker)
+	public bool TryHireWorker(
+		WorkerArchetype archetype,
+		WorkforceMarketData_SO market,
+		UnityEngine.Object requester,
+		out AIWorker spawnedWorker)
 	{
 		spawnedWorker = null;
-		if (archetype == null || GameContext.HasInstance == false)
+		if (archetype == null || market == null || GameContext.HasInstance == false)
 			return false;
+
+		ResearchService research = GameContext.Instance.ResearchService;
+		if (market.RequiresResearch && research?.IsResearched(market.RequiredResearchUid) != true)
+		{
+			Debug.LogWarning($"Worker hire rejected. Required research is incomplete: {market.RequiredResearchUid}");
+			return false;
+		}
 
 		EconomyService economy = GameContext.Instance.EconomyService;
 		int hireCost = Mathf.Max(0, archetype.AbilityDefinition.installCost);

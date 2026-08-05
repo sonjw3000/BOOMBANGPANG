@@ -10,6 +10,7 @@ public static class ResearchIds
 	public const string TemperatureMonitoring = "temperature_monitoring";
 	public const string ThermalOperations = "thermal_operations";
 	public const string IndoorWorkProtocols = "indoor_work_protocols";
+	public const string RoboticWorkforce = "robotic_workforce";
 	public const string NavigationNetwork = "navigation_network";
 	public const string TrafficControl = "traffic_control";
 	public const string HumanRecognition = "human_recognition";

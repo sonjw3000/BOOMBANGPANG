@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Robot_Transfer
   m_EditorClassIdentifier: Assembly-CSharp::RobotMarketData
   workforceMarketName: Transfer Robots
+  requiredResearchUid: robotic_workforce
   archetypeList:
   - WorkerNameDefinition:
       WorkerFirstName: Basic_Transfer_Robot

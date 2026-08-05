@@ -69,6 +69,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private WorkforceAssignmentModeController assignmentModeController;
 		private WorkerManager workerManager;
 		private EconomyService economyService;
+		private ResearchService researchService;
 		private WorkforceMarketData_SO selectedMarket;
 		private AIWorker selectedWorker;
 		private Building selectedBuilding;
@@ -266,12 +267,14 @@ namespace UniverseLogistics.UI.Toolkit
 			if (GameContext.HasInstance == false) return;
 			workerManager = GameContext.Instance.WorkerMgr;
 			economyService = GameContext.Instance.EconomyService;
+			researchService = GameContext.Instance.ResearchService;
 			if (workerManager != null)
 			{
 				workerManager.OnWorkersChanged += OnWorkersChanged;
 				workerManager.OnWorkerChanged += OnWorkerChanged;
 			}
 			if (economyService != null) economyService.OnMoneyChanged += OnMoneyChanged;
+			if (researchService != null) researchService.OnResearchStateChanged += OnResearchStateChanged;
 		}
 
 		private void UnbindServices()
@@ -282,8 +285,10 @@ namespace UniverseLogistics.UI.Toolkit
 				workerManager.OnWorkerChanged -= OnWorkerChanged;
 			}
 			if (economyService != null) economyService.OnMoneyChanged -= OnMoneyChanged;
+			if (researchService != null) researchService.OnResearchStateChanged -= OnResearchStateChanged;
 			workerManager = null;
 			economyService = null;
+			researchService = null;
 		}
 
 		private void OpenRoster() => SelectTab(true);
@@ -851,7 +856,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private void RefreshCategories()
 		{
 			categoryList.Clear();
-			if (ContainsMarket(selectedMarket) == false) selectedMarket = FirstMarket();
+			if (ContainsMarket(selectedMarket) == false || IsMarketUnlocked(selectedMarket) == false)
+				selectedMarket = FirstUnlockedMarket();
 			AddMarketButtons(humanMarkets, "Human");
 			AddMarketButtons(robotMarkets, "Robot");
 		}
@@ -863,15 +869,24 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				WorkforceMarketData_SO market = markets[i];
 				if (market == null) continue;
-				Button button = new(() => SelectMarket(market)) { text = $"{prefix} · {market.WorkForceMarketName}" };
+				bool unlocked = IsMarketUnlocked(market);
+				string suffix = unlocked ? string.Empty : $" · Requires {GetResearchName(market.RequiredResearchUid)}";
+				Button button = new(() => SelectMarket(market)) { text = $"{prefix} · {market.WorkForceMarketName}{suffix}" };
 				button.AddToClassList("workforce-category-button");
 				button.EnableInClassList(SelectedCategoryClass, market == selectedMarket);
+				button.SetEnabled(unlocked);
 				categoryList.Add(button);
 			}
 		}
 
 		private void SelectMarket(WorkforceMarketData_SO market)
 		{
+			if (IsMarketUnlocked(market) == false)
+			{
+				hiringMessage.text = $"Required research: {GetResearchName(market?.RequiredResearchUid)}.";
+				return;
+			}
+
 			selectedMarket = market;
 			RefreshCategories();
 			GenerateCandidates(market);
@@ -883,6 +898,11 @@ namespace UniverseLogistics.UI.Toolkit
 			hiredCandidates.Clear();
 			candidateList.Clear();
 			if (market == null) return;
+			if (IsMarketUnlocked(market) == false)
+			{
+				hiringMessage.text = $"Required research: {GetResearchName(market.RequiredResearchUid)}.";
+				return;
+			}
 			System.Random random = new(unchecked(Environment.TickCount * 397) ^ market.GetHashCode());
 			int count = Mathf.Min(CandidateCount, market.GetMaxCount());
 			for (int i = 0; i < count; ++i)
@@ -906,7 +926,8 @@ namespace UniverseLogistics.UI.Toolkit
 			row.Q<Label>("candidate-stats").text = $"Move {stats.baseMoveSpeedMultiplier:0.00} · Work {stats.baseWorkSpeedMultiplier:0.00}";
 			row.Q<Label>("candidate-cost").text = $"${ability.installCost:N0} + ${ability.monthlyCost:N0}/mo";
 			Button hireButton = row.Q<Button>("candidate-hire-button");
-			hireButton.SetEnabled(hiredCandidates.Contains(candidate) == false && economyService != null &&
+			hireButton.SetEnabled(IsMarketUnlocked(selectedMarket) &&
+				hiredCandidates.Contains(candidate) == false && economyService != null &&
 				economyService.CanAfford(Mathf.Max(0, ability.installCost)));
 			hireButton.clicked += () => Hire(candidate, hireButton);
 			return row;
@@ -914,6 +935,12 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void Hire(WorkerArchetype candidate, Button hireButton)
 		{
+			if (IsMarketUnlocked(selectedMarket) == false)
+			{
+				hiringMessage.text = $"Required research: {GetResearchName(selectedMarket?.RequiredResearchUid)}.";
+				return;
+			}
+
 			int cost = Mathf.Max(0, candidate.AbilityDefinition.installCost);
 			if (economyService == null || economyService.CanAfford(cost) == false)
 			{
@@ -922,7 +949,7 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 			WorkerSpawnManager spawnManager = GameContext.HasInstance ? GameContext.Instance.WorkerSpawnMgr : null;
 			hiredCandidates.Add(candidate);
-			if (spawnManager == null || spawnManager.TryHireWorker(candidate, this, out AIWorker worker) == false)
+			if (spawnManager == null || spawnManager.TryHireWorker(candidate, selectedMarket, this, out AIWorker worker) == false)
 			{
 				hiredCandidates.Remove(candidate);
 				hiringMessage.text = "Hiring failed. Check that a matching Worker Spawn Area has available space.";
@@ -946,6 +973,12 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnMoneyChanged(int _) => RefreshCandidateAffordability();
 
+		private void OnResearchStateChanged()
+		{
+			if (initialized)
+				GenerateCandidatesOnOpen();
+		}
+
 		private void RefreshCandidateAffordability()
 		{
 			if (selectedMarket != null) DisplayExistingCandidates();
@@ -964,14 +997,32 @@ namespace UniverseLogistics.UI.Toolkit
 			for (int i = 0; i < markets.Count; ++i) if (markets[i] == market) return true;
 			return false;
 		}
-		private WorkforceMarketData_SO FirstMarket() => FirstMarket(humanMarkets) ?? FirstMarket(robotMarkets);
-		private static WorkforceMarketData_SO FirstMarket(IReadOnlyList<WorkforceMarketData_SO> markets)
+		private WorkforceMarketData_SO FirstUnlockedMarket() =>
+			FirstUnlockedMarket(humanMarkets) ?? FirstUnlockedMarket(robotMarkets);
+
+		private WorkforceMarketData_SO FirstUnlockedMarket(IReadOnlyList<WorkforceMarketData_SO> markets)
 		{
 			if (markets == null) return null;
-			for (int i = 0; i < markets.Count; ++i) if (markets[i] != null) return markets[i];
+			for (int i = 0; i < markets.Count; ++i)
+			{
+				if (IsMarketUnlocked(markets[i])) return markets[i];
+			}
 			return null;
 		}
 
+		private bool IsMarketUnlocked(WorkforceMarketData_SO market)
+		{
+			return market != null &&
+				(market.RequiresResearch == false || researchService?.IsResearched(market.RequiredResearchUid) == true);
+		}
+
+		private string GetResearchName(string researchUid)
+		{
+			if (researchService?.Catalog?.TryGet(researchUid, out ResearchDefinition definition) == true)
+				return definition.DisplayName;
+
+			return string.IsNullOrWhiteSpace(researchUid) ? "Unknown Research" : researchUid;
+		}
 		private static uint GetEditingBuildingId(AIWorker worker)
 		{
 			if (worker == null)
