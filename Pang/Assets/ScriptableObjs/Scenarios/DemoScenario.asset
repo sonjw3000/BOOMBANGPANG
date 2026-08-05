@@ -44,6 +44,17 @@ MonoBehaviour:
     - thermal_operations
     requireMinimumReputation: 0
     minimumReputation: 0
+  - objectiveId: robot_traffic_control
+    title: Establish Robot Traffic Control
+    description: Research Traffic Control and Human Recognition.
+    requiredSettledOrderCount: 0
+    requireOnTime: 0
+    targetContract: {fileID: 0}
+    requiredResearchUids:
+    - traffic_control
+    - human_recognition
+    requireMinimumReputation: 0
+    minimumReputation: 0
   - objectiveId: cold_chain_operation
     title: Complete the Cold-Chain Trial
     description: Complete a Lunar Produce Cold Chain order on time and reach 50 reputation.

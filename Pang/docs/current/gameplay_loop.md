@@ -131,7 +131,8 @@ The demo uses an ordered scenario objective sequence:
 1. Complete the first order.
 2. Complete three orders before their deadlines.
 3. Research Temperature Monitoring and Thermal Operations.
-4. Complete a Lunar Produce Cold Chain order on time and reach 50 reputation.
+4. Research Traffic Control and Human Recognition.
+5. Complete a Lunar Produce Cold Chain order on time and reach 50 reputation.
 
 `ScenarioObjectiveService` reads state and events from the owning Order, Research, and Economy systems. It does not mutate their gameplay state. The objective definitions are authored in `DemoScenario.asset`, while only runtime progress is saved.
 
