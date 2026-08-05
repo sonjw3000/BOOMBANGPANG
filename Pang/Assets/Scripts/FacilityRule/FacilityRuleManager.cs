@@ -14,6 +14,8 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 	private readonly Dictionary<GameObject, IFacility> facilitiesByObject = new();
 	private static readonly IReadOnlyList<IFacility> EmptyFacilities = Array.Empty<IFacility>();
 	private ItemDefinition gridOverlayItemFilter;
+	private FacilityManager boundFacilityManager;
+	[NonSerialized] private bool presetLookupInitialized;
 
 	public IReadOnlyList<FacilityRulePreset> Presets => presets;
 	public bool HasGridOverlayItemFilter => gridOverlayItemFilter != null;
@@ -29,29 +31,25 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 
 	private void Awake()
 	{
-		RebuildPresetLookup();
+		EnsurePresetLookup();
+	}
+
+	private void OnEnable()
+	{
+		EnsurePresetLookup();
+		if (TryBindFacilityManager())
+			RebuildAppliedFacilityLookup();
 	}
 
 	private void Start()
 	{
-		if (GameContext.HasInstance && GameContext.Instance.FacilityMgr != null)
-		{
-			GameContext.Instance.FacilityMgr.SubscribeFacilityRegister<IFacility>(
-				HandleFacilityRegistered,
-				HandleFacilityUnregistered);
-		}
-
-		RebuildAppliedFacilityLookup();
+		if (TryBindFacilityManager())
+			RebuildAppliedFacilityLookup();
 	}
 
-	private void OnDestroy()
+	private void OnDisable()
 	{
-		if (GameContext.HasInstance && GameContext.Instance.FacilityMgr != null)
-		{
-			GameContext.Instance.FacilityMgr.UnsubscribeFacilityRegister<IFacility>(
-				HandleFacilityRegistered,
-				HandleFacilityUnregistered);
-		}
+		UnbindFacilityManager();
 	}
 
 #if UNITY_EDITOR
@@ -86,19 +84,29 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 		OnGridOverlayRefreshRequested?.Invoke();
 	}
 
+	private void EnsurePresetLookup()
+	{
+		if (presetLookupInitialized)
+			return;
+
+		RebuildPresetLookup();
+		presetLookupInitialized = true;
+	}
+
 	public void RebuildAppliedFacilityLookup()
 	{
 		facilitiesByPresetId.Clear();
-		if (GameContext.HasInstance == false || GameContext.Instance.FacilityMgr == null)
+		FacilityManager facilityManager = ResolveFacilityManager();
+		if (facilityManager == null)
 		{
 			OnGridOverlayRefreshRequested?.Invoke();
 			return;
 		}
 
-		IReadOnlyList<uint> buildingIds = GameContext.Instance.FacilityMgr.GetBuildingIds();
+		IReadOnlyList<uint> buildingIds = facilityManager.GetBuildingIds();
 		for (int i = 0; i < buildingIds.Count; ++i)
 		{
-			IReadOnlyList<IFacility> facilities = GameContext.Instance.FacilityMgr.GetFacilities<IFacility>(buildingIds[i]);
+			IReadOnlyList<IFacility> facilities = facilityManager.GetFacilities<IFacility>(buildingIds[i]);
 			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
 				AddFacilityToAppliedLookup(facilities[facilityIndex]);
 		}
@@ -210,13 +218,12 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 
 	public bool TryFillGridOverlay(Color32[] buffer, int floor)
 	{
-		if (GameContext.HasInstance == false || GameContext.Instance.GridService == null ||
-			GameContext.Instance.GridService.IsReady == false || GameContext.Instance.FacilityMgr == null)
+		GridService gridService = GameContext.HasInstance ? GameContext.Instance.GridService : null;
+		if (gridService == null || gridService.IsReady == false || ResolveFacilityManager() == null)
 		{
 			return false;
 		}
 
-		GridService gridService = GameContext.Instance.GridService;
 		Unity.Mathematics.int3 size = gridService.MapSize;
 		if (buffer == null || buffer.Length < size.x * size.z || floor < 0 || floor >= size.y)
 			return false;
@@ -271,7 +278,10 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 	private void RebuildFacilityObjectLookup()
 	{
 		facilitiesByObject.Clear();
-		FacilityManager facilityManager = GameContext.Instance.FacilityMgr;
+		FacilityManager facilityManager = ResolveFacilityManager();
+		if (facilityManager == null)
+			return;
+
 		IReadOnlyList<uint> buildingIds = facilityManager.GetBuildingIds();
 
 		for (int i = 0; i < buildingIds.Count; ++i)
@@ -311,13 +321,14 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 	public int GetNoRuleFacilityCount()
 	{
 		int count = 0;
-		if (GameContext.HasInstance == false || GameContext.Instance.FacilityMgr == null)
+		FacilityManager facilityManager = ResolveFacilityManager();
+		if (facilityManager == null)
 			return count;
 
-		IReadOnlyList<uint> buildingIds = GameContext.Instance.FacilityMgr.GetBuildingIds();
+		IReadOnlyList<uint> buildingIds = facilityManager.GetBuildingIds();
 		for (int i = 0; i < buildingIds.Count; ++i)
 		{
-			IReadOnlyList<IFacility> facilities = GameContext.Instance.FacilityMgr.GetFacilities<IFacility>(buildingIds[i]);
+			IReadOnlyList<IFacility> facilities = facilityManager.GetFacilities<IFacility>(buildingIds[i]);
 			for (int facilityIndex = 0; facilityIndex < facilities.Count; ++facilityIndex)
 			{
 				IFacility facility = facilities[facilityIndex];
@@ -327,6 +338,42 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 		}
 
 		return count;
+	}
+
+	private bool TryBindFacilityManager()
+	{
+		if (boundFacilityManager != null || GameContext.HasInstance == false)
+			return false;
+
+		FacilityManager facilityManager = GameContext.Instance.FacilityMgr;
+		if (facilityManager == null)
+			return false;
+
+		boundFacilityManager = facilityManager;
+		boundFacilityManager.SubscribeFacilityRegister<IFacility>(
+			HandleFacilityRegistered,
+			HandleFacilityUnregistered);
+		return true;
+	}
+
+	private void UnbindFacilityManager()
+	{
+		if (boundFacilityManager != null)
+		{
+			boundFacilityManager.UnsubscribeFacilityRegister<IFacility>(
+				HandleFacilityRegistered,
+				HandleFacilityUnregistered);
+		}
+
+		boundFacilityManager = null;
+	}
+
+	private FacilityManager ResolveFacilityManager()
+	{
+		if (boundFacilityManager != null)
+			return boundFacilityManager;
+
+		return GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
 	}
 
 	public bool IsFacilityAllowed(IFacility facility, in FacilityFilter filter)

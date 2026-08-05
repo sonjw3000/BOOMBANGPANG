@@ -59,12 +59,43 @@ public class SelectionUIMaster : MonoBehaviour
 	private SelectionCardHud selectionCardHud = null;
 	private bool temperatureMonitoringUnlocked;
 	private IGridPlaceable currentPlaceable = null;
+	private InteractionContext boundInteraction;
+	private ResearchService boundResearchService;
 
-	private InteractionContext Interaction => GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null;
+	private InteractionContext Interaction => boundInteraction ??
+		(GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null);
 
 	private void Awake()
 	{
+		EnsureRuntimeState();
+	}
+
+	private void OnEnable()
+	{
+		EnsureRuntimeState();
+		BindEvents();
+		RefreshSelectionAfterEnable();
+	}
+
+	private void Start()
+	{
+		EnsureRuntimeState();
+		BindEvents();
+		RefreshSelectionAfterEnable();
+	}
+
+	private void EnsureRuntimeState()
+	{
 		EnsureHighlightVisuals();
+		RebuildProviderTypes();
+		EnsureHighlightRoot();
+		EnsureModeHud();
+		EnsureSelectionCardHud();
+	}
+
+	private void RebuildProviderTypes()
+	{
+		providerTypes.Clear();
 		providerTypes.Add(typeof(CapsuleBufferUIProvider));
 		providerTypes.Add(typeof(PowerHubUIProvider));
 		providerTypes.Add(typeof(NavigationHubUIProvider));
@@ -82,24 +113,6 @@ public class SelectionUIMaster : MonoBehaviour
 		providerTypes.Add(typeof(HumanWorkerUIProvider));
 		providerTypes.Add(typeof(AreaUIProvider));
 		providerTypes.Add(typeof(BuildingUIProvider));
-
-		EnsureHighlightRoot();
-		EnsureModeHud();
-
-		if (Interaction != null)
-		{
-			Interaction.OnItemSelected += OnSelected;
-			Interaction.OnModeChanged += HandleInteractionModeChanged;
-		}
-		if (GameContext.HasInstance)
-		{
-			temperatureMonitoringUnlocked = IsTemperatureMonitoringUnlocked();
-			GameContext.Instance.ResearchService.OnResearchStateChanged += HandleResearchStateChanged;
-		}
-
-		EnsureSelectionCardHud();
-
-		RefreshModeHud();
 	}
 
 	private void OnValidate()
@@ -112,15 +125,53 @@ public class SelectionUIMaster : MonoBehaviour
 		selectionCardHud?.Hide();
 		selectionCardHud?.SetActions(null, null);
 
-		if (Interaction != null)
+		if (boundInteraction != null)
 		{
-			Interaction.OnItemSelected -= OnSelected;
-			Interaction.OnModeChanged -= HandleInteractionModeChanged;
+			boundInteraction.OnItemSelected -= OnSelected;
+			boundInteraction.OnModeChanged -= HandleInteractionModeChanged;
 		}
-		if (GameContext.HasInstance)
-			GameContext.Instance.ResearchService.OnResearchStateChanged -= HandleResearchStateChanged;
+		if (boundResearchService != null)
+			boundResearchService.OnResearchStateChanged -= HandleResearchStateChanged;
+
+		boundInteraction = null;
+		boundResearchService = null;
 
 		HideWorldHighlights();
+	}
+
+	private void BindEvents()
+	{
+		if (boundInteraction == null && GameContext.HasInstance)
+		{
+			boundInteraction = GameContext.Instance.InteractionCtx;
+			if (boundInteraction != null)
+			{
+				boundInteraction.OnItemSelected += OnSelected;
+				boundInteraction.OnModeChanged += HandleInteractionModeChanged;
+			}
+		}
+
+		if (boundResearchService == null && GameContext.HasInstance)
+		{
+			boundResearchService = GameContext.Instance.ResearchService;
+			if (boundResearchService != null)
+			{
+				temperatureMonitoringUnlocked = IsTemperatureMonitoringUnlocked();
+				boundResearchService.OnResearchStateChanged += HandleResearchStateChanged;
+			}
+		}
+	}
+
+	private void RefreshSelectionAfterEnable()
+	{
+		GameObject selectedObject = boundInteraction?.SelectedObject;
+		if (selectedObject != currentObj || currentProvider == null)
+			OnSelected(selectedObject);
+		else
+		{
+			RefreshWorldHighlights();
+			RefreshModeHud();
+		}
 	}
 
 	private void Update()
@@ -324,42 +375,65 @@ public class SelectionUIMaster : MonoBehaviour
 
 	private void EnsureHighlightRoot()
 	{
-		if (selectionHighlightRoot != null)
+		if (selectionHighlightRoot == null)
 		{
-			EnsureHighlightPools();
-			return;
+			Transform existingRoot = transform.Find("SelectionHighlightRoot");
+			selectionHighlightRoot = existingRoot != null ? existingRoot.gameObject : null;
 		}
 
-		selectionHighlightRoot = new GameObject("SelectionHighlightRoot");
-		selectionHighlightRoot.transform.SetParent(transform, false);
+		if (selectionHighlightRoot == null)
+		{
+			selectionHighlightRoot = new GameObject("SelectionHighlightRoot");
+			selectionHighlightRoot.transform.SetParent(transform, false);
+		}
+		else if (interactionHighlightPool == null || interactionLabelPool == null)
+		{
+			ClearUnmanagedHighlightChildren();
+		}
+
 		EnsureHighlightPools();
 	}
 
 	private void EnsureModeHud()
 	{
-		if (interactionModeHudDocument != null)
-			return;
+		if (interactionModeHudDocument == null)
+			interactionModeHudDocument = FindNamedComponent<UIDocument>(transform, "InteractionModeHudDocument");
 
-		if (interactionModeHudVisualTreeAsset == null || interactionModeHudPanelSettings == null)
+		if (interactionModeHudDocument == null &&
+			(interactionModeHudVisualTreeAsset == null || interactionModeHudPanelSettings == null))
 		{
 			Debug.LogError("[SelectionUIMaster] InteractionModeHud Toolkit assets are missing.", this);
 			return;
 		}
 
-		GameObject documentObject = new("InteractionModeHudDocument");
-		documentObject.SetActive(false);
-		documentObject.transform.SetParent(transform, false);
-		interactionModeHudDocument = documentObject.AddComponent<UIDocument>();
-		interactionModeHudDocument.panelSettings = interactionModeHudPanelSettings;
-		interactionModeHudDocument.visualTreeAsset = interactionModeHudVisualTreeAsset;
-		interactionModeHudDocument.sortingOrder = interactionModeHudSortingOrder;
-		documentObject.SetActive(true);
+		if (interactionModeHudDocument == null)
+		{
+			GameObject documentObject = new("InteractionModeHudDocument");
+			documentObject.SetActive(false);
+			documentObject.transform.SetParent(transform, false);
+			interactionModeHudDocument = documentObject.AddComponent<UIDocument>();
+			interactionModeHudDocument.panelSettings = interactionModeHudPanelSettings;
+			interactionModeHudDocument.visualTreeAsset = interactionModeHudVisualTreeAsset;
+			interactionModeHudDocument.sortingOrder = interactionModeHudSortingOrder;
+			documentObject.SetActive(true);
+		}
 
 		VisualElement root = interactionModeHudDocument.rootVisualElement;
 		modeDomainText = root.Q<Label>("interaction-mode-domain");
 		modeActionText = root.Q<Label>("interaction-mode-action");
 		if (modeDomainText == null || modeActionText == null)
 			Debug.LogError("[SelectionUIMaster] InteractionModeHud UXML elements are missing.", this);
+	}
+
+	private void ClearUnmanagedHighlightChildren()
+	{
+		selectedHighlight = null;
+		for (int i = selectionHighlightRoot.transform.childCount - 1; i >= 0; --i)
+		{
+			Transform child = selectionHighlightRoot.transform.GetChild(i);
+			if (child != null)
+				Destroy(child.gameObject);
+		}
 	}
 
 	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)

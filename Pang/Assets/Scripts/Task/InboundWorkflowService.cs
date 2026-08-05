@@ -37,6 +37,9 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	[SerializeField] [Range(0f, 100f)] private float maximumInboundDamagePercent = QualityControlPolicy.DefaultMaximumDamagePercent;
 
 	private StoringPlanner storingPlanner;
+	// Keep the exact event publishers so teardown is independent of GameContext ordering.
+	private RocketService boundRocketService;
+	private AreaManager boundAreaManager;
 	private float timeSinceLastInboundRocketSpawn = 0.0f;
 	public InboundRequestService RequestService => requestService;
 	public StoringPlanner StoringPlanner => storingPlanner;
@@ -249,39 +252,26 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void Awake()
 	{
-		RebuildPlanner();
-	}
-
-	private void Start()
-	{
-		if (RocketService != null)
-			RocketService.InboundRocketLanded += OnInboundRocketLanded;
-		if (AreaManager != null)
-		{
-			AreaManager.OnAreaChanged += HandleAreaChanged;
-			AreaManager.OnAreaRemoved += HandleAreaChanged;
-		}
-
-		RetryActiveRocketUnloadingTasks();
+		EnsurePlanner();
 	}
 
 	private void OnEnable()
 	{
+		EnsurePlanner();
+		if (BindEvents())
+			RetryActiveRocketUnloadingTasks();
+	}
+
+	private void Start()
+	{
+		EnsurePlanner();
+		if (BindEvents())
+			RetryActiveRocketUnloadingTasks();
 	}
 
 	private void OnDisable()
 	{
-	}
-
-	private void OnDestroy()
-	{
-		if (RocketService != null)
-			RocketService.InboundRocketLanded -= OnInboundRocketLanded;
-		if (AreaManager != null)
-		{
-			AreaManager.OnAreaChanged -= HandleAreaChanged;
-			AreaManager.OnAreaRemoved -= HandleAreaChanged;
-		}
+		UnbindEvents();
 	}
 
 	private void HandleAreaChanged(Area area)
@@ -323,6 +313,54 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			defaultStoringCollectingPolicyType,
 			defaultStoringPlacingPolicyType,
 			storingBoxFillLimitPercent);
+	}
+
+	private void EnsurePlanner()
+	{
+		if (storingPlanner == null)
+			RebuildPlanner();
+	}
+
+	private bool BindEvents()
+	{
+		bool didBind = false;
+		if (boundRocketService == null)
+		{
+			boundRocketService = RocketService;
+			if (boundRocketService != null)
+			{
+				boundRocketService.InboundRocketLanded += OnInboundRocketLanded;
+				didBind = true;
+			}
+		}
+
+		if (boundAreaManager == null)
+		{
+			boundAreaManager = AreaManager;
+			if (boundAreaManager != null)
+			{
+				boundAreaManager.OnAreaChanged += HandleAreaChanged;
+				boundAreaManager.OnAreaRemoved += HandleAreaChanged;
+				didBind = true;
+			}
+		}
+
+		return didBind;
+	}
+
+	private void UnbindEvents()
+	{
+		if (boundRocketService != null)
+			boundRocketService.InboundRocketLanded -= OnInboundRocketLanded;
+
+		if (boundAreaManager != null)
+		{
+			boundAreaManager.OnAreaChanged -= HandleAreaChanged;
+			boundAreaManager.OnAreaRemoved -= HandleAreaChanged;
+		}
+
+		boundRocketService = null;
+		boundAreaManager = null;
 	}
 
 	internal CargoPort ResolveUnloadingDestinationPort(Rocket rocket, uint requestedBuildingId = 0)
