@@ -74,11 +74,19 @@ public class RobotWorker : AIWorker, IWearable
 	{
 		data.BatteryLevel = batteryLevel;
 		data.BatteryEfficiency = batteryEfficiency;
+		data.HasNavigationProfile = true;
+		data.NavigationDependency = navigationDependency;
+		data.RequiredNavigationCompute = requiredNavigationCompute;
 	}
 
 	protected override void RestoreSubclassState(WorkerSaveData data)
 	{
 		batteryLevel = data.BatteryLevel;
 		batteryEfficiency = data.BatteryEfficiency;
+		if (data.HasNavigationProfile)
+		{
+			navigationDependency = data.NavigationDependency;
+			requiredNavigationCompute = Mathf.Max(0, data.RequiredNavigationCompute);
+		}
 	}
 }

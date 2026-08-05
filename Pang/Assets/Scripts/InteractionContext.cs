@@ -74,6 +74,9 @@ public class InteractionContext
 	// placement
 	private FacingDirection direction = FacingDirection.North;
 	private PlaceableDefinition toBePlaced;
+	private readonly System.Collections.Generic.List<NavigationHub> relayPlacementCandidates = new();
+	private int relayPlacementCandidateIndex = -1;
+	private uint relayPlacementOwnerHubId;
 
 	// area placement
 	private AreaType areaToBePlaced;
@@ -221,6 +224,7 @@ public class InteractionContext
 
 		OnItemSelected?.Invoke(null);
 		OnPlacementChanged?.Invoke(toBePlaced);
+		UpdateRelayPlacementOwner(mousePos, false);
 	}
 
 	public void EnterBuildingSelectMode()
@@ -303,6 +307,7 @@ public class InteractionContext
 		SetMode(InteractionDomain.Facility, InteractionAction.Select);
 		toBePlaced = null;
 		hasAreaPlacementStart = false;
+		ClearRelayPlacementOwner();
 
 		OnPlacementChanged?.Invoke(null);
 	}
@@ -374,6 +379,7 @@ public class InteractionContext
 		switch (Mode)
 		{
 			case InteractionMode.FacilityPlacement:
+				UpdateRelayPlacementOwner(mousePos, false);
 				OnMouseChangedOnPlacement?.Invoke(mousePos);
 				break;
 
@@ -463,7 +469,15 @@ public class InteractionContext
 					dir: direction,
 					def: toBePlaced
 				);
-				GridService.OnInstall(ctx);
+				if (GridService.OnInstall(ctx) && relayPlacementOwnerHubId != 0)
+				{
+					GameObject installed = GridService.GetObjectOnGrid(mousePos);
+					if (installed != null && installed.TryGetComponent(out RelayNode relay) &&
+						GameContext.Instance.RobotNavigationSvc.TryGetHub(relayPlacementOwnerHubId, out NavigationHub owner))
+					{
+						GameContext.Instance.RobotNavigationSvc.TryAssignRelay(relay, owner);
+					}
+				}
 				break;
 
 			case InteractionMode.AreaEdit:
@@ -552,7 +566,68 @@ public class InteractionContext
 		if (Mode != InteractionMode.FacilityPlacement)
 			return;
 
-		direction = direction.Rotate90CW();
+		if (IsRelayPlacement())
+			UpdateRelayPlacementOwner(mousePos, true);
+		else
+			direction = direction.Rotate90CW();
 		OnMouseChangedOnPlacement?.Invoke(mousePos);
+	}
+
+	private bool IsRelayPlacement()
+	{
+		return toBePlaced?.prefab != null && toBePlaced.prefab.GetComponent<RelayNode>() != null;
+	}
+
+	private void ClearRelayPlacementOwner()
+	{
+		relayPlacementCandidates.Clear();
+		relayPlacementCandidateIndex = -1;
+		relayPlacementOwnerHubId = 0;
+	}
+
+	private void UpdateRelayPlacementOwner(in int3 position, bool cycle)
+	{
+		if (IsRelayPlacement() == false || GameContext.HasInstance == false)
+		{
+			ClearRelayPlacementOwner();
+			return;
+		}
+
+		uint previousOwner = relayPlacementOwnerHubId;
+		int previousCount = relayPlacementCandidates.Count;
+		RobotNavigationService service = GameContext.Instance.RobotNavigationSvc;
+		service.GetRelayInstallationCandidates(position, relayPlacementCandidates);
+		if (relayPlacementCandidates.Count == 0)
+		{
+			relayPlacementCandidateIndex = -1;
+			relayPlacementOwnerHubId = 0;
+		}
+		else
+		{
+			int retainedIndex = relayPlacementCandidates.FindIndex(hub => hub.RuntimeHubId == previousOwner);
+			relayPlacementCandidateIndex = retainedIndex >= 0 ? retainedIndex : 0;
+			if (cycle && relayPlacementCandidates.Count > 1)
+				relayPlacementCandidateIndex = (relayPlacementCandidateIndex + 1) % relayPlacementCandidates.Count;
+			relayPlacementOwnerHubId = relayPlacementCandidates[relayPlacementCandidateIndex].RuntimeHubId;
+		}
+
+		if (previousOwner == relayPlacementOwnerHubId && previousCount == relayPlacementCandidates.Count && cycle == false)
+			return;
+
+		string message;
+		if (relayPlacementOwnerHubId == 0)
+		{
+			message = "Relay will be installed offline: no active hub covers this cell.";
+		}
+		else
+		{
+			NavigationHub hub = relayPlacementCandidates[relayPlacementCandidateIndex];
+			int radius = toBePlaced.prefab.GetComponent<RelayNode>().CoverageRadius;
+			int expansion = service.GetProjectedRelayExpansionCellCount(hub, position, radius);
+			message = $"Relay owner: Hub #{hub.RuntimeHubId} · projected +{expansion} cells";
+			if (relayPlacementCandidates.Count > 1)
+				message += " · Rotate to choose another hub";
+		}
+		GameContext.Instance.HudEventManager?.Publish(HudEventType.Info, message);
 	}
 }

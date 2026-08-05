@@ -34,6 +34,7 @@ public class TrafficCoordinator : MonoBehaviour
 	private GameContext Ctx => GameContext.Instance;
 	private GridService GridService => Ctx.GridService;
 	private WorkPolicyService WorkPolicy => Ctx.WMSys.WorkPolicyService;
+	private ResearchService Research => Ctx.ResearchService;
 
 	private readonly Queue<FindRoute> trafficResolveQueue = new();
 	private readonly HashSet<FindRoute> queuedRoutes = new();
@@ -202,10 +203,15 @@ public class TrafficCoordinator : MonoBehaviour
 
 		if (blockedBy == null)
 		{
-			UnregisterWait(requestedRoute);
-
 			if (GridService.IsBlocked(desiredCell))
 			{
+				if (CanReplanAroundStaticBlocker(requestedRoute) == false)
+				{
+					RegisterWait(requestedRoute, desiredCell);
+					return;
+				}
+
+				UnregisterWait(requestedRoute);
 				if (requestedRoute.RequestFreshRouteToCurrentGoal() == false)
 				{
 					requestedRoute.ResumeFromTraffic();
@@ -214,6 +220,7 @@ public class TrafficCoordinator : MonoBehaviour
 				return;
 			}
 
+			UnregisterWait(requestedRoute);
 			requestedRoute.ResumeFromTraffic();
 			return;
 		}
@@ -222,6 +229,12 @@ public class TrafficCoordinator : MonoBehaviour
 		{
 			UnregisterWait(requestedRoute);
 			requestedRoute.ResumeFromTraffic();
+			return;
+		}
+
+		if (CanResolveTraffic(requestedRoute) == false)
+		{
+			RegisterWait(requestedRoute, desiredCell);
 			return;
 		}
 
@@ -246,7 +259,9 @@ public class TrafficCoordinator : MonoBehaviour
 		{
 			if (IsDestinationBlockedBy(requestedRoute, blockedBy))
 			{
-				if (TryYieldIdleBlocker(blockedBy, requestedRoute))
+				if (CanYield(requestedRoute) &&
+					CanYield(blockedBy) &&
+					TryYieldIdleBlocker(blockedBy, requestedRoute))
 				{
 					RegisterWait(requestedRoute, desiredCell);
 					return;
@@ -256,7 +271,8 @@ public class TrafficCoordinator : MonoBehaviour
 				return;
 			}
 
-			if (requestedRoute.TryGetFutureToCell(out var idleFutureCell))
+			if (CanRequestDetour(requestedRoute) &&
+				requestedRoute.TryGetFutureToCell(out var idleFutureCell))
 			{
 				UnregisterWait(requestedRoute);
 				requestedRoute.RequestSubPath(idleFutureCell, blockedBy);
@@ -267,7 +283,8 @@ public class TrafficCoordinator : MonoBehaviour
 			return;
 		}
 
-		if (requestedRoute.TryGetFutureToCell(out var futureCell))
+		if (CanRequestDetour(requestedRoute) &&
+			requestedRoute.TryGetFutureToCell(out var futureCell))
 		{
 			UnregisterWait(requestedRoute);
 			requestedRoute.RequestSubPath(futureCell, blockedBy);
@@ -282,7 +299,10 @@ public class TrafficCoordinator : MonoBehaviour
 		if (TryGetWaitingDesiredCell(blockedBy, out var blockerDesiredCell) &&
 			blockerDesiredCell.Equals(requestedRoute.TrafficFromCell))
 		{
-			ResolveHeadOnDeadlock(requestedRoute, blockedBy);
+			if (CanResolvePriority(requestedRoute))
+				ResolveHeadOnDeadlock(requestedRoute, blockedBy);
+			else
+				RegisterWait(requestedRoute, desiredCell);
 			return;
 		}
 
@@ -298,7 +318,7 @@ public class TrafficCoordinator : MonoBehaviour
 		FindRoute low = routeAHasPriority ? routeB : routeA;
 		FindRoute highOwner = GetEffectivePriorityRoute(high);
 
-		if (low.TryGetFutureToCell(out var lowFutureCell))
+		if (CanRequestDetour(low) && low.TryGetFutureToCell(out var lowFutureCell))
 		{
 			UnregisterWait(low);
 			RegisterClearingRoute(low, highOwner);
@@ -368,7 +388,10 @@ public class TrafficCoordinator : MonoBehaviour
 
 	private bool TryStartOneTileYield(FindRoute yieldingRoute, FindRoute priorityRoute, FindRoute priorityOwner)
 	{
-		if (yieldingRoute == null || priorityRoute == null || yieldHolds.ContainsKey(yieldingRoute))
+		if (yieldingRoute == null ||
+			priorityRoute == null ||
+			CanYield(yieldingRoute) == false ||
+			yieldHolds.ContainsKey(yieldingRoute))
 			return false;
 
 		if (yieldingRoute.TryGetCurrentGoalCell(out var originalGoal) == false)
@@ -444,6 +467,24 @@ public class TrafficCoordinator : MonoBehaviour
 		}
 
 		return false;
+	}
+
+	private bool CanResolveTraffic(FindRoute route) => HasTrafficControlCapability(route);
+
+	private bool CanReplanAroundStaticBlocker(FindRoute route) => HasTrafficControlCapability(route);
+
+	private bool CanRequestDetour(FindRoute route) => HasTrafficControlCapability(route);
+
+	private bool CanYield(FindRoute route) => HasTrafficControlCapability(route);
+
+	private bool CanResolvePriority(FindRoute route) => HasTrafficControlCapability(route);
+
+	private bool HasTrafficControlCapability(FindRoute route)
+	{
+		if (route?.Worker is not RobotWorker robot)
+			return true;
+
+		return robot.IsPlayerOverride || Research?.IsResearched(ResearchIds.TrafficControl) == true;
 	}
 
 	private bool CanUseAsIdleYieldCell(in int3 candidate, FindRoute blocker, FindRoute requestedRoute)

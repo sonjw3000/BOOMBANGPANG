@@ -246,8 +246,13 @@ public sealed class GameSaveService : MonoBehaviour
 		foreach (PlaceableSaveData placeableData in data.Placeables.Where(p => p.IsWorker == false))
 			InstantiatePlaceable(placeableData, restoredPlaceables, workersById, restoredOrderLines);
 
+		RestoreNavigationRelayOwners(data.Placeables, restoredPlaceables);
+		Ctx.PowerSvc.RebuildConnections();
+		Ctx.RobotNavigationSvc.RebuildRuntimeState();
+
 		foreach (PlaceableSaveData placeableData in data.Placeables.Where(p => p.IsWorker))
 			InstantiatePlaceable(placeableData, restoredPlaceables, workersById, restoredOrderLines);
+		Ctx.RobotNavigationSvc.RebuildRuntimeState();
 
 		Ctx.WorkplaceIncidentSvc.RestoreState(data.WorkplaceIncidents);
 
@@ -368,7 +373,7 @@ public sealed class GameSaveService : MonoBehaviour
 					continue;
 				}
 
-				if (worker.SetTask(task))
+				if (worker.RestoreTaskFromSave(task))
 				{
 					if (carriedBox != null)
 						task.TrackPayloadBox(carriedBox);
@@ -414,6 +419,9 @@ public sealed class GameSaveService : MonoBehaviour
 				RestoreCoordinatorOwnership(task);
 			}
 		}
+
+		foreach (AIWorker worker in workersById.Values)
+			worker?.FinalizeNavigationRestoreFromSave();
 
 		Ctx.CapsuleRelocateCoordinator.EndRestore();
 		Ctx.WasteCollectionPlanner.EndRestore();
@@ -614,6 +622,12 @@ public sealed class GameSaveService : MonoBehaviour
 			data.IsWorker = true;
 			data.Worker = worker.CaptureState();
 		}
+		if (obj.TryGetComponent<RelayNode>(out RelayNode relay) &&
+			relay.OwnerHubId != 0 &&
+			Ctx.RobotNavigationSvc.TryGetHub(relay.OwnerHubId, out NavigationHub ownerHub))
+		{
+			data.OwnerNavigationHubSaveId = GetPlaceableIdOrDefault(ownerHub.gameObject);
+		}
 
 		if (obj.TryGetComponent<ShelfBase>(out var shelf))
 		{
@@ -651,6 +665,32 @@ public sealed class GameSaveService : MonoBehaviour
 		}
 
 		return data;
+	}
+
+	private void RestoreNavigationRelayOwners(
+		IReadOnlyList<PlaceableSaveData> placeables,
+		IReadOnlyDictionary<int, GameObject> restoredPlaceables)
+	{
+		if (placeables == null || restoredPlaceables == null)
+			return;
+
+		for (int i = 0; i < placeables.Count; ++i)
+		{
+			PlaceableSaveData save = placeables[i];
+			if (save == null || save.OwnerNavigationHubSaveId < 0)
+				continue;
+			if (restoredPlaceables.TryGetValue(save.SaveId, out GameObject relayObject) == false ||
+				relayObject.TryGetComponent(out RelayNode relay) == false)
+				continue;
+
+			bool restored = restoredPlaceables.TryGetValue(save.OwnerNavigationHubSaveId, out GameObject hubObject) &&
+				hubObject.TryGetComponent(out NavigationHub hub) &&
+				Ctx.RobotNavigationSvc.TryRestoreRelayOwner(relay, hub);
+			if (restored)
+				continue;
+
+			Debug.LogWarning($"[Save] Relay {save.SaveId} could not restore Navigation Hub {save.OwnerNavigationHubSaveId}.");
+		}
 	}
 
 	private IEnumerable<TaskSaveData> CaptureTasks(IReadOnlyDictionary<WorkerTask.TaskType, LinkedList<WorkerTask>> source, bool isInProgress)

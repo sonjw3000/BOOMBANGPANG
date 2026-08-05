@@ -54,6 +54,9 @@ public abstract partial class AIWorker
 			StatusTarget = workerState.Target,
 			OperationalState = operationalState,
 			ControlMode = ControlMode,
+			NavigationRescueOverride = navigationRescueOverride,
+			HasNavigationRescueGoal = hasNavigationRescueGoal,
+			NavigationRescueGoal = new Int3SaveData(navigationRescueGoal.x, navigationRescueGoal.y, navigationRescueGoal.z),
 			CarriedMovementCells = routeFinder != null ? routeFinder.TravelledCellsSinceLastConsume : 0,
 			CarryingBox = null,
 		};
@@ -140,7 +143,8 @@ public abstract partial class AIWorker
 			workerState = new WorkerStatusInfo(WorkerStatusAction.Idle, WorkerStatusTarget.None);
 		}
 		operationalState = data.OperationalState;
-		RestorePlayerOverrideState(data.ControlMode);
+		RestorePlayerOverrideState(data.ControlMode, data.NavigationRescueOverride, data.HasNavigationRescueGoal,
+			new Unity.Mathematics.int3(data.NavigationRescueGoal.X, data.NavigationRescueGoal.Y, data.NavigationRescueGoal.Z));
 		restoredCarriedMovementCells = Mathf.Max(0, data.CarriedMovementCells);
 		preTrafficAction = workerState.Action;
 		isTrafficBlocked = false;
@@ -167,4 +171,41 @@ public abstract partial class AIWorker
 
 	protected virtual void CaptureSubclassState(WorkerSaveData data) { }
 	protected virtual void RestoreSubclassState(WorkerSaveData data) { }
+
+	internal bool RestoreTaskFromSave(WorkerTask task)
+	{
+		if (task == null || IsOperational == false || IsRecovering)
+			return false;
+		if (IsPlayerOverride && navigationRescueOverride == false)
+			return false;
+		if (task.SetAIWorker(this) == false)
+			return false;
+
+		currentTask = task;
+		if (navigationRescueOverride)
+		{
+			navigationRescueTask = task;
+			navigationRescueBox = CarryingAbility?.CarryingBox;
+		}
+		else if (CanUseAutomaticNavigation(out RobotNavigationWaitReason reason) == false)
+		{
+			BeginNavigationWait(reason);
+		}
+
+		if (GameContext.HasInstance)
+			WorkerMgr.RemoveIdleWorker(this);
+		BuildBehaviorTree();
+		enabled = true;
+		return true;
+	}
+
+	internal void FinalizeNavigationRestoreFromSave()
+	{
+		if (navigationRescueOverride && navigationRescueTask == null)
+		{
+			navigationRescueOverride = false;
+			navigationRescueBox = null;
+			hasNavigationRescueGoal = false;
+		}
+	}
 }

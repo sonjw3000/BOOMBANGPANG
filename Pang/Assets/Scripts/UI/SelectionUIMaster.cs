@@ -67,6 +67,8 @@ public class SelectionUIMaster : MonoBehaviour
 		EnsureHighlightVisuals();
 		providerTypes.Add(typeof(CapsuleBufferUIProvider));
 		providerTypes.Add(typeof(PowerHubUIProvider));
+		providerTypes.Add(typeof(NavigationHubUIProvider));
+		providerTypes.Add(typeof(RelayNodeUIProvider));
 		providerTypes.Add(typeof(CargoPortUIProvider));
 		providerTypes.Add(typeof(AirlockUIProvider));
 		providerTypes.Add(typeof(RefrigerationUnitUIProvider));

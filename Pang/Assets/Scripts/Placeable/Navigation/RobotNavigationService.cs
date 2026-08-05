@@ -3,8 +3,17 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-public sealed class RobotNavigationService : MonoBehaviour
+public sealed class RobotNavigationService : MonoBehaviour, IGridOverlayProvider
 {
+	private static readonly Color32[] HubOverlayColors =
+	{
+		new(48, 190, 255, 210),
+		new(122, 232, 121, 210),
+		new(255, 190, 70, 210),
+		new(208, 116, 255, 210),
+		new(255, 104, 137, 210),
+		new(80, 232, 207, 210),
+	};
 	private sealed class RobotAllocation
 	{
 		public int RegionId;
@@ -48,8 +57,10 @@ public sealed class RobotNavigationService : MonoBehaviour
 	public IReadOnlyList<RelayNode> InstalledRelays => installedRelays;
 	public int GetAssignedCompute(uint hubId) => GetCompute(assignedComputeByHub, hubId);
 	public int GetReservedCompute(uint hubId) => GetCompute(reservedComputeByHub, hubId);
+	public bool HideZeroAlphaPixels => true;
 
 	public event Action<int> OnCoverageChanged;
+	public event Action OnGridOverlayRefreshRequested;
 
 	private void OnEnable()
 	{
@@ -183,6 +194,112 @@ public sealed class RobotNavigationService : MonoBehaviour
 	{
 		hub = null;
 		return hubId != 0 && hubsById.TryGetValue(hubId, out hub) && hub != null;
+	}
+
+	public int GetCoverageCellCount(uint hubId)
+	{
+		return coveredCellsByHub.TryGetValue(hubId, out HashSet<int3> cells) ? cells.Count : 0;
+	}
+
+	public int GetAllocatedRobotCount(uint hubId)
+	{
+		int count = 0;
+		foreach (RobotAllocation allocation in robotAllocations.Values)
+		{
+			if (allocation?.Shares != null && allocation.Shares.ContainsKey(hubId))
+				++count;
+		}
+		return count;
+	}
+
+	public void GetRelayInstallationCandidates(in int3 position, List<NavigationHub> results)
+	{
+		if (results == null)
+			return;
+		results.Clear();
+		for (int i = 0; i < installedHubs.Count; ++i)
+		{
+			NavigationHub hub = installedHubs[i];
+			if (CanInstallRelay(hub, position))
+				results.Add(hub);
+		}
+		results.Sort((a, b) => a.RuntimeHubId.CompareTo(b.RuntimeHubId));
+	}
+
+	public int GetProjectedRelayExpansionCellCount(NavigationHub hub, in int3 position, int radius)
+	{
+		if (hub == null || gridService == null || radius < 0)
+			return 0;
+
+		int count = 0;
+		int3 size = gridService.MapSize;
+		for (int y = Mathf.Max(0, position.y - radius); y <= Mathf.Min(size.y - 1, position.y + radius); ++y)
+		{
+			for (int x = Mathf.Max(0, position.x - radius); x <= Mathf.Min(size.x - 1, position.x + radius); ++x)
+			{
+				int remaining = radius - math.abs(y - position.y) - math.abs(x - position.x);
+				if (remaining < 0)
+					continue;
+				for (int z = Mathf.Max(0, position.z - remaining); z <= Mathf.Min(size.z - 1, position.z + remaining); ++z)
+				{
+					if (IsCellCoveredByHub(hub.RuntimeHubId, new int3(x, y, z)) == false)
+						++count;
+				}
+			}
+		}
+		return count;
+	}
+
+	public string GetRelayOfflineReason(RelayNode relay)
+	{
+		if (relay == null)
+			return "Relay unavailable";
+		if (relay.IsOperational == false)
+			return "Damaged";
+		if (relay.OwnerHubId == 0 || TryGetHub(relay.OwnerHubId, out NavigationHub hub) == false)
+			return "No owner hub";
+		if (hub.IsOperational == false)
+			return hub.HasPower ? "Owner hub damaged" : "Owner hub has no power";
+		if (relay.IsConnected == false)
+			return hub.ActiveRelayCount >= hub.RelayCapacity ? "Owner relay capacity reached" : "Disconnected from owner coverage";
+		return string.Empty;
+	}
+
+	public bool TryFillGridOverlay(Color32[] buffer, int floor)
+	{
+		if (gridService == null || gridService.IsReady == false)
+			return false;
+		int3 size = gridService.MapSize;
+		if (buffer == null || buffer.Length < size.x * size.z || floor < 0 || floor >= size.y)
+			return false;
+
+		for (int z = 0; z < size.z; ++z)
+		{
+			for (int x = 0; x < size.x; ++x)
+			{
+				int index = z * size.x + x;
+				IReadOnlyList<uint> hubIds = GetRegionHubIds(GetNavigationRegionId(new int3(x, floor, z)));
+				if (hubIds.Count == 0)
+				{
+					buffer[index] = default;
+					continue;
+				}
+
+				int red = 0;
+				int green = 0;
+				int blue = 0;
+				for (int i = 0; i < hubIds.Count; ++i)
+				{
+					Color32 color = HubOverlayColors[(int)((hubIds[i] - 1) % (uint)HubOverlayColors.Length)];
+					red += color.r;
+					green += color.g;
+					blue += color.b;
+				}
+				byte alpha = (byte)Mathf.Min(255, 185 + hubIds.Count * 20);
+				buffer[index] = new Color32((byte)(red / hubIds.Count), (byte)(green / hubIds.Count), (byte)(blue / hubIds.Count), alpha);
+			}
+		}
+		return true;
 	}
 
 	public bool IsCellCovered(in int3 position)
@@ -503,43 +620,18 @@ public sealed class RobotNavigationService : MonoBehaviour
 
 	private Dictionary<uint, int> BuildShares(RobotWorker robot, int regionId)
 	{
-		Dictionary<uint, int> shares = new();
 		if (robot == null || robot.RequiresOrchestrationCompute == false || robot.RequiredNavigationCompute <= 0)
-			return shares;
+			return new Dictionary<uint, int>();
 
 		IReadOnlyList<uint> hubIds = GetRegionHubIds(regionId);
-		if (hubIds.Count == 0)
-			return shares;
-
-		int baseShare = robot.RequiredNavigationCompute / hubIds.Count;
-		int remainder = robot.RequiredNavigationCompute % hubIds.Count;
-		for (int i = 0; i < hubIds.Count; ++i)
-		{
-			int share = baseShare + (i < remainder ? 1 : 0);
-			if (share > 0)
-				shares[hubIds[i]] = share;
-		}
-
-		return shares;
+		return RobotNavigationAllocationMath.SplitCompute(robot.RequiredNavigationCompute, hubIds);
 	}
 
 	private static Dictionary<uint, int> BuildPositiveDelta(
 		IReadOnlyDictionary<uint, int> current,
 		IReadOnlyDictionary<uint, int> target)
 	{
-		Dictionary<uint, int> result = new();
-		if (target == null)
-			return result;
-
-		foreach (KeyValuePair<uint, int> entry in target)
-		{
-			int currentValue = current != null && current.TryGetValue(entry.Key, out int value) ? value : 0;
-			int increase = entry.Value - currentValue;
-			if (increase > 0)
-				result[entry.Key] = increase;
-		}
-
-		return result;
+		return RobotNavigationAllocationMath.PositiveDelta(current, target);
 	}
 
 	private bool CanReserveIncreases(IReadOnlyDictionary<uint, int> increases)
@@ -554,7 +646,7 @@ public sealed class RobotNavigationService : MonoBehaviour
 
 			int assigned = GetCompute(assignedComputeByHub, entry.Key);
 			int reserved = GetCompute(reservedComputeByHub, entry.Key);
-			if ((long)assigned + reserved + entry.Value > hub.ComputeCapacity)
+			if (RobotNavigationAllocationMath.FitsCapacity(hub.ComputeCapacity, assigned, reserved, entry.Value) == false)
 				return false;
 		}
 
@@ -775,6 +867,15 @@ public sealed class RobotNavigationService : MonoBehaviour
 		return true;
 	}
 
+	public bool TryRestoreRelayOwner(RelayNode relay, NavigationHub hub)
+	{
+		if (relay == null || hub == null || installedRelays.Contains(relay) == false || installedHubs.Contains(hub) == false)
+			return false;
+
+		relay.SetOwnerHubId(hub.RuntimeHubId);
+		return true;
+	}
+
 	public bool CanInstallRelay(NavigationHub hub, in int3 position)
 	{
 		return hub != null && hub.IsOperational && IsCellCoveredByHub(hub.RuntimeHubId, position);
@@ -977,6 +1078,7 @@ public sealed class RobotNavigationService : MonoBehaviour
 		CoverageVersion = CoverageVersion == int.MaxValue ? 1 : CoverageVersion + 1;
 		ReconcileRobotAllocations();
 		OnCoverageChanged?.Invoke(CoverageVersion);
+		OnGridOverlayRefreshRequested?.Invoke();
 	}
 
 	private void HandleWorkerRegistered(AIWorker worker)

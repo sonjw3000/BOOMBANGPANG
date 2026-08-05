@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 12;
+	public int Version = 13;
 	public string SavedAtUtc;
 
 	public ScenarioObjectiveSaveData ScenarioObjective = new();
@@ -511,6 +511,7 @@ public sealed class PlaceableSaveData
 	public float Wear;
 	public float FireIntensity;
 	public bool IsFacilityDestroyed;
+	public int OwnerNavigationHubSaveId = -1;
 
 	public WorkerSaveData Worker;
 	public ShelfContainerSaveData Shelf;
@@ -569,6 +570,12 @@ public sealed class WorkerSaveData
 	public float PendingHumanIncidentHealthDamage;
 	public float BatteryLevel;
 	public float BatteryEfficiency;
+	public bool HasNavigationProfile;
+	public RobotNavigationDependency NavigationDependency;
+	public int RequiredNavigationCompute;
+	public bool NavigationRescueOverride;
+	public bool HasNavigationRescueGoal;
+	public Int3SaveData NavigationRescueGoal;
 	public bool IsSuitRemoved;
 	public BoxReferenceSaveData CarryingBox;
 }

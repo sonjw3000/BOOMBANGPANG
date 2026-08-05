@@ -14,6 +14,16 @@ public enum PlacementResult
 	TriedToMoveOutOfBound,
 }
 
+public enum WorkerRelocationFailureReason
+{
+	None,
+	InvalidWorker,
+	WorkerNotPlaced,
+	DestinationBlocked,
+	SourceReservationMismatch,
+	DestinationReserved,
+}
+
 public class PlacementResultPayload
 {
 	public readonly PlacementResult result;
@@ -595,10 +605,58 @@ public partial class GridService : MonoBehaviour
 
 	public bool CanRelocateWorkerForTransit(AIWorker worker, in int3 newCenter)
 	{
-		if (worker == null || placedObjects.TryGetValue(worker.gameObject, out PlacementContext context) == false)
-			return false;
+		return CanRelocateWorker(worker, newCenter, out _);
+	}
 
-		return CanRelocatePlacedObject(worker.gameObject, context, newCenter);
+	public bool CanRelocateWorker(
+		AIWorker worker,
+		in int3 newCenter,
+		out WorkerRelocationFailureReason reason)
+	{
+		if (worker == null)
+		{
+			reason = WorkerRelocationFailureReason.InvalidWorker;
+			return false;
+		}
+
+		if (placedObjects.TryGetValue(worker.gameObject, out PlacementContext context) == false)
+		{
+			reason = WorkerRelocationFailureReason.WorkerNotPlaced;
+			return false;
+		}
+
+		FindRoute route = worker.RouteFinder;
+		int3 previousCenter = context.center;
+		GridCell sourceCell = GetCell(previousCenter);
+		GridCell destinationCell = GetCell(newCenter);
+		if (destinationCell == null || IsFootprintInBounds(context, previousCenter) == false)
+		{
+			reason = WorkerRelocationFailureReason.DestinationBlocked;
+			return false;
+		}
+
+		if (route != null && sourceCell?.ReservedRoute != route)
+		{
+			reason = WorkerRelocationFailureReason.SourceReservationMismatch;
+			return false;
+		}
+
+		if (route != null &&
+			newCenter.Equals(previousCenter) == false &&
+			destinationCell.ReservedRoute != null)
+		{
+			reason = WorkerRelocationFailureReason.DestinationReserved;
+			return false;
+		}
+
+		if (CanRelocatePlacedObject(worker.gameObject, context, newCenter) == false)
+		{
+			reason = WorkerRelocationFailureReason.DestinationBlocked;
+			return false;
+		}
+
+		reason = WorkerRelocationFailureReason.None;
+		return true;
 	}
 
 	public bool TryUnreserve(FindRoute findRoute, in int3 pos)
@@ -608,19 +666,31 @@ public partial class GridService : MonoBehaviour
 
 	public bool TryRelocateWorkerForTransit(AIWorker worker, in int3 newCenter, FacingDirection direction)
 	{
-		if (worker == null || placedObjects.TryGetValue(worker.gameObject, out PlacementContext context) == false)
+		return TryRelocateWorker(worker, newCenter, direction, out _);
+	}
+
+	public bool TryRelocateWorker(
+		AIWorker worker,
+		in int3 newCenter,
+		FacingDirection direction,
+		out WorkerRelocationFailureReason reason)
+	{
+		if (CanRelocateWorker(worker, newCenter, out reason) == false)
 			return false;
 
-		if (CanRelocatePlacedObject(worker.gameObject, context, newCenter) == false)
-			return false;
-
+		PlacementContext context = placedObjects[worker.gameObject];
 		FindRoute route = worker.RouteFinder;
 		int3 previousCenter = context.center;
 		GridFootprint footprint = context.placeableDefinition.gridFootprint;
 		Vector2Int pivot = footprint.Pivot;
 
-		if (route != null)
-			TryUnreserve(route, previousCenter);
+		if (route != null && newCenter.Equals(previousCenter) == false && TryReserve(route, newCenter) == false)
+		{
+			reason = IsBlocked(newCenter)
+				? WorkerRelocationFailureReason.DestinationBlocked
+				: WorkerRelocationFailureReason.DestinationReserved;
+			return false;
+		}
 
 		for (int z = 0; z < footprint.height; ++z)
 		{
@@ -633,8 +703,6 @@ public partial class GridService : MonoBehaviour
 				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = previousCenter + rotatedOffset;
-				if (gridMap.IsInBound(target) == false)
-					return false;
 
 				Map[target.x, target.y, target.z].Remove(footprintCell, worker.gameObject);
 			}
@@ -652,8 +720,6 @@ public partial class GridService : MonoBehaviour
 				int3 offset = new(x - pivot.x, 0, z - pivot.y);
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = newCenter + rotatedOffset;
-				if (gridMap.IsInBound(target) == false)
-					return false;
 
 				Map[target.x, target.y, target.z].Set(footprintCell, worker.gameObject);
 			}
@@ -664,15 +730,13 @@ public partial class GridService : MonoBehaviour
 		worker.SetPosition(newCenter);
 		worker.SetDirection(direction);
 
-		if (route != null && TryReserve(route, newCenter) == false)
-		{
-			Debug.LogWarning($"[GridService] Failed to reserve relocated worker cell at {newCenter}.");
-			return false;
-		}
+		if (route != null && newCenter.Equals(previousCenter) == false)
+			TryUnreserve(route, previousCenter);
 
 		if (context.placeableDefinition.gridFootprint.IsNeedToRefresh)
 			RecalculateSpaceRegions();
 
+		reason = WorkerRelocationFailureReason.None;
 		return true;
 	}
 
@@ -907,6 +971,31 @@ public partial class GridService : MonoBehaviour
 					continue;
 
 				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private bool IsFootprintInBounds(PlacementContext context, in int3 center)
+	{
+		if (context?.placeableDefinition?.gridFootprint == null)
+			return false;
+
+		GridFootprint footprint = context.placeableDefinition.gridFootprint;
+		Vector2Int pivot = footprint.Pivot;
+		for (int z = 0; z < footprint.height; ++z)
+		{
+			for (int x = 0; x < footprint.width; ++x)
+			{
+				FootprintCell footprintCell = footprint.Get(x, z);
+				if (IsEmptyFootprintCell(footprintCell))
+					continue;
+
+				int3 offset = new(x - pivot.x, 0, z - pivot.y);
+				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
+				if (gridMap.IsInBound(center + rotatedOffset) == false)
+					return false;
 			}
 		}
 

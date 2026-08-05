@@ -63,6 +63,33 @@
 			"cost": 120,
 			"durationWeeks": 1,
 			"prerequisiteUids": []
+		},
+		{
+			"uid": "navigation_network",
+			"categoryId": "automation_systems",
+			"displayName": "Navigation Network",
+			"description": "Unlocks powered Navigation Hubs and chained Relay Nodes for automatic robot routing and orchestration.",
+			"cost": 180,
+			"durationWeeks": 2,
+			"prerequisiteUids": ["inventory_digitization"]
+		},
+		{
+			"uid": "traffic_control",
+			"categoryId": "automation_systems",
+			"displayName": "Traffic Control",
+			"description": "Enables automatic robots to resolve congestion through replanning, detours, priority handling, and yielding.",
+			"cost": 160,
+			"durationWeeks": 2,
+			"prerequisiteUids": []
+		},
+		{
+			"uid": "human_recognition",
+			"categoryId": "automation_systems",
+			"displayName": "Human Recognition",
+			"description": "Enables automatic robots to recognize human workers and avoid treating blocked human movement as a collision incident.",
+			"cost": 140,
+			"durationWeeks": 1,
+			"prerequisiteUids": []
 		}
 	]
 }

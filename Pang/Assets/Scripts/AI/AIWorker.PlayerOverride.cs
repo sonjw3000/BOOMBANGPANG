@@ -156,15 +156,20 @@ public abstract partial class AIWorker
 		return true;
 	}
 
-	internal void RestorePlayerOverrideState(WorkerControlMode mode)
+	internal void RestorePlayerOverrideState(
+		WorkerControlMode mode,
+		bool restoreNavigationRescue = false,
+		bool restoreNavigationGoal = false,
+		int3 restoredNavigationGoal = default)
 	{
 		CancelPendingPlayerOverrideAction();
 		CancelPendingPlayerOverrideMove();
 		controlMode = mode;
-		navigationRescueOverride = false;
+		navigationRescueOverride = mode == WorkerControlMode.PlayerOverride && restoreNavigationRescue;
 		navigationRescueTask = null;
 		navigationRescueBox = null;
-		hasNavigationRescueGoal = false;
+		hasNavigationRescueGoal = navigationRescueOverride && restoreNavigationGoal;
+		navigationRescueGoal = restoredNavigationGoal;
 		playerOverridePhase = mode == WorkerControlMode.PlayerOverride
 			? OverridePhase.AwaitingCommand
 			: OverridePhase.None;

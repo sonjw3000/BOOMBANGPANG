@@ -43,6 +43,10 @@ public sealed class GridOverlayController : MonoBehaviour
 		if (Input.GetKeyDown(KeyCode.R))
 			BeginHold(KeyCode.R, GameContext.Instance.FacilityRuleMgr);
 
+		if (Input.GetKeyDown(KeyCode.N) &&
+			GameContext.Instance.ResearchService?.IsResearched(ResearchIds.NavigationNetwork) == true)
+			BeginHold(KeyCode.N, GameContext.Instance.RobotNavigationSvc);
+
 		if (isHolding && Input.GetKey(activeKey) == false)
 			EndHold();
 

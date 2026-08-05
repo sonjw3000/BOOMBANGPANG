@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ea39cd9d2906294b915277300334413, type: 3}
+  m_Name: RelayNode
+  m_EditorClassIdentifier: Assembly-CSharp::PlaceableDefinition
+  placeableID: relay_node
+  displayName: Relay Node
+  icon: {fileID: 0}
+  prefab: {fileID: 1904052339818605538, guid: 5cf3880f3b5ae4ecc8bbd46ffa4addd1, type: 3}
+  gridFootprint: {fileID: 11400000, guid: 895133f03fb2c43e08845a82a93bd7fe, type: 2}
+  definitionType: 5
+  placementEnvironment: 2
+  requiredResearchUid: navigation_network
+  ignitionTemperatureCelsius: 0
+  damageIncidents: []
+  Cost: 60
