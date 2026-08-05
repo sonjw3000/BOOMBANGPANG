@@ -52,6 +52,8 @@ public enum WorkerStatusAction
 	Death,
 	Malfunction,
 	AwaitingPlayerCommand,
+	WaitingForNavigationCoverage,
+	WaitingForOrchestrationCapacity,
 }
 
 public enum WorkerOperationalState
@@ -347,6 +349,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		SelectorNode root = new();
 		root.Add(new ActionNode(HoldIncapacitatedState));
 		root.Add(new ActionNode(RunPlayerOverride));
+		root.Add(new ActionNode(HoldNavigationWait));
 
 		IBaseNode workerBaseNode = BuildWorkerBaseNode();
 		ActionNode performTask = new(DoWork);
@@ -676,6 +679,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	{
 		if (task != null && (IsOperational == false || IsRecovering || IsPlayerOverride))
 			return false;
+		if (task != null && CanUseAutomaticNavigation(out RobotNavigationWaitReason navigationReason) == false)
+		{
+			BeginNavigationWait(navigationReason);
+			return false;
+		}
 
 		if (GameContext.HasInstance && task != null)
 			WorkerMgr.RemoveIdleWorker(this);
@@ -888,6 +896,12 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			currentTask != null || IsAssignedToTaskType(taskType) == false)
 			return false;
 
+		if (CanUseAutomaticNavigation(out RobotNavigationWaitReason navigationReason) == false)
+		{
+			BeginNavigationWait(navigationReason);
+			return false;
+		}
+
 		if (IsAssignedToPackingStation)
 			return false;
 
@@ -907,6 +921,12 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		if (IsOperational == false || IsPlayerOverride || HasPendingBlockingIncident || currentTask != null ||
 			task == null || IsAssignedToTaskType(task.Type) == false || IsRecovering)
 			return false;
+
+		if (CanUseAutomaticNavigation(out RobotNavigationWaitReason navigationReason) == false)
+		{
+			BeginNavigationWait(navigationReason);
+			return false;
+		}
 
 		if (task is PackingTask packingTask)
 		{

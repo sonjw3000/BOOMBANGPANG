@@ -5,8 +5,12 @@ public class RobotWorker : AIWorker, IWearable
 	private static WorkPolicyService WorkPolicy => GameContext.Instance.WMSys.WorkPolicyService;
 	[SerializeField] private float batteryLevel = 100f;
 	[SerializeField] private ChargingType chargingType = ChargingType.Standard;
+	[SerializeField] private RobotNavigationDependency navigationDependency = RobotNavigationDependency.HubOrchestrated;
+	[SerializeField, Min(0)] private int requiredNavigationCompute = 100;
 	private float batteryEfficiency;
 	[SerializeField] private WearState wear = new();
+	private int navigationRegionId;
+	private int navigationCoverageVersion;
 
 	public float BatteryLevel => batteryLevel;
 	public ChargingType ChargingType => chargingType;
@@ -14,6 +18,14 @@ public class RobotWorker : AIWorker, IWearable
 	public float WearEfficiency => wear.Efficiency;
 	public float PassiveWearPerQuarterWeek => wear.PassiveWearPerQuarterWeek;
 	public float OperatingWearPerQuarterWeek => wear.OperatingWearPerQuarterWeek;
+	public RobotNavigationDependency NavigationDependency => navigationDependency;
+	public int RequiredNavigationCompute => navigationDependency == RobotNavigationDependency.HubOrchestrated
+		? Mathf.Max(0, requiredNavigationCompute)
+		: 0;
+	public bool RequiresNavigationCoverage => navigationDependency != RobotNavigationDependency.FullyAutonomous;
+	public bool RequiresOrchestrationCompute => navigationDependency == RobotNavigationDependency.HubOrchestrated;
+	public int NavigationRegionId => navigationRegionId;
+	public int NavigationCoverageVersion => navigationCoverageVersion;
 
 	[SerializeField] private int monthlyMaintenanceCost = 100;
 
@@ -40,6 +52,12 @@ public class RobotWorker : AIWorker, IWearable
 
 	public void ApplyWear(float amount) => wear.Apply(amount);
 	public void SetWearFromSave(float value) => wear.SetFromSave(value);
+
+	internal void SetNavigationCache(int regionId, int coverageVersion)
+	{
+		navigationRegionId = Mathf.Max(0, regionId);
+		navigationCoverageVersion = Mathf.Max(0, coverageVersion);
+	}
 
 	public override bool NeedsRecovery() => batteryLevel <= WorkPolicy.RobotChargeBatteryThreshold;
 

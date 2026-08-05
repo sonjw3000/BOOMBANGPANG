@@ -16,6 +16,13 @@ public class FindRoute : MonoBehaviour
 		Failed,
 	}
 
+	private enum TileReservationResult
+	{
+		Success,
+		GridBlocked,
+		NavigationBlocked,
+	}
+
 	private static GridService GridService => GameContext.Instance.GridService;
 	private static PathFindingService PathFinding => GameContext.Instance.PathFinding;
 	private static WorkPolicyService WorkPolicy => GameContext.Instance.WMSys.WorkPolicyService;
@@ -34,6 +41,7 @@ public class FindRoute : MonoBehaviour
 	private int3 pendingGoalPos;
 	private GridCell waitingCell = null;
 	private int travelledCellsSinceLastConsume;
+	private NavigationTransitionReservation navigationReservation;
 	public int TravelledCellsSinceLastConsume => Mathf.Max(0, travelledCellsSinceLastConsume);
 
 	private HashSet<FindRoute> blockingRoutes = new();
@@ -180,13 +188,17 @@ public class FindRoute : MonoBehaviour
 
 		if (isNextNodeReserved == false)
 		{
-			if (TryReserveNextTile())
+			TileReservationResult reservationResult = TryReserveNextTile();
+			if (reservationResult == TileReservationResult.Success)
 			{
 				isNextNodeReserved = true;
 				movementState = MovementState.Moving;
 			}
 			else
 			{
+				if (reservationResult == TileReservationResult.NavigationBlocked)
+					return;
+
 				HandleBlocked();
 				movementState = MovementState.Blocked;
 				return;
@@ -226,11 +238,19 @@ public class FindRoute : MonoBehaviour
 			return;
 
 		transform.position = targetPos;
+		if (ValidateNavigationTransition(out RobotNavigationWaitReason transitionFailure) == false)
+		{
+			transform.position = new Vector3(worker.GridPosition.x, worker.GridPosition.y, worker.GridPosition.z);
+			ReleaseReservedNextTile();
+			worker.BeginNavigationWait(transitionFailure);
+			return;
+		}
 
 		int3 previousPos = worker.GridPosition;
 		var moveResult = GridService.TryMove(this, worker.GridPosition, pathResultBuffer.CurrentNode.Position);
 		if (moveResult != PlacementResult.Success)
 		{
+			ReleaseReservedNextTile();
 			movementState = MovementState.Blocked;
 			worker.enabled = true;
 			enabled = false;
@@ -246,6 +266,7 @@ public class FindRoute : MonoBehaviour
 		}
 
 		worker.SetPosition(pathResultBuffer.CurrentNode.Position);
+		bool navigationCommitted = CommitNavigationTransition();
 		if (worker.CarryingAbility?.CarryingBox != null && travelledCellsSinceLastConsume < int.MaxValue)
 			++travelledCellsSinceLastConsume;
 
@@ -256,6 +277,14 @@ public class FindRoute : MonoBehaviour
 		}
 
 		isNextNodeReserved = false;
+		if (navigationCommitted == false)
+		{
+			RobotNavigationWaitReason reason = RobotNavigationWaitReason.Coverage;
+			if (worker is RobotWorker robot && GameContext.HasInstance)
+				GameContext.Instance.RobotNavigationSvc?.CanRunAutomatic(robot, out reason);
+			worker.BeginNavigationWait(reason);
+			return;
+		}
 
 		if (hasPendingGoal)
 		{
@@ -279,6 +308,7 @@ public class FindRoute : MonoBehaviour
 
 	private void ReleaseReservedNextTile()
 	{
+		CancelNavigationTransition();
 		if (isNextNodeReserved == false || worker == null || GameContext.HasInstance == false)
 			return;
 
@@ -369,16 +399,34 @@ public class FindRoute : MonoBehaviour
 		enabled = false;
 	}
 
-	private bool TryReserveNextTile()
+	private TileReservationResult TryReserveNextTile()
 	{
 		if (pathResultBuffer == null || pathResultBuffer.IsGoalReached)
 		{
 			Debug.LogError("PathResultBuffer is null or goal is already reached. Cannot reserve next tile.");
-			return false;
+			return TileReservationResult.GridBlocked;
 		}
 
 		var nodeToReserve = pathResultBuffer.CurrentNode;
-		return GridService.TryReserve(this, nodeToReserve.Position);
+		if (worker is RobotWorker robot && robot.IsPlayerOverride == false && GameContext.HasInstance)
+		{
+			RobotNavigationService navigation = GameContext.Instance.RobotNavigationSvc;
+			if (navigation != null && navigation.TryReserveTransition(
+				robot,
+				nodeToReserve.Position,
+				out navigationReservation,
+				out RobotNavigationWaitReason reason) == false)
+			{
+				worker.BeginNavigationWait(reason);
+				return TileReservationResult.NavigationBlocked;
+			}
+		}
+
+		if (GridService.TryReserve(this, nodeToReserve.Position))
+			return TileReservationResult.Success;
+
+		CancelNavigationTransition();
+		return TileReservationResult.GridBlocked;
 	}
 
 	private void OnArrived()
@@ -408,14 +456,82 @@ public class FindRoute : MonoBehaviour
 		TrafficCoordinator.RegisterBlocked(this);
 	}
 
+	private PathRequest CreatePathRequest(in int3 start, in int3 goal, FindRoute avoidTarget = null)
+	{
+		return new PathRequest(
+			this,
+			start,
+			goal,
+			worker.Direction,
+			avoidTarget,
+			CanTraverseNavigationCell);
+	}
+
+	private bool CanTraverseNavigationCell(int3 position)
+	{
+		if (worker is not RobotWorker robot || robot.IsPlayerOverride || GameContext.HasInstance == false)
+			return true;
+
+		RobotNavigationService navigation = GameContext.Instance.RobotNavigationSvc;
+		return navigation == null || navigation.CanRobotTraverseCell(robot, position);
+	}
+
+	private bool CanBeginAutomaticRoute(in int3 goalPosition)
+	{
+		if (worker is not RobotWorker robot || robot.IsPlayerOverride || GameContext.HasInstance == false)
+			return true;
+
+		RobotNavigationService navigation = GameContext.Instance.RobotNavigationSvc;
+		if (navigation == null || navigation.CanBeginAutomaticRoute(robot, goalPosition, out RobotNavigationWaitReason reason))
+			return true;
+
+		worker.BeginNavigationWait(reason);
+		return false;
+	}
+
+	private bool ValidateNavigationTransition(out RobotNavigationWaitReason reason)
+	{
+		reason = RobotNavigationWaitReason.None;
+		if (navigationReservation.RequiresCommit == false || GameContext.HasInstance == false)
+			return true;
+
+		RobotNavigationService navigation = GameContext.Instance.RobotNavigationSvc;
+		return navigation == null || navigation.ValidateTransition(navigationReservation, out reason);
+	}
+
+	private bool CommitNavigationTransition()
+	{
+		if (navigationReservation.RequiresCommit == false)
+			return true;
+
+		NavigationTransitionReservation reservation = navigationReservation;
+		navigationReservation = default;
+		return GameContext.HasInstance == false ||
+			GameContext.Instance.RobotNavigationSvc == null ||
+			GameContext.Instance.RobotNavigationSvc.CommitTransition(reservation);
+	}
+
+	private void CancelNavigationTransition()
+	{
+		if (navigationReservation.RequiresCommit == false)
+			return;
+
+		if (GameContext.HasInstance)
+			GameContext.Instance.RobotNavigationSvc?.CancelTransition(navigationReservation);
+		navigationReservation = default;
+	}
+
 	public bool RequestSubPath(in int3 goalPos, FindRoute avoidTarget)
 	{
+		if (CanBeginAutomaticRoute(goalPos) == false)
+			return false;
+
 		if (avoidTarget != null)
 		{
 			blockingRoutes.Add(avoidTarget);
 		}
 
-		PathRequest request = new(this, worker.GridPosition, goalPos, worker.Direction, avoidTarget);
+		PathRequest request = CreatePathRequest(worker.GridPosition, goalPos, avoidTarget);
 		PathFinding.RequestRoute(request);
 
 		enabled = false;
@@ -429,6 +545,8 @@ public class FindRoute : MonoBehaviour
 	{
 		if (TryGetCurrentGoalCell(out var goalCell) == false)
 			return false;
+		if (CanBeginAutomaticRoute(goalCell) == false)
+			return false;
 
 		ClearWait();
 		isYieldMove = false;
@@ -436,7 +554,7 @@ public class FindRoute : MonoBehaviour
 		hasPendingGoal = false;
 		ResetCurrentPathPlan(true);
 
-		PathRequest request = new(this, worker.GridPosition, goalCell, worker.Direction);
+		PathRequest request = CreatePathRequest(worker.GridPosition, goalCell);
 		PathFinding.RequestRoute(request);
 
 		movementState = MovementState.PathPending;
@@ -450,6 +568,8 @@ public class FindRoute : MonoBehaviour
 	{
 		if (hasCurrentGoal == false)
 			return false;
+		if (CanBeginAutomaticRoute(yieldCell) == false)
+			return false;
 
 		ClearWait();
 		stopAfterCurrentStep = false;
@@ -457,7 +577,7 @@ public class FindRoute : MonoBehaviour
 		isYieldMove = true;
 		ResetCurrentPathPlan(true);
 
-		PathRequest request = new(this, worker.GridPosition, yieldCell, worker.Direction);
+		PathRequest request = CreatePathRequest(worker.GridPosition, yieldCell);
 		PathFinding.RequestRoute(request);
 
 		movementState = MovementState.PathPending;
@@ -469,13 +589,16 @@ public class FindRoute : MonoBehaviour
 
 	public bool RequestIdleYieldMove(in int3 yieldCell)
 	{
+		if (CanBeginAutomaticRoute(yieldCell) == false)
+			return false;
+
 		ClearWait();
 		stopAfterCurrentStep = false;
 		hasPendingGoal = false;
 		isYieldMove = true;
 		ResetCurrentPathPlan(true);
 
-		PathRequest request = new(this, worker.GridPosition, yieldCell, worker.Direction);
+		PathRequest request = CreatePathRequest(worker.GridPosition, yieldCell);
 		PathFinding.RequestRoute(request);
 
 		movementState = MovementState.PathPending;
@@ -503,6 +626,32 @@ public class FindRoute : MonoBehaviour
 	public void ClearTrafficBlockState()
 	{
 		worker?.EndTrafficBlock();
+	}
+
+	public void SuspendForNavigation()
+	{
+		if (GameContext.HasInstance)
+			TrafficCoordinator.CancelRoute(this);
+
+		ClearWait();
+		stopAfterCurrentStep = false;
+		hasPendingGoal = false;
+		isYieldMove = false;
+		ResetCurrentPathPlan(true);
+		movementState = MovementState.Blocked;
+		worker?.EndTrafficBlock();
+		enabled = false;
+	}
+
+	public bool ResumeFromNavigation()
+	{
+		if (hasCurrentGoal == false)
+		{
+			movementState = MovementState.Idle;
+			return false;
+		}
+
+		return RequestFreshRouteToCurrentGoal();
 	}
 
 	public void CompleteIdleYieldMove()
@@ -564,8 +713,10 @@ public class FindRoute : MonoBehaviour
 		stopAfterCurrentStep = false;
 		currentGoalPos = goalPos;
 		hasCurrentGoal = true;
+		if (CanBeginAutomaticRoute(goalPos) == false)
+			return false;
 		ResetCurrentPathPlan(true);
-		PathRequest request = new(this, worker.GridPosition, goalPos, worker.Direction);
+		PathRequest request = CreatePathRequest(worker.GridPosition, goalPos);
 		PathFinding.RequestRoute(request);
 
 		movementState = MovementState.PathPending;
@@ -655,6 +806,12 @@ public class FindRoute : MonoBehaviour
 	public void OnPathFound(PathResultBuffer pathBuffer)
 	{
 		ReleaseReservedNextTile();
+		if (worker != null && worker.IsWaitingForNavigation)
+		{
+			pathBuffer?.Clear();
+			enabled = false;
+			return;
+		}
 
 		if (pathBuffer == null || pathBuffer.Path?.Count <= 0)
 		{
@@ -664,6 +821,13 @@ public class FindRoute : MonoBehaviour
 				movementState = MovementState.Blocked;
 				TrafficCoordinator.NotifyYieldMoveFailed(this);
 				enabled = false;
+				return;
+			}
+
+			if (pathBuffer != null && pathBuffer.WasTraversalRejected && worker is RobotWorker robot && robot.IsPlayerOverride == false)
+			{
+				pathBuffer.Clear();
+				worker.BeginNavigationWait(RobotNavigationWaitReason.Coverage);
 				return;
 			}
 

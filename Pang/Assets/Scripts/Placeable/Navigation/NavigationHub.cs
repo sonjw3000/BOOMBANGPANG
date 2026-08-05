@@ -16,6 +16,8 @@ public sealed class NavigationHub : MonoBehaviour, IFacility
 	private uint facilityRulePresetId;
 	private uint runtimeHubId;
 	private int activeRelayCount;
+	private int assignedCompute;
+	private int reservedCompute;
 	private PowerHub connectedPowerHub;
 
 	public int3 GridPosition => gridPosition;
@@ -30,6 +32,10 @@ public sealed class NavigationHub : MonoBehaviour, IFacility
 	public int BasePowerConsumption => Mathf.Max(0, basePowerConsumption);
 	public int RelayPowerConsumption => Mathf.Max(0, relayPowerConsumption);
 	public int PowerConsumption => BasePowerConsumption + ActiveRelayCount * RelayPowerConsumption;
+	public int AssignedCompute => Mathf.Max(0, assignedCompute);
+	public int ReservedCompute => Mathf.Max(0, reservedCompute);
+	public int AvailableCompute => Mathf.Max(0, ComputeCapacity - AssignedCompute - ReservedCompute);
+	public bool IsComputeOverloaded => AssignedCompute + ReservedCompute > ComputeCapacity;
 	public PowerHub ConnectedPowerHub => connectedPowerHub;
 	public float PowerEfficiency => connectedPowerHub != null ? connectedPowerHub.PowerEfficiency : 0.0f;
 	public bool HasPower => connectedPowerHub != null && connectedPowerHub.HasPower && PowerEfficiency > 0.0f;
@@ -85,6 +91,12 @@ public sealed class NavigationHub : MonoBehaviour, IFacility
 	internal void SetActiveRelayCount(int count)
 	{
 		activeRelayCount = Mathf.Clamp(count, 0, RelayCapacity);
+	}
+
+	internal void SetComputeUsage(int assigned, int reserved)
+	{
+		assignedCompute = Mathf.Max(0, assigned);
+		reservedCompute = Mathf.Max(0, reserved);
 	}
 
 	internal void ConnectPower(PowerHub hub)

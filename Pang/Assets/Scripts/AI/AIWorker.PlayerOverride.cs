@@ -179,10 +179,20 @@ public abstract partial class AIWorker
 		enabled = true;
 		if (GameContext.HasInstance)
 		{
-			if (becomeIdle && IsOperational && currentTask == null)
-				WorkerMgr.AddIdleWorker(this);
+			if (this is RobotWorker robot &&
+				GameContext.Instance.RobotNavigationSvc != null &&
+				GameContext.Instance.RobotNavigationSvc.CanRunAutomatic(robot, out RobotNavigationWaitReason reason) == false)
+			{
+				BeginNavigationWait(reason);
+			}
 			else
-				WorkerMgr.RemoveIdleWorker(this);
+			{
+				EndNavigationWait();
+				if (becomeIdle && IsOperational && currentTask == null)
+					WorkerMgr.AddIdleWorker(this);
+				else
+					WorkerMgr.RemoveIdleWorker(this);
+			}
 		}
 
 		NotifyPlayerOverrideStateChanged();

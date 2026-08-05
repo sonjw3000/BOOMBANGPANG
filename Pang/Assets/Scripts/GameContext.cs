@@ -369,7 +369,7 @@ public class GameContext : MonoBehaviour
 		_ = SaveService;
 		_ = ScenarioObjectiveService;
 		_ = PowerSvc;
-		RobotNavigationSvc.Bind(FacilityMgr, gridService, PowerSvc);
+		RobotNavigationSvc.Bind(FacilityMgr, gridService, PowerSvc, WorkerMgr);
 		_ = MedicalSvc;
 		_ = RobotFixSvc;
 		WorkplaceIncidentSvc.Initialize(WorkerMgr, MedicalSvc, RobotFixSvc, VendorService, EconomyService);

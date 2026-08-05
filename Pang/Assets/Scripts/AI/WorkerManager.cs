@@ -36,6 +36,8 @@ public partial class WorkerManager : MonoBehaviour
 	public uint NextWorkerId => nextWorkerID;
 	public int TrafficBlockedCount => trafficBlockedCount;
 	public event Action OnWorkersChanged;
+	public event Action<AIWorker> OnWorkerRegistered;
+	public event Action<AIWorker> OnWorkerUnregistered;
 	public event Action<AIWorker> OnWorkerChanged;
 	public event Action<AIWorker, WorkerOperationalState, WorkerOperationalState> OnWorkerOperationalStateChanged;
 	// todo
@@ -84,6 +86,7 @@ public partial class WorkerManager : MonoBehaviour
 		monthlyCost += worker.MonthlyCost;
 		SubscribeWorker(worker);
 		RegisterWorkerStatus(worker);
+		OnWorkerRegistered?.Invoke(worker);
 		OnWorkersChanged?.Invoke();
 	}
 
@@ -92,6 +95,7 @@ public partial class WorkerManager : MonoBehaviour
 		if (worker == null || workers.Remove(worker) == false)
 			return;
 
+		OnWorkerUnregistered?.Invoke(worker);
 		UnregisterWorkerStatus(worker);
 		UnsubscribeWorker(worker);
 		UnregisterWorkerTaskTypes(worker);
@@ -413,6 +417,11 @@ public partial class WorkerManager : MonoBehaviour
 	{
 		if (worker == null || worker.IsOperational == false || worker.IsPlayerOverride || worker.CurrentTask != null)
 			return;
+		if (worker.CanUseAutomaticNavigation(out RobotNavigationWaitReason navigationReason) == false)
+		{
+			worker.BeginNavigationWait(navigationReason);
+			return;
+		}
 
 		foreach (TaskType taskType in worker.AssignedTaskTypes)
 		{

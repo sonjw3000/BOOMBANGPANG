@@ -73,6 +73,8 @@ public class PathRequest
 	public readonly Action<PathResultBuffer> Completed;
 	public readonly bool IncludeCongestion;
 	public readonly Func<int3, bool> CanTraverseBlockedCell;
+	public readonly Func<int3, bool> CanTraverseCell;
+	public bool WasTraversalRejected { get; private set; }
 
 	public readonly int MovementCost;
 	public readonly int RotationCost;
@@ -80,7 +82,13 @@ public class PathRequest
 	public readonly FindRoute AvoidTarget = null;
 	public bool IsSubPathRequest => AvoidTarget != null;
 
-	public PathRequest(FindRoute target, int3 startPosition, int3 endPosition, FacingDirection startFacingDirection, FindRoute avoidTarget = null)
+	public PathRequest(
+		FindRoute target,
+		int3 startPosition,
+		int3 endPosition,
+		FacingDirection startFacingDirection,
+		FindRoute avoidTarget = null,
+		Func<int3, bool> canTraverseCell = null)
 	{
 		this.target = target;
 		this.startPosition = startPosition;
@@ -90,6 +98,7 @@ public class PathRequest
 		Completed = null;
 		IncludeCongestion = true;
 		CanTraverseBlockedCell = null;
+		CanTraverseCell = canTraverseCell;
 
 		MovementCost = 1;
 		RotationCost = 2;
@@ -109,8 +118,18 @@ public class PathRequest
 		Completed = completed;
 		IncludeCongestion = false;
 		CanTraverseBlockedCell = canTraverseBlockedCell;
+		CanTraverseCell = null;
 		MovementCost = 1;
 		RotationCost = 2;
+	}
+
+	public bool IsCellTraversable(in int3 position)
+	{
+		if (CanTraverseCell == null || CanTraverseCell(position))
+			return true;
+
+		WasTraversalRejected = true;
+		return false;
 	}
 
 	public static LocalGrid BuildLocalGrid(in int3 start, in int3 end, int margin)
@@ -315,6 +334,9 @@ public sealed class PathSearchJob
 
 	private void CheckNode(int befG, int3 pos, FacingDirection dir, int rotationAmount)
 	{
+		if (request.IsCellTraversable(pos) == false)
+			return;
+
 		if (GridService.IsBlocked(pos))
 		{
 			bool canTraverseBlockedCell = request.CanTraverseBlockedCell != null && request.CanTraverseBlockedCell(pos);
@@ -409,7 +431,7 @@ public sealed class PathSearchJob
 		if (index == -1)
 		{
 			// Debug.LogWarning("Failed to build path result: No valid goal state found in buffer.");
-			return new PathResultBuffer(new LinkedList<PathNode>(), request.target, request.AvoidTarget);
+			return new PathResultBuffer(new LinkedList<PathNode>(), request.target, request.AvoidTarget, request.WasTraversalRejected);
 		}
 
 		LinkedList<PathNode> path = new();
@@ -423,7 +445,7 @@ public sealed class PathSearchJob
 			if (++guard > maxSteps || visited.Add(index) == false)
 			{
 				Debug.LogError($"[PathSearchJob] Detected cyclic or overlong parent chain while building path. Start: {request.startPosition}, Goal: {request.endPosition}, StateIndex: {index}");
-				return new PathResultBuffer(new LinkedList<PathNode>(), request.target, request.AvoidTarget);
+				return new PathResultBuffer(new LinkedList<PathNode>(), request.target, request.AvoidTarget, request.WasTraversalRejected);
 			}
 
 			PathNode node = PathResultBuffer.GetNewNode(buffer.GetPosition(index), buffer.GetFacingDirection(index));
@@ -436,7 +458,7 @@ public sealed class PathSearchJob
 			nodeRecord = buffer.GetStateRecordByStateIndex(index);
 		}
 
-		var result = new PathResultBuffer(path, request.target, request.AvoidTarget);
+		var result = new PathResultBuffer(path, request.target, request.AvoidTarget, request.WasTraversalRejected);
 		return result;
 	}
 
@@ -472,6 +494,7 @@ public class PathResultBuffer
 
 	private LinkedList<PathNode> path = new();
 	public int CurrentIndex = 0;
+	public bool WasTraversalRejected { get; }
 
 	static public PathNode GetNewNode(in int3 position, FacingDirection direction)
 	{
@@ -481,11 +504,12 @@ public class PathResultBuffer
 		return node;
 	}
 
-	public PathResultBuffer(LinkedList<PathNode> path, FindRoute target, FindRoute toAvoid = null)
+	public PathResultBuffer(LinkedList<PathNode> path, FindRoute target, FindRoute toAvoid = null, bool wasTraversalRejected = false)
 	{
 		this.path = path;
 		this.target = target;
 		this.toAvoid = toAvoid;
+		WasTraversalRejected = wasTraversalRejected;
 
 		currentNode = path.First;
 	}
