@@ -360,7 +360,12 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 	private bool TryRedirectRejectedOutboundPayload()
 	{
-		if (Type != TaskType.OB || ActivePayload is not CargoCapsule capsule)
+		// Staging uses OB tasks to move labeled capsules out of IB buffers.
+		// Packed-manifest validation belongs to outbound-ready OBStandby buffers.
+		if (Type != TaskType.OB ||
+			ActivePayload is not CargoCapsule capsule ||
+			sourceDock is not CapsuleBuffer sourceBuffer ||
+			sourceBuffer.DockState != CapsuleDockState.OBStandby)
 			return true;
 
 		GameContext context = GameContext.HasInstance ? GameContext.Instance : null;
@@ -385,8 +390,6 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		CapsuleRelocateCoordinator coordinator = context.CapsuleRelocateCoordinator;
 		FacilityManager facilityManager = context.FacilityMgr;
 		if (coordinator == null ||
-			sourceDock is not CapsuleBuffer sourceBuffer ||
-			sourceBuffer.DockState != CapsuleDockState.OBStandby ||
 			sourceBuffer.CanPutBox() == false ||
 			sourceBuffer.CanAcceptCargoRoute(capsule.RouteKind) == false ||
 			(facilityManager != null && facilityManager.IsInvalidating(sourceBuffer)))
