@@ -32,6 +32,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	private readonly WorkerStatusTarget targetWorkerStatus;
 	private readonly CargoRouteKind routeKind;
 	private bool isTaskEnd;
+	private TaskInvalidationReason terminalInvalidationReason = TaskInvalidationReason.Unknown;
 
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
 
@@ -167,6 +168,12 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		return isTaskEnd;
 	}
 
+	protected override bool TryGetTerminalInvalidationReason(out TaskInvalidationReason reason)
+	{
+		reason = terminalInvalidationReason;
+		return reason != TaskInvalidationReason.Unknown;
+	}
+
 	public override bool CanDispatchTo(AIWorker worker)
 	{
 		return worker != null &&
@@ -282,17 +289,17 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	public static NodeState SetSourceTarget(in BTContext ctx)
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
+		if (task.CanUseSource() == false)
+		{
+			task.MarkTerminalFailure(TaskInvalidationReason.SourceUnavailable);
+			return Failure;
+		}
+
 		if (task.TryResolveReplacementTarget() == false)
 		{
 			ctx.Worker.SetWorkerTarget(task.GetTargetTarget());
 			ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
 			return AIWorker.KeepTaskWaiting(ctx);
-		}
-
-		if (task.CanUseSource() == false)
-		{
-			task.isTaskEnd = true;
-			return Failure;
 		}
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.sourceDock);
@@ -304,7 +311,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
 		if (task.sourceDock == null)
 		{
-			task.isTaskEnd = true;
+			task.MarkTerminalFailure(TaskInvalidationReason.SourceUnavailable);
 			return Failure;
 		}
 
@@ -313,13 +320,13 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			return Failure;
 		if (task.CanUseSource() == false)
 		{
-			task.isTaskEnd = true;
+			task.MarkTerminalFailure(TaskInvalidationReason.SourceUnavailable);
 			return Failure;
 		}
 		if (task.Type == TaskType.OB &&
 			GameContext.Instance.CapsuleRelocateCoordinator.TryHoldSourceForPotentialReturn(task.sourceDock) == false)
 		{
-			task.isTaskEnd = true;
+			task.MarkTerminalFailure(TaskInvalidationReason.CoordinatorOwnershipLost);
 			return Failure;
 		}
 
@@ -328,7 +335,8 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			if (box != null)
 				task.sourceDock.PutBox(box);
 
-			task.isTaskEnd = task.sourceDock.HasCapsule == false;
+			if (task.sourceDock.HasCapsule == false)
+				task.MarkTerminalFailure(TaskInvalidationReason.PayloadMissing);
 			return Failure;
 		}
 
@@ -448,13 +456,17 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		if (task.targetDock == null)
 			return Failure;
 
-		if (task.WorkerCarryBox.GetBox(out BoxBase box) == false)
+		if (task.WorkerCarryBox == null || task.WorkerCarryBox.GetBox(out BoxBase box) == false)
+		{
+			task.MarkTerminalFailure(TaskInvalidationReason.PayloadMissing);
 			return Failure;
+		}
 
 		if (task.targetDock.PutBox(box))
 		{
 			if (task.Type != TaskType.OB)
 				ctx.Worker.ReportBoxHandling(box);
+			task.terminalInvalidationReason = TaskInvalidationReason.Unknown;
 			task.isTaskEnd = true;
 			return Success;
 		}
@@ -469,9 +481,18 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
 		if (task.ActivePayload is not CargoCapsule capsule)
+		{
+			task.MarkTerminalFailure(TaskInvalidationReason.PayloadMissing);
 			return Failure;
+		}
 
 		ctx.Worker.ReportBoxHandling(capsule);
 		return Success;
+	}
+
+	private void MarkTerminalFailure(TaskInvalidationReason reason)
+	{
+		terminalInvalidationReason = reason;
+		isTaskEnd = true;
 	}
 }

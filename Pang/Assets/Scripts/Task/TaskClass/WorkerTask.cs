@@ -123,7 +123,19 @@ public abstract partial class WorkerTask
 
 	public void EndTask()
 	{
+		if (TryGetTerminalInvalidationReason(out TaskInvalidationReason reason))
+		{
+			Manager.InvalidateTask(this, reason);
+			return;
+		}
+
 		Manager.CompleteTask(this);
+	}
+
+	protected virtual bool TryGetTerminalInvalidationReason(out TaskInvalidationReason reason)
+	{
+		reason = TaskInvalidationReason.Unknown;
+		return false;
 	}
 
 	protected virtual void OnTaskAssigned() { }

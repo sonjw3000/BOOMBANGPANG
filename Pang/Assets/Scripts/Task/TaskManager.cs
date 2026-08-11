@@ -11,6 +11,10 @@ public enum TaskInvalidationReason
 	PlayerWorkerTakeover,
 	DispatchInvalid,
 	PayloadRecoveryFailed,
+	SourceUnavailable,
+	CoordinatorOwnershipLost,
+	PayloadMissing,
+	RestoreInvalidReference,
 }
 
 //[DefaultExecutionOrder(-100)]
@@ -417,13 +421,13 @@ public partial class TaskManager : MonoBehaviour
 			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
 
 		NotifyWorkflowTaskInvalidated(task);
-		NotifyBuildingCapsuleRelocationInvalidated(task);
+		NotifyBuildingCapsuleRelocationEnded(task);
 		LogTaskInvalidation(task, worker, previousStatus, reason);
 
 		return true;
 	}
 
-	private static void NotifyBuildingCapsuleRelocationInvalidated(WorkerTask task)
+	private static void NotifyBuildingCapsuleRelocationEnded(WorkerTask task)
 	{
 		if (task is not CapsuleRelocationTask relocationTask ||
 			relocationTask.BuildingId == 0 ||
@@ -437,7 +441,7 @@ public partial class TaskManager : MonoBehaviour
 			buildingManager.TryGetBuilding(relocationTask.BuildingId, out Building building) &&
 			building != null)
 		{
-			building.OnCapsuleRelocationTaskInvalidated(relocationTask);
+			building.OnCapsuleRelocationTaskEnded(relocationTask);
 		}
 	}
 
@@ -513,7 +517,10 @@ public partial class TaskManager : MonoBehaviour
 			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskCompleted(task);
 
 		if (task is CapsuleRelocationTask relocationTask)
+		{
 			relocationTask.NotifyRelocationEnded();
+			NotifyBuildingCapsuleRelocationEnded(relocationTask);
+		}
 
 		// todo
 		//

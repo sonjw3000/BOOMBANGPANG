@@ -91,6 +91,8 @@ public class Building
 	private readonly HashSet<CapsuleBuffer> queuedOutboundBuffers = new();
 	private readonly Dictionary<InboundCargoPort, CapsuleBuffer> queuedInboundTargets = new();
 	private readonly Dictionary<CapsuleBuffer, OutboundCargoPort> queuedOutboundTargets = new();
+	private readonly Dictionary<InboundCargoPort, CapsuleRelocationTask> queuedInboundTaskOwners = new();
+	private readonly Dictionary<CapsuleBuffer, CapsuleRelocationTask> queuedOutboundTaskOwners = new();
 	private readonly Dictionary<CapsuleLogisticsState, HashSet<CargoCapsule>> capsulesByState = new();
 	private readonly Dictionary<CargoCapsule, CapsuleLogisticsState> registeredCapsuleStates = new();
 
@@ -916,7 +918,7 @@ public class Building
 			onMatched: match => EnqueueCapsuleRelocationTask(match, WorkerTask.TaskType.OB, CapsuleRelocationReason.DestinationNeedsCapsule)));
 	}
 
-	internal void OnCapsuleRelocationTaskInvalidated(CapsuleRelocationTask task)
+	internal void OnCapsuleRelocationTaskEnded(CapsuleRelocationTask task)
 	{
 		if (task == null || task.BuildingId != RuntimeBuildingId)
 			return;
@@ -924,18 +926,24 @@ public class Building
 		switch (task.Type)
 		{
 			case WorkerTask.TaskType.IB:
-				if (task.SourceDock is InboundCargoPort inboundPort)
+				if (task.SourceDock is InboundCargoPort inboundPort &&
+					queuedInboundTaskOwners.TryGetValue(inboundPort, out CapsuleRelocationTask inboundOwner) &&
+					ReferenceEquals(inboundOwner, task))
 				{
 					queuedInboundPorts.Remove(inboundPort);
 					queuedInboundTargets.Remove(inboundPort);
+					queuedInboundTaskOwners.Remove(inboundPort);
 				}
 				break;
 
 			case WorkerTask.TaskType.OB:
-				if (task.SourceDock is CapsuleBuffer outboundBuffer)
+				if (task.SourceDock is CapsuleBuffer outboundBuffer &&
+					queuedOutboundTaskOwners.TryGetValue(outboundBuffer, out CapsuleRelocationTask outboundOwner) &&
+					ReferenceEquals(outboundOwner, task))
 				{
 					queuedOutboundBuffers.Remove(outboundBuffer);
 					queuedOutboundTargets.Remove(outboundBuffer);
+					queuedOutboundTaskOwners.Remove(outboundBuffer);
 				}
 				break;
 		}
@@ -1108,6 +1116,7 @@ public class Building
 					return;
 
 				queuedInboundPorts.Add(sourcePort);
+				queuedInboundTaskOwners[sourcePort] = task;
 				if (task.TargetDock is CapsuleBuffer targetBuffer)
 					queuedInboundTargets[sourcePort] = targetBuffer;
 				break;
@@ -1121,6 +1130,7 @@ public class Building
 					return;
 
 				queuedOutboundBuffers.Add(sourceBuffer);
+				queuedOutboundTaskOwners[sourceBuffer] = task;
 				if (task.TargetDock is OutboundCargoPort targetPort)
 					queuedOutboundTargets[sourceBuffer] = targetPort;
 				break;
