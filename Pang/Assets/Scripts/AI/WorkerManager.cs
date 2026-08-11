@@ -551,8 +551,9 @@ public partial class WorkerManager : MonoBehaviour
 		// 타이밍별로 정리해두고 관리해야 함
 		// 목적지 이동중엔 비활성화
 		// 
-		foreach (var worker in workers)
+		for (int i = workers.Count - 1; i >= 0; --i)
 		{
+			AIWorker worker = workers[i];
 			// SyncWorkerAvailability(worker);
 			if (worker == null)
 				continue;
