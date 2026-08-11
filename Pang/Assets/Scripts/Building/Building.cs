@@ -582,6 +582,7 @@ public class Building
 	{
 		UpdateRegisteredCapsuleState(capsule);
 		OnCapsuleStateChanged(capsule);
+		ValidateCapsuleRelocationInvariants("capsule-logistics-state-changed", recoverOrphans: false);
 	}
 
 	private void OnCapsuleDocked(CapsuleDock dock)
@@ -954,6 +955,183 @@ public class Building
 			: null;
 		if (sourceDock != null && coordinator?.IsPlayerClaimed(sourceDock) == false)
 			ReevaluateCapsuleDockAvailability(sourceDock);
+
+		ValidateCapsuleRelocationInvariants("task-ended", recoverOrphans: false);
+	}
+
+	internal int ValidateCapsuleRelocationInvariants(string trigger, bool recoverOrphans)
+	{
+#if !(UNITY_EDITOR || DEVELOPMENT_BUILD)
+		if (recoverOrphans == false)
+			return 0;
+#endif
+		CapsuleRelocateCoordinator coordinator = GameContext.HasInstance
+			? GameContext.Instance.CapsuleRelocateCoordinator
+			: null;
+		TaskManager taskManager = TaskManager;
+		List<(CapsuleDock Source, CapsuleRelocationTask Owner, CapsuleDock MappedTarget)> orphanedRelocations =
+			recoverOrphans
+				? new List<(CapsuleDock, CapsuleRelocationTask, CapsuleDock)>()
+				: null;
+		int violationCount = 0;
+
+		InboundCargoPort[] inboundPorts = new InboundCargoPort[queuedInboundPorts.Count];
+		queuedInboundPorts.CopyTo(inboundPorts);
+		for (int i = 0; i < inboundPorts.Length; ++i)
+		{
+			InboundCargoPort source = inboundPorts[i];
+			queuedInboundTaskOwners.TryGetValue(source, out CapsuleRelocationTask owner);
+			queuedInboundTargets.TryGetValue(source, out CapsuleBuffer mappedTarget);
+			bool hasTaskOwner = IsManagedCapsuleRelocationOwner(
+				owner,
+				WorkerTask.TaskType.IB,
+				source,
+				taskManager);
+			if (hasTaskOwner)
+				continue;
+
+			violationCount++;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+			LogCapsuleRelocationInvariantViolation(
+				trigger,
+				"IB",
+				source,
+				owner,
+				mappedTarget,
+				taskManager,
+				coordinator,
+				recoverOrphans);
+#endif
+			if (recoverOrphans == false)
+				continue;
+
+			queuedInboundPorts.Remove(source);
+			queuedInboundTargets.Remove(source);
+			queuedInboundTaskOwners.Remove(source);
+			orphanedRelocations.Add((source, owner, mappedTarget));
+		}
+
+		CapsuleBuffer[] outboundBuffers = new CapsuleBuffer[queuedOutboundBuffers.Count];
+		queuedOutboundBuffers.CopyTo(outboundBuffers);
+		for (int i = 0; i < outboundBuffers.Length; ++i)
+		{
+			CapsuleBuffer source = outboundBuffers[i];
+			queuedOutboundTaskOwners.TryGetValue(source, out CapsuleRelocationTask owner);
+			queuedOutboundTargets.TryGetValue(source, out OutboundCargoPort mappedTarget);
+			bool hasTaskOwner = IsManagedCapsuleRelocationOwner(
+				owner,
+				WorkerTask.TaskType.OB,
+				source,
+				taskManager);
+			if (hasTaskOwner)
+				continue;
+
+			violationCount++;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+			LogCapsuleRelocationInvariantViolation(
+				trigger,
+				"OB",
+				source,
+				owner,
+				mappedTarget,
+				taskManager,
+				coordinator,
+				recoverOrphans);
+#endif
+			if (recoverOrphans == false)
+				continue;
+
+			queuedOutboundBuffers.Remove(source);
+			queuedOutboundTargets.Remove(source);
+			queuedOutboundTaskOwners.Remove(source);
+			orphanedRelocations.Add((source, owner, mappedTarget));
+		}
+
+		if (recoverOrphans == false)
+			return violationCount;
+
+		for (int i = 0; i < orphanedRelocations.Count; ++i)
+		{
+			(CapsuleDock source, CapsuleRelocationTask owner, CapsuleDock mappedTarget) =
+				orphanedRelocations[i];
+			bool sourceHasManagedRelocation =
+				taskManager?.HasManagedCapsuleRelocationSource(source) == true ||
+				taskManager?.HasManagedCapsuleRelocationTarget(source) == true;
+			if (sourceHasManagedRelocation == false)
+			{
+				coordinator?.CancelPendingRequests(source);
+				coordinator?.NotifyRelocationEnded(source, null);
+			}
+
+			CapsuleDock ownerTarget = owner?.TargetDock;
+			TryReleaseOrphanedRelocationTarget(ownerTarget, taskManager, coordinator);
+			if (ReferenceEquals(mappedTarget, ownerTarget) == false)
+				TryReleaseOrphanedRelocationTarget(mappedTarget, taskManager, coordinator);
+
+			if (sourceHasManagedRelocation == false &&
+				source != null &&
+				coordinator?.IsPlayerClaimed(source) != true)
+			{
+				ReevaluateCapsuleDockAvailability(source);
+			}
+		}
+
+		return violationCount;
+	}
+
+	private static void TryReleaseOrphanedRelocationTarget(
+		CapsuleDock target,
+		TaskManager taskManager,
+		CapsuleRelocateCoordinator coordinator)
+	{
+		if (target == null ||
+			coordinator?.IsRelocationTargetActive(target) != true ||
+			coordinator.IsPlayerClaimed(target) ||
+			taskManager?.HasManagedCapsuleRelocationTarget(target) == true ||
+			taskManager?.HasManagedCapsuleRelocationSource(target) == true)
+		{
+			return;
+		}
+
+		coordinator.NotifyRelocationTargetReleased(target);
+	}
+
+	private bool IsManagedCapsuleRelocationOwner(
+		CapsuleRelocationTask task,
+		WorkerTask.TaskType expectedType,
+		CapsuleDock source,
+		TaskManager taskManager)
+	{
+		return task != null &&
+			task.Type == expectedType &&
+			task.BuildingId == RuntimeBuildingId &&
+			ReferenceEquals(task.SourceDock, source) &&
+			taskManager?.IsManagingTask(task) == true;
+	}
+
+	private void LogCapsuleRelocationInvariantViolation(
+		string trigger,
+		string markerType,
+		CapsuleDock source,
+		CapsuleRelocationTask owner,
+		CapsuleDock mappedTarget,
+		TaskManager taskManager,
+		CapsuleRelocateCoordinator coordinator,
+		bool recovering)
+	{
+		string sourceName = source != null ? source.name : "None";
+		string sourceEntityId = source != null ? source.GetEntityId().ToString() : "None";
+		string sourcePosition = source != null ? source.GridPosition.ToString() : "None";
+		string taskState = owner != null
+			? $"{owner.Type}/{owner.CurrentStatus}/building={owner.BuildingId}/sourceMatch={ReferenceEquals(owner.SourceDock, source)}/managed={taskManager?.IsManagingTask(owner) == true}"
+			: "None";
+		string targetName = mappedTarget != null ? mappedTarget.name : "None";
+		bool coordinatorActive = coordinator?.IsRelocationSourceActive(source) == true;
+		bool coordinatorReserved = coordinator?.IsReserved(source) == true;
+		bool playerClaimed = coordinator?.IsPlayerClaimed(source) == true;
+		bool targetActive = coordinator?.IsRelocationTargetActive(mappedTarget) == true;
+		UnityEngine.Debug.LogError(
+			$"[CapsuleRelocationInvariant] trigger={trigger}, recovering={recovering}, building={RuntimeBuildingId}, marker={markerType}, source={sourceName}#{sourceEntityId}, position={sourcePosition}, task={taskState}, target={targetName}, coordinatorActive={coordinatorActive}, coordinatorReserved={coordinatorReserved}, playerClaimed={playerClaimed}, targetActive={targetActive}");
 	}
 
 	internal void ReevaluateCapsuleDockAvailability(CapsuleDock dock)

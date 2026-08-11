@@ -39,6 +39,94 @@ public partial class TaskManager : MonoBehaviour
 	public IReadOnlyCollection<WorkerTask> ReturnedTaskQueue => returnedTaskQueue;
 	public IReadOnlyCollection<TaskBuildRequest> TaskBuildQueue => taskBuildQueue;
 
+	internal bool IsManagingTask(WorkerTask task)
+	{
+		if (task == null)
+			return false;
+
+		return task.CurrentStatus switch
+		{
+			WorkerTask.Status.Ready =>
+				taskQueue.TryGetValue(task.Type, out LinkedList<WorkerTask> readyTasks) && readyTasks.Contains(task),
+			WorkerTask.Status.Assigned =>
+				taskOnProgress.TryGetValue(task.Type, out LinkedList<WorkerTask> assignedTasks) && assignedTasks.Contains(task),
+			WorkerTask.Status.Returned => returnedTaskQueue.Contains(task),
+			_ => false,
+		};
+	}
+
+	internal bool HasManagedCapsuleRelocationTarget(CapsuleDock target)
+	{
+		if (target == null)
+			return false;
+
+		foreach (LinkedList<WorkerTask> tasks in taskQueue.Values)
+		{
+			if (ContainsCapsuleRelocationTarget(tasks, target))
+				return true;
+		}
+
+		foreach (LinkedList<WorkerTask> tasks in taskOnProgress.Values)
+		{
+			if (ContainsCapsuleRelocationTarget(tasks, target))
+				return true;
+		}
+
+		return ContainsCapsuleRelocationTarget(returnedTaskQueue, target);
+	}
+
+	internal bool HasManagedCapsuleRelocationSource(CapsuleDock source)
+	{
+		if (source == null)
+			return false;
+
+		foreach (LinkedList<WorkerTask> tasks in taskQueue.Values)
+		{
+			if (ContainsCapsuleRelocationSource(tasks, source))
+				return true;
+		}
+
+		foreach (LinkedList<WorkerTask> tasks in taskOnProgress.Values)
+		{
+			if (ContainsCapsuleRelocationSource(tasks, source))
+				return true;
+		}
+
+		return ContainsCapsuleRelocationSource(returnedTaskQueue, source);
+	}
+
+	private static bool ContainsCapsuleRelocationTarget(
+		IEnumerable<WorkerTask> tasks,
+		CapsuleDock target)
+	{
+		foreach (WorkerTask task in tasks)
+		{
+			if (task is CapsuleRelocationTask relocationTask &&
+				ReferenceEquals(relocationTask.TargetDock, target))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static bool ContainsCapsuleRelocationSource(
+		IEnumerable<WorkerTask> tasks,
+		CapsuleDock source)
+	{
+		foreach (WorkerTask task in tasks)
+		{
+			if (task is CapsuleRelocationTask relocationTask &&
+				ReferenceEquals(relocationTask.SourceDock, source))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	private void Awake()
 	{
 		// initialize task queues
@@ -405,18 +493,37 @@ public partial class TaskManager : MonoBehaviour
 		WorkerTask task,
 		TaskInvalidationReason reason = TaskInvalidationReason.Unknown)
 	{
+		return InvalidateTaskCore(task, reason, removeRegisteredState: true);
+	}
+
+	internal bool DiscardRestoredTask(
+		WorkerTask task,
+		TaskInvalidationReason reason = TaskInvalidationReason.RestoreInvalidReference)
+	{
+		return InvalidateTaskCore(task, reason, removeRegisteredState: false);
+	}
+
+	private bool InvalidateTaskCore(
+		WorkerTask task,
+		TaskInvalidationReason reason,
+		bool removeRegisteredState)
+	{
 		WorkerTask.Status previousStatus = task != null ? task.CurrentStatus : WorkerTask.Status.Invalidated;
 		if (task == null || task.MarkInvalidated(out AIWorker worker) == false)
 			return false;
 
-		taskQueue[task.Type].Remove(task);
-		returnedTaskQueue.Remove(task);
-		taskOnProgress[task.Type].Remove(task);
+		if (removeRegisteredState)
+		{
+			taskQueue[task.Type].Remove(task);
+			returnedTaskQueue.Remove(task);
+			taskOnProgress[task.Type].Remove(task);
+		}
 
 		if (worker != null)
 			worker.ClearTask(task, becomeIdle: worker.IsOperational);
 
-		Stats.RemoveQueue(task.Type);
+		if (removeRegisteredState)
+			Stats.RemoveQueue(task.Type);
 		if (task is ItemTransferTask && GameContext.HasInstance)
 			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
 

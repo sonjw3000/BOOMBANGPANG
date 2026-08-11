@@ -293,12 +293,12 @@ public sealed class GameSaveService : MonoBehaviour
 				continue;
 			}
 
-			if (taskData.RecoveryBox != null)
+			if (HasBoxReference(taskData.RecoveryBox))
 			{
 				if (Ctx.BoxMgr.TryGetBox(taskData.RecoveryBox.BoxType, taskData.RecoveryBox.BoxId, out BoxBase recoveryBox) == false ||
 					task.RestorePayloadRecovery(recoveryBox, FromSave(taskData.RecoveryPosition)) == false)
 				{
-					task.MarkInvalidated(out _);
+					Ctx.TaskMgr.DiscardRestoredTask(task);
 					Debug.LogWarning($"[Save] Missing recovery box for task {taskData.TaskType}.");
 					continue;
 				}
@@ -310,7 +310,7 @@ public sealed class GameSaveService : MonoBehaviour
 					taskData.ItemTransfer?.Phase == ItemTransferPhase.Place &&
 					recoveredLaunchSortTask.RestoreCollectedLaunchSortPayload(recoveryBox) == false)
 				{
-					task.MarkInvalidated(out _);
+					Ctx.TaskMgr.DiscardRestoredTask(task);
 					Debug.LogWarning("[Save] LaunchSort recovery payload did not match its packed manifest.");
 					continue;
 				}
@@ -319,7 +319,7 @@ public sealed class GameSaveService : MonoBehaviour
 				taskData.ItemTransfer?.Phase == ItemTransferPhase.Place &&
 				taskData.IsInProgress == false)
 			{
-				task.MarkInvalidated(out _);
+				Ctx.TaskMgr.DiscardRestoredTask(task);
 				Debug.LogWarning("[Save] LaunchSort place phase had no recovery payload.");
 				continue;
 			}
@@ -328,19 +328,17 @@ public sealed class GameSaveService : MonoBehaviour
 			{
 				if (workersById.TryGetValue(taskData.AssignedWorkerId, out var worker) == false)
 				{
-					if (task is ItemTransferTask)
-						task.MarkInvalidated(out _);
+					Ctx.TaskMgr.DiscardRestoredTask(task);
 					Debug.LogWarning($"[Save] Missing worker {taskData.AssignedWorkerId} for in-progress task {taskData.TaskType}");
 					continue;
 				}
 
 				BoxBase carriedBox = worker.CarryingAbility?.CarryingBox;
-				if (taskData.PayloadBox != null &&
+				if (HasBoxReference(taskData.PayloadBox) &&
 					(Ctx.BoxMgr.TryGetBox(taskData.PayloadBox.BoxType, taskData.PayloadBox.BoxId, out BoxBase savedPayload) == false ||
 						carriedBox != savedPayload))
 				{
-					if (task is ItemTransferTask)
-						task.MarkInvalidated(out _);
+					Ctx.TaskMgr.DiscardRestoredTask(task);
 					Debug.LogWarning(
 						$"[Save] Worker {taskData.AssignedWorkerId} payload did not match in-progress task {taskData.TaskType}.");
 					RecoverFailedCapsuleTransfer(
@@ -362,14 +360,14 @@ public sealed class GameSaveService : MonoBehaviour
 					taskData.ItemTransfer?.Phase == ItemTransferPhase.Place &&
 					(carriedBox == null || inProgressLaunchSortTask.RestoreCollectedLaunchSortPayload(carriedBox) == false))
 				{
-					task.MarkInvalidated(out _);
+					Ctx.TaskMgr.DiscardRestoredTask(task);
 					Debug.LogWarning("[Save] In-progress LaunchSort payload did not match its packed manifest.");
 					continue;
 				}
 
 				if (RestoreItemTransferScheduling(taskData, task, workersById) == false)
 				{
-					task.MarkInvalidated(out _);
+					Ctx.TaskMgr.DiscardRestoredTask(task);
 					continue;
 				}
 
@@ -383,11 +381,7 @@ public sealed class GameSaveService : MonoBehaviour
 				}
 				else
 				{
-					if (task is ItemTransferTask)
-					{
-						task.MarkInvalidated(out _);
-						Ctx.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
-					}
+					Ctx.TaskMgr.DiscardRestoredTask(task);
 					Debug.LogWarning($"[Save] Worker {taskData.AssignedWorkerId} could not restore in-progress task {taskData.TaskType}");
 					RecoverFailedCapsuleTransfer(
 						taskData,
@@ -400,7 +394,7 @@ public sealed class GameSaveService : MonoBehaviour
 			{
 				if (RestoreItemTransferScheduling(taskData, task, workersById) == false)
 				{
-					task.MarkInvalidated(out _);
+					Ctx.TaskMgr.DiscardRestoredTask(task);
 					continue;
 				}
 
@@ -411,7 +405,7 @@ public sealed class GameSaveService : MonoBehaviour
 			{
 				if (RestoreItemTransferScheduling(taskData, task, workersById) == false)
 				{
-					task.MarkInvalidated(out _);
+					Ctx.TaskMgr.DiscardRestoredTask(task);
 					continue;
 				}
 
@@ -427,6 +421,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.WasteCollectionPlanner.EndRestore();
 		Ctx.ItemTransferTaskScheduler.EndRestore();
 		RecoverOrphanedLoadedCapsules(workersById);
+		Ctx.BuildingMgr?.ValidateCapsuleRelocationInvariants("restore-complete", recoverOrphans: true);
 		Ctx.WorkerMgr.RebuildWorkerStatusCaches();
 		Ctx.FacilityRuleMgr.RebuildAppliedFacilityLookup();
 		Ctx.FacilityRuleOverlay?.RefreshOverlay();
@@ -438,6 +433,11 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.FireSvc.RebuildRuntimeState();
 		Ctx.IBWorkflowSvc.RetryActiveRocketUnloadingTasks();
 		Ctx.ScenarioObjectiveService.RestoreState(data.ScenarioObjective);
+	}
+
+	private static bool HasBoxReference(BoxReferenceSaveData data)
+	{
+		return data != null && data.BoxType != BoxType.None;
 	}
 
 	private void RestoreCoordinatorOwnership(WorkerTask task)

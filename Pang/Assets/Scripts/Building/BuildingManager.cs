@@ -107,6 +107,18 @@ public sealed partial class BuildingManager : MonoBehaviour
 		return buildingsById.TryGetValue(runtimeBuildingId, out building) && building != null;
 	}
 
+	internal int ValidateCapsuleRelocationInvariants(string trigger, bool recoverOrphans)
+	{
+		int violationCount = 0;
+		for (int i = 0; i < registeredBuildings.Count; ++i)
+		{
+			if (registeredBuildings[i] != null)
+				violationCount += registeredBuildings[i].ValidateCapsuleRelocationInvariants(trigger, recoverOrphans);
+		}
+
+		return violationCount;
+	}
+
 	public bool TryGetBuilding(GridCell cell, out Building building)
 	{
 		if (cell == null)

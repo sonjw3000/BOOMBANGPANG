@@ -224,6 +224,9 @@ public sealed class CapsuleRelocateCoordinator
 			reservedDocks.Remove(targetDock);
 		}
 
+		if (isRestoring)
+			return;
+
 		TryMatchPendingSend();
 		TryMatchPendingDemand();
 	}
