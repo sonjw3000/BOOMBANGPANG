@@ -145,6 +145,65 @@ public sealed class RobotHumanCollisionEditModeTests
 		AssertCollisionContext(restored.Incidents[0]);
 	}
 
+	[Test]
+	public void IncidentRestore_ResolvedIncidentIsHistoryOnly()
+	{
+		WorkplaceIncidentSaveData saveData = CreateIncidentSaveData(WorkerIncidentCaseState.Resolved);
+		GameObject restoredObject = CreateGameObject("Resolved Incident Restore");
+		WorkplaceIncidentService restored = restoredObject.AddComponent<WorkplaceIncidentService>();
+
+		restored.RestoreState(saveData);
+
+		Assert.That(restored.Incidents, Has.Count.EqualTo(1));
+		Assert.That(GetCurrentIncidentCount(restored), Is.Zero);
+	}
+
+	[Test]
+	public void ResolveIncident_RemovesWorkerFromCurrentIncidentIndex()
+	{
+		WorkplaceIncidentSaveData saveData = CreateIncidentSaveData(WorkerIncidentCaseState.HandedOver);
+		GameObject restoredObject = CreateGameObject("Incident Resolution Index");
+		WorkplaceIncidentService restored = restoredObject.AddComponent<WorkplaceIncidentService>();
+		restored.RestoreState(saveData);
+		Assert.That(GetCurrentIncidentCount(restored), Is.EqualTo(1));
+
+		MethodInfo resolveIncident = typeof(WorkplaceIncidentService).GetMethod(
+			"ResolveIncident",
+			BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.That(resolveIncident, Is.Not.Null);
+		resolveIncident.Invoke(restored, new object[] { restored.Incidents[0] });
+
+		Assert.That(restored.Incidents[0].State, Is.EqualTo(WorkerIncidentCaseState.Resolved));
+		Assert.That(GetCurrentIncidentCount(restored), Is.Zero);
+	}
+
+	[Test]
+	public void TryEvacuateWorker_IncapacitatedHuman_RemovesWorkerFromGridAndManager()
+	{
+		GameObject managerObject = CreateGameObject("Medical Evacuation Worker Manager");
+		WorkerManager workerManager = managerObject.AddComponent<WorkerManager>();
+		workerManager.RegisterWorker(human);
+		SetPrivateField(
+			typeof(AIWorker),
+			human,
+			"operationalState",
+			WorkerOperationalState.Knockout);
+
+		GameObject contextObject = CreateGameObject("Medical Evacuation Context");
+		contextObject.SetActive(false);
+		GameContext context = contextObject.AddComponent<GameContext>();
+		SetPrivateField(typeof(GameContext), context, "gridService", grid);
+		SetPrivateField(typeof(GameContext), context, "workerManager", workerManager);
+		SetPrivateStaticField(typeof(GameContext), "instance", context);
+
+		bool removed = workerManager.TryEvacuateWorker(human);
+
+		Assert.That(removed, Is.True);
+		Assert.That(workerManager.Workers, Is.Empty);
+		Assert.That(grid.IsPlacedObject(human.gameObject), Is.False);
+		Assert.That(grid.GetReservedFindRoute(HumanCell), Is.Null);
+	}
+
 	private void PlaceWorker(AIWorker worker, FindRoute route, in int3 position)
 	{
 		worker.OnPositionSet(position, FacingDirection.North);
@@ -181,6 +240,34 @@ public sealed class RobotHumanCollisionEditModeTests
 		Assert.That(new int3(incident.PositionX, incident.PositionY, incident.PositionZ), Is.EqualTo(HumanCell));
 	}
 
+	private WorkplaceIncidentSaveData CreateIncidentSaveData(WorkerIncidentCaseState state)
+	{
+		WorkplaceIncidentSaveData saveData = new()
+		{
+			NextIncidentId = 2,
+			IsAccidentFree = false,
+		};
+		saveData.Incidents.Add(new WorkerIncidentCase
+		{
+			IncidentId = 1,
+			WorkerId = human.WorkerID,
+			WorkerKind = WorkerKind.Human,
+			OperationalState = WorkerOperationalState.Knockout,
+			ResponseKind = WorkerIncidentResponseKind.Medical,
+			State = state,
+		});
+		return saveData;
+	}
+
+	private static int GetCurrentIncidentCount(WorkplaceIncidentService service)
+	{
+		object currentIncidents = GetPrivateField(
+			typeof(WorkplaceIncidentService),
+			service,
+			"currentIncidentByWorker");
+		return ((System.Collections.IDictionary)currentIncidents).Count;
+	}
+
 	private GameObject CreateGameObject(string objectName)
 	{
 		GameObject gameObject = new(objectName);
@@ -200,5 +287,12 @@ public sealed class RobotHumanCollisionEditModeTests
 		FieldInfo field = ownerType.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
 		Assert.That(field, Is.Not.Null, $"Missing test field {ownerType.Name}.{fieldName}");
 		field.SetValue(target, value);
+	}
+
+	private static void SetPrivateStaticField(System.Type ownerType, string fieldName, object value)
+	{
+		FieldInfo field = ownerType.GetField(fieldName, BindingFlags.Static | BindingFlags.NonPublic);
+		Assert.That(field, Is.Not.Null, $"Missing test field {ownerType.Name}.{fieldName}");
+		field.SetValue(null, value);
 	}
 }

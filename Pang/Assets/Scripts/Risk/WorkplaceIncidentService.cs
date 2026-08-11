@@ -197,7 +197,8 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 
 				incidents.Add(incident);
 				incidentsById[incident.IncidentId] = incident;
-				currentIncidentByWorker[incident.WorkerId] = incident;
+				if (incident.State != WorkerIncidentCaseState.Resolved)
+					currentIncidentByWorker[incident.WorkerId] = incident;
 			}
 		}
 
@@ -320,6 +321,13 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 		incident.ProviderKind = handoff.ProviderKind;
 		incident.ProviderId = handoff.ProviderId;
 		incident.State = WorkerIncidentCaseState.HandedOver;
+		if (handoff.ProviderKind == WorkerServiceProviderKind.ExternalVendor &&
+			TryEvacuateWorker(incident) == false)
+		{
+			Debug.LogWarning(
+				$"[WorkplaceIncidentService] Medical evacuation failed for incident {incident.IncidentId}, worker {incident.WorkerId}.");
+			return;
+		}
 
 		bool claimProcessed = ShouldProcessClaim(incident.WorkerId);
 		incident.ClaimDecision = claimProcessed
@@ -334,8 +342,19 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 
 		if (WorkplaceIncidentDecision.ShouldApplyUnprocessedClaimPenalty(claimProcessed, incident.HumanType))
 			ApplyUnprocessedClaimPenalty(incident);
+		if (handoff.ProviderKind == WorkerServiceProviderKind.ExternalVendor)
+			claimProcessingByWorker.Remove(incident.WorkerId);
 
 		ResolveIncident(incident);
+	}
+
+	private bool TryEvacuateWorker(WorkerIncidentCase incident)
+	{
+		if (incident == null || workerManager == null)
+			return false;
+
+		AIWorker worker = FindWorker(incident.WorkerId);
+		return worker != null && workerManager.TryEvacuateWorker(worker);
 	}
 
 	private void HandleRobotFixHandoffCompleted(WorkerServiceHandoff handoff)
@@ -378,6 +397,11 @@ public sealed class WorkplaceIncidentService : MonoBehaviour
 	private void ResolveIncident(WorkerIncidentCase incident)
 	{
 		incident.State = WorkerIncidentCaseState.Resolved;
+		if (currentIncidentByWorker.TryGetValue(incident.WorkerId, out WorkerIncidentCase current) &&
+			ReferenceEquals(current, incident))
+		{
+			currentIncidentByWorker.Remove(incident.WorkerId);
+		}
 		OnIncidentResolved?.Invoke(incident);
 	}
 

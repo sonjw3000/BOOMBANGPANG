@@ -134,6 +134,24 @@ public partial class WorkerManager : MonoBehaviour
 		if (worker == null || workers.Contains(worker) == false || worker.IsOperational == false)
 			return false;
 
+		return TryRemoveRegisteredWorker(worker);
+	}
+
+	public bool TryEvacuateWorker(AIWorker worker)
+	{
+		if (worker == null ||
+			workers.Contains(worker) == false ||
+			worker.WorkerKind != WorkerKind.Human ||
+			worker.IsOperational)
+		{
+			return false;
+		}
+
+		return TryRemoveRegisteredWorker(worker);
+	}
+
+	private static bool TryRemoveRegisteredWorker(AIWorker worker)
+	{
 		GridService gridService = GameContext.HasInstance ? GameContext.Instance.GridService : null;
 		if (gridService == null || gridService.IsPlacedObject(worker.gameObject) == false)
 			return false;
