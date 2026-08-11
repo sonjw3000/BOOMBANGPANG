@@ -403,17 +403,19 @@ public abstract partial class AIWorker
 				interactionKind,
 				out goalPos);
 
-		if (foundReservedPoint)
-		{
-			if (GridService.IsSameRegion(ctx.Worker.position, goalPos) == false)
-				return false;
-		}
-		else if (InteractionPointSelector.TryGetInteractionPoint(
+		if (foundReservedPoint == false && InteractionPointSelector.TryGetInteractionPoint(
 				interaction,
 				interactionKind,
 				ctx.Worker.position,
 				out goalPos,
 				out _) == false)
+		{
+			return false;
+		}
+
+		if (TryGetBuildingId(ctx.Worker.GridPosition, out uint currentBuildingId) == false ||
+			TryGetBuildingId(goalPos, out uint goalBuildingId) == false ||
+			currentBuildingId != goalBuildingId)
 		{
 			return false;
 		}
