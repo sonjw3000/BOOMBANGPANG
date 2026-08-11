@@ -106,28 +106,10 @@ public abstract partial class WorkerTask
 		AIWorker worker = ctx.Worker;
 		if (worker?.CarryingAbility?.CarryingBox == payloadBox)
 			return CompletePayloadRecoveryMovement(worker);
-		if (worker != null && IsAdjacent(worker.GridPosition, payloadRecoveryPosition))
-			return CompletePayloadRecoveryMovement(worker);
 
 		FindRoute route = worker?.RouteFinder;
 		if (route == null)
 			return IBaseNode.NodeState.Failure;
-
-		if (route.HasActiveGoal)
-		{
-			if (route.IsGoal)
-			{
-				route.enabled = false;
-				route.ConsumeArrivedGoal();
-				worker.ApplyCarriedMovementFatigue(route.ConsumeTravelledCells());
-				return IBaseNode.NodeState.Success;
-			}
-
-			worker.enabled = false;
-			worker.SetWorkerTarget(WorkerStatusTarget.Box);
-			worker.SetWorkerAction(WorkerStatusAction.MovingTo);
-			return IBaseNode.NodeState.Running;
-		}
 
 		if (TryGetPayloadPickupPosition(worker, out int3 pickupPosition) == false)
 		{
@@ -136,13 +118,10 @@ public abstract partial class WorkerTask
 			return AIWorker.KeepTaskWaiting(ctx);
 		}
 
-		if (worker.GridPosition.Equals(pickupPosition))
-			return IBaseNode.NodeState.Success;
-
-		worker.SetWorkerTarget(WorkerStatusTarget.Box);
-		route.enabled = true;
-		route.SetGoalPosition(pickupPosition);
-		return IBaseNode.NodeState.Running;
+		return AIWorker.MoveToGridPositionWithTransit(
+			ctx,
+			pickupPosition,
+			WorkerStatusTarget.Box);
 	}
 
 	private static IBaseNode.NodeState CompletePayloadRecoveryMovement(AIWorker worker)

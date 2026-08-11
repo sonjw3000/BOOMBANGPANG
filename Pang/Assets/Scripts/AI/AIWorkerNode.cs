@@ -327,6 +327,107 @@ public abstract partial class AIWorker
 		return node;
 	}
 
+	internal static NodeState MoveToGridPositionWithTransit(
+		in BTContext ctx,
+		in int3 goalPos,
+		WorkerStatusTarget target)
+	{
+		AIWorker worker = ctx.Worker;
+		FindRoute route = worker?.routeFinder;
+		if (worker == null || route == null)
+			return Failure;
+
+		worker.SetWorkerTarget(target);
+		if (route.CurrentMovementState == FindRoute.MovementState.Failed)
+		{
+			route.CancelCurrentRoute();
+			ClearTransitState(ctx.LocalBlackBoard);
+			return Failure;
+		}
+
+		bool hasTransit = ctx.LocalBlackBoard.TryGet(TransitAirlockKey, out Airlock airlock) && airlock != null;
+		if (route.HasActiveGoal)
+		{
+			if (route.IsGoal)
+			{
+				route.enabled = false;
+				route.ConsumeArrivedGoal();
+
+				if (hasTransit == false)
+				{
+					worker.ApplyCarriedMovementFatigue(route.ConsumeTravelledCells());
+					return Success;
+				}
+
+				NodeState transitResult = TryUseTransitAirlockIfNeeded(ctx);
+				if (transitResult == Running || transitResult == Failure || transitResult == Abort)
+					return transitResult;
+
+				return TryBeginGridPositionRoute(ctx, goalPos, target) == Success
+					? Running
+					: KeepTaskWaiting(ctx);
+			}
+
+			worker.enabled = false;
+			worker.SetWorkerAction(WorkerStatusAction.MovingTo);
+			return Running;
+		}
+
+		if (hasTransit)
+		{
+			NodeState transitResult = TryUseTransitAirlockIfNeeded(ctx);
+			if (transitResult == Running || transitResult == Failure || transitResult == Abort)
+				return transitResult;
+		}
+
+		if (worker.GridPosition.Equals(goalPos))
+			return Success;
+
+		return TryBeginGridPositionRoute(ctx, goalPos, target) == Success
+			? Running
+			: KeepTaskWaiting(ctx);
+	}
+
+	private static NodeState TryBeginGridPositionRoute(
+		in BTContext ctx,
+		in int3 goalPos,
+		WorkerStatusTarget target)
+	{
+		AIWorker worker = ctx.Worker;
+		GridCell goalCell = GridService?.GetCell(goalPos);
+		if (worker == null || goalCell == null || goalCell.IsBlocked)
+		{
+			worker?.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+			return Failure;
+		}
+
+		if (GridService.IsSameRegion(worker.GridPosition, goalPos))
+		{
+			worker.SetWorkerTarget(target);
+			worker.routeFinder.enabled = true;
+			return worker.routeFinder.SetGoalPosition(goalPos) ? Success : Failure;
+		}
+
+		TryGetBuildingId(worker.GridPosition, out uint currentBuildingId);
+		uint targetBuildingId = goalCell.BuildingId;
+		if (currentBuildingId != 0 &&
+			TryRouteToAirlock(ctx, currentBuildingId, AirlockDirection.InsideToOutside))
+		{
+			return Success;
+		}
+
+		if (currentBuildingId == 0 &&
+			targetBuildingId != 0 &&
+			TryRouteToAirlock(ctx, targetBuildingId, AirlockDirection.OutsideToInside))
+		{
+			return Success;
+		}
+
+		worker.SetWorkerTarget(target);
+		worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
+		return Failure;
+	}
+
 	private static NodeState TryRouteTowardLogicalTarget(
 		in BTContext ctx,
 		IGridPlaceable targetPlaceable,
