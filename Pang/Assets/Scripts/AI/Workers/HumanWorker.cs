@@ -2,6 +2,8 @@
 
 public class HumanWorker : AIWorker
 {
+	private const float CargoCapsuleHandlingFactor = 0.6f;
+
 	private static WorkPolicyService WorkPolicy => GameContext.Instance.WMSys.WorkPolicyService;
 	private float experience;
 
@@ -174,6 +176,9 @@ public class HumanWorker : AIWorker
 	{
 		if (box == null || GameContext.HasInstance == false)
 			return;
+
+		if (box is CargoCapsule)
+			handlingFactor *= CargoCapsuleHandlingFactor;
 
 		float totalWeight = 0.0f;
 		int totalQuantity = 0;
