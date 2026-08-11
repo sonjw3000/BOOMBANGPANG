@@ -113,6 +113,8 @@ public sealed class CapsuleRelocateCoordinator
 	private readonly Func<uint, uint, bool> canUseLinkedBuilding;
 	private bool isRestoring;
 
+	public event Action<CapsuleDock> OnPlayerClaimReleased;
+
 	public int PendingSendCount => pendingSendNodeBySource.Count;
 	public int PendingDemandCount => pendingDemandNodeByTarget.Count;
 
@@ -414,6 +416,7 @@ public sealed class CapsuleRelocateCoordinator
 
 		TryMatchPendingSend();
 		TryMatchPendingDemand();
+		OnPlayerClaimReleased?.Invoke(dock);
 	}
 
 	private bool TryMatchPendingSend()

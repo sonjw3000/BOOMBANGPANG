@@ -916,6 +916,78 @@ public class Building
 			onMatched: match => EnqueueCapsuleRelocationTask(match, WorkerTask.TaskType.OB, CapsuleRelocationReason.DestinationNeedsCapsule)));
 	}
 
+	internal void OnCapsuleRelocationTaskInvalidated(CapsuleRelocationTask task)
+	{
+		if (task == null || task.BuildingId != RuntimeBuildingId)
+			return;
+
+		switch (task.Type)
+		{
+			case WorkerTask.TaskType.IB:
+				if (task.SourceDock is InboundCargoPort inboundPort)
+				{
+					queuedInboundPorts.Remove(inboundPort);
+					queuedInboundTargets.Remove(inboundPort);
+				}
+				break;
+
+			case WorkerTask.TaskType.OB:
+				if (task.SourceDock is CapsuleBuffer outboundBuffer)
+				{
+					queuedOutboundBuffers.Remove(outboundBuffer);
+					queuedOutboundTargets.Remove(outboundBuffer);
+				}
+				break;
+		}
+
+		CapsuleDock sourceDock = task.SourceDock;
+		CapsuleRelocateCoordinator coordinator = GameContext.HasInstance
+			? GameContext.Instance.CapsuleRelocateCoordinator
+			: null;
+		if (sourceDock != null && coordinator?.IsPlayerClaimed(sourceDock) == false)
+			ReevaluateCapsuleDockAvailability(sourceDock);
+	}
+
+	internal void ReevaluateCapsuleDockAvailability(CapsuleDock dock)
+	{
+		if (dock == null || TaskManager == null || GameContext.HasInstance == false)
+			return;
+
+		FacilityManager facilityManager = GameContext.Instance.FacilityMgr;
+		if (facilityManager?.IsInvalidating(dock) == true)
+			return;
+
+		if (dock is InboundCargoPort inboundPort)
+		{
+			if (inboundPort.HasCapsule && inboundPort.IsCapsuleEmpty() == false)
+			{
+				pendingInboundPorts.Add(inboundPort);
+				TryEnqueueInboundTask(inboundPort);
+			}
+			return;
+		}
+
+		if (dock is not CapsuleBuffer capsuleBuffer)
+			return;
+
+		CargoCapsule capsule = capsuleBuffer.DockedCapsule;
+		if (capsule != null)
+		{
+			switch (capsule.LogisticsState)
+			{
+				case CapsuleLogisticsState.Empty:
+					TryEvaluateBufferRelocation(capsuleBuffer);
+					break;
+				case CapsuleLogisticsState.OB:
+					TryEvaluateOutbound(capsuleBuffer);
+					break;
+			}
+		}
+
+		if (capsuleBuffer.DockState == CapsuleDockState.OBStandby && capsuleBuffer.CanPutBox())
+			TryRequestEmptyCapsuleForDock(capsuleBuffer);
+	}
+
 	private void TryEvaluateBufferRelocation(CapsuleBuffer capsuleBuffer)
 	{
 		if (capsuleBuffer == null || TaskManager == null)

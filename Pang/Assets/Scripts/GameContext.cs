@@ -605,6 +605,7 @@ public class GameContext : MonoBehaviour
 	private void AddEvent()
 	{
 		TaskMgr?.BindFacilityInvalidation(FacilityMgr);
+		CapsuleRelocateCoordinator.OnPlayerClaimReleased += HandleCapsuleRelocatePlayerClaimReleased;
 
 		if (CapsuleDockSvc != null)
 		{
@@ -630,6 +631,8 @@ public class GameContext : MonoBehaviour
 	private void RemoveEvent()
 	{
 		TaskMgr?.UnbindFacilityInvalidation();
+		if (capsuleRelocateCoordinator != null)
+			capsuleRelocateCoordinator.OnPlayerClaimReleased -= HandleCapsuleRelocatePlayerClaimReleased;
 
 		if (CapsuleDockSvc != null)
 		{
@@ -663,6 +666,21 @@ public class GameContext : MonoBehaviour
 	private void HandleCapsuleRelocateDockStateChanged(uint buildingId, CapsuleDock dock)
 	{
 		CapsuleRelocateCoordinator.NotifyDockStateChanged(dock);
+	}
+
+	private void HandleCapsuleRelocatePlayerClaimReleased(CapsuleDock dock)
+	{
+		if (dock == null || FacilityMgr == null || BuildingMgr == null)
+			return;
+
+		if (FacilityMgr.TryGetBuildingId(dock, out uint buildingId) == false ||
+			BuildingMgr.TryGetBuilding(buildingId, out Building building) == false ||
+			building == null)
+		{
+			return;
+		}
+
+		building.ReevaluateCapsuleDockAvailability(dock);
 	}
 
 	private bool CanUseCapsuleRelocateLink(uint sourceBuildingId, uint targetBuildingId)

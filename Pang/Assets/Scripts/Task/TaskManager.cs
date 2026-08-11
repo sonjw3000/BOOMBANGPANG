@@ -3,6 +3,16 @@ using System.Collections.Generic;
 using UnityEngine;
 using static WorkerTask;
 
+public enum TaskInvalidationReason
+{
+	Unknown,
+	FacilityInvalidated,
+	PlayerDockPreemption,
+	PlayerWorkerTakeover,
+	DispatchInvalid,
+	PayloadRecoveryFailed,
+}
+
 //[DefaultExecutionOrder(-100)]
 public partial class TaskManager : MonoBehaviour
 {
@@ -171,7 +181,7 @@ public partial class TaskManager : MonoBehaviour
 			switch (action)
 			{
 				case FacilityTaskInvalidationAction.Invalidate:
-					InvalidateTask(task);
+					InvalidateTask(task, TaskInvalidationReason.FacilityInvalidated);
 					break;
 
 				case FacilityTaskInvalidationAction.Reevaluate:
@@ -258,7 +268,7 @@ public partial class TaskManager : MonoBehaviour
 					break;
 
 				case CapsuleDockPlayerPreemptionAction.Invalidate:
-					InvalidateTask(task);
+					InvalidateTask(task, TaskInvalidationReason.PlayerDockPreemption);
 					break;
 			}
 		}
@@ -306,7 +316,7 @@ public partial class TaskManager : MonoBehaviour
 
 				if (data.IsValidForDispatch == false)
 				{
-					InvalidateTask(data);
+					InvalidateTask(data, TaskInvalidationReason.DispatchInvalid);
 					node = next;
 					continue;
 				}
@@ -343,7 +353,7 @@ public partial class TaskManager : MonoBehaviour
 
 			if (task.IsValidForDispatch == false)
 			{
-				InvalidateTask(task);
+				InvalidateTask(task, TaskInvalidationReason.DispatchInvalid);
 				node = next;
 				continue;
 			}
@@ -372,7 +382,7 @@ public partial class TaskManager : MonoBehaviour
 		if (recoveryBox != null &&
 			(worker.CarryingAbility.DropBoxForTaskRecovery(out BoxBase droppedBox) == false || droppedBox != recoveryBox))
 		{
-			InvalidateTask(task);
+			InvalidateTask(task, TaskInvalidationReason.PayloadRecoveryFailed);
 			worker.ClearTask(task, becomeIdle: false);
 			return false;
 		}
@@ -387,8 +397,11 @@ public partial class TaskManager : MonoBehaviour
 		return true;
 	}
 
-	public bool InvalidateTask(WorkerTask task)
+	public bool InvalidateTask(
+		WorkerTask task,
+		TaskInvalidationReason reason = TaskInvalidationReason.Unknown)
 	{
+		WorkerTask.Status previousStatus = task != null ? task.CurrentStatus : WorkerTask.Status.Invalidated;
 		if (task == null || task.MarkInvalidated(out AIWorker worker) == false)
 			return false;
 
@@ -404,8 +417,48 @@ public partial class TaskManager : MonoBehaviour
 			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
 
 		NotifyWorkflowTaskInvalidated(task);
+		NotifyBuildingCapsuleRelocationInvalidated(task);
+		LogTaskInvalidation(task, worker, previousStatus, reason);
 
 		return true;
+	}
+
+	private static void NotifyBuildingCapsuleRelocationInvalidated(WorkerTask task)
+	{
+		if (task is not CapsuleRelocationTask relocationTask ||
+			relocationTask.BuildingId == 0 ||
+			GameContext.HasInstance == false)
+		{
+			return;
+		}
+
+		BuildingManager buildingManager = GameContext.Instance.BuildingMgr;
+		if (buildingManager != null &&
+			buildingManager.TryGetBuilding(relocationTask.BuildingId, out Building building) &&
+			building != null)
+		{
+			building.OnCapsuleRelocationTaskInvalidated(relocationTask);
+		}
+	}
+
+	private static void LogTaskInvalidation(
+		WorkerTask task,
+		AIWorker worker,
+		WorkerTask.Status previousStatus,
+		TaskInvalidationReason reason)
+	{
+		string workerName = worker != null ? worker.Name : "None";
+		if (task is CapsuleRelocationTask relocationTask)
+		{
+			string sourceName = relocationTask.SourceDock != null ? relocationTask.SourceDock.name : "None";
+			string targetName = relocationTask.TargetDock != null ? relocationTask.TargetDock.name : "None";
+			Debug.Log(
+				$"[TaskInvalidated] type={task.Type}, reason={reason}, previous={previousStatus}, worker={workerName}, building={relocationTask.BuildingId}, source={sourceName}, target={targetName}");
+			return;
+		}
+
+		Debug.Log(
+			$"[TaskInvalidated] type={task.Type}, reason={reason}, previous={previousStatus}, worker={workerName}");
 	}
 
 	private void NotifyWorkflowTaskInvalidated(WorkerTask task)

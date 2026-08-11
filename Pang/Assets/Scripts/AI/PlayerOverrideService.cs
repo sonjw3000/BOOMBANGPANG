@@ -178,7 +178,7 @@ public sealed class PlayerOverrideService
 			}
 
 			worker.PrepareForPlayerControlPreemption();
-			if (taskManager.InvalidateTask(task) == false)
+			if (taskManager.InvalidateTask(task, TaskInvalidationReason.PlayerWorkerTakeover) == false)
 			{
 				worker.ReevaluateTask(task);
 				message = "The current task could not be preempted for player control.";

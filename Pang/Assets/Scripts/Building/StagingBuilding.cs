@@ -18,6 +18,8 @@ public sealed class StagingBuilding : Building
 
 	protected override void OnIBDockDocked(CapsuleDock dock, CargoCapsule capsule)
 	{
+		base.OnIBDockDocked(dock, capsule);
+
 		if (dock is CapsuleBuffer capsuleBuffer)
 			TryRequestLabelingTask(capsuleBuffer);
 
