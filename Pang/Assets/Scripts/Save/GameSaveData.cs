@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 13;
+	public int Version = 14;
 	public string SavedAtUtc;
 
 	public ScenarioObjectiveSaveData ScenarioObjective = new();
@@ -107,6 +107,7 @@ public sealed class ResearchServiceSaveData
 	public List<string> ResearchedIds = new();
 	public string ActiveResearchId;
 	public int RemainingWeeks;
+	public List<string> QueuedResearchIds = new();
 }
 
 [Serializable]

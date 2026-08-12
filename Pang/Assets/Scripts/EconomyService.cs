@@ -46,7 +46,7 @@ public partial class EconomyService : MonoBehaviour
 
 	public bool CanAfford(int cost)
 	{
-		if (GameContext.CHEATMODE) return true;
+		if (GameContext.CheatMode) return true;
 
 		return money >= cost;
 	}

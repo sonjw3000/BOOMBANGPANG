@@ -136,6 +136,8 @@ The demo uses an ordered scenario objective sequence:
 
 `ScenarioObjectiveService` reads state and events from the owning Order, Research, and Economy systems. It does not mutate their gameplay state. The objective definitions are authored in `DemoScenario.asset`, while only runtime progress is saved.
 
+Research uses one active project and an ordered waiting queue. A project can be queued when its prerequisites are either completed, currently active, or placed earlier in the queue. Operational features still unlock only when research completes. Research costs are paid when a queued project starts; if funds are insufficient, the queue pauses at its first project and resumes automatically after enough money becomes available.
+
 ---
 
 ## Continuous Optimization

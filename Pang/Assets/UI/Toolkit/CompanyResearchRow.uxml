@@ -5,6 +5,12 @@
 		<ui:Label name="research-cost" text="$0" class="company-research-row__value" />
 		<ui:Label name="research-duration" text="1 week" class="company-research-row__value" />
 		<ui:Label name="research-state" text="Available" class="company-research-row__state" />
-		<ui:Button name="research-start-button" text="Start" class="company-action-button" />
+		<ui:VisualElement class="company-research-row__actions">
+			<ui:Button name="research-start-button" text="Queue" class="company-action-button" />
+			<ui:VisualElement name="research-order-actions" class="company-research-row__order-actions">
+				<ui:Button name="research-queue-up-button" text="Up" class="company-research-order-button" />
+				<ui:Button name="research-queue-down-button" text="Dn" class="company-research-order-button" />
+			</ui:VisualElement>
+		</ui:VisualElement>
 	</ui:VisualElement>
 </ui:UXML>

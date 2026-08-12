@@ -35,6 +35,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private ScrollView licenseDetail;
 		private Label activeResearchLabel;
 		private Label activeResearchTime;
+		private Label researchQueueStatus;
 		private ScrollView researchList;
 		private Label researchEmpty;
 		private Label researchMessage;
@@ -126,11 +127,13 @@ namespace UniverseLogistics.UI.Toolkit
 			licenseDetail = content.Q<ScrollView>("company-license-detail");
 			activeResearchLabel = content.Q<Label>("company-active-research");
 			activeResearchTime = content.Q<Label>("company-active-research-time");
+			researchQueueStatus = content.Q<Label>("company-research-queue-status");
 			researchList = content.Q<ScrollView>("company-research-list");
 			researchEmpty = content.Q<Label>("company-research-empty");
 			researchMessage = content.Q<Label>("company-research-message");
 			if (moneyLabel == null || financeFilter == null || financeList == null || licenseList == null ||
-				licenseDetail == null || researchList == null || researchMessage == null)
+				licenseDetail == null || activeResearchLabel == null || activeResearchTime == null ||
+				researchQueueStatus == null || researchList == null || researchEmpty == null || researchMessage == null)
 				return false;
 
 			financeFilter.choices = new List<string>(FinanceFilters);
@@ -212,7 +215,21 @@ namespace UniverseLogistics.UI.Toolkit
 			int acquired = licenseService?.AcquiredLicenses.Count ?? 0;
 			int nonCompliant = licenseService?.NonCompliantLicenses.Count ?? 0;
 			licensesLabel.text = nonCompliant > 0 ? $"{acquired} active · {nonCompliant} warning" : $"{acquired} active";
-			researchLabel.text = researchService != null && researchService.IsResearching ? $"{researchService.ActiveResearch?.DisplayName} · {researchService.RemainingWeeks}w" : "Idle";
+			if (researchService != null && researchService.IsResearching)
+			{
+				string queued = researchService.QueuedResearchCount > 0
+					? $" · {researchService.QueuedResearchCount} queued"
+					: string.Empty;
+				researchLabel.text = $"{researchService.ActiveResearch?.DisplayName} · {researchService.RemainingWeeks}w{queued}";
+			}
+			else if (researchService != null && researchService.QueuedResearchCount > 0)
+			{
+				researchLabel.text = $"Queue paused · {researchService.QueuedResearchCount} queued";
+			}
+			else
+			{
+				researchLabel.text = "Idle";
+			}
 		}
 
 		private int CountFacilities()
@@ -349,42 +366,167 @@ namespace UniverseLogistics.UI.Toolkit
 			ResearchDefinition active = researchService?.ActiveResearch;
 			activeResearchLabel.text = active != null ? active.DisplayName : "No active research";
 			activeResearchTime.text = active != null ? $"{researchService.RemainingWeeks} weeks remaining" : string.Empty;
-			IReadOnlyList<ResearchDefinition> definitions = researchService?.Definitions;
-			int count = definitions?.Count ?? 0;
-			for (int i = 0; i < count; ++i)
+			researchQueueStatus.text = BuildResearchQueueStatus();
+			List<ResearchDefinition> definitions = BuildResearchDisplayOrder();
+			for (int i = 0; i < definitions.Count; ++i)
 			{
 				ResearchDefinition definition = definitions[i];
 				if (definition != null) researchList.Add(CreateResearchRow(definition));
 			}
-			researchEmpty.style.display = count == 0 ? DisplayStyle.Flex : DisplayStyle.None;
-			if (count == 0) researchMessage.text = string.Empty;
+			researchEmpty.style.display = definitions.Count == 0 ? DisplayStyle.Flex : DisplayStyle.None;
+			if (definitions.Count == 0) researchMessage.text = string.Empty;
+		}
+
+		private List<ResearchDefinition> BuildResearchDisplayOrder()
+		{
+			List<ResearchDefinition> ordered = new();
+			HashSet<string> addedIds = new(StringComparer.Ordinal);
+			if (researchService == null)
+				return ordered;
+
+			AddResearchDefinition(ordered, addedIds, researchService.ActiveResearch);
+			for (int i = 0; i < researchService.QueuedResearchIds.Count; ++i)
+			{
+				if (researchService.Catalog.TryGet(researchService.QueuedResearchIds[i], out ResearchDefinition queued))
+					AddResearchDefinition(ordered, addedIds, queued);
+			}
+
+			IReadOnlyList<ResearchDefinition> definitions = researchService.Definitions;
+			for (int i = 0; i < definitions.Count; ++i)
+			{
+				ResearchDefinition definition = definitions[i];
+				if (definition != null && researchService.GetState(definition.Uid) != ResearchState.Completed)
+					AddResearchDefinition(ordered, addedIds, definition);
+			}
+
+			for (int i = 0; i < definitions.Count; ++i)
+			{
+				ResearchDefinition definition = definitions[i];
+				if (definition != null && researchService.GetState(definition.Uid) == ResearchState.Completed)
+					AddResearchDefinition(ordered, addedIds, definition);
+			}
+
+			return ordered;
+		}
+
+		private static void AddResearchDefinition(
+			ICollection<ResearchDefinition> definitions,
+			ISet<string> addedIds,
+			ResearchDefinition definition)
+		{
+			if (definition != null && addedIds.Add(definition.Uid))
+				definitions.Add(definition);
 		}
 
 		private VisualElement CreateResearchRow(ResearchDefinition definition)
 		{
 			TemplateContainer row = researchRowTemplate.CloneTree();
 			ResearchState state = researchService.GetState(definition.Uid);
+			int queueIndex = researchService.GetQueueIndex(definition.Uid);
 			row.Q<Label>("research-name").text = definition.DisplayName;
 			row.Q<Label>("research-description").text = definition.Description;
 			row.Q<Label>("research-prerequisites").text = BuildPrerequisiteSummary(definition);
 			row.Q<Label>("research-cost").text = $"${definition.Cost:N0}";
 			row.Q<Label>("research-duration").text = $"{definition.DurationWeeks} week{(definition.DurationWeeks == 1 ? string.Empty : "s")}";
-			row.Q<Label>("research-state").text = state.ToString();
+			row.Q<Label>("research-state").text = state == ResearchState.Queued
+				? $"Queued #{queueIndex + 1}"
+				: state.ToString();
 			Button button = row.Q<Button>("research-start-button");
-			bool canStart = researchService.CanStartResearch(definition.Uid, out ResearchStartFailureReason reason);
-			button.SetEnabled(canStart);
-			button.text = state == ResearchState.Completed ? "Done" : state == ResearchState.InProgress ? "Active" : "Start";
-			row.SetTooltip(canStart
+			Button upButton = row.Q<Button>("research-queue-up-button");
+			Button downButton = row.Q<Button>("research-queue-down-button");
+			VisualElement orderActions = row.Q<VisualElement>("research-order-actions");
+			bool canEnqueue = researchService.CanEnqueueResearch(
+				definition.Uid,
+				out ResearchStartFailureReason reason);
+			button.text = state switch
+			{
+				ResearchState.Completed => "Done",
+				ResearchState.InProgress => "Active",
+				ResearchState.Queued => "Remove",
+				_ => "Queue",
+			};
+			button.SetEnabled(state == ResearchState.Queued || canEnqueue);
+			orderActions.style.display = state == ResearchState.Queued ? DisplayStyle.Flex : DisplayStyle.None;
+			upButton.SetEnabled(state == ResearchState.Queued && queueIndex > 0);
+			downButton.SetEnabled(
+				state == ResearchState.Queued &&
+				queueIndex >= 0 &&
+				queueIndex < researchService.QueuedResearchCount - 1);
+
+			VisualElement rowRoot = row.Q<VisualElement>(className: "company-research-row");
+			if (rowRoot != null)
+			{
+				rowRoot.EnableInClassList("company-research-row--queued", state == ResearchState.Queued);
+				rowRoot.EnableInClassList("company-research-row--active", state == ResearchState.InProgress);
+				rowRoot.EnableInClassList("company-research-row--completed", state == ResearchState.Completed);
+			}
+
+			row.SetTooltip(state == ResearchState.Available || state == ResearchState.Queued ||
+				state == ResearchState.InProgress || state == ResearchState.Completed
 				? UITooltipContent.DescriptionOnly(definition.DisplayName, definition.Description)
 				: UITooltipContent.Locked(definition.DisplayName, definition.Description, FormatResearchFailure(reason)));
-			button.clicked += () => StartResearch(definition);
+			button.clicked += () => HandleResearchAction(definition);
+			upButton.clicked += () => MoveQueuedResearch(definition, -1);
+			downButton.clicked += () => MoveQueuedResearch(definition, 1);
 			return row;
 		}
 
-		private void StartResearch(ResearchDefinition definition)
+		private void HandleResearchAction(ResearchDefinition definition)
 		{
-			if (researchService.TryStartResearch(definition.Uid, out ResearchStartFailureReason reason)) researchMessage.text = $"Started {definition.DisplayName}.";
-			else researchMessage.text = FormatResearchFailure(reason);
+			if (researchService.GetState(definition.Uid) == ResearchState.Queued)
+			{
+				if (researchService.TryRemoveQueuedResearch(definition.Uid, out ResearchStartFailureReason removeReason))
+					researchMessage.text = $"Removed {definition.DisplayName} from the queue.";
+				else
+					researchMessage.text = FormatResearchFailure(removeReason);
+				return;
+			}
+
+			if (researchService.TryEnqueueResearch(definition.Uid, out ResearchStartFailureReason reason) == false)
+			{
+				researchMessage.text = FormatResearchFailure(reason);
+				return;
+			}
+
+			ResearchState state = researchService.GetState(definition.Uid);
+			researchMessage.text = state == ResearchState.InProgress
+				? $"Started {definition.DisplayName}."
+				: $"Queued {definition.DisplayName} at #{researchService.GetQueueIndex(definition.Uid) + 1}.";
+		}
+
+		private void MoveQueuedResearch(ResearchDefinition definition, int direction)
+		{
+			int currentIndex = researchService.GetQueueIndex(definition.Uid);
+			if (researchService.TryMoveQueuedResearch(
+				definition.Uid,
+				currentIndex + direction,
+				out ResearchStartFailureReason reason))
+			{
+				ResearchState state = researchService.GetState(definition.Uid);
+				researchMessage.text = state == ResearchState.InProgress
+					? $"Started {definition.DisplayName}."
+					: $"Moved {definition.DisplayName} to queue #{researchService.GetQueueIndex(definition.Uid) + 1}.";
+			}
+			else
+			{
+				researchMessage.text = FormatResearchFailure(reason);
+			}
+		}
+
+		private string BuildResearchQueueStatus()
+		{
+			if (researchService == null || researchService.QueuedResearchCount == 0)
+				return "Queue empty";
+
+			string nextId = researchService.QueuedResearchIds[0];
+			string nextName = researchService.Catalog != null &&
+				researchService.Catalog.TryGet(nextId, out ResearchDefinition next)
+					? next.DisplayName
+					: nextId;
+			if (researchService.TryGetQueueBlockReason(out ResearchStartFailureReason reason))
+				return $"Queue paused · Next: {nextName} · {FormatResearchFailure(reason)}";
+
+			return $"{researchService.QueuedResearchCount} queued · Next: {nextName}";
 		}
 
 		private void OnMoneyChanged(int _) { RefreshOverview(); RefreshResearch(); }
@@ -461,7 +603,22 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (definition.PrerequisiteUids.Count == 0) return "No prerequisites";
 			List<string> parts = new();
-			foreach (string id in definition.PrerequisiteUids) parts.Add($"{(researchService.IsResearched(id) ? "[OK]" : "[X]")} {id}");
+			foreach (string id in definition.PrerequisiteUids)
+			{
+				string name = researchService.Catalog != null &&
+					researchService.Catalog.TryGet(id, out ResearchDefinition prerequisite)
+						? prerequisite.DisplayName
+						: id;
+				int queueIndex = researchService.GetQueueIndex(id);
+				string marker = researchService.IsResearched(id)
+					? "[DONE]"
+					: string.Equals(researchService.ActiveResearchId, id, StringComparison.Ordinal)
+						? "[ACTIVE]"
+						: queueIndex >= 0
+							? $"[QUEUE #{queueIndex + 1}]"
+							: "[MISSING]";
+				parts.Add($"{marker} {name}");
+			}
 			return string.Join(" · ", parts);
 		}
 
@@ -471,6 +628,10 @@ namespace UniverseLogistics.UI.Toolkit
 			ResearchStartFailureReason.InsufficientFunds => "Insufficient funds.",
 			ResearchStartFailureReason.ResearchInProgress => "Another research is already in progress.",
 			ResearchStartFailureReason.AlreadyResearched => "Research is already completed.",
+			ResearchStartFailureReason.AlreadyQueued => "Research is already queued.",
+			ResearchStartFailureReason.NotQueued => "Research is not in the queue.",
+			ResearchStartFailureReason.InvalidQueuePosition => "That queue position is unavailable.",
+			ResearchStartFailureReason.InvalidQueueOrder => "That change would break prerequisite order.",
 			ResearchStartFailureReason.ServiceUnavailable => "Research service is unavailable.",
 			ResearchStartFailureReason.UnknownResearch => "Unknown research definition.",
 			_ => string.Empty,

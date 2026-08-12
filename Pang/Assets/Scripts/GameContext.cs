@@ -5,10 +5,9 @@ using UnityEngine.Serialization;
 [DefaultExecutionOrder(-100)]
 public class GameContext : MonoBehaviour
 {
-	public const bool CHEATMODE = true;
-
 	private static GameContext instance;
 	public static bool HasInstance => instance != null;
+	public static bool CheatMode => HasInstance && instance.gameCheat;
 	public static GameContext Instance
 	{
 		get

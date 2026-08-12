@@ -34,12 +34,19 @@
 .company-action-button { width: 62px; height: 25px; margin-left: 5px; font-size: 8px; -unity-font-style: bold; color: rgb(225,239,244); background-color: rgb(31,89,108); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(65,151,177); border-right-color: rgb(65,151,177); border-top-color: rgb(65,151,177); border-bottom-color: rgb(65,151,177); }
 .company-research-active { min-height: 52px; margin-bottom: 7px; padding: 8px; background-color: rgb(28,38,46); }
 .company-research-active__name { margin-top: 4px; font-size: 11px; -unity-font-style: bold; color: rgb(224,235,240); }
-.company-research-row { min-height: 58px; flex-direction: row; align-items: center; margin-bottom: 3px; padding: 7px; background-color: rgb(32,42,50); border-left-width: 2px; border-left-color: rgb(74,136,158); }
-.company-research-row__identity { width: 180px; }
+.company-research-queue-status { margin-top: 1px; font-size: 8px; color: rgb(126,169,186); white-space: normal; }
+.company-research-row { min-width: 650px; min-height: 58px; flex-direction: row; align-items: center; margin-bottom: 3px; padding: 7px; background-color: rgb(32,42,50); border-left-width: 2px; border-left-color: rgb(74,136,158); }
+.company-research-row--queued { border-left-color: rgb(212,160,75); background-color: rgb(43,43,43); }
+.company-research-row--active { border-left-color: rgb(75,196,126); background-color: rgb(31,52,45); }
+.company-research-row--completed { border-left-color: rgb(84,105,114); opacity: 0.75; }
+.company-research-row__identity { min-width: 180px; flex-grow: 1; }
 .company-research-row__name { font-size: 10px; -unity-font-style: bold; color: rgb(224,235,240); }
 .company-research-row__description { margin-top: 2px; font-size: 8px; color: rgb(126,150,162); white-space: normal; }
 .company-research-row__prerequisites { width: 130px; font-size: 8px; color: rgb(145,170,181); white-space: normal; }
 .company-research-row__value { width: 62px; font-size: 8px; color: rgb(181,201,210); }
 .company-research-row__state { width: 70px; font-size: 8px; color: rgb(103,196,220); }
+.company-research-row__actions { width: 96px; flex-direction: row; align-items: center; }
+.company-research-row__order-actions { width: 27px; margin-left: 3px; }
+.company-research-order-button { width: 27px; height: 18px; margin-top: 1px; margin-bottom: 1px; padding-left: 0; padding-right: 0; font-size: 7px; color: rgb(190,211,219); background-color: rgb(43,62,70); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(73,108,120); border-right-color: rgb(73,108,120); border-top-color: rgb(73,108,120); border-bottom-color: rgb(73,108,120); }
 .company-research-empty { top: 135px; }
-.company-message { height: 20px; font-size: 8px; color: rgb(200,155,112); }
+.company-message { min-height: 20px; font-size: 8px; color: rgb(200,155,112); white-space: normal; }

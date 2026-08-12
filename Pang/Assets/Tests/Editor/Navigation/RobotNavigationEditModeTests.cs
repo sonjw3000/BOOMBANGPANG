@@ -85,7 +85,7 @@ public sealed class RobotNavigationEditModeTests
 	[Test]
 	public void SaveSchema_PersistsInputsButNotDerivedNavigationCaches()
 	{
-		Assert.That(new GameSaveData().Version, Is.EqualTo(13));
+		Assert.That(new GameSaveData().Version, Is.EqualTo(14));
 		Assert.That(typeof(PlaceableSaveData).GetField("OwnerNavigationHubSaveId"), Is.Not.Null);
 		Assert.That(typeof(WorkerSaveData).GetField("HasNavigationProfile"), Is.Not.Null);
 		Assert.That(typeof(WorkerSaveData).GetField("NavigationDependency"), Is.Not.Null);

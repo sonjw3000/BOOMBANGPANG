@@ -33,8 +33,8 @@
 			<ui:VisualElement class="company-main-column"><ui:Label name="company-license-title" text="Select a License" class="company-heading" /><ui:Label name="company-license-status" text="" class="company-caption" /><ui:ScrollView name="company-license-detail" class="company-list" /></ui:VisualElement>
 		</ui:VisualElement>
 		<ui:VisualElement name="company-research-tab" class="company-tab">
-			<ui:VisualElement class="company-research-active"><ui:Label text="ACTIVE RESEARCH" class="company-column-label" /><ui:Label name="company-active-research" text="No active research" class="company-research-active__name" /><ui:Label name="company-active-research-time" text="" class="company-caption" /></ui:VisualElement>
-			<ui:ScrollView name="company-research-list" class="company-list" />
+			<ui:VisualElement class="company-research-active"><ui:Label text="ACTIVE RESEARCH" class="company-column-label" /><ui:Label name="company-active-research" text="No active research" class="company-research-active__name" /><ui:Label name="company-active-research-time" text="" class="company-caption" /><ui:Label name="company-research-queue-status" text="Queue empty" class="company-research-queue-status" /></ui:VisualElement>
+			<ui:ScrollView name="company-research-list" mode="VerticalAndHorizontal" class="company-list" />
 			<ui:Label name="company-research-empty" text="No research definitions available." class="company-empty company-research-empty" />
 			<ui:Label name="company-research-message" text="" class="company-message" />
 		</ui:VisualElement>
