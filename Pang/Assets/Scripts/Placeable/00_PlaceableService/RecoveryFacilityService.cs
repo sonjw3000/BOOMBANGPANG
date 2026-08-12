@@ -24,25 +24,7 @@ public abstract class RecoveryFacilityService<TFacility> : FacilityService<TFaci
 
 	public bool HasCompatibleFacility(AIWorker worker)
 	{
-		if (worker == null)
-			return false;
-
-		foreach (var buildingEntry in registeredFacilities)
-		{
-			List<TFacility> facilities = buildingEntry.Value;
-			for (int i = 0; i < facilities.Count; ++i)
-			{
-				TFacility facility = facilities[i];
-				if (facility != null &&
-					FacilityManager.IsInvalidating(facility) == false &&
-					facility.CanServe(worker))
-				{
-					return true;
-				}
-			}
-		}
-
-		return false;
+		return TryFindAvailableFacility(worker, out _);
 	}
 
 	public bool TryReserveDestination(
@@ -71,28 +53,7 @@ public abstract class RecoveryFacilityService<TFacility> : FacilityService<TFaci
 			reservations.Remove(worker);
 		}
 
-		TFacility bestFacility = null;
-		int bestScore = int.MaxValue;
-		foreach (var buildingEntry in registeredFacilities)
-		{
-			List<TFacility> facilities = buildingEntry.Value;
-			for (int i = 0; i < facilities.Count; ++i)
-			{
-				TFacility candidate = facilities[i];
-				if (candidate == null ||
-					FacilityManager.IsInvalidating(candidate) ||
-					candidate.TryGetAvailableSlot(worker, worker.GridPosition, out _, out int score) == false ||
-					score >= bestScore)
-				{
-					continue;
-				}
-
-				bestFacility = candidate;
-				bestScore = score;
-			}
-		}
-
-		if (bestFacility == null ||
+		if (TryFindAvailableFacility(worker, out TFacility bestFacility) == false ||
 			bestFacility.TryReserveSlot(worker, worker.GridPosition, out point) == false)
 		{
 			return false;
@@ -101,6 +62,39 @@ public abstract class RecoveryFacilityService<TFacility> : FacilityService<TFaci
 		reservations[worker] = bestFacility;
 		facility = bestFacility;
 		return true;
+	}
+
+	private bool TryFindAvailableFacility(AIWorker worker, out TFacility facility)
+	{
+		facility = null;
+		if (worker == null || FacilityManager == null)
+			return false;
+
+		FacilityFilter facilityFilter = FacilityFilter.ForWorker(worker);
+
+		bool TryScore(TFacility candidate, in int3 origin, out int score)
+		{
+			score = int.MaxValue;
+			return candidate != null &&
+				FacilityManager.IsInvalidating(candidate) == false &&
+				facilityFilter.MatchesCurrentRules(candidate) &&
+				candidate.TryGetAvailableSlot(worker, origin, out _, out score);
+		}
+
+		if (worker.PrimaryBuildingId != 0 &&
+			TryFindClosestFacility(
+				worker.PrimaryBuildingId,
+				worker.GridPosition,
+				TryScore,
+				out facility))
+		{
+			return true;
+		}
+
+		return TryFindClosestFacility(
+			worker.GridPosition,
+			TryScore,
+			out facility);
 	}
 
 	public void ReleaseWorker(AIWorker worker)
