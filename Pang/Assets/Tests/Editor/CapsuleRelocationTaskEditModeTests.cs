@@ -205,6 +205,65 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	}
 
 	[Test]
+	public void SetTargetDock_NonLaunchOutbound_DoesNotApplyLaunchManifestValidation()
+	{
+		StorageBuilding building = CreateStorageBuilding();
+		CapsuleBuffer source = CreateBuffer(building, "Non-Launch OB Source", CapsuleDockState.OBStandby);
+		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Non-Launch OB Target");
+		CargoCapsule payload = CreateCapsule("Non-Launch OB Payload", CapsuleLogisticsState.OB);
+		Assert.That(source.TryDockCapsule(payload), Is.True);
+
+		CapsuleRelocationTask task = CreateOutboundTask(building, source, target);
+		MarkBuildingTaskBuilt(building, task);
+		Assert.That(coordinator.RestoreActiveRelocation(source, target, payloadAlreadyPicked: false), Is.True);
+		HumanWorker worker = CreateWorker();
+		AssignInProgress(task, worker);
+		BTContext taskContext = CreateTaskContext(worker);
+		Assert.That(CapsuleRelocationTask.PickCapsule(in taskContext), Is.EqualTo(IBaseNode.NodeState.Success));
+
+		Assert.That(CapsuleRelocationTask.SetTargetDock(in taskContext), Is.EqualTo(IBaseNode.NodeState.Success));
+
+		Assert.That(GetTaskTarget(task), Is.SameAs(target));
+		Assert.That(payload.LogisticsState, Is.EqualTo(CapsuleLogisticsState.OB));
+		Assert.That(worker.CarryingAbility.CarryingBox, Is.SameAs(payload));
+	}
+
+	[Test]
+	public void SetTargetDock_LaunchOutboundWithIncompleteManifest_RedirectsToSource()
+	{
+		LaunchBuilding building = CreateLaunchBuilding();
+		CapsuleBuffer source = CreateBuffer(building, "Launch OB Source", CapsuleDockState.OBStandby);
+		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Launch OB Target");
+		CargoCapsule payload = CreateCapsule("Launch OB Payload", CapsuleLogisticsState.OB);
+		Assert.That(source.TryDockCapsule(payload), Is.True);
+
+		CapsuleRelocationTask task = CreateOutboundTask(building, source, target);
+		MarkBuildingTaskBuilt(building, task);
+		HumanWorker worker = CreateWorker();
+		AssignInProgress(task, worker);
+		BTContext taskContext = CreateTaskContext(worker);
+		Assert.That(source.TryUndockCapsule(out CargoCapsule pickedPayload), Is.True);
+		Assert.That(pickedPayload, Is.SameAs(payload));
+		Assert.That(worker.CarryingAbility.PutBox(payload), Is.True);
+		Assert.That(
+			coordinator.RestoreActiveRelocation(
+				source,
+				target,
+				payloadAlreadyPicked: true,
+				holdSourceForPotentialReturn: true),
+			Is.True);
+		LogAssert.Expect(
+			LogType.Log,
+			new Regex(@"\[OutboundQualityControl\] Redirecting rejected capsule"));
+
+		Assert.That(CapsuleRelocationTask.SetTargetDock(in taskContext), Is.EqualTo(IBaseNode.NodeState.Success));
+
+		Assert.That(GetTaskTarget(task), Is.SameAs(source));
+		Assert.That(payload.LogisticsState, Is.EqualTo(CapsuleLogisticsState.OBStandby));
+		Assert.That(worker.CarryingAbility.CarryingBox, Is.SameAs(payload));
+	}
+
+	[Test]
 	public void PlayerPreemptsTarget_WithPayload_ReusesTaskAndSelectsReplacement()
 	{
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
@@ -412,6 +471,26 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		AlwaysOutboundReadyBuilding building = new(
 			"Capsule Relocation Test Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
+		return building;
+	}
+
+	private LaunchBuilding CreateLaunchBuilding()
+	{
+		LaunchBuilding building = new(
+			"Capsule Relocation Launch Test Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
+		return building;
+	}
+
+	private StorageBuilding CreateStorageBuilding()
+	{
+		StorageBuilding building = new(
+			"Capsule Relocation Storage Test Building",
 			new List<GridCell>());
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);

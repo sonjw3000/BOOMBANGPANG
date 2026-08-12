@@ -377,6 +377,17 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			return true;
 
 		GameContext context = GameContext.HasInstance ? GameContext.Instance : null;
+		FacilityManager facilityManager = context?.FacilityMgr;
+		BuildingManager buildingManager = context?.BuildingMgr;
+		if (facilityManager == null ||
+			buildingManager == null ||
+			facilityManager.TryGetBuildingId(sourceBuffer, out uint sourceBuildingId) == false ||
+			buildingManager.TryGetBuilding(sourceBuildingId, out Building sourceBuilding) == false ||
+			sourceBuilding is not LaunchBuilding)
+		{
+			return true;
+		}
+
 		OutboundWorkflowService outbound = context?.OBWorkflowSvc;
 		if (outbound == null ||
 			(outbound.HasDispatchBlockingCargo(capsule) == false &&
@@ -396,7 +407,6 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		}
 
 		CapsuleRelocateCoordinator coordinator = context.CapsuleRelocateCoordinator;
-		FacilityManager facilityManager = context.FacilityMgr;
 		if (coordinator == null ||
 			sourceBuffer.CanPutBox() == false ||
 			sourceBuffer.CanAcceptCargoRoute(capsule.RouteKind) == false ||
