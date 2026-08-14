@@ -204,6 +204,32 @@ public partial class WorkerManager : MonoBehaviour
 		return TrySetWorkerAssignment(worker, buildingId, Array.Empty<TaskType>());
 	}
 
+	public bool CanRequestWorkerAssignment(
+		AIWorker worker,
+		uint buildingId,
+		IReadOnlyList<TaskType> taskTypes)
+	{
+		return worker != null &&
+			workers.Contains(worker) &&
+			worker.IsOperational &&
+			ValidateAssignment(worker, buildingId, taskTypes, null, reportMissingComponent: false);
+	}
+
+	public bool CanRequestWorkerRoleAssignment(
+		AIWorker worker,
+		uint buildingId,
+		WorkforceRole role)
+	{
+		if (TryResolveBuildingType(buildingId, out BuildingType? buildingType) == false ||
+			WorkforceRoleCatalog.IsRoleSupported(buildingType, role) == false ||
+			WorkforceRoleCatalog.TryGetDefinition(role, out WorkforceRoleDefinition definition) == false)
+		{
+			return false;
+		}
+
+		return CanRequestWorkerAssignment(worker, buildingId, definition.TaskTypes);
+	}
+
 	public bool TryRequestWorkerAssignment(
 		AIWorker worker,
 		uint buildingId,
@@ -222,8 +248,13 @@ public partial class WorkerManager : MonoBehaviour
 		uint buildingId,
 		IReadOnlyList<TaskType> taskTypes)
 	{
-		if (worker == null || workers.Contains(worker) == false || worker.CurrentTask != null)
+		if (worker == null ||
+			workers.Contains(worker) == false ||
+			worker.IsOperational == false ||
+			worker.CurrentTask != null)
+		{
 			return false;
+		}
 
 		if (TryValidateAssignment(worker, buildingId, taskTypes, out List<TaskType> validTypes) == false)
 			return false;
@@ -241,6 +272,7 @@ public partial class WorkerManager : MonoBehaviour
 	{
 		if (worker == null ||
 			workers.Contains(worker) == false ||
+			worker.IsOperational == false ||
 			(worker.CurrentTask == null && worker.HasPendingAssignment == false))
 			return false;
 
@@ -267,6 +299,9 @@ public partial class WorkerManager : MonoBehaviour
 
 	public bool TryApplyPendingAssignment(AIWorker worker)
 	{
+		// A pending assignment is desired workforce state accepted while the worker was
+		// operational. Keep it across temporary incapacitation, but revalidate its task,
+		// building, ability, and component requirements before applying it.
 		if (worker == null ||
 			workers.Contains(worker) == false ||
 			worker.CurrentTask != null ||
@@ -298,6 +333,22 @@ public partial class WorkerManager : MonoBehaviour
 		out List<TaskType> validTypes)
 	{
 		validTypes = new List<TaskType>();
+		return ValidateAssignment(
+			worker,
+			buildingId,
+			taskTypes,
+			validTypes,
+			reportMissingComponent: true);
+	}
+
+	private bool ValidateAssignment(
+		AIWorker worker,
+		uint buildingId,
+		IReadOnlyList<TaskType> taskTypes,
+		List<TaskType> validTypes,
+		bool reportMissingComponent)
+	{
+		validTypes?.Clear();
 		if (worker == null || TryResolveBuildingType(buildingId, out BuildingType? buildingType) == false)
 			return false;
 
@@ -307,16 +358,17 @@ public partial class WorkerManager : MonoBehaviour
 		for (int i = 0; i < taskTypes.Count; ++i)
 		{
 			TaskType taskType = taskTypes[i];
-			if (taskType == TaskType.Undefined || validTypes.Contains(taskType))
+			if (taskType == TaskType.Undefined ||
+				(validTypes != null && validTypes.Contains(taskType)))
 				continue;
 
 			if (WorkerTaskAssignmentPolicy.CanAssign(worker, buildingType, taskType) == false ||
-				HasRequiredComponent(worker, taskType) == false)
+				HasRequiredComponent(worker, taskType, reportMissingComponent) == false)
 			{
 				return false;
 			}
 
-			validTypes.Add(taskType);
+			validTypes?.Add(taskType);
 		}
 
 		return true;
@@ -504,7 +556,10 @@ public partial class WorkerManager : MonoBehaviour
 			workersPerTaskType[taskType].Remove(worker);
 	}
 
-	private static bool HasRequiredComponent(AIWorker worker, TaskType type)
+	private static bool HasRequiredComponent(
+		AIWorker worker,
+		TaskType type,
+		bool reportFailure = true)
 	{
 		switch (type)
 		{
@@ -512,7 +567,8 @@ public partial class WorkerManager : MonoBehaviour
 			case TaskType.CargoTransfer:
 				if (worker.GetComponent<CargoHandlingAbility>() == false)
 				{
-					Debug.Log("No CargoHandlingAbility");
+					if (reportFailure)
+						Debug.Log("No CargoHandlingAbility");
 					return false;
 				}
 				return true;
@@ -527,7 +583,8 @@ public partial class WorkerManager : MonoBehaviour
 			case TaskType.WasteCollection:
 				if (worker.GetComponent<CarryBoxAbility>() == false)
 				{
-					Debug.Log("No CarryBoxAbility");
+					if (reportFailure)
+						Debug.Log("No CarryBoxAbility");
 					return false;
 				}
 				return true;
@@ -535,7 +592,8 @@ public partial class WorkerManager : MonoBehaviour
 			case TaskType.Labeling:
 				if (worker.GetComponent<LabelingAbility>() == false)
 				{
-					Debug.Log("No LabelingAbility");
+					if (reportFailure)
+						Debug.Log("No LabelingAbility");
 					return false;
 				}
 				return true;
