@@ -15,7 +15,7 @@
 				<ui:Label name="workforce-blocked" text="BLOCKED 0" class="workforce-summary__item workforce-summary__item--warning" />
 				<ui:Label name="workforce-payroll" text="PAYROLL $0 / MONTH" class="workforce-summary__item workforce-summary__item--payroll" />
 			</ui:VisualElement>
-			<ui:Label name="workforce-assignment-drag-status" text="Drag an unassigned worker to a role, or an assigned worker to Unassigned." class="workforce-assignment-drag-status" />
+			<ui:Label name="workforce-assignment-drag-status" text="Drag any worker to an eligible role, or an assigned worker to Unassigned." class="workforce-assignment-drag-status" />
 			<ui:VisualElement class="workforce-assignment-columns">
 				<ui:VisualElement name="workforce-unassigned-drop-target" class="workforce-unassigned-column">
 					<ui:VisualElement class="workforce-assignment-column-header">

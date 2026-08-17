@@ -19,7 +19,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string AssignmentFeedbackPendingClass = "workforce-assignment-drag-status--pending";
 		private const string AssignmentFeedbackErrorClass = "workforce-assignment-drag-status--error";
 		private const string AssignmentDragInstruction =
-			"Drag an unassigned worker to a role, or an assigned worker to Unassigned.";
+			"Drag any worker to an eligible role, or an assigned worker to Unassigned.";
 
 		private enum AssignmentDragFeedback
 		{
@@ -53,6 +53,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualElement assignmentDragSourceRow;
 		private uint assignmentDragSourceBuildingId;
 		private WorkforceRole assignmentDragSourceRole = WorkforceRole.Undefined;
+		private uint assignmentDragSourcePrimaryBuildingId;
+		private readonly List<WorkerTask.TaskType> assignmentDragSourceTaskTypes = new();
 		private Vector2 assignmentDragPointerStart;
 		private int assignmentDragPointerId = -1;
 		private bool assignmentDragStarted;
@@ -193,10 +195,11 @@ namespace UniverseLogistics.UI.Toolkit
 				accepted = TryDropAssignmentOnRole(roleTarget.BuildingId, roleTarget.Role);
 				if (accepted == false)
 				{
-					string message = roleSource
-						? "Direct role-to-role reassignment is available in the next step. Drop on Unassigned first."
-						: $"{GetAssignmentRoleDisplayName(roleTarget.Role)} cannot accept this worker.";
-					SetAssignmentDragFeedback(message, AssignmentDragFeedback.Error);
+					SetAssignmentDragFeedback(
+						GetAssignmentRoleDropFailureMessage(
+							roleTarget.BuildingId,
+							roleTarget.Role),
+						AssignmentDragFeedback.Error);
 				}
 			}
 			else if (wasDragging && overUnassigned)
@@ -205,7 +208,9 @@ namespace UniverseLogistics.UI.Toolkit
 				if (accepted == false)
 				{
 					SetAssignmentDragFeedback(
-						roleSource
+						IsAssignmentDragSourceSnapshotCurrent() == false
+							? "This worker's assignment changed during the drag."
+							: roleSource
 							? "This worker cannot be unassigned right now."
 							: "This worker is already unassigned.",
 						AssignmentDragFeedback.Error);
@@ -267,28 +272,22 @@ namespace UniverseLogistics.UI.Toolkit
 				return false;
 
 			bool unassignedSource = sourceRole == WorkforceRole.Undefined;
-			if (unassignedSource)
-			{
-				if (workerManager.CanRequestWorkerUnassignment(worker) == false)
-					return false;
-			}
-			else if (workerManager.CanRequestWorkerUnassignment(worker) == false)
-			{
+			if (workerManager.CanRequestWorkerUnassignment(worker) == false)
 				return false;
-			}
 
 			assignmentModeController?.EndMode();
 			ClearPendingAssignmentFeedbackTracking();
 			assignmentDragWorker = worker;
 			assignmentDragSourceBuildingId = sourceBuildingId;
 			assignmentDragSourceRole = sourceRole;
+			CaptureAssignmentDragSourceSnapshot(worker);
 			assignmentDragStarted = true;
 			assignmentDragSourceRow?.EnableInClassList(DraggingRowClass, true);
 			RefreshAssignmentDropTargetVisuals();
 			SetAssignmentDragFeedback(
 				unassignedSource
 					? $"Drop Worker #{worker.WorkerID} on a highlighted role."
-					: $"Drop Worker #{worker.WorkerID} on Unassigned to remove the current assignment.",
+					: $"Drop Worker #{worker.WorkerID} on another highlighted role or Unassigned.",
 				AssignmentDragFeedback.Neutral);
 			return true;
 		}
@@ -297,11 +296,8 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			return assignmentDragStarted &&
 				assignmentDragWorker != null &&
-				assignmentDragSourceRole == WorkforceRole.Undefined &&
-				IsAssignmentDragSourceCurrent(
-					assignmentDragWorker,
-					assignmentDragSourceBuildingId,
-					assignmentDragSourceRole) &&
+				IsAssignmentDragSourceSnapshotCurrent() &&
+				IsAssignmentRoleDropNoOp(buildingId, role) == false &&
 				workerManager?.CanRequestWorkerRoleAssignment(
 					assignmentDragWorker,
 					buildingId,
@@ -331,10 +327,7 @@ namespace UniverseLogistics.UI.Toolkit
 			return assignmentDragStarted &&
 				assignmentDragWorker != null &&
 				assignmentDragSourceRole != WorkforceRole.Undefined &&
-				IsAssignmentDragSourceCurrent(
-					assignmentDragWorker,
-					assignmentDragSourceBuildingId,
-					assignmentDragSourceRole) &&
+				IsAssignmentDragSourceSnapshotCurrent() &&
 				workerManager?.CanRequestWorkerUnassignment(assignmentDragWorker) == true;
 		}
 
@@ -392,6 +385,8 @@ namespace UniverseLogistics.UI.Toolkit
 			assignmentDragSourceRow = null;
 			assignmentDragSourceBuildingId = 0;
 			assignmentDragSourceRole = WorkforceRole.Undefined;
+			assignmentDragSourcePrimaryBuildingId = 0;
+			assignmentDragSourceTaskTypes.Clear();
 			assignmentDragPointerStart = default;
 			assignmentDragStarted = false;
 		}
@@ -456,16 +451,19 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				if (CanDropAssignmentOnRole(roleTarget.BuildingId, roleTarget.Role))
 				{
+					string action = assignmentDragSourceRole == WorkforceRole.Undefined
+						? "Assign"
+						: "Reassign";
 					SetAssignmentDragFeedback(
-						$"Assign Worker #{assignmentDragWorker.WorkerID} to {GetAssignmentRoleDisplayName(roleTarget.Role)}.",
+						$"{action} Worker #{assignmentDragWorker.WorkerID} to {GetAssignmentRoleDisplayName(roleTarget.Role)}.",
 						AssignmentDragFeedback.Neutral);
 				}
 				else
 				{
 					SetAssignmentDragFeedback(
-						assignmentDragSourceRole != WorkforceRole.Undefined
-							? "Direct role-to-role reassignment is available in the next step."
-							: $"Worker #{assignmentDragWorker.WorkerID} is not eligible for {GetAssignmentRoleDisplayName(roleTarget.Role)}.",
+						GetAssignmentRoleDropFailureMessage(
+							roleTarget.BuildingId,
+							roleTarget.Role),
 						AssignmentDragFeedback.Error);
 				}
 				return;
@@ -473,11 +471,17 @@ namespace UniverseLogistics.UI.Toolkit
 
 			if (IsInsideAssignmentUnassignedTarget(hit))
 			{
+				bool canUnassign = CanDropAssignmentOnUnassigned();
+				string message = canUnassign
+					? $"Remove the current assignment from Worker #{assignmentDragWorker.WorkerID}."
+					: IsAssignmentDragSourceSnapshotCurrent() == false
+						? $"Worker #{assignmentDragWorker.WorkerID}'s assignment changed during the drag."
+						: assignmentDragSourceRole == WorkforceRole.Undefined
+							? $"Worker #{assignmentDragWorker.WorkerID} is already unassigned."
+							: $"Worker #{assignmentDragWorker.WorkerID} cannot be unassigned right now.";
 				SetAssignmentDragFeedback(
-					CanDropAssignmentOnUnassigned()
-						? $"Remove the current assignment from Worker #{assignmentDragWorker.WorkerID}."
-						: $"Worker #{assignmentDragWorker.WorkerID} is already unassigned.",
-					CanDropAssignmentOnUnassigned()
+					message,
+					canUnassign
 						? AssignmentDragFeedback.Neutral
 						: AssignmentDragFeedback.Error);
 				return;
@@ -486,7 +490,7 @@ namespace UniverseLogistics.UI.Toolkit
 			SetAssignmentDragFeedback(
 				assignmentDragSourceRole == WorkforceRole.Undefined
 					? $"Drop Worker #{assignmentDragWorker.WorkerID} on a highlighted role."
-					: $"Drop Worker #{assignmentDragWorker.WorkerID} on Unassigned.",
+					: $"Drop Worker #{assignmentDragWorker.WorkerID} on another highlighted role or Unassigned.",
 				AssignmentDragFeedback.Neutral);
 		}
 
@@ -525,6 +529,87 @@ namespace UniverseLogistics.UI.Toolkit
 			return worker.PrimaryBuildingId == sourceBuildingId &&
 				WorkforceRoleCatalog.GetAssignmentState(sourceRole, worker.AssignedTaskTypes) !=
 					WorkforceRoleAssignmentState.None;
+		}
+
+		private void CaptureAssignmentDragSourceSnapshot(AIWorker worker)
+		{
+			assignmentDragSourcePrimaryBuildingId = worker?.PrimaryBuildingId ?? 0;
+			assignmentDragSourceTaskTypes.Clear();
+			if (worker?.AssignedTaskTypes == null)
+				return;
+
+			for (int i = 0; i < worker.AssignedTaskTypes.Count; ++i)
+				assignmentDragSourceTaskTypes.Add(worker.AssignedTaskTypes[i]);
+		}
+
+		private bool IsAssignmentDragSourceSnapshotCurrent()
+		{
+			return assignmentDragWorker != null &&
+				assignmentDragWorker.IsOperational &&
+				assignmentDragWorker.PrimaryBuildingId == assignmentDragSourcePrimaryBuildingId &&
+				HaveExactAssignmentTaskTypes(
+					assignmentDragWorker.AssignedTaskTypes,
+					assignmentDragSourceTaskTypes);
+		}
+
+		private bool IsAssignmentRoleDropNoOp(uint buildingId, WorkforceRole role)
+		{
+			AIWorker worker = assignmentDragWorker;
+			if (worker == null)
+				return false;
+
+			bool comparePending = worker.CurrentTask != null && worker.HasPendingAssignment;
+			return IsExactRoleAssignmentTarget(worker, buildingId, role, comparePending);
+		}
+
+		private string GetAssignmentRoleDropFailureMessage(uint buildingId, WorkforceRole role)
+		{
+			if (IsAssignmentDragSourceSnapshotCurrent() == false)
+				return "This worker's assignment changed during the drag.";
+			if (IsAssignmentRoleDropNoOp(buildingId, role))
+				return $"Worker #{assignmentDragWorker.WorkerID} already has this assignment.";
+
+			return $"Worker #{assignmentDragWorker.WorkerID} is not eligible for {GetAssignmentRoleDisplayName(role)}.";
+		}
+
+		private static bool IsExactRoleAssignmentTarget(
+			AIWorker worker,
+			uint buildingId,
+			WorkforceRole role,
+			bool pending)
+		{
+			if (worker == null ||
+				WorkforceRoleCatalog.TryGetDefinition(
+					role,
+					out WorkforceRoleDefinition definition) == false)
+			{
+				return false;
+			}
+
+			uint currentBuildingId = pending
+				? worker.PendingPrimaryBuildingId
+				: worker.PrimaryBuildingId;
+			IReadOnlyList<WorkerTask.TaskType> currentTaskTypes = pending
+				? worker.PendingAssignedTaskTypes
+				: worker.AssignedTaskTypes;
+			return currentBuildingId == buildingId &&
+				HaveExactAssignmentTaskTypes(currentTaskTypes, definition.TaskTypes);
+		}
+
+		private static bool HaveExactAssignmentTaskTypes(
+			IReadOnlyList<WorkerTask.TaskType> current,
+			IReadOnlyList<WorkerTask.TaskType> expected)
+		{
+			if (current == null || expected == null || current.Count != expected.Count)
+				return false;
+
+			for (int i = 0; i < expected.Count; ++i)
+			{
+				if (ContainsAssignmentTaskType(current, expected[i]) == false)
+					return false;
+			}
+
+			return true;
 		}
 
 		private void SetAssignmentDropAcceptedFeedback(
@@ -634,23 +719,11 @@ namespace UniverseLogistics.UI.Toolkit
 				return buildingId == 0 && (taskTypes == null || taskTypes.Count == 0);
 			}
 
-			if (buildingId != assignmentPendingFeedbackBuildingId ||
-				WorkforceRoleCatalog.TryGetDefinition(
-					assignmentPendingFeedbackRole,
-					out WorkforceRoleDefinition definition) == false ||
-				taskTypes == null ||
-				taskTypes.Count != definition.TaskTypes.Count)
-			{
-				return false;
-			}
-
-			for (int i = 0; i < definition.TaskTypes.Count; ++i)
-			{
-				if (ContainsAssignmentTaskType(taskTypes, definition.TaskTypes[i]) == false)
-					return false;
-			}
-
-			return true;
+			return IsExactRoleAssignmentTarget(
+				worker,
+				assignmentPendingFeedbackBuildingId,
+				assignmentPendingFeedbackRole,
+				pending);
 		}
 
 		private static bool ContainsAssignmentTaskType(
