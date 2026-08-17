@@ -3,10 +3,11 @@
 	<ui:VisualElement class="workforce-content">
 		<ui:VisualElement class="workforce-tabs">
 			<ui:VisualElement class="workforce-tabs__separator" picking-mode="Ignore" />
-			<ui:Button name="workforce-roster-button" text="Roster" class="workforce-tab-button" />
+			<ui:Button name="workforce-assignments-button" text="Assignments" class="workforce-tab-button" />
+			<ui:Button name="workforce-roster-button" text="Workers" class="workforce-tab-button" />
 			<ui:Button name="workforce-hiring-button" text="Hiring" class="workforce-tab-button" />
 		</ui:VisualElement>
-		<ui:VisualElement name="workforce-roster-tab" class="workforce-tab">
+		<ui:VisualElement name="workforce-assignments-tab" class="workforce-tab workforce-assignments">
 			<ui:VisualElement class="workforce-summary">
 				<ui:Label name="workforce-total" text="TOTAL 0" class="workforce-summary__item" />
 				<ui:Label name="workforce-unassigned" text="UNASSIGNED 0" class="workforce-summary__item" />
@@ -14,6 +15,26 @@
 				<ui:Label name="workforce-blocked" text="BLOCKED 0" class="workforce-summary__item workforce-summary__item--warning" />
 				<ui:Label name="workforce-payroll" text="PAYROLL $0 / MONTH" class="workforce-summary__item workforce-summary__item--payroll" />
 			</ui:VisualElement>
+			<ui:VisualElement class="workforce-assignment-columns">
+				<ui:VisualElement class="workforce-unassigned-column">
+					<ui:VisualElement class="workforce-assignment-column-header">
+						<ui:Label text="UNASSIGNED" class="workforce-column-label" />
+						<ui:Label name="workforce-unassigned-count" text="0 WORKERS" class="workforce-assignment-column-count" />
+					</ui:VisualElement>
+					<ui:ScrollView name="workforce-unassigned-list" class="workforce-assignment-list" />
+					<ui:Label name="workforce-unassigned-empty" text="All operational workers have a role." class="workforce-assignment-empty" />
+				</ui:VisualElement>
+				<ui:VisualElement class="workforce-assignment-tree-column">
+					<ui:VisualElement class="workforce-assignment-column-header">
+						<ui:Label text="PUBLIC &amp; BUILDINGS" class="workforce-column-label" />
+						<ui:Label text="CURRENT OPERATIONAL ASSIGNMENTS" class="workforce-assignment-column-count" />
+					</ui:VisualElement>
+					<ui:ScrollView name="workforce-assignment-tree" class="workforce-assignment-tree" />
+					<ui:Label name="workforce-assignment-tree-empty" text="No workforce scopes are available." class="workforce-assignment-empty" />
+				</ui:VisualElement>
+			</ui:VisualElement>
+		</ui:VisualElement>
+		<ui:VisualElement name="workforce-roster-tab" class="workforce-tab">
 			<ui:VisualElement class="workforce-columns">
 				<ui:VisualElement class="workforce-roster-column">
 					<ui:VisualElement class="workforce-toolbar">

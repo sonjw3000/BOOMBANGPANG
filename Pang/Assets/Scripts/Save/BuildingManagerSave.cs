@@ -4,9 +4,12 @@ public sealed partial class BuildingManager
 {
 	public void ResetRuntimeState()
 	{
+		bool hadBuildings = registeredBuildings.Count > 0;
 		registeredBuildings.Clear();
 		buildingsById.Clear();
 		nextRuntimeBuildingId = 1;
+		if (hadBuildings)
+			OnBuildingsChanged?.Invoke();
 	}
 
 	public BuildingManagerSaveData CaptureState()

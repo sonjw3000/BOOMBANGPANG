@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 using UniverseLogistics.UI.Toolkit;
 
 namespace Pang.Tests.Editor
@@ -471,6 +473,175 @@ public sealed class WorkforceAssignmentEditModeTests
 	}
 
 	[Test]
+	public void OperationalUnassignedWorkers_UsesCurrentAssignmentAndIgnoresPendingAssignment()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker pendingWorker = CreateWorker(
+			"Workforce Pending Unassigned Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(pendingWorker);
+		pendingWorker.SetPrimaryBuildingId(storage.RuntimeBuildingId);
+		InvokeNonPublic(
+			typeof(AIWorker),
+			pendingWorker,
+			"SetPendingAssignment",
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+
+		HumanWorker assignedWorker = CreateWorker(
+			"Workforce Assigned Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(assignedWorker);
+		SetCurrentAssignment(
+			assignedWorker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+
+		HumanWorker deadUnassignedWorker = CreateWorker(
+			"Workforce Dead Unassigned Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(deadUnassignedWorker);
+		Assert.That(
+			deadUnassignedWorker.EnterIncapacitatedState(WorkerOperationalState.Death),
+			Is.True);
+
+		List<AIWorker> results = new() { assignedWorker };
+		workerManager.GetOperationalUnassignedWorkers(results);
+
+		CollectionAssert.AreEqual(new[] { pendingWorker }, results);
+		Assert.That(pendingWorker.HasPendingAssignment, Is.True);
+		Assert.That(pendingWorker.AssignedTaskTypes, Is.Empty);
+	}
+
+	[Test]
+	public void WorkforceRoleWorkers_MatchesSummaryForExactBuildingAndPublicScopes()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		Building otherStorage = CreateBuilding(BuildingType.Storage);
+		WorkerTask.TaskType[] capsuleTasks =
+		{
+			WorkerTask.TaskType.IB,
+			WorkerTask.TaskType.CapsuleClear,
+			WorkerTask.TaskType.CapsuleSupply,
+			WorkerTask.TaskType.OB,
+		};
+
+		HumanWorker fullWorker = CreateWorker(
+			"Workforce Roster Full Worker",
+			WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(fullWorker);
+		SetCurrentAssignment(fullWorker, storage.RuntimeBuildingId, capsuleTasks);
+		InvokeNonPublic(
+			typeof(AIWorker),
+			fullWorker,
+			"SetPendingAssignment",
+			otherStorage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Picking });
+
+		HumanWorker partialWorker = CreateWorker(
+			"Workforce Roster Partial Worker",
+			WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(partialWorker);
+		SetCurrentAssignment(
+			partialWorker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.IB });
+
+		HumanWorker otherBuildingWorker = CreateWorker(
+			"Workforce Roster Other Building Worker",
+			WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(otherBuildingWorker);
+		SetCurrentAssignment(otherBuildingWorker, otherStorage.RuntimeBuildingId, capsuleTasks);
+
+		HumanWorker deadWorker = CreateWorker(
+			"Workforce Roster Dead Worker",
+			WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(deadWorker);
+		SetCurrentAssignment(deadWorker, storage.RuntimeBuildingId, capsuleTasks);
+		Assert.That(deadWorker.EnterIncapacitatedState(WorkerOperationalState.Death), Is.True);
+
+		HumanWorker publicWorker = CreateWorker(
+			"Workforce Roster Public Worker",
+			WorkerAbility.CargoHandling,
+			addCargoHandlingAbility: true);
+		workerManager.RegisterWorker(publicWorker);
+		SetCurrentAssignment(
+			publicWorker,
+			0,
+			new[] { WorkerTask.TaskType.Unloading });
+
+		List<WorkforceRoleWorkerEntry> results = new();
+		Assert.That(
+			workerManager.TryGetWorkforceRoleWorkers(
+				storage.RuntimeBuildingId,
+				WorkforceRole.CapsuleHandling,
+				results),
+			Is.True);
+		Assert.That(results.Count, Is.EqualTo(2));
+		Assert.That(results[0].Worker, Is.SameAs(fullWorker));
+		Assert.That(results[0].AssignmentState, Is.EqualTo(WorkforceRoleAssignmentState.Full));
+		Assert.That(results[1].Worker, Is.SameAs(partialWorker));
+		Assert.That(results[1].AssignmentState, Is.EqualTo(WorkforceRoleAssignmentState.Partial));
+
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				storage.RuntimeBuildingId,
+				WorkforceRole.CapsuleHandling,
+				out WorkforceRoleSummary summary),
+			Is.True);
+		Assert.That(
+			results.FindAll(entry =>
+				entry.AssignmentState == WorkforceRoleAssignmentState.Full).Count,
+			Is.EqualTo(summary.FullCount));
+		Assert.That(
+			results.FindAll(entry =>
+				entry.AssignmentState == WorkforceRoleAssignmentState.Partial).Count,
+			Is.EqualTo(summary.PartialCount));
+		Assert.That(results.Count, Is.EqualTo(summary.OperationalCount));
+
+		Assert.That(
+			workerManager.TryGetWorkforceRoleWorkers(
+				otherStorage.RuntimeBuildingId,
+				WorkforceRole.CapsuleHandling,
+				results),
+			Is.True);
+		Assert.That(results.Count, Is.EqualTo(1));
+		Assert.That(results[0].Worker, Is.SameAs(otherBuildingWorker));
+
+		Assert.That(
+			workerManager.TryGetWorkforceRoleWorkers(
+				0,
+				WorkforceRole.Unloading,
+				results),
+			Is.True);
+		Assert.That(results.Count, Is.EqualTo(1));
+		Assert.That(results[0].Worker, Is.SameAs(publicWorker));
+		Assert.That(results[0].AssignmentState, Is.EqualTo(WorkforceRoleAssignmentState.Full));
+
+		Assert.That(
+			workerManager.TryGetWorkforceRoleWorkers(
+				storage.RuntimeBuildingId,
+				WorkforceRole.Unloading,
+				results),
+			Is.False);
+		Assert.That(results, Is.Empty);
+		Assert.That(
+			workerManager.TryGetWorkforceRoleWorkers(
+				0,
+				WorkforceRole.CapsuleHandling,
+				results),
+			Is.False);
+		Assert.That(results, Is.Empty);
+	}
+
+	[Test]
 	public void BuildingProvider_WorkforcePanelDisplaysSupportedRolesIncludingZero()
 	{
 		Building storage = CreateBuilding(BuildingType.Storage);
@@ -506,6 +677,181 @@ public sealed class WorkforceAssignmentEditModeTests
 		Assert.That(model.Tabs[0].GetContentVersion(), Is.Not.EqualTo(versionBeforeDeath));
 		SelectionDetailPanelModel panelAfterDeath = model.Tabs[0].BuildContent();
 		AssertWorkforceRow(panelAfterDeath.Rows[0], "Storing", "0");
+	}
+
+	[Test]
+	public void ManagementContent_DeclaresAssignmentsFirstAndIncludesHierarchyShell()
+	{
+		VisualTreeAsset template = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/WorkforceManagementContent.uxml");
+		Assert.That(template, Is.Not.Null);
+		TemplateContainer content = template.CloneTree();
+		VisualElement tabs = content.Q<VisualElement>(className: "workforce-tabs");
+		Assert.That(tabs, Is.Not.Null);
+
+		List<string> buttonNames = new();
+		foreach (VisualElement child in tabs.Children())
+		{
+			if (child is Button button)
+				buttonNames.Add(button.name);
+		}
+
+		CollectionAssert.AreEqual(
+			new[]
+			{
+				"workforce-assignments-button",
+				"workforce-roster-button",
+				"workforce-hiring-button",
+			},
+			buttonNames);
+		Assert.That(content.Q<VisualElement>("workforce-assignments-tab"), Is.Not.Null);
+		Assert.That(content.Q<ScrollView>("workforce-unassigned-list"), Is.Not.Null);
+		Assert.That(content.Q<ScrollView>("workforce-assignment-tree"), Is.Not.Null);
+	}
+
+	[Test]
+	public void ManagementAssignments_ShowsZeroRolesAndKeepsExpandedPartialWorker()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker unassignedWorker = CreateWorker(
+			"Workforce UI Unassigned Worker",
+			WorkerAbility.PickingStoring);
+		workerManager.RegisterWorker(unassignedWorker);
+		HumanWorker partialWorker = CreateWorker(
+			"Workforce UI Partial Worker",
+			WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(partialWorker);
+		SetCurrentAssignment(
+			partialWorker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.IB });
+
+		VisualTreeAsset contentTemplate = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/WorkforceManagementContent.uxml");
+		VisualTreeAsset rowTemplate = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/WorkforceRosterRow.uxml");
+		Assert.That(contentTemplate, Is.Not.Null);
+		Assert.That(rowTemplate, Is.Not.Null);
+		TemplateContainer content = contentTemplate.CloneTree();
+		WorkforceManagementWindow controller =
+			CreateComponent<WorkforceManagementWindow>("Workforce UI Controller", active: false);
+		SetPrivateField(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"rosterRowTemplate",
+			rowTemplate);
+		SetPrivateField(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"workerManager",
+			workerManager);
+		SetPrivateField(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"buildingManager",
+			buildingManager);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"InitializeAssignmentsView",
+			content);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+
+		Assert.That(
+			content.Q<Label>("workforce-unassigned-count").text,
+			Is.EqualTo("1 WORKERS"));
+		ScrollView unassignedList = content.Q<ScrollView>("workforce-unassigned-list");
+		List<VisualElement> unassignedRows = QueryByClass(
+			unassignedList,
+			"workforce-assignment-worker-row");
+		Assert.That(unassignedRows.Count, Is.EqualTo(1));
+		Assert.That(unassignedRows[0].userData, Is.SameAs(unassignedWorker));
+
+		ScrollView tree = content.Q<ScrollView>("workforce-assignment-tree");
+		List<VisualElement> groups = QueryByClass(tree, "workforce-assignment-group");
+		Assert.That(groups.Count, Is.EqualTo(2));
+		Assert.That(groups[0].userData, Is.EqualTo(0u));
+		Assert.That(groups[1].userData, Is.EqualTo(storage.RuntimeBuildingId));
+
+		List<VisualElement> publicRoles = QueryByClass(
+			groups[0],
+			"workforce-assignment-role");
+		AssertRoleOrder(
+			publicRoles,
+			WorkforceRole.Unloading,
+			WorkforceRole.Loading,
+			WorkforceRole.CargoTransfer,
+			WorkforceRole.WasteCollection);
+
+		List<VisualElement> storageRoles = QueryByClass(
+			groups[1],
+			"workforce-assignment-role");
+		AssertRoleOrder(
+			storageRoles,
+			WorkforceRole.Storing,
+			WorkforceRole.Picking,
+			WorkforceRole.CapsuleHandling);
+		AssertRoleCount(storageRoles[0], "0");
+		AssertRoleCount(storageRoles[1], "0");
+		AssertRoleCount(storageRoles[2], "1");
+		Assert.That(
+			storageRoles[2].ClassListContains("workforce-assignment-role--partial"),
+			Is.True);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentRole",
+			storage.RuntimeBuildingId,
+			WorkforceRole.CapsuleHandling,
+			1);
+		groups = QueryByClass(tree, "workforce-assignment-group");
+		List<VisualElement> expandedWorkers = QueryByClass(
+			groups[1],
+			"workforce-assignment-worker-row");
+		Assert.That(expandedWorkers.Count, Is.EqualTo(1));
+		Assert.That(expandedWorkers[0].userData, Is.SameAs(partialWorker));
+		Assert.That(
+			expandedWorkers[0].ClassListContains("workforce-assignment-worker-row--partial"),
+			Is.True);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+		groups = QueryByClass(tree, "workforce-assignment-group");
+		Assert.That(
+			QueryByClass(groups[1], "workforce-assignment-worker-row").Count,
+			Is.EqualTo(1),
+			"A refresh must preserve expanded role state.");
+	}
+
+	[Test]
+	public void BuildingManager_RaisesChangesForRegisterUnregisterAndReset()
+	{
+		int changedCount = 0;
+		buildingManager.OnBuildingsChanged += () => ++changedCount;
+		Building building = new(
+			"Workforce Event Storage",
+			new List<GridCell>(),
+			BuildingType.Storage);
+
+		buildingManager.Register(building);
+		Assert.That(changedCount, Is.EqualTo(1));
+		buildingManager.Register(building);
+		Assert.That(changedCount, Is.EqualTo(1));
+		buildingManager.Unregister(building);
+		Assert.That(changedCount, Is.EqualTo(2));
+		buildingManager.Register(building);
+		Assert.That(changedCount, Is.EqualTo(3));
+		buildingManager.ResetRuntimeState();
+		Assert.That(changedCount, Is.EqualTo(4));
+		buildingManager.ResetRuntimeState();
+		Assert.That(changedCount, Is.EqualTo(4));
 	}
 
 	private static void SetCurrentAssignment(
@@ -562,6 +908,29 @@ public sealed class WorkforceAssignmentEditModeTests
 	{
 		Assert.That(row.Primary, Is.EqualTo(expectedLabel));
 		Assert.That(row.Trailing, Is.EqualTo(expectedCount));
+	}
+
+	private static List<VisualElement> QueryByClass(VisualElement root, string className)
+	{
+		List<VisualElement> results = new();
+		root.Query<VisualElement>(className: className).ForEach(results.Add);
+		return results;
+	}
+
+	private static void AssertRoleOrder(
+		IReadOnlyList<VisualElement> roleRows,
+		params WorkforceRole[] expectedRoles)
+	{
+		Assert.That(roleRows.Count, Is.EqualTo(expectedRoles.Length));
+		for (int i = 0; i < expectedRoles.Length; ++i)
+			Assert.That(roleRows[i].userData, Is.EqualTo(expectedRoles[i]));
+	}
+
+	private static void AssertRoleCount(VisualElement roleRow, string expectedCount)
+	{
+		Label count = roleRow.Q<Label>(className: "workforce-assignment-role__count");
+		Assert.That(count, Is.Not.Null);
+		Assert.That(count.text, Is.EqualTo(expectedCount));
 	}
 
 	private T CreateComponent<T>(string objectName, bool active = true) where T : Component

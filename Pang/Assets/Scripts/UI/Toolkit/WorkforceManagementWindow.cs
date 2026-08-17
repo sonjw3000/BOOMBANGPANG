@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 
 namespace UniverseLogistics.UI.Toolkit
 {
-	public sealed class WorkforceManagementWindow : MonoBehaviour
+	public sealed partial class WorkforceManagementWindow : MonoBehaviour
 	{
 		private const string SelectedTabClass = "workforce-tab-button--selected";
 		private const string SelectedRowClass = "workforce-worker-row--selected";
@@ -19,6 +19,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private static readonly List<string> HandleGroups = new() { "Undefined", "Cargo Handle", "Item Handle" };
 
 		private enum HandleGroup { Undefined, Cargo, Item }
+		private enum WorkforceTab { Assignments, Workers, Hiring }
 
 		private UIWindow window;
 		private VisualTreeAsset contentTemplate;
@@ -81,6 +82,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private bool workerDragStarted;
 		private bool endingWorkerPointer;
 		private bool rosterRefreshPending;
+		private WorkforceTab selectedTab;
 		[System.NonSerialized] private bool initialized;
 		private bool started;
 
@@ -126,6 +128,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (workerManager == null) BindServices();
 			GenerateCandidatesOnOpen();
 			RefreshRoster();
+			RefreshAssignments();
 			window.Open();
 		}
 
@@ -177,8 +180,10 @@ namespace UniverseLogistics.UI.Toolkit
 			candidateList = content.Q<ScrollView>("workforce-candidate-list");
 			hiringMessage = content.Q<Label>("workforce-hiring-message");
 			createSpawnAreaButton = content.Q<Button>("create-worker-spawn-area-button");
+			InitializeAssignmentsView(content);
 
-			if (rosterButton == null || hiringButton == null || rosterTab == null || hiringTab == null ||
+			if (HasRequiredAssignmentsView() == false ||
+				rosterButton == null || hiringButton == null || rosterTab == null || hiringTab == null ||
 				totalLabel == null || filterField == null || workerList == null || workerDetail == null ||
 				buildingField == null || handleField == null || taskToggles == null || categoryList == null ||
 				candidateList == null || hiringMessage == null || createSpawnAreaButton == null ||
@@ -192,6 +197,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 			window.SetTitle("Workforce Management");
 			window.SetContent(content);
+			assignmentsButton.clicked += OpenAssignments;
 			rosterButton.clicked += OpenRoster;
 			hiringButton.clicked += OpenHiring;
 			filterField.choices = new List<string>(RosterFilters);
@@ -214,13 +220,14 @@ namespace UniverseLogistics.UI.Toolkit
 				assignmentModeController.WorkerDropped += OnAssignmentWorkerDropped;
 			}
 			initialized = true;
-			SelectTab(true);
+			SelectTab(WorkforceTab.Assignments);
 			RefreshAssignmentModeState();
 			return true;
 		}
 
 		private void UnbindControls()
 		{
+			if (assignmentsButton != null) assignmentsButton.clicked -= OpenAssignments;
 			if (rosterButton != null) rosterButton.clicked -= OpenRoster;
 			if (hiringButton != null) hiringButton.clicked -= OpenHiring;
 			filterField?.UnregisterValueChangedCallback(OnFilterChanged);
@@ -266,6 +273,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UnbindServices();
 			if (GameContext.HasInstance == false) return;
 			workerManager = GameContext.Instance.WorkerMgr;
+			buildingManager = GameContext.Instance.BuildingMgr;
 			economyService = GameContext.Instance.EconomyService;
 			researchService = GameContext.Instance.ResearchService;
 			if (workerManager != null)
@@ -273,6 +281,7 @@ namespace UniverseLogistics.UI.Toolkit
 				workerManager.OnWorkersChanged += OnWorkersChanged;
 				workerManager.OnWorkerChanged += OnWorkerChanged;
 			}
+			if (buildingManager != null) buildingManager.OnBuildingsChanged += OnBuildingsChanged;
 			if (economyService != null) economyService.OnMoneyChanged += OnMoneyChanged;
 			if (researchService != null) researchService.OnResearchStateChanged += OnResearchStateChanged;
 		}
@@ -284,22 +293,37 @@ namespace UniverseLogistics.UI.Toolkit
 				workerManager.OnWorkersChanged -= OnWorkersChanged;
 				workerManager.OnWorkerChanged -= OnWorkerChanged;
 			}
+			if (buildingManager != null) buildingManager.OnBuildingsChanged -= OnBuildingsChanged;
 			if (economyService != null) economyService.OnMoneyChanged -= OnMoneyChanged;
 			if (researchService != null) researchService.OnResearchStateChanged -= OnResearchStateChanged;
 			workerManager = null;
+			buildingManager = null;
 			economyService = null;
 			researchService = null;
 		}
 
-		private void OpenRoster() => SelectTab(true);
-		private void OpenHiring() => SelectTab(false);
+		private void OpenAssignments() => SelectTab(WorkforceTab.Assignments);
+		private void OpenRoster() => SelectTab(WorkforceTab.Workers);
+		private void OpenHiring() => SelectTab(WorkforceTab.Hiring);
 
-		private void SelectTab(bool roster)
+		private void SelectTab(WorkforceTab tab)
 		{
-			rosterTab.style.display = roster ? DisplayStyle.Flex : DisplayStyle.None;
-			hiringTab.style.display = roster ? DisplayStyle.None : DisplayStyle.Flex;
-			rosterButton.EnableInClassList(SelectedTabClass, roster);
-			hiringButton.EnableInClassList(SelectedTabClass, roster == false);
+			selectedTab = tab;
+			bool assignments = tab == WorkforceTab.Assignments;
+			bool workers = tab == WorkforceTab.Workers;
+			assignmentsTab.style.display = assignments ? DisplayStyle.Flex : DisplayStyle.None;
+			rosterTab.style.display = workers ? DisplayStyle.Flex : DisplayStyle.None;
+			hiringTab.style.display = tab == WorkforceTab.Hiring ? DisplayStyle.Flex : DisplayStyle.None;
+			assignmentsButton.EnableInClassList(SelectedTabClass, assignments);
+			rosterButton.EnableInClassList(SelectedTabClass, workers);
+			hiringButton.EnableInClassList(SelectedTabClass, tab == WorkforceTab.Hiring);
+			if (assignments)
+			{
+				if (assignmentsRefreshPending || assignmentTree.contentContainer.childCount == 0)
+					RefreshAssignments();
+			}
+			else if (workers)
+				RefreshRoster();
 		}
 
 		private void OnFilterChanged(ChangeEvent<string> _) => RefreshRoster();
@@ -322,7 +346,7 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				AIWorker worker = workers[i];
 				if (worker == null) continue;
-				if (worker.AssignedTaskTypes.Count == 0) ++unassigned;
+				if (worker.IsOperational && worker.AssignedTaskTypes.Count == 0) ++unassigned;
 				if (worker.EffectiveStatusAction == WorkerStatusAction.Working) ++working;
 			}
 			totalLabel.text = $"TOTAL {count}";
@@ -353,7 +377,7 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				"Human" => worker.WorkerKind == WorkerKind.Human,
 				"Robot" => worker.WorkerKind == WorkerKind.Robot,
-				"Unassigned" => worker.AssignedTaskTypes.Count == 0,
+				"Unassigned" => worker.IsOperational && worker.AssignedTaskTypes.Count == 0,
 				_ => true,
 			};
 		}
@@ -962,12 +986,14 @@ namespace UniverseLogistics.UI.Toolkit
 		private void OnWorkerChanged(AIWorker worker)
 		{
 			assignmentModeController?.Refresh();
+			RequestAssignmentsRefresh();
 			RefreshRoster();
 		}
 
 		private void OnWorkersChanged()
 		{
 			assignmentModeController?.Refresh();
+			RequestAssignmentsRefresh();
 			RefreshRoster();
 		}
 

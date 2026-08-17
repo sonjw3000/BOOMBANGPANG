@@ -11,6 +11,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 	private readonly List<LaunchBuilding> launchQualityEvaluationScratch = new();
 
 	public IReadOnlyList<Building> RegisteredBuildings => registeredBuildings;
+	public event System.Action OnBuildingsChanged;
 
 	private void Awake()
 	{
@@ -35,7 +36,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 		if (building == null)
 			return;
 
-		if (registeredBuildings.Contains(building) == false)
+		bool added = registeredBuildings.Contains(building) == false;
+		if (added)
 			registeredBuildings.Add(building);
 
 		uint runtimeId = building.RuntimeBuildingId;
@@ -47,6 +49,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 
 		buildingsById[runtimeId] = building;
 		building.SetRegistered(true);
+		if (added)
+			OnBuildingsChanged?.Invoke();
 	}
 
 	public Building CreateBuilding(
@@ -87,13 +91,15 @@ public sealed partial class BuildingManager : MonoBehaviour
 			GameContext.Instance.BuildingAddonSvc?.RemoveAll(building);
 
 		RemoveBuildingLinks(building);
-		registeredBuildings.Remove(building);
+		bool removed = registeredBuildings.Remove(building);
 		if (building is LaunchBuilding launchBuilding)
 			pendingLaunchQualityEvaluations.Remove(launchBuilding);
 		if (building.RuntimeBuildingId != 0)
 			buildingsById.Remove(building.RuntimeBuildingId);
 
 		building.SetRegistered(false);
+		if (removed)
+			OnBuildingsChanged?.Invoke();
 	}
 
 	public bool TryGetBuilding(uint runtimeBuildingId, out Building building)
