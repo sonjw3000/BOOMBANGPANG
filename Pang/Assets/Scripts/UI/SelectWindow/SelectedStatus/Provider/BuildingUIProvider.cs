@@ -10,6 +10,8 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		GameContext.HasInstance ? GameContext.Instance.BuildingAddonSvc : null;
 	private OxygenService OxygenService =>
 		GameContext.HasInstance ? GameContext.Instance.OxygenSvc : null;
+	private WorkerManager WorkerManager =>
+		GameContext.HasInstance ? GameContext.Instance.WorkerMgr : null;
 	private string addonActionMessage = string.Empty;
 	private int addonActionVersion;
 
@@ -54,6 +56,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	public void BuildInspectorModel(SelectionInspectorModel model)
 	{
 		model.Clear();
+		model.AddTab("Workforce", GetWorkforceVersion, BuildWorkforcePanel);
 		model.AddTab("Facilities", GetFacilitiesVersion, BuildFacilitiesPanel);
 		model.AddTab("Addons", GetAddonsVersion, BuildAddonsPanel);
 		model.AddTab("Flow", GetFlowVersion, BuildFlowPanel);
@@ -70,6 +73,74 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 			tooltip: BuildThresholdTooltip);
 		model.AddAction("Pending Demolition", MarkPendingDemolition, () => Building != null && Building.State != BuildingState.PendingDemolition, true);
 		model.AddAction("Restore Active", RestoreActive, () => Building != null && Building.State != BuildingState.Active);
+	}
+
+	private int GetWorkforceVersion()
+	{
+		if (Building == null)
+			return 0;
+
+		unchecked
+		{
+			int version = (int)Building.RuntimeBuildingId;
+			IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(Building.Type);
+			for (int i = 0; i < roles.Count; ++i)
+			{
+				WorkforceRole role = roles[i];
+				version = version * 31 + (int)role;
+				if (WorkerManager?.TryGetWorkforceRoleSummary(
+						Building.RuntimeBuildingId,
+						role,
+						out WorkforceRoleSummary summary) == true)
+				{
+					version = version * 31 + summary.FullCount;
+					version = version * 31 + summary.PartialCount;
+				}
+			}
+
+			return version;
+		}
+	}
+
+	private SelectionDetailPanelModel BuildWorkforcePanel()
+	{
+		SelectionDetailPanelModel panel = new()
+		{
+			Title = "WORKFORCE",
+			Summary = "Current operational workers by role",
+		};
+		if (Building == null)
+			return panel;
+
+		IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(Building.Type);
+		for (int i = 0; i < roles.Count; ++i)
+		{
+			WorkforceRole role = roles[i];
+			WorkforceRoleCatalog.TryGetDefinition(role, out WorkforceRoleDefinition definition);
+			int operationalCount = 0;
+			int partialCount = 0;
+			if (WorkerManager?.TryGetWorkforceRoleSummary(
+					Building.RuntimeBuildingId,
+					role,
+					out WorkforceRoleSummary summary) == true)
+			{
+				operationalCount = summary.OperationalCount;
+				partialCount = summary.PartialCount;
+			}
+
+			panel.Rows.Add(new SelectionDetailRow
+			{
+				Primary = definition?.DisplayName ?? role.ToString(),
+				Trailing = operationalCount.ToString(),
+				Secondary = partialCount > 0
+					? partialCount == 1
+						? "1 worker is assigned to part of this role"
+						: $"{partialCount} workers are assigned to part of this role"
+					: string.Empty,
+			});
+		}
+
+		return panel;
 	}
 
 	private int GetFacilitiesVersion()

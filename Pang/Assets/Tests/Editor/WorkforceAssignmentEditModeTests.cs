@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
+using UniverseLogistics.UI.Toolkit;
 
 namespace Pang.Tests.Editor
 {
@@ -13,6 +14,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	private GameContext context;
 	private WorkerManager workerManager;
 	private BuildingManager buildingManager;
+	private TaskManager taskManager;
 
 	[SetUp]
 	public void SetUp()
@@ -22,13 +24,19 @@ public sealed class WorkforceAssignmentEditModeTests
 
 		workerManager = CreateComponent<WorkerManager>("Workforce Test Worker Manager", active: false);
 		buildingManager = CreateComponent<BuildingManager>("Workforce Test Building Manager", active: false);
+		taskManager = CreateComponent<TaskManager>("Workforce Test Task Manager", active: false);
+		RestFacilityService restFacilityService =
+			CreateComponent<RestFacilityService>("Workforce Test Rest Facility Service", active: false);
 		InvokeNonPublic(typeof(WorkerManager), workerManager, "Awake");
 		InvokeNonPublic(typeof(BuildingManager), buildingManager, "Awake");
+		InvokeNonPublic(typeof(TaskManager), taskManager, "Awake");
 
 		GameObject contextObject = CreateGameObject("Workforce Test Context", active: false);
 		context = contextObject.AddComponent<GameContext>();
 		SetPrivateField(typeof(GameContext), context, "workerManager", workerManager);
 		SetPrivateField(typeof(GameContext), context, "buildingManager", buildingManager);
+		SetPrivateField(typeof(GameContext), context, "taskManager", taskManager);
+		SetPrivateField(typeof(GameContext), context, "restFacilityService", restFacilityService);
 		SetPrivateStaticField(typeof(GameContext), "instance", context);
 	}
 
@@ -335,6 +343,180 @@ public sealed class WorkforceAssignmentEditModeTests
 			Is.False);
 	}
 
+	[Test]
+	public void WorkforceSummary_CountsCurrentFullAndPartialOperationalAssignments()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		Building otherStorage = CreateBuilding(BuildingType.Storage);
+		WorkerTask.TaskType[] capsuleTasks =
+		{
+			WorkerTask.TaskType.IB,
+			WorkerTask.TaskType.CapsuleClear,
+			WorkerTask.TaskType.CapsuleSupply,
+			WorkerTask.TaskType.OB,
+		};
+
+		HumanWorker fullWorker = CreateWorker(
+			"Workforce Full Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(fullWorker);
+		List<WorkerTask.TaskType> fullAssignments = new(capsuleTasks)
+		{
+			WorkerTask.TaskType.Storing,
+		};
+		SetCurrentAssignment(fullWorker, storage.RuntimeBuildingId, fullAssignments);
+
+		HumanWorker partialWorker = CreateWorker(
+			"Workforce Partial Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(partialWorker);
+		SetCurrentAssignment(
+			partialWorker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.IB });
+
+		HumanWorker otherBuildingWorker = CreateWorker(
+			"Workforce Other Building Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(otherBuildingWorker);
+		SetCurrentAssignment(otherBuildingWorker, otherStorage.RuntimeBuildingId, capsuleTasks);
+
+		HumanWorker deadWorker = CreateWorker(
+			"Workforce Dead Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(deadWorker);
+		SetCurrentAssignment(deadWorker, storage.RuntimeBuildingId, capsuleTasks);
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				storage.RuntimeBuildingId,
+				WorkforceRole.CapsuleHandling,
+				out WorkforceRoleSummary beforeDeathSummary),
+			Is.True);
+		Assert.That(beforeDeathSummary.FullCount, Is.EqualTo(2));
+		Assert.That(beforeDeathSummary.PartialCount, Is.EqualTo(1));
+		Assert.That(beforeDeathSummary.OperationalCount, Is.EqualTo(3));
+		Assert.That(deadWorker.EnterIncapacitatedState(WorkerOperationalState.Death), Is.True);
+
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				storage.RuntimeBuildingId,
+				WorkforceRole.CapsuleHandling,
+				out WorkforceRoleSummary capsuleSummary),
+			Is.True);
+		Assert.That(capsuleSummary.FullCount, Is.EqualTo(1));
+		Assert.That(capsuleSummary.PartialCount, Is.EqualTo(1));
+		Assert.That(capsuleSummary.OperationalCount, Is.EqualTo(2));
+
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing,
+				out WorkforceRoleSummary storingSummary),
+			Is.True);
+		Assert.That(storingSummary.OperationalCount, Is.EqualTo(1));
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				storage.RuntimeBuildingId,
+				WorkforceRole.Picking,
+				out WorkforceRoleSummary pickingSummary),
+			Is.True);
+		Assert.That(pickingSummary.OperationalCount, Is.Zero);
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				storage.RuntimeBuildingId,
+				WorkforceRole.Labeling,
+				out _),
+			Is.False);
+	}
+
+	[Test]
+	public void WorkforceSummary_UsesCurrentAssignmentInsteadOfPendingAssignment()
+	{
+		Building currentStorage = CreateBuilding(BuildingType.Storage);
+		Building pendingStorage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Pending Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		SetCurrentAssignment(
+			worker,
+			currentStorage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+		InvokeNonPublic(
+			typeof(AIWorker),
+			worker,
+			"SetPendingAssignment",
+			pendingStorage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Picking });
+
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				currentStorage.RuntimeBuildingId,
+				WorkforceRole.Storing,
+				out WorkforceRoleSummary currentSummary),
+			Is.True);
+		Assert.That(currentSummary.OperationalCount, Is.EqualTo(1));
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				pendingStorage.RuntimeBuildingId,
+				WorkforceRole.Picking,
+				out WorkforceRoleSummary pendingSummary),
+			Is.True);
+		Assert.That(pendingSummary.OperationalCount, Is.Zero);
+	}
+
+	[Test]
+	public void BuildingProvider_WorkforcePanelDisplaysSupportedRolesIncludingZero()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Panel Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		SetCurrentAssignment(
+			worker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+
+		GameObject proxyObject = CreateGameObject("Workforce Building Selection Proxy");
+		BuildingSelectionProxy proxy = proxyObject.AddComponent<BuildingSelectionProxy>();
+		proxy.Bind(buildingManager, storage);
+		BuildingUIProvider provider = new();
+		provider.LinkObject(proxyObject);
+		SelectionInspectorModel model = new();
+		provider.BuildInspectorModel(model);
+
+		Assert.That(model.Tabs, Is.Not.Empty);
+		Assert.That(model.Tabs[0].Label, Is.EqualTo("Workforce"));
+		SelectionDetailPanelModel panel = model.Tabs[0].BuildContent();
+		Assert.That(panel.Title, Is.EqualTo("WORKFORCE"));
+		Assert.That(panel.Rows.Count, Is.EqualTo(3));
+		AssertWorkforceRow(panel.Rows[0], "Storing", "1");
+		AssertWorkforceRow(panel.Rows[1], "Picking", "0");
+		AssertWorkforceRow(panel.Rows[2], "Capsule Handling", "0");
+
+		int versionBeforeDeath = model.Tabs[0].GetContentVersion();
+		Assert.That(worker.EnterIncapacitatedState(WorkerOperationalState.Death), Is.True);
+		Assert.That(model.Tabs[0].GetContentVersion(), Is.Not.EqualTo(versionBeforeDeath));
+		SelectionDetailPanelModel panelAfterDeath = model.Tabs[0].BuildContent();
+		AssertWorkforceRow(panelAfterDeath.Rows[0], "Storing", "0");
+	}
+
+	private static void SetCurrentAssignment(
+		AIWorker worker,
+		uint buildingId,
+		IEnumerable<WorkerTask.TaskType> taskTypes)
+	{
+		worker.SetPrimaryBuildingId(buildingId);
+		worker.SetAssignedTaskTypes(taskTypes);
+	}
+
 	private Building CreateBuilding(BuildingType buildingType)
 	{
 		Building building = new($"Workforce Test {buildingType}", new List<GridCell>(), buildingType);
@@ -371,6 +553,15 @@ public sealed class WorkforceAssignmentEditModeTests
 		Assert.That(definition.Role, Is.EqualTo(role));
 		Assert.That(definition.DisplayName, Is.EqualTo(displayName));
 		CollectionAssert.AreEqual(expectedTaskTypes, definition.TaskTypes);
+	}
+
+	private static void AssertWorkforceRow(
+		SelectionDetailRow row,
+		string expectedLabel,
+		string expectedCount)
+	{
+		Assert.That(row.Primary, Is.EqualTo(expectedLabel));
+		Assert.That(row.Trailing, Is.EqualTo(expectedCount));
 	}
 
 	private T CreateComponent<T>(string objectName, bool active = true) where T : Component
