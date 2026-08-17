@@ -106,6 +106,7 @@ MonoBehaviour:
   playerInteractionItemRowTemplate: {fileID: 9197481963319205126, guid: ec163c859fed4c1eb589249a256ff932, type: 3}
   panelSettings: {fileID: 11400000, guid: a114a0239608243fa86f9689d2acce4e, type: 2}
   sortingOrder: 100
+  managementWindowDefaultSize: {x: 1680, y: 960}
 --- !u!114 &7714475366775286390
 MonoBehaviour:
   m_ObjectHideFlags: 0
