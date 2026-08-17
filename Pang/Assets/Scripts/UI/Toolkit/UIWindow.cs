@@ -52,6 +52,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		public event Action Opened;
 		public event Action Closed;
+		public event Action FocusRequested;
 		public event Action<int> TabChanged;
 
 		public bool IsOpen => initialized && windowRoot.style.display != DisplayStyle.None;
@@ -281,12 +282,18 @@ namespace UniverseLogistics.UI.Toolkit
 
 		public void Open()
 		{
-			if (Initialize() == false || IsOpen)
+			if (Initialize() == false)
 				return;
+			if (IsOpen)
+			{
+				RequestFocus();
+				return;
+			}
 
 			windowRoot.style.display = DisplayStyle.Flex;
 			windowRoot.schedule.Execute(RestoreOrClampWindow);
 			hasOpened = true;
+			RequestFocus();
 			Opened?.Invoke();
 		}
 
@@ -317,6 +324,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private void BindWindowInteraction()
 		{
 			UnbindWindowInteraction();
+			windowRoot.RegisterCallback<PointerDownEvent>(OnWindowPointerDown, TrickleDown.TrickleDown);
 			titleBar.RegisterCallback<PointerDownEvent>(OnTitleBarPointerDown);
 			windowRoot.RegisterCallback<PointerMoveEvent>(OnWindowPointerMove);
 			windowRoot.RegisterCallback<PointerUpEvent>(OnWindowPointerUp);
@@ -339,6 +347,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 			if (windowRoot != null)
 			{
+				windowRoot.UnregisterCallback<PointerDownEvent>(OnWindowPointerDown, TrickleDown.TrickleDown);
 				windowRoot.UnregisterCallback<PointerMoveEvent>(OnWindowPointerMove);
 				windowRoot.UnregisterCallback<PointerUpEvent>(OnWindowPointerUp);
 				windowRoot.UnregisterCallback<PointerCancelEvent>(OnWindowPointerCancel);
@@ -352,6 +361,16 @@ namespace UniverseLogistics.UI.Toolkit
 
 			resizeHandleBindings.Clear();
 			EndWindowInteraction();
+		}
+
+		private void OnWindowPointerDown(PointerDownEvent _)
+		{
+			RequestFocus();
+		}
+
+		private void RequestFocus()
+		{
+			FocusRequested?.Invoke();
 		}
 
 		private void RegisterResizeHandle(string elementName, ResizeDirection direction)

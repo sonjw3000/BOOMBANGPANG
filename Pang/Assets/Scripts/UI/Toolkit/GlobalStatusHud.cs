@@ -24,6 +24,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private const float ReferenceWidth = 1920f;
 		private const float ReferenceHeight = 1080f;
 		private const float ReferenceUiScale = 1.0f;
+		private const int FocusableWindowFirstSortingOffset = 11;
+		private const int FocusableWindowLastSortingOffset = 29;
 		[SerializeField] private VisualTreeAsset visualTreeAsset;
 		[SerializeField] private VisualTreeAsset tooltipVisualTreeAsset;
 		[SerializeField] private VisualTreeAsset hudEventEntryTemplate;
@@ -67,6 +69,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private UIDocument uiDocument;
 		private UIDocument tooltipDocument;
 		private UITooltipPresenter tooltipPresenter;
+		private UIWindowFocusCoordinator windowFocusCoordinator;
 		private UnityEngine.UI.CanvasScaler legacyCanvasScaler;
 		private VisualElement hudRoot;
 		private VisualElement leftHud;
@@ -129,6 +132,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private void OnEnable()
 		{
 			ApplyPanelScale();
+			EnsureWindowFocusCoordinator();
 			EnsureDocument();
 			EnsureTooltip();
 			EnsureHistoryWindow();
@@ -207,6 +211,25 @@ namespace UniverseLogistics.UI.Toolkit
 			UnbindServices();
 		}
 
+		private void OnDestroy()
+		{
+			windowFocusCoordinator?.Dispose();
+			windowFocusCoordinator = null;
+		}
+
+		private void EnsureWindowFocusCoordinator()
+		{
+			windowFocusCoordinator ??= new UIWindowFocusCoordinator(
+				sortingOrder + FocusableWindowFirstSortingOffset,
+				sortingOrder + FocusableWindowLastSortingOffset);
+		}
+
+		private void RegisterFocusableWindow(UIWindow window, UIDocument document)
+		{
+			EnsureWindowFocusCoordinator();
+			windowFocusCoordinator.Register(window, document);
+		}
+
 		private void EnsureDocument()
 		{
 			if (uiDocument != null)
@@ -276,12 +299,13 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument historyDocument = documentObject.AddComponent<UIDocument>();
 			historyDocument.panelSettings = panelSettings;
 			historyDocument.visualTreeAsset = windowVisualTreeAsset;
-			historyDocument.sortingOrder = sortingOrder + 10;
+			historyDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
 			historyWindow = documentObject.AddComponent<GlobalHistoryWindow>();
 			historyWindow.Configure(window, historyContentTemplate, historyRowTemplate);
+			RegisterFocusableWindow(window, historyDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -304,13 +328,14 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument contractDocument = documentObject.AddComponent<UIDocument>();
 			contractDocument.panelSettings = panelSettings;
 			contractDocument.visualTreeAsset = windowVisualTreeAsset;
-			contractDocument.sortingOrder = sortingOrder + 20;
+			contractDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
 			contractManagementWindow = documentObject.AddComponent<ContractManagementWindow>();
 			contractManagementWindow.Configure(window, contractContentTemplate, activeContractRowTemplate,
 				contractMarketRowTemplate, vendorContractRowTemplate);
+			RegisterFocusableWindow(window, contractDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -333,12 +358,13 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument inventoryDocument = documentObject.AddComponent<UIDocument>();
 			inventoryDocument.panelSettings = panelSettings;
 			inventoryDocument.visualTreeAsset = windowVisualTreeAsset;
-			inventoryDocument.sortingOrder = sortingOrder + 30;
+			inventoryDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
 			inventoryManagementWindow = documentObject.AddComponent<InventoryManagementWindow>();
 			inventoryManagementWindow.Configure(window, inventoryContentTemplate, inventoryItemRowTemplate);
+			RegisterFocusableWindow(window, inventoryDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -361,12 +387,13 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument ordersDocument = documentObject.AddComponent<UIDocument>();
 			ordersDocument.panelSettings = panelSettings;
 			ordersDocument.visualTreeAsset = windowVisualTreeAsset;
-			ordersDocument.sortingOrder = sortingOrder + 40;
+			ordersDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
 			orderManagementWindow = documentObject.AddComponent<OrderManagementWindow>();
 			orderManagementWindow.Configure(window, ordersContentTemplate, orderRowTemplate, orderLineRowTemplate);
+			RegisterFocusableWindow(window, ordersDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -399,7 +426,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument workforceDocument = documentObject.AddComponent<UIDocument>();
 			workforceDocument.panelSettings = panelSettings;
 			workforceDocument.visualTreeAsset = windowVisualTreeAsset;
-			workforceDocument.sortingOrder = sortingOrder + 50;
+			workforceDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
@@ -409,6 +436,7 @@ namespace UniverseLogistics.UI.Toolkit
 			workforceManagementWindow.Configure(window, workforceContentTemplate, workforceRosterRowTemplate,
 				workforceCandidateRowTemplate, workforceHumanMarkets, workforceRobotMarkets,
 				workforceAssignmentModeController);
+			RegisterFocusableWindow(window, workforceDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -432,7 +460,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument buildDocument = documentObject.AddComponent<UIDocument>();
 			buildDocument.panelSettings = panelSettings;
 			buildDocument.visualTreeAsset = windowVisualTreeAsset;
-			buildDocument.sortingOrder = sortingOrder + 60;
+			buildDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
@@ -447,6 +475,7 @@ namespace UniverseLogistics.UI.Toolkit
 			buildManagementWindow = documentObject.AddComponent<BuildManagementWindow>();
 			buildManagementWindow.Configure(window, buildContentTemplate, buildPlaceableRowTemplate, buildRuleRowTemplate,
 				buildingOverlay, routingOverlay, buildingLinkController, workflowDestinationController);
+			RegisterFocusableWindow(window, buildDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -469,12 +498,13 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument workflowDocument = documentObject.AddComponent<UIDocument>();
 			workflowDocument.panelSettings = panelSettings;
 			workflowDocument.visualTreeAsset = windowVisualTreeAsset;
-			workflowDocument.sortingOrder = sortingOrder + 70;
+			workflowDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
 			workflowManagementWindow = documentObject.AddComponent<WorkflowManagementWindow>();
 			workflowManagementWindow.Configure(window, workflowContentTemplate, workflowLandingAreaRowTemplate, buildManagementWindow);
+			RegisterFocusableWindow(window, workflowDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -497,13 +527,14 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument companyDocument = documentObject.AddComponent<UIDocument>();
 			companyDocument.panelSettings = panelSettings;
 			companyDocument.visualTreeAsset = windowVisualTreeAsset;
-			companyDocument.sortingOrder = sortingOrder + 80;
+			companyDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
 			companyManagementWindow = documentObject.AddComponent<CompanyManagementWindow>();
 			companyManagementWindow.Configure(window, companyContentTemplate, historyRowTemplate,
 				companyLicenseRowTemplate, companyResearchRowTemplate);
+			RegisterFocusableWindow(window, companyDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -525,13 +556,14 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument debugDocument = documentObject.AddComponent<UIDocument>();
 			debugDocument.panelSettings = panelSettings;
 			debugDocument.visualTreeAsset = windowVisualTreeAsset;
-			debugDocument.sortingOrder = sortingOrder + 90;
+			debugDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
 			window.SetDefaultSize(new Vector2(560f, 460f));
 			debugControlWindow = documentObject.AddComponent<DebugControlWindow>();
 			debugControlWindow.Configure(window, debugContentTemplate);
+			RegisterFocusableWindow(window, debugDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -554,7 +586,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument catalogDocument = documentObject.AddComponent<UIDocument>();
 			catalogDocument.panelSettings = panelSettings;
 			catalogDocument.visualTreeAsset = windowVisualTreeAsset;
-			catalogDocument.sortingOrder = sortingOrder + 100;
+			catalogDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
@@ -564,6 +596,7 @@ namespace UniverseLogistics.UI.Toolkit
 				window,
 				buildingAddonCatalogContentTemplate,
 				buildingAddonCatalogRowTemplate);
+			RegisterFocusableWindow(window, catalogDocument);
 			documentObject.SetActive(true);
 		}
 
@@ -592,7 +625,7 @@ namespace UniverseLogistics.UI.Toolkit
 			UIDocument interactionDocument = documentObject.AddComponent<UIDocument>();
 			interactionDocument.panelSettings = panelSettings;
 			interactionDocument.visualTreeAsset = windowVisualTreeAsset;
-			interactionDocument.sortingOrder = sortingOrder + 110;
+			interactionDocument.sortingOrder = sortingOrder + FocusableWindowFirstSortingOffset;
 
 			UIWindow window = documentObject.AddComponent<UIWindow>();
 			window.SetOpenOnEnable(false);
@@ -602,6 +635,7 @@ namespace UniverseLogistics.UI.Toolkit
 				window,
 				playerInteractionContentTemplate,
 				playerInteractionItemRowTemplate);
+			RegisterFocusableWindow(window, interactionDocument);
 			documentObject.SetActive(true);
 		}
 
