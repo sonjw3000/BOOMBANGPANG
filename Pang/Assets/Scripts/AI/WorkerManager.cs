@@ -220,12 +220,8 @@ public partial class WorkerManager : MonoBehaviour
 		uint buildingId,
 		WorkforceRole role)
 	{
-		if (TryResolveBuildingType(buildingId, out BuildingType? buildingType) == false ||
-			WorkforceRoleCatalog.IsRoleSupported(buildingType, role) == false ||
-			WorkforceRoleCatalog.TryGetDefinition(role, out WorkforceRoleDefinition definition) == false)
-		{
+		if (TryGetWorkforceRoleDefinition(buildingId, role, out WorkforceRoleDefinition definition) == false)
 			return false;
-		}
 
 		return CanRequestWorkerAssignment(worker, buildingId, definition.TaskTypes);
 	}

@@ -34,6 +34,38 @@ public readonly struct WorkforceRoleWorkerEntry
 
 public partial class WorkerManager
 {
+	public bool TryRequestWorkerRoleAssignment(
+		AIWorker worker,
+		uint buildingId,
+		WorkforceRole role)
+	{
+		if (TryGetWorkforceRoleDefinition(
+				buildingId,
+				role,
+				out WorkforceRoleDefinition definition) == false)
+		{
+			return false;
+		}
+
+		return TryRequestWorkerAssignment(worker, buildingId, definition.TaskTypes);
+	}
+
+	public bool TryRequestWorkerUnassignment(AIWorker worker)
+	{
+		return TryRequestWorkerAssignment(
+			worker,
+			0,
+			System.Array.Empty<WorkerTask.TaskType>());
+	}
+
+	public bool CanRequestWorkerUnassignment(AIWorker worker)
+	{
+		return CanRequestWorkerAssignment(
+			worker,
+			0,
+			System.Array.Empty<WorkerTask.TaskType>());
+	}
+
 	public void GetOperationalUnassignedWorkers(List<AIWorker> results)
 	{
 		if (results == null)
@@ -123,9 +155,18 @@ public partial class WorkerManager
 
 	private static bool TryValidateWorkforceRoleScope(uint buildingId, WorkforceRole role)
 	{
+		return TryGetWorkforceRoleDefinition(buildingId, role, out _);
+	}
+
+	private static bool TryGetWorkforceRoleDefinition(
+		uint buildingId,
+		WorkforceRole role,
+		out WorkforceRoleDefinition definition)
+	{
+		definition = null;
 		return TryResolveBuildingType(buildingId, out BuildingType? buildingType) &&
 			WorkforceRoleCatalog.IsRoleSupported(buildingType, role) &&
-			WorkforceRoleCatalog.TryGetDefinition(role, out _);
+			WorkforceRoleCatalog.TryGetDefinition(role, out definition);
 	}
 
 	private static bool TryGetCurrentWorkforceRoleAssignmentState(

@@ -56,6 +56,7 @@ namespace UniverseLogistics.UI.Toolkit
 			assignmentUnassignedEmpty = content.Q<Label>("workforce-unassigned-empty");
 			assignmentTree = content.Q<ScrollView>("workforce-assignment-tree");
 			assignmentTreeEmpty = content.Q<Label>("workforce-assignment-tree-empty");
+			InitializeAssignmentDragView(content);
 		}
 
 		private bool HasRequiredAssignmentsView()
@@ -66,7 +67,8 @@ namespace UniverseLogistics.UI.Toolkit
 				assignmentUnassignedList != null &&
 				assignmentUnassignedEmpty != null &&
 				assignmentTree != null &&
-				assignmentTreeEmpty != null;
+				assignmentTreeEmpty != null &&
+				HasRequiredAssignmentDragView();
 		}
 
 		private void RequestAssignmentsRefresh()
@@ -79,7 +81,8 @@ namespace UniverseLogistics.UI.Toolkit
 			if (assignmentsRefreshPending &&
 				initialized &&
 				selectedTab == WorkforceTab.Assignments &&
-				window?.IsOpen == true)
+				window?.IsOpen == true &&
+				IsAssignmentDragInteractionActive == false)
 			{
 				RefreshAssignments();
 			}
@@ -89,18 +92,30 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (HasRequiredAssignmentsView() == false)
 				return;
+			if (IsAssignmentDragInteractionActive)
+			{
+				assignmentsRefreshPending = true;
+				return;
+			}
 
 			assignmentsRefreshPending = false;
 			Vector2 unassignedScrollOffset = assignmentUnassignedList.scrollOffset;
 			Vector2 treeScrollOffset = assignmentTree.scrollOffset;
 			assignmentUnassignedList.Clear();
+			ClearAssignmentRoleDropTargets();
 			assignmentUnassignedBuffer.Clear();
 			workerManager?.GetOperationalUnassignedWorkers(assignmentUnassignedBuffer);
 			for (int i = 0; i < assignmentUnassignedBuffer.Count; ++i)
 			{
 				AIWorker worker = assignmentUnassignedBuffer[i];
 				if (worker != null)
-					assignmentUnassignedList.Add(CreateAssignmentWorkerRow(worker, null));
+				{
+					assignmentUnassignedList.Add(CreateAssignmentWorkerRow(
+						worker,
+						null,
+						0,
+						WorkforceRole.Undefined));
+				}
 			}
 
 			assignmentUnassignedCount.text = $"{assignmentUnassignedBuffer.Count} WORKERS";
@@ -132,6 +147,7 @@ namespace UniverseLogistics.UI.Toolkit
 			assignmentTreeEmpty.style.display = assignmentTree.contentContainer.childCount > 0
 				? DisplayStyle.None
 				: DisplayStyle.Flex;
+			RefreshPendingAssignmentFeedback();
 		}
 
 		private void AddAssignmentScope(
@@ -183,6 +199,7 @@ namespace UniverseLogistics.UI.Toolkit
 			roleRow.EnableInClassList(
 				"workforce-assignment-role--partial",
 				hasSummary && summary.PartialCount > 0);
+			RegisterAssignmentRoleDropTarget(roleRow, buildingId, role);
 
 			Button toggle = new(() => ToggleAssignmentRole(buildingId, role, count));
 			toggle.text = expanded ? "v" : ">";
@@ -211,7 +228,13 @@ namespace UniverseLogistics.UI.Toolkit
 					{
 						WorkforceRoleWorkerEntry entry = assignmentRoleWorkerBuffer[i];
 						if (entry.Worker != null)
-							workers.Add(CreateAssignmentWorkerRow(entry.Worker, entry.AssignmentState));
+						{
+							workers.Add(CreateAssignmentWorkerRow(
+								entry.Worker,
+								entry.AssignmentState,
+								buildingId,
+								role));
+						}
 					}
 				}
 
@@ -234,7 +257,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private TemplateContainer CreateAssignmentWorkerRow(
 			AIWorker worker,
-			WorkforceRoleAssignmentState? assignmentState)
+			WorkforceRoleAssignmentState? assignmentState,
+			uint sourceBuildingId,
+			WorkforceRole sourceRole)
 		{
 			TemplateContainer row = rosterRowTemplate.CloneTree();
 			VisualElement root = row.Q<VisualElement>(className: "workforce-worker-row");
@@ -252,6 +277,13 @@ namespace UniverseLogistics.UI.Toolkit
 			assignment.text = assignmentState.HasValue
 				? assignmentState.Value.ToString().ToUpperInvariant()
 				: "UNASSIGNED";
+			root.RegisterCallback<PointerDownEvent>(evt =>
+				OnAssignmentWorkerPointerDown(
+					evt,
+					root,
+					worker,
+					sourceBuildingId,
+					sourceRole));
 			return row;
 		}
 

@@ -29,6 +29,15 @@ public sealed class WorkforceAssignmentEditModeTests
 		taskManager = CreateComponent<TaskManager>("Workforce Test Task Manager", active: false);
 		RestFacilityService restFacilityService =
 			CreateComponent<RestFacilityService>("Workforce Test Rest Facility Service", active: false);
+		WorkPolicyService workPolicyService =
+			CreateComponent<WorkPolicyService>("Workforce Test Work Policy Service", active: false);
+		WMSystem warehouseManagement =
+			CreateComponent<WMSystem>("Workforce Test Warehouse Management", active: false);
+		SetPrivateField(
+			typeof(WMSystem),
+			warehouseManagement,
+			"workPolicyService",
+			workPolicyService);
 		InvokeNonPublic(typeof(WorkerManager), workerManager, "Awake");
 		InvokeNonPublic(typeof(BuildingManager), buildingManager, "Awake");
 		InvokeNonPublic(typeof(TaskManager), taskManager, "Awake");
@@ -39,6 +48,7 @@ public sealed class WorkforceAssignmentEditModeTests
 		SetPrivateField(typeof(GameContext), context, "buildingManager", buildingManager);
 		SetPrivateField(typeof(GameContext), context, "taskManager", taskManager);
 		SetPrivateField(typeof(GameContext), context, "restFacilityService", restFacilityService);
+		SetPrivateField(typeof(GameContext), context, "warehouseManagement", warehouseManagement);
 		SetPrivateStaticField(typeof(GameContext), "instance", context);
 	}
 
@@ -343,6 +353,127 @@ public sealed class WorkforceAssignmentEditModeTests
 				staging.RuntimeBuildingId,
 				WorkforceRole.Unloading),
 			Is.False);
+	}
+
+	[Test]
+	public void TryRequestWorkerRoleAssignment_AppliesCatalogBundleImmediately()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Role Request Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+
+		Assert.That(
+			workerManager.TryRequestWorkerRoleAssignment(
+				worker,
+				storage.RuntimeBuildingId,
+				WorkforceRole.CapsuleHandling),
+			Is.True);
+		Assert.That(worker.PrimaryBuildingId, Is.EqualTo(storage.RuntimeBuildingId));
+		CollectionAssert.AreEqual(
+			new[]
+			{
+				WorkerTask.TaskType.IB,
+				WorkerTask.TaskType.CapsuleClear,
+				WorkerTask.TaskType.CapsuleSupply,
+				WorkerTask.TaskType.OB,
+			},
+			worker.AssignedTaskTypes);
+		Assert.That(worker.HasPendingAssignment, Is.False);
+	}
+
+	[Test]
+	public void TryRequestWorkerRoleAssignment_SchedulesCatalogBundleWhileWorkerIsBusy()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Busy Role Request Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		WorkerTask currentTask = new CapsuleRelocationTask(
+			WorkerTask.TaskType.IB,
+			null,
+			null,
+			storage.RuntimeBuildingId,
+			CapsuleRelocationReason.RoleChanged);
+		SetPrivateField(typeof(AIWorker), worker, "currentTask", currentTask);
+
+		Assert.That(
+			workerManager.TryRequestWorkerRoleAssignment(
+				worker,
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing),
+			Is.True);
+		Assert.That(worker.PrimaryBuildingId, Is.Zero);
+		Assert.That(worker.AssignedTaskTypes, Is.Empty);
+		Assert.That(worker.HasPendingAssignment, Is.True);
+		Assert.That(worker.PendingPrimaryBuildingId, Is.EqualTo(storage.RuntimeBuildingId));
+		CollectionAssert.AreEqual(
+			new[] { WorkerTask.TaskType.Storing },
+			worker.PendingAssignedTaskTypes);
+
+		SetPrivateField(typeof(AIWorker), worker, "currentTask", null);
+		Assert.That(workerManager.TryApplyPendingAssignment(worker), Is.True);
+		Assert.That(worker.PrimaryBuildingId, Is.EqualTo(storage.RuntimeBuildingId));
+		CollectionAssert.AreEqual(
+			new[] { WorkerTask.TaskType.Storing },
+			worker.AssignedTaskTypes);
+		Assert.That(worker.HasPendingAssignment, Is.False);
+	}
+
+	[Test]
+	public void TryRequestWorkerUnassignment_AppliesImmediatelyOrAfterCurrentTask()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker idleWorker = CreateWorker(
+			"Workforce Idle Unassignment Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(idleWorker);
+		SetCurrentAssignment(
+			idleWorker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+
+		Assert.That(workerManager.TryRequestWorkerUnassignment(idleWorker), Is.True);
+		Assert.That(idleWorker.PrimaryBuildingId, Is.Zero);
+		Assert.That(idleWorker.AssignedTaskTypes, Is.Empty);
+		Assert.That(idleWorker.HasPendingAssignment, Is.False);
+
+		HumanWorker busyWorker = CreateWorker(
+			"Workforce Busy Unassignment Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(busyWorker);
+		SetCurrentAssignment(
+			busyWorker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+		WorkerTask currentTask = new CapsuleRelocationTask(
+			WorkerTask.TaskType.IB,
+			null,
+			null,
+			storage.RuntimeBuildingId,
+			CapsuleRelocationReason.RoleChanged);
+		SetPrivateField(typeof(AIWorker), busyWorker, "currentTask", currentTask);
+
+		Assert.That(workerManager.TryRequestWorkerUnassignment(busyWorker), Is.True);
+		Assert.That(busyWorker.PrimaryBuildingId, Is.EqualTo(storage.RuntimeBuildingId));
+		CollectionAssert.AreEqual(
+			new[] { WorkerTask.TaskType.Storing },
+			busyWorker.AssignedTaskTypes);
+		Assert.That(busyWorker.HasPendingAssignment, Is.True);
+		Assert.That(busyWorker.PendingPrimaryBuildingId, Is.Zero);
+		Assert.That(busyWorker.PendingAssignedTaskTypes, Is.Empty);
+
+		SetPrivateField(typeof(AIWorker), busyWorker, "currentTask", null);
+		Assert.That(workerManager.TryApplyPendingAssignment(busyWorker), Is.True);
+		Assert.That(busyWorker.PrimaryBuildingId, Is.Zero);
+		Assert.That(busyWorker.AssignedTaskTypes, Is.Empty);
+		Assert.That(busyWorker.HasPendingAssignment, Is.False);
 	}
 
 	[Test]
@@ -707,6 +838,8 @@ public sealed class WorkforceAssignmentEditModeTests
 		Assert.That(content.Q<VisualElement>("workforce-assignments-tab"), Is.Not.Null);
 		Assert.That(content.Q<ScrollView>("workforce-unassigned-list"), Is.Not.Null);
 		Assert.That(content.Q<ScrollView>("workforce-assignment-tree"), Is.Not.Null);
+		Assert.That(content.Q<VisualElement>("workforce-unassigned-drop-target"), Is.Not.Null);
+		Assert.That(content.Q<Label>("workforce-assignment-drag-status"), Is.Not.Null);
 	}
 
 	[Test]
@@ -831,6 +964,538 @@ public sealed class WorkforceAssignmentEditModeTests
 	}
 
 	[Test]
+	public void ManagementDrag_HighlightsOnlyEligibleRolesAndCancelDoesNotMutate()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		Building staging = CreateBuilding(BuildingType.Staging);
+		HumanWorker worker = CreateWorker(
+			"Workforce Drag Eligibility Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		int workerChangedCount = 0;
+		workerManager.OnWorkerChanged += _ => ++workerChangedCount;
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out TemplateContainer content);
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				0u,
+				WorkforceRole.Undefined),
+			Is.True);
+		VisualElement storing = FindAssignmentRoleRow(
+			content,
+			storage.RuntimeBuildingId,
+			WorkforceRole.Storing);
+		VisualElement labeling = FindAssignmentRoleRow(
+			content,
+			staging.RuntimeBuildingId,
+			WorkforceRole.Labeling);
+		VisualElement unassignedTarget =
+			content.Q<VisualElement>("workforce-unassigned-drop-target");
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"CanDropAssignmentOnRole",
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing),
+			Is.True);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"CanDropAssignmentOnRole",
+				staging.RuntimeBuildingId,
+				WorkforceRole.Labeling),
+			Is.False);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"CanDropAssignmentOnUnassigned"),
+			Is.False);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"TryDropAssignmentOnRole",
+				staging.RuntimeBuildingId,
+				WorkforceRole.Labeling),
+			Is.False);
+		Assert.That(worker.PrimaryBuildingId, Is.Zero);
+		Assert.That(worker.AssignedTaskTypes, Is.Empty);
+		Assert.That(worker.HasPendingAssignment, Is.False);
+		Assert.That(workerChangedCount, Is.Zero);
+		Assert.That(
+			storing.ClassListContains("workforce-assignment-role--drop-valid"),
+			Is.True);
+		Assert.That(
+			labeling.ClassListContains("workforce-assignment-role--drop-invalid"),
+			Is.True);
+		Assert.That(
+			unassignedTarget.ClassListContains("workforce-unassigned-column--drop-invalid"),
+			Is.True);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"CancelAssignmentDrag");
+		Assert.That(
+			storing.ClassListContains("workforce-assignment-role--drop-valid"),
+			Is.False);
+		Assert.That(
+			labeling.ClassListContains("workforce-assignment-role--drop-invalid"),
+			Is.False);
+		Assert.That(
+			unassignedTarget.ClassListContains("workforce-unassigned-column--drop-invalid"),
+			Is.False);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"CanDropAssignmentOnRole",
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing),
+			Is.False);
+		Assert.That(worker.PrimaryBuildingId, Is.Zero);
+		Assert.That(worker.AssignedTaskTypes, Is.Empty);
+		Assert.That(worker.HasPendingAssignment, Is.False);
+		Assert.That(workerChangedCount, Is.Zero);
+	}
+
+	[Test]
+	public void ManagementDrag_UnassignedToRoleMutatesThroughWorkerManager()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Drag Role Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		int workerChangedCount = 0;
+		workerManager.OnWorkerChanged += _ => ++workerChangedCount;
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out TemplateContainer content);
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				0u,
+				WorkforceRole.Undefined),
+			Is.True);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"TryDropAssignmentOnRole",
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing),
+			Is.True);
+
+		Assert.That(worker.PrimaryBuildingId, Is.EqualTo(storage.RuntimeBuildingId));
+		CollectionAssert.AreEqual(
+			new[] { WorkerTask.TaskType.Storing },
+			worker.AssignedTaskTypes);
+		Assert.That(worker.HasPendingAssignment, Is.False);
+		Assert.That(workerChangedCount, Is.GreaterThan(0));
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing,
+				out WorkforceRoleSummary summary),
+			Is.True);
+		Assert.That(summary.OperationalCount, Is.EqualTo(1));
+		List<AIWorker> unassigned = new();
+		workerManager.GetOperationalUnassignedWorkers(unassigned);
+		CollectionAssert.DoesNotContain(unassigned, worker);
+		Label feedback = content.Q<Label>("workforce-assignment-drag-status");
+		Assert.That(
+			feedback.ClassListContains("workforce-assignment-drag-status--success"),
+			Is.True);
+		StringAssert.Contains("assigned to Storing", feedback.text);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"CancelAssignmentDrag");
+	}
+
+	[Test]
+	public void ManagementDrag_AssignedRoleToRoleIsBlockedButUnassignedDropApplies()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Drag Unassignment Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		SetCurrentAssignment(
+			worker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+		int workerChangedCount = 0;
+		workerManager.OnWorkerChanged += _ => ++workerChangedCount;
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out TemplateContainer content);
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing),
+			Is.True);
+		VisualElement picking = FindAssignmentRoleRow(
+			content,
+			storage.RuntimeBuildingId,
+			WorkforceRole.Picking);
+		VisualElement unassignedTarget =
+			content.Q<VisualElement>("workforce-unassigned-drop-target");
+		Assert.That(
+			picking.ClassListContains("workforce-assignment-role--drop-invalid"),
+			Is.True);
+		Assert.That(
+			unassignedTarget.ClassListContains("workforce-unassigned-column--drop-valid"),
+			Is.True);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"TryDropAssignmentOnRole",
+				storage.RuntimeBuildingId,
+				WorkforceRole.Picking),
+			Is.False);
+		Assert.That(worker.PrimaryBuildingId, Is.EqualTo(storage.RuntimeBuildingId));
+		CollectionAssert.AreEqual(
+			new[] { WorkerTask.TaskType.Storing },
+			worker.AssignedTaskTypes);
+		Assert.That(workerChangedCount, Is.Zero);
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"TryDropAssignmentOnUnassigned"),
+			Is.True);
+		Assert.That(worker.PrimaryBuildingId, Is.Zero);
+		Assert.That(worker.AssignedTaskTypes, Is.Empty);
+		Assert.That(worker.HasPendingAssignment, Is.False);
+		Assert.That(workerChangedCount, Is.GreaterThan(0));
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing,
+				out WorkforceRoleSummary summary),
+			Is.True);
+		Assert.That(summary.OperationalCount, Is.Zero);
+		List<AIWorker> unassigned = new();
+		workerManager.GetOperationalUnassignedWorkers(unassigned);
+		Assert.That(unassigned, Does.Contain(worker));
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"CancelAssignmentDrag");
+	}
+
+	[Test]
+	public void ManagementDrag_BusyUnassignSchedulesPendingWithoutChangingCurrentCounts()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Drag Busy Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		SetCurrentAssignment(
+			worker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+		WorkerTask currentTask = new CapsuleRelocationTask(
+			WorkerTask.TaskType.IB,
+			null,
+			null,
+			storage.RuntimeBuildingId,
+			CapsuleRelocationReason.RoleChanged);
+		SetPrivateField(typeof(AIWorker), worker, "currentTask", currentTask);
+		int workerChangedCount = 0;
+		workerManager.OnWorkerChanged += _ => ++workerChangedCount;
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out TemplateContainer content);
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing),
+			Is.True);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"TryDropAssignmentOnUnassigned"),
+			Is.True);
+
+		Assert.That(worker.PrimaryBuildingId, Is.EqualTo(storage.RuntimeBuildingId));
+		CollectionAssert.AreEqual(
+			new[] { WorkerTask.TaskType.Storing },
+			worker.AssignedTaskTypes);
+		Assert.That(worker.HasPendingAssignment, Is.True);
+		Assert.That(worker.PendingPrimaryBuildingId, Is.Zero);
+		Assert.That(worker.PendingAssignedTaskTypes, Is.Empty);
+		Assert.That(workerChangedCount, Is.EqualTo(1));
+		Assert.That(
+			workerManager.TryGetWorkforceRoleSummary(
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing,
+				out WorkforceRoleSummary summary),
+			Is.True);
+		Assert.That(summary.OperationalCount, Is.EqualTo(1));
+		List<AIWorker> unassigned = new();
+		workerManager.GetOperationalUnassignedWorkers(unassigned);
+		CollectionAssert.DoesNotContain(unassigned, worker);
+		Label feedback = content.Q<Label>("workforce-assignment-drag-status");
+		Assert.That(
+			feedback.ClassListContains("workforce-assignment-drag-status--pending"),
+			Is.True);
+		StringAssert.Contains("after the current task", feedback.text);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ClearAssignmentDragState");
+		SetPrivateField(typeof(AIWorker), worker, "currentTask", null);
+		Assert.That(workerManager.TryApplyPendingAssignment(worker), Is.True);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+		Assert.That(worker.HasPendingAssignment, Is.False);
+		Assert.That(worker.PrimaryBuildingId, Is.Zero);
+		Assert.That(worker.AssignedTaskTypes, Is.Empty);
+		Assert.That(
+			feedback.ClassListContains("workforce-assignment-drag-status--pending"),
+			Is.False);
+		Assert.That(
+			feedback.ClassListContains("workforce-assignment-drag-status--success"),
+			Is.True);
+		StringAssert.Contains("is now unassigned", feedback.text);
+	}
+
+	[Test]
+	public void ManagementDrag_RejectsStaleOrForgedSourceRows()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		Building staging = CreateBuilding(BuildingType.Staging);
+		HumanWorker worker = CreateWorker(
+			"Workforce Drag Forged Source Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		SetCurrentAssignment(
+			worker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out _);
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				0u,
+				WorkforceRole.Undefined),
+			Is.False,
+			"An assigned worker cannot be presented as an Unassigned source.");
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				staging.RuntimeBuildingId,
+				WorkforceRole.Storing),
+			Is.False,
+			"The source building must still match the current assignment.");
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				storage.RuntimeBuildingId,
+				WorkforceRole.Picking),
+			Is.False,
+			"The source role must still contain the worker.");
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing),
+			Is.True);
+
+		SetCurrentAssignment(
+			worker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Picking });
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"CanDropAssignmentOnUnassigned"),
+			Is.False,
+			"Drop must revalidate the source after the drag has started.");
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"TryDropAssignmentOnUnassigned"),
+			Is.False);
+		CollectionAssert.AreEqual(
+			new[] { WorkerTask.TaskType.Picking },
+			worker.AssignedTaskTypes);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"CancelAssignmentDrag");
+	}
+
+	[Test]
+	public void ManagementDrag_PendingFeedbackStopsWhenRoleTargetDisappears()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Drag Removed Target Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		WorkerTask currentTask = new CapsuleRelocationTask(
+			WorkerTask.TaskType.IB,
+			null,
+			null,
+			storage.RuntimeBuildingId,
+			CapsuleRelocationReason.RoleChanged);
+		SetPrivateField(typeof(AIWorker), worker, "currentTask", currentTask);
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out TemplateContainer content);
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				0u,
+				WorkforceRole.Undefined),
+			Is.True);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"TryDropAssignmentOnRole",
+				storage.RuntimeBuildingId,
+				WorkforceRole.Storing),
+			Is.True);
+		Label feedback = content.Q<Label>("workforce-assignment-drag-status");
+		Assert.That(
+			feedback.ClassListContains("workforce-assignment-drag-status--pending"),
+			Is.True);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ClearAssignmentDragState");
+		buildingManager.Unregister(storage);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+
+		Assert.That(
+			feedback.ClassListContains("workforce-assignment-drag-status--pending"),
+			Is.False);
+		Assert.That(
+			feedback.ClassListContains("workforce-assignment-drag-status--error"),
+			Is.True);
+		StringAssert.Contains("could not be completed", feedback.text);
+		SetPrivateField(typeof(AIWorker), worker, "currentTask", null);
+		Assert.That(workerManager.CancelPendingWorkerAssignment(worker), Is.True);
+	}
+
+	[Test]
+	public void ManagementDrag_RevalidatesSourceStateBeforeDrop()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Drag Source Revalidation Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(worker);
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out _);
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				0u,
+				WorkforceRole.Undefined),
+			Is.True);
+		SetCurrentAssignment(
+			worker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"CanDropAssignmentOnRole",
+				storage.RuntimeBuildingId,
+				WorkforceRole.Picking),
+			Is.False);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"TryDropAssignmentOnRole",
+				storage.RuntimeBuildingId,
+				WorkforceRole.Picking),
+			Is.False);
+		Assert.That(worker.PrimaryBuildingId, Is.EqualTo(storage.RuntimeBuildingId));
+		CollectionAssert.AreEqual(
+			new[] { WorkerTask.TaskType.Storing },
+			worker.AssignedTaskTypes);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"CancelAssignmentDrag");
+	}
+
+	[Test]
 	public void BuildingManager_RaisesChangesForRegisterUnregisterAndReset()
 	{
 		int changedCount = 0;
@@ -931,6 +1596,68 @@ public sealed class WorkforceAssignmentEditModeTests
 		Label count = roleRow.Q<Label>(className: "workforce-assignment-role__count");
 		Assert.That(count, Is.Not.Null);
 		Assert.That(count.text, Is.EqualTo(expectedCount));
+	}
+
+	private WorkforceManagementWindow CreateAssignmentsController(
+		out TemplateContainer content)
+	{
+		VisualTreeAsset contentTemplate = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/WorkforceManagementContent.uxml");
+		VisualTreeAsset rowTemplate = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/WorkforceRosterRow.uxml");
+		Assert.That(contentTemplate, Is.Not.Null);
+		Assert.That(rowTemplate, Is.Not.Null);
+		content = contentTemplate.CloneTree();
+		WorkforceManagementWindow controller =
+			CreateComponent<WorkforceManagementWindow>("Workforce Drag UI Controller", active: false);
+		SetPrivateField(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"rosterRowTemplate",
+			rowTemplate);
+		SetPrivateField(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"workerManager",
+			workerManager);
+		SetPrivateField(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"buildingManager",
+			buildingManager);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"InitializeAssignmentsView",
+			content);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+		return controller;
+	}
+
+	private static VisualElement FindAssignmentRoleRow(
+		VisualElement content,
+		uint buildingId,
+		WorkforceRole role)
+	{
+		List<VisualElement> groups = QueryByClass(content, "workforce-assignment-group");
+		for (int i = 0; i < groups.Count; ++i)
+		{
+			if (groups[i].userData is not uint groupBuildingId || groupBuildingId != buildingId)
+				continue;
+
+			List<VisualElement> roles = QueryByClass(groups[i], "workforce-assignment-role");
+			for (int roleIndex = 0; roleIndex < roles.Count; ++roleIndex)
+			{
+				if (roles[roleIndex].userData is WorkforceRole candidate && candidate == role)
+					return roles[roleIndex];
+			}
+		}
+
+		Assert.Fail($"Missing assignment role row for building {buildingId}, role {role}.");
+		return null;
 	}
 
 	private T CreateComponent<T>(string objectName, bool active = true) where T : Component

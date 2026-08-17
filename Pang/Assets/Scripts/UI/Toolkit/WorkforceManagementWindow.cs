@@ -115,6 +115,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnDisable()
 		{
+			CancelAssignmentDrag();
 			EndWorkerPointer(cancelDrag: true);
 			assignmentModeController?.EndMode();
 			UnbindControls();
@@ -227,6 +228,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void UnbindControls()
 		{
+			UnbindAssignmentDragControls();
 			if (assignmentsButton != null) assignmentsButton.clicked -= OpenAssignments;
 			if (rosterButton != null) rosterButton.clicked -= OpenRoster;
 			if (hiringButton != null) hiringButton.clicked -= OpenHiring;
@@ -308,6 +310,14 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void SelectTab(WorkforceTab tab)
 		{
+			if (selectedTab == WorkforceTab.Assignments && tab != WorkforceTab.Assignments)
+				CancelAssignmentDrag();
+			if (selectedTab == WorkforceTab.Workers && tab != WorkforceTab.Workers)
+			{
+				EndWorkerPointer(cancelDrag: true);
+				assignmentModeController?.EndMode();
+			}
+
 			selectedTab = tab;
 			bool assignments = tab == WorkforceTab.Assignments;
 			bool workers = tab == WorkforceTab.Workers;
@@ -531,6 +541,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnWindowClosed()
 		{
+			CancelAssignmentDrag();
 			EndWorkerPointer(cancelDrag: true);
 			assignmentModeController?.EndMode();
 		}
