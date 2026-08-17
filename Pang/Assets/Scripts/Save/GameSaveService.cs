@@ -424,7 +424,6 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.BuildingMgr?.ValidateCapsuleRelocationInvariants("restore-complete", recoverOrphans: true);
 		Ctx.WorkerMgr.RebuildWorkerStatusCaches();
 		Ctx.FacilityRuleMgr.RebuildAppliedFacilityLookup();
-		Ctx.FacilityRuleOverlay?.RefreshOverlay();
 		Ctx.TemperatureSvc.RebuildRuntimeState();
 		Ctx.ItemThermalSvc.RebuildRuntimeState();
 		Ctx.OxygenSvc.RebuildRuntimeState();

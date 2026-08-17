@@ -1211,11 +1211,15 @@ namespace UniverseLogistics.UI.Toolkit
 			applyingRuleId = presetId;
 			applyModeActive = true;
 			GameContext.Instance.InteractionCtx.OnItemSelected += OnApplyTargetSelected;
+			GameContext.Instance.GridOverlay.SetFacilityRuleApplyVisible(true);
 			window.Close();
 		}
 
 		private void EndApplyMode()
 		{
+			if (GameContext.HasInstance)
+				GameContext.Instance.GridOverlay.SetFacilityRuleApplyVisible(false);
+
 			if (applyModeActive == false) return;
 			if (GameContext.HasInstance && GameContext.Instance.InteractionCtx != null)
 				GameContext.Instance.InteractionCtx.OnItemSelected -= OnApplyTargetSelected;

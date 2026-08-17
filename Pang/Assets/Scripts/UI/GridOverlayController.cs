@@ -22,9 +22,20 @@ public sealed class GridOverlayController : MonoBehaviour
 	private GameObject overlayQuad;
 	private bool isHolding;
 	private KeyCode activeKey = KeyCode.None;
+	private IGridOverlayProvider heldProvider;
+	private bool facilityRuleApplyVisible;
 	private float filteredGlowTime;
 
 	private GridService GridService => GameContext.HasInstance ? GameContext.Instance.GridService : null;
+
+	public void SetFacilityRuleApplyVisible(bool visible)
+	{
+		if (facilityRuleApplyVisible == visible)
+			return;
+
+		facilityRuleApplyVisible = visible;
+		RefreshActiveOverlay();
+	}
 
 	private void Update()
 	{
@@ -103,12 +114,12 @@ public sealed class GridOverlayController : MonoBehaviour
 
 	private void OnDisable()
 	{
-		EndHold();
+		ResetVisibilityState();
 	}
 
 	private void OnDestroy()
 	{
-		EndHold();
+		ResetVisibilityState();
 
 		if (overlayQuad != null)
 			Destroy(overlayQuad);
@@ -123,33 +134,73 @@ public sealed class GridOverlayController : MonoBehaviour
 		if (GridService == null || GridService.IsReady == false || nextProvider == null)
 			return;
 
-		EndHold();
-		provider = nextProvider;
-		if (provider == null || EnsureRenderResources() == false)
+		activeKey = key;
+		heldProvider = nextProvider;
+		isHolding = true;
+		RefreshActiveOverlay();
+	}
+
+	private void EndHold()
+	{
+		activeKey = KeyCode.None;
+		heldProvider = null;
+		isHolding = false;
+		RefreshActiveOverlay();
+	}
+
+	private void RefreshActiveOverlay()
+	{
+		IGridOverlayProvider nextProvider = ResolveActiveProvider();
+		if (nextProvider == null || GridService == null || GridService.IsReady == false || EnsureRenderResources() == false)
 		{
-			provider = null;
+			DeactivateOverlay();
 			return;
 		}
 
-		provider.OnGridOverlayRefreshRequested += HandleProviderRefreshRequested;
+		if (provider != nextProvider)
+		{
+			if (provider != null)
+				provider.OnGridOverlayRefreshRequested -= HandleProviderRefreshRequested;
+
+			provider = nextProvider;
+			provider.OnGridOverlayRefreshRequested += HandleProviderRefreshRequested;
+		}
+
 		material.SetFloat(HideZeroAlphaPixelsId, provider.HideZeroAlphaPixels ? 1f : 0f);
-		activeKey = key;
-		isHolding = true;
+		ResetOverlayAlpha();
 		RefreshTexture();
 		overlayQuad.SetActive(true);
 	}
 
-	private void EndHold()
+	private IGridOverlayProvider ResolveActiveProvider()
+	{
+		if (isHolding)
+			return heldProvider;
+
+		if (facilityRuleApplyVisible && GameContext.HasInstance)
+			return GameContext.Instance.FacilityRuleMgr;
+
+		return null;
+	}
+
+	private void DeactivateOverlay()
 	{
 		if (provider != null)
 			provider.OnGridOverlayRefreshRequested -= HandleProviderRefreshRequested;
 
 		provider = null;
-		activeKey = KeyCode.None;
-		isHolding = false;
 		ResetOverlayAlpha();
 		if (overlayQuad != null)
 			overlayQuad.SetActive(false);
+	}
+
+	private void ResetVisibilityState()
+	{
+		activeKey = KeyCode.None;
+		heldProvider = null;
+		isHolding = false;
+		facilityRuleApplyVisible = false;
+		DeactivateOverlay();
 	}
 
 	private bool EnsureRenderResources()
@@ -219,13 +270,13 @@ public sealed class GridOverlayController : MonoBehaviour
 
 	private void HandleProviderRefreshRequested()
 	{
-		if (isHolding)
+		if (provider != null && overlayQuad != null && overlayQuad.activeSelf)
 			RefreshTexture();
 	}
 
 	private void UpdateFilteredGlow()
 	{
-		if (material == null || provider is not FacilityRuleManager ruleManager ||
+		if (material == null || isHolding == false || provider is not FacilityRuleManager ruleManager ||
 			ruleManager.HasGridOverlayItemFilter == false)
 		{
 			return;
@@ -244,7 +295,13 @@ public sealed class GridOverlayController : MonoBehaviour
 
 	private void RefreshTexture()
 	{
-		if (provider == null || texture == null || provider.TryFillGridOverlay(colorBuffer, floor) == false)
+		if (provider == null || texture == null)
+			return;
+
+		bool filled = facilityRuleApplyVisible && isHolding == false && provider is FacilityRuleManager ruleManager
+			? ruleManager.TryFillUnfilteredGridOverlay(colorBuffer, floor)
+			: provider.TryFillGridOverlay(colorBuffer, floor);
+		if (filled == false)
 			return;
 
 		texture.SetPixelData(colorBuffer, 0, 0);

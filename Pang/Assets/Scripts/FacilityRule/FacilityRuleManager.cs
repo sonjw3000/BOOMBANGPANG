@@ -173,6 +173,7 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 
 		preset.SetRule(rule);
 		OnPresetChanged?.Invoke(preset);
+		OnGridOverlayRefreshRequested?.Invoke();
 		return true;
 	}
 
@@ -218,6 +219,16 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 
 	public bool TryFillGridOverlay(Color32[] buffer, int floor)
 	{
+		return TryFillGridOverlay(buffer, floor, gridOverlayItemFilter);
+	}
+
+	public bool TryFillUnfilteredGridOverlay(Color32[] buffer, int floor)
+	{
+		return TryFillGridOverlay(buffer, floor, null);
+	}
+
+	private bool TryFillGridOverlay(Color32[] buffer, int floor, ItemDefinition itemFilter)
+	{
 		GridService gridService = GameContext.HasInstance ? GameContext.Instance.GridService : null;
 		if (gridService == null || gridService.IsReady == false || ResolveFacilityManager() == null)
 		{
@@ -246,8 +257,8 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 				if (presetId == NoRulePresetId || presetsById.TryGetValue(presetId, out FacilityRulePreset preset) == false)
 					continue;
 
-				if (gridOverlayItemFilter != null && preset.Rule != null &&
-					preset.Rule.IsItemDefinitionCapable(gridOverlayItemFilter) == false)
+				if (itemFilter != null && preset.Rule != null &&
+					preset.Rule.IsItemDefinitionCapable(itemFilter) == false)
 				{
 					continue;
 				}

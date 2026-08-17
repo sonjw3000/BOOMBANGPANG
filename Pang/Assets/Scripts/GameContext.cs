@@ -68,7 +68,6 @@ public class GameContext : MonoBehaviour
 	[SerializeField] private ChargingFacilityService chargingFacilityService;
 	[SerializeField] private RestFacilityService restFacilityService;
 	[SerializeField] private FacilityRuleManager facilityRuleManager;
-	[SerializeField] private FacilityRuleOverlayController facilityRuleOverlayController;
 	[SerializeField] private AirlockService airlockService;
 	[SerializeField] private BuildingManager buildingManager;
 	[SerializeField] private BuildingFootprintService buildingFootprintService;
@@ -204,7 +203,7 @@ public class GameContext : MonoBehaviour
 	public RestFacilityService RestFacilitySvc =>
 		ResolveManager(ref restFacilityService, nameof(RestFacilityService));
 	public FacilityRuleManager FacilityRuleMgr => facilityRuleManager;
-	public FacilityRuleOverlayController FacilityRuleOverlay => facilityRuleOverlayController;
+	public GridOverlayController GridOverlay => ResolveOrCreateGridOverlayController();
 
 	public BuildingFootprintService BuildingFootprintService => buildingFootprintService;
 	public InboundWorkflowService IBWorkflowSvc => inboundWorkflowService;
