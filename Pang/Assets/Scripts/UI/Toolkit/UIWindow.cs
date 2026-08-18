@@ -491,10 +491,30 @@ namespace UniverseLogistics.UI.Toolkit
 			if (windowRoot == null)
 				return;
 
-			Rect clampedRect = ClampRectToPanel(windowRoot.worldBound);
+			Rect windowRect = windowRoot.worldBound;
+			if (IsUsableWindowRect(windowRect) == false)
+				windowRect = GetCenteredDefaultRect();
+
+			Rect clampedRect = ClampRectToPanel(windowRect);
 			ApplyWindowRect(clampedRect);
 			if (hasRememberedWindowRect)
 				rememberedWindowRect = clampedRect;
+		}
+
+		private Rect GetCenteredDefaultRect()
+		{
+			Vector2 panelSize = GetPanelSize();
+			float width = Mathf.Clamp(
+				Mathf.Max(minimumSize.x, defaultSize.x),
+				Mathf.Min(minimumSize.x, panelSize.x),
+				panelSize.x);
+			float height = Mathf.Clamp(
+				Mathf.Max(minimumSize.y, defaultSize.y),
+				Mathf.Min(minimumSize.y, panelSize.y),
+				panelSize.y);
+			float x = Mathf.Max(0f, (panelSize.x - width) * 0.5f);
+			float y = Mathf.Max(0f, (panelSize.y - height) * 0.5f);
+			return new Rect(x, y, width, height);
 		}
 
 		private Rect ClampRectToPanel(Rect rect)
@@ -525,9 +545,7 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 
 			Rect rect = windowRoot.worldBound;
-			if (IsFinite(rect.x) == false || IsFinite(rect.y) == false ||
-				IsFinite(rect.width) == false || IsFinite(rect.height) == false ||
-				rect.width <= 0f || rect.height <= 0f)
+			if (IsUsableWindowRect(rect) == false)
 				return;
 
 			rememberedWindowRect = ClampRectToPanel(rect);
@@ -537,6 +555,13 @@ namespace UniverseLogistics.UI.Toolkit
 		private static bool IsFinite(float value)
 		{
 			return float.IsNaN(value) == false && float.IsInfinity(value) == false;
+		}
+
+		private static bool IsUsableWindowRect(Rect rect)
+		{
+			return IsFinite(rect.x) && IsFinite(rect.y) &&
+				IsFinite(rect.width) && IsFinite(rect.height) &&
+				rect.width > 0f && rect.height > 0f;
 		}
 
 		private Vector2 GetPanelSize()
