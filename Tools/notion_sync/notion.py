@@ -66,6 +66,30 @@ class NotionClient:
 
 		return result["results"]
 
+	def query_first(
+		self,
+		data_source_id: str,
+		filter_: dict,
+	) -> dict | None:
+		results = self.query_data_source(
+			data_source_id,
+			filter_,
+		)
+
+		if not results:
+			return None
+
+		return results[0]
+
+	def get_page(
+		self,
+		page_id: str,
+	) -> dict:
+		return self._request(
+			"GET",
+			f"/pages/{page_id}",
+		)
+
 	def create_page(
 		self,
 		data_source_id: str,
@@ -87,6 +111,19 @@ class NotionClient:
 			"POST",
 			"/pages",
 			body,
+		)
+
+	def update_page(
+		self,
+		page_id: str,
+		properties: dict,
+	) -> dict:
+		return self._request(
+			"PATCH",
+			f"/pages/{page_id}",
+			{
+				"properties": properties,
+			},
 		)
 
 	def append_blocks(

@@ -3,6 +3,9 @@ from datetime import datetime
 import subprocess
 
 
+ZERO_SHA = "0" * 40
+
+
 @dataclass
 class Commit:
 	sha: str
@@ -29,25 +32,20 @@ def _run_git(*args: str) -> str:
 	return result.stdout.strip()
 
 
-ZERO_SHA = "0" * 40
-
-
 def get_commits(before_sha: str, after_sha: str) -> list[Commit]:
 	format_string = "%H%x1f%aI%x1f%s"
 
 	if before_sha == ZERO_SHA:
-		# 새 브랜치 최초 push.
-		# Dry run에서 전체 history를 처리하지 않도록 HEAD 하나만 확인.
 		revision = after_sha
-		max_count = ["-1"]
+		extra_args = ["-1"]
 	else:
 		revision = f"{before_sha}..{after_sha}"
-		max_count = []
+		extra_args = []
 
 	output = _run_git(
 		"log",
 		"--reverse",
-		*max_count,
+		*extra_args,
 		f"--pretty=format:{format_string}",
 		revision,
 	)
