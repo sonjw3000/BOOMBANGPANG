@@ -25,13 +25,34 @@ def parse_task_commit(commit: Commit) -> tuple[int, str] | None:
 
 	return task_id, description
 
+def find_task(
+	notion: NotionClient,
+	task_db: str,
+	task_id: int,) -> dict | None:
+	results = notion.query_data_source(
+		task_db,
+		{
+			"property": "Task ID",
+			"unique_id": {
+				"equals": task_id,
+			},
+		},
+	)
+
+	if not results:
+		return None
+
+	if len(results) > 1:
+		raise RuntimeError(
+			f"Duplicate Task ID: {task_id}"
+		)
+
+	return results[0]
+
 
 def main():
 	token = os.environ["NOTION_TOKEN"]
-
 	task_db = os.environ["NOTION_TASK_DB"]
-	worklog_db = os.environ["NOTION_WORKLOG_DB"]
-	journal_db = os.environ["NOTION_JOURNAL_DB"]
 
 	before_sha = os.environ["BEFORE_SHA"]
 	after_sha = os.environ["AFTER_SHA"]
@@ -65,6 +86,24 @@ def main():
 		print(
 			f"  -> TASK-{task_id:04d}"
 			f" / {description}"
+		)
+
+		task_page = find_task(
+			notion,
+			task_db,
+			task_id,
+		)
+
+		if task_page is None:
+			print(
+				f"  -> WARNING: "
+				f"TASK-{task_id:04d} not found in Notion"
+			)
+			continue
+
+		print(
+			f"  -> Notion Task found: "
+			f"{task_page['id']}"
 		)
 
 
