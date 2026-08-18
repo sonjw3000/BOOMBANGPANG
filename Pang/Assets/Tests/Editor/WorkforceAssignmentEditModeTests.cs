@@ -964,6 +964,378 @@ public sealed class WorkforceAssignmentEditModeTests
 	}
 
 	[Test]
+	public void ManagementAssignments_ScopesDefaultExpandedAndReportActiveRoles()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker publicWorker = CreateWorker(
+			"Workforce Public Scope Summary Worker",
+			WorkerAbility.CargoHandling,
+			addCargoHandlingAbility: true);
+		workerManager.RegisterWorker(publicWorker);
+		SetCurrentAssignment(
+			publicWorker,
+			0,
+			new[] { WorkerTask.TaskType.Unloading });
+		HumanWorker storageWorker = CreateWorker(
+			"Workforce Building Scope Summary Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(storageWorker);
+		SetCurrentAssignment(
+			storageWorker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing, WorkerTask.TaskType.IB });
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out TemplateContainer content);
+
+		VisualElement publicGroup = FindAssignmentGroup(content, 0);
+		VisualElement storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
+		Assert.That(
+			publicGroup.ClassListContains("workforce-assignment-group--collapsed"),
+			Is.False);
+		Assert.That(
+			storageGroup.ClassListContains("workforce-assignment-group--collapsed"),
+			Is.False);
+		Assert.That(
+			QueryByClass(publicGroup, "workforce-assignment-role").Count,
+			Is.EqualTo(4));
+		Assert.That(
+			QueryByClass(storageGroup, "workforce-assignment-role").Count,
+			Is.EqualTo(3));
+		Assert.That(
+			publicGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
+			Is.EqualTo("1 / 4 ACTIVE ROLES"));
+		Assert.That(
+			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
+			Is.EqualTo("2 / 3 ACTIVE ROLES"),
+			"A partial Capsule Handling assignment still activates that role.");
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+		storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
+		Assert.That(
+			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
+			Is.EqualTo("2 / 3 ACTIVE ROLES"));
+	}
+
+	[Test]
+	public void ManagementAssignments_CollapseRefreshExpandPreservesRoleStateAndZeroRows()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker partialWorker = CreateWorker(
+			"Workforce Fold Partial Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(partialWorker);
+		SetCurrentAssignment(
+			partialWorker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.IB });
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out TemplateContainer content);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentRole",
+			storage.RuntimeBuildingId,
+			WorkforceRole.CapsuleHandling,
+			1);
+		VisualElement storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
+		Assert.That(
+			QueryByClass(storageGroup, "workforce-assignment-worker-row").Count,
+			Is.EqualTo(1));
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentScope",
+			storage.RuntimeBuildingId);
+		storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
+		Assert.That(
+			storageGroup.ClassListContains("workforce-assignment-group--collapsed"),
+			Is.True);
+		Assert.That(QueryByClass(storageGroup, "workforce-assignment-role").Count, Is.Zero);
+		Assert.That(QueryByClass(storageGroup, "workforce-assignment-worker-row").Count, Is.Zero);
+		Assert.That(
+			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
+			Is.EqualTo("1 / 3 ACTIVE ROLES"));
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+		storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
+		Assert.That(
+			storageGroup.ClassListContains("workforce-assignment-group--collapsed"),
+			Is.True,
+			"A normal refresh must preserve the collapsed scope.");
+
+		SetCurrentAssignment(partialWorker, 0, Array.Empty<WorkerTask.TaskType>());
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+		storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
+		Assert.That(
+			storageGroup.ClassListContains("workforce-assignment-group--collapsed"),
+			Is.True);
+		Assert.That(
+			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
+			Is.EqualTo("0 / 3 ACTIVE ROLES"),
+			"A folded scope must expose an operational role falling from one to zero.");
+		SetCurrentAssignment(
+			partialWorker,
+			storage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.IB });
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+		storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
+		Assert.That(
+			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
+			Is.EqualTo("1 / 3 ACTIVE ROLES"));
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentScope",
+			storage.RuntimeBuildingId);
+		storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
+		List<VisualElement> storageRoles = QueryByClass(
+			storageGroup,
+			"workforce-assignment-role");
+		AssertRoleOrder(
+			storageRoles,
+			WorkforceRole.Storing,
+			WorkforceRole.Picking,
+			WorkforceRole.CapsuleHandling);
+		AssertRoleCount(storageRoles[0], "0");
+		AssertRoleCount(storageRoles[1], "0");
+		AssertRoleCount(storageRoles[2], "1");
+		Assert.That(
+			QueryByClass(storageGroup, "workforce-assignment-worker-row").Count,
+			Is.EqualTo(1),
+			"Re-expanding the scope must restore the expanded role worker list.");
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentScope",
+			0u);
+		VisualElement publicGroup = FindAssignmentGroup(content, 0);
+		Assert.That(QueryByClass(publicGroup, "workforce-assignment-role").Count, Is.Zero);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+		publicGroup = FindAssignmentGroup(content, 0);
+		Assert.That(
+			publicGroup.ClassListContains("workforce-assignment-group--collapsed"),
+			Is.True);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentScope",
+			0u);
+		publicGroup = FindAssignmentGroup(content, 0);
+		List<VisualElement> publicRoles = QueryByClass(
+			publicGroup,
+			"workforce-assignment-role");
+		AssertRoleOrder(
+			publicRoles,
+			WorkforceRole.Unloading,
+			WorkforceRole.Loading,
+			WorkforceRole.CargoTransfer,
+			WorkforceRole.WasteCollection);
+		for (int i = 0; i < publicRoles.Count; ++i)
+			AssertRoleCount(publicRoles[i], "0");
+	}
+
+	[Test]
+	public void ManagementAssignments_CollapsedScopesRemoveAndRestoreDragTargets()
+	{
+		Building storage = CreateBuilding(BuildingType.Storage);
+		HumanWorker worker = CreateWorker(
+			"Workforce Fold Drag Target Worker",
+			WorkerAbility.PickingStoring |
+			WorkerAbility.CarryBox |
+			WorkerAbility.CargoHandling,
+			addCarryBoxAbility: true,
+			addCargoHandlingAbility: true);
+		workerManager.RegisterWorker(worker);
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out TemplateContainer content);
+
+		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(7));
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentScope",
+			0u);
+		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(3));
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentScope",
+			storage.RuntimeBuildingId);
+		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.Zero);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.Zero);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentScope",
+			0u);
+		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(4));
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentScope",
+			storage.RuntimeBuildingId);
+		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(7));
+
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				worker,
+				0u,
+				WorkforceRole.Undefined),
+			Is.True);
+		VisualElement publicUnloading = FindAssignmentRoleRow(
+			content,
+			0,
+			WorkforceRole.Unloading);
+		VisualElement storageStoring = FindAssignmentRoleRow(
+			content,
+			storage.RuntimeBuildingId,
+			WorkforceRole.Storing);
+		Assert.That(
+			publicUnloading.ClassListContains("workforce-assignment-role--drop-valid"),
+			Is.True);
+		Assert.That(
+			storageStoring.ClassListContains("workforce-assignment-role--drop-valid"),
+			Is.True);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"CancelAssignmentDrag");
+	}
+
+	[Test]
+	public void ManagementAssignments_BuildingResetCancelsDragAndPrunesReusedScopeState()
+	{
+		Building originalStorage = CreateBuilding(BuildingType.Storage);
+		uint reusedBuildingId = originalStorage.RuntimeBuildingId;
+		HumanWorker assignedWorker = CreateWorker(
+			"Workforce Fold State Worker",
+			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
+			addCarryBoxAbility: true);
+		workerManager.RegisterWorker(assignedWorker);
+		SetCurrentAssignment(
+			assignedWorker,
+			originalStorage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+		HumanWorker dragWorker = CreateWorker(
+			"Workforce Fold Reset Drag Worker",
+			WorkerAbility.PickingStoring |
+			WorkerAbility.CarryBox |
+			WorkerAbility.CargoHandling,
+			addCarryBoxAbility: true,
+			addCargoHandlingAbility: true);
+		workerManager.RegisterWorker(dragWorker);
+		WorkforceManagementWindow controller =
+			CreateAssignmentsController(out TemplateContainer content);
+
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentRole",
+			originalStorage.RuntimeBuildingId,
+			WorkforceRole.Storing,
+			1);
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"ToggleAssignmentScope",
+			originalStorage.RuntimeBuildingId);
+		SetCurrentAssignment(assignedWorker, 0, Array.Empty<WorkerTask.TaskType>());
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"BeginAssignmentDrag",
+				dragWorker,
+				0u,
+				WorkforceRole.Undefined),
+			Is.True);
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"CanDropAssignmentOnRole",
+				0u,
+				WorkforceRole.Unloading),
+			Is.True,
+			"The drag must have a valid target before the building generation changes.");
+
+		buildingManager.ResetRuntimeState();
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"OnBuildingsChanged");
+		Assert.That(
+			(bool)InvokeNonPublic(
+				typeof(WorkforceManagementWindow),
+				controller,
+				"CanDropAssignmentOnRole",
+				0u,
+				WorkforceRole.Unloading),
+			Is.False,
+			"A building generation change must cancel the active drag.");
+
+		Building replacementStorage = CreateBuilding(BuildingType.Storage);
+		Assert.That(replacementStorage.RuntimeBuildingId, Is.EqualTo(reusedBuildingId));
+		SetCurrentAssignment(
+			assignedWorker,
+			replacementStorage.RuntimeBuildingId,
+			new[] { WorkerTask.TaskType.Storing });
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"OnBuildingsChanged");
+		InvokeNonPublic(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"RefreshAssignments");
+
+		VisualElement replacementGroup = FindAssignmentGroup(
+			content,
+			replacementStorage.RuntimeBuildingId);
+		Assert.That(
+			replacementGroup.ClassListContains("workforce-assignment-group--collapsed"),
+			Is.False,
+			"A reused runtime ID must not inherit the previous building's fold state.");
+		Assert.That(
+			QueryByClass(replacementGroup, "workforce-assignment-role").Count,
+			Is.EqualTo(3));
+		Assert.That(
+			QueryByClass(replacementGroup, "workforce-assignment-worker-row").Count,
+			Is.Zero,
+			"A reused runtime ID must not inherit stale expanded-role state.");
+	}
+
+	[Test]
 	public void ManagementDrag_HighlightsOnlyEligibleRolesAndCancelDoesNotMutate()
 	{
 		Building storage = CreateBuilding(BuildingType.Storage);
@@ -2151,22 +2523,40 @@ public sealed class WorkforceAssignmentEditModeTests
 		uint buildingId,
 		WorkforceRole role)
 	{
-		List<VisualElement> groups = QueryByClass(content, "workforce-assignment-group");
-		for (int i = 0; i < groups.Count; ++i)
+		VisualElement group = FindAssignmentGroup(content, buildingId);
+		List<VisualElement> roles = QueryByClass(group, "workforce-assignment-role");
+		for (int roleIndex = 0; roleIndex < roles.Count; ++roleIndex)
 		{
-			if (groups[i].userData is not uint groupBuildingId || groupBuildingId != buildingId)
-				continue;
-
-			List<VisualElement> roles = QueryByClass(groups[i], "workforce-assignment-role");
-			for (int roleIndex = 0; roleIndex < roles.Count; ++roleIndex)
-			{
-				if (roles[roleIndex].userData is WorkforceRole candidate && candidate == role)
-					return roles[roleIndex];
-			}
+			if (roles[roleIndex].userData is WorkforceRole candidate && candidate == role)
+				return roles[roleIndex];
 		}
 
 		Assert.Fail($"Missing assignment role row for building {buildingId}, role {role}.");
 		return null;
+	}
+
+	private static VisualElement FindAssignmentGroup(VisualElement content, uint buildingId)
+	{
+		List<VisualElement> groups = QueryByClass(content, "workforce-assignment-group");
+		for (int i = 0; i < groups.Count; ++i)
+		{
+			if (groups[i].userData is uint candidate && candidate == buildingId)
+				return groups[i];
+		}
+
+		Assert.Fail($"Missing assignment group for building {buildingId}.");
+		return null;
+	}
+
+	private static int GetAssignmentRoleDropTargetCount(
+		WorkforceManagementWindow controller)
+	{
+		object targets = GetPrivateField(
+			typeof(WorkforceManagementWindow),
+			controller,
+			"assignmentRoleDropTargets");
+		Assert.That(targets, Is.InstanceOf<System.Collections.ICollection>());
+		return ((System.Collections.ICollection)targets).Count;
 	}
 
 	private T CreateComponent<T>(string objectName, bool active = true) where T : Component
@@ -2188,6 +2578,13 @@ public sealed class WorkforceAssignmentEditModeTests
 		FieldInfo field = ownerType.GetField(fieldName, BindingFlags.Static | BindingFlags.NonPublic);
 		Assert.That(field, Is.Not.Null, $"Missing test field {ownerType.Name}.{fieldName}");
 		return field.GetValue(null);
+	}
+
+	private static object GetPrivateField(Type ownerType, object target, string fieldName)
+	{
+		FieldInfo field = ownerType.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.That(field, Is.Not.Null, $"Missing test field {ownerType.Name}.{fieldName}");
+		return field.GetValue(target);
 	}
 
 	private static void SetPrivateField(Type ownerType, object target, string fieldName, object value)
