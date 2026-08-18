@@ -45,6 +45,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private readonly List<AIWorker> assignmentUnassignedBuffer = new();
 		private readonly List<WorkforceRoleWorkerEntry> assignmentRoleWorkerBuffer = new();
 		private readonly HashSet<WorkforceAssignmentRoleKey> expandedAssignmentRoles = new();
+		private readonly HashSet<uint> collapsedAssignmentScopes = new();
 		private bool assignmentsRefreshPending = true;
 
 		private void InitializeAssignmentsView(VisualElement content)
@@ -99,6 +100,7 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			assignmentsRefreshPending = false;
+			PruneAssignmentScopeState();
 			Vector2 unassignedScrollOffset = assignmentUnassignedList.scrollOffset;
 			Vector2 treeScrollOffset = assignmentTree.scrollOffset;
 			assignmentUnassignedList.Clear();
@@ -156,24 +158,59 @@ namespace UniverseLogistics.UI.Toolkit
 			uint buildingId,
 			BuildingType? buildingType)
 		{
+			IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(buildingType);
+			bool collapsed = collapsedAssignmentScopes.Contains(buildingId);
 			VisualElement group = new();
 			group.AddToClassList("workforce-assignment-group");
+			group.EnableInClassList("workforce-assignment-group--collapsed", collapsed);
 			group.userData = buildingId;
 
 			VisualElement header = new();
 			header.AddToClassList("workforce-assignment-group__header");
+			Button toggle = new(() => ToggleAssignmentScope(buildingId));
+			toggle.text = collapsed ? ">" : "v";
+			toggle.tooltip = collapsed ? "Expand workforce roles" : "Collapse workforce roles";
+			toggle.AddToClassList("workforce-assignment-group__toggle");
+			VisualElement identity = new();
+			identity.AddToClassList("workforce-assignment-group__identity");
 			Label name = new(displayName);
 			name.AddToClassList("workforce-assignment-group__name");
 			Label type = new(scopeType);
 			type.AddToClassList("workforce-assignment-group__type");
-			header.Add(name);
-			header.Add(type);
+			Label summary = new();
+			summary.AddToClassList("workforce-assignment-group__summary");
+			identity.Add(name);
+			identity.Add(type);
+			header.Add(toggle);
+			header.Add(identity);
+			header.Add(summary);
 			group.Add(header);
 
-			IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(buildingType);
-			for (int i = 0; i < roles.Count; ++i)
-				group.Add(CreateAssignmentRole(buildingId, roles[i]));
-			if (roles.Count == 0)
+			int activeRoleCount = 0;
+			if (collapsed)
+			{
+				for (int i = 0; i < roles.Count; ++i)
+				{
+					if (GetAssignmentRoleOperationalCount(buildingId, roles[i]) > 0)
+						++activeRoleCount;
+				}
+			}
+			else
+			{
+				for (int i = 0; i < roles.Count; ++i)
+				{
+					VisualElement role = CreateAssignmentRole(
+						buildingId,
+						roles[i],
+						out int roleCount);
+					if (roleCount > 0)
+						++activeRoleCount;
+					group.Add(role);
+				}
+			}
+
+			summary.text = $"{activeRoleCount} / {roles.Count} ACTIVE ROLES";
+			if (collapsed == false && roles.Count == 0)
 			{
 				Label empty = new("No workforce roles");
 				empty.AddToClassList("workforce-assignment-group__empty");
@@ -183,14 +220,21 @@ namespace UniverseLogistics.UI.Toolkit
 			assignmentTree.Add(group);
 		}
 
-		private VisualElement CreateAssignmentRole(uint buildingId, WorkforceRole role)
+		private VisualElement CreateAssignmentRole(
+			uint buildingId,
+			WorkforceRole role,
+			out int count)
 		{
 			WorkforceRoleCatalog.TryGetDefinition(role, out WorkforceRoleDefinition definition);
-			WorkforceRoleSummary summary = default;
-			bool hasSummary = workerManager?.TryGetWorkforceRoleSummary(buildingId, role, out summary) == true;
-			int count = hasSummary ? summary.OperationalCount : 0;
+			WorkforceRoleSummary roleSummary = default;
+			bool hasSummary = workerManager?.TryGetWorkforceRoleSummary(
+				buildingId,
+				role,
+				out roleSummary) == true;
+			count = hasSummary ? roleSummary.OperationalCount : 0;
+			int displayedCount = count;
 			WorkforceAssignmentRoleKey key = new(buildingId, role);
-			bool expanded = count > 0 && expandedAssignmentRoles.Contains(key);
+			bool expanded = displayedCount > 0 && expandedAssignmentRoles.Contains(key);
 
 			VisualElement container = new();
 			VisualElement roleRow = new();
@@ -198,16 +242,16 @@ namespace UniverseLogistics.UI.Toolkit
 			roleRow.userData = role;
 			roleRow.EnableInClassList(
 				"workforce-assignment-role--partial",
-				hasSummary && summary.PartialCount > 0);
+				hasSummary && roleSummary.PartialCount > 0);
 			RegisterAssignmentRoleDropTarget(roleRow, buildingId, role);
 
-			Button toggle = new(() => ToggleAssignmentRole(buildingId, role, count));
+			Button toggle = new(() => ToggleAssignmentRole(buildingId, role, displayedCount));
 			toggle.text = expanded ? "v" : ">";
 			toggle.AddToClassList("workforce-assignment-role__toggle");
-			toggle.SetEnabled(count > 0);
+			toggle.SetEnabled(displayedCount > 0);
 			Label roleName = new(definition?.DisplayName ?? role.ToString());
 			roleName.AddToClassList("workforce-assignment-role__name");
-			Label roleCount = new(count.ToString());
+			Label roleCount = new(displayedCount.ToString());
 			roleCount.AddToClassList("workforce-assignment-role__count");
 			roleRow.Add(toggle);
 			roleRow.Add(roleName);
@@ -242,6 +286,26 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			return container;
+		}
+
+		private int GetAssignmentRoleOperationalCount(uint buildingId, WorkforceRole role)
+		{
+			return workerManager?.TryGetWorkforceRoleSummary(
+				buildingId,
+				role,
+				out WorkforceRoleSummary summary) == true
+				? summary.OperationalCount
+				: 0;
+		}
+
+		private void ToggleAssignmentScope(uint buildingId)
+		{
+			if (IsAssignmentDragInteractionActive)
+				return;
+
+			if (collapsedAssignmentScopes.Remove(buildingId) == false)
+				collapsedAssignmentScopes.Add(buildingId);
+			RefreshAssignments();
 		}
 
 		private void ToggleAssignmentRole(uint buildingId, WorkforceRole role, int count)
@@ -289,6 +353,11 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnBuildingsChanged()
 		{
+			RequestAssignmentsRefresh();
+			PruneAssignmentScopeState();
+			if (IsAssignmentDragInteractionActive)
+				CancelAssignmentDrag();
+
 			if (selectedBuilding != null &&
 				(buildingManager == null ||
 					buildingManager.TryGetBuilding(
@@ -299,13 +368,26 @@ namespace UniverseLogistics.UI.Toolkit
 				selectedBuilding = null;
 			}
 
-			RequestAssignmentsRefresh();
 			if (initialized &&
 				selectedTab == WorkforceTab.Workers &&
 				window?.IsOpen == true)
 			{
 				RefreshRoster();
 			}
+		}
+
+		private void PruneAssignmentScopeState()
+		{
+			collapsedAssignmentScopes.RemoveWhere(IsMissingAssignmentBuildingScope);
+			expandedAssignmentRoles.RemoveWhere(key =>
+				key.BuildingId != 0 && IsMissingAssignmentBuildingScope(key.BuildingId));
+		}
+
+		private bool IsMissingAssignmentBuildingScope(uint buildingId)
+		{
+			return buildingId != 0 &&
+				(buildingManager == null ||
+					buildingManager.TryGetBuilding(buildingId, out _) == false);
 		}
 	}
 }

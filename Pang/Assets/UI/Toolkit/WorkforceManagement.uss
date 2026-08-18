@@ -27,9 +27,13 @@
 .workforce-assignment-empty { position: absolute; left: 4px; right: 10px; top: 70px; font-size: 9px; white-space: normal; -unity-text-align: middle-center; color: rgb(112, 132, 143); }
 .workforce-assignment-tree-column > .workforce-assignment-empty { left: 14px; right: 0; }
 .workforce-assignment-group { margin-bottom: 8px; padding-bottom: 5px; background-color: rgb(25, 34, 41); border-left-width: 2px; border-left-color: rgb(62, 91, 104); }
-.workforce-assignment-group__header { min-height: 34px; padding-left: 9px; padding-right: 8px; padding-top: 6px; background-color: rgb(30, 42, 50); }
+.workforce-assignment-group--collapsed { padding-bottom: 0; }
+.workforce-assignment-group__header { min-height: 34px; flex-direction: row; align-items: center; padding-left: 5px; padding-right: 8px; background-color: rgb(30, 42, 50); }
+.workforce-assignment-group__toggle { width: 26px; height: 26px; margin-left: 0; margin-right: 4px; font-size: 8px; -unity-font-style: bold; color: rgb(113, 184, 204); background-color: rgba(0,0,0,0); border-left-width: 0; border-right-width: 0; border-top-width: 0; border-bottom-width: 0; }
+.workforce-assignment-group__identity { flex-grow: 1; }
 .workforce-assignment-group__name { font-size: 10px; -unity-font-style: bold; color: rgb(224, 235, 240); }
 .workforce-assignment-group__type { margin-top: 2px; font-size: 7px; color: rgb(103, 196, 220); }
+.workforce-assignment-group__summary { width: 108px; font-size: 7px; -unity-font-style: bold; -unity-text-align: middle-right; color: rgb(103, 196, 220); }
 .workforce-assignment-group__empty { min-height: 28px; margin-left: 10px; padding-top: 8px; font-size: 8px; color: rgb(112, 132, 143); }
 .workforce-assignment-role { min-height: 29px; flex-direction: row; align-items: center; margin-left: 7px; margin-right: 6px; margin-top: 3px; padding-right: 7px; background-color: rgb(32, 42, 50); }
 .workforce-assignment-role--partial { border-left-width: 2px; border-left-color: rgb(225, 151, 97); }
