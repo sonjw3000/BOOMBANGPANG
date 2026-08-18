@@ -1,0 +1,35 @@
+name: Notion Sync
+
+on:
+  push:
+
+jobs:
+  sync-notion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Sync Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+
+          NOTION_TASK_DB: ${{ vars.NOTION_TASK_DB }}
+          NOTION_WORKLOG_DB: ${{ vars.NOTION_WORKLOG_DB }}
+          NOTION_JOURNAL_DB: ${{ vars.NOTION_JOURNAL_DB }}
+
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+
+        run: python Tools/notion_sync/main.py
