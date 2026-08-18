@@ -446,6 +446,41 @@ def make_task_log_block(
 		},
 	}
 
+def create_task_comment(
+	notion: NotionClient,
+	task_page: dict,
+	commit: Commit,
+	description: str,
+	command: CommitType,
+) -> None:
+
+	commit_url = make_commit_url(commit)
+
+	if command == CommitType.COMPLETE:
+		prefix = "✓ 완료"
+	else:
+		prefix = "● 작업"
+
+	notion.create_comment(
+		task_page["id"],
+		[
+			{
+				"type": "text",
+				"text": {
+					"content": f"{prefix} · {description} · ",
+				},
+			},
+			{
+				"type": "text",
+				"text": {
+					"content": commit.sha[:7],
+					"link": {
+						"url": commit_url,
+					},
+				},
+			},
+		],
+	)
 
 # ============================================================
 # Main
@@ -606,12 +641,24 @@ def main():
 			)
 
 			print(
-				f"  -> Work Log created"
+				"  -> Work Log created"
+			)
+
+			create_task_comment(
+				notion,
+				task_page,
+				commit,
+				description,
+				command,
+			)
+
+			print(
+				"  -> Task comment created"
 			)
 
 		else:
 			print(
-				f"  -> Work Log already exists"
+				"  -> Work Log already exists"
 			)
 
 		# ----------------------------------------------------
@@ -658,4 +705,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-	

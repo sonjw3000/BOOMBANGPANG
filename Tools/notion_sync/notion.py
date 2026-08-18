@@ -138,4 +138,19 @@ class NotionClient:
 				"children": children,
 			},
 		)
-		
+
+	def create_comment(
+		self,
+		page_id: str,
+		rich_text: list[dict],
+	) -> dict:
+		return self._request(
+			"POST",
+			"/comments",
+			{
+				"parent": {
+					"page_id": page_id,
+				},
+				"rich_text": rich_text,
+			},
+		)
