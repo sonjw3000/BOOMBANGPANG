@@ -23,7 +23,7 @@
 }
 
 .orders-summary-card__label {
-	font-size: 8px;
+	font-size: 10px;
 	-unity-font-style: bold;
 	letter-spacing: 1px;
 	color: rgb(116, 148, 163);
@@ -66,7 +66,7 @@
 	width: 92px;
 	height: 32px;
 	margin-right: 3px;
-	font-size: 9px;
+	font-size: 11px;
 	color: rgb(145, 163, 173);
 	background-color: rgba(0, 0, 0, 0);
 	border-left-width: 0;
@@ -89,14 +89,14 @@
 
 .orders-filter__label {
 	margin-right: 6px;
-	font-size: 8px;
+	font-size: 10px;
 	color: rgb(91, 167, 194);
 }
 
 .orders-filter__clear {
 	width: 45px;
 	height: 21px;
-	font-size: 8px;
+	font-size: 10px;
 	color: rgb(189, 207, 215);
 	background-color: rgb(40, 53, 61);
 	border-top-width: 1px;
@@ -139,7 +139,7 @@
 }
 
 .orders-table-header Label {
-	font-size: 7px;
+	font-size: 9px;
 	-unity-font-style: bold;
 	letter-spacing: 0.5px;
 	color: rgb(108, 140, 155);
@@ -227,7 +227,7 @@
 
 .order-row__lines {
 	margin-top: 2px;
-	font-size: 7px;
+	font-size: 9px;
 	color: rgb(112, 136, 148);
 }
 
@@ -235,7 +235,7 @@
 .order-row__status,
 .order-row__due,
 .order-row__reward {
-	font-size: 9px;
+	font-size: 11px;
 	color: rgb(178, 197, 206);
 }
 
@@ -246,7 +246,7 @@
 .order-row__progress {
 	padding-right: 5px;
 	white-space: normal;
-	font-size: 8px;
+	font-size: 10px;
 	color: rgb(151, 177, 188);
 }
 
@@ -270,7 +270,7 @@
 
 .orders-detail-status {
 	margin-top: 3px;
-	font-size: 9px;
+	font-size: 11px;
 	color: rgb(111, 181, 204);
 }
 
@@ -289,7 +289,7 @@
 
 .orders-detail-metric__label,
 .orders-section-label {
-	font-size: 7px;
+	font-size: 9px;
 	-unity-font-style: bold;
 	letter-spacing: 0.8px;
 	color: rgb(91, 167, 194);
@@ -314,7 +314,7 @@
 	padding-top: 6px;
 	padding-bottom: 6px;
 	white-space: normal;
-	font-size: 8px;
+	font-size: 10px;
 	color: rgb(151, 177, 188);
 	background-color: rgb(25, 35, 42);
 }
@@ -356,7 +356,7 @@
 
 .order-line-row__contract {
 	margin-top: 2px;
-	font-size: 7px;
+	font-size: 9px;
 	color: rgb(112, 138, 150);
 }
 
@@ -369,26 +369,26 @@
 }
 
 .order-line-row__metric-label {
-	font-size: 6px;
+	font-size: 9px;
 	color: rgb(101, 132, 146);
 }
 
 .order-line-row__metric-value {
 	margin-top: 2px;
-	font-size: 8px;
+	font-size: 10px;
 	color: rgb(190, 207, 215);
 }
 
 .order-line-row__status {
 	width: 65px;
-	font-size: 8px;
+	font-size: 10px;
 	color: rgb(111, 181, 204);
 }
 
 .order-line-row__button {
 	width: 62px;
 	height: 22px;
-	font-size: 7px;
+	font-size: 9px;
 	color: rgb(218, 232, 237);
 	background-color: rgb(35, 78, 94);
 	border-top-width: 1px;
@@ -404,6 +404,6 @@
 .order-line-row__progress {
 	margin-top: 6px;
 	white-space: normal;
-	font-size: 8px;
+	font-size: 10px;
 	color: rgb(145, 171, 182);
 }

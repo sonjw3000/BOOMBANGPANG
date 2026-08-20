@@ -27,7 +27,7 @@
 .player-interaction-pane__eyebrow,
 .player-interaction-field-label {
 	margin-top: 3px;
-	font-size: 8px;
+	font-size: 10px;
 	-unity-font-style: bold;
 	letter-spacing: 1px;
 	color: rgb(93, 178, 207);
@@ -36,7 +36,7 @@
 .player-interaction-refresh {
 	width: 78px;
 	height: 27px;
-	font-size: 9px;
+	font-size: 11px;
 	color: rgb(208, 224, 230);
 	background-color: rgb(35, 55, 67);
 	border-top-color: rgb(62, 96, 111);
@@ -63,13 +63,13 @@
 .player-interaction-target {
 	flex-grow: 1;
 	height: 28px;
-	font-size: 9px;
+	font-size: 11px;
 }
 
 .player-interaction-kinds {
 	min-width: 125px;
 	margin-left: 10px;
-	font-size: 9px;
+	font-size: 11px;
 	-unity-font-style: bold;
 	-unity-text-align: middle-right;
 	color: rgb(102, 220, 177);
@@ -82,7 +82,7 @@
 	padding-right: 10px;
 	padding-top: 7px;
 	white-space: normal;
-	font-size: 9px;
+	font-size: 11px;
 	color: rgb(199, 174, 108);
 	background-color: rgba(52, 45, 31, 0.55);
 }
@@ -150,7 +150,7 @@
 }
 
 .player-interaction-list-header Label {
-	font-size: 7px;
+	font-size: 9px;
 	-unity-font-style: bold;
 	letter-spacing: 0.6px;
 	color: rgb(108, 140, 155);
@@ -182,7 +182,7 @@
 	right: 12px;
 	top: 150px;
 	white-space: normal;
-	font-size: 9px;
+	font-size: 11px;
 	-unity-text-align: middle-center;
 	color: rgb(112, 137, 149);
 }
@@ -201,7 +201,7 @@
 .player-interaction-whole-button {
 	height: 30px;
 	margin-top: 7px;
-	font-size: 9px;
+	font-size: 11px;
 	-unity-font-style: bold;
 	color: rgb(208, 224, 230);
 	background-color: rgb(35, 55, 67);
@@ -232,14 +232,14 @@
 
 .player-interaction-footer__hint {
 	flex-grow: 1;
-	font-size: 8px;
+	font-size: 10px;
 	color: rgb(121, 145, 157);
 }
 
 .player-interaction-release {
 	width: 120px;
 	height: 28px;
-	font-size: 9px;
+	font-size: 11px;
 	-unity-font-style: bold;
 	color: rgb(238, 177, 164);
 	background-color: rgb(71, 39, 39);
@@ -275,7 +275,7 @@
 
 .player-interaction-item-row__state {
 	margin-top: 2px;
-	font-size: 7px;
+	font-size: 9px;
 	color: rgb(122, 151, 164);
 	white-space: nowrap;
 }
@@ -299,13 +299,13 @@
 	width: 64px;
 	height: 25px;
 	margin-right: 5px;
-	font-size: 9px;
+	font-size: 11px;
 }
 
 .player-interaction-item-row__button {
 	width: 68px;
 	height: 25px;
-	font-size: 8px;
+	font-size: 10px;
 	-unity-font-style: bold;
 	color: rgb(225, 239, 244);
 	background-color: rgb(31, 89, 108);
