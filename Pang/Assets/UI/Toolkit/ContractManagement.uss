@@ -52,13 +52,13 @@
 .contract-caption {
 	margin-top: 2px;
 	margin-bottom: 8px;
-	font-size: 9px;
+	font-size: 11px;
 	color: rgb(125, 148, 160);
 }
 
 .contract-column-label {
 	height: 22px;
-	font-size: 8px;
+	font-size: 10px;
 	-unity-font-style: bold;
 	letter-spacing: 1px;
 	color: rgb(113, 154, 173);
@@ -98,7 +98,7 @@
 	height: 28px;
 	margin-bottom: 3px;
 	padding-left: 8px;
-	font-size: 9px;
+	font-size: 11px;
 	-unity-text-align: middle-left;
 	color: rgb(184, 204, 213);
 	background-color: rgb(29, 39, 47);
@@ -148,13 +148,13 @@
 
 .contract-row__subtext {
 	margin-top: 2px;
-	font-size: 8px;
+	font-size: 10px;
 	color: rgb(126, 150, 162);
 }
 
 .contract-row__value {
 	width: 105px;
-	font-size: 9px;
+	font-size: 11px;
 	color: rgb(188, 207, 216);
 }
 
@@ -174,21 +174,21 @@
 
 .contract-offer-row__reward {
 	margin-top: 2px;
-	font-size: 9px;
+	font-size: 11px;
 	color: rgb(101, 213, 171);
 }
 
 .contract-offer-row__field {
 	width: 100px;
 	margin-left: 5px;
-	font-size: 9px;
+	font-size: 11px;
 }
 
 .contract-action-button {
 	width: 70px;
 	height: 25px;
 	margin-left: 6px;
-	font-size: 9px;
+	font-size: 11px;
 	-unity-font-style: bold;
 	color: rgb(225, 239, 244);
 	background-color: rgb(31, 89, 108);
@@ -219,7 +219,7 @@
 
 .vendor-type-field {
 	width: 140px;
-	font-size: 9px;
+	font-size: 11px;
 }
 
 .vendor-columns {

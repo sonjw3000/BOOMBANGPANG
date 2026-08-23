@@ -51,7 +51,7 @@
 .history-section-caption {
 	margin-top: 2px;
 	margin-bottom: 8px;
-	font-size: 9px;
+	font-size: 11px;
 	color: rgb(125, 148, 160);
 }
 
@@ -100,7 +100,7 @@
 
 .history-row__kind {
 	width: 82px;
-	font-size: 8px;
+	font-size: 10px;
 	-unity-font-style: bold;
 	letter-spacing: 1px;
 	color: rgb(113, 154, 173);
