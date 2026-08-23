@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 using UniverseLogistics.UI.Toolkit;
 
 public sealed class OrderPresentationEditModeTests
@@ -160,6 +162,92 @@ public sealed class OrderPresentationEditModeTests
 		Assert.That(representative.AdditionalItemTypeCount, Is.EqualTo(1));
 	}
 
+	[Test]
+	public void OrderHudPresenter_RendersSortedSlotsAndSixStageProjection()
+	{
+		TemplateContainer root = LoadOrderHudRoot();
+		OrderHudPresenter presenter = new();
+		Assert.That(presenter.BindView(root), Is.True);
+
+		Dictionary<uint, ItemDefinition> items = new()
+		{
+			[1] = CreateItem(1, "Produce", price: 10),
+		};
+		ItemDefinition ResolveItem(uint itemId) => items.TryGetValue(itemId, out ItemDefinition item) ? item : null;
+
+		OrderLine delayedLine = CreateLine(1, 36, dueWeek: 9);
+		Assert.That(delayedLine.TryAllocatePicking(28), Is.EqualTo(28));
+		Assert.That(delayedLine.ReportPickingCompleted(24), Is.EqualTo(24));
+		Assert.That(delayedLine.ReportPackagingCompleted(19), Is.EqualTo(19));
+		Assert.That(delayedLine.ReportWaitingForShipping(15), Is.EqualTo(15));
+		Assert.That(delayedLine.ReportShipping(12), Is.EqualTo(12));
+		Assert.That(delayedLine.ReportInDelivery(8), Is.EqualTo(8));
+		Assert.That(delayedLine.ReportCompleted(5), Is.EqualTo(5));
+
+		Order delayed = CreateOrder(40, delayedLine);
+		delayed.Destination = OrderDestination.Mars;
+		Order dueThisWeek = CreateOrder(30, CreateLine(1, 2, dueWeek: 10));
+		dueThisWeek.Destination = OrderDestination.Titan;
+		Order dueSoon = CreateOrder(20, CreateLine(1, 3, dueWeek: 12));
+		Order normal = CreateOrder(10, CreateLine(1, 4, dueWeek: 15));
+
+		presenter.Render(new[] { normal, dueSoon, dueThisWeek, delayed }, ResolveItem, currentWeek: 10);
+
+		Assert.That(root.Q<VisualElement>("order-hud").ClassListContains("order-hud--hidden"), Is.False);
+		Assert.That(root.Q<Label>("order-hud-active-count").text, Is.EqualTo("4 ACTIVE"));
+		Assert.That(root.Q<Label>("order-hud-risk-count").text, Is.EqualTo("3 RISK"));
+		Assert.That(root.Q<Label>("order-hud-primary-id").text, Is.EqualTo("#40"));
+		Assert.That(root.Q<Label>("order-hud-primary-destination").text, Is.EqualTo("MARS"));
+		Assert.That(root.Q<Label>("order-hud-primary-due").text, Is.EqualTo("LATE 1W"));
+		Assert.That(root.Q<Label>("order-hud-primary-item").text, Is.EqualTo("Produce ×36"));
+		Assert.That(root.Q<Label>("order-hud-stage-pending").text, Is.EqualTo("8"));
+		Assert.That(root.Q<Label>("order-hud-stage-picking").text, Is.EqualTo("9"));
+		Assert.That(root.Q<Label>("order-hud-stage-packing").text, Is.EqualTo("4"));
+		Assert.That(root.Q<Label>("order-hud-stage-port").text, Is.EqualTo("3"));
+		Assert.That(root.Q<Label>("order-hud-stage-flight").text, Is.EqualTo("7"));
+		Assert.That(root.Q<Label>("order-hud-stage-completed").text, Is.EqualTo("5"));
+		Assert.That(root.Q<Button>("order-hud-primary").ClassListContains("order-hud__order--delayed"), Is.True);
+		Assert.That(root.Q<Label>("order-hud-secondary-1-id").text, Is.EqualTo("#30"));
+		Assert.That(root.Q<Button>("order-hud-secondary-1").ClassListContains("order-hud__order--due-this-week"), Is.True);
+		Assert.That(root.Q<Label>("order-hud-secondary-2-id").text, Is.EqualTo("#20"));
+		Assert.That(root.Q<Button>("order-hud-secondary-2").ClassListContains("order-hud__order--due-soon"), Is.True);
+		Assert.That(root.Q<Button>("order-hud-more").style.display.value, Is.EqualTo(DisplayStyle.Flex));
+		Assert.That(root.Q<Button>("order-hud-more").text, Is.EqualTo("+1 ORDERS"));
+		Assert.That(root.Q<VisualElement>("order-hud-body").childCount, Is.EqualTo(4));
+
+		presenter.Dispose();
+	}
+
+	[Test]
+	public void OrderHudPresenter_ClearsStaleSlotsAndShowsEmptyState()
+	{
+		TemplateContainer root = LoadOrderHudRoot();
+		OrderHudPresenter presenter = new();
+		Assert.That(presenter.BindView(root), Is.True);
+
+		Order delayed = CreateOrder(2, CreateLine(1, 1, dueWeek: 9));
+		Order normal = CreateOrder(1, CreateLine(1, 1, dueWeek: 15));
+		presenter.Render(new[] { normal, delayed }, resolveItem: null, currentWeek: 10);
+		Assert.That(root.Q<Button>("order-hud-secondary-1").style.display.value, Is.EqualTo(DisplayStyle.Flex));
+		Assert.That(root.Q<Button>("order-hud-primary").ClassListContains("order-hud__order--delayed"), Is.True);
+
+		presenter.Render(new[] { normal }, resolveItem: null, currentWeek: 10);
+		Assert.That(root.Q<Button>("order-hud-primary").ClassListContains("order-hud__order--delayed"), Is.False);
+		Assert.That(root.Q<Button>("order-hud-secondary-1").style.display.value, Is.EqualTo(DisplayStyle.None));
+		Assert.That(root.Q<Button>("order-hud-secondary-2").style.display.value, Is.EqualTo(DisplayStyle.None));
+		Assert.That(root.Q<Button>("order-hud-more").style.display.value, Is.EqualTo(DisplayStyle.None));
+
+		presenter.Render(new Order[0], resolveItem: null, currentWeek: 10);
+		Assert.That(root.Q<VisualElement>("order-hud").ClassListContains("order-hud--hidden"), Is.False);
+		Assert.That(root.Q<VisualElement>("order-hud-body").style.display.value, Is.EqualTo(DisplayStyle.None));
+		Assert.That(root.Q<Label>("order-hud-empty").style.display.value, Is.EqualTo(DisplayStyle.Flex));
+		Assert.That(root.Q<Label>("order-hud-active-count").text, Is.EqualTo("0 ACTIVE"));
+		Assert.That(root.Q<Label>("order-hud-risk-count").text, Is.EqualTo("0 RISK"));
+		Assert.That(root.Q<VisualElement>("order-hud-body").childCount, Is.EqualTo(4));
+
+		presenter.Dispose();
+	}
+
 	private static Order CreateOrder(int orderId, params OrderLine[] lines)
 	{
 		Order order = new()
@@ -248,6 +336,14 @@ public sealed class OrderPresentationEditModeTests
 		SetPrivateField(item, "price", price);
 		createdItems.Add(item);
 		return item;
+	}
+
+	private static TemplateContainer LoadOrderHudRoot()
+	{
+		VisualTreeAsset template = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/GlobalStatusHud.uxml");
+		Assert.That(template, Is.Not.Null);
+		return template.CloneTree();
 	}
 
 	private static void SetPrivateField(object target, string fieldName, object value)
