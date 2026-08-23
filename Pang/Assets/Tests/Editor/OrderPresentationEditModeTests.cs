@@ -9,10 +9,19 @@ using UniverseLogistics.UI.Toolkit;
 public sealed class OrderPresentationEditModeTests
 {
 	private readonly List<ItemDefinition> createdItems = new();
+	private readonly List<GameObject> createdUiObjects = new();
 
 	[TearDown]
 	public void TearDown()
 	{
+		for (int i = createdUiObjects.Count - 1; i >= 0; --i)
+		{
+			if (createdUiObjects[i] != null)
+				Object.DestroyImmediate(createdUiObjects[i]);
+		}
+
+		createdUiObjects.Clear();
+
 		for (int i = createdItems.Count - 1; i >= 0; --i)
 		{
 			if (createdItems[i] != null)
@@ -219,6 +228,121 @@ public sealed class OrderPresentationEditModeTests
 	}
 
 	[Test]
+	public void OrderHudPresenter_NavigationSubmitRoutesCurrentSlotsAndUnbindsCleanly()
+	{
+		VisualElement root = CreateHudPanelRoot();
+		OrderHudPresenter presenter = new();
+		int openAllCount = 0;
+		List<int> openedOrderIds = new();
+		presenter.ConfigureNavigation(() => ++openAllCount, openedOrderIds.Add);
+		Assert.That(presenter.BindView(root), Is.True);
+
+		Order delayed = CreateOrder(40, CreateLine(1, 1, dueWeek: 9));
+		Order dueThisWeek = CreateOrder(30, CreateLine(1, 1, dueWeek: 10));
+		Order dueSoon = CreateOrder(20, CreateLine(1, 1, dueWeek: 12));
+		Order normal = CreateOrder(10, CreateLine(1, 1, dueWeek: 15));
+		presenter.Render(new[] { normal, dueSoon, dueThisWeek, delayed }, resolveItem: null, currentWeek: 10);
+
+		Submit(root.Q<Button>("order-hud-header"));
+		Submit(root.Q<Button>("order-hud-more"));
+		Submit(root.Q<Button>("order-hud-primary"));
+		Submit(root.Q<Button>("order-hud-secondary-1"));
+		Submit(root.Q<Button>("order-hud-secondary-2"));
+
+		Assert.That(openAllCount, Is.EqualTo(2));
+		Assert.That(openedOrderIds, Is.EqualTo(new[] { 40, 30, 20 }));
+
+		Assert.That(presenter.BindView(root), Is.True);
+		presenter.Render(new[] { normal }, resolveItem: null, currentWeek: 10);
+		Submit(root.Q<Button>("order-hud-primary"));
+		Assert.That(openedOrderIds, Is.EqualTo(new[] { 40, 30, 20, 10 }));
+
+		OrderLine cancelledLine = CreateLine(1, 1, dueWeek: 15);
+		cancelledLine.Cancel();
+		Order cancelled = CreateOrder(50, cancelledLine);
+		presenter.Render(new[] { cancelled }, resolveItem: null, currentWeek: 10);
+		Button stalePrimary = root.Q<Button>("order-hud-primary");
+		Button staleSecondary = root.Q<Button>("order-hud-secondary-1");
+		Submit(stalePrimary);
+		Submit(staleSecondary);
+		Assert.That(openedOrderIds, Is.EqualTo(new[] { 40, 30, 20, 10 }));
+
+		Button staleHeader = root.Q<Button>("order-hud-header");
+		presenter.UnbindView();
+		Submit(staleHeader);
+		Submit(stalePrimary);
+		Assert.That(openAllCount, Is.EqualTo(2));
+		Assert.That(openedOrderIds, Is.EqualTo(new[] { 40, 30, 20, 10 }));
+
+		presenter.Dispose();
+	}
+
+	[Test]
+	public void OrderManagementWindow_OpenForOrderSelectsRequestedActiveOrder()
+	{
+		PanelSettings panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(
+			"Assets/Scripts/UI/Toolkit/New Panel Settings.asset");
+		VisualTreeAsset windowTemplate = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/UIWindow/UIWindow.uxml");
+		VisualTreeAsset contentTemplate = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/OrderManagementContent.uxml");
+		VisualTreeAsset orderRowTemplate = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/OrderRow.uxml");
+		VisualTreeAsset orderLineRowTemplate = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/OrderLineRow.uxml");
+		Assert.That(panelSettings, Is.Not.Null);
+		Assert.That(windowTemplate, Is.Not.Null);
+		Assert.That(contentTemplate, Is.Not.Null);
+		Assert.That(orderRowTemplate, Is.Not.Null);
+		Assert.That(orderLineRowTemplate, Is.Not.Null);
+
+		GameObject windowObject = new("Order Management Navigation Test");
+		windowObject.SetActive(false);
+		createdUiObjects.Add(windowObject);
+		UIDocument document = windowObject.AddComponent<UIDocument>();
+		document.panelSettings = panelSettings;
+		document.visualTreeAsset = windowTemplate;
+		UIWindow window = windowObject.AddComponent<UIWindow>();
+		window.SetOpenOnEnable(false);
+		OrderManager orderManager = windowObject.AddComponent<OrderManager>();
+		OrderManagementWindow managementWindow = windowObject.AddComponent<OrderManagementWindow>();
+		managementWindow.Configure(window, contentTemplate, orderRowTemplate, orderLineRowTemplate);
+
+		Order firstByDeadline = CreateOrder(7, CreateLine(1, 1, dueWeek: 8));
+		Order requested = CreateOrder(42, CreateLine(1, 1, dueWeek: 15));
+		Order completed = CreateOrder(99, CreateCompletedLine(1, 1, dueWeek: 5));
+		OrderLine cancelledLine = CreateLine(1, 1, dueWeek: 5);
+		cancelledLine.Cancel();
+		Order cancelled = CreateOrder(100, cancelledLine);
+		List<Order> managedOrders = GetPrivateField<List<Order>>(orderManager, "orders");
+		managedOrders.Add(firstByDeadline);
+		managedOrders.Add(requested);
+		managedOrders.Add(completed);
+		managedOrders.Add(cancelled);
+		SetPrivateField(managementWindow, "orderManager", orderManager);
+
+		windowObject.SetActive(true);
+		managementWindow.OpenForOrder(42);
+		Assert.That(window.IsOpen, Is.True);
+		Assert.That(document.rootVisualElement.Q<Label>("orders-detail-title").text, Is.EqualTo("Order #42"));
+
+		window.Close();
+		managementWindow.OpenForOrder(99);
+		Assert.That(window.IsOpen, Is.False);
+		managementWindow.OpenForOrder(100);
+		Assert.That(window.IsOpen, Is.False);
+		managementWindow.OpenForOrder(404);
+		Assert.That(window.IsOpen, Is.False);
+
+		managementWindow.OpenForOrder(42);
+		Assert.That(window.IsOpen, Is.True);
+		Assert.That(document.rootVisualElement.Q<Label>("orders-detail-title").text, Is.EqualTo("Order #42"));
+
+		managementWindow.OpenActiveOrders();
+		Assert.That(document.rootVisualElement.Q<Label>("orders-detail-title").text, Is.EqualTo("Order #7"));
+	}
+
+	[Test]
 	public void OrderHudPresenter_ClearsStaleSlotsAndShowsEmptyState()
 	{
 		TemplateContainer root = LoadOrderHudRoot();
@@ -344,6 +468,43 @@ public sealed class OrderPresentationEditModeTests
 			"Assets/UI/Toolkit/GlobalStatusHud.uxml");
 		Assert.That(template, Is.Not.Null);
 		return template.CloneTree();
+	}
+
+	private VisualElement CreateHudPanelRoot()
+	{
+		VisualTreeAsset template = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/GlobalStatusHud.uxml");
+		PanelSettings panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(
+			"Assets/Scripts/UI/Toolkit/New Panel Settings.asset");
+		Assert.That(template, Is.Not.Null);
+		Assert.That(panelSettings, Is.Not.Null);
+
+		GameObject documentObject = new("Order HUD Navigation Test");
+		documentObject.SetActive(false);
+		UIDocument document = documentObject.AddComponent<UIDocument>();
+		document.panelSettings = panelSettings;
+		document.visualTreeAsset = template;
+		createdUiObjects.Add(documentObject);
+		documentObject.SetActive(true);
+
+		Assert.That(document.rootVisualElement.panel, Is.Not.Null);
+		return document.rootVisualElement;
+	}
+
+	private static void Submit(Button button)
+	{
+		Assert.That(button, Is.Not.Null);
+		Assert.That(button.panel, Is.Not.Null);
+		using NavigationSubmitEvent evt = NavigationSubmitEvent.GetPooled();
+		evt.target = button;
+		button.SendEvent(evt);
+	}
+
+	private static T GetPrivateField<T>(object target, string fieldName)
+	{
+		FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.That(field, Is.Not.Null, $"Missing test field {target.GetType().Name}.{fieldName}");
+		return (T)field.GetValue(target);
 	}
 
 	private static void SetPrivateField(object target, string fieldName, object value)

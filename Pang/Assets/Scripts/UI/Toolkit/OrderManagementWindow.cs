@@ -89,6 +89,26 @@ namespace UniverseLogistics.UI.Toolkit
 			OpenInternal();
 		}
 
+		public void OpenActiveOrders()
+		{
+			filteredItemId = null;
+			currentSection = OrderSection.Active;
+			selectedOrderId = null;
+			OpenInternal();
+		}
+
+		public void OpenForOrder(int orderId)
+		{
+			if (PrepareOpen() == false || orderManager == null || HasActiveOrder(orderId) == false)
+				return;
+
+			filteredItemId = null;
+			currentSection = OrderSection.Active;
+			selectedOrderId = orderId;
+			RefreshAll();
+			window.Open();
+		}
+
 		public void OpenForItem(uint itemId)
 		{
 			filteredItemId = itemId;
@@ -99,14 +119,33 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OpenInternal()
 		{
-			if (InitializeView() == false)
+			if (PrepareOpen() == false)
 				return;
+
+			RefreshAll();
+			window.Open();
+		}
+
+		private bool PrepareOpen()
+		{
+			if (InitializeView() == false)
+				return false;
 
 			if (orderManager == null)
 				BindServices();
 
-			RefreshAll();
-			window.Open();
+			return true;
+		}
+
+		private bool HasActiveOrder(int orderId)
+		{
+			foreach (Order order in orderManager.Orders)
+			{
+				if (order != null && order.OrderID == orderId && OrderPresentation.IsActive(order))
+					return true;
+			}
+
+			return false;
 		}
 
 		private bool InitializeView()
@@ -244,10 +283,14 @@ namespace UniverseLogistics.UI.Toolkit
 			RefreshFilter();
 			List<Order> visibleOrders = BuildVisibleOrders();
 			Order selected = FindOrder(visibleOrders, selectedOrderId);
-			if (selected == null && visibleOrders.Count > 0)
+			if (selected == null)
 			{
-				selected = visibleOrders[0];
-				selectedOrderId = selected.OrderID;
+				selectedOrderId = null;
+				if (visibleOrders.Count > 0)
+				{
+					selected = visibleOrders[0];
+					selectedOrderId = selected.OrderID;
+				}
 			}
 
 			orderList.Clear();

@@ -667,6 +667,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (selectionCard.Bind(root) == false)
 				Debug.LogError("[GlobalStatusHud] Selection Card UXML elements are missing.", this);
 			orderHudPresenter ??= new OrderHudPresenter();
+			orderHudPresenter.ConfigureNavigation(OpenActiveOrdersManagement, OpenOrderManagementForOrder);
 			if (orderHudPresenter.BindView(root) == false)
 				Debug.LogError("[GlobalStatusHud] Order HUD UXML elements are missing.", this);
 			hudRoot = root;
@@ -996,6 +997,18 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			ShowManagementMenu(false);
 			orderManagementWindow?.Open();
+		}
+
+		private void OpenActiveOrdersManagement()
+		{
+			ShowManagementMenu(false);
+			orderManagementWindow?.OpenActiveOrders();
+		}
+
+		private void OpenOrderManagementForOrder(int orderId)
+		{
+			ShowManagementMenu(false);
+			orderManagementWindow?.OpenForOrder(orderId);
 		}
 
 		private void OpenWorkforceManagement()

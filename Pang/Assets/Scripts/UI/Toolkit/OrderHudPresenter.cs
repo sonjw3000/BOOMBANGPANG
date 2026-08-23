@@ -21,6 +21,7 @@ namespace UniverseLogistics.UI.Toolkit
 			public Label Destination;
 			public Label Item;
 			public Label Due;
+			public int? TargetOrderId;
 
 			public bool IsValid =>
 				Root != null && OrderId != null && Destination != null && Item != null && Due != null;
@@ -30,6 +31,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private readonly CompactSlot[] compactSlots = { new(), new() };
 
 		private VisualElement orderRoot;
+		private Button headerButton;
 		private Label activeCount;
 		private Label riskCount;
 		private VisualElement orderBody;
@@ -47,10 +49,19 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label primaryRisk;
 		private Button moreButton;
 		private Label emptyLabel;
+		private int? primaryTargetOrderId;
 
 		private OrderManager orderManager;
 		private ItemDatabase itemDatabase;
 		private GameTime gameTime;
+		private Action openAllOrders;
+		private Action<int> openOrder;
+
+		public void ConfigureNavigation(Action targetOpenAllOrders, Action<int> targetOpenOrder)
+		{
+			openAllOrders = targetOpenAllOrders;
+			openOrder = targetOpenOrder;
+		}
 
 		public bool BindView(VisualElement documentRoot)
 		{
@@ -59,6 +70,7 @@ namespace UniverseLogistics.UI.Toolkit
 				return false;
 
 			orderRoot = documentRoot.Q<VisualElement>("order-hud");
+			headerButton = documentRoot.Q<Button>("order-hud-header");
 			activeCount = documentRoot.Q<Label>("order-hud-active-count");
 			riskCount = documentRoot.Q<Label>("order-hud-risk-count");
 			orderBody = documentRoot.Q<VisualElement>("order-hud-body");
@@ -80,7 +92,7 @@ namespace UniverseLogistics.UI.Toolkit
 			BindCompactSlot(compactSlots[0], documentRoot, "order-hud-secondary-1");
 			BindCompactSlot(compactSlots[1], documentRoot, "order-hud-secondary-2");
 
-			bool valid = orderRoot != null && activeCount != null && riskCount != null && orderBody != null &&
+			bool valid = orderRoot != null && headerButton != null && activeCount != null && riskCount != null && orderBody != null &&
 				primaryRoot != null && primaryOrderId != null && primaryDestination != null && primaryDue != null &&
 				primaryItem != null && stagePending != null && stagePicking != null && stagePacking != null &&
 				stagePort != null && stageFlight != null && stageCompleted != null && primaryRisk != null &&
@@ -92,14 +104,18 @@ namespace UniverseLogistics.UI.Toolkit
 				return false;
 			}
 
+			BindClickHandlers();
 			SetRootVisible(false);
 			return true;
 		}
 
 		public void UnbindView()
 		{
+			UnbindClickHandlers();
+			ClearOrderTargets();
 			SetRootVisible(false);
 			orderRoot = null;
+			headerButton = null;
 			activeCount = null;
 			riskCount = null;
 			orderBody = null;
@@ -147,6 +163,7 @@ namespace UniverseLogistics.UI.Toolkit
 			orderManager = null;
 			itemDatabase = null;
 			gameTime = null;
+			ClearOrderTargets();
 			SetRootVisible(false);
 		}
 
@@ -200,7 +217,12 @@ namespace UniverseLogistics.UI.Toolkit
 			primaryRoot.style.display = hasOrders ? DisplayStyle.Flex : DisplayStyle.None;
 
 			if (hasOrders)
+			{
+				primaryTargetOrderId = activeOrders[0].OrderID;
 				RenderPrimary(activeOrders[0], resolveItem, currentWeek);
+			}
+			else
+				primaryTargetOrderId = null;
 
 			for (int i = 0; i < compactSlots.Length; ++i)
 			{
@@ -208,7 +230,12 @@ namespace UniverseLogistics.UI.Toolkit
 				bool visible = orderIndex < activeOrders.Count;
 				compactSlots[i].Root.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
 				if (visible)
+				{
+					compactSlots[i].TargetOrderId = activeOrders[orderIndex].OrderID;
 					RenderCompact(compactSlots[i], activeOrders[orderIndex], resolveItem, currentWeek);
+				}
+				else
+					compactSlots[i].TargetOrderId = null;
 			}
 
 			int remaining = Math.Max(0, activeOrders.Count - 1 - compactSlots.Length);
@@ -220,11 +247,69 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			UnbindSources();
 			UnbindView();
+			openAllOrders = null;
+			openOrder = null;
 		}
 
 		private void OnSourceChanged()
 		{
 			Refresh();
+		}
+
+		private void BindClickHandlers()
+		{
+			headerButton.clicked += OnOpenAllOrders;
+			primaryRoot.clicked += OnOpenPrimaryOrder;
+			compactSlots[0].Root.clicked += OnOpenFirstCompactOrder;
+			compactSlots[1].Root.clicked += OnOpenSecondCompactOrder;
+			moreButton.clicked += OnOpenAllOrders;
+		}
+
+		private void UnbindClickHandlers()
+		{
+			if (headerButton != null)
+				headerButton.clicked -= OnOpenAllOrders;
+			if (primaryRoot != null)
+				primaryRoot.clicked -= OnOpenPrimaryOrder;
+			if (compactSlots[0].Root != null)
+				compactSlots[0].Root.clicked -= OnOpenFirstCompactOrder;
+			if (compactSlots[1].Root != null)
+				compactSlots[1].Root.clicked -= OnOpenSecondCompactOrder;
+			if (moreButton != null)
+				moreButton.clicked -= OnOpenAllOrders;
+		}
+
+		private void OnOpenAllOrders()
+		{
+			openAllOrders?.Invoke();
+		}
+
+		private void OnOpenPrimaryOrder()
+		{
+			OpenOrder(primaryTargetOrderId);
+		}
+
+		private void OnOpenFirstCompactOrder()
+		{
+			OpenOrder(compactSlots[0].TargetOrderId);
+		}
+
+		private void OnOpenSecondCompactOrder()
+		{
+			OpenOrder(compactSlots[1].TargetOrderId);
+		}
+
+		private void OpenOrder(int? orderId)
+		{
+			if (orderId.HasValue)
+				openOrder?.Invoke(orderId.Value);
+		}
+
+		private void ClearOrderTargets()
+		{
+			primaryTargetOrderId = null;
+			for (int i = 0; i < compactSlots.Length; ++i)
+				compactSlots[i].TargetOrderId = null;
 		}
 
 		private void RenderPrimary(Order order, Func<uint, ItemDefinition> resolveItem, int currentWeek)
@@ -292,6 +377,7 @@ namespace UniverseLogistics.UI.Toolkit
 			slot.Destination = null;
 			slot.Item = null;
 			slot.Due = null;
+			slot.TargetOrderId = null;
 		}
 
 		private static void ApplyUrgency(VisualElement element, OrderUrgency urgency)
