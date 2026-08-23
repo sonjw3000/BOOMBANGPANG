@@ -177,6 +177,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Dictionary<int, OrderLine> restoredOrderLines = new();
 		Dictionary<uint, AIWorker> workersById = new();
 
+		Ctx.TaskMgr.BeginTaskStateChangeBatch();
 		Ctx.TaskMgr.ResetRuntimeState();
 		Ctx.PlayerOverrideSvc.ResetRuntimeState();
 		Ctx.CapsuleRelocateCoordinator.ResetRuntimeState();
@@ -432,6 +433,7 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.FireSvc.RebuildRuntimeState();
 		Ctx.IBWorkflowSvc.RetryActiveRocketUnloadingTasks();
 		Ctx.ScenarioObjectiveService.RestoreState(data.ScenarioObjective);
+		Ctx.TaskMgr.EndTaskStateChangeBatch();
 	}
 
 	private static bool HasBoxReference(BoxReferenceSaveData data)

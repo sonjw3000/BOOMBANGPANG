@@ -28,6 +28,8 @@ public partial class TaskManager : MonoBehaviour
 	private readonly HashSet<WorkerTask> facilityAffectedTasks = new();
 	private readonly HashSet<CapsuleRelocationTask> playerPreemptedCapsuleTasks = new();
 	private FacilityManager boundFacilityManager;
+	private int taskStateChangeBatchDepth;
+	private bool taskStateChangedWhileBatched;
 
 	private ProcessStatsCollector Stats => GameContext.Instance.ProcessStats;
 
@@ -38,6 +40,7 @@ public partial class TaskManager : MonoBehaviour
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskOnProgress => taskOnProgress;
 	public IReadOnlyCollection<WorkerTask> ReturnedTaskQueue => returnedTaskQueue;
 	public IReadOnlyCollection<TaskBuildRequest> TaskBuildQueue => taskBuildQueue;
+	public event Action OnTaskStateChanged;
 
 	internal bool IsManagingTask(WorkerTask task)
 	{
@@ -137,7 +140,36 @@ public partial class TaskManager : MonoBehaviour
 		}
 
 	}
-	
+
+	private void ReportTaskStateChanged()
+	{
+		if (taskStateChangeBatchDepth > 0)
+		{
+			taskStateChangedWhileBatched = true;
+			return;
+		}
+
+		OnTaskStateChanged?.Invoke();
+	}
+
+	internal void BeginTaskStateChangeBatch()
+	{
+		++taskStateChangeBatchDepth;
+	}
+
+	internal void EndTaskStateChangeBatch()
+	{
+		if (taskStateChangeBatchDepth <= 0)
+			return;
+
+		--taskStateChangeBatchDepth;
+		if (taskStateChangeBatchDepth > 0 || taskStateChangedWhileBatched == false)
+			return;
+
+		taskStateChangedWhileBatched = false;
+		OnTaskStateChanged?.Invoke();
+	}
+
 	public void EnqueueTask(WorkerTask task)
 	{
 		if (task == null || task.CurrentStatus != WorkerTask.Status.Ready)
@@ -145,6 +177,7 @@ public partial class TaskManager : MonoBehaviour
 
 		taskQueue[task.Type].AddLast(task);
 		Stats.AddQueue(task.Type);
+		ReportTaskStateChanged();
 	}
 
 	public bool EnqueueTaskBuildRequest(TaskBuildRequest request)
@@ -402,6 +435,7 @@ public partial class TaskManager : MonoBehaviour
 				if (data == null)
 				{
 					queue.Remove(node);
+					ReportTaskStateChanged();
 					node = next;
 					continue;
 				}
@@ -421,6 +455,7 @@ public partial class TaskManager : MonoBehaviour
 					{
 						queue.Remove(node);
 						taskOnProgress[key].AddLast(data);
+						ReportTaskStateChanged();
 					}
 				}
 
@@ -439,6 +474,7 @@ public partial class TaskManager : MonoBehaviour
 			if (task == null || task.CurrentStatus != WorkerTask.Status.Returned)
 			{
 				returnedTaskQueue.Remove(node);
+				ReportTaskStateChanged();
 				node = next;
 				continue;
 			}
@@ -457,6 +493,7 @@ public partial class TaskManager : MonoBehaviour
 				{
 					returnedTaskQueue.Remove(node);
 					taskOnProgress[task.Type].AddLast(task);
+					ReportTaskStateChanged();
 				}
 			}
 
@@ -485,6 +522,7 @@ public partial class TaskManager : MonoBehaviour
 
 		if (task is ItemTransferTask && GameContext.HasInstance)
 			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskReturned(task);
+		ReportTaskStateChanged();
 
 		return true;
 	}
@@ -508,30 +546,43 @@ public partial class TaskManager : MonoBehaviour
 		TaskInvalidationReason reason,
 		bool removeRegisteredState)
 	{
-		WorkerTask.Status previousStatus = task != null ? task.CurrentStatus : WorkerTask.Status.Invalidated;
-		if (task == null || task.MarkInvalidated(out AIWorker worker) == false)
+		if (task == null)
 			return false;
 
-		if (removeRegisteredState)
+		BeginTaskStateChangeBatch();
+		try
 		{
-			taskQueue[task.Type].Remove(task);
-			returnedTaskQueue.Remove(task);
-			taskOnProgress[task.Type].Remove(task);
+			WorkerTask.Status previousStatus = task.CurrentStatus;
+			if (task.MarkInvalidated(out AIWorker worker) == false)
+				return false;
+
+			if (removeRegisteredState)
+			{
+				taskQueue[task.Type].Remove(task);
+				returnedTaskQueue.Remove(task);
+				taskOnProgress[task.Type].Remove(task);
+			}
+
+			if (worker != null)
+				worker.ClearTask(task, becomeIdle: worker.IsOperational);
+
+			if (removeRegisteredState)
+				Stats.RemoveQueue(task.Type);
+			if (task is ItemTransferTask && GameContext.HasInstance)
+				GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
+
+			NotifyWorkflowTaskInvalidated(task);
+			NotifyBuildingCapsuleRelocationEnded(task);
+			LogTaskInvalidation(task, worker, previousStatus, reason);
+			if (removeRegisteredState)
+				ReportTaskStateChanged();
+
+			return true;
 		}
-
-		if (worker != null)
-			worker.ClearTask(task, becomeIdle: worker.IsOperational);
-
-		if (removeRegisteredState)
-			Stats.RemoveQueue(task.Type);
-		if (task is ItemTransferTask && GameContext.HasInstance)
-			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
-
-		NotifyWorkflowTaskInvalidated(task);
-		NotifyBuildingCapsuleRelocationEnded(task);
-		LogTaskInvalidation(task, worker, previousStatus, reason);
-
-		return true;
+		finally
+		{
+			EndTaskStateChangeBatch();
+		}
 	}
 
 	private static void NotifyBuildingCapsuleRelocationEnded(WorkerTask task)
@@ -673,6 +724,8 @@ public partial class TaskManager : MonoBehaviour
 				Debug.LogError("ERROR!! TaskType Undef on tskmgr end task");
 				break;
 		}
+
+		ReportTaskStateChanged();
 	}
 
 	public void Update()
@@ -687,6 +740,7 @@ public partial class TaskManager : MonoBehaviour
 			return;
 
 		taskOnProgress[task.Type].AddLast(task);
+		ReportTaskStateChanged();
 	}
 
 	public void AddRestoredReturnedTask(WorkerTask task)
@@ -696,6 +750,7 @@ public partial class TaskManager : MonoBehaviour
 
 		task.RestoreReturnedState();
 		returnedTaskQueue.AddLast(task);
+		ReportTaskStateChanged();
 	}
 
 	public int GetReturnedTaskCount(TaskType taskType)

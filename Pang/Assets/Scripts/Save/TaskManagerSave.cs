@@ -16,5 +16,6 @@ public partial class TaskManager
 
 		taskBuildQueue.Clear();
 		taskBuildRequestsByKey.Clear();
+		ReportTaskStateChanged();
 	}
 }
