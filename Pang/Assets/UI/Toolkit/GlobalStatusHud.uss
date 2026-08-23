@@ -60,7 +60,11 @@
 }
 
 .order-hud {
-	margin-bottom: 6px;
+	position: absolute;
+	left: 12px;
+	top: 12px;
+	width: 235px;
+	margin-bottom: 0;
 	overflow: hidden;
 	background-color: rgba(12, 20, 29, 0.96);
 	border-top-width: 1px;
@@ -158,6 +162,7 @@
 	padding-right: 4px;
 	padding-bottom: 4px;
 	padding-left: 4px;
+	flex-direction: column;
 }
 
 .order-hud__order {
@@ -184,6 +189,7 @@
 	padding-right: 6px;
 	padding-bottom: 4px;
 	padding-left: 6px;
+	flex-direction: column;
 	align-items: stretch;
 }
 

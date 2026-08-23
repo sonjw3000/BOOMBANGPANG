@@ -1,6 +1,67 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
 	<Style src="GlobalStatusHud.uss" />
 	<ui:VisualElement name="global-status-hud" class="global-status-hud" picking-mode="Ignore">
+		<ui:VisualElement name="order-hud" class="order-hud order-hud--hidden" picking-mode="Position">
+			<ui:Button name="order-hud-header" class="order-hud__header">
+				<ui:Label text="ORDERS" class="order-hud__eyebrow" />
+				<ui:VisualElement class="order-hud__header-spacer" picking-mode="Ignore" />
+				<ui:Label name="order-hud-active-count" text="0 ACTIVE" class="order-hud__count" />
+				<ui:Label name="order-hud-risk-count" text="0 RISK" class="order-hud__risk-count" />
+				<ui:Label text="›" class="order-hud__chevron" />
+			</ui:Button>
+			<ui:VisualElement name="order-hud-body" class="order-hud__body">
+				<ui:Button name="order-hud-primary" class="order-hud__primary order-hud__order">
+					<ui:VisualElement class="order-hud__primary-heading" picking-mode="Ignore">
+						<ui:Label name="order-hud-primary-id" text="#0" class="order-hud__order-id" />
+						<ui:Label name="order-hud-primary-destination" text="MARS" class="order-hud__destination" />
+						<ui:VisualElement class="order-hud__header-spacer" />
+						<ui:Label name="order-hud-primary-due" text="2W" class="order-hud__due" />
+					</ui:VisualElement>
+					<ui:Label name="order-hud-primary-item" text="Item ×0" class="order-hud__item" />
+					<ui:VisualElement name="order-hud-primary-stages" class="order-hud__stages" picking-mode="Ignore">
+						<ui:VisualElement class="order-hud__stage">
+							<ui:Label text="WAIT" class="order-hud__stage-label" />
+							<ui:Label name="order-hud-stage-pending" text="0" class="order-hud__stage-value" />
+						</ui:VisualElement>
+						<ui:VisualElement class="order-hud__stage">
+							<ui:Label text="PICK" class="order-hud__stage-label" />
+							<ui:Label name="order-hud-stage-picking" text="0" class="order-hud__stage-value" />
+						</ui:VisualElement>
+						<ui:VisualElement class="order-hud__stage">
+							<ui:Label text="PACK" class="order-hud__stage-label" />
+							<ui:Label name="order-hud-stage-packing" text="0" class="order-hud__stage-value" />
+						</ui:VisualElement>
+						<ui:VisualElement class="order-hud__stage">
+							<ui:Label text="PORT" class="order-hud__stage-label" />
+							<ui:Label name="order-hud-stage-port" text="0" class="order-hud__stage-value" />
+						</ui:VisualElement>
+						<ui:VisualElement class="order-hud__stage">
+							<ui:Label text="FLIGHT" class="order-hud__stage-label" />
+							<ui:Label name="order-hud-stage-flight" text="0" class="order-hud__stage-value" />
+						</ui:VisualElement>
+						<ui:VisualElement class="order-hud__stage order-hud__stage--last">
+							<ui:Label text="DONE" class="order-hud__stage-label" />
+							<ui:Label name="order-hud-stage-completed" text="0" class="order-hud__stage-value" />
+						</ui:VisualElement>
+					</ui:VisualElement>
+					<ui:Label name="order-hud-primary-risk" text="On-time settlement" class="order-hud__risk" />
+				</ui:Button>
+				<ui:Button name="order-hud-secondary-1" class="order-hud__secondary order-hud__order">
+					<ui:Label name="order-hud-secondary-1-id" text="#0" class="order-hud__secondary-id" />
+					<ui:Label name="order-hud-secondary-1-destination" text="MARS" class="order-hud__secondary-destination" />
+					<ui:Label name="order-hud-secondary-1-item" text="Item ×0" class="order-hud__secondary-item" />
+					<ui:Label name="order-hud-secondary-1-due" text="2W" class="order-hud__due" />
+				</ui:Button>
+				<ui:Button name="order-hud-secondary-2" class="order-hud__secondary order-hud__order">
+					<ui:Label name="order-hud-secondary-2-id" text="#0" class="order-hud__secondary-id" />
+					<ui:Label name="order-hud-secondary-2-destination" text="TITAN" class="order-hud__secondary-destination" />
+					<ui:Label name="order-hud-secondary-2-item" text="Item ×0" class="order-hud__secondary-item" />
+					<ui:Label name="order-hud-secondary-2-due" text="2W" class="order-hud__due" />
+				</ui:Button>
+				<ui:Button name="order-hud-more" text="+0 ORDERS" class="order-hud__more" />
+			</ui:VisualElement>
+			<ui:Label name="order-hud-empty" text="No active orders" class="order-hud__empty" />
+		</ui:VisualElement>
 		<ui:VisualElement class="left-hud" picking-mode="Ignore">
 			<ui:VisualElement name="hud-event-area" class="hud-event-area" picking-mode="Position">
 				<ui:VisualElement name="hud-event-list" class="hud-event-list" picking-mode="Ignore" />
@@ -10,67 +71,6 @@
 				<ui:Label name="scenario-objective-title" text="Objective" class="scenario-objective__title" />
 				<ui:Label name="scenario-objective-description" text="Objective description" class="scenario-objective__description" />
 				<ui:Label name="scenario-objective-progress" text="0 / 1" class="scenario-objective__progress" />
-			</ui:VisualElement>
-			<ui:VisualElement name="order-hud" class="order-hud order-hud--hidden" picking-mode="Position">
-				<ui:Button name="order-hud-header" class="order-hud__header">
-					<ui:Label text="ORDERS" class="order-hud__eyebrow" />
-					<ui:VisualElement class="order-hud__header-spacer" picking-mode="Ignore" />
-					<ui:Label name="order-hud-active-count" text="0 ACTIVE" class="order-hud__count" />
-					<ui:Label name="order-hud-risk-count" text="0 RISK" class="order-hud__risk-count" />
-					<ui:Label text="›" class="order-hud__chevron" />
-				</ui:Button>
-				<ui:VisualElement name="order-hud-body" class="order-hud__body">
-					<ui:Button name="order-hud-primary" class="order-hud__primary order-hud__order">
-						<ui:VisualElement class="order-hud__primary-heading" picking-mode="Ignore">
-							<ui:Label name="order-hud-primary-id" text="#0" class="order-hud__order-id" />
-							<ui:Label name="order-hud-primary-destination" text="MARS" class="order-hud__destination" />
-							<ui:VisualElement class="order-hud__header-spacer" />
-							<ui:Label name="order-hud-primary-due" text="2W" class="order-hud__due" />
-						</ui:VisualElement>
-						<ui:Label name="order-hud-primary-item" text="Item ×0" class="order-hud__item" />
-						<ui:VisualElement name="order-hud-primary-stages" class="order-hud__stages" picking-mode="Ignore">
-							<ui:VisualElement class="order-hud__stage">
-								<ui:Label text="WAIT" class="order-hud__stage-label" />
-								<ui:Label name="order-hud-stage-pending" text="0" class="order-hud__stage-value" />
-							</ui:VisualElement>
-							<ui:VisualElement class="order-hud__stage">
-								<ui:Label text="PICK" class="order-hud__stage-label" />
-								<ui:Label name="order-hud-stage-picking" text="0" class="order-hud__stage-value" />
-							</ui:VisualElement>
-							<ui:VisualElement class="order-hud__stage">
-								<ui:Label text="PACK" class="order-hud__stage-label" />
-								<ui:Label name="order-hud-stage-packing" text="0" class="order-hud__stage-value" />
-							</ui:VisualElement>
-							<ui:VisualElement class="order-hud__stage">
-								<ui:Label text="PORT" class="order-hud__stage-label" />
-								<ui:Label name="order-hud-stage-port" text="0" class="order-hud__stage-value" />
-							</ui:VisualElement>
-							<ui:VisualElement class="order-hud__stage">
-								<ui:Label text="FLIGHT" class="order-hud__stage-label" />
-								<ui:Label name="order-hud-stage-flight" text="0" class="order-hud__stage-value" />
-							</ui:VisualElement>
-							<ui:VisualElement class="order-hud__stage order-hud__stage--last">
-								<ui:Label text="DONE" class="order-hud__stage-label" />
-								<ui:Label name="order-hud-stage-completed" text="0" class="order-hud__stage-value" />
-							</ui:VisualElement>
-						</ui:VisualElement>
-						<ui:Label name="order-hud-primary-risk" text="On-time settlement" class="order-hud__risk" />
-					</ui:Button>
-					<ui:Button name="order-hud-secondary-1" class="order-hud__secondary order-hud__order">
-						<ui:Label name="order-hud-secondary-1-id" text="#0" class="order-hud__secondary-id" />
-						<ui:Label name="order-hud-secondary-1-destination" text="MARS" class="order-hud__secondary-destination" />
-						<ui:Label name="order-hud-secondary-1-item" text="Item ×0" class="order-hud__secondary-item" />
-						<ui:Label name="order-hud-secondary-1-due" text="2W" class="order-hud__due" />
-					</ui:Button>
-					<ui:Button name="order-hud-secondary-2" class="order-hud__secondary order-hud__order">
-						<ui:Label name="order-hud-secondary-2-id" text="#0" class="order-hud__secondary-id" />
-						<ui:Label name="order-hud-secondary-2-destination" text="TITAN" class="order-hud__secondary-destination" />
-						<ui:Label name="order-hud-secondary-2-item" text="Item ×0" class="order-hud__secondary-item" />
-						<ui:Label name="order-hud-secondary-2-due" text="2W" class="order-hud__due" />
-					</ui:Button>
-					<ui:Button name="order-hud-more" text="+0 ORDERS" class="order-hud__more" />
-				</ui:VisualElement>
-				<ui:Label name="order-hud-empty" text="No active orders" class="order-hud__empty" />
 			</ui:VisualElement>
 			<ui:VisualElement name="economy-summary" class="economy-summary" picking-mode="Position">
 				<ui:VisualElement class="status-item">

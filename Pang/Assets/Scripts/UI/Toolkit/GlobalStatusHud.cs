@@ -111,6 +111,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private BuildingAddonCatalogWindow buildingAddonCatalogWindow;
 		private PlayerInteractionWindow playerInteractionWindow;
 		private SelectionCardHud selectionCard;
+		private OrderHudPresenter orderHudPresenter;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
@@ -214,6 +215,8 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnDestroy()
 		{
+			orderHudPresenter?.Dispose();
+			orderHudPresenter = null;
 			windowFocusCoordinator?.Dispose();
 			windowFocusCoordinator = null;
 		}
@@ -663,6 +666,9 @@ namespace UniverseLogistics.UI.Toolkit
 			selectionCard ??= new SelectionCardHud();
 			if (selectionCard.Bind(root) == false)
 				Debug.LogError("[GlobalStatusHud] Selection Card UXML elements are missing.", this);
+			orderHudPresenter ??= new OrderHudPresenter();
+			if (orderHudPresenter.BindView(root) == false)
+				Debug.LogError("[GlobalStatusHud] Order HUD UXML elements are missing.", this);
 			hudRoot = root;
 			leftHud = root.Q<VisualElement>(className: "left-hud");
 			timeCluster = root.Q<VisualElement>(className: "time-cluster");
@@ -754,6 +760,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void UnbindControls()
 		{
+			orderHudPresenter?.UnbindView();
 			economySummary?.UnregisterCallback<ClickEvent>(OnEconomySummaryClicked);
 			hudEventArea?.UnregisterCallback<ClickEvent>(OnHudEventAreaClicked);
 			hudRoot?.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
@@ -797,6 +804,7 @@ namespace UniverseLogistics.UI.Toolkit
 			gameTime = GameContext.Instance.GameTime;
 			researchService = GameContext.Instance.ResearchService;
 			scenarioObjectiveService = GameContext.Instance.ScenarioObjectiveService;
+			orderHudPresenter?.BindSources(GameContext.Instance.OrderMgr, GameContext.Instance.ItemDB, gameTime);
 
 			if (economyService != null)
 			{
@@ -825,6 +833,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void UnbindServices()
 		{
+			orderHudPresenter?.UnbindSources();
 			if (economyService != null)
 			{
 				economyService.OnMoneyChanged -= OnMoneyChanged;
