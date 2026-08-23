@@ -21,6 +21,31 @@ public readonly struct TaskCountSnapshot
 	}
 }
 
+public enum LogisticsWorkCategory
+{
+	Picking,
+	Storing,
+	PackingInput,
+	Packing,
+	PackingOutput,
+	CapsuleRelocate,
+}
+
+// SourceCount is an owner-defined workload source, not a projected Task count.
+// Keep it separate from TaskCountSnapshot because one Task may process multiple sources.
+public readonly struct WorkDemandSnapshot
+{
+	public int SourceCount { get; }
+	public int ItemQuantity { get; }
+	public bool HasDemand => SourceCount > 0 || ItemQuantity > 0;
+
+	public WorkDemandSnapshot(int sourceCount, int itemQuantity)
+	{
+		SourceCount = sourceCount;
+		ItemQuantity = itemQuantity;
+	}
+}
+
 public class MetricsService : MonoBehaviour
 {
 	private TaskManager TaskMgr => GameContext.Instance.TaskMgr;
@@ -53,6 +78,34 @@ public class MetricsService : MonoBehaviour
 			CountBlockedTasks(activeTasks));
 	}
 
+	public TaskCountSnapshot GetTaskCountSnapshot(LogisticsWorkCategory category)
+	{
+		return category switch
+		{
+			LogisticsWorkCategory.Picking => GetTaskCountSnapshot(WorkerTask.TaskType.Picking),
+			LogisticsWorkCategory.Storing => GetTaskCountSnapshot(WorkerTask.TaskType.Storing),
+			LogisticsWorkCategory.PackingInput => GetTaskCountSnapshot(WorkerTask.TaskType.PackingInput),
+			LogisticsWorkCategory.Packing => GetTaskCountSnapshot(WorkerTask.TaskType.Packing),
+			LogisticsWorkCategory.PackingOutput => GetTaskCountSnapshot(WorkerTask.TaskType.PackingOutput),
+			LogisticsWorkCategory.CapsuleRelocate => GetCapsuleRelocationTaskCountSnapshot(),
+			_ => default,
+		};
+	}
+
+	public WorkDemandSnapshot GetWorkDemandSnapshot(LogisticsWorkCategory category)
+	{
+		return category switch
+		{
+			LogisticsWorkCategory.Picking => GetPickingDemandSnapshot(),
+			LogisticsWorkCategory.Storing => GetStoringDemandSnapshot(),
+			LogisticsWorkCategory.PackingInput => GetPackingInputDemandSnapshot(),
+			LogisticsWorkCategory.Packing => GetPackingDemandSnapshot(),
+			LogisticsWorkCategory.PackingOutput => GetPackingOutputDemandSnapshot(),
+			LogisticsWorkCategory.CapsuleRelocate => GetCapsuleRelocateDemandSnapshot(),
+			_ => default,
+		};
+	}
+
 	public TaskCountSnapshot GetCapsuleRelocationTaskCountSnapshot()
 	{
 		return new TaskCountSnapshot(
@@ -60,6 +113,112 @@ public class MetricsService : MonoBehaviour
 			CountTasks<CapsuleRelocationTask>(TaskMgr.ReturnedTaskQueue),
 			CountTasks<CapsuleRelocationTask>(TaskOnProgress.Values),
 			CountBlockedTasks<CapsuleRelocationTask>(TaskOnProgress.Values));
+	}
+
+	private static WorkDemandSnapshot GetPickingDemandSnapshot()
+	{
+		int sourceCount = 0;
+		int itemQuantity = 0;
+		GameContext context = GameContext.Instance;
+
+		if (context.OrderMgr != null)
+		{
+			context.OrderMgr.GetPendingPickingDemand(out int orderSources, out int orderQuantity);
+			sourceCount += orderSources;
+			itemQuantity += orderQuantity;
+		}
+
+		IReadOnlyList<Building> buildings = context.BuildingMgr?.RegisteredBuildings;
+		if (buildings != null)
+		{
+			for (int i = 0; i < buildings.Count; ++i)
+			{
+				if (buildings[i] is not StorageBuilding storageBuilding || storageBuilding.PickingPlanner == null)
+					continue;
+
+				storageBuilding.PickingPlanner.GetPendingDemand(out int plannerSources, out int plannerQuantity);
+				sourceCount += plannerSources;
+				itemQuantity += plannerQuantity;
+			}
+		}
+
+		return new WorkDemandSnapshot(sourceCount, itemQuantity);
+	}
+
+	private static WorkDemandSnapshot GetStoringDemandSnapshot()
+	{
+		int sourceCount = 0;
+		int itemQuantity = 0;
+		GameContext context = GameContext.Instance;
+		StoringPlanner planner = context.IBWorkflowSvc?.StoringPlanner;
+		IReadOnlyList<Building> buildings = context.BuildingMgr?.RegisteredBuildings;
+		if (planner == null || buildings == null)
+			return default;
+
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is not StorageBuilding storageBuilding || storageBuilding.RuntimeBuildingId == 0)
+				continue;
+
+			planner.GetPendingDemand(storageBuilding.RuntimeBuildingId, out int buildingSources, out int buildingQuantity);
+			sourceCount += buildingSources;
+			itemQuantity += buildingQuantity;
+		}
+
+		return new WorkDemandSnapshot(sourceCount, itemQuantity);
+	}
+
+	private static WorkDemandSnapshot GetPackingInputDemandSnapshot()
+	{
+		return GetPackingBuildingDemand(input: true);
+	}
+
+	private static WorkDemandSnapshot GetPackingOutputDemandSnapshot()
+	{
+		return GetPackingBuildingDemand(input: false);
+	}
+
+	private static WorkDemandSnapshot GetPackingBuildingDemand(bool input)
+	{
+		int sourceCount = 0;
+		int itemQuantity = 0;
+		IReadOnlyList<Building> buildings = GameContext.Instance.BuildingMgr?.RegisteredBuildings;
+		if (buildings == null)
+			return default;
+
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] is not PackingBuilding packingBuilding)
+				continue;
+
+			int buildingSources;
+			int buildingQuantity;
+			if (input)
+				packingBuilding.GetPackingInputDemand(out buildingSources, out buildingQuantity);
+			else
+				packingBuilding.GetPackingOutputDemand(out buildingSources, out buildingQuantity);
+
+			sourceCount += buildingSources;
+			itemQuantity += buildingQuantity;
+		}
+
+		return new WorkDemandSnapshot(sourceCount, itemQuantity);
+	}
+
+	private static WorkDemandSnapshot GetPackingDemandSnapshot()
+	{
+		PackingStationService service = GameContext.Instance.OBWorkflowSvc?.PackingStationService;
+		if (service == null)
+			return default;
+
+		service.GetPendingPackingDemand(out int sourceCount, out int itemQuantity);
+		return new WorkDemandSnapshot(sourceCount, itemQuantity);
+	}
+
+	private static WorkDemandSnapshot GetCapsuleRelocateDemandSnapshot()
+	{
+		CapsuleRelocateDemandSnapshot demand = GameContext.Instance.CapsuleRelocateCoordinator.GetDemandSnapshot();
+		return new WorkDemandSnapshot(demand.SourceCount, 0);
 	}
 
 	private static int CountTasks<TTask>(IEnumerable<WorkerTask> tasks) where TTask : WorkerTask

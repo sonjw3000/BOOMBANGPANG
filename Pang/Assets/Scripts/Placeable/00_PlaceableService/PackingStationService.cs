@@ -127,6 +127,27 @@ public partial class PackingStationService : FacilityService<PackingStation>
 		}
 	}
 
+	public void GetPendingPackingDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+
+		foreach (var entry in statesByBuildingId)
+		{
+			List<PackingStation> stations = entry.Value.Stations;
+			for (int i = 0; i < stations.Count; ++i)
+			{
+				BoxBase box = stations[i]?.WaitingBox?.Box;
+				if (box == null)
+					continue;
+
+				++sourceCount;
+				foreach (var itemTotal in box.ItemTotals)
+					itemQuantity += Mathf.Max(0, itemTotal.Value);
+			}
+		}
+	}
+
 	public bool TryClaimWaitingStation(uint buildingId, out PackingStation station)
 	{
 		station = null;

@@ -171,6 +171,38 @@ public sealed class PackingBuilding : Building
 		return packingStation != null && packingStation.EndPackingBox != null;
 	}
 
+	public void GetPackingInputDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+
+		for (int i = 0; i < OccupiedCapsuleBuffers.Count; ++i)
+		{
+			int quantity = GetPackingInputDemandQuantity(OccupiedCapsuleBuffers[i]);
+			if (quantity <= 0)
+				continue;
+
+			++sourceCount;
+			itemQuantity += quantity;
+		}
+	}
+
+	public void GetPackingOutputDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+
+		foreach (PackingStation station in dirtyOutputStations)
+		{
+			BoxBase box = station?.EndPackingBox?.Box;
+			if (box == null)
+				continue;
+
+			++sourceCount;
+			itemQuantity += GetItemQuantity(box);
+		}
+	}
+
 	internal bool HasAvailablePackingInput(IItemContainer container)
 	{
 		return HasAvailableItemStatus(container, ItemStatus.Labeled) ||
@@ -209,6 +241,66 @@ public sealed class PackingBuilding : Building
 	private static bool IsPackingInputStatus(ItemStatus status)
 	{
 		return status == ItemStatus.None || status == ItemStatus.Labeled;
+	}
+
+	private int GetPackingInputDemandQuantity(CapsuleBuffer buffer)
+	{
+		if (buffer == null ||
+			buffer.CanProvideInboundItems() == false ||
+			GameContext.HasInstance == false ||
+			GameContext.Instance.OBWorkflowSvc?.TryGetPickingManifest(
+				buffer.DockedCapsule,
+				out PickingManifest manifest) != true)
+		{
+			return 0;
+		}
+
+		int total = 0;
+		foreach (var itemTotal in buffer.ItemTotals)
+		{
+			uint itemId = itemTotal.Key;
+			int packable = 0;
+			for (int i = 0; i < manifest.Lines.Count; ++i)
+			{
+				PickingManifestLine line = manifest.Lines[i];
+				if (line != null && line.ItemId == itemId)
+					packable += line.PackableQuantity;
+			}
+
+			if (packable <= 0)
+				continue;
+
+			int physical = 0;
+			for (int i = 0; i < buffer.Stacks.Count; ++i)
+			{
+				ItemStack stack = buffer.Stacks[i];
+				if (stack != null &&
+					stack.ItemID == itemId &&
+					stack.Quantity > 0 &&
+					IsPackingInputStatus(stack.Status))
+				{
+					physical += stack.Quantity;
+				}
+			}
+
+			int reserved = buffer.ItemToBePicked.GetValueOrDefault(itemId);
+			int available = UnityEngine.Mathf.Max(0, physical - reserved);
+			total += UnityEngine.Mathf.Min(available, packable);
+		}
+
+		return total;
+	}
+
+	private static int GetItemQuantity(IItemContainer container)
+	{
+		if (container == null)
+			return 0;
+
+		int quantity = 0;
+		foreach (var itemTotal in container.ItemTotals)
+			quantity += UnityEngine.Mathf.Max(0, itemTotal.Value);
+
+		return quantity;
 	}
 
 	internal bool TryTakeDirtyPackingOutputStation(out PackingStation station)

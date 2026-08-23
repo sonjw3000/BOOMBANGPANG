@@ -128,6 +128,25 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		return false;
 	}
 
+	public void GetPendingDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+
+		foreach (PickingRequest request in requestSource.GetRequests())
+		{
+			int quantity = request != null ? request.GetAllocatableQuantity() : 0;
+			if (quantity <= 0 ||
+				(request.Source == null && claimedManualRequests.Contains(request)))
+			{
+				continue;
+			}
+
+			++sourceCount;
+			itemQuantity += quantity;
+		}
+	}
+
 	public int AcceptPickingRequest(OrderLine orderLine, int quantity, out PickingRequest firstRequest)
 	{
 		return CanUseInventoryGuidance()

@@ -62,6 +62,28 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		return false;
 	}
 
+	public void GetPendingDemand(uint buildingId, out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+
+		foreach (CapsuleBuffer buffer in EnumerateCollectBuffers(buildingId))
+		{
+			if (buffer == null || buffer.CanProvideInboundItems() == false)
+				continue;
+
+			foreach (var itemTotal in buffer.ItemTotals)
+			{
+				int quantity = GetNonWasteQuantity(buffer, itemTotal.Key);
+				if (quantity <= 0)
+					continue;
+
+				++sourceCount;
+				itemQuantity += quantity;
+			}
+		}
+	}
+
 	public bool BuildItemTransferTask(AIWorker preferredWorker, uint buildingId, out ItemTransferTask task)
 	{
 		task = null;
@@ -278,6 +300,27 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		}
 
 		return false;
+	}
+
+	private static int GetNonWasteQuantity(CapsuleBuffer buffer, uint itemId)
+	{
+		if (buffer == null)
+			return 0;
+
+		int quantity = 0;
+		for (int i = 0; i < buffer.Stacks.Count; ++i)
+		{
+			ItemStack stack = buffer.Stacks[i];
+			if (stack != null &&
+				stack.ItemID == itemId &&
+				stack.Quantity > 0 &&
+				stack.HasQuality(ItemQuality.Waste) == false)
+			{
+				quantity += stack.Quantity;
+			}
+		}
+
+		return quantity;
 	}
 
 	private bool IsShelfInBuilding(ShelfBase shelf, uint buildingId)

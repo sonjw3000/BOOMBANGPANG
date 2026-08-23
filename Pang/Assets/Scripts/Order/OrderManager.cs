@@ -70,6 +70,30 @@ public partial class OrderManager : MonoBehaviour, ICollectRequestSource<OrderLi
 
 	public int GetAllocatableQuantity(OrderLine requestLine) => requestLine != null ? requestLine.GetPickingAllocatableQuantity() : 0;
 
+	public void GetPendingPickingDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+
+		foreach (var entry in itemOrderLines)
+		{
+			List<OrderLine> lines = entry.Value;
+			if (lines == null)
+				continue;
+
+			for (int i = 0; i < lines.Count; ++i)
+			{
+				OrderLine line = lines[i];
+				int quantity = line != null ? line.GetPickingAllocatableQuantity() : 0;
+				if (quantity <= 0)
+					continue;
+
+				++sourceCount;
+				itemQuantity += quantity;
+			}
+		}
+	}
+
 	public int Allocate(OrderLine requestLine, int quantity) => AllocatePicking(requestLine, quantity);
 
 	public WorkLine CreateWorkLine(ShelfBase source, uint itemId, int quantity, OrderLine requestLine)

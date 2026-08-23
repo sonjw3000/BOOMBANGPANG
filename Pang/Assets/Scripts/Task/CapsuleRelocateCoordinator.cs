@@ -98,6 +98,19 @@ public readonly struct CapsuleRelocateMatch
 	}
 }
 
+public readonly struct CapsuleRelocateDemandSnapshot
+{
+	public int PendingSends { get; }
+	public int PendingDemands { get; }
+	public int SourceCount => PendingSends + PendingDemands;
+
+	public CapsuleRelocateDemandSnapshot(int pendingSends, int pendingDemands)
+	{
+		PendingSends = pendingSends;
+		PendingDemands = pendingDemands;
+	}
+}
+
 public sealed class CapsuleRelocateCoordinator
 {
 	private readonly CapsuleDockService dockService;
@@ -117,6 +130,25 @@ public sealed class CapsuleRelocateCoordinator
 
 	public int PendingSendCount => pendingSendNodeBySource.Count;
 	public int PendingDemandCount => pendingDemandNodeByTarget.Count;
+
+	public CapsuleRelocateDemandSnapshot GetDemandSnapshot()
+	{
+		int sendCount = 0;
+		foreach (CapsuleRelocateSendRequest request in pendingSends)
+		{
+			if (IsSendSourceValid(request))
+				++sendCount;
+		}
+
+		int demandCount = 0;
+		foreach (CapsuleRelocateDemand demand in pendingDemands)
+		{
+			if (IsDemandTargetValid(demand))
+				++demandCount;
+		}
+
+		return new CapsuleRelocateDemandSnapshot(sendCount, demandCount);
+	}
 
 	public CapsuleRelocateCoordinator(
 		CapsuleDockService dockService,
