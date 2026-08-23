@@ -59,6 +59,323 @@
 	color: rgb(102, 220, 177);
 }
 
+.order-hud {
+	margin-bottom: 6px;
+	overflow: hidden;
+	background-color: rgba(12, 20, 29, 0.96);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgba(73, 126, 153, 0.62);
+	border-right-color: rgba(73, 126, 153, 0.62);
+	border-bottom-color: rgba(73, 126, 153, 0.62);
+	border-left-color: rgba(73, 126, 153, 0.62);
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
+}
+
+.order-hud--hidden {
+	display: none;
+}
+
+.order-hud__header {
+	height: 27px;
+	min-height: 27px;
+	margin: 0;
+	padding-top: 0;
+	padding-right: 6px;
+	padding-bottom: 0;
+	padding-left: 7px;
+	flex-direction: row;
+	align-items: center;
+	background-color: rgba(19, 33, 44, 0.98);
+	border-top-width: 0;
+	border-right-width: 0;
+	border-bottom-width: 1px;
+	border-left-width: 0;
+	border-bottom-color: rgba(73, 126, 153, 0.45);
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+.order-hud__header:hover {
+	background-color: rgba(31, 54, 67, 0.98);
+}
+
+.order-hud__eyebrow {
+	font-size: 8px;
+	-unity-font-style: bold;
+	letter-spacing: 1.1px;
+	color: rgb(104, 181, 207);
+}
+
+.order-hud__header-spacer {
+	flex-grow: 1;
+}
+
+.order-hud__count {
+	margin-left: 4px;
+	font-size: 7px;
+	-unity-font-style: bold;
+	color: rgb(180, 200, 209);
+}
+
+.order-hud__risk-count {
+	margin-left: 5px;
+	padding-left: 4px;
+	padding-right: 4px;
+	font-size: 7px;
+	-unity-font-style: bold;
+	color: rgb(221, 180, 93);
+	background-color: rgba(89, 62, 23, 0.62);
+	border-top-left-radius: 3px;
+	border-top-right-radius: 3px;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+}
+
+.order-hud__risk-count--danger {
+	color: rgb(255, 170, 156);
+	background-color: rgba(103, 39, 34, 0.72);
+}
+
+.order-hud__chevron {
+	width: 9px;
+	margin-left: 3px;
+	font-size: 13px;
+	-unity-font-style: bold;
+	-unity-text-align: middle-right;
+	color: rgb(100, 183, 207);
+}
+
+.order-hud__body {
+	padding-top: 4px;
+	padding-right: 4px;
+	padding-bottom: 4px;
+	padding-left: 4px;
+}
+
+.order-hud__order {
+	margin: 0;
+	background-color: rgba(22, 37, 48, 0.94);
+	border-top-width: 0;
+	border-right-width: 0;
+	border-bottom-width: 0;
+	border-left-width: 3px;
+	border-left-color: rgb(73, 156, 181);
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	border-bottom-left-radius: 2px;
+	border-bottom-right-radius: 2px;
+}
+
+.order-hud__order:hover {
+	background-color: rgba(34, 57, 69, 0.98);
+}
+
+.order-hud__primary {
+	min-height: 91px;
+	padding-top: 5px;
+	padding-right: 6px;
+	padding-bottom: 4px;
+	padding-left: 6px;
+	align-items: stretch;
+}
+
+.order-hud__primary-heading {
+	height: 17px;
+	flex-direction: row;
+	align-items: center;
+}
+
+.order-hud__order-id {
+	font-size: 10px;
+	-unity-font-style: bold;
+	color: rgb(231, 240, 243);
+}
+
+.order-hud__destination {
+	margin-left: 6px;
+	font-size: 7px;
+	-unity-font-style: bold;
+	letter-spacing: 0.6px;
+	color: rgb(105, 188, 213);
+}
+
+.order-hud__due {
+	font-size: 8px;
+	-unity-font-style: bold;
+	-unity-text-align: middle-right;
+	color: rgb(148, 203, 217);
+	white-space: nowrap;
+}
+
+.order-hud__item {
+	height: 15px;
+	margin-top: 1px;
+	font-size: 8px;
+	color: rgb(184, 204, 212);
+	white-space: nowrap;
+}
+
+.order-hud__stages {
+	height: 31px;
+	margin-top: 3px;
+	flex-direction: row;
+	background-color: rgba(8, 17, 24, 0.72);
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: rgba(58, 92, 108, 0.45);
+	border-right-color: rgba(58, 92, 108, 0.45);
+	border-bottom-color: rgba(58, 92, 108, 0.45);
+	border-left-color: rgba(58, 92, 108, 0.45);
+}
+
+.order-hud__stage {
+	min-width: 0;
+	flex-grow: 1;
+	align-items: center;
+	justify-content: center;
+	border-right-width: 1px;
+	border-right-color: rgba(58, 92, 108, 0.36);
+}
+
+.order-hud__stage--last {
+	border-right-width: 0;
+}
+
+.order-hud__stage-label {
+	font-size: 5px;
+	-unity-font-style: bold;
+	letter-spacing: 0.3px;
+	color: rgb(104, 137, 151);
+}
+
+.order-hud__stage-value {
+	margin-top: 1px;
+	font-size: 9px;
+	-unity-font-style: bold;
+	color: rgb(209, 226, 233);
+}
+
+.order-hud__risk {
+	height: 15px;
+	margin-top: 3px;
+	font-size: 7px;
+	color: rgb(117, 191, 164);
+	white-space: nowrap;
+}
+
+.order-hud__risk--warning {
+	color: rgb(226, 174, 72);
+}
+
+.order-hud__risk--danger {
+	color: rgb(238, 125, 111);
+}
+
+.order-hud__secondary {
+	height: 25px;
+	min-height: 25px;
+	margin-top: 3px;
+	padding-top: 0;
+	padding-right: 6px;
+	padding-bottom: 0;
+	padding-left: 6px;
+	flex-direction: row;
+	align-items: center;
+}
+
+.order-hud__secondary-id {
+	width: 32px;
+	font-size: 8px;
+	-unity-font-style: bold;
+	color: rgb(220, 233, 238);
+}
+
+.order-hud__secondary-destination {
+	width: 34px;
+	font-size: 6px;
+	-unity-font-style: bold;
+	color: rgb(105, 188, 213);
+}
+
+.order-hud__secondary-item {
+	min-width: 0;
+	flex-grow: 1;
+	font-size: 7px;
+	color: rgb(159, 184, 194);
+	white-space: nowrap;
+}
+
+.order-hud__secondary .order-hud__due {
+	width: 38px;
+}
+
+.order-hud__more {
+	height: 20px;
+	min-height: 20px;
+	margin-top: 3px;
+	margin-right: 0;
+	margin-bottom: 0;
+	margin-left: 0;
+	padding: 0;
+	font-size: 7px;
+	-unity-font-style: bold;
+	color: rgb(113, 177, 196);
+	background-color: rgba(18, 31, 41, 0.86);
+	border-top-width: 0;
+	border-right-width: 0;
+	border-bottom-width: 0;
+	border-left-width: 0;
+}
+
+.order-hud__more:hover {
+	color: rgb(218, 239, 245);
+	background-color: rgba(34, 57, 69, 0.96);
+}
+
+.order-hud__empty {
+	display: none;
+	height: 28px;
+	font-size: 8px;
+	color: rgb(119, 145, 157);
+	-unity-text-align: middle-center;
+}
+
+.order-hud__order--due-soon {
+	border-left-color: rgb(212, 168, 74);
+}
+
+.order-hud__order--due-soon .order-hud__due {
+	color: rgb(227, 188, 102);
+}
+
+.order-hud__order--due-this-week {
+	border-left-color: rgb(229, 126, 56);
+	background-color: rgba(57, 39, 24, 0.94);
+}
+
+.order-hud__order--due-this-week .order-hud__due {
+	color: rgb(244, 154, 83);
+}
+
+.order-hud__order--delayed {
+	border-left-color: rgb(218, 76, 69);
+	background-color: rgba(61, 31, 33, 0.95);
+}
+
+.order-hud__order--delayed .order-hud__due {
+	color: rgb(246, 126, 113);
+}
+
 .hud-event-area {
 	min-height: 0;
 	margin-bottom: 5px;
