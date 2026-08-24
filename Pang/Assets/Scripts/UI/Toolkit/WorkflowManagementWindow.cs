@@ -8,6 +8,7 @@ namespace UniverseLogistics.UI.Toolkit
 	{
 		private enum WorkflowTab
 		{
+			Monitor,
 			Inbound,
 			Outbound,
 			Policy,
@@ -23,10 +24,12 @@ namespace UniverseLogistics.UI.Toolkit
 		private VisualTreeAsset contentTemplate;
 		private VisualTreeAsset landingAreaRowTemplate;
 		private BuildManagementWindow buildManagementWindow;
+		private Button monitorButton;
 		private Button inboundButton;
 		private Button outboundButton;
 		private VisualElement policyButtonControl;
 		private Button policyButton;
+		private VisualElement monitorTab;
 		private VisualElement inboundTab;
 		private VisualElement outboundTab;
 		private VisualElement policyTab;
@@ -69,6 +72,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private InboundWorkflowService inboundWorkflow;
 		private OutboundWorkflowService outboundWorkflow;
 		private ResearchService researchService;
+		private LogisticsWorkMonitorPresenter workloadPresenter;
+		private WorkflowTab selectedTab = WorkflowTab.Monitor;
 		[System.NonSerialized] private bool initialized;
 		private bool started;
 
@@ -95,9 +100,16 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnDisable()
 		{
+			workloadPresenter?.SetActive(false);
 			UnbindControls();
 			UnbindServices();
 			initialized = false;
+		}
+
+		private void OnDestroy()
+		{
+			workloadPresenter?.Dispose();
+			workloadPresenter = null;
 		}
 
 		public void Open()
@@ -118,10 +130,12 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			TemplateContainer content = contentTemplate.CloneTree();
+			monitorButton = content.Q<Button>("workflow-monitor-button");
 			inboundButton = content.Q<Button>("workflow-inbound-button");
 			outboundButton = content.Q<Button>("workflow-outbound-button");
 			policyButtonControl = content.Q<VisualElement>("workflow-policy-button-control");
 			policyButton = content.Q<Button>("workflow-policy-button");
+			monitorTab = content.Q<VisualElement>("workflow-monitor-tab");
 			inboundTab = content.Q<VisualElement>("workflow-inbound-tab");
 			outboundTab = content.Q<VisualElement>("workflow-outbound-tab");
 			policyTab = content.Q<VisualElement>("workflow-policy-tab");
@@ -160,8 +174,9 @@ namespace UniverseLogistics.UI.Toolkit
 			loadingDestinationSummary = content.Q<Label>("workflow-loading-destination");
 			messageLabel = content.Q<Label>("workflow-message");
 
-			if (inboundButton == null || outboundButton == null || policyButtonControl == null || policyButton == null ||
-				inboundTab == null || outboundTab == null || policyTab == null ||
+			if (monitorButton == null || inboundButton == null || outboundButton == null ||
+				policyButtonControl == null || policyButton == null ||
+				monitorTab == null || inboundTab == null || outboundTab == null || policyTab == null ||
 				addLandingAreaButton == null || linkLandingAreaButton == null || landingAreaList == null ||
 				landingAreaEmpty == null || unloadingDestinationSummary == null || collectingPolicyControl == null ||
 				collectingPolicyField == null || placingPolicyControl == null || placingPolicyField == null ||
@@ -182,6 +197,13 @@ namespace UniverseLogistics.UI.Toolkit
 				return false;
 			}
 
+			workloadPresenter ??= new LogisticsWorkMonitorPresenter();
+			if (workloadPresenter.BindView(content) == false)
+			{
+				Debug.LogError("[WorkflowManagementWindow] Workflow Monitor UXML elements are missing.", this);
+				return false;
+			}
+
 			collectingPolicyControl.SetTooltip(BuildStoringCollectingPolicyTooltip);
 			placingPolicyControl.SetTooltip(BuildStoringPlacingPolicyTooltip);
 			storingBoxFillControl.SetTooltip(BuildStoringBoxFillTooltip);
@@ -193,6 +215,11 @@ namespace UniverseLogistics.UI.Toolkit
 			policyButtonControl.SetTooltip(BuildPolicyTabTooltip);
 			window.SetTitle("Workflow Management");
 			window.SetContent(content);
+			window.Opened -= OnWindowOpened;
+			window.Opened += OnWindowOpened;
+			window.Closed -= OnWindowClosed;
+			window.Closed += OnWindowClosed;
+			monitorButton.clicked += OpenMonitor;
 			inboundButton.clicked += OpenInbound;
 			outboundButton.clicked += OpenOutbound;
 			policyButton.clicked += OpenPolicy;
@@ -212,12 +239,19 @@ namespace UniverseLogistics.UI.Toolkit
 			outboundQualityFreshnessSlider.RegisterValueChangedCallback(OnOutboundQualityFreshnessChanged);
 			outboundQualityDamageSlider.RegisterValueChangedCallback(OnOutboundQualityDamageChanged);
 			initialized = true;
-			SelectTab(WorkflowTab.Inbound);
+			SelectTab(WorkflowTab.Monitor);
 			return true;
 		}
 
 		private void UnbindControls()
 		{
+			workloadPresenter?.UnbindView();
+			if (window != null)
+			{
+				window.Opened -= OnWindowOpened;
+				window.Closed -= OnWindowClosed;
+			}
+			if (monitorButton != null) monitorButton.clicked -= OpenMonitor;
 			if (inboundButton != null) inboundButton.clicked -= OpenInbound;
 			if (outboundButton != null) outboundButton.clicked -= OpenOutbound;
 			if (policyButton != null) policyButton.clicked -= OpenPolicy;
@@ -247,6 +281,14 @@ namespace UniverseLogistics.UI.Toolkit
 			inboundWorkflow = GameContext.Instance.IBWorkflowSvc;
 			outboundWorkflow = GameContext.Instance.OBWorkflowSvc;
 			researchService = GameContext.Instance.ResearchService;
+			workloadPresenter?.BindSources(
+				GameContext.Instance.Metrics,
+				GameContext.Instance.TaskMgr,
+				GameContext.Instance.WorkerMgr,
+				GameContext.Instance.OrderMgr,
+				GameContext.Instance.BuildingMgr,
+				GameContext.Instance.CapsuleDockSvc,
+				GameContext.Instance.GameTime);
 			if (areaManager != null)
 			{
 				areaManager.OnAreaAdded += OnAreaChanged;
@@ -260,6 +302,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void UnbindServices()
 		{
+			workloadPresenter?.UnbindSources();
 			if (areaManager != null)
 			{
 				areaManager.OnAreaAdded -= OnAreaChanged;
@@ -276,6 +319,7 @@ namespace UniverseLogistics.UI.Toolkit
 			researchService = null;
 		}
 
+		private void OpenMonitor() => SelectTab(WorkflowTab.Monitor);
 		private void OpenInbound() => SelectTab(WorkflowTab.Inbound);
 		private void OpenOutbound() => SelectTab(WorkflowTab.Outbound);
 		private void OpenPolicy()
@@ -286,20 +330,36 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void SelectTab(WorkflowTab tab)
 		{
+			selectedTab = tab;
+			bool monitor = tab == WorkflowTab.Monitor;
 			bool inbound = tab == WorkflowTab.Inbound;
 			bool outbound = tab == WorkflowTab.Outbound;
 			bool policy = tab == WorkflowTab.Policy;
+			monitorTab.style.display = monitor ? DisplayStyle.Flex : DisplayStyle.None;
 			inboundTab.style.display = inbound ? DisplayStyle.Flex : DisplayStyle.None;
 			outboundTab.style.display = outbound ? DisplayStyle.Flex : DisplayStyle.None;
 			policyTab.style.display = policy ? DisplayStyle.Flex : DisplayStyle.None;
+			monitorButton.EnableInClassList(SelectedTabClass, monitor);
 			inboundButton.EnableInClassList(SelectedTabClass, inbound);
 			outboundButton.EnableInClassList(SelectedTabClass, outbound);
 			policyButton.EnableInClassList(SelectedTabClass, policy);
+			workloadPresenter?.SetActive(monitor && window != null && window.IsOpen);
 			messageLabel.text = string.Empty;
+		}
+
+		private void OnWindowOpened()
+		{
+			workloadPresenter?.SetActive(selectedTab == WorkflowTab.Monitor);
+		}
+
+		private void OnWindowClosed()
+		{
+			workloadPresenter?.SetActive(false);
 		}
 
 		private void RefreshAll()
 		{
+			workloadPresenter?.Refresh();
 			RefreshLandingAreas();
 			RefreshDestinations();
 			RefreshPolicies();
