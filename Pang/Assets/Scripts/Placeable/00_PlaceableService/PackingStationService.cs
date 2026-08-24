@@ -133,18 +133,34 @@ public partial class PackingStationService : FacilityService<PackingStation>
 		itemQuantity = 0;
 
 		foreach (var entry in statesByBuildingId)
-		{
-			List<PackingStation> stations = entry.Value.Stations;
-			for (int i = 0; i < stations.Count; ++i)
-			{
-				BoxBase box = stations[i]?.WaitingBox?.Box;
-				if (box == null)
-					continue;
+			AccumulatePendingPackingDemand(entry.Value, ref sourceCount, ref itemQuantity);
+	}
 
-				++sourceCount;
-				foreach (var itemTotal in box.ItemTotals)
-					itemQuantity += Mathf.Max(0, itemTotal.Value);
-			}
+	public void GetPendingPackingDemand(uint buildingId, out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+		if (statesByBuildingId.TryGetValue(buildingId, out BuildingPackingState state) == false)
+			return;
+
+		AccumulatePendingPackingDemand(state, ref sourceCount, ref itemQuantity);
+	}
+
+	private static void AccumulatePendingPackingDemand(
+		BuildingPackingState state,
+		ref int sourceCount,
+		ref int itemQuantity)
+	{
+		List<PackingStation> stations = state.Stations;
+		for (int i = 0; i < stations.Count; ++i)
+		{
+			BoxBase box = stations[i]?.WaitingBox?.Box;
+			if (box == null)
+				continue;
+
+			++sourceCount;
+			foreach (var itemTotal in box.ItemTotals)
+				itemQuantity += Mathf.Max(0, itemTotal.Value);
 		}
 	}
 

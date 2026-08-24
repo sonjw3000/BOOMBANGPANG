@@ -133,18 +133,34 @@ public sealed class CapsuleRelocateCoordinator
 
 	public CapsuleRelocateDemandSnapshot GetDemandSnapshot()
 	{
+		return GetDemandSnapshot(0, filterByBuilding: false);
+	}
+
+	public CapsuleRelocateDemandSnapshot GetDemandSnapshot(uint buildingId)
+	{
+		return GetDemandSnapshot(buildingId, filterByBuilding: true);
+	}
+
+	private CapsuleRelocateDemandSnapshot GetDemandSnapshot(uint buildingId, bool filterByBuilding)
+	{
 		int sendCount = 0;
 		foreach (CapsuleRelocateSendRequest request in pendingSends)
 		{
-			if (IsSendSourceValid(request))
+			if ((filterByBuilding == false || request.SourceBuildingId == buildingId) &&
+				IsSendSourceValid(request))
+			{
 				++sendCount;
+			}
 		}
 
 		int demandCount = 0;
 		foreach (CapsuleRelocateDemand demand in pendingDemands)
 		{
-			if (IsDemandTargetValid(demand))
+			if ((filterByBuilding == false || demand.TargetBuildingId == buildingId) &&
+				IsDemandTargetValid(demand))
+			{
 				++demandCount;
+			}
 		}
 
 		return new CapsuleRelocateDemandSnapshot(sendCount, demandCount);
