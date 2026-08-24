@@ -120,6 +120,15 @@ namespace UniverseLogistics.UI.Toolkit
 			window.Open();
 		}
 
+		public void OpenMonitor()
+		{
+			if (InitializeView() == false) return;
+			if (areaManager == null) BindServices();
+			SelectTab(WorkflowTab.Monitor);
+			RefreshAll();
+			window.Open();
+		}
+
 		private bool InitializeView()
 		{
 			if (initialized) return true;
@@ -219,7 +228,7 @@ namespace UniverseLogistics.UI.Toolkit
 			window.Opened += OnWindowOpened;
 			window.Closed -= OnWindowClosed;
 			window.Closed += OnWindowClosed;
-			monitorButton.clicked += OpenMonitor;
+			monitorButton.clicked += SelectMonitor;
 			inboundButton.clicked += OpenInbound;
 			outboundButton.clicked += OpenOutbound;
 			policyButton.clicked += OpenPolicy;
@@ -251,7 +260,7 @@ namespace UniverseLogistics.UI.Toolkit
 				window.Opened -= OnWindowOpened;
 				window.Closed -= OnWindowClosed;
 			}
-			if (monitorButton != null) monitorButton.clicked -= OpenMonitor;
+			if (monitorButton != null) monitorButton.clicked -= SelectMonitor;
 			if (inboundButton != null) inboundButton.clicked -= OpenInbound;
 			if (outboundButton != null) outboundButton.clicked -= OpenOutbound;
 			if (policyButton != null) policyButton.clicked -= OpenPolicy;
@@ -319,7 +328,7 @@ namespace UniverseLogistics.UI.Toolkit
 			researchService = null;
 		}
 
-		private void OpenMonitor() => SelectTab(WorkflowTab.Monitor);
+		private void SelectMonitor() => SelectTab(WorkflowTab.Monitor);
 		private void OpenInbound() => SelectTab(WorkflowTab.Inbound);
 		private void OpenOutbound() => SelectTab(WorkflowTab.Outbound);
 		private void OpenPolicy()

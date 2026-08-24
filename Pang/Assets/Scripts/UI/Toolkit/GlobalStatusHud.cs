@@ -112,6 +112,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private PlayerInteractionWindow playerInteractionWindow;
 		private SelectionCardHud selectionCard;
 		private OrderHudPresenter orderHudPresenter;
+		private LogisticsWorkHudPresenter logisticsWorkHudPresenter;
 		private EconomyService economyService;
 		private HudEventManager hudEventManager;
 		private GameTime gameTime;
@@ -217,6 +218,8 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			orderHudPresenter?.Dispose();
 			orderHudPresenter = null;
+			logisticsWorkHudPresenter?.Dispose();
+			logisticsWorkHudPresenter = null;
 			windowFocusCoordinator?.Dispose();
 			windowFocusCoordinator = null;
 		}
@@ -670,6 +673,10 @@ namespace UniverseLogistics.UI.Toolkit
 			orderHudPresenter.ConfigureNavigation(OpenActiveOrdersManagement, OpenOrderManagementForOrder);
 			if (orderHudPresenter.BindView(root) == false)
 				Debug.LogError("[GlobalStatusHud] Order HUD UXML elements are missing.", this);
+			logisticsWorkHudPresenter ??= new LogisticsWorkHudPresenter();
+			logisticsWorkHudPresenter.ConfigureNavigation(OpenWorkflowMonitor);
+			if (logisticsWorkHudPresenter.BindView(root) == false)
+				Debug.LogError("[GlobalStatusHud] Logistics Work HUD UXML elements are missing.", this);
 			hudRoot = root;
 			leftHud = root.Q<VisualElement>(className: "left-hud");
 			timeCluster = root.Q<VisualElement>(className: "time-cluster");
@@ -749,7 +756,7 @@ namespace UniverseLogistics.UI.Toolkit
 			ordersManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Orders", "Review order progress and outbound workflow stages."));
 			workforceManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Workforce", "Review workers and available hiring candidates."));
 			buildManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Build", "Construct facilities and configure building logistics."));
-			workflowManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Workflow", "Configure inbound and outbound workflow behavior."));
+			workflowManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Workflow", "Monitor logistics work and configure inbound and outbound behavior."));
 			companyManagementButton.SetTooltip(UITooltipContent.DescriptionOnly("Company", "Review company licenses and research."));
 			ShowManagementMenu(false);
 			hudRoot.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
@@ -762,6 +769,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private void UnbindControls()
 		{
 			orderHudPresenter?.UnbindView();
+			logisticsWorkHudPresenter?.UnbindView();
 			economySummary?.UnregisterCallback<ClickEvent>(OnEconomySummaryClicked);
 			hudEventArea?.UnregisterCallback<ClickEvent>(OnHudEventAreaClicked);
 			hudRoot?.UnregisterCallback<GeometryChangedEvent>(OnHudGeometryChanged);
@@ -806,6 +814,14 @@ namespace UniverseLogistics.UI.Toolkit
 			researchService = GameContext.Instance.ResearchService;
 			scenarioObjectiveService = GameContext.Instance.ScenarioObjectiveService;
 			orderHudPresenter?.BindSources(GameContext.Instance.OrderMgr, GameContext.Instance.ItemDB, gameTime);
+			logisticsWorkHudPresenter?.BindSources(
+				GameContext.Instance.Metrics,
+				GameContext.Instance.TaskMgr,
+				GameContext.Instance.WorkerMgr,
+				GameContext.Instance.OrderMgr,
+				GameContext.Instance.BuildingMgr,
+				GameContext.Instance.CapsuleDockSvc,
+				gameTime);
 
 			if (economyService != null)
 			{
@@ -835,6 +851,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private void UnbindServices()
 		{
 			orderHudPresenter?.UnbindSources();
+			logisticsWorkHudPresenter?.UnbindSources();
 			if (economyService != null)
 			{
 				economyService.OnMoneyChanged -= OnMoneyChanged;
@@ -1029,6 +1046,12 @@ namespace UniverseLogistics.UI.Toolkit
 			workflowManagementWindow?.Open();
 		}
 
+		private void OpenWorkflowMonitor()
+		{
+			ShowManagementMenu(false);
+			workflowManagementWindow?.OpenMonitor();
+		}
+
 		private void OpenCompanyManagement()
 		{
 			ShowManagementMenu(false);
@@ -1085,6 +1108,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void RefreshAll()
 		{
+			logisticsWorkHudPresenter?.Refresh();
 			OnMoneyChanged(economyService != null ? economyService.Money : 0);
 			OnReputationChanged(economyService != null ? economyService.Reputation : 0f);
 			RefreshDate();

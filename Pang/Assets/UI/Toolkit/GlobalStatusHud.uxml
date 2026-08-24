@@ -72,6 +72,53 @@
 				<ui:Label name="scenario-objective-description" text="Objective description" class="scenario-objective__description" />
 				<ui:Label name="scenario-objective-progress" text="0 / 1" class="scenario-objective__progress" />
 			</ui:VisualElement>
+			<ui:VisualElement name="logistics-work-hud" class="logistics-work-hud logistics-work-hud--hidden" picking-mode="Position">
+				<ui:Button name="logistics-work-hud-header" class="logistics-work-hud__header">
+					<ui:Label text="LOGISTICS" class="logistics-work-hud__eyebrow" picking-mode="Ignore" />
+					<ui:VisualElement class="logistics-work-hud__header-spacer" picking-mode="Ignore" />
+					<ui:Label name="logistics-work-hud-total-waiting" text="0 WAIT" class="logistics-work-hud__total" picking-mode="Ignore" />
+					<ui:Label name="logistics-work-hud-total-active" text="0 ACTIVE" class="logistics-work-hud__total" picking-mode="Ignore" />
+					<ui:Label name="logistics-work-hud-total-blocked" text="0 BLOCK" class="logistics-work-hud__total" picking-mode="Ignore" />
+					<ui:Label text="›" class="logistics-work-hud__chevron" picking-mode="Ignore" />
+				</ui:Button>
+				<ui:VisualElement class="logistics-work-hud__body" picking-mode="Ignore">
+					<ui:VisualElement class="logistics-work-hud__columns">
+						<ui:Label text="WORK" class="logistics-work-hud__name logistics-work-hud__column" />
+						<ui:Label name="logistics-work-hud-demand-header" text="NEED" class="logistics-work-hud__value logistics-work-hud__column" />
+						<ui:Label name="logistics-work-hud-waiting-header" text="WAIT" class="logistics-work-hud__value logistics-work-hud__column" />
+						<ui:Label name="logistics-work-hud-active-header" text="RUN" class="logistics-work-hud__value logistics-work-hud__column" />
+						<ui:Label name="logistics-work-hud-blocked-header" text="BLOCK" class="logistics-work-hud__value logistics-work-hud__column" />
+					</ui:VisualElement>
+					<ui:VisualElement name="logistics-work-hud-picking-row" class="logistics-work-hud__row">
+						<ui:Label text="Picking" class="logistics-work-hud__name" />
+						<ui:Label name="logistics-work-hud-picking-demand" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-picking-waiting" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-picking-active" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-picking-blocked" text="0" class="logistics-work-hud__value logistics-work-hud__blocked-value" />
+					</ui:VisualElement>
+					<ui:VisualElement name="logistics-work-hud-storing-row" class="logistics-work-hud__row">
+						<ui:Label text="Storing" class="logistics-work-hud__name" />
+						<ui:Label name="logistics-work-hud-storing-demand" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-storing-waiting" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-storing-active" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-storing-blocked" text="0" class="logistics-work-hud__value logistics-work-hud__blocked-value" />
+					</ui:VisualElement>
+					<ui:VisualElement name="logistics-work-hud-packing-row" class="logistics-work-hud__row">
+						<ui:Label text="Packing" class="logistics-work-hud__name" />
+						<ui:Label name="logistics-work-hud-packing-demand" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-packing-waiting" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-packing-active" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-packing-blocked" text="0" class="logistics-work-hud__value logistics-work-hud__blocked-value" />
+					</ui:VisualElement>
+					<ui:VisualElement name="logistics-work-hud-capsule-relocate-row" class="logistics-work-hud__row">
+						<ui:Label text="Capsule Move" class="logistics-work-hud__name" />
+						<ui:Label name="logistics-work-hud-capsule-relocate-demand" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-capsule-relocate-waiting" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-capsule-relocate-active" text="0" class="logistics-work-hud__value" />
+						<ui:Label name="logistics-work-hud-capsule-relocate-blocked" text="0" class="logistics-work-hud__value logistics-work-hud__blocked-value" />
+					</ui:VisualElement>
+				</ui:VisualElement>
+			</ui:VisualElement>
 			<ui:VisualElement name="economy-summary" class="economy-summary" picking-mode="Position">
 				<ui:VisualElement class="status-item">
 					<ui:Label text="FUNDS" class="status-label" />
