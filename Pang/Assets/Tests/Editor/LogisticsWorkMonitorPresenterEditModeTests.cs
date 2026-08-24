@@ -1,12 +1,14 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 using UniverseLogistics.UI.Toolkit;
 
 public sealed class LogisticsWorkMonitorPresenterEditModeTests
 {
 	private const string ContentAssetPath = "Assets/UI/Toolkit/WorkflowManagementContent.uxml";
+	private const string PanelSettingsAssetPath = "Assets/Scripts/UI/Toolkit/New Panel Settings.asset";
 
 	[Test]
 	public void WorkflowTemplate_ContainsBindableFixedMonitorRows()
@@ -17,6 +19,7 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 		Assert.That(presenter.BindView(root), Is.True);
 		Assert.That(root.Q<Button>("workflow-monitor-button"), Is.Not.Null);
 		Assert.That(root.Q<VisualElement>("workflow-monitor-tab"), Is.Not.Null);
+		Assert.That(root.Q<DropdownField>("workflow-monitor-building-scope"), Is.Not.Null);
 
 		string[] prefixes =
 		{
@@ -41,6 +44,95 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 		}
 
 		presenter.Dispose();
+	}
+
+	[Test]
+	public void BuildingScope_ListsBuildingsWithUniqueLabelsAndPassesSelectedIdToResolvers()
+	{
+		GameObject managerObject = new("LogisticsWorkMonitorPresenterEditModeTests.BuildingManager");
+		GameObject documentObject = null;
+		LogisticsWorkMonitorPresenter presenter = new();
+		try
+		{
+			BuildingManager buildingManager = managerObject.AddComponent<BuildingManager>();
+			Building firstDepot = new("Depot", new List<GridCell>(), BuildingType.Storage);
+			Building secondDepot = new("Depot", new List<GridCell>(), BuildingType.Storage);
+			buildingManager.Register(firstDepot);
+			buildingManager.Register(secondDepot);
+
+			VisualElement root = LoadAttachedRoot(out documentObject);
+			Assert.That(presenter.BindView(root), Is.True);
+			presenter.BindSources(null, null, null, null, buildingManager, null, null);
+
+			DropdownField scope = root.Q<DropdownField>("workflow-monitor-building-scope");
+			Assert.That(scope.choices, Is.EqualTo(new[]
+			{
+				"All Buildings",
+				"Hub / Unassigned",
+				$"Depot · Storage · #{firstDepot.RuntimeBuildingId}",
+				$"Depot · Storage · #{secondDepot.RuntimeBuildingId}",
+			}));
+
+			AssertRenderScope(presenter, null);
+			scope.index = 1;
+			Assert.That(scope.value, Is.EqualTo("Hub / Unassigned"));
+			AssertRenderScope(presenter, 0);
+			scope.index = 3;
+			Assert.That(scope.value, Is.EqualTo($"Depot · Storage · #{secondDepot.RuntimeBuildingId}"));
+			AssertRenderScope(presenter, secondDepot.RuntimeBuildingId);
+			Assert.That(presenter.TrySelectBuildingScope(firstDepot.RuntimeBuildingId), Is.True);
+			AssertRenderScope(presenter, firstDepot.RuntimeBuildingId);
+			Assert.That(presenter.TrySelectBuildingScope(uint.MaxValue), Is.False);
+			AssertRenderScope(presenter, firstDepot.RuntimeBuildingId);
+			Assert.That(presenter.TrySelectBuildingScope(secondDepot.RuntimeBuildingId), Is.True);
+
+			buildingManager.Unregister(firstDepot);
+			AssertRenderScope(presenter, secondDepot.RuntimeBuildingId);
+			Assert.That(scope.value, Is.EqualTo($"Depot · Storage · #{secondDepot.RuntimeBuildingId}"));
+			Assert.That(scope.index, Is.EqualTo(2));
+		}
+		finally
+		{
+			presenter.Dispose();
+			if (documentObject != null)
+				UnityEngine.Object.DestroyImmediate(documentObject);
+			UnityEngine.Object.DestroyImmediate(managerObject);
+		}
+	}
+
+	[Test]
+	public void BuildingScope_WhenSelectedBuildingIsRemoved_FallsBackToAllBuildings()
+	{
+		GameObject managerObject = new("LogisticsWorkMonitorPresenterEditModeTests.BuildingManager");
+		GameObject documentObject = null;
+		LogisticsWorkMonitorPresenter presenter = new();
+		try
+		{
+			BuildingManager buildingManager = managerObject.AddComponent<BuildingManager>();
+			Building storage = new("Storage Alpha", new List<GridCell>(), BuildingType.Storage);
+			buildingManager.Register(storage);
+
+			VisualElement root = LoadAttachedRoot(out documentObject);
+			Assert.That(presenter.BindView(root), Is.True);
+			presenter.BindSources(null, null, null, null, buildingManager, null, null);
+			DropdownField scope = root.Q<DropdownField>("workflow-monitor-building-scope");
+			scope.index = 2;
+			AssertRenderScope(presenter, storage.RuntimeBuildingId);
+
+			buildingManager.Unregister(storage);
+
+			Assert.That(scope.value, Is.EqualTo("All Buildings"));
+			Assert.That(scope.index, Is.Zero);
+			Assert.That(scope.choices, Is.EqualTo(new[] { "All Buildings", "Hub / Unassigned" }));
+			AssertRenderScope(presenter, null);
+		}
+		finally
+		{
+			presenter.Dispose();
+			if (documentObject != null)
+				UnityEngine.Object.DestroyImmediate(documentObject);
+			UnityEngine.Object.DestroyImmediate(managerObject);
+		}
 	}
 
 	[Test]
@@ -106,5 +198,42 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 		VisualTreeAsset template = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(ContentAssetPath);
 		Assert.That(template, Is.Not.Null);
 		return template.CloneTree();
+	}
+
+	private static VisualElement LoadAttachedRoot(out GameObject documentObject)
+	{
+		VisualTreeAsset template = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(ContentAssetPath);
+		PanelSettings panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(PanelSettingsAssetPath);
+		Assert.That(template, Is.Not.Null);
+		Assert.That(panelSettings, Is.Not.Null);
+
+		documentObject = new GameObject("Logistics Work Monitor UI Test");
+		documentObject.SetActive(false);
+		UIDocument document = documentObject.AddComponent<UIDocument>();
+		document.panelSettings = panelSettings;
+		document.visualTreeAsset = template;
+		documentObject.SetActive(true);
+		Assert.That(document.rootVisualElement.panel, Is.Not.Null);
+		return document.rootVisualElement;
+	}
+
+	private static void AssertRenderScope(LogisticsWorkMonitorPresenter presenter, uint? expectedBuildingId)
+	{
+		uint? demandBuildingId = uint.MaxValue;
+		uint? taskBuildingId = uint.MaxValue;
+		presenter.Render(
+			(_, buildingId) =>
+			{
+				demandBuildingId = buildingId;
+				return default;
+			},
+			(_, buildingId) =>
+			{
+				taskBuildingId = buildingId;
+				return default;
+			});
+
+		Assert.That(demandBuildingId, Is.EqualTo(expectedBuildingId));
+		Assert.That(taskBuildingId, Is.EqualTo(expectedBuildingId));
 	}
 }

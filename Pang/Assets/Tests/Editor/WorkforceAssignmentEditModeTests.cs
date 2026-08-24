@@ -808,6 +808,22 @@ public sealed class WorkforceAssignmentEditModeTests
 		Assert.That(model.Tabs[0].GetContentVersion(), Is.Not.EqualTo(versionBeforeDeath));
 		SelectionDetailPanelModel panelAfterDeath = model.Tabs[0].BuildContent();
 		AssertWorkforceRow(panelAfterDeath.Rows[0], "Storing", "0");
+
+		SelectionInspectorAction workMonitorAction = null;
+		for (int i = 0; i < model.Actions.Count; ++i)
+		{
+			if (model.Actions[i].Label == "Work Monitor")
+			{
+				workMonitorAction = model.Actions[i];
+				break;
+			}
+		}
+
+		Assert.That(workMonitorAction, Is.Not.Null);
+		Assert.That(workMonitorAction.Execute, Is.Not.Null);
+		Assert.That(workMonitorAction.CanExecute?.Invoke(), Is.True);
+		buildingManager.Unregister(storage);
+		Assert.That(workMonitorAction.CanExecute?.Invoke(), Is.False);
 	}
 
 	[Test]

@@ -13,9 +13,14 @@ public sealed class TaskMetricsEditModeTests
 	private TaskManager taskManager;
 	private MetricsService metrics;
 	private WorkerManager workerManager;
+	private BuildingManager buildingManager;
+	private FacilityManager facilityManager;
+	private OutboundWorkflowService outboundWorkflow;
+	private PackingStationService packingStationService;
 	private ProcessStatsCollector processStats;
 	private RestFacilityService restFacilityService;
 	private int nextWorkerPosition;
+	private int nextTaskObjectId;
 
 	[SetUp]
 	public void SetUp()
@@ -26,11 +31,18 @@ public sealed class TaskMetricsEditModeTests
 		taskManager = CreateComponent<TaskManager>("Task Metrics Test Task Manager");
 		metrics = CreateComponent<MetricsService>("Task Metrics Test Metrics Service");
 		workerManager = CreateComponent<WorkerManager>("Task Metrics Test Worker Manager");
+		buildingManager = CreateComponent<BuildingManager>("Task Metrics Test Building Manager");
+		facilityManager = CreateComponent<FacilityManager>("Task Metrics Test Facility Manager");
+		outboundWorkflow = CreateGameObject("Task Metrics Test Outbound Workflow", active: false)
+			.AddComponent<OutboundWorkflowService>();
+		packingStationService = CreateGameObject("Task Metrics Test Packing Station Service", active: false)
+			.AddComponent<PackingStationService>();
 		processStats = CreateComponent<ProcessStatsCollector>("Task Metrics Test Process Stats");
 		restFacilityService = CreateComponent<RestFacilityService>("Task Metrics Test Rest Facility Service");
 
 		InvokeNonPublic(typeof(TaskManager), taskManager, "Awake");
 		InvokeNonPublic(typeof(WorkerManager), workerManager, "Awake");
+		InvokeNonPublic(typeof(BuildingManager), buildingManager, "Awake");
 		InvokeNonPublic(typeof(ProcessStatsCollector), processStats, "Awake");
 
 		GameObject contextObject = CreateGameObject("Task Metrics Test Context", active: false);
@@ -38,10 +50,19 @@ public sealed class TaskMetricsEditModeTests
 		SetPrivateField(typeof(GameContext), context, "taskManager", taskManager);
 		SetPrivateField(typeof(GameContext), context, "metrics", metrics);
 		SetPrivateField(typeof(GameContext), context, "workerManager", workerManager);
+		SetPrivateField(typeof(GameContext), context, "buildingManager", buildingManager);
+		SetPrivateField(typeof(GameContext), context, "facilityManager", facilityManager);
+		SetPrivateField(typeof(GameContext), context, "outboundWorkflowService", outboundWorkflow);
 		SetPrivateField(typeof(GameContext), context, "processStats", processStats);
 		SetPrivateField(typeof(GameContext), context, "restFacilityService", restFacilityService);
+		SetPrivateField(
+			typeof(OutboundWorkflowService),
+			outboundWorkflow,
+			"packingStationService",
+			packingStationService);
 		SetPrivateStaticField(typeof(GameContext), "instance", context);
 		nextWorkerPosition = 10;
+		nextTaskObjectId = 1;
 	}
 
 	[TearDown]
@@ -101,6 +122,162 @@ public sealed class TaskMetricsEditModeTests
 		Assert.That(snapshot.Active, Is.EqualTo(1));
 		Assert.That(snapshot.Blocked, Is.EqualTo(1));
 		Assert.That(snapshot.Total, Is.EqualTo(3));
+	}
+
+	[Test]
+	public void GetTaskCountSnapshot_BuildingScopePartitionsAllLogisticsCategories()
+	{
+		PackingBuilding firstBuilding = new("First Task Metrics Building", new List<GridCell>());
+		PackingBuilding secondBuilding = new("Second Task Metrics Building", new List<GridCell>());
+		buildingManager.Register(firstBuilding);
+		buildingManager.Register(secondBuilding);
+
+		foreach (LogisticsWorkCategory category in Enum.GetValues(typeof(LogisticsWorkCategory)))
+		{
+			taskManager.EnqueueTask(CreateLogisticsTask(category, firstBuilding.RuntimeBuildingId));
+			taskManager.AddRestoredReturnedTask(CreateLogisticsTask(category, secondBuilding.RuntimeBuildingId));
+			AddActiveTask(
+				CreateLogisticsTask(category, firstBuilding.RuntimeBuildingId),
+				WorkerStatusAction.Working);
+			AddActiveTask(
+				CreateLogisticsTask(category, secondBuilding.RuntimeBuildingId),
+				WorkerStatusAction.WaitingForItems);
+			taskManager.EnqueueTask(CreateLogisticsTask(category, 0));
+
+			int expectedAllReady = 2;
+			int expectedUnassignedReady = 1;
+			if (category == LogisticsWorkCategory.CapsuleRelocate)
+			{
+				taskManager.EnqueueTask(CreateLogisticsTask(category, uint.MaxValue));
+				expectedAllReady = 3;
+				expectedUnassignedReady = 2;
+			}
+
+			AssertTaskSnapshot(
+				metrics.GetTaskCountSnapshot(category),
+				expectedAllReady,
+				1,
+				2,
+				1,
+				$"{category} all");
+			AssertTaskSnapshot(
+				metrics.GetTaskCountSnapshot(category, firstBuilding.RuntimeBuildingId),
+				1,
+				0,
+				1,
+				0,
+				$"{category} first building");
+			AssertTaskSnapshot(
+				metrics.GetTaskCountSnapshot(category, secondBuilding.RuntimeBuildingId),
+				0,
+				1,
+				1,
+				1,
+				$"{category} second building");
+			AssertTaskSnapshot(
+				metrics.GetTaskCountSnapshot(category, 0),
+				expectedUnassignedReady,
+				0,
+				0,
+				0,
+				$"{category} Hub / Unassigned");
+			AssertTaskSnapshot(
+				metrics.GetTaskCountSnapshot(category, uint.MaxValue),
+				0,
+				0,
+				0,
+				0,
+				$"{category} unknown building query");
+			AssertTaskPartition(category);
+		}
+	}
+
+	[Test]
+	public void GetTaskCountSnapshot_BuildingScopeSupportsLegacyTaskOwnership()
+	{
+		StorageBuilding firstBuilding = new("Legacy Picking Task Building", new List<GridCell>());
+		StorageBuilding secondBuilding = new("Legacy Storing Task Building", new List<GridCell>());
+		buildingManager.Register(firstBuilding);
+		buildingManager.Register(secondBuilding);
+
+		taskManager.EnqueueTask(new PickingTask(null, firstBuilding.RuntimeBuildingId));
+		taskManager.EnqueueTask(new StoringTask(null, secondBuilding.RuntimeBuildingId));
+		taskManager.EnqueueTask(new CapsuleRelocationTask(
+			WorkerTask.TaskType.Storing,
+			null,
+			null,
+			firstBuilding.RuntimeBuildingId,
+			CapsuleRelocationReason.StateMismatch));
+		taskManager.EnqueueTask(new TestWorkerTask(WorkerTask.TaskType.Picking));
+
+		AssertTaskSnapshot(
+			metrics.GetTaskCountSnapshot(LogisticsWorkCategory.Picking, firstBuilding.RuntimeBuildingId),
+			1,
+			0,
+			0,
+			0,
+			"Legacy Picking building");
+		AssertTaskSnapshot(
+			metrics.GetTaskCountSnapshot(LogisticsWorkCategory.Picking, 0),
+			1,
+			0,
+			0,
+			0,
+			"Unsupported Picking concrete is unassigned");
+		AssertTaskSnapshot(
+			metrics.GetTaskCountSnapshot(LogisticsWorkCategory.Storing, firstBuilding.RuntimeBuildingId),
+			1,
+			0,
+			0,
+			0,
+			"Legacy Capsule task also keeps its Storing type");
+		AssertTaskSnapshot(
+			metrics.GetTaskCountSnapshot(LogisticsWorkCategory.Storing, secondBuilding.RuntimeBuildingId),
+			1,
+			0,
+			0,
+			0,
+			"Legacy Storing building");
+		AssertTaskSnapshot(
+			metrics.GetTaskCountSnapshot(LogisticsWorkCategory.CapsuleRelocate, firstBuilding.RuntimeBuildingId),
+			1,
+			0,
+			0,
+			0,
+			"Legacy Capsule concrete category");
+
+		AssertTaskPartition(LogisticsWorkCategory.Picking);
+		AssertTaskPartition(LogisticsWorkCategory.Storing);
+		AssertTaskPartition(LogisticsWorkCategory.CapsuleRelocate);
+	}
+
+	[Test]
+	public void GetTaskCountSnapshot_UnassignedActiveTaskDoesNotUseWorkerAffiliation()
+	{
+		StorageBuilding building = new("Worker Affiliation Task Metrics Building", new List<GridCell>());
+		buildingManager.Register(building);
+		ItemTransferTask task = CreateItemTransferTask(WorkerTask.TaskType.Picking, 0);
+		HumanWorker worker = CreateWorker();
+		worker.SetPrimaryBuildingId(building.RuntimeBuildingId);
+		Assert.That(worker.SetTask(task), Is.True);
+		worker.SetWorkerAction(WorkerStatusAction.WaitingForItems);
+		taskManager.AddRestoredInProgressTask(task);
+
+		AssertTaskSnapshot(
+			metrics.GetTaskCountSnapshot(LogisticsWorkCategory.Picking, building.RuntimeBuildingId),
+			0,
+			0,
+			0,
+			0,
+			"Worker affiliation is not task ownership");
+		AssertTaskSnapshot(
+			metrics.GetTaskCountSnapshot(LogisticsWorkCategory.Picking, 0),
+			0,
+			0,
+			1,
+			1,
+			"Unassigned active task");
+		AssertTaskPartition(LogisticsWorkCategory.Picking);
 	}
 
 	[Test]
@@ -174,6 +351,92 @@ public sealed class TaskMetricsEditModeTests
 		worker.SetWorkerAction(action);
 		taskManager.AddRestoredInProgressTask(task);
 		return worker;
+	}
+
+	private WorkerTask CreateLogisticsTask(LogisticsWorkCategory category, uint buildingId)
+	{
+		return category switch
+		{
+			LogisticsWorkCategory.Picking => CreateItemTransferTask(WorkerTask.TaskType.Picking, buildingId),
+			LogisticsWorkCategory.Storing => CreateItemTransferTask(WorkerTask.TaskType.Storing, buildingId),
+			LogisticsWorkCategory.PackingInput => CreateItemTransferTask(WorkerTask.TaskType.PackingInput, buildingId),
+			LogisticsWorkCategory.Packing => CreatePackingTask(buildingId),
+			LogisticsWorkCategory.PackingOutput => CreateItemTransferTask(WorkerTask.TaskType.PackingOutput, buildingId),
+			LogisticsWorkCategory.CapsuleRelocate => new CapsuleRelocationTask(
+				WorkerTask.TaskType.CargoTransfer,
+				null,
+				null,
+				buildingId,
+				CapsuleRelocationReason.StateMismatch),
+			_ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
+		};
+	}
+
+	private static ItemTransferTask CreateItemTransferTask(WorkerTask.TaskType taskType, uint buildingId)
+	{
+		return new ItemTransferTask(
+			taskType,
+			new ItemTransferJob(
+				null,
+				TransferObjectType.Item,
+				TransferObjectType.Item,
+				buildingId));
+	}
+
+	private PackingTask CreatePackingTask(uint buildingId)
+	{
+		PackingStation station = CreateGameObject(
+			$"Task Metrics Packing Station {nextTaskObjectId++}",
+			active: false).AddComponent<PackingStation>();
+		if (buildingId != 0)
+			facilityManager.RegisterFacility(buildingId, station);
+
+		return new PackingTask(station);
+	}
+
+	private void AssertTaskPartition(LogisticsWorkCategory category)
+	{
+		TaskCountSnapshot all = metrics.GetTaskCountSnapshot(category);
+		TaskCountSnapshot unassigned = metrics.GetTaskCountSnapshot(category, 0);
+		int ready = unassigned.Ready;
+		int returned = unassigned.Returned;
+		int active = unassigned.Active;
+		int blocked = unassigned.Blocked;
+
+		for (int i = 0; i < buildingManager.RegisteredBuildings.Count; ++i)
+		{
+			Building building = buildingManager.RegisteredBuildings[i];
+			if (building == null)
+				continue;
+
+			TaskCountSnapshot buildingTasks =
+				metrics.GetTaskCountSnapshot(category, building.RuntimeBuildingId);
+			ready += buildingTasks.Ready;
+			returned += buildingTasks.Returned;
+			active += buildingTasks.Active;
+			blocked += buildingTasks.Blocked;
+		}
+
+		Assert.That(ready, Is.EqualTo(all.Ready), $"{category} Ready partition");
+		Assert.That(returned, Is.EqualTo(all.Returned), $"{category} Returned partition");
+		Assert.That(active, Is.EqualTo(all.Active), $"{category} Active partition");
+		Assert.That(blocked, Is.EqualTo(all.Blocked), $"{category} Blocked partition");
+	}
+
+	private static void AssertTaskSnapshot(
+		TaskCountSnapshot snapshot,
+		int ready,
+		int returned,
+		int active,
+		int blocked,
+		string scope)
+	{
+		Assert.That(snapshot.Ready, Is.EqualTo(ready), $"{scope} Ready");
+		Assert.That(snapshot.Returned, Is.EqualTo(returned), $"{scope} Returned");
+		Assert.That(snapshot.Active, Is.EqualTo(active), $"{scope} Active");
+		Assert.That(snapshot.Blocked, Is.EqualTo(blocked), $"{scope} Blocked");
+		Assert.That(snapshot.Waiting, Is.EqualTo(ready + returned), $"{scope} Waiting");
+		Assert.That(snapshot.Total, Is.EqualTo(ready + returned + active), $"{scope} Total");
 	}
 
 	private static CapsuleRelocationTask CreateCapsuleTask(WorkerTask.TaskType taskType)

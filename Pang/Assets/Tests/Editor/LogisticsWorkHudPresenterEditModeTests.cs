@@ -30,6 +30,9 @@ public sealed class LogisticsWorkHudPresenterEditModeTests
 
 		Assert.That(presenter.BindView(root), Is.True);
 		Assert.That(root.Q<Button>("logistics-work-hud-header"), Is.Not.Null);
+		Assert.That(root.Q<Button>("logistics-work-hud-bottleneck"), Is.Not.Null);
+		Assert.That(root.Q<Label>("logistics-work-hud-bottleneck-building"), Is.Not.Null);
+		Assert.That(root.Q<Label>("logistics-work-hud-bottleneck-status"), Is.Not.Null);
 
 		string[] prefixes =
 		{
@@ -48,6 +51,92 @@ public sealed class LogisticsWorkHudPresenterEditModeTests
 			Assert.That(root.Q<Label>($"{prefix}-active"), Is.Not.Null, prefix);
 			Assert.That(root.Q<Label>($"{prefix}-blocked"), Is.Not.Null, prefix);
 		}
+
+		presenter.Dispose();
+	}
+
+	[Test]
+	public void RenderBuildingBottleneck_UsesExplicitRiskTiersAndStableTieBreaks()
+	{
+		TemplateContainer root = LoadRoot();
+		LogisticsWorkHudPresenter presenter = new();
+		Assert.That(presenter.BindView(root), Is.True);
+		Building first = new("First Storage", new List<GridCell>(), BuildingType.Storage);
+		Building second = new("Second Storage", new List<GridCell>(), BuildingType.Storage);
+		Building third = new("Third Storage", new List<GridCell>(), BuildingType.Storage);
+		BuildingManager manager = CreateBuildingManager(first, second, third);
+		Dictionary<(LogisticsWorkCategory, uint), WorkDemandSnapshot> demands = new();
+		Dictionary<(LogisticsWorkCategory, uint), TaskCountSnapshot> tasks = new();
+
+		WorkDemandSnapshot ResolveDemand(LogisticsWorkCategory category, uint buildingId) =>
+			demands.TryGetValue((category, buildingId), out WorkDemandSnapshot value) ? value : default;
+		TaskCountSnapshot ResolveTasks(LogisticsWorkCategory category, uint buildingId) =>
+			tasks.TryGetValue((category, buildingId), out TaskCountSnapshot value) ? value : default;
+
+		tasks[(LogisticsWorkCategory.Picking, first.RuntimeBuildingId)] = new TaskCountSnapshot(1, 0, 2, 2);
+		tasks[(LogisticsWorkCategory.PackingInput, second.RuntimeBuildingId)] = new TaskCountSnapshot(2, 0, 1, 1);
+		tasks[(LogisticsWorkCategory.PackingOutput, second.RuntimeBuildingId)] = new TaskCountSnapshot(2, 0, 1, 1);
+		tasks[(LogisticsWorkCategory.Picking, third.RuntimeBuildingId)] = new TaskCountSnapshot(0, 9, 0, 0);
+		presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, ResolveDemand, ResolveTasks);
+		AssertBottleneck(root, $"Second Storage · #{second.RuntimeBuildingId}", "2 BLOCK", danger: true);
+
+		tasks.Clear();
+		demands.Clear();
+		tasks[(LogisticsWorkCategory.Picking, first.RuntimeBuildingId)] = new TaskCountSnapshot(0, 2, 0, 0);
+		demands[(LogisticsWorkCategory.Storing, second.RuntimeBuildingId)] = new WorkDemandSnapshot(50, 500);
+		tasks[(LogisticsWorkCategory.Picking, third.RuntimeBuildingId)] = new TaskCountSnapshot(100, 0, 0, 0);
+		presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, ResolveDemand, ResolveTasks);
+		AssertBottleneck(root, $"First Storage · #{first.RuntimeBuildingId}", "2 RETURN", warning: true);
+
+		tasks.Clear();
+		demands.Clear();
+		demands[(LogisticsWorkCategory.Storing, second.RuntimeBuildingId)] = new WorkDemandSnapshot(5, 500);
+		tasks[(LogisticsWorkCategory.Picking, third.RuntimeBuildingId)] = new TaskCountSnapshot(100, 0, 0, 0);
+		presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, ResolveDemand, ResolveTasks);
+		AssertBottleneck(root, $"Second Storage · #{second.RuntimeBuildingId}", "5 NEED", warning: true);
+
+		tasks.Clear();
+		demands.Clear();
+		tasks[(LogisticsWorkCategory.Picking, first.RuntimeBuildingId)] = new TaskCountSnapshot(100, 0, 0, 0);
+		tasks[(LogisticsWorkCategory.Picking, third.RuntimeBuildingId)] = new TaskCountSnapshot(100, 0, 0, 0);
+		presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, ResolveDemand, ResolveTasks);
+		AssertBottleneck(root, $"First Storage · #{first.RuntimeBuildingId}", "100 WAIT");
+
+		tasks.Clear();
+		tasks[(LogisticsWorkCategory.Picking, first.RuntimeBuildingId)] = new TaskCountSnapshot(0, 0, 10, 0);
+		presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, ResolveDemand, ResolveTasks);
+		Button bottleneck = root.Q<Button>("logistics-work-hud-bottleneck");
+		Assert.That(bottleneck.ClassListContains("logistics-work-hud__bottleneck--hidden"), Is.True);
+		Assert.That(bottleneck.enabledSelf, Is.False);
+
+		presenter.Dispose();
+	}
+
+	[Test]
+	public void RenderBuildingBottleneck_KeepsUnservedDemandSeparatePerCategory()
+	{
+		TemplateContainer root = LoadRoot();
+		LogisticsWorkHudPresenter presenter = new();
+		Assert.That(presenter.BindView(root), Is.True);
+		Building building = new("Mixed Work Storage", new List<GridCell>(), BuildingType.Storage);
+		BuildingManager manager = CreateBuildingManager(building);
+
+		presenter.RenderBuildingBottleneck(
+			manager.RegisteredBuildings,
+			(category, buildingId) =>
+				category == LogisticsWorkCategory.Storing && buildingId == building.RuntimeBuildingId
+					? new WorkDemandSnapshot(5, 500)
+					: default,
+			(category, buildingId) =>
+				category == LogisticsWorkCategory.Picking && buildingId == building.RuntimeBuildingId
+					? new TaskCountSnapshot(1, 0, 1, 0)
+					: default);
+
+		AssertBottleneck(
+			root,
+			$"Mixed Work Storage · #{building.RuntimeBuildingId}",
+			"5 NEED",
+			warning: true);
 
 		presenter.Dispose();
 	}
@@ -120,25 +209,45 @@ public sealed class LogisticsWorkHudPresenterEditModeTests
 	}
 
 	[Test]
-	public void NavigationSubmit_OpensMonitorOnceAndUnbindsCleanly()
+	public void NavigationSubmit_SeparatesAllAndBuildingMonitorAndUnbindsCleanly()
 	{
 		VisualElement root = CreateHudPanelRoot();
 		LogisticsWorkHudPresenter presenter = new();
-		int openCount = 0;
-		presenter.ConfigureNavigation(() => ++openCount);
+		Building building = new("Navigation Storage", new List<GridCell>(), BuildingType.Storage);
+		BuildingManager manager = CreateBuildingManager(building);
+		int openAllCount = 0;
+		int openBuildingCount = 0;
+		uint openedBuildingId = 0;
+		presenter.ConfigureNavigation(
+			() => ++openAllCount,
+			buildingId =>
+			{
+				openBuildingCount += 1;
+				openedBuildingId = buildingId;
+			});
 		Assert.That(presenter.BindView(root), Is.True);
+		RenderWaitingBottleneck(presenter, manager, building.RuntimeBuildingId);
 
 		Button header = root.Q<Button>("logistics-work-hud-header");
+		Button bottleneck = root.Q<Button>("logistics-work-hud-bottleneck");
 		Submit(header);
-		Assert.That(openCount, Is.EqualTo(1));
+		Submit(bottleneck);
+		Assert.That(openAllCount, Is.EqualTo(1));
+		Assert.That(openBuildingCount, Is.EqualTo(1));
+		Assert.That(openedBuildingId, Is.EqualTo(building.RuntimeBuildingId));
 
 		Assert.That(presenter.BindView(root), Is.True);
+		RenderWaitingBottleneck(presenter, manager, building.RuntimeBuildingId);
 		Submit(header);
-		Assert.That(openCount, Is.EqualTo(2));
+		Submit(bottleneck);
+		Assert.That(openAllCount, Is.EqualTo(2));
+		Assert.That(openBuildingCount, Is.EqualTo(2));
 
 		presenter.UnbindView();
 		Submit(header);
-		Assert.That(openCount, Is.EqualTo(2));
+		Submit(bottleneck);
+		Assert.That(openAllCount, Is.EqualTo(2));
+		Assert.That(openBuildingCount, Is.EqualTo(2));
 
 		presenter.Dispose();
 	}
@@ -164,6 +273,45 @@ public sealed class LogisticsWorkHudPresenterEditModeTests
 		VisualTreeAsset template = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(HudAssetPath);
 		Assert.That(template, Is.Not.Null);
 		return template.CloneTree();
+	}
+
+	private BuildingManager CreateBuildingManager(params Building[] buildings)
+	{
+		GameObject managerObject = new("Logistics Work HUD Test Building Manager");
+		createdObjects.Add(managerObject);
+		BuildingManager manager = managerObject.AddComponent<BuildingManager>();
+		for (int i = 0; i < buildings.Length; ++i)
+			manager.Register(buildings[i]);
+		return manager;
+	}
+
+	private static void RenderWaitingBottleneck(
+		LogisticsWorkHudPresenter presenter,
+		BuildingManager manager,
+		uint buildingId)
+	{
+		presenter.RenderBuildingBottleneck(
+			manager.RegisteredBuildings,
+			(_, _) => default,
+			(category, candidateBuildingId) =>
+				category == LogisticsWorkCategory.Picking && candidateBuildingId == buildingId
+					? new TaskCountSnapshot(1, 0, 0, 0)
+					: default);
+	}
+
+	private static void AssertBottleneck(
+		VisualElement root,
+		string expectedBuilding,
+		string expectedStatus,
+		bool danger = false,
+		bool warning = false)
+	{
+		Button bottleneck = root.Q<Button>("logistics-work-hud-bottleneck");
+		Assert.That(bottleneck.ClassListContains("logistics-work-hud__bottleneck--hidden"), Is.False);
+		Assert.That(bottleneck.ClassListContains("logistics-work-hud__bottleneck--danger"), Is.EqualTo(danger));
+		Assert.That(bottleneck.ClassListContains("logistics-work-hud__bottleneck--warning"), Is.EqualTo(warning));
+		Assert.That(root.Q<Label>("logistics-work-hud-bottleneck-building").text, Is.EqualTo(expectedBuilding));
+		Assert.That(root.Q<Label>("logistics-work-hud-bottleneck-status").text, Is.EqualTo(expectedStatus));
 	}
 
 	private VisualElement CreateHudPanelRoot()
