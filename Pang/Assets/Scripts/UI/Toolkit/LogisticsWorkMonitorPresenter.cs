@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine.UIElements;
 
 namespace UniverseLogistics.UI.Toolkit
@@ -7,6 +8,8 @@ namespace UniverseLogistics.UI.Toolkit
 	{
 		private const string ReturnedWarningClass = "workflow-monitor-value--warning";
 		private const string BlockedDangerClass = "workflow-monitor-value--danger";
+		private const string AllBuildingsLabel = "All Buildings";
+		private const string HubUnassignedLabel = "Hub / Unassigned";
 
 		private readonly struct RowDefinition
 		{
@@ -54,8 +57,10 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			new(), new(), new(), new(), new(), new(),
 		};
+		private readonly List<uint?> scopeBuildingIds = new();
 
 		private VisualElement monitorRoot;
+		private DropdownField buildingScopeField;
 		private MetricsService metricsService;
 		private TaskManager taskManager;
 		private WorkerManager workerManager;
@@ -63,6 +68,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private BuildingManager buildingManager;
 		private CapsuleDockService capsuleDockService;
 		private GameTime gameTime;
+		private uint? selectedBuildingId;
 		private bool active;
 
 		public bool BindView(VisualElement documentRoot)
@@ -72,6 +78,7 @@ namespace UniverseLogistics.UI.Toolkit
 				return false;
 
 			monitorRoot = documentRoot.Q<VisualElement>("workflow-monitor-tab");
+			buildingScopeField = documentRoot.Q<DropdownField>("workflow-monitor-building-scope");
 			for (int i = 0; i < RowDefinitions.Length; ++i)
 			{
 				string prefix = $"workflow-monitor-{RowDefinitions[i].ElementPrefix}";
@@ -85,7 +92,7 @@ namespace UniverseLogistics.UI.Toolkit
 				row.Blocked = documentRoot.Q<Label>($"{prefix}-blocked");
 			}
 
-			if (monitorRoot == null)
+			if (monitorRoot == null || buildingScopeField == null)
 			{
 				UnbindView();
 				return false;
@@ -100,12 +107,17 @@ namespace UniverseLogistics.UI.Toolkit
 				return false;
 			}
 
+			buildingScopeField.RegisterValueChangedCallback(OnBuildingScopeChanged);
+			RefreshBuildingScopeField();
 			ConfigureTooltips(documentRoot);
 			return true;
 		}
 
 		public void UnbindView()
 		{
+			buildingScopeField?.UnregisterValueChangedCallback(OnBuildingScopeChanged);
+			buildingScopeField = null;
+			scopeBuildingIds.Clear();
 			monitorRoot = null;
 			for (int i = 0; i < rows.Length; ++i)
 			{
@@ -144,7 +156,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (orderManager != null)
 				orderManager.OnOrdersChanged += OnSourceChanged;
 			if (buildingManager != null)
-				buildingManager.OnBuildingsChanged += OnSourceChanged;
+				buildingManager.OnBuildingsChanged += OnBuildingsChanged;
 			if (capsuleDockService != null)
 			{
 				capsuleDockService.OnCapsuleDocked += OnCapsuleDockChanged;
@@ -157,6 +169,7 @@ namespace UniverseLogistics.UI.Toolkit
 				gameTime.OnTimeScaleChanged += OnTimeScaleChanged;
 			}
 
+			RefreshBuildingScopeField();
 			if (active)
 				Refresh();
 		}
@@ -170,7 +183,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (orderManager != null)
 				orderManager.OnOrdersChanged -= OnSourceChanged;
 			if (buildingManager != null)
-				buildingManager.OnBuildingsChanged -= OnSourceChanged;
+				buildingManager.OnBuildingsChanged -= OnBuildingsChanged;
 			if (capsuleDockService != null)
 			{
 				capsuleDockService.OnCapsuleDocked -= OnCapsuleDockChanged;
@@ -202,17 +215,51 @@ namespace UniverseLogistics.UI.Toolkit
 				Refresh();
 		}
 
+		private bool TrySelectBuildingScope(uint? buildingId)
+		{
+			if (buildingScopeField == null)
+				return false;
+
+			int index = scopeBuildingIds.IndexOf(buildingId);
+			if (index < 0 || index >= buildingScopeField.choices.Count)
+				return false;
+
+			selectedBuildingId = buildingId;
+			buildingScopeField.SetValueWithoutNotify(buildingScopeField.choices[index]);
+			if (active)
+				Refresh();
+			return true;
+		}
+
 		public void Refresh()
 		{
 			if (metricsService == null || monitorRoot == null)
 				return;
 
-			Render(metricsService.GetWorkDemandSnapshot, metricsService.GetTaskCountSnapshot);
+			Render(
+				(category, buildingId) => buildingId.HasValue
+					? metricsService.GetWorkDemandSnapshot(category, buildingId.Value)
+					: metricsService.GetWorkDemandSnapshot(category),
+				(category, buildingId) => buildingId.HasValue
+					? metricsService.GetTaskCountSnapshot(category, buildingId.Value)
+					: metricsService.GetTaskCountSnapshot(category));
 		}
 
 		public void Render(
 			Func<LogisticsWorkCategory, WorkDemandSnapshot> demandResolver,
 			Func<LogisticsWorkCategory, TaskCountSnapshot> taskResolver)
+		{
+			if (demandResolver == null || taskResolver == null)
+				return;
+
+			Render(
+				(category, _) => demandResolver(category),
+				(category, _) => taskResolver(category));
+		}
+
+		public void Render(
+			Func<LogisticsWorkCategory, uint?, WorkDemandSnapshot> demandResolver,
+			Func<LogisticsWorkCategory, uint?, TaskCountSnapshot> taskResolver)
 		{
 			if (monitorRoot == null || demandResolver == null || taskResolver == null)
 				return;
@@ -221,8 +268,8 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				RowDefinition definition = RowDefinitions[i];
 				RowBinding row = rows[i];
-				WorkDemandSnapshot demand = demandResolver(definition.Category);
-				TaskCountSnapshot tasks = taskResolver(definition.Category);
+				WorkDemandSnapshot demand = demandResolver(definition.Category, selectedBuildingId);
+				TaskCountSnapshot tasks = taskResolver(definition.Category, selectedBuildingId);
 
 				row.Demand.text = FormatCount(demand.SourceCount);
 				row.Items.text = definition.ShowsItemQuantity ? FormatCount(demand.ItemQuantity) : "—";
@@ -244,6 +291,49 @@ namespace UniverseLogistics.UI.Toolkit
 		}
 
 		private static string FormatCount(int value) => value.ToString("N0");
+
+		private void RefreshBuildingScopeField()
+		{
+			if (buildingScopeField == null)
+				return;
+
+			List<string> choices = new() { AllBuildingsLabel, HubUnassignedLabel };
+			scopeBuildingIds.Clear();
+			scopeBuildingIds.Add(null);
+			scopeBuildingIds.Add(0);
+
+			int selectedIndex = selectedBuildingId.HasValue && selectedBuildingId.Value == 0 ? 1 : 0;
+			bool selectedBuildingFound = selectedBuildingId.HasValue == false || selectedBuildingId.Value == 0;
+			IReadOnlyList<Building> buildings = buildingManager?.RegisteredBuildings;
+			if (buildings != null)
+			{
+				for (int i = 0; i < buildings.Count; ++i)
+				{
+					Building building = buildings[i];
+					if (building == null || building.RuntimeBuildingId == 0)
+						continue;
+
+					if (selectedBuildingId.HasValue && building.RuntimeBuildingId == selectedBuildingId.Value)
+					{
+						selectedIndex = scopeBuildingIds.Count;
+						selectedBuildingFound = true;
+					}
+
+					scopeBuildingIds.Add(building.RuntimeBuildingId);
+					choices.Add(
+						$"{building.DisplayName} · {BuildingTypeUtility.ToDisplayString(building.Type)} · #{building.RuntimeBuildingId}");
+				}
+
+				if (selectedBuildingFound == false)
+				{
+					selectedBuildingId = null;
+					selectedIndex = 0;
+				}
+			}
+
+			buildingScopeField.choices = choices;
+			buildingScopeField.SetValueWithoutNotify(choices[selectedIndex]);
+		}
 
 		private static void ConfigureTooltips(VisualElement root)
 		{
@@ -276,6 +366,21 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (active)
 				Refresh();
+		}
+
+		private void OnBuildingScopeChanged(ChangeEvent<string> _)
+		{
+			if (buildingScopeField == null || buildingScopeField.index < 0 ||
+				buildingScopeField.index >= scopeBuildingIds.Count)
+				return;
+
+			TrySelectBuildingScope(scopeBuildingIds[buildingScopeField.index]);
+		}
+
+		private void OnBuildingsChanged()
+		{
+			RefreshBuildingScopeField();
+			OnSourceChanged();
 		}
 
 		private void OnWorkerChanged(AIWorker worker) => OnSourceChanged();

@@ -6,6 +6,9 @@
 .workflow-tab-button--selected { color: rgb(232, 243, 247); border-bottom-color: rgb(74, 186, 218); }
 .workflow-tab { position: relative; flex-grow: 1; padding-right: 4px; }
 .workflow-monitor { padding-right: 0; }
+.workflow-monitor-scope { min-height: 34px; flex-direction: row; align-items: center; }
+.workflow-monitor-scope__label { width: 112px; font-size: 9px; letter-spacing: 0.7px; color: rgb(111, 153, 172); }
+.workflow-monitor-scope__field { width: 250px; }
 .workflow-monitor-table { margin-top: 8px; background-color: rgb(22, 30, 36); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(55, 71, 81); border-right-color: rgb(55, 71, 81); border-top-color: rgb(55, 71, 81); border-bottom-color: rgb(55, 71, 81); }
 .workflow-monitor-row { min-height: 42px; flex-direction: row; align-items: center; background-color: rgb(29, 39, 47); border-bottom-width: 1px; border-bottom-color: rgb(48, 62, 71); }
 .workflow-monitor-row--header { min-height: 32px; background-color: rgb(18, 26, 32); }

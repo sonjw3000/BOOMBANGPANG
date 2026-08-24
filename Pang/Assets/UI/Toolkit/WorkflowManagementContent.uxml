@@ -13,6 +13,10 @@
 		<ui:ScrollView name="workflow-monitor-tab" horizontal-scroller-visibility="Auto" vertical-scroller-visibility="Auto" class="workflow-tab workflow-monitor">
 			<ui:Label text="Logistics Work Monitor" class="workflow-heading" />
 			<ui:Label text="Demand is owner-reported workload, not a projected Task count. Task states count generated worker tasks; Blocked is part of Active." class="workflow-caption" />
+			<ui:VisualElement class="workflow-monitor-scope">
+				<ui:Label text="BUILDING SCOPE" class="workflow-monitor-scope__label" />
+				<ui:DropdownField name="workflow-monitor-building-scope" class="workflow-monitor-scope__field" />
+			</ui:VisualElement>
 			<ui:VisualElement class="workflow-monitor-table">
 				<ui:VisualElement class="workflow-monitor-row workflow-monitor-row--header">
 					<ui:Label text="WORK" class="workflow-monitor-name workflow-monitor-header" />
