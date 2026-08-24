@@ -107,6 +107,84 @@
 	background-color: rgba(31, 54, 67, 0.98);
 }
 
+.logistics-work-hud__bottleneck {
+	height: 23px;
+	min-height: 23px;
+	margin: 0;
+	padding-top: 0;
+	padding-right: 5px;
+	padding-bottom: 0;
+	padding-left: 7px;
+	flex-direction: row;
+	align-items: center;
+	background-color: rgba(25, 43, 54, 0.96);
+	border-top-width: 0;
+	border-right-width: 0;
+	border-bottom-width: 1px;
+	border-left-width: 3px;
+	border-bottom-color: rgba(73, 126, 153, 0.34);
+	border-left-color: rgb(76, 158, 184);
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+.logistics-work-hud__bottleneck:hover {
+	background-color: rgba(36, 62, 75, 0.98);
+}
+
+.logistics-work-hud__bottleneck--hidden {
+	display: none;
+}
+
+.logistics-work-hud__bottleneck--warning {
+	border-left-color: rgb(225, 166, 92);
+	background-color: rgba(70, 47, 20, 0.55);
+}
+
+.logistics-work-hud__bottleneck--danger {
+	border-left-color: rgb(224, 82, 82);
+	background-color: rgba(78, 29, 31, 0.66);
+}
+
+.logistics-work-hud__bottleneck-label {
+	width: 52px;
+	min-width: 52px;
+	font-size: 7px;
+	-unity-font-style: bold;
+	letter-spacing: 0.4px;
+	color: rgb(104, 181, 207);
+}
+
+.logistics-work-hud__bottleneck-building {
+	flex-grow: 1;
+	font-size: 8px;
+	-unity-font-style: bold;
+	color: rgb(221, 234, 239);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.logistics-work-hud__bottleneck-status {
+	min-width: 43px;
+	margin-left: 3px;
+	font-size: 7px;
+	-unity-font-style: bold;
+	-unity-text-align: middle-right;
+	color: rgb(184, 209, 218);
+	white-space: nowrap;
+}
+
+.logistics-work-hud__bottleneck--warning .logistics-work-hud__bottleneck-status {
+	color: rgb(239, 187, 112);
+}
+
+.logistics-work-hud__bottleneck--danger .logistics-work-hud__bottleneck-status {
+	color: rgb(251, 139, 126);
+}
+
 .logistics-work-hud__eyebrow {
 	font-size: 8px;
 	-unity-font-style: bold;

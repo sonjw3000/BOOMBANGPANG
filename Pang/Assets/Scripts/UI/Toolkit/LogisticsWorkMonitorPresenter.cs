@@ -215,6 +215,11 @@ namespace UniverseLogistics.UI.Toolkit
 				Refresh();
 		}
 
+		public bool TrySelectBuildingScope(uint buildingId) =>
+			TrySelectBuildingScope((uint?)buildingId);
+
+		public bool TrySelectAllBuildingsScope() => TrySelectBuildingScope(null);
+
 		private bool TrySelectBuildingScope(uint? buildingId)
 		{
 			if (buildingScopeField == null)

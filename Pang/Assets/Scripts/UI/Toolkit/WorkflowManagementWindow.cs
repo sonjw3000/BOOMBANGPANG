@@ -124,9 +124,25 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (InitializeView() == false) return;
 			if (areaManager == null) BindServices();
+			workloadPresenter?.TrySelectAllBuildingsScope();
 			SelectTab(WorkflowTab.Monitor);
 			RefreshAll();
 			window.Open();
+		}
+
+		public bool OpenMonitor(uint buildingId)
+		{
+			if (InitializeView() == false)
+				return false;
+			if (areaManager == null)
+				BindServices();
+			if (workloadPresenter?.TrySelectBuildingScope(buildingId) != true)
+				return false;
+
+			SelectTab(WorkflowTab.Monitor);
+			RefreshAll();
+			window.Open();
+			return true;
 		}
 
 		private bool InitializeView()

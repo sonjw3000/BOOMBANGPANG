@@ -68,6 +68,10 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		model.AddOverview("Cells", () => CellCount.ToString());
 		model.AddOverview("Facilities", () => FacilityCount.ToString());
 		model.AddOverview("Cargo Ports", () => CargoPortCount.ToString());
+		model.AddAction("Work Monitor", OpenWorkMonitor, CanOpenWorkMonitor,
+			tooltip: () => UITooltipContent.DescriptionOnly(
+				"Work Monitor",
+				"Open logistics demand and Task states for this building."));
 		model.AddAction("Cycle Work Scope", CycleWorkScope, () => Building != null);
 		model.AddAction("Toggle Threshold", ToggleThresholdOverride, CanControlCapsuleThreshold,
 			tooltip: BuildThresholdTooltip);
@@ -414,6 +418,28 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		else
 			addonActionMessage = "Add-on catalog is unavailable";
 		addonActionVersion += 1;
+	}
+
+	private bool CanOpenWorkMonitor()
+	{
+		Building building = Building;
+		return building != null &&
+			building.RuntimeBuildingId != 0 &&
+			currentTarget?.BuildingManager?.TryGetBuilding(
+				building.RuntimeBuildingId,
+				out Building registeredBuilding) == true &&
+			ReferenceEquals(building, registeredBuilding);
+	}
+
+	private void OpenWorkMonitor()
+	{
+		if (CanOpenWorkMonitor() == false)
+			return;
+
+		uint buildingId = Building.RuntimeBuildingId;
+		GlobalStatusHud hud =
+			UnityEngine.Object.FindAnyObjectByType<GlobalStatusHud>(FindObjectsInactive.Include);
+		hud?.OpenWorkflowMonitor(buildingId);
 	}
 
 	private void RemoveAddon(BuildingAddon addon)

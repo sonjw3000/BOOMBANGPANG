@@ -81,6 +81,12 @@
 					<ui:Label name="logistics-work-hud-total-blocked" text="0 BLOCK" class="logistics-work-hud__total" picking-mode="Ignore" />
 					<ui:Label text="›" class="logistics-work-hud__chevron" picking-mode="Ignore" />
 				</ui:Button>
+				<ui:Button name="logistics-work-hud-bottleneck" class="logistics-work-hud__bottleneck logistics-work-hud__bottleneck--hidden">
+					<ui:Label text="BOTTLENECK" class="logistics-work-hud__bottleneck-label" picking-mode="Ignore" />
+					<ui:Label name="logistics-work-hud-bottleneck-building" text="" class="logistics-work-hud__bottleneck-building" picking-mode="Ignore" />
+					<ui:Label name="logistics-work-hud-bottleneck-status" text="" class="logistics-work-hud__bottleneck-status" picking-mode="Ignore" />
+					<ui:Label text="›" class="logistics-work-hud__chevron" picking-mode="Ignore" />
+				</ui:Button>
 				<ui:VisualElement class="logistics-work-hud__body" picking-mode="Ignore">
 					<ui:VisualElement class="logistics-work-hud__columns">
 						<ui:Label text="WORK" class="logistics-work-hud__name logistics-work-hud__column" />

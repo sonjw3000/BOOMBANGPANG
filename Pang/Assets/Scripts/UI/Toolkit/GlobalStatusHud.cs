@@ -620,6 +620,13 @@ namespace UniverseLogistics.UI.Toolkit
 			return buildingAddonCatalogWindow != null && buildingAddonCatalogWindow.Open(building);
 		}
 
+		public bool OpenWorkflowMonitor(uint buildingId)
+		{
+			EnsureWorkflowManagementWindow();
+			ShowManagementMenu(false);
+			return workflowManagementWindow != null && workflowManagementWindow.OpenMonitor(buildingId);
+		}
+
 		private void EnsurePlayerInteractionWindow()
 		{
 			if (playerInteractionWindow != null)
@@ -674,7 +681,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (orderHudPresenter.BindView(root) == false)
 				Debug.LogError("[GlobalStatusHud] Order HUD UXML elements are missing.", this);
 			logisticsWorkHudPresenter ??= new LogisticsWorkHudPresenter();
-			logisticsWorkHudPresenter.ConfigureNavigation(OpenWorkflowMonitor);
+			logisticsWorkHudPresenter.ConfigureNavigation(OpenWorkflowMonitor, OpenWorkflowMonitorForBuilding);
 			if (logisticsWorkHudPresenter.BindView(root) == false)
 				Debug.LogError("[GlobalStatusHud] Logistics Work HUD UXML elements are missing.", this);
 			hudRoot = root;
@@ -1050,6 +1057,11 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			ShowManagementMenu(false);
 			workflowManagementWindow?.OpenMonitor();
+		}
+
+		private void OpenWorkflowMonitorForBuilding(uint buildingId)
+		{
+			OpenWorkflowMonitor(buildingId);
 		}
 
 		private void OpenCompanyManagement()
