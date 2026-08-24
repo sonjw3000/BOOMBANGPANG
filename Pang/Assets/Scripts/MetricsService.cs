@@ -92,6 +92,23 @@ public class MetricsService : MonoBehaviour
 		};
 	}
 
+	// Building ID 0 is Hub / Unassigned, including tasks whose former owner is no longer registered.
+	public TaskCountSnapshot GetTaskCountSnapshot(LogisticsWorkCategory category, uint buildingId)
+	{
+		BuildingManager buildingManager = GameContext.Instance.BuildingMgr;
+		if (buildingId != 0 &&
+			(buildingManager == null || buildingManager.TryGetBuilding(buildingId, out _) == false))
+		{
+			return default;
+		}
+
+		return new TaskCountSnapshot(
+			CountTasks(TaskQueue.Values, category, buildingId),
+			CountTasks(TaskMgr.ReturnedTaskQueue, category, buildingId),
+			CountTasks(TaskOnProgress.Values, category, buildingId),
+			CountBlockedTasks(TaskOnProgress.Values, category, buildingId));
+	}
+
 	public WorkDemandSnapshot GetWorkDemandSnapshot(LogisticsWorkCategory category)
 	{
 		return category switch
@@ -363,6 +380,39 @@ public class MetricsService : MonoBehaviour
 		return count;
 	}
 
+	private static int CountTasks(
+		IEnumerable<WorkerTask> tasks,
+		LogisticsWorkCategory category,
+		uint buildingId)
+	{
+		if (tasks == null)
+			return 0;
+
+		int count = 0;
+		foreach (WorkerTask task in tasks)
+		{
+			if (IsTaskInScope(task, category, buildingId))
+				++count;
+		}
+
+		return count;
+	}
+
+	private static int CountTasks(
+		IEnumerable<LinkedList<WorkerTask>> taskQueues,
+		LogisticsWorkCategory category,
+		uint buildingId)
+	{
+		if (taskQueues == null)
+			return 0;
+
+		int count = 0;
+		foreach (LinkedList<WorkerTask> tasks in taskQueues)
+			count += CountTasks(tasks, category, buildingId);
+
+		return count;
+	}
+
 	private static int CountBlockedTasks(IEnumerable<WorkerTask> tasks)
 	{
 		if (tasks == null)
@@ -394,6 +444,82 @@ public class MetricsService : MonoBehaviour
 		}
 
 		return count;
+	}
+
+	private static int CountBlockedTasks(
+		IEnumerable<LinkedList<WorkerTask>> taskQueues,
+		LogisticsWorkCategory category,
+		uint buildingId)
+	{
+		if (taskQueues == null)
+			return 0;
+
+		int count = 0;
+		foreach (LinkedList<WorkerTask> tasks in taskQueues)
+		{
+			foreach (WorkerTask task in tasks)
+			{
+				if (IsTaskInScope(task, category, buildingId) && IsTaskBlocked(task))
+					++count;
+			}
+		}
+
+		return count;
+	}
+
+	private static bool IsTaskInScope(
+		WorkerTask task,
+		LogisticsWorkCategory category,
+		uint buildingId)
+	{
+		return IsTaskInCategory(task, category) && ResolveTaskBuildingId(task) == buildingId;
+	}
+
+	private static bool IsTaskInCategory(WorkerTask task, LogisticsWorkCategory category)
+	{
+		if (task == null)
+			return false;
+
+		return category switch
+		{
+			LogisticsWorkCategory.Picking => task.Type == WorkerTask.TaskType.Picking,
+			LogisticsWorkCategory.Storing => task.Type == WorkerTask.TaskType.Storing,
+			LogisticsWorkCategory.PackingInput => task.Type == WorkerTask.TaskType.PackingInput,
+			LogisticsWorkCategory.Packing => task.Type == WorkerTask.TaskType.Packing,
+			LogisticsWorkCategory.PackingOutput => task.Type == WorkerTask.TaskType.PackingOutput,
+			LogisticsWorkCategory.CapsuleRelocate => task is CapsuleRelocationTask,
+			_ => false,
+		};
+	}
+
+	private static uint ResolveTaskBuildingId(WorkerTask task)
+	{
+		uint candidateBuildingId = task switch
+		{
+			ItemTransferTask itemTransferTask => itemTransferTask.BuildingId,
+			PickingTask pickingTask => pickingTask.BuildingId,
+			StoringTask storingTask => storingTask.BuildingId,
+			PackingTask packingTask => ResolvePackingTaskBuildingId(packingTask),
+			CapsuleRelocationTask relocationTask => relocationTask.BuildingId,
+			_ => 0,
+		};
+
+		BuildingManager buildingManager = GameContext.Instance.BuildingMgr;
+		return candidateBuildingId != 0 &&
+			buildingManager != null &&
+			buildingManager.TryGetBuilding(candidateBuildingId, out _)
+				? candidateBuildingId
+				: 0;
+	}
+
+	private static uint ResolvePackingTaskBuildingId(PackingTask task)
+	{
+		FacilityManager facilityManager = GameContext.Instance.FacilityMgr;
+		return task?.TargetStation != null &&
+			facilityManager != null &&
+			facilityManager.TryGetBuildingId(task.TargetStation, out uint buildingId)
+				? buildingId
+				: 0;
 	}
 
 	private static bool IsTaskBlocked(WorkerTask task)
