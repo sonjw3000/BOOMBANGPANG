@@ -81,22 +81,29 @@ public sealed class WorkDemandMetricsEditModeTests
 	[Test]
 	public void PickingDemand_CombinesUnallocatedOrdersAndPlannerRequestsWithoutAssignedQuantity()
 	{
-		StorageBuilding building = CreateStorageBuilding("Picking Demand Storage");
-		OrderLine line = new(null, 101, 7, null);
+		StorageBuilding firstBuilding = CreateStorageBuilding("First Picking Demand Storage");
+		StorageBuilding secondBuilding = CreateStorageBuilding("Second Picking Demand Storage");
+		OrderLine line = new(null, 101, 12, null);
 		InvokeNonPublic(typeof(OrderManager), orderManager, "RegisterOrderLineForPicking", line);
-		Assert.That(line.TryAllocatePicking(4), Is.EqualTo(4));
+		Assert.That(line.TryAllocatePicking(9), Is.EqualTo(9));
 
-		Shelf source = CreateComponent<Shelf>("Picking Demand Shelf", active: false);
+		Shelf firstSource = CreateComponent<Shelf>("First Picking Demand Shelf", active: false);
 		Assert.That(
-			building.PickingPlanner.AddReservedPickingRequest(line, source, 4, out PickingRequest request),
+			firstBuilding.PickingPlanner.AddReservedPickingRequest(line, firstSource, 4, out PickingRequest firstRequest),
 			Is.True);
-		Assert.That(request.ReportAllocated(1), Is.EqualTo(1));
+		Assert.That(firstRequest.ReportAllocated(1), Is.EqualTo(1));
 
-		WorkDemandSnapshot snapshot = metrics.GetWorkDemandSnapshot(LogisticsWorkCategory.Picking);
+		Shelf secondSource = CreateComponent<Shelf>("Second Picking Demand Shelf", active: false);
+		Assert.That(
+			secondBuilding.PickingPlanner.AddReservedPickingRequest(line, secondSource, 5, out PickingRequest secondRequest),
+			Is.True);
+		Assert.That(secondRequest.ReportAllocated(1), Is.EqualTo(1));
 
-		Assert.That(snapshot.SourceCount, Is.EqualTo(2));
-		Assert.That(snapshot.ItemQuantity, Is.EqualTo(6));
-		Assert.That(snapshot.HasDemand, Is.True);
+		AssertDemand(LogisticsWorkCategory.Picking, firstBuilding.RuntimeBuildingId, 1, 3);
+		AssertDemand(LogisticsWorkCategory.Picking, secondBuilding.RuntimeBuildingId, 1, 4);
+		AssertDemand(LogisticsWorkCategory.Picking, 0, 1, 3);
+		AssertDemand(LogisticsWorkCategory.Picking, uint.MaxValue, 0, 0);
+		AssertGlobalPartition(LogisticsWorkCategory.Picking, 3, 10);
 	}
 
 	[Test]
@@ -121,72 +128,124 @@ public sealed class WorkDemandMetricsEditModeTests
 			firstBuilding.RuntimeBuildingId,
 			out int firstSourceCount,
 			out int firstItemQuantity);
-		WorkDemandSnapshot snapshot = metrics.GetWorkDemandSnapshot(LogisticsWorkCategory.Storing);
-
 		Assert.That(firstSourceCount, Is.EqualTo(2));
 		Assert.That(firstItemQuantity, Is.EqualTo(7));
-		Assert.That(snapshot.SourceCount, Is.EqualTo(3));
-		Assert.That(snapshot.ItemQuantity, Is.EqualTo(13));
+		AssertDemand(LogisticsWorkCategory.Storing, firstBuilding.RuntimeBuildingId, 2, 7);
+		AssertDemand(LogisticsWorkCategory.Storing, secondBuilding.RuntimeBuildingId, 1, 6);
+		AssertDemand(LogisticsWorkCategory.Storing, 0, 0, 0);
+		AssertGlobalPartition(LogisticsWorkCategory.Storing, 3, 13);
 	}
 
 	[Test]
 	public void PackingDemand_SeparatesInputWaitingAndOutputPhysicalSources()
 	{
-		PackingBuilding building = new("Packing Demand Building", new List<GridCell>());
-		buildingManager.Register(building);
+		PackingBuilding firstBuilding = new("First Packing Demand Building", new List<GridCell>());
+		buildingManager.Register(firstBuilding);
 
-		CapsuleBuffer inputBuffer = CreateInboundBuffer(
-			"Packing Input Demand Buffer",
+		CapsuleBuffer firstInputBuffer = CreateInboundBuffer(
+			"First Packing Input Demand Buffer",
 			(301u, 5, ItemStatus.Labeled, ItemQuality.None),
 			(302u, 3, ItemStatus.None, ItemQuality.None));
-		PickingManifest manifest = outboundWorkflow.GetPickingManifest(inputBuffer.DockedCapsule);
-		Assert.That(manifest, Is.Not.Null);
-		manifest.AddPicked(new OrderLine(null, 301, 4, null), 301, 4);
-		manifest.AddPicked(new OrderLine(null, 302, 10, null), 302, 10);
-		RegisterCapsuleBuffer(building, inputBuffer);
+		PickingManifest firstManifest = outboundWorkflow.GetPickingManifest(firstInputBuffer.DockedCapsule);
+		Assert.That(firstManifest, Is.Not.Null);
+		firstManifest.AddPicked(new OrderLine(null, 301, 4, null), 301, 4);
+		firstManifest.AddPicked(new OrderLine(null, 302, 10, null), 302, 10);
+		RegisterCapsuleBuffer(firstBuilding, firstInputBuffer);
 
-		PackingStation station = CreateComponent<PackingStation>("Packing Demand Station", active: false);
-		ToteBox waitingBox = CreateBox<ToteBox>(
-			"Packing Waiting Box",
+		PackingStation firstStation = CreateComponent<PackingStation>("First Packing Demand Station", active: false);
+		ToteBox firstWaitingBox = CreateBox<ToteBox>(
+			"First Packing Waiting Box",
 			BoxType.Personal,
 			(303u, 8, ItemStatus.None, ItemQuality.None));
-		ToteBox outputBox = CreateBox<ToteBox>(
-			"Packing Output Box",
+		ToteBox firstOutputBox = CreateBox<ToteBox>(
+			"First Packing Output Box",
 			BoxType.Personal,
 			(304u, 6, ItemStatus.None, ItemQuality.None));
 		SetPrivateField(
 			typeof(PackingStation),
-			station,
+			firstStation,
 			"waitStackBox",
-			new BoxWithOrder(waitingBox, new WorkJob(1, new List<WorkLine>(), WorkOp.Packing)));
+			new BoxWithOrder(firstWaitingBox, new WorkJob(1, new List<WorkLine>(), WorkOp.Packing)));
 		SetPrivateField(
 			typeof(PackingStation),
-			station,
+			firstStation,
 			"endPackingBox",
-			new BoxWithOrder(outputBox, new WorkJob(2, new List<WorkLine>(), WorkOp.Packing)));
-		InvokeNonPublic(typeof(PackingStationService), packingStationService, "OnRegisterFacility", building.RuntimeBuildingId, station);
-		InvokeNonPublic(typeof(PackingBuilding), building, "MarkPackingOutputDirty", station);
+			new BoxWithOrder(firstOutputBox, new WorkJob(2, new List<WorkLine>(), WorkOp.Packing)));
+		InvokeNonPublic(
+			typeof(PackingStationService),
+			packingStationService,
+			"OnRegisterFacility",
+			firstBuilding.RuntimeBuildingId,
+			firstStation);
+		InvokeNonPublic(typeof(PackingBuilding), firstBuilding, "MarkPackingOutputDirty", firstStation);
 
-		WorkDemandSnapshot input = metrics.GetWorkDemandSnapshot(LogisticsWorkCategory.PackingInput);
-		WorkDemandSnapshot packing = metrics.GetWorkDemandSnapshot(LogisticsWorkCategory.Packing);
-		WorkDemandSnapshot output = metrics.GetWorkDemandSnapshot(LogisticsWorkCategory.PackingOutput);
+		PackingBuilding secondBuilding = new("Second Packing Demand Building", new List<GridCell>());
+		buildingManager.Register(secondBuilding);
+		CapsuleBuffer secondInputBuffer = CreateInboundBuffer(
+			"Second Packing Input Demand Buffer",
+			(305u, 9, ItemStatus.Labeled, ItemQuality.None));
+		PickingManifest secondManifest = outboundWorkflow.GetPickingManifest(secondInputBuffer.DockedCapsule);
+		Assert.That(secondManifest, Is.Not.Null);
+		secondManifest.AddPicked(new OrderLine(null, 305, 5, null), 305, 5);
+		RegisterCapsuleBuffer(secondBuilding, secondInputBuffer);
 
-		Assert.That(input.SourceCount, Is.EqualTo(1));
-		Assert.That(input.ItemQuantity, Is.EqualTo(7));
-		Assert.That(packing.SourceCount, Is.EqualTo(1));
-		Assert.That(packing.ItemQuantity, Is.EqualTo(8));
-		Assert.That(output.SourceCount, Is.EqualTo(1));
-		Assert.That(output.ItemQuantity, Is.EqualTo(6));
+		PackingStation secondStation = CreateComponent<PackingStation>("Second Packing Demand Station", active: false);
+		ToteBox secondWaitingBox = CreateBox<ToteBox>(
+			"Second Packing Waiting Box",
+			BoxType.Personal,
+			(306u, 4, ItemStatus.None, ItemQuality.None));
+		ToteBox secondOutputBox = CreateBox<ToteBox>(
+			"Second Packing Output Box",
+			BoxType.Personal,
+			(307u, 2, ItemStatus.None, ItemQuality.None));
+		SetPrivateField(
+			typeof(PackingStation),
+			secondStation,
+			"waitStackBox",
+			new BoxWithOrder(secondWaitingBox, new WorkJob(3, new List<WorkLine>(), WorkOp.Packing)));
+		SetPrivateField(
+			typeof(PackingStation),
+			secondStation,
+			"endPackingBox",
+			new BoxWithOrder(secondOutputBox, new WorkJob(4, new List<WorkLine>(), WorkOp.Packing)));
+		InvokeNonPublic(
+			typeof(PackingStationService),
+			packingStationService,
+			"OnRegisterFacility",
+			secondBuilding.RuntimeBuildingId,
+			secondStation);
+		InvokeNonPublic(typeof(PackingBuilding), secondBuilding, "MarkPackingOutputDirty", secondStation);
+
+		AssertDemand(LogisticsWorkCategory.PackingInput, firstBuilding.RuntimeBuildingId, 1, 7);
+		AssertDemand(LogisticsWorkCategory.PackingInput, secondBuilding.RuntimeBuildingId, 1, 5);
+		AssertDemand(LogisticsWorkCategory.PackingInput, 0, 0, 0);
+		AssertGlobalPartition(LogisticsWorkCategory.PackingInput, 2, 12);
+
+		AssertDemand(LogisticsWorkCategory.Packing, firstBuilding.RuntimeBuildingId, 1, 8);
+		AssertDemand(LogisticsWorkCategory.Packing, secondBuilding.RuntimeBuildingId, 1, 4);
+		AssertDemand(LogisticsWorkCategory.Packing, 0, 0, 0);
+		AssertGlobalPartition(LogisticsWorkCategory.Packing, 2, 12);
+
+		AssertDemand(LogisticsWorkCategory.PackingOutput, firstBuilding.RuntimeBuildingId, 1, 6);
+		AssertDemand(LogisticsWorkCategory.PackingOutput, secondBuilding.RuntimeBuildingId, 1, 2);
+		AssertDemand(LogisticsWorkCategory.PackingOutput, 0, 0, 0);
+		AssertGlobalPartition(LogisticsWorkCategory.PackingOutput, 2, 8);
 	}
 
 	[Test]
 	public void CapsuleRelocateDemand_FiltersPendingEntriesThatAreNoLongerActionable()
 	{
+		StorageBuilding sourceBuilding = CreateStorageBuilding("Capsule Relocate Source Building");
+		StorageBuilding targetBuilding = CreateStorageBuilding("Capsule Relocate Target Building");
 		CapsuleBuffer source = CreateInboundBuffer(
 			"Capsule Relocate Demand Source",
 			(401u, 1, ItemStatus.None, ItemQuality.None));
 		CapsuleBuffer target = CreateComponent<CapsuleBuffer>("Capsule Relocate Demand Target", active: false);
 		target.SetDockState(CapsuleDockState.Empty);
+		CapsuleBuffer hubTarget = CreateComponent<CapsuleBuffer>("Capsule Relocate Hub Target", active: false);
+		hubTarget.SetDockState(CapsuleDockState.Empty);
+		CapsuleBuffer orphanTarget = CreateComponent<CapsuleBuffer>("Capsule Relocate Orphan Target", active: false);
+		orphanTarget.SetDockState(CapsuleDockState.Empty);
 
 		Assert.That(
 			capsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
@@ -195,7 +254,7 @@ public sealed class WorkDemandMetricsEditModeTests
 				CapsuleLogisticsState.IB,
 				CapsuleDockState.Empty,
 				CapsuleRelocateScope.GlobalAllowed,
-				1)),
+				sourceBuilding.RuntimeBuildingId)),
 			Is.False);
 		Assert.That(
 			capsuleRelocateCoordinator.RequestDemand(new CapsuleRelocateDemand(
@@ -204,21 +263,91 @@ public sealed class WorkDemandMetricsEditModeTests
 				CapsuleDockState.IB,
 				CapsuleLogisticsState.IB,
 				CapsuleRelocateScope.GlobalAllowed,
-				2)),
+				targetBuilding.RuntimeBuildingId)),
+			Is.False);
+		Assert.That(
+			capsuleRelocateCoordinator.RequestDemand(new CapsuleRelocateDemand(
+				hubTarget,
+				CapsuleDockState.Empty,
+				CapsuleDockState.IB,
+				CapsuleLogisticsState.IB,
+				CapsuleRelocateScope.GlobalAllowed,
+				0)),
+			Is.False);
+		Assert.That(
+			capsuleRelocateCoordinator.RequestDemand(new CapsuleRelocateDemand(
+				orphanTarget,
+				CapsuleDockState.Empty,
+				CapsuleDockState.IB,
+				CapsuleLogisticsState.IB,
+				CapsuleRelocateScope.GlobalAllowed,
+				uint.MaxValue)),
 			Is.False);
 
 		CapsuleRelocateDemandSnapshot initial = capsuleRelocateCoordinator.GetDemandSnapshot();
 		Assert.That(initial.PendingSends, Is.EqualTo(1));
-		Assert.That(initial.PendingDemands, Is.EqualTo(1));
-		Assert.That(metrics.GetWorkDemandSnapshot(LogisticsWorkCategory.CapsuleRelocate).SourceCount, Is.EqualTo(2));
+		Assert.That(initial.PendingDemands, Is.EqualTo(3));
+		AssertDemand(LogisticsWorkCategory.CapsuleRelocate, sourceBuilding.RuntimeBuildingId, 1, 0);
+		AssertDemand(LogisticsWorkCategory.CapsuleRelocate, targetBuilding.RuntimeBuildingId, 1, 0);
+		AssertDemand(LogisticsWorkCategory.CapsuleRelocate, 0, 2, 0);
+		AssertDemand(LogisticsWorkCategory.CapsuleRelocate, uint.MaxValue, 0, 0);
+		AssertGlobalPartition(LogisticsWorkCategory.CapsuleRelocate, 4, 0);
 
 		source.SetDockState(CapsuleDockState.Empty);
 
 		CapsuleRelocateDemandSnapshot filtered = capsuleRelocateCoordinator.GetDemandSnapshot();
 		Assert.That(capsuleRelocateCoordinator.PendingSendCount, Is.EqualTo(1));
 		Assert.That(filtered.PendingSends, Is.Zero);
-		Assert.That(filtered.PendingDemands, Is.EqualTo(1));
-		Assert.That(metrics.GetWorkDemandSnapshot(LogisticsWorkCategory.CapsuleRelocate).SourceCount, Is.EqualTo(1));
+		Assert.That(filtered.PendingDemands, Is.EqualTo(3));
+		AssertDemand(LogisticsWorkCategory.CapsuleRelocate, sourceBuilding.RuntimeBuildingId, 0, 0);
+		AssertDemand(LogisticsWorkCategory.CapsuleRelocate, targetBuilding.RuntimeBuildingId, 1, 0);
+		AssertDemand(LogisticsWorkCategory.CapsuleRelocate, 0, 2, 0);
+		AssertGlobalPartition(LogisticsWorkCategory.CapsuleRelocate, 3, 0);
+	}
+
+	private void AssertDemand(
+		LogisticsWorkCategory category,
+		uint buildingId,
+		int expectedSourceCount,
+		int expectedItemQuantity)
+	{
+		WorkDemandSnapshot snapshot = metrics.GetWorkDemandSnapshot(category, buildingId);
+		Assert.That(
+			snapshot.SourceCount,
+			Is.EqualTo(expectedSourceCount),
+			$"{category} source count for building {buildingId}");
+		Assert.That(
+			snapshot.ItemQuantity,
+			Is.EqualTo(expectedItemQuantity),
+			$"{category} item quantity for building {buildingId}");
+	}
+
+	private void AssertGlobalPartition(
+		LogisticsWorkCategory category,
+		int expectedSourceCount,
+		int expectedItemQuantity)
+	{
+		WorkDemandSnapshot all = metrics.GetWorkDemandSnapshot(category);
+		WorkDemandSnapshot unassigned = metrics.GetWorkDemandSnapshot(category, 0);
+		int partitionSourceCount = unassigned.SourceCount;
+		int partitionItemQuantity = unassigned.ItemQuantity;
+
+		for (int i = 0; i < buildingManager.RegisteredBuildings.Count; ++i)
+		{
+			Building building = buildingManager.RegisteredBuildings[i];
+			if (building == null)
+				continue;
+
+			WorkDemandSnapshot buildingDemand =
+				metrics.GetWorkDemandSnapshot(category, building.RuntimeBuildingId);
+			partitionSourceCount += buildingDemand.SourceCount;
+			partitionItemQuantity += buildingDemand.ItemQuantity;
+		}
+
+		Assert.That(all.SourceCount, Is.EqualTo(expectedSourceCount), $"{category} all source count");
+		Assert.That(all.ItemQuantity, Is.EqualTo(expectedItemQuantity), $"{category} all item quantity");
+		Assert.That(all.SourceCount, Is.EqualTo(partitionSourceCount), $"{category} source partition");
+		Assert.That(all.ItemQuantity, Is.EqualTo(partitionItemQuantity), $"{category} item partition");
 	}
 
 	private StorageBuilding CreateStorageBuilding(string displayName)
