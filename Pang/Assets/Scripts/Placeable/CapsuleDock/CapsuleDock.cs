@@ -20,6 +20,7 @@ public abstract class CapsuleDock :
 {
 	protected CargoCapsule dockedCapsule = null;
 	[SerializeField] private CargoRouteKind acceptedCargoRouteKind = CargoRouteKind.Standard;
+	[SerializeField] private Transform logisticsStatusSlot;
 	private LogisticsWorkStatus logisticsWorkStatus = new(
 		LogisticsWorkState.Idle,
 		LogisticsBlockReason.None);
@@ -31,6 +32,7 @@ public abstract class CapsuleDock :
 	public CargoCapsule DockedCapsule => dockedCapsule;
 	public virtual CapsuleDockState DockState => CapsuleDockState.Empty;
 	public LogisticsWorkStatus LogisticsWorkStatus => logisticsWorkStatus;
+	public Transform LogisticsStatusSlot => logisticsStatusSlot != null ? logisticsStatusSlot : transform;
 	public bool HasCapsule => dockedCapsule != null;
 	protected virtual CargoRouteKind SupportedCargoRouteKind => acceptedCargoRouteKind;
 	protected virtual bool SupportsCargoRoute(CargoRouteKind routeKind) => SupportedCargoRouteKind == routeKind;
