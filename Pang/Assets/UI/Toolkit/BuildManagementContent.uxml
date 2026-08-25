@@ -54,13 +54,21 @@
 			</ui:VisualElement>
 			<ui:ScrollView name="build-rule-editor" class="build-rule-editor">
 				<ui:Label name="rule-editor-title" text="Create Facility Rule" class="build-heading" />
-				<ui:TextField name="rule-editor-name" label="Name" class="rule-editor-field" />
-				<ui:IntegerField name="rule-editor-priority" label="Priority" class="rule-editor-field" />
-				<ui:Label text="COLOR" class="build-field-label" />
-				<ui:Slider name="rule-editor-red" label="Red" low-value="0" high-value="1" class="rule-editor-slider" />
-				<ui:Slider name="rule-editor-green" label="Green" low-value="0" high-value="1" class="rule-editor-slider" />
-				<ui:Slider name="rule-editor-blue" label="Blue" low-value="0" high-value="1" class="rule-editor-slider" />
-				<ui:VisualElement name="rule-editor-color-preview" class="rule-editor-color-preview" />
+				<ui:VisualElement class="rule-editor-header">
+					<ui:VisualElement class="rule-editor-identity-column">
+						<ui:TextField name="rule-editor-name" label="Name" class="rule-editor-field rule-editor-header-field" />
+						<ui:IntegerField name="rule-editor-priority" label="Priority" class="rule-editor-field rule-editor-header-field" />
+					</ui:VisualElement>
+					<ui:VisualElement class="rule-editor-color-column">
+						<ui:Label text="COLOR" class="build-field-label rule-editor-color-title" />
+						<ui:Slider name="rule-editor-red" label="Red" low-value="0" high-value="1" class="rule-editor-slider rule-editor-header-field" />
+						<ui:Slider name="rule-editor-green" label="Green" low-value="0" high-value="1" class="rule-editor-slider rule-editor-header-field" />
+						<ui:Slider name="rule-editor-blue" label="Blue" low-value="0" high-value="1" class="rule-editor-slider rule-editor-header-field" />
+					</ui:VisualElement>
+					<ui:VisualElement class="rule-editor-preview-column">
+						<ui:VisualElement name="rule-editor-color-preview" class="rule-editor-color-preview" />
+					</ui:VisualElement>
+				</ui:VisualElement>
 				<ui:Foldout name="rule-editor-item-conditions" text="ITEM CONDITIONS" value="true" class="rule-editor-foldout">
 				<ui:DropdownField name="rule-editor-item-process-stage" label="Item process stage" class="rule-editor-field" />
 				<ui:DropdownField name="rule-editor-content-state" label="Content" class="rule-editor-field" />
