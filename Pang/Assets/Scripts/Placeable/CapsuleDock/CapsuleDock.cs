@@ -13,16 +13,24 @@ public enum CapsuleDockState
 	WasteContainer = 8,
 }
 
-public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
+public abstract class CapsuleDock :
+	BoxInteraction,
+	IFacilityUserRemovalGuard,
+	ILogisticsWorkStatusProvider
 {
 	protected CargoCapsule dockedCapsule = null;
 	[SerializeField] private CargoRouteKind acceptedCargoRouteKind = CargoRouteKind.Standard;
+	private LogisticsWorkStatus logisticsWorkStatus = new(
+		LogisticsWorkState.Idle,
+		LogisticsBlockReason.None);
 
 	public event Action<CapsuleDock> OnCapsuleDocked;
 	public event Action<CapsuleDock> OnCapsuleUndocked;
+	public event Action<CapsuleDock, LogisticsWorkStatus> OnLogisticsWorkStatusChanged;
 
 	public CargoCapsule DockedCapsule => dockedCapsule;
 	public virtual CapsuleDockState DockState => CapsuleDockState.Empty;
+	public LogisticsWorkStatus LogisticsWorkStatus => logisticsWorkStatus;
 	public bool HasCapsule => dockedCapsule != null;
 	protected virtual CargoRouteKind SupportedCargoRouteKind => acceptedCargoRouteKind;
 	protected virtual bool SupportsCargoRoute(CargoRouteKind routeKind) => SupportedCargoRouteKind == routeKind;
@@ -30,6 +38,42 @@ public abstract class CapsuleDock : BoxInteraction, IFacilityUserRemovalGuard
 	public float TotalSize => dockedCapsule != null ? dockedCapsule.TotalSize : 0.0f;
 	public float MaxSize => dockedCapsule != null ? dockedCapsule.MaxSize : 0.0f;
 	public float FilledPercent => MaxSize <= 0.0f ? 0.0f : (TotalSize / MaxSize) * 100.0f;
+
+	public void SetLogisticsWorkState(LogisticsWorkState state)
+	{
+		SetLogisticsWorkStatus(new LogisticsWorkStatus(state, logisticsWorkStatus.BlockReason));
+	}
+
+	public void SetLogisticsBlockReason(LogisticsBlockReason blockReason)
+	{
+		SetLogisticsWorkStatus(new LogisticsWorkStatus(logisticsWorkStatus.State, blockReason));
+	}
+
+	public void SetLogisticsWorkStatus(
+		LogisticsWorkState state,
+		LogisticsBlockReason blockReason = LogisticsBlockReason.None)
+	{
+		SetLogisticsWorkStatus(new LogisticsWorkStatus(state, blockReason));
+	}
+
+	public void ResetLogisticsWorkStatus()
+	{
+		SetLogisticsWorkStatus(new LogisticsWorkStatus(
+			LogisticsWorkState.Idle,
+			LogisticsBlockReason.None));
+	}
+
+	private void SetLogisticsWorkStatus(LogisticsWorkStatus status)
+	{
+		if (logisticsWorkStatus.State == status.State &&
+			logisticsWorkStatus.BlockReason == status.BlockReason)
+		{
+			return;
+		}
+
+		logisticsWorkStatus = status;
+		OnLogisticsWorkStatusChanged?.Invoke(this, logisticsWorkStatus);
+	}
 
 
 	public bool TryDockCapsule(CargoCapsule capsule)
