@@ -28,15 +28,19 @@
 					<ui:Label name="workflow-monitor-active-header" text="ACTIVE" class="workflow-monitor-value workflow-monitor-header" />
 					<ui:Label name="workflow-monitor-blocked-header" text="BLOCKED" class="workflow-monitor-value workflow-monitor-header" />
 				</ui:VisualElement>
+				<ui:VisualElement class="workflow-monitor-section workflow-monitor-section--inbound">
+					<ui:Label text="INBOUND PROCESS" class="workflow-monitor-section__title" />
+					<ui:Label text="Prepare received cargo for storage" class="workflow-monitor-section__hint" />
+				</ui:VisualElement>
 				<ui:VisualElement class="workflow-monitor-row">
-					<ui:Label text="Picking" class="workflow-monitor-name" />
-					<ui:Label name="workflow-monitor-picking-demand" text="0" class="workflow-monitor-value" />
-					<ui:Label name="workflow-monitor-picking-items" text="0" class="workflow-monitor-value" />
-					<ui:Label name="workflow-monitor-picking-waiting" text="0" class="workflow-monitor-value" />
-					<ui:Label name="workflow-monitor-picking-ready" text="0" class="workflow-monitor-value" />
-					<ui:Label name="workflow-monitor-picking-returned" text="0" class="workflow-monitor-value" />
-					<ui:Label name="workflow-monitor-picking-active" text="0" class="workflow-monitor-value" />
-					<ui:Label name="workflow-monitor-picking-blocked" text="0" class="workflow-monitor-value" />
+					<ui:Label text="Labeling" class="workflow-monitor-name" />
+					<ui:Label name="workflow-monitor-labeling-demand" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-labeling-items" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-labeling-waiting" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-labeling-ready" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-labeling-returned" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-labeling-active" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-labeling-blocked" text="0" class="workflow-monitor-value" />
 				</ui:VisualElement>
 				<ui:VisualElement class="workflow-monitor-row">
 					<ui:Label text="Storing" class="workflow-monitor-name" />
@@ -48,7 +52,21 @@
 					<ui:Label name="workflow-monitor-storing-active" text="0" class="workflow-monitor-value" />
 					<ui:Label name="workflow-monitor-storing-blocked" text="0" class="workflow-monitor-value" />
 				</ui:VisualElement>
-				<ui:VisualElement class="workflow-monitor-row workflow-monitor-row--packing">
+				<ui:VisualElement class="workflow-monitor-section workflow-monitor-section--outbound">
+					<ui:Label text="ORDER &amp; OUTBOUND PROCESS" class="workflow-monitor-section__title" />
+					<ui:Label text="Fulfill orders and prepare launch-ready cargo" class="workflow-monitor-section__hint" />
+				</ui:VisualElement>
+				<ui:VisualElement class="workflow-monitor-row workflow-monitor-row--outbound">
+					<ui:Label text="Picking" class="workflow-monitor-name" />
+					<ui:Label name="workflow-monitor-picking-demand" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-picking-items" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-picking-waiting" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-picking-ready" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-picking-returned" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-picking-active" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-picking-blocked" text="0" class="workflow-monitor-value" />
+				</ui:VisualElement>
+				<ui:VisualElement class="workflow-monitor-row workflow-monitor-row--outbound">
 					<ui:Label text="Packing · Input" class="workflow-monitor-name workflow-monitor-name--child" />
 					<ui:Label name="workflow-monitor-packing-input-demand" text="0" class="workflow-monitor-value" />
 					<ui:Label name="workflow-monitor-packing-input-items" text="0" class="workflow-monitor-value" />
@@ -58,7 +76,7 @@
 					<ui:Label name="workflow-monitor-packing-input-active" text="0" class="workflow-monitor-value" />
 					<ui:Label name="workflow-monitor-packing-input-blocked" text="0" class="workflow-monitor-value" />
 				</ui:VisualElement>
-				<ui:VisualElement class="workflow-monitor-row workflow-monitor-row--packing">
+				<ui:VisualElement class="workflow-monitor-row workflow-monitor-row--outbound">
 					<ui:Label text="Packing" class="workflow-monitor-name" />
 					<ui:Label name="workflow-monitor-packing-demand" text="0" class="workflow-monitor-value" />
 					<ui:Label name="workflow-monitor-packing-items" text="0" class="workflow-monitor-value" />
@@ -68,7 +86,7 @@
 					<ui:Label name="workflow-monitor-packing-active" text="0" class="workflow-monitor-value" />
 					<ui:Label name="workflow-monitor-packing-blocked" text="0" class="workflow-monitor-value" />
 				</ui:VisualElement>
-				<ui:VisualElement class="workflow-monitor-row workflow-monitor-row--packing">
+				<ui:VisualElement class="workflow-monitor-row workflow-monitor-row--outbound">
 					<ui:Label text="Packing · Output" class="workflow-monitor-name workflow-monitor-name--child" />
 					<ui:Label name="workflow-monitor-packing-output-demand" text="0" class="workflow-monitor-value" />
 					<ui:Label name="workflow-monitor-packing-output-items" text="0" class="workflow-monitor-value" />
@@ -77,6 +95,20 @@
 					<ui:Label name="workflow-monitor-packing-output-returned" text="0" class="workflow-monitor-value" />
 					<ui:Label name="workflow-monitor-packing-output-active" text="0" class="workflow-monitor-value" />
 					<ui:Label name="workflow-monitor-packing-output-blocked" text="0" class="workflow-monitor-value" />
+				</ui:VisualElement>
+				<ui:VisualElement class="workflow-monitor-row workflow-monitor-row--outbound">
+					<ui:Label text="Launch Sort" class="workflow-monitor-name" />
+					<ui:Label name="workflow-monitor-launch-sort-demand" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-launch-sort-items" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-launch-sort-waiting" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-launch-sort-ready" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-launch-sort-returned" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-launch-sort-active" text="0" class="workflow-monitor-value" />
+					<ui:Label name="workflow-monitor-launch-sort-blocked" text="0" class="workflow-monitor-value" />
+				</ui:VisualElement>
+				<ui:VisualElement class="workflow-monitor-section workflow-monitor-section--capsule">
+					<ui:Label text="CAPSULE LOGISTICS" class="workflow-monitor-section__title" />
+					<ui:Label text="Route capsules between compatible docks" class="workflow-monitor-section__hint" />
 				</ui:VisualElement>
 				<ui:VisualElement class="workflow-monitor-row">
 					<ui:Label text="Capsule Relocate" class="workflow-monitor-name" />

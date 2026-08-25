@@ -12,7 +12,13 @@
 .workflow-monitor-table { margin-top: 8px; background-color: rgb(22, 30, 36); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(55, 71, 81); border-right-color: rgb(55, 71, 81); border-top-color: rgb(55, 71, 81); border-bottom-color: rgb(55, 71, 81); }
 .workflow-monitor-row { min-height: 42px; flex-direction: row; align-items: center; background-color: rgb(29, 39, 47); border-bottom-width: 1px; border-bottom-color: rgb(48, 62, 71); }
 .workflow-monitor-row--header { min-height: 32px; background-color: rgb(18, 26, 32); }
-.workflow-monitor-row--packing { border-left-width: 3px; border-left-color: rgb(69, 124, 145); }
+.workflow-monitor-section { min-height: 31px; flex-direction: row; align-items: center; padding-left: 13px; padding-right: 13px; border-top-width: 1px; border-top-color: rgb(57, 75, 85); background-color: rgb(24, 34, 41); }
+.workflow-monitor-section__title { width: 190px; font-size: 9px; -unity-font-style: bold; letter-spacing: 0.8px; color: rgb(137, 185, 202); }
+.workflow-monitor-section__hint { flex-grow: 1; font-size: 9px; color: rgb(112, 136, 147); }
+.workflow-monitor-section--inbound { border-left-width: 3px; border-left-color: rgb(73, 157, 181); }
+.workflow-monitor-section--outbound { border-left-width: 3px; border-left-color: rgb(199, 137, 65); }
+.workflow-monitor-section--capsule { border-left-width: 3px; border-left-color: rgb(133, 111, 181); }
+.workflow-monitor-row--outbound { border-left-width: 3px; border-left-color: rgb(116, 88, 55); }
 .workflow-monitor-name { width: 190px; min-width: 190px; padding-left: 14px; font-size: 11px; -unity-font-style: bold; color: rgb(218, 232, 237); }
 .workflow-monitor-name--child { padding-left: 28px; color: rgb(181, 204, 213); }
 .workflow-monitor-value { min-width: 78px; flex-grow: 1; font-size: 12px; -unity-font-style: bold; -unity-text-align: middle-center; color: rgb(206, 222, 228); }

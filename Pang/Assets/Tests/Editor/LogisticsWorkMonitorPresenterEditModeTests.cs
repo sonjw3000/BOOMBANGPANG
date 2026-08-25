@@ -23,11 +23,13 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 
 		string[] prefixes =
 		{
+			"labeling",
 			"picking",
 			"storing",
 			"packing-input",
 			"packing",
 			"packing-output",
+			"launch-sort",
 			"capsule-relocate",
 		};
 
@@ -144,20 +146,24 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 
 		Dictionary<LogisticsWorkCategory, WorkDemandSnapshot> demands = new()
 		{
+			[LogisticsWorkCategory.Labeling] = new WorkDemandSnapshot(1, 11),
 			[LogisticsWorkCategory.Picking] = new WorkDemandSnapshot(2, 17),
 			[LogisticsWorkCategory.Storing] = new WorkDemandSnapshot(3, 23),
 			[LogisticsWorkCategory.PackingInput] = new WorkDemandSnapshot(4, 29),
 			[LogisticsWorkCategory.Packing] = new WorkDemandSnapshot(5, 31),
 			[LogisticsWorkCategory.PackingOutput] = new WorkDemandSnapshot(6, 37),
+			[LogisticsWorkCategory.LaunchSort] = new WorkDemandSnapshot(8, 41),
 			[LogisticsWorkCategory.CapsuleRelocate] = new WorkDemandSnapshot(7, 0),
 		};
 		Dictionary<LogisticsWorkCategory, TaskCountSnapshot> tasks = new()
 		{
+			[LogisticsWorkCategory.Labeling] = new TaskCountSnapshot(7, 0, 5, 0),
 			[LogisticsWorkCategory.Picking] = new TaskCountSnapshot(11, 1, 13, 2),
 			[LogisticsWorkCategory.Storing] = new TaskCountSnapshot(19, 0, 23, 0),
 			[LogisticsWorkCategory.PackingInput] = new TaskCountSnapshot(29, 0, 31, 0),
 			[LogisticsWorkCategory.Packing] = new TaskCountSnapshot(37, 0, 41, 0),
 			[LogisticsWorkCategory.PackingOutput] = new TaskCountSnapshot(43, 0, 47, 0),
+			[LogisticsWorkCategory.LaunchSort] = new TaskCountSnapshot(61, 0, 67, 0),
 			[LogisticsWorkCategory.CapsuleRelocate] = new TaskCountSnapshot(53, 0, 59, 0),
 		};
 
@@ -178,6 +184,8 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 			Is.True);
 		Assert.That(root.Q<Label>("workflow-monitor-packing-output-demand").text, Is.EqualTo("6"));
 		Assert.That(root.Q<Label>("workflow-monitor-packing-output-items").text, Is.EqualTo("37"));
+		Assert.That(root.Q<Label>("workflow-monitor-labeling-items").text, Is.EqualTo("11"));
+		Assert.That(root.Q<Label>("workflow-monitor-launch-sort-items").text, Is.EqualTo("41"));
 		Assert.That(root.Q<Label>("workflow-monitor-capsule-relocate-demand").text, Is.EqualTo("7"));
 		Assert.That(root.Q<Label>("workflow-monitor-capsule-relocate-items").text, Is.EqualTo("—"));
 

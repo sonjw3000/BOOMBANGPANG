@@ -114,6 +114,62 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			ReevaluateBufferWork(buffer);
 	}
 
+	public void GetLabelingDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+		CapsuleBufferService bufferService = CapsuleBufferService;
+		if (bufferService == null)
+			return;
+
+		foreach (CapsuleBuffer buffer in bufferService.GetBuffers())
+		{
+			if (bufferService.TryGetRegisteredBuildingId(buffer, out uint buildingId) == false)
+				continue;
+
+			AccumulateLabelingDemand(buildingId, buffer, ref sourceCount, ref itemQuantity);
+		}
+	}
+
+	public void GetLabelingDemand(uint buildingId, out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+		CapsuleBufferService bufferService = CapsuleBufferService;
+		if (buildingId == 0 || bufferService == null)
+			return;
+
+		foreach (CapsuleBuffer buffer in bufferService.GetBuffers(buildingId))
+			AccumulateLabelingDemand(buildingId, buffer, ref sourceCount, ref itemQuantity);
+	}
+
+	private void AccumulateLabelingDemand(
+		uint buildingId,
+		CapsuleBuffer buffer,
+		ref int sourceCount,
+		ref int itemQuantity)
+	{
+		if (IsLabelingTargetReady(buildingId, buffer) == false)
+			return;
+
+		int quantity = 0;
+		for (int i = 0; i < buffer.Stacks.Count; ++i)
+		{
+			ItemStack stack = buffer.Stacks[i];
+			if (stack != null && stack.Quantity > 0 && stack.Status == ItemStatus.None &&
+				stack.HasQuality(ItemQuality.Waste) == false)
+			{
+				quantity += stack.Quantity;
+			}
+		}
+
+		if (quantity <= 0)
+			return;
+
+		++sourceCount;
+		itemQuantity += quantity;
+	}
+
 	internal bool HasLabelingWork(CapsuleBuffer buffer)
 	{
 		if (buffer == null)

@@ -23,11 +23,13 @@ public readonly struct TaskCountSnapshot
 
 public enum LogisticsWorkCategory
 {
+	Labeling,
 	Picking,
 	Storing,
 	PackingInput,
 	Packing,
 	PackingOutput,
+	LaunchSort,
 	CapsuleRelocate,
 }
 
@@ -82,11 +84,13 @@ public class MetricsService : MonoBehaviour
 	{
 		return category switch
 		{
+			LogisticsWorkCategory.Labeling => GetTaskCountSnapshot(WorkerTask.TaskType.Labeling),
 			LogisticsWorkCategory.Picking => GetTaskCountSnapshot(WorkerTask.TaskType.Picking),
 			LogisticsWorkCategory.Storing => GetTaskCountSnapshot(WorkerTask.TaskType.Storing),
 			LogisticsWorkCategory.PackingInput => GetTaskCountSnapshot(WorkerTask.TaskType.PackingInput),
 			LogisticsWorkCategory.Packing => GetTaskCountSnapshot(WorkerTask.TaskType.Packing),
 			LogisticsWorkCategory.PackingOutput => GetTaskCountSnapshot(WorkerTask.TaskType.PackingOutput),
+			LogisticsWorkCategory.LaunchSort => GetTaskCountSnapshot(WorkerTask.TaskType.LaunchSort),
 			LogisticsWorkCategory.CapsuleRelocate => GetCapsuleRelocationTaskCountSnapshot(),
 			_ => default,
 		};
@@ -113,11 +117,13 @@ public class MetricsService : MonoBehaviour
 	{
 		return category switch
 		{
+			LogisticsWorkCategory.Labeling => GetLabelingDemandSnapshot(),
 			LogisticsWorkCategory.Picking => GetPickingDemandSnapshot(),
 			LogisticsWorkCategory.Storing => GetStoringDemandSnapshot(),
 			LogisticsWorkCategory.PackingInput => GetPackingInputDemandSnapshot(),
 			LogisticsWorkCategory.Packing => GetPackingDemandSnapshot(),
 			LogisticsWorkCategory.PackingOutput => GetPackingOutputDemandSnapshot(),
+			LogisticsWorkCategory.LaunchSort => GetLaunchSortDemandSnapshot(),
 			LogisticsWorkCategory.CapsuleRelocate => GetCapsuleRelocateDemandSnapshot(),
 			_ => default,
 		};
@@ -213,11 +219,13 @@ public class MetricsService : MonoBehaviour
 
 		return category switch
 		{
+			LogisticsWorkCategory.Labeling => GetLabelingDemandSnapshot(building.RuntimeBuildingId),
 			LogisticsWorkCategory.Picking => GetPickingDemandSnapshot(building.RuntimeBuildingId),
 			LogisticsWorkCategory.Storing => GetStoringDemandSnapshot(building.RuntimeBuildingId),
 			LogisticsWorkCategory.PackingInput => GetPackingTransferDemand(building.RuntimeBuildingId, input: true),
 			LogisticsWorkCategory.Packing => GetPackingDemandSnapshot(building.RuntimeBuildingId),
 			LogisticsWorkCategory.PackingOutput => GetPackingTransferDemand(building.RuntimeBuildingId, input: false),
+			LogisticsWorkCategory.LaunchSort => GetLaunchSortDemandSnapshot(building.RuntimeBuildingId),
 			LogisticsWorkCategory.CapsuleRelocate => GetCapsuleRelocateDemandSnapshot(building.RuntimeBuildingId),
 			_ => default,
 		};
@@ -230,6 +238,26 @@ public class MetricsService : MonoBehaviour
 			return default;
 
 		planner.GetPendingDemand(out int sourceCount, out int itemQuantity);
+		return new WorkDemandSnapshot(sourceCount, itemQuantity);
+	}
+
+	private static WorkDemandSnapshot GetLabelingDemandSnapshot()
+	{
+		InboundWorkflowService inbound = GameContext.Instance.IBWorkflowSvc;
+		if (inbound == null)
+			return default;
+
+		inbound.GetLabelingDemand(out int sourceCount, out int itemQuantity);
+		return new WorkDemandSnapshot(sourceCount, itemQuantity);
+	}
+
+	private static WorkDemandSnapshot GetLabelingDemandSnapshot(uint buildingId)
+	{
+		InboundWorkflowService inbound = GameContext.Instance.IBWorkflowSvc;
+		if (inbound == null)
+			return default;
+
+		inbound.GetLabelingDemand(buildingId, out int sourceCount, out int itemQuantity);
 		return new WorkDemandSnapshot(sourceCount, itemQuantity);
 	}
 
@@ -326,6 +354,34 @@ public class MetricsService : MonoBehaviour
 	{
 		CapsuleRelocateDemandSnapshot demand = GameContext.Instance.CapsuleRelocateCoordinator.GetDemandSnapshot();
 		return new WorkDemandSnapshot(demand.SourceCount, 0);
+	}
+
+	private static WorkDemandSnapshot GetLaunchSortDemandSnapshot()
+	{
+		int sourceCount = 0;
+		int itemQuantity = 0;
+		IEnumerable<LaunchSortPlanner> planners = GameContext.Instance.OBWorkflowSvc?.LaunchSortPlanners;
+		if (planners == null)
+			return default;
+
+		foreach (LaunchSortPlanner planner in planners)
+		{
+			planner.GetPendingDemand(out int plannerSources, out int plannerQuantity);
+			sourceCount += plannerSources;
+			itemQuantity += plannerQuantity;
+		}
+
+		return new WorkDemandSnapshot(sourceCount, itemQuantity);
+	}
+
+	private static WorkDemandSnapshot GetLaunchSortDemandSnapshot(uint buildingId)
+	{
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		if (outbound == null || outbound.TryGetLaunchSortPlanner(buildingId, out LaunchSortPlanner planner) == false)
+			return default;
+
+		planner.GetPendingDemand(out int sourceCount, out int itemQuantity);
+		return new WorkDemandSnapshot(sourceCount, itemQuantity);
 	}
 
 	private static WorkDemandSnapshot GetCapsuleRelocateDemandSnapshot(uint buildingId)
@@ -464,11 +520,13 @@ public class MetricsService : MonoBehaviour
 
 		return category switch
 		{
+			LogisticsWorkCategory.Labeling => task.Type == WorkerTask.TaskType.Labeling,
 			LogisticsWorkCategory.Picking => task.Type == WorkerTask.TaskType.Picking,
 			LogisticsWorkCategory.Storing => task.Type == WorkerTask.TaskType.Storing,
 			LogisticsWorkCategory.PackingInput => task.Type == WorkerTask.TaskType.PackingInput,
 			LogisticsWorkCategory.Packing => task.Type == WorkerTask.TaskType.Packing,
 			LogisticsWorkCategory.PackingOutput => task.Type == WorkerTask.TaskType.PackingOutput,
+			LogisticsWorkCategory.LaunchSort => task.Type == WorkerTask.TaskType.LaunchSort,
 			LogisticsWorkCategory.CapsuleRelocate => task is CapsuleRelocationTask,
 			_ => false,
 		};
@@ -479,6 +537,7 @@ public class MetricsService : MonoBehaviour
 		uint candidateBuildingId = task switch
 		{
 			ItemTransferTask itemTransferTask => itemTransferTask.BuildingId,
+			LabelingTask labelingTask => labelingTask.BuildingId,
 			PickingTask pickingTask => pickingTask.BuildingId,
 			StoringTask storingTask => storingTask.BuildingId,
 			PackingTask packingTask => ResolvePackingTaskBuildingId(packingTask),

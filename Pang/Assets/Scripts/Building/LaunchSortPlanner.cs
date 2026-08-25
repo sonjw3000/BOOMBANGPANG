@@ -58,6 +58,63 @@ public sealed class LaunchSortPlanner :
 		return false;
 	}
 
+	public void GetPendingDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+		if (CanRunForBuilding() == false || BufferService == null)
+			return;
+
+		foreach (CapsuleBuffer sourceBuffer in BufferService.GetBuffers(buildingId))
+		{
+			if (CanUseSource(sourceBuffer) == false ||
+				TryGetManifest(sourceBuffer, out PickingManifest manifest) == false)
+			{
+				continue;
+			}
+
+			int sourceQuantity = 0;
+			IReadOnlyList<PickingManifestLine> lines = manifest.Lines;
+			for (int lineIndex = 0; lineIndex < lines.Count; ++lineIndex)
+			{
+				PickingManifestLine manifestLine = lines[lineIndex];
+				if (TryGetAvailablePackedQuantity(sourceBuffer, manifestLine, out int available) == false)
+					continue;
+
+				int rejected = GetRejectedPackedQuantity(
+					sourceBuffer,
+					manifestLine.ItemId,
+					available,
+					excludeReserved: true);
+				if (rejected > 0)
+				{
+					sourceQuantity += rejected;
+					continue;
+				}
+
+				if (TryFindOutboundBuffer(
+					null,
+					sourceBuffer,
+					manifestLine.OrderLine,
+					manifestLine.ItemId,
+					available,
+					sourceBuffer.GridPosition,
+					sourceBuffer,
+					out _,
+					out int movable))
+				{
+					sourceQuantity += movable;
+				}
+			}
+
+			if (sourceQuantity <= 0)
+				continue;
+
+			++sourceCount;
+			itemQuantity += sourceQuantity;
+		}
+	}
+
 	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint requestedBuildingId, out WorkLine line)
 	{
 		line = null;

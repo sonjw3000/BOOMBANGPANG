@@ -357,11 +357,13 @@ public sealed class TaskMetricsEditModeTests
 	{
 		return category switch
 		{
+			LogisticsWorkCategory.Labeling => new LabelingTask(buildingId, null),
 			LogisticsWorkCategory.Picking => CreateItemTransferTask(WorkerTask.TaskType.Picking, buildingId),
 			LogisticsWorkCategory.Storing => CreateItemTransferTask(WorkerTask.TaskType.Storing, buildingId),
 			LogisticsWorkCategory.PackingInput => CreateItemTransferTask(WorkerTask.TaskType.PackingInput, buildingId),
 			LogisticsWorkCategory.Packing => CreatePackingTask(buildingId),
 			LogisticsWorkCategory.PackingOutput => CreateItemTransferTask(WorkerTask.TaskType.PackingOutput, buildingId),
+			LogisticsWorkCategory.LaunchSort => CreateItemTransferTask(WorkerTask.TaskType.LaunchSort, buildingId),
 			LogisticsWorkCategory.CapsuleRelocate => new CapsuleRelocationTask(
 				WorkerTask.TaskType.CargoTransfer,
 				null,

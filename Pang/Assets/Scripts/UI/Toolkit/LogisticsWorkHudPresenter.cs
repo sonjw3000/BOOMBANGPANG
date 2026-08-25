@@ -87,20 +87,23 @@ namespace UniverseLogistics.UI.Toolkit
 		private static readonly RowDefinition[] RowDefinitions =
 		{
 			new("picking", LogisticsWorkCategory.Picking),
-			new("storing", LogisticsWorkCategory.Storing),
+			new("storing", LogisticsWorkCategory.Labeling, LogisticsWorkCategory.Storing),
 			new("packing",
 				LogisticsWorkCategory.PackingInput,
 				LogisticsWorkCategory.Packing,
-				LogisticsWorkCategory.PackingOutput),
+				LogisticsWorkCategory.PackingOutput,
+				LogisticsWorkCategory.LaunchSort),
 			new("capsule-relocate", LogisticsWorkCategory.CapsuleRelocate),
 		};
 		private static readonly LogisticsWorkCategory[] BottleneckCategories =
 		{
+			LogisticsWorkCategory.Labeling,
 			LogisticsWorkCategory.Picking,
 			LogisticsWorkCategory.Storing,
 			LogisticsWorkCategory.PackingInput,
 			LogisticsWorkCategory.Packing,
 			LogisticsWorkCategory.PackingOutput,
+			LogisticsWorkCategory.LaunchSort,
 			LogisticsWorkCategory.CapsuleRelocate,
 		};
 

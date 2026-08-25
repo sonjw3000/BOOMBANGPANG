@@ -45,6 +45,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public LaunchStationService LaunchStationService => launchStationService;
 	public IReadOnlyDictionary<PickingManifestKey, PickingManifest> PickingManifests => pickingManifests;
 	public IEnumerable<PickingPlanner> PickingPlanners => pickingPlannersByBuildingId.Values;
+	public IEnumerable<LaunchSortPlanner> LaunchSortPlanners => launchSortPlannersByBuildingId.Values;
 	public PickingPolicyType PickingPolicyType => defaultPickingPolicyType;
 	public CollectingPolicyType PickingCollectingPolicyType => defaultPickingCollectingPolicyType;
 	public float PickingBoxFillLimitPercent => pickingBoxFillLimitPercent;

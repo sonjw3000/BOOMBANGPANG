@@ -45,17 +45,19 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private static readonly RowDefinition[] RowDefinitions =
 		{
-			new(LogisticsWorkCategory.Picking, "picking"),
+			new(LogisticsWorkCategory.Labeling, "labeling"),
 			new(LogisticsWorkCategory.Storing, "storing"),
+			new(LogisticsWorkCategory.Picking, "picking"),
 			new(LogisticsWorkCategory.PackingInput, "packing-input"),
 			new(LogisticsWorkCategory.Packing, "packing"),
 			new(LogisticsWorkCategory.PackingOutput, "packing-output"),
+			new(LogisticsWorkCategory.LaunchSort, "launch-sort"),
 			new(LogisticsWorkCategory.CapsuleRelocate, "capsule-relocate", showsItemQuantity: false),
 		};
 
 		private readonly RowBinding[] rows =
 		{
-			new(), new(), new(), new(), new(), new(),
+			new(), new(), new(), new(), new(), new(), new(), new(),
 		};
 		private readonly List<uint?> scopeBuildingIds = new();
 
