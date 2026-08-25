@@ -46,6 +46,9 @@ public partial class InboundWorkflowService
 	{
 		timeSinceLastInboundRocketSpawn = 0.0f;
 		requestService?.ResetRuntimeState();
+		labelingTasksByBuffer.Clear();
+		storingScheduleBuildingIds.Clear();
 		RebuildPlanner();
+		SyncBuildingTaskProducers();
 	}
 }

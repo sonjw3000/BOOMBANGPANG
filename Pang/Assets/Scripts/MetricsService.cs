@@ -161,15 +161,15 @@ public class MetricsService : MonoBehaviour
 			itemQuantity += orderQuantity;
 		}
 
-		IReadOnlyList<Building> buildings = context.BuildingMgr?.RegisteredBuildings;
-		if (buildings != null)
+		IEnumerable<PickingPlanner> planners = context.OBWorkflowSvc?.PickingPlanners;
+		if (planners != null)
 		{
-			for (int i = 0; i < buildings.Count; ++i)
+			foreach (PickingPlanner planner in planners)
 			{
-				if (buildings[i] is not StorageBuilding storageBuilding || storageBuilding.PickingPlanner == null)
+				if (planner == null)
 					continue;
 
-				storageBuilding.PickingPlanner.GetPendingDemand(out int plannerSources, out int plannerQuantity);
+				planner.GetPendingDemand(out int plannerSources, out int plannerQuantity);
 				sourceCount += plannerSources;
 				itemQuantity += plannerQuantity;
 			}
@@ -213,8 +213,8 @@ public class MetricsService : MonoBehaviour
 
 		return category switch
 		{
-			LogisticsWorkCategory.Picking => GetPickingDemandSnapshot(building as StorageBuilding),
-			LogisticsWorkCategory.Storing => GetStoringDemandSnapshot(building as StorageBuilding),
+			LogisticsWorkCategory.Picking => GetPickingDemandSnapshot(building.RuntimeBuildingId),
+			LogisticsWorkCategory.Storing => GetStoringDemandSnapshot(building.RuntimeBuildingId),
 			LogisticsWorkCategory.PackingInput => GetPackingBuildingDemand(building as PackingBuilding, input: true),
 			LogisticsWorkCategory.Packing => GetPackingDemandSnapshot(building.RuntimeBuildingId),
 			LogisticsWorkCategory.PackingOutput => GetPackingBuildingDemand(building as PackingBuilding, input: false),
@@ -223,12 +223,13 @@ public class MetricsService : MonoBehaviour
 		};
 	}
 
-	private static WorkDemandSnapshot GetPickingDemandSnapshot(StorageBuilding storageBuilding)
+	private static WorkDemandSnapshot GetPickingDemandSnapshot(uint buildingId)
 	{
-		if (storageBuilding?.PickingPlanner == null)
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		if (outbound == null || outbound.TryGetPickingPlanner(buildingId, out PickingPlanner planner) == false)
 			return default;
 
-		storageBuilding.PickingPlanner.GetPendingDemand(out int sourceCount, out int itemQuantity);
+		planner.GetPendingDemand(out int sourceCount, out int itemQuantity);
 		return new WorkDemandSnapshot(sourceCount, itemQuantity);
 	}
 
@@ -238,31 +239,22 @@ public class MetricsService : MonoBehaviour
 		int itemQuantity = 0;
 		GameContext context = GameContext.Instance;
 		StoringPlanner planner = context.IBWorkflowSvc?.StoringPlanner;
-		IReadOnlyList<Building> buildings = context.BuildingMgr?.RegisteredBuildings;
-		if (planner == null || buildings == null)
+		if (planner == null)
 			return default;
 
-		for (int i = 0; i < buildings.Count; ++i)
-		{
-			if (buildings[i] is not StorageBuilding storageBuilding || storageBuilding.RuntimeBuildingId == 0)
-				continue;
-
-			planner.GetPendingDemand(storageBuilding.RuntimeBuildingId, out int buildingSources, out int buildingQuantity);
-			sourceCount += buildingSources;
-			itemQuantity += buildingQuantity;
-		}
+		planner.GetPendingDemand(0, out sourceCount, out itemQuantity);
 
 		return new WorkDemandSnapshot(sourceCount, itemQuantity);
 	}
 
-	private static WorkDemandSnapshot GetStoringDemandSnapshot(StorageBuilding storageBuilding)
+	private static WorkDemandSnapshot GetStoringDemandSnapshot(uint buildingId)
 	{
 		StoringPlanner planner = GameContext.Instance.IBWorkflowSvc?.StoringPlanner;
-		if (planner == null || storageBuilding == null || storageBuilding.RuntimeBuildingId == 0)
+		if (planner == null || buildingId == 0)
 			return default;
 
 		planner.GetPendingDemand(
-			storageBuilding.RuntimeBuildingId,
+			buildingId,
 			out int sourceCount,
 			out int itemQuantity);
 		return new WorkDemandSnapshot(sourceCount, itemQuantity);

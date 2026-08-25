@@ -304,7 +304,9 @@ public sealed partial class PickingTask : WorkerTask
 			box,
 			pickedStack,
 			consumeSourcePickReservation: true,
-			sourceStackPredicate: stack => stack.HasQuality(ItemQuality.Waste) == false);
+			sourceStackPredicate: stack =>
+				stack.HasStatus(ItemStatus.Labeled) &&
+				stack.HasQuality(ItemQuality.Waste) == false);
 		if (result.Moved > 0)
 			ctx.Worker.ReportItemHandling(result.ItemId, result.Moved, box);
 		if (result.Kind != TransferResultKind.Complete && pickedStack.Quantity > 0)
@@ -408,14 +410,13 @@ public sealed partial class PickingTask : WorkerTask
 	{
 		if (buildingId == 0 ||
 			GameContext.HasInstance == false ||
-			GameContext.Instance.BuildingMgr == null ||
-			GameContext.Instance.BuildingMgr.TryGetBuilding(buildingId, out Building building) == false ||
-			building is not StorageBuilding storageBuilding)
+			GameContext.Instance.OBWorkflowSvc == null ||
+			GameContext.Instance.OBWorkflowSvc.TryGetPickingPlanner(buildingId, out PickingPlanner planner) == false)
 		{
 			return null;
 		}
 
-		return storageBuilding.PickingPlanner;
+		return planner;
 	}
 
 	private bool TryGetNextPickedLine(out WorkLine pickedLine)

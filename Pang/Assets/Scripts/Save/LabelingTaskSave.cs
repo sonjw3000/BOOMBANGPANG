@@ -27,13 +27,24 @@ public static class LabelingTaskSaveExtensions
 			GameContext.HasInstance == false ||
 			GameContext.Instance.BuildingMgr == null ||
 			GameContext.Instance.BuildingMgr.TryGetBuilding(data.BuildingId, out Building building) == false ||
-			building is not StagingBuilding stagingBuilding)
+			building == null ||
+			targetContainer is not CapsuleBuffer targetBuffer ||
+			GameContext.Instance.CapsuleBufferSvc == null ||
+			GameContext.Instance.CapsuleBufferSvc.TryGetRegisteredBuildingId(targetBuffer, out uint buildingId) == false ||
+			buildingId != data.BuildingId)
 		{
 			return null;
 		}
 
-		LabelingTask task = new(stagingBuilding, targetContainer);
+		LabelingTask task = new(data.BuildingId, targetBuffer);
 		task.RestoreState(data.IsTaskEnd);
+		if (data.IsTaskEnd == false &&
+			(GameContext.Instance.IBWorkflowSvc == null ||
+			 GameContext.Instance.IBWorkflowSvc.RegisterLabelingTask(task) == false))
+		{
+			return null;
+		}
+
 		return task;
 	}
 

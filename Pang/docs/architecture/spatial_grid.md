@@ -79,14 +79,15 @@ Current direction:
 This distinction should guide future placement, interaction, and refactoring work.
 
 Additional interpretation rules:
-- a building answers `what is this space for`
+- a building answers `which interior scope and outbound policy owns this space`
 - a facility rule answers `how should this facility operate`
 - an area answers `where may this spawn or landing operation occur`
 - areas are not owned by buildings and cannot overlap building cells
 - areas do not own facilities, item filters, or worker policies
 
 Examples:
-- `StorageBuilding`, `Packing`, and `Staging` are building-level identities
+- storage, staging, and packing are capabilities composed from installed facilities and their Rules
+- legacy `BuildingType` values may still describe player-facing presets without selecting Labeling, Storing, or Picking runtime producers
 - fragile handling, hazard restrictions, and item filters are facility-rule policies
 
 ---

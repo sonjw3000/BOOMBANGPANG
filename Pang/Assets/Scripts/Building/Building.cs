@@ -1264,6 +1264,15 @@ public class Building
 
 		if (dockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
 		{
+			bool evaluateLaunchReadiness = OutboundTargetStage == CargoProcessStage.LaunchReady;
+			bool isRuleMatched = CapsuleBufferService?.IsRuleMatchedBuffer(
+				capsuleBuffer,
+				dockedCapsule,
+				evaluateLaunchReadiness) == true;
+			coordinator.NotifyRuleRoutingEvaluated(
+				RuntimeBuildingId,
+				capsuleBuffer,
+				isRuleMatched);
 			TryEvaluateOutbound(capsuleBuffer);
 			return;
 		}
@@ -1290,11 +1299,16 @@ public class Building
 		else if (dock is OutboundCargoPort)
 			normalized = dock.IsCapsuleEmpty() ? CapsuleLogisticsState.Empty : CapsuleLogisticsState.OB;
 		else if (dock is CapsuleBuffer buffer)
-			normalized = buffer.IsCapsuleEmpty()
-				? CapsuleLogisticsState.Empty
-				: IsBufferOutboundReady(buffer)
+		{
+			if (buffer.IsCapsuleEmpty())
+				normalized = CapsuleLogisticsState.Empty;
+			else if (TaskManager?.HasManagedPickingOutputDependency(buffer) == true)
+				normalized = CapsuleLogisticsState.Inside;
+			else
+				normalized = IsBufferOutboundReady(buffer)
 					? CapsuleLogisticsState.OB
 					: CapsuleLogisticsState.Inside;
+		}
 		else
 			return;
 
@@ -1315,20 +1329,24 @@ public class Building
 		}
 
 		bool evaluateLaunchReadiness = OutboundTargetStage == CargoProcessStage.LaunchReady;
+		CapsuleRelocateCoordinator coordinator = GameContext.Instance.CapsuleRelocateCoordinator;
 		if (CapsuleBufferService?.IsRuleMatchedBuffer(
 				capsuleBuffer,
 				capsule,
 				evaluateLaunchReadiness) == true)
 		{
-			GameContext.Instance.CapsuleRelocateCoordinator.CancelPendingRequests(capsuleBuffer);
+			coordinator.CancelPendingRequests(capsuleBuffer);
+			coordinator.NotifyRuleRoutingEvaluated(RuntimeBuildingId, capsuleBuffer, isRuleMatched: true);
 			OnCapsuleRoutingSettled(capsuleBuffer);
 			return;
 		}
 
+		coordinator.NotifyRuleRoutingEvaluated(RuntimeBuildingId, capsuleBuffer, isRuleMatched: false);
+
 		WorkerTask.TaskType taskType = capsule.LogisticsState == CapsuleLogisticsState.Empty
 			? WorkerTask.TaskType.CapsuleSupply
 			: WorkerTask.TaskType.CapsuleClear;
-		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
+		coordinator.RequestSend(new CapsuleRelocateSendRequest(
 			capsuleBuffer,
 			capsuleBuffer.DockState,
 			capsule.LogisticsState,

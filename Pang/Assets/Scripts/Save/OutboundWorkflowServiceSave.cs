@@ -124,5 +124,8 @@ public partial class OutboundWorkflowService
 		queuedCargoTransferPorts.Clear();
 		queuedCargoTransferTargets.Clear();
 		pickingManifests.Clear();
+		UnregisterPickingTaskProducers();
+		pickingPlannersByBuildingId.Clear();
+		SyncPickingTaskProducers();
 	}
 }

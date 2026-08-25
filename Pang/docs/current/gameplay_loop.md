@@ -30,7 +30,7 @@ Inbound CargoPort
 -> Building outbound stage and threshold
 -> Outbound CargoPort
 
-The target model allows the same Building to host several or all of these operations. In the current migration step, Capsule routing and state normalization already use this generic model, while labeling, storing, picking, packing, and launch Task producers remain registered by the dedicated Building subclasses. Those subclasses are not the intended final player-facing capability boundary.
+The target model allows the same Building to host several or all of these operations. Capsule routing, state normalization, Labeling, Storing, and Picking now use this generic model and are selected by BuildingId-scoped facilities and Rules rather than Staging/Storage subclasses. Packing and launch Task producers remain on migration-era subclasses for the next implementation bundle; those classes are not the intended final player-facing capability boundary.
 
 ---
 

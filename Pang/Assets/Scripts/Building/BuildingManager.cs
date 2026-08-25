@@ -419,8 +419,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 	{
 		Building building = buildingType switch
 		{
-			BuildingType.Staging => new StagingBuilding(displayName, ownedCells),
-			BuildingType.Storage => new StorageBuilding(displayName, ownedCells),
+			BuildingType.Staging => new Building(displayName, ownedCells, buildingType),
+			BuildingType.Storage => new Building(displayName, ownedCells, buildingType),
 			BuildingType.Packing => new PackingBuilding(displayName, ownedCells),
 			BuildingType.Launch => new LaunchBuilding(displayName, ownedCells),
 			_ => new Building(displayName, ownedCells, buildingType),

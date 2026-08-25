@@ -5,38 +5,38 @@ using static IBaseNode.NodeState;
 
 public sealed partial class LabelingTask : WorkerTask
 {
-	private readonly StagingBuilding building;
-	private readonly IItemContainer targetContainer;
+	private readonly uint buildingId;
+	private readonly CapsuleBuffer targetBuffer;
 	private readonly IGridPlaceable targetPlaceable;
 	private bool isTaskEnd;
 	private int rejectedQuantity;
 
 	private static WorkerManager WorkerManager => GameContext.Instance.WorkerMgr;
 
-	public StagingBuilding Building => building;
-	public IItemContainer TargetContainer => targetContainer;
+	public IItemContainer TargetContainer => targetBuffer;
+	public CapsuleBuffer TargetBuffer => targetBuffer;
 	public IGridPlaceable TargetPlaceable => targetPlaceable;
-	public uint BuildingId => building != null ? building.RuntimeBuildingId : 0;
+	public uint BuildingId => buildingId;
+	internal bool IsTaskEnd => isTaskEnd;
 
-	public LabelingTask(StagingBuilding building, IItemContainer targetContainer) : base(TaskType.Labeling)
+	public LabelingTask(uint buildingId, CapsuleBuffer targetBuffer) : base(TaskType.Labeling)
 	{
-		this.building = building;
-		this.targetContainer = targetContainer;
-		targetPlaceable = targetContainer as IGridPlaceable;
-		building?.OnLabelingTaskQueued(targetContainer);
+		this.buildingId = buildingId;
+		this.targetBuffer = targetBuffer;
+		targetPlaceable = targetBuffer;
 	}
 
 	public override bool TryGetPreferredWorker(out AIWorker worker)
 	{
 		worker = null;
-		if (building == null || WorkerManager == null)
+		if (buildingId == 0 || WorkerManager == null)
 			return false;
 
 		int bestDistance = int.MaxValue;
 		foreach (AIWorker candidate in WorkerManager.Workers)
 		{
 			if (candidate == null ||
-				candidate.PrimaryBuildingId != building.RuntimeBuildingId ||
+				candidate.PrimaryBuildingId != buildingId ||
 				candidate.CanAcceptPreferredTask(this) == false)
 			{
 				continue;
@@ -62,24 +62,15 @@ public sealed partial class LabelingTask : WorkerTask
 		return root;
 	}
 
-	protected override void OnTaskInvalidated()
-	{
-		FacilityManager facilityManager = GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
-		if (targetPlaceable is IFacility facility && facilityManager?.IsInvalidating(facility) == true)
-			building?.OnLabelingTaskInvalidated(targetContainer);
-		else
-			building?.OnLabelingTaskFinished(targetContainer);
-	}
-
 	public override bool CheckTaskEnd()
 	{
 		if (isTaskEnd)
 			return true;
 
-		if (building == null || building.HasLabelingWork(targetContainer) == false)
+		InboundWorkflowService inbound = GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;
+		if (inbound == null || inbound.IsLabelingTargetReady(buildingId, targetBuffer) == false)
 		{
 			isTaskEnd = true;
-			building?.OnLabelingTaskFinished(targetContainer);
 			return true;
 		}
 
@@ -89,8 +80,8 @@ public sealed partial class LabelingTask : WorkerTask
 	public override bool CanDispatchTo(AIWorker worker)
 	{
 		return worker != null &&
-			building != null &&
-			worker.PrimaryBuildingId == building.RuntimeBuildingId &&
+			buildingId != 0 &&
+			worker.PrimaryBuildingId == buildingId &&
 			CanDispatchToWorkerZones(worker, targetPlaceable);
 	}
 
@@ -128,10 +119,11 @@ public sealed partial class LabelingTask : WorkerTask
 	public static NodeState SetLabelingTarget(in BTContext ctx)
 	{
 		LabelingTask task = GetTask(ctx);
-		if (task?.targetPlaceable == null || task.building == null)
+		InboundWorkflowService inbound = GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;
+		if (task?.targetPlaceable == null || inbound == null)
 			return Failure;
 
-		if (task.building.HasLabelingWork(task.targetContainer) == false)
+		if (inbound.IsLabelingTargetReady(task.buildingId, task.targetBuffer) == false)
 			return Failure;
 
 		ctx.LocalBlackBoard.SetTargetBuilding(task.targetPlaceable);
@@ -141,23 +133,58 @@ public sealed partial class LabelingTask : WorkerTask
 	public static NodeState ApplyLabel(in BTContext ctx)
 	{
 		LabelingTask task = GetTask(ctx);
-		if (task?.building == null)
+		if (task?.targetBuffer == null || GameContext.HasInstance == false)
 			return Failure;
 
-		if (task.building.TryLabelItems(
-			task.targetContainer,
-			out int labeledQuantity,
-			out int rejectedQuantity) == false)
+		if (task.TryApplyLabels(out int labeledQuantity, out int rejectedQuantity) == false)
 			return Failure;
 
 		task.isTaskEnd = true;
 		task.rejectedQuantity = rejectedQuantity;
-		task.building.OnLabelingTaskFinished(task.targetContainer);
+		BuildingManager buildingManager = GameContext.Instance.BuildingMgr;
+		if (buildingManager != null)
+			buildingManager.RefreshItemContainerState(task.targetBuffer);
+		else
+			GameContext.Instance.ExistingCapsuleRelocateCoordinator?.MarkDirty(task.targetBuffer);
 
 		if (labeledQuantity <= 0 && rejectedQuantity <= 0)
 			Debug.LogWarning($"[LabelingTask] Completed without labeled items. target={task.TargetName}");
 
 		return Success;
+	}
+
+	private bool TryApplyLabels(out int labeledQuantity, out int rejectedQuantity)
+	{
+		labeledQuantity = 0;
+		rejectedQuantity = 0;
+		InboundWorkflowService inbound = GameContext.HasInstance ? GameContext.Instance.IBWorkflowSvc : null;
+		if (inbound == null || inbound.IsLabelingTargetReady(buildingId, targetBuffer) == false)
+			return false;
+
+		bool qualityControlEnabled = inbound.InboundQualityControlEnabled;
+		for (int i = 0; i < targetBuffer.Stacks.Count; ++i)
+		{
+			ItemStack stack = targetBuffer.Stacks[i];
+			if (stack == null ||
+				stack.Quantity <= 0 ||
+				stack.Status != ItemStatus.None ||
+				stack.HasQuality(ItemQuality.Waste))
+			{
+				continue;
+			}
+
+			if (qualityControlEnabled && inbound.InspectInboundQuality(stack).Accepted == false)
+			{
+				stack.AddQuality(ItemQuality.Waste);
+				rejectedQuantity += stack.Quantity;
+				continue;
+			}
+
+			stack.SetStatus(ItemStatus.Labeled);
+			labeledQuantity += stack.Quantity;
+		}
+
+		return labeledQuantity > 0 || rejectedQuantity > 0;
 	}
 
 	public void RestoreState(bool isTaskEnd)

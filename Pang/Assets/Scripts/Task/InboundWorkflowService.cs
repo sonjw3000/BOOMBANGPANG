@@ -37,9 +37,16 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	[SerializeField] [Range(0f, 100f)] private float maximumInboundDamagePercent = QualityControlPolicy.DefaultMaximumDamagePercent;
 
 	private StoringPlanner storingPlanner;
+	private readonly Dictionary<CapsuleBuffer, LabelingTask> labelingTasksByBuffer = new();
+	private readonly HashSet<uint> storingScheduleBuildingIds = new();
+	private readonly List<uint> buildingIdScratch = new();
 	// Keep the exact event publishers so teardown is independent of GameContext ordering.
 	private RocketService boundRocketService;
 	private AreaManager boundAreaManager;
+	private BuildingManager boundBuildingManager;
+	private CapsuleDockService boundCapsuleDockService;
+	private CapsuleRelocateCoordinator boundCapsuleRelocateCoordinator;
+	private ItemTransferTaskScheduler boundItemTransferTaskScheduler;
 	private float timeSinceLastInboundRocketSpawn = 0.0f;
 	public InboundRequestService RequestService => requestService;
 	public StoringPlanner StoringPlanner => storingPlanner;
@@ -99,15 +106,119 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	private void ReevaluateLabelingWork()
 	{
-		if (GameContext.HasInstance == false || GameContext.Instance.BuildingMgr == null)
+		CapsuleBufferService bufferService = CapsuleBufferService;
+		if (bufferService == null)
 			return;
 
-		IReadOnlyList<Building> buildings = GameContext.Instance.BuildingMgr.RegisteredBuildings;
-		for (int i = 0; i < buildings.Count; ++i)
+		foreach (CapsuleBuffer buffer in bufferService.GetBuffers())
+			ReevaluateBufferWork(buffer);
+	}
+
+	internal bool HasLabelingWork(CapsuleBuffer buffer)
+	{
+		if (buffer == null)
+			return false;
+
+		for (int i = 0; i < buffer.Stacks.Count; ++i)
 		{
-			if (buildings[i] is StagingBuilding stagingBuilding)
-				stagingBuilding.EvaluateLabelingWork();
+			ItemStack stack = buffer.Stacks[i];
+			if (stack != null &&
+				stack.Quantity > 0 &&
+				stack.Status == ItemStatus.None &&
+				stack.HasQuality(ItemQuality.Waste) == false)
+			{
+				return true;
+			}
 		}
+
+		return false;
+	}
+
+	internal bool IsLabelingTargetReady(uint buildingId, CapsuleBuffer buffer)
+	{
+		if (buildingId == 0 || GameContext.HasInstance == false ||
+			GameContext.Instance.BuildingMgr == null ||
+			GameContext.Instance.BuildingMgr.TryGetBuilding(buildingId, out Building registeredBuilding) == false ||
+			registeredBuilding == null ||
+			buffer?.DockedCapsule == null ||
+			buffer.DockedCapsule.RouteKind != CargoRouteKind.Standard ||
+			buffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.Inside ||
+			buffer.IsCapsuleEmpty() ||
+			HasLabelingWork(buffer) == false)
+		{
+			return false;
+		}
+
+		CapsuleBufferService bufferService = CapsuleBufferService;
+		if (bufferService == null ||
+			bufferService.TryGetRegisteredBuildingId(buffer, out uint registeredBuildingId) == false ||
+			registeredBuildingId != buildingId ||
+			bufferService.IsRuleMatchedBuffer(buffer, buffer.DockedCapsule, evaluateLaunchReadiness: false) == false ||
+			IsBufferRuleConfiguredForStage(buffer, CargoProcessStage.Unlabeled) == false)
+		{
+			return false;
+		}
+
+		CapsuleRelocateCoordinator coordinator = GameContext.Instance.ExistingCapsuleRelocateCoordinator;
+		return coordinator == null ||
+			(coordinator.IsPlayerClaimed(buffer) == false &&
+			 coordinator.IsReserved(buffer) == false &&
+			 coordinator.IsRelocationSourceActive(buffer) == false &&
+			 coordinator.IsRelocationTargetActive(buffer) == false);
+	}
+
+	internal bool CanRequestLabelingTask(uint buildingId, CapsuleBuffer buffer)
+	{
+		return TaskMgr != null &&
+			IsLabelingTargetReady(buildingId, buffer) &&
+			HasOwnedLabelingTask(buffer) == false &&
+			TaskMgr.HasManagedTaskFacilityDependency(buffer) == false;
+	}
+
+	internal bool TryRequestLabelingTask(uint buildingId, CapsuleBuffer buffer)
+	{
+		return CanRequestLabelingTask(buildingId, buffer) &&
+			TaskMgr.EnqueueTaskBuildRequest(new LabelingTaskBuildRequest(buildingId, buffer));
+	}
+
+	internal bool RegisterLabelingTask(LabelingTask task)
+	{
+		CapsuleBuffer buffer = task?.TargetBuffer;
+		if (buffer == null || task.BuildingId == 0 ||
+			IsLabelingTargetReady(task.BuildingId, buffer) == false ||
+			HasOwnedLabelingTask(buffer))
+		{
+			return false;
+		}
+
+		labelingTasksByBuffer[buffer] = task;
+		return true;
+	}
+
+	private bool HasOwnedLabelingTask(CapsuleBuffer buffer)
+	{
+		if (buffer == null || labelingTasksByBuffer.TryGetValue(buffer, out LabelingTask task) == false)
+			return false;
+
+		if (task != null &&
+			task.CurrentStatus != WorkerTask.Status.Completed &&
+			task.CurrentStatus != WorkerTask.Status.Invalidated)
+		{
+			return true;
+		}
+
+		labelingTasksByBuffer.Remove(buffer);
+		return false;
+	}
+
+	private bool IsBufferRuleConfiguredForStage(CapsuleBuffer buffer, CargoProcessStage stage)
+	{
+		FacilityRuleManager ruleManager = GameContext.HasInstance ? GameContext.Instance.FacilityRuleMgr : null;
+		return buffer != null &&
+			ruleManager != null &&
+			buffer.FacilityRulePresetId != FacilityRuleManager.NoRulePresetId &&
+			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
+			preset?.Rule?.RequiredCargoProcessStage == stage;
 	}
 
 	public bool TryGetUnloadingDestinationBuilding(out Building building)
@@ -214,6 +325,9 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	public void OnTaskCompleted(WorkerTask task)
 	{
+		if (task is LabelingTask labelingTask)
+			OnLabelingTaskEnded(labelingTask);
+
 		switch (task.Type)
 		{
 			case Unloading:
@@ -226,6 +340,9 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 
 	public void OnTaskInvalidated(WorkerTask task)
 	{
+		if (task is LabelingTask labelingTask)
+			OnLabelingTaskEnded(labelingTask);
+
 		if (task is not CapsuleRelocationTask relocationTask || GameContext.HasInstance == false)
 			return;
 
@@ -258,14 +375,18 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 	private void OnEnable()
 	{
 		EnsurePlanner();
-		if (BindEvents())
+		bool didBind = BindEvents();
+		ReevaluateLabelingWork();
+		if (didBind)
 			RetryActiveRocketUnloadingTasks();
 	}
 
 	private void Start()
 	{
 		EnsurePlanner();
-		if (BindEvents())
+		bool didBind = BindEvents();
+		ReevaluateLabelingWork();
+		if (didBind)
 			RetryActiveRocketUnloadingTasks();
 	}
 
@@ -345,6 +466,41 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			}
 		}
 
+		if (boundBuildingManager == null && GameContext.HasInstance)
+		{
+			boundBuildingManager = GameContext.Instance.BuildingMgr;
+			if (boundBuildingManager != null)
+			{
+				boundBuildingManager.OnBuildingsChanged += HandleBuildingsChanged;
+				didBind = true;
+			}
+		}
+
+		if (boundCapsuleDockService == null && GameContext.HasInstance)
+		{
+			boundCapsuleDockService = GameContext.Instance.CapsuleDockSvc;
+			if (boundCapsuleDockService != null)
+			{
+				boundCapsuleDockService.OnCapsuleUndocked += HandleCapsuleUndocked;
+				didBind = true;
+			}
+		}
+
+		if (boundCapsuleRelocateCoordinator == null && GameContext.HasInstance)
+		{
+			boundCapsuleRelocateCoordinator = GameContext.Instance.CapsuleRelocateCoordinator;
+			if (boundCapsuleRelocateCoordinator != null)
+			{
+				boundCapsuleRelocateCoordinator.OnRuleRoutingEvaluated += HandleRuleRoutingEvaluated;
+				didBind = true;
+			}
+		}
+
+		if (boundItemTransferTaskScheduler == null && GameContext.HasInstance)
+			boundItemTransferTaskScheduler = GameContext.Instance.ItemTransferTaskScheduler;
+
+		SyncBuildingTaskProducers();
+
 		return didBind;
 	}
 
@@ -359,8 +515,200 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			boundAreaManager.OnAreaRemoved -= HandleAreaChanged;
 		}
 
+		if (boundBuildingManager != null)
+			boundBuildingManager.OnBuildingsChanged -= HandleBuildingsChanged;
+
+		if (boundCapsuleDockService != null)
+			boundCapsuleDockService.OnCapsuleUndocked -= HandleCapsuleUndocked;
+
+		if (boundCapsuleRelocateCoordinator != null)
+			boundCapsuleRelocateCoordinator.OnRuleRoutingEvaluated -= HandleRuleRoutingEvaluated;
+
+		UnregisterStoringTaskProducers();
+
 		boundRocketService = null;
 		boundAreaManager = null;
+		boundBuildingManager = null;
+		boundCapsuleDockService = null;
+		boundCapsuleRelocateCoordinator = null;
+		boundItemTransferTaskScheduler = null;
+	}
+
+	private void HandleBuildingsChanged()
+	{
+		SyncBuildingTaskProducers();
+		ReevaluateLabelingWork();
+	}
+
+	private void HandleCapsuleUndocked(uint buildingId, CapsuleDock dock)
+	{
+		if (dock is not CapsuleBuffer buffer)
+			return;
+
+		InvalidateOwnedLabelingTask(buffer, TaskInvalidationReason.SourceUnavailable);
+		EvaluateStoringWork(buildingId);
+	}
+
+	private void HandleRuleRoutingEvaluated(
+		uint buildingId,
+		CapsuleBuffer buffer,
+		bool _)
+	{
+		if (buffer == null)
+			return;
+
+		if (IsLabelingTargetReady(buildingId, buffer))
+			TryRequestLabelingTask(buildingId, buffer);
+		else
+			InvalidateOwnedLabelingTask(buffer, TaskInvalidationReason.RuleChanged);
+
+		EvaluateStoringWork(buildingId);
+	}
+
+	private void ReevaluateBufferWork(CapsuleBuffer buffer)
+	{
+		if (buffer == null || CapsuleBufferService == null ||
+			CapsuleBufferService.TryGetRegisteredBuildingId(buffer, out uint buildingId) == false)
+		{
+			return;
+		}
+
+		if (IsLabelingTargetReady(buildingId, buffer))
+			TryRequestLabelingTask(buildingId, buffer);
+		else
+			InvalidateOwnedLabelingTask(buffer, TaskInvalidationReason.RuleChanged);
+
+		EvaluateStoringWork(buildingId);
+	}
+
+	private void OnLabelingTaskEnded(LabelingTask task)
+	{
+		CapsuleBuffer buffer = task?.TargetBuffer;
+		if (buffer == null)
+			return;
+
+		if (labelingTasksByBuffer.TryGetValue(buffer, out LabelingTask owner) && ReferenceEquals(owner, task))
+			labelingTasksByBuffer.Remove(buffer);
+
+		if (CapsuleBufferService != null &&
+			CapsuleBufferService.TryGetRegisteredBuildingId(buffer, out uint buildingId))
+		{
+			TryRequestLabelingTask(buildingId, buffer);
+		}
+	}
+
+	private void InvalidateOwnedLabelingTask(
+		CapsuleBuffer buffer,
+		TaskInvalidationReason reason)
+	{
+		if (buffer == null || labelingTasksByBuffer.TryGetValue(buffer, out LabelingTask task) == false)
+			return;
+
+		if (task == null ||
+			task.CurrentStatus == WorkerTask.Status.Completed ||
+			task.CurrentStatus == WorkerTask.Status.Invalidated)
+		{
+			labelingTasksByBuffer.Remove(buffer);
+			return;
+		}
+
+		if (task.IsTaskEnd)
+			return;
+
+		if (TaskMgr?.IsManagingTask(task) == true)
+			TaskMgr.InvalidateTask(task, reason);
+		else
+			labelingTasksByBuffer.Remove(buffer);
+	}
+
+	private void SyncBuildingTaskProducers()
+	{
+		BuildingManager buildingManager = boundBuildingManager ??
+			(GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null);
+		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
+			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
+		if (buildingManager == null || scheduler == null)
+			return;
+
+		buildingIdScratch.Clear();
+		IReadOnlyList<Building> buildings = buildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			uint buildingId = buildings[i]?.RuntimeBuildingId ?? 0;
+			if (buildingId == 0)
+				continue;
+
+			buildingIdScratch.Add(buildingId);
+			scheduler.Register(
+				buildingId,
+				ItemTransferScheduleMode.Storing,
+				WorkerTask.TaskType.Storing,
+				TryBuildStoringItemTransferTask);
+			storingScheduleBuildingIds.Add(buildingId);
+			EvaluateStoringWork(buildingId);
+		}
+
+		uint[] registeredIds = new uint[storingScheduleBuildingIds.Count];
+		storingScheduleBuildingIds.CopyTo(registeredIds);
+		for (int i = 0; i < registeredIds.Length; ++i)
+		{
+			uint buildingId = registeredIds[i];
+			if (buildingIdScratch.Contains(buildingId))
+				continue;
+
+			scheduler.Unregister(buildingId, ItemTransferScheduleMode.Storing);
+			storingScheduleBuildingIds.Remove(buildingId);
+		}
+	}
+
+	private void UnregisterStoringTaskProducers()
+	{
+		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
+			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
+		if (scheduler != null)
+		{
+			foreach (uint buildingId in storingScheduleBuildingIds)
+				scheduler.Unregister(buildingId, ItemTransferScheduleMode.Storing);
+		}
+
+		storingScheduleBuildingIds.Clear();
+	}
+
+	private ItemTransferScheduleResult TryBuildStoringItemTransferTask(
+		ItemTransferScheduleRequest request,
+		out WorkerTask task)
+	{
+		task = null;
+		if (request.Worker == null || request.Worker.CanAcceptGeneralTask(request.TaskType) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		if (storingPlanner == null ||
+			storingPlanner.HasPendingCollectWork(request.BuildingId) == false ||
+			storingPlanner.BuildItemTransferTask(
+				request.Worker,
+				request.BuildingId,
+				out ItemTransferTask itemTransferTask) == false)
+		{
+			return ItemTransferScheduleResult.NoWork;
+		}
+
+		task = itemTransferTask;
+		return ItemTransferScheduleResult.Scheduled;
+	}
+
+	private void EvaluateStoringWork(uint buildingId)
+	{
+		if (buildingId == 0 || storingPlanner == null)
+			return;
+
+		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
+			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
+		if (scheduler == null)
+			return;
+		if (storingPlanner.HasPendingCollectWork(buildingId))
+			scheduler.MarkDirty(buildingId, ItemTransferScheduleMode.Storing);
+		else
+			scheduler.ClearDirty(buildingId, ItemTransferScheduleMode.Storing);
 	}
 
 	internal CargoPort ResolveUnloadingDestinationPort(Rocket rocket, uint requestedBuildingId = 0)

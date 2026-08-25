@@ -73,7 +73,7 @@ Building systems should own:
 - building-owned interior space
 - worker affiliation scope
 
-Installed facilities and their FacilityRules are the target source of available logistics capabilities. Capsule routing and lifecycle evaluation already follow that ownership. During the current migration, specialized Building subclasses still register the labeling, storing, picking, packing, and launch Task producers; removing that remaining class-bound capability is deferred to the final Building-lightening step.
+Installed facilities and their FacilityRules are the source of available logistics capabilities. Capsule routing, lifecycle evaluation, Labeling, Storing, and Picking now follow that ownership: existing inbound/outbound services own producer registration and planners by BuildingId. Packing and launch producers remain class-bound during the current migration and are deferred to the later Building-lightening step.
 
 Region classification such as indoor / outdoor should support placement and spatial reasoning, but should not replace building ownership as the source of truth for space identity.
 

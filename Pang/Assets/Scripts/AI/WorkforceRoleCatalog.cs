@@ -67,20 +67,22 @@ public sealed class WorkforceRoleDefinition
 public static class WorkforceRoleCatalog
 {
 	private static readonly IReadOnlyList<WorkforceRole> noRoles = CreateRoleList();
-	private static readonly IReadOnlyList<WorkforceRole> genericRoles = CreateRoleList(
-		WorkforceRole.CapsuleHandling);
-	private static readonly IReadOnlyList<WorkforceRole> stagingRoles = CreateRoleList(
+	private static readonly IReadOnlyList<WorkforceRole> coreBuildingRoles = CreateRoleList(
 		WorkforceRole.Labeling,
-		WorkforceRole.CapsuleHandling);
-	private static readonly IReadOnlyList<WorkforceRole> storageRoles = CreateRoleList(
 		WorkforceRole.Storing,
 		WorkforceRole.Picking,
 		WorkforceRole.CapsuleHandling);
 	private static readonly IReadOnlyList<WorkforceRole> packingRoles = CreateRoleList(
+		WorkforceRole.Labeling,
+		WorkforceRole.Storing,
+		WorkforceRole.Picking,
 		WorkforceRole.Packing,
 		WorkforceRole.PackingLogistics,
 		WorkforceRole.CapsuleHandling);
 	private static readonly IReadOnlyList<WorkforceRole> launchRoles = CreateRoleList(
+		WorkforceRole.Labeling,
+		WorkforceRole.Storing,
+		WorkforceRole.Picking,
 		WorkforceRole.LaunchSorting,
 		WorkforceRole.CapsuleHandling);
 	private static readonly IReadOnlyList<WorkforceRole> publicRoles = CreateRoleList(
@@ -155,9 +157,9 @@ public static class WorkforceRoleCatalog
 
 		return buildingType.Value switch
 		{
-			BuildingType.Generic => genericRoles,
-			BuildingType.Staging => stagingRoles,
-			BuildingType.Storage => storageRoles,
+			BuildingType.Generic => coreBuildingRoles,
+			BuildingType.Staging => coreBuildingRoles,
+			BuildingType.Storage => coreBuildingRoles,
 			BuildingType.Packing => packingRoles,
 			BuildingType.Launch => launchRoles,
 			_ => noRoles,

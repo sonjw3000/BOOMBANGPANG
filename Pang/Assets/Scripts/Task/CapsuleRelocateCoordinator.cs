@@ -141,6 +141,7 @@ public sealed class CapsuleRelocateCoordinator
 	private bool isProcessingDirty;
 
 	public event Action<CapsuleDock> OnPlayerClaimReleased;
+	public event Action<uint, CapsuleBuffer, bool> OnRuleRoutingEvaluated;
 
 	public int PendingSendCount => pendingSendNodeBySource.Count;
 	public int PendingDemandCount => pendingDemandNodeByTarget.Count;
@@ -419,6 +420,17 @@ public sealed class CapsuleRelocateCoordinator
 		while (TryMatchPendingDemand() || TryMatchPendingSend())
 		{
 		}
+	}
+
+	public void NotifyRuleRoutingEvaluated(
+		uint buildingId,
+		CapsuleBuffer buffer,
+		bool isRuleMatched)
+	{
+		if (buildingId == 0 || buffer == null)
+			return;
+
+		OnRuleRoutingEvaluated?.Invoke(buildingId, buffer, isRuleMatched);
 	}
 
 	public void CancelPendingRequests(CapsuleDock dock)

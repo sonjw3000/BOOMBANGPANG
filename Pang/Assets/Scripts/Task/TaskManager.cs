@@ -28,6 +28,7 @@ public partial class TaskManager : MonoBehaviour
 	private readonly Dictionary<object, LinkedListNode<TaskBuildRequest>> taskBuildRequestsByKey = new();
 	private readonly HashSet<WorkerTask> facilityAffectedTasks = new();
 	private readonly HashSet<CapsuleRelocationTask> playerPreemptedCapsuleTasks = new();
+	private readonly HashSet<ItemTransferTask> playerPreemptedPickingTasks = new();
 	private FacilityManager boundFacilityManager;
 	private int taskStateChangeBatchDepth;
 	private bool taskStateChangedWhileBatched;
@@ -307,6 +308,26 @@ public partial class TaskManager : MonoBehaviour
 		return QueueDependsOnFacility(returnedTaskQueue, facility);
 	}
 
+	internal bool HasManagedPickingOutputDependency(CapsuleBuffer buffer)
+	{
+		if (buffer == null)
+			return false;
+
+		foreach (LinkedList<WorkerTask> queue in taskQueue.Values)
+		{
+			if (QueueRetainsPickingOutput(queue, buffer))
+				return true;
+		}
+
+		foreach (LinkedList<WorkerTask> queue in taskOnProgress.Values)
+		{
+			if (QueueRetainsPickingOutput(queue, buffer))
+				return true;
+		}
+
+		return QueueRetainsPickingOutput(returnedTaskQueue, buffer);
+	}
+
 	private void HandleFacilityInvalidating(
 		IFacility facility,
 		FacilityInvalidationContext context)
@@ -390,15 +411,27 @@ public partial class TaskManager : MonoBehaviour
 		return false;
 	}
 
+	private static bool QueueRetainsPickingOutput(IEnumerable<WorkerTask> tasks, CapsuleBuffer buffer)
+	{
+		foreach (WorkerTask task in tasks)
+		{
+			if (task is ItemTransferTask transferTask && transferTask.RetainsPickingOutput(buffer))
+				return true;
+		}
+
+		return false;
+	}
+
 	public bool TryPreemptCapsuleDockForPlayer(CapsuleDock dock)
 	{
 		if (dock == null)
 			return false;
 
 		playerPreemptedCapsuleTasks.Clear();
-		CollectCapsuleTasksUsingDock(taskQueue.Values, dock);
-		CollectCapsuleTasksUsingDock(taskOnProgress.Values, dock);
-		CollectCapsuleTasksUsingDock(returnedTaskQueue, dock);
+		playerPreemptedPickingTasks.Clear();
+		CollectTasksUsingCapsuleDock(taskQueue.Values, dock);
+		CollectTasksUsingCapsuleDock(taskOnProgress.Values, dock);
+		CollectTasksUsingCapsuleDock(returnedTaskQueue, dock);
 
 		foreach (CapsuleRelocationTask task in playerPreemptedCapsuleTasks)
 		{
@@ -418,24 +451,33 @@ public partial class TaskManager : MonoBehaviour
 			}
 		}
 
+		foreach (ItemTransferTask task in playerPreemptedPickingTasks)
+		{
+			if (task != null)
+				InvalidateTask(task, TaskInvalidationReason.PlayerDockPreemption);
+		}
+
 		playerPreemptedCapsuleTasks.Clear();
+		playerPreemptedPickingTasks.Clear();
 		return true;
 	}
 
-	private void CollectCapsuleTasksUsingDock(
+	private void CollectTasksUsingCapsuleDock(
 		IEnumerable<LinkedList<WorkerTask>> queues,
 		CapsuleDock dock)
 	{
 		foreach (LinkedList<WorkerTask> queue in queues)
-			CollectCapsuleTasksUsingDock(queue, dock);
+			CollectTasksUsingCapsuleDock(queue, dock);
 	}
 
-	private void CollectCapsuleTasksUsingDock(IEnumerable<WorkerTask> tasks, CapsuleDock dock)
+	private void CollectTasksUsingCapsuleDock(IEnumerable<WorkerTask> tasks, CapsuleDock dock)
 	{
 		foreach (WorkerTask task in tasks)
 		{
 			if (task is CapsuleRelocationTask relocationTask && relocationTask.UsesDock(dock))
 				playerPreemptedCapsuleTasks.Add(relocationTask);
+			else if (task is ItemTransferTask transferTask && transferTask.RetainsPickingOutput(dock))
+				playerPreemptedPickingTasks.Add(transferTask);
 		}
 	}
 

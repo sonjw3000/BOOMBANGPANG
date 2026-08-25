@@ -27,11 +27,17 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private readonly HashSet<OutboundCargoPort> queuedCargoTransferPorts = new();
 	private readonly Dictionary<OutboundCargoPort, InboundCargoPort> queuedCargoTransferTargets = new();
 	private readonly Dictionary<PickingManifestKey, PickingManifest> pickingManifests = new();
+	private readonly Dictionary<uint, PickingPlanner> pickingPlannersByBuildingId = new();
+	private readonly HashSet<uint> pickingScheduleBuildingIds = new();
+	private readonly List<uint> buildingIdScratch = new();
 	private readonly List<PickingDispatchCandidate> pickingDispatchCandidates = new();
+	private BuildingManager boundBuildingManager;
+	private ItemTransferTaskScheduler boundItemTransferTaskScheduler;
 
 	public PackingStationService PackingStationService => packingStationService;
 	public LaunchStationService LaunchStationService => launchStationService;
 	public IReadOnlyDictionary<PickingManifestKey, PickingManifest> PickingManifests => pickingManifests;
+	public IEnumerable<PickingPlanner> PickingPlanners => pickingPlannersByBuildingId.Values;
 	public PickingPolicyType PickingPolicyType => defaultPickingPolicyType;
 	public CollectingPolicyType PickingCollectingPolicyType => defaultPickingCollectingPolicyType;
 	public float PickingBoxFillLimitPercent => pickingBoxFillLimitPercent;
@@ -48,14 +54,51 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 	private readonly struct PickingDispatchCandidate
 	{
-		public readonly StorageBuilding Building;
+		public readonly uint BuildingId;
 		public readonly int PickableQuantity;
 
-		public PickingDispatchCandidate(StorageBuilding building, int pickableQuantity)
+		public PickingDispatchCandidate(uint buildingId, int pickableQuantity)
 		{
-			Building = building;
+			BuildingId = buildingId;
 			PickableQuantity = pickableQuantity;
 		}
+	}
+
+	public bool TryGetPickingPlanner(uint buildingId, out PickingPlanner planner)
+	{
+		planner = null;
+		return buildingId != 0 && pickingPlannersByBuildingId.TryGetValue(buildingId, out planner);
+	}
+
+	public int AcceptPickingRequest(
+		uint buildingId,
+		OrderLine orderLine,
+		int quantity,
+		out PickingRequest firstRequest)
+	{
+		firstRequest = null;
+		if (orderLine == null || quantity <= 0 || orderLine.CanAllocatePicking == false ||
+			TryGetPickingPlanner(buildingId, out PickingPlanner planner) == false)
+		{
+			return 0;
+		}
+
+		int accepted = planner.AcceptPickingRequest(orderLine, quantity, out firstRequest);
+		if (accepted > 0 && GameContext.HasInstance)
+		{
+			GameContext.Instance.ItemTransferTaskScheduler?.MarkDirty(
+				buildingId,
+				ItemTransferScheduleMode.Picking);
+		}
+
+		return accepted;
+	}
+
+	public int GetPickableQuantity(uint buildingId, uint itemId)
+	{
+		return TryGetPickingPlanner(buildingId, out PickingPlanner planner)
+			? planner.GetPickableQuantity(itemId)
+			: 0;
 	}
 
 	public QualityInspectionResult InspectOutboundQuality(ItemStack stack)
@@ -163,14 +206,10 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (facility == null)
 			return;
 
-		if (facility is ShelfBase shelf && BuildingManager != null)
+		if (facility is ShelfBase shelf)
 		{
-			IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
-			for (int i = 0; i < buildings.Count; ++i)
-			{
-				if (buildings[i] is StorageBuilding storageBuilding)
-					storageBuilding.PickingPlanner?.CancelRequestsForSource(shelf);
-			}
+			foreach (PickingPlanner planner in pickingPlannersByBuildingId.Values)
+				planner?.CancelRequestsForSource(shelf);
 		}
 
 		switch (facility)
@@ -221,29 +260,15 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private void SetPickingPolicy(PickingPolicyType policyType)
 	{
 		defaultPickingPolicyType = policyType;
-		if (BuildingManager == null)
-			return;
-
-		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
-		for (int i = 0; i < buildings.Count; ++i)
-		{
-			if (buildings[i] is StorageBuilding storageBuilding)
-				storageBuilding.PickingPlanner?.SetPickingPolicy(policyType);
-		}
+		foreach (PickingPlanner planner in pickingPlannersByBuildingId.Values)
+			planner?.SetPickingPolicy(policyType);
 	}
 
 	public void SetPickingCollectingPolicy(CollectingPolicyType policyType)
 	{
 		defaultPickingCollectingPolicyType = policyType;
-		if (BuildingManager == null)
-			return;
-
-		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
-		for (int i = 0; i < buildings.Count; ++i)
-		{
-			if (buildings[i] is StorageBuilding storageBuilding)
-				storageBuilding.PickingPlanner?.SetCollectingPolicy(policyType);
-		}
+		foreach (PickingPlanner planner in pickingPlannersByBuildingId.Values)
+			planner?.SetCollectingPolicy(policyType);
 	}
 
 	public bool CanUsePickingCollectingPolicy(CollectingPolicyType policyType)
@@ -277,15 +302,8 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private void SetPickingBoxFillLimitPercent(float value)
 	{
 		pickingBoxFillLimitPercent = Mathf.Clamp(value, 1.0f, 100.0f);
-		if (BuildingManager == null)
-			return;
-
-		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
-		for (int i = 0; i < buildings.Count; ++i)
-		{
-			if (buildings[i] is StorageBuilding storageBuilding)
-				storageBuilding.PickingPlanner?.SetBoxFillLimitPercent(pickingBoxFillLimitPercent);
-		}
+		foreach (PickingPlanner planner in pickingPlannersByBuildingId.Values)
+			planner?.SetBoxFillLimitPercent(pickingBoxFillLimitPercent);
 	}
 
 	private static bool IsResearchCompleted(string researchId)
@@ -944,16 +962,156 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private void Start()
 	{
 		SubscribeCargoPortEvents();
+		BindBuildingEvents();
 	}
 
 	private void OnEnable()
 	{
 		SubscribeCargoPortEvents();
+		BindBuildingEvents();
 	}
 
 	private void OnDisable()
 	{
 		UnsubscribeCargoPortEvents();
+		UnbindBuildingEvents();
+	}
+
+	private void BindBuildingEvents()
+	{
+		if (boundBuildingManager == null && GameContext.HasInstance)
+		{
+			boundBuildingManager = GameContext.Instance.BuildingMgr;
+			if (boundBuildingManager != null)
+				boundBuildingManager.OnBuildingsChanged += HandleBuildingsChanged;
+		}
+
+		if (boundItemTransferTaskScheduler == null && GameContext.HasInstance)
+			boundItemTransferTaskScheduler = GameContext.Instance.ItemTransferTaskScheduler;
+
+		SyncPickingTaskProducers();
+	}
+
+	private void UnbindBuildingEvents()
+	{
+		if (boundBuildingManager != null)
+			boundBuildingManager.OnBuildingsChanged -= HandleBuildingsChanged;
+
+		UnregisterPickingTaskProducers();
+		boundBuildingManager = null;
+		boundItemTransferTaskScheduler = null;
+	}
+
+	private void HandleBuildingsChanged()
+	{
+		SyncPickingTaskProducers();
+	}
+
+	private void SyncPickingTaskProducers()
+	{
+		BuildingManager buildingManager = boundBuildingManager ??
+			(GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null);
+		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
+			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
+		if (buildingManager == null || scheduler == null)
+			return;
+
+		buildingIdScratch.Clear();
+		IReadOnlyList<Building> buildings = buildingManager.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			uint buildingId = buildings[i]?.RuntimeBuildingId ?? 0;
+			if (buildingId == 0)
+				continue;
+
+			buildingIdScratch.Add(buildingId);
+			if (pickingPlannersByBuildingId.ContainsKey(buildingId) == false)
+			{
+				pickingPlannersByBuildingId.Add(
+					buildingId,
+					new PickingPlanner(
+						buildingId,
+						pickingBoxFillLimitPercent,
+						defaultPickingCollectingPolicyType,
+						defaultPickingPolicyType));
+			}
+
+			scheduler.Register(
+				buildingId,
+				ItemTransferScheduleMode.Picking,
+				WorkerTask.TaskType.Picking,
+				TryBuildPickingItemTransferTask);
+			pickingScheduleBuildingIds.Add(buildingId);
+			EvaluatePickingWork(buildingId);
+		}
+
+		uint[] registeredIds = new uint[pickingScheduleBuildingIds.Count];
+		pickingScheduleBuildingIds.CopyTo(registeredIds);
+		for (int i = 0; i < registeredIds.Length; ++i)
+		{
+			uint buildingId = registeredIds[i];
+			if (buildingIdScratch.Contains(buildingId))
+				continue;
+
+			if (pickingPlannersByBuildingId.TryGetValue(buildingId, out PickingPlanner planner))
+				planner?.CancelAllRequests();
+
+			scheduler.Unregister(buildingId, ItemTransferScheduleMode.Picking);
+			pickingScheduleBuildingIds.Remove(buildingId);
+			pickingPlannersByBuildingId.Remove(buildingId);
+		}
+	}
+
+	private void UnregisterPickingTaskProducers()
+	{
+		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
+			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
+		if (scheduler != null)
+		{
+			foreach (uint buildingId in pickingScheduleBuildingIds)
+				scheduler.Unregister(buildingId, ItemTransferScheduleMode.Picking);
+		}
+
+		pickingScheduleBuildingIds.Clear();
+	}
+
+	private ItemTransferScheduleResult TryBuildPickingItemTransferTask(
+		ItemTransferScheduleRequest request,
+		out WorkerTask task)
+	{
+		task = null;
+		if (request.Worker == null || request.Worker.CanAcceptGeneralTask(request.TaskType) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		if (TryGetPickingPlanner(request.BuildingId, out PickingPlanner planner) == false ||
+			planner.HasPendingCollect(request.BuildingId) == false ||
+			planner.BuildItemTransferTask(request.Worker, out ItemTransferTask itemTransferTask) == false)
+		{
+			return ItemTransferScheduleResult.NoWork;
+		}
+
+		task = itemTransferTask;
+		return ItemTransferScheduleResult.Scheduled;
+	}
+
+	private void EvaluatePickingWork(uint buildingId)
+	{
+		if (buildingId == 0)
+			return;
+
+		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
+			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
+		if (scheduler == null)
+			return;
+		if (TryGetPickingPlanner(buildingId, out PickingPlanner planner) &&
+			planner.HasPendingCollect(buildingId))
+		{
+			scheduler.MarkDirty(buildingId, ItemTransferScheduleMode.Picking);
+		}
+		else
+		{
+			scheduler.ClearDirty(buildingId, ItemTransferScheduleMode.Picking);
+		}
 	}
 
 	private void Update()
@@ -995,14 +1153,14 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		for (int i = 0; i < pickingDispatchCandidates.Count && remaining > 0; ++i)
 		{
 			PickingDispatchCandidate candidate = pickingDispatchCandidates[i];
-			if (candidate.Building == null || candidate.PickableQuantity <= 0)
+			if (candidate.BuildingId == 0 || candidate.PickableQuantity <= 0)
 				continue;
 
 			int quantity = Mathf.Min(remaining, candidate.PickableQuantity);
 			if (quantity <= 0)
 				continue;
 
-			int accepted = candidate.Building.AcceptPickingRequest(orderLine, quantity, out _);
+			int accepted = AcceptPickingRequest(candidate.BuildingId, orderLine, quantity, out _);
 			if (accepted <= 0)
 				continue;
 
@@ -1013,17 +1171,18 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private void BuildPickingDispatchCandidates(uint itemId)
 	{
 		pickingDispatchCandidates.Clear();
-		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
-		for (int i = 0; i < buildings.Count; ++i)
+		foreach (KeyValuePair<uint, PickingPlanner> entry in pickingPlannersByBuildingId)
 		{
-			if (buildings[i] is not StorageBuilding storageBuilding || storageBuilding.RuntimeBuildingId == 0)
+			uint buildingId = entry.Key;
+			PickingPlanner planner = entry.Value;
+			if (buildingId == 0 || planner == null)
 				continue;
 
-			int pickable = storageBuilding.GetPickableQuantity(itemId);
+			int pickable = planner.GetPickableQuantity(itemId);
 			if (pickable <= 0)
 				continue;
 
-			pickingDispatchCandidates.Add(new PickingDispatchCandidate(storageBuilding, pickable));
+			pickingDispatchCandidates.Add(new PickingDispatchCandidate(buildingId, pickable));
 		}
 	}
 

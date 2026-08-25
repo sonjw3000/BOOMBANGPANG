@@ -58,10 +58,11 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 {
 	private static int jobID = 1;
 
-	private readonly StorageBuilding ownerBuilding;
+	private readonly uint buildingId;
 	private readonly PickingRequestSource requestSource = new();
 	private readonly Dictionary<AIWorker, ManualPickingSession> manualSessions = new();
 	private readonly HashSet<PickingRequest> claimedManualRequests = new();
+	private bool cancelAllRequestsPending;
 	private PickingPolicyType pickingPolicyType;
 	private ICollectingPolicy<PickingRequest> requestCollectingPolicy;
 	private CollectingPolicyType collectingPolicyType;
@@ -71,17 +72,17 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 	public static void SetNextJobId(int nextJobId) => jobID = nextJobId;
 	public PickingPolicyType PickingPolicyType => pickingPolicyType;
 	public CollectingPolicyType CollectingPolicyType => collectingPolicyType;
-	private uint BuildingId => ownerBuilding != null ? ownerBuilding.RuntimeBuildingId : 0;
+	public uint BuildingId => buildingId;
 
 	private CapsuleBufferService CapsuleBufferService => GameContext.Instance.CapsuleBufferSvc;
 
 	public PickingPlanner(
-		StorageBuilding ownerBuilding,
+		uint buildingId,
 		float boxFillLimitPercent,
 		CollectingPolicyType collectingPolicyType = CollectingPolicyType.Nearest,
 		PickingPolicyType pickingPolicyType = PickingPolicyType.ManualShelfScan)
 	{
-		this.ownerBuilding = ownerBuilding;
+		this.buildingId = buildingId;
 		this.boxFillLimitPercent = boxFillLimitPercent;
 		SetCollectingPolicy(collectingPolicyType);
 		SetPickingPolicy(pickingPolicyType);
@@ -152,6 +153,25 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		return CanUseInventoryGuidance()
 			? AcceptLocatedPickingRequest(orderLine, quantity, out firstRequest)
 			: AcceptManualPickingRequest(orderLine, quantity, out firstRequest);
+	}
+
+	public int GetPickableQuantity(uint itemId)
+	{
+		if (BuildingId == 0 || itemId == 0 || GameContext.HasInstance == false)
+			return 0;
+
+		ShelfStorageService storageService = GameContext.Instance.StorageService;
+		if (storageService == null)
+			return 0;
+
+		int quantity = 0;
+		foreach (ShelfBase source in storageService.GetSources(BuildingId, itemId))
+		{
+			if (source != null)
+				quantity += GetLabeledPickableQuantity(source, itemId);
+		}
+
+		return quantity;
 	}
 
 	public bool AddReservedPickingRequest(OrderLine orderLine, ShelfBase source, int reservedQuantity, out PickingRequest request)
@@ -274,8 +294,57 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			}
 		}
 
+		if (cancelAllRequestsPending)
+			CancelAllRequests();
+
 		if (HasPendingCollect(BuildingId))
 			GameContext.Instance.ItemTransferTaskScheduler?.MarkDirty(BuildingId, ItemTransferScheduleMode.Picking);
+	}
+
+	public int CancelAllRequests()
+	{
+		cancelAllRequestsPending = true;
+		OrderManager orderManager = GameContext.HasInstance ? GameContext.Instance.OrderMgr : null;
+		List<PickingRequest> requests = new(requestSource.GetAllRequests());
+		int cancelledQuantity = 0;
+		bool hasAllocatedRequest = false;
+
+		for (int i = 0; i < requests.Count; ++i)
+		{
+			PickingRequest request = requests[i];
+			if (request == null)
+				continue;
+
+			int releasable = request.RemainingQuantity;
+			if (releasable > 0)
+			{
+				int releasedReservation = request.Source != null
+					? request.Source.ReleaseReservedPick(request.ItemId, releasable)
+					: releasable;
+				int releasedAllocation = orderManager != null
+					? orderManager.ReleasePickingAllocation(request.OrderLine, releasedReservation)
+					: 0;
+				if (orderManager != null && releasedAllocation != releasedReservation)
+				{
+					Debug.LogWarning($"[PickingPlanner] Building unregister allocation rollback mismatch. requested={releasedReservation}, released={releasedAllocation}");
+				}
+
+				request.ReleaseReserved(releasedReservation);
+				cancelledQuantity += releasedReservation;
+			}
+
+			if (request.AllocatedQuantity > 0)
+			{
+				hasAllocatedRequest = true;
+				continue;
+			}
+
+			claimedManualRequests.Remove(request);
+			requestSource.Remove(request);
+		}
+
+		cancelAllRequestsPending = hasAllocatedRequest;
+		return cancelledQuantity;
 	}
 
 	public int CancelRequestsForSource(ShelfBase source)
@@ -347,44 +416,54 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		int bestDistance = int.MaxValue;
 		outboundWorkflowService.TryGetPickingManifest(box, out PickingManifest manifest);
 		FacilityFilter filter = FacilityFilter.WithCapsuleBufferState(
-			FacilityFilter.WithCargoProcessStage(
-				FacilityFilter.ForManifestTransfer(
+			FacilityFilter.ForManifestTransfer(
+				box,
+				manifest,
+				pickedLine.ItemID,
+				remainingQuantity,
+				stack => pickedLine.RequiredStatus.HasValue == false || stack.HasStatus(pickedLine.RequiredStatus.Value),
+				worker),
+			CapsuleBufferStateRequirement.Empty);
+
+		ItemTransferTask activeTask = worker.CurrentTask as ItemTransferTask;
+		if (activeTask != null &&
+			activeTask.Type == WorkerTask.TaskType.Picking &&
+			activeTask.BuildingId == targetBuildingId)
+		{
+			IReadOnlyList<CapsuleBuffer> retainedOutputs = activeTask.RetainedPickingOutputBuffers;
+			for (int i = 0; i < retainedOutputs.Count; ++i)
+			{
+				CapsuleBuffer buffer = retainedOutputs[i];
+				if (IsRetainedPickingOutputBuffer(activeTask, buffer, targetBuildingId, filter) == false)
+					continue;
+
+				TrySelectPlaceBuffer(
+					worker,
 					box,
-					manifest,
 					pickedLine.ItemID,
 					remainingQuantity,
-					stack => pickedLine.RequiredStatus.HasValue == false || stack.HasStatus(pickedLine.RequiredStatus.Value),
-					worker),
-				CargoProcessStage.Picked),
-			CapsuleBufferStateRequirement.Inside);
-		foreach (CapsuleBuffer buffer in EnumeratePlaceBuffers(targetBuildingId))
-		{
-			if (buffer == null)
-				continue;
-
-			if (filter.MatchesCurrentRules(buffer) == false)
-				continue;
-
-			int movable = ItemTransferUtility.GetMovableQuantity(box, buffer, pickedLine.ItemID, remainingQuantity);
-			if (movable < remainingQuantity)
-				continue;
-
-			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
-				buffer,
-				InteractionKind.Put,
-				worker.GridPosition,
-				worker.PrimaryBuildingId,
-				out _,
-				out int distance) == false)
-			{
-				continue;
+					buffer,
+					ref bestBuffer,
+					ref bestDistance);
 			}
+		}
 
-			if (distance >= bestDistance)
-				continue;
+		if (bestBuffer == null)
+		{
+			foreach (CapsuleBuffer buffer in EnumeratePlaceBuffers(targetBuildingId))
+			{
+				if (buffer == null || IsEmptyInputRuleMatchedBuffer(buffer, filter) == false)
+					continue;
 
-			bestBuffer = buffer;
-			bestDistance = distance;
+				TrySelectPlaceBuffer(
+					worker,
+					box,
+					pickedLine.ItemID,
+					remainingQuantity,
+					buffer,
+					ref bestBuffer,
+					ref bestDistance);
+			}
 		}
 
 		if (bestBuffer == null)
@@ -429,7 +508,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			if (source == null || remaining <= 0)
 				continue;
 
-			int available = StorageBuilding.GetNonWastePickableQuantity(source, orderLine.ItemID);
+			int available = GetLabeledPickableQuantity(source, orderLine.ItemID);
 			int reserved = source.ReservePicking(orderLine.ItemID, Mathf.Min(remaining, available));
 			if (reserved <= 0)
 				continue;
@@ -543,8 +622,9 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			shelf,
 			shelf,
 			request.ItemId,
-			Mathf.Min(quantity, GetNonWasteQuantity(shelf, request.ItemId)),
+			Mathf.Min(quantity, GetLabeledQuantity(shelf, request.ItemId)),
 			request.OrderLine,
+			requiredStatus: ItemStatus.Labeled,
 			consumeSourcePickReservation: false,
 			excludedQuality: ItemQuality.Waste);
 		return WorkPlanResult.Issued;
@@ -588,16 +668,17 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 
 	private ShelfBase FindNextManualShelf(AIWorker worker, ManualPickingSession session)
 	{
-		if (worker == null || session == null || ownerBuilding?.ItemIndex == null)
+		ShelfStorageService storageService = GameContext.HasInstance ? GameContext.Instance.StorageService : null;
+		if (worker == null || session?.Request == null || storageService == null || BuildingId == 0)
 			return null;
 
 		ShelfBase bestShelf = null;
 		int bestDistance = int.MaxValue;
-		foreach (IItemContainer container in ownerBuilding.ItemIndex.Containers)
+		foreach (ShelfBase shelf in storageService.GetSources(BuildingId, session.Request.ItemId))
 		{
-			if (container is not ShelfBase shelf || session.VisitedShelves.Contains(shelf))
+			if (shelf == null || session.VisitedShelves.Contains(shelf))
 				continue;
-			if (GetNonWasteQuantity(shelf, session.Request.ItemId) <= 0)
+			if (GetLabeledQuantity(shelf, session.Request.ItemId) <= 0)
 				continue;
 
 			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
@@ -818,7 +899,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 
 			int quantity = Mathf.Min(
 				Mathf.Min(acceptable, allocatable),
-				GetNonWasteQuantity(request.Source, request.ItemId));
+				GetLabeledQuantity(request.Source, request.ItemId));
 			if (quantity <= 0)
 				continue;
 
@@ -856,7 +937,16 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		return BuildingId != 0 ? BuildingId : buildingId;
 	}
 
-	private static int GetNonWasteQuantity(IItemContainer container, uint itemId)
+	private static int GetLabeledPickableQuantity(ShelfBase source, uint itemId)
+	{
+		if (source == null || itemId == 0)
+			return 0;
+
+		int reserved = source.ItemToBePicked.TryGetValue(itemId, out int value) ? value : 0;
+		return Mathf.Max(0, GetLabeledQuantity(source, itemId) - reserved);
+	}
+
+	private static int GetLabeledQuantity(IItemContainer container, uint itemId)
 	{
 		if (container == null || itemId == 0)
 			return 0;
@@ -868,6 +958,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			if (stack != null &&
 				stack.ItemID == itemId &&
 				stack.Quantity > 0 &&
+				stack.HasStatus(ItemStatus.Labeled) &&
 				stack.HasQuality(ItemQuality.Waste) == false)
 			{
 				quantity += stack.Quantity;
@@ -875,6 +966,120 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		}
 
 		return quantity;
+	}
+
+	private static bool IsEmptyInputRuleMatchedBuffer(CapsuleBuffer buffer, FacilityFilter projectedInputFilter)
+	{
+		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
+			GameContext.HasInstance == false ||
+			capsule.RouteKind != CargoRouteKind.Standard ||
+			capsule.LogisticsState != CapsuleLogisticsState.Empty ||
+			buffer.IsCapsuleEmpty() == false ||
+			projectedInputFilter.CargoProcessStage != CargoProcessStage.None ||
+			projectedInputFilter.CapsuleBufferState != CapsuleBufferStateRequirement.Empty)
+		{
+			return false;
+		}
+
+		FacilityRuleManager ruleManager = GameContext.Instance.FacilityRuleMgr;
+		CapsuleBufferService bufferService = GameContext.Instance.CapsuleBufferSvc;
+		if (ruleManager == null || bufferService == null ||
+			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
+			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) == false ||
+			preset?.Rule?.RequiredCapsuleBufferState != CapsuleBufferStateRequirement.Empty ||
+			preset.Rule.RequiredCargoProcessStage != CargoProcessStage.None ||
+			bufferService.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness: false) == false ||
+			projectedInputFilter.Matches(ruleManager, buffer) == false)
+		{
+			return false;
+		}
+
+		TaskManager taskManager = GameContext.Instance.TaskMgr;
+		if (taskManager?.HasManagedTaskFacilityDependency(buffer) == true)
+			return false;
+
+		return IsAvailableForPickingOutput(buffer);
+	}
+
+	private static bool IsRetainedPickingOutputBuffer(
+		ItemTransferTask task,
+		CapsuleBuffer buffer,
+		uint buildingId,
+		FacilityFilter projectedInputFilter)
+	{
+		if (task == null ||
+			task.RetainsPickingOutput(buffer) == false ||
+			buffer?.DockedCapsule is not CargoCapsule capsule ||
+			GameContext.HasInstance == false ||
+			capsule.RouteKind != CargoRouteKind.Standard ||
+			buffer.CanReceiveOutboundItems() == false ||
+			projectedInputFilter.CargoProcessStage != CargoProcessStage.None ||
+			projectedInputFilter.CapsuleBufferState != CapsuleBufferStateRequirement.Empty)
+		{
+			return false;
+		}
+
+		CapsuleBufferService bufferService = GameContext.Instance.CapsuleBufferSvc;
+		FacilityRuleManager ruleManager = GameContext.Instance.FacilityRuleMgr;
+		if (bufferService == null ||
+			ruleManager == null ||
+			bufferService.TryGetRegisteredBuildingId(buffer, out uint ownerBuildingId) == false ||
+			ownerBuildingId != buildingId ||
+			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
+			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) == false ||
+			preset?.Rule?.RequiredCapsuleBufferState != CapsuleBufferStateRequirement.Empty ||
+			preset.Rule.RequiredCargoProcessStage != CargoProcessStage.None ||
+			projectedInputFilter.Matches(ruleManager, buffer) == false)
+		{
+			return false;
+		}
+
+		return IsAvailableForPickingOutput(buffer);
+	}
+
+	private static bool IsAvailableForPickingOutput(CapsuleBuffer buffer)
+	{
+		if (buffer == null || GameContext.HasInstance == false)
+			return false;
+
+		FacilityManager facilityManager = GameContext.Instance.FacilityMgr;
+		if (facilityManager?.IsInvalidating(buffer) == true)
+			return false;
+
+		CapsuleRelocateCoordinator coordinator = GameContext.Instance.ExistingCapsuleRelocateCoordinator;
+		return coordinator == null ||
+			(coordinator.IsPlayerClaimed(buffer) == false &&
+			 coordinator.IsReserved(buffer) == false &&
+			 coordinator.IsRelocationSourceActive(buffer) == false &&
+			 coordinator.IsRelocationTargetActive(buffer) == false);
+	}
+
+	private static void TrySelectPlaceBuffer(
+		AIWorker worker,
+		BoxBase source,
+		uint itemId,
+		int quantity,
+		CapsuleBuffer candidate,
+		ref CapsuleBuffer bestBuffer,
+		ref int bestDistance)
+	{
+		if (worker == null ||
+			candidate == null ||
+			ItemTransferUtility.GetMovableQuantity(source, candidate, itemId, quantity) < quantity ||
+			InteractionPointSelector.TryGetInteractionPointInBuilding(
+				candidate,
+				InteractionKind.Put,
+				worker.GridPosition,
+				worker.PrimaryBuildingId,
+				out _,
+				out int distance) == false ||
+			distance >= bestDistance)
+		{
+			return;
+		}
+
+		bestBuffer = candidate;
+		bestDistance = distance;
 	}
 
 	private static void RemoveDispatchedCandidate(
@@ -1086,10 +1291,13 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			return resolvedSource == null || requestLine?.OrderLine == null
 				? null
 				: new WorkLine(
+					WorkLineAction.Pick,
+					resolvedSource,
 					resolvedSource,
 					itemId,
 					quantity,
 					requestLine.OrderLine,
+					requiredStatus: ItemStatus.Labeled,
 					excludedQuality: ItemQuality.Waste);
 		}
 

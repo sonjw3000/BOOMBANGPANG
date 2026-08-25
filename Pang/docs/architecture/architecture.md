@@ -72,7 +72,7 @@ Target design direction:
 - areas are not owned by buildings and do not contain facilities or gameplay rules
 - workflows query buildings and facilities first; areas are used only by their owning spawn/landing systems
 
-At the current migration step, Rule-driven Capsule routing, Dirty reevaluation, and Capsule lifecycle normalization are Building-generic. Labeling, storing, picking, packing, and launch Task producer registration is still implemented by the specialized Building subclasses; removing that final capability boundary is a later Building-lightening step.
+At the current migration step, Rule-driven Capsule routing, Dirty reevaluation, and Capsule lifecycle normalization are Building-generic. Labeling and storing producers are owned by `InboundWorkflowService`, while picking planners and producers are owned by `OutboundWorkflowService`; all registered Buildings may host those operations when their facilities and Rules match. Packing and launch producers still use their migration-era specialized Building classes and remain a later Building-lightening step.
 
 Cargo process stages use one shared contract:
 

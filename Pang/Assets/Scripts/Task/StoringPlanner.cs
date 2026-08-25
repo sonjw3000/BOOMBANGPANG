@@ -74,7 +74,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 
 			foreach (var itemTotal in buffer.ItemTotals)
 			{
-				int quantity = GetNonWasteQuantity(buffer, itemTotal.Key);
+				int quantity = GetLabeledNonWasteQuantity(buffer, itemTotal.Key);
 				if (quantity <= 0)
 					continue;
 
@@ -138,7 +138,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 					box,
 					itemId,
 					itemTotal.Value,
-					stack => stack.HasQuality(ItemQuality.Waste) == false);
+					IsLabeledNonWaste);
 				if (available <= 0)
 					continue;
 
@@ -176,6 +176,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 				bestBuffer,
 				bestItemId,
 				bestQuantity,
+				requiredStatus: ItemStatus.Labeled,
 				excludedQuality: ItemQuality.Waste);
 			return WorkPlanResult.Issued;
 		}
@@ -295,7 +296,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		for (int i = 0; i < buffer.Stacks.Count; ++i)
 		{
 			ItemStack stack = buffer.Stacks[i];
-			if (stack != null && stack.Quantity > 0 && stack.HasQuality(ItemQuality.Waste) == false)
+			if (IsLabeledNonWaste(stack))
 				return true;
 		}
 
@@ -304,28 +305,59 @@ public sealed class StoringPlanner : IItemTransferPlanner
 
 	private bool CanProvideStoringItems(CapsuleBuffer buffer, uint buildingId)
 	{
-		if (buffer == null || buffer.CanProvideInboundItems() == false)
+		CargoCapsule capsule = buffer?.DockedCapsule;
+		if (capsule == null ||
+			capsule.RouteKind != CargoRouteKind.Standard ||
+			buffer.CanProvideInboundItems() == false)
 			return false;
 
-		uint ownerBuildingId = buildingId;
-		if (ownerBuildingId == 0)
-			capsuleBufferService?.TryGetRegisteredBuildingId(buffer, out ownerBuildingId);
+		if (capsuleBufferService == null ||
+			capsuleBufferService.TryGetRegisteredBuildingId(buffer, out uint ownerBuildingId) == false ||
+			ownerBuildingId == 0 ||
+			(buildingId != 0 && ownerBuildingId != buildingId))
+		{
+			return false;
+		}
 
 		BuildingManager buildingManager = GameContext.HasInstance
 			? GameContext.Instance.BuildingMgr
 			: null;
-		if (ownerBuildingId != 0 &&
-			buildingManager != null &&
-			buildingManager.TryGetBuilding(ownerBuildingId, out Building building) &&
-			building is StorageBuilding storageBuilding)
+		if (buildingManager == null ||
+			buildingManager.TryGetBuilding(ownerBuildingId, out Building building) == false ||
+			building == null ||
+			building.OutboundTargetStage == CargoProcessStage.Labeled)
 		{
-			return storageBuilding.CanProvideStoringItems(buffer);
+			return false;
 		}
 
-		return true;
+		FacilityRuleManager ruleManager = GameContext.Instance.FacilityRuleMgr;
+		if (ruleManager == null ||
+			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
+			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) == false ||
+			preset?.Rule?.RequiredCargoProcessStage != CargoProcessStage.Labeled ||
+			capsuleBufferService.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness: false) == false)
+		{
+			return false;
+		}
+
+		CapsuleRelocateCoordinator coordinator = GameContext.Instance.ExistingCapsuleRelocateCoordinator;
+		if (coordinator != null &&
+			(coordinator.IsPlayerClaimed(buffer) ||
+			 coordinator.IsReserved(buffer) ||
+			 coordinator.IsRelocationSourceActive(buffer) ||
+			 coordinator.IsRelocationTargetActive(buffer)))
+		{
+			return false;
+		}
+
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		return outbound == null ||
+			outbound.TryGetPickingManifest(capsule, out PickingManifest manifest) == false ||
+			manifest == null ||
+			manifest.IsEmpty;
 	}
 
-	private static int GetNonWasteQuantity(CapsuleBuffer buffer, uint itemId)
+	private static int GetLabeledNonWasteQuantity(CapsuleBuffer buffer, uint itemId)
 	{
 		if (buffer == null)
 			return 0;
@@ -336,14 +368,21 @@ public sealed class StoringPlanner : IItemTransferPlanner
 			ItemStack stack = buffer.Stacks[i];
 			if (stack != null &&
 				stack.ItemID == itemId &&
-				stack.Quantity > 0 &&
-				stack.HasQuality(ItemQuality.Waste) == false)
+				IsLabeledNonWaste(stack))
 			{
 				quantity += stack.Quantity;
 			}
 		}
 
 		return quantity;
+	}
+
+	private static bool IsLabeledNonWaste(ItemStack stack)
+	{
+		return stack != null &&
+			stack.Quantity > 0 &&
+			stack.HasStatus(ItemStatus.Labeled) &&
+			stack.HasQuality(ItemQuality.Waste) == false;
 	}
 
 	private bool IsShelfInBuilding(ShelfBase shelf, uint buildingId)
