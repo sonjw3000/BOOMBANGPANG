@@ -61,7 +61,7 @@
 				<ui:Slider name="rule-editor-green" label="Green" low-value="0" high-value="1" class="rule-editor-slider" />
 				<ui:Slider name="rule-editor-blue" label="Blue" low-value="0" high-value="1" class="rule-editor-slider" />
 				<ui:VisualElement name="rule-editor-color-preview" class="rule-editor-color-preview" />
-				<ui:Label text="ITEM CONDITIONS" class="rule-editor-section" />
+				<ui:Foldout name="rule-editor-item-conditions" text="ITEM CONDITIONS" value="true" class="rule-editor-foldout">
 				<ui:DropdownField name="rule-editor-item-process-stage" label="Item process stage" class="rule-editor-field" />
 				<ui:DropdownField name="rule-editor-content-state" label="Content" class="rule-editor-field" />
 				<ui:Label text="Required tags" class="rule-editor-label" />
@@ -87,7 +87,8 @@
 				<ui:Button name="rule-clear-whitelist" text="Clear White List" class="rule-editor-small-button" />
 				<ui:Label name="rule-blacklist-summary" text="Black List: None" class="rule-editor-summary" />
 				<ui:Button name="rule-clear-blacklist" text="Clear Black List" class="rule-editor-small-button" />
-				<ui:Label text="WORKER CONDITIONS" class="rule-editor-section" />
+				</ui:Foldout>
+				<ui:Foldout name="rule-editor-worker-conditions" text="WORKER CONDITIONS" value="true" class="rule-editor-foldout">
 				<ui:DropdownField name="rule-editor-worker-kind" label="Required kind" class="rule-editor-field" />
 				<ui:Label text="Required abilities" class="rule-editor-label" />
 				<ui:VisualElement class="rule-editor-toggle-row">
@@ -113,12 +114,14 @@
 					<ui:Toggle name="rule-required-robot-transfer" text="Require Transfer Robot" />
 					<ui:Toggle name="rule-forbidden-robot-transfer" text="Forbid Transfer Robot" />
 				</ui:VisualElement>
-				<ui:Label text="MANIFEST CONDITIONS" class="rule-editor-section" />
+				</ui:Foldout>
+				<ui:Foldout name="rule-editor-manifest-conditions" text="MANIFEST CONDITIONS" value="true" class="rule-editor-foldout">
 				<ui:VisualElement class="rule-editor-toggle-row">
 					<ui:Toggle name="rule-destination-none" text="None" />
 					<ui:Toggle name="rule-destination-mars" text="Mars" />
 					<ui:Toggle name="rule-destination-titan" text="Titan" />
 				</ui:VisualElement>
+				</ui:Foldout>
 				<ui:VisualElement class="rule-editor-footer">
 					<ui:Button name="rule-editor-save" text="Save" class="build-primary-button" />
 					<ui:Button name="rule-editor-cancel" text="Cancel" class="rule-editor-small-button" />

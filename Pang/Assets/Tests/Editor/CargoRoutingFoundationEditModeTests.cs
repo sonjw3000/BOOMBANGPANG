@@ -298,13 +298,24 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 		Assert.That(template, Is.Not.Null, $"Missing {assetPath}");
 
 		VisualElement root = template.CloneTree();
+		Foldout itemConditions = root.Q<Foldout>("rule-editor-item-conditions");
+		Foldout workerConditions = root.Q<Foldout>("rule-editor-worker-conditions");
+		Foldout manifestConditions = root.Q<Foldout>("rule-editor-manifest-conditions");
 		DropdownField processStage = root.Q<DropdownField>("rule-editor-item-process-stage");
 		DropdownField contentState = root.Q<DropdownField>("rule-editor-content-state");
 
+		Assert.That(itemConditions, Is.Not.Null);
+		Assert.That(workerConditions, Is.Not.Null);
+		Assert.That(manifestConditions, Is.Not.Null);
+		Assert.That(itemConditions.value, Is.True);
+		Assert.That(workerConditions.value, Is.True);
+		Assert.That(manifestConditions.value, Is.True);
 		Assert.That(processStage, Is.Not.Null);
 		Assert.That(processStage.label, Is.EqualTo("Item process stage"));
 		Assert.That(contentState, Is.Not.Null);
 		Assert.That(contentState.label, Is.EqualTo("Content"));
+		Assert.That(itemConditions.Contains(processStage), Is.True);
+		Assert.That(itemConditions.Contains(contentState), Is.True);
 		Assert.That(root.Q("rule-editor-cargo-process-stage"), Is.Null);
 		Assert.That(root.Q("rule-editor-capsule-buffer-state"), Is.Null);
 	}
