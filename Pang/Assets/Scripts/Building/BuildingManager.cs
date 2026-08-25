@@ -350,6 +350,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 		string displayName,
 		BuildingState state,
 		BuildingWorkScope workScope,
+		CargoProcessStage outboundTargetStage,
 		bool overrideCapsuleThreshold,
 		float capsuleThresholdPercent,
 		bool suitRemovalAllowed,
@@ -362,6 +363,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 		building.AssignRuntimeBuildingId(runtimeBuildingId);
 		building.SetState(state);
 		building.SetWorkScope(workScope);
+		building.SetOutboundTargetStage(outboundTargetStage);
 		building.SetOverrideCapsuleThreshold(overrideCapsuleThreshold);
 		building.SetCapsuleThresholdPercent(capsuleThresholdPercent);
 		building.SetSuitRemovalAllowed(suitRemovalAllowed);

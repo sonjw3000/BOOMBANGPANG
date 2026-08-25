@@ -101,15 +101,20 @@ public readonly struct FacilityFilter
 	public FacilityItemFilter ItemFilter { get; }
 	public FacilityWorkerFilter WorkerFilter { get; }
 	public FacilityManifestFilter ManifestFilter { get; }
+	public CargoProcessStage CargoProcessStage { get; }
 
 	public FacilityFilter(
 		FacilityItemFilter itemFilter = null,
 		FacilityWorkerFilter workerFilter = null,
-		FacilityManifestFilter manifestFilter = null)
+		FacilityManifestFilter manifestFilter = null,
+		CargoProcessStage cargoProcessStage = CargoProcessStage.None)
 	{
 		ItemFilter = itemFilter;
 		WorkerFilter = workerFilter;
 		ManifestFilter = manifestFilter;
+		CargoProcessStage = CargoProcessStageUtility.IsDefined(cargoProcessStage)
+			? cargoProcessStage
+			: CargoProcessStage.None;
 	}
 
 	public bool Matches(FacilityRuleManager ruleManager, IFacility facility)
@@ -153,6 +158,44 @@ public readonly struct FacilityFilter
 			worker != null ? new FacilityWorkerFilter(worker) : null);
 	}
 
+	public static bool TryForCapsule(
+		CargoCapsule capsule,
+		bool evaluateLaunchReadiness,
+		out FacilityFilter filter,
+		AIWorker worker = null)
+	{
+		filter = None;
+		if (capsule == null)
+			return false;
+
+		OutboundWorkflowService outbound = GameContext.HasInstance
+			? GameContext.Instance.OBWorkflowSvc
+			: null;
+		bool launchReady = evaluateLaunchReadiness &&
+			CargoProcessStageEvaluator.IsLaunchReady(capsule, outbound);
+		if (CargoProcessStageEvaluator.TryEvaluate(
+				capsule,
+				outbound,
+				launchReady,
+				out CargoProcessStage stage) == false)
+		{
+			return false;
+		}
+
+		FacilityItemFilter itemFilter = null;
+		if (TryBuildItemFilter(capsule, out FacilityItemFilter builtFilter))
+			itemFilter = builtFilter;
+
+		PickingManifest manifest = null;
+		outbound?.TryGetPickingManifest(capsule, out manifest);
+		filter = new FacilityFilter(
+			itemFilter,
+			worker != null ? new FacilityWorkerFilter(worker) : null,
+			FacilityManifestFilter.FromManifest(manifest),
+			stage);
+		return true;
+	}
+
 	public static FacilityFilter ForTransfer(
 		IItemContainer source,
 		uint itemId,
@@ -186,7 +229,22 @@ public readonly struct FacilityFilter
 		FacilityFilter source,
 		FacilityManifestFilter manifestFilter)
 	{
-		return new FacilityFilter(source.ItemFilter, source.WorkerFilter, manifestFilter);
+		return new FacilityFilter(
+			source.ItemFilter,
+			source.WorkerFilter,
+			manifestFilter,
+			source.CargoProcessStage);
+	}
+
+	public static FacilityFilter WithCargoProcessStage(
+		FacilityFilter source,
+		CargoProcessStage cargoProcessStage)
+	{
+		return new FacilityFilter(
+			source.ItemFilter,
+			source.WorkerFilter,
+			source.ManifestFilter,
+			cargoProcessStage);
 	}
 
 	private static bool TryBuildItemFilter(IItemContainer container, out FacilityItemFilter itemFilter)

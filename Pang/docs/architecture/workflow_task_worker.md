@@ -43,6 +43,10 @@ Tasks are assigned based on factors such as:
 Workflow systems generate tasks.
 Workers execute assigned tasks.
 
+For capsule routing, cargo-stage evaluation and FacilityRule destination queries are read-only policy operations. They do not create relocation tasks. The Capsule relocation workflow/coordinator consumes those results, owns matching and reservations, and submits the resulting Task through TaskManager.
+
+Item transfer may update physical cargo and its PickingManifest in separate calls. A future relocation-dirty producer must therefore enqueue reevaluation after both updates are committed, rather than treating the intermediate quantity-change event as a stable cargo-stage snapshot.
+
 ---
 
 ## 3 Workers & AI

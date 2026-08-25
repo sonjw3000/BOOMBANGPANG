@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public int Version = 14;
+	public int Version = 15;
 	public string SavedAtUtc;
 
 	public ScenarioObjectiveSaveData ScenarioObjective = new();
@@ -218,6 +218,7 @@ public sealed class BuildingSaveData
 	public BuildingType Type;
 	public BuildingState State;
 	public BuildingWorkScope WorkScope;
+	public CargoProcessStage OutboundTargetStage = CargoProcessStage.None;
 	public bool OverrideCapsuleThreshold;
 	public float CapsuleThresholdPercent;
 	public bool SuitRemovalAllowed;
@@ -287,6 +288,7 @@ public sealed class FacilityRulePresetSaveData
 public sealed class FacilityRuleSaveData
 {
 	public int Priority;
+	public CargoProcessStage RequiredCargoProcessStage = CargoProcessStage.None;
 	public FacilityItemRuleSaveData ItemRule = new();
 	public FacilityWorkerRuleSaveData WorkerRule = new();
 	public FacilityManifestRuleSaveData ManifestRule = new();

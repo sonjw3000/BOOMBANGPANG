@@ -282,12 +282,29 @@ public sealed class FacilityManifestRule
 
 		return false;
 	}
+
+	public bool IsAggregateManifestCapable(FacilityManifestFilter filter)
+	{
+		if (IsEmpty)
+			return true;
+		if (filter?.Destinations == null || filter.Destinations.Count == 0)
+			return false;
+
+		foreach (OrderDestination destination in filter.Destinations)
+		{
+			if (requiredDestinations.Contains(destination) == false)
+				return false;
+		}
+
+		return true;
+	}
 }
 
 [Serializable]
 public sealed class FacilityRule
 {
 	[SerializeField] private int priority;
+	[SerializeField] private CargoProcessStage requiredCargoProcessStage = CargoProcessStage.None;
 	[SerializeField] private FacilityItemRule itemRule = new();
 	[SerializeField] private FacilityWorkerRule workerRule = new();
 	[SerializeField] private FacilityManifestRule manifestRule = new();
@@ -302,22 +319,31 @@ public sealed class FacilityRule
 			return;
 
 		priority = source.priority;
+		requiredCargoProcessStage = source.requiredCargoProcessStage;
 		itemRule = source.itemRule != null ? new FacilityItemRule(source.itemRule) : new FacilityItemRule();
 		workerRule = source.workerRule != null ? new FacilityWorkerRule(source.workerRule) : new FacilityWorkerRule();
 		manifestRule = source.manifestRule != null ? new FacilityManifestRule(source.manifestRule) : new FacilityManifestRule();
 	}
 
 	public int Priority => priority;
+	public CargoProcessStage RequiredCargoProcessStage => requiredCargoProcessStage;
 	public FacilityItemRule ItemRule => itemRule;
 	public FacilityWorkerRule WorkerRule => workerRule;
 	public FacilityManifestRule ManifestRule => manifestRule;
 
 	public bool IsEmpty =>
+		requiredCargoProcessStage == CargoProcessStage.None &&
 		(itemRule == null || itemRule.IsEmpty) &&
 		(workerRule == null || workerRule.IsEmpty) &&
 		(manifestRule == null || manifestRule.IsEmpty);
 
 	public void SetPriority(int newPriority) => priority = newPriority;
+	public void SetRequiredCargoProcessStage(CargoProcessStage stage)
+	{
+		requiredCargoProcessStage = CargoProcessStageUtility.IsDefined(stage)
+			? stage
+			: CargoProcessStage.None;
+	}
 
 	public void SetItemRule(FacilityItemRule rule)
 	{
@@ -337,6 +363,7 @@ public sealed class FacilityRule
 	public void Clear()
 	{
 		priority = 0;
+		requiredCargoProcessStage = CargoProcessStage.None;
 		itemRule ??= new FacilityItemRule();
 		workerRule ??= new FacilityWorkerRule();
 		manifestRule ??= new FacilityManifestRule();
@@ -347,14 +374,27 @@ public sealed class FacilityRule
 
 	public bool IsFilterCapable(in FacilityFilter filter)
 	{
+		if (requiredCargoProcessStage != CargoProcessStage.None &&
+			filter.CargoProcessStage != CargoProcessStage.None &&
+			filter.CargoProcessStage != requiredCargoProcessStage)
+		{
+			return false;
+		}
+
 		if (itemRule != null && itemRule.IsItemCapable(filter.ItemFilter) == false)
 			return false;
 
 		if (workerRule != null && workerRule.IsWorkerCapable(filter.WorkerFilter) == false)
 			return false;
 
-		if (manifestRule != null && manifestRule.IsManifestCapable(filter.ManifestFilter) == false)
-			return false;
+		if (manifestRule != null)
+		{
+			bool manifestCapable = filter.CargoProcessStage != CargoProcessStage.None
+				? manifestRule.IsAggregateManifestCapable(filter.ManifestFilter)
+				: manifestRule.IsManifestCapable(filter.ManifestFilter);
+			if (manifestCapable == false)
+				return false;
+		}
 
 		return true;
 	}

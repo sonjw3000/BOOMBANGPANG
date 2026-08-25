@@ -4,7 +4,7 @@
 
 The current gameplay loop is structured around the flow of cargo through a logistics hub.
 
-That flow can now span multiple specialized buildings instead of only one large warehouse interior.
+That flow may run inside one multi-purpose building or span several connected buildings.
 
 Inbound
 -> Storage
@@ -17,7 +17,7 @@ Inbound
 The player is responsible for stabilizing and optimizing this logistics flow under increasing operational pressure.
 
 At the hub level, this includes:
-- placing specialized buildings such as storage, packing, and launch buildings
+- choosing which facilities and operating Rules each building contains
 - connecting those buildings through cargo interfaces
 - deciding how cargo moves both inside buildings and between buildings
 

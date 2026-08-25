@@ -69,16 +69,11 @@ Building-related ownership should stay explicit.
 
 Building systems should own:
 - building identity
-- building type and process role
+- building-level operating policy such as outbound target stage and threshold
 - building-owned interior space
-- building-level logistics purpose
+- worker affiliation scope
 
-Buildings define `what` the player built into the logistics network.
-
-Examples:
-- storage
-- packing
-- staging
+Installed facilities and their FacilityRules define the available logistics capabilities. A Building may support several stages of the logistics loop without changing its class.
 
 Region classification such as indoor / outdoor should support placement and spatial reasoning, but should not replace building ownership as the source of truth for space identity.
 
@@ -87,6 +82,10 @@ Region classification such as indoor / outdoor should support placement and spat
 ## 6 FacilityRule & Area
 
 `FacilityRuleManager` owns building-scoped rule presets and their facility assignments. Rules provide explicit logistics filters and operating policy without owning physical space.
+
+`CargoProcessStageEvaluator` derives a capsule-wide process stage from ItemStatus and PickingManifest data. FacilityRule may require an exact aggregate stage in addition to its existing item, worker, and manifest filters. A whole-capsule manifest matches only when every manifest destination is allowed by the Rule; legacy single-work queries keep their existing any-match manifest behavior and ignore aggregate stage requirements during migration.
+
+`CapsuleBufferService` owns BuildingId-scoped logical queries for Rule-matched CapsuleBuffer destinations. The caller must explicitly choose whether the query evaluates Launch readiness, so ordinary Packing routing remains `Packed` while Launch routing may produce `LaunchReady`. These queries return eligible facilities only; they do not decide relocation scope, reserve a Dock, or create a Task.
 
 `AreaManager` owns outdoor rectangular areas used by:
 - `WorkerSpawnManager` for `WorkerSpawn` candidates

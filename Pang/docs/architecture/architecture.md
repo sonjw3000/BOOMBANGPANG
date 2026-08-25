@@ -59,17 +59,30 @@ This helps keep the simulation traceable and debuggable.
 
 These concepts have separate owners and purposes.
 
-- `Building` = what logistics function a space performs
+- `Building` = player-owned logistics scope and building-level operating policy
 - `FacilityRule` = how an installed facility should handle eligible work or items
 - `Area` = an outdoor rectangular marker used only for worker spawning or rocket landing
 
 Current design direction:
-- `Building` is a logistics process node owned by the player
-- buildings may represent functions such as `StorageBuilding`, `Packing`, `Staging`, and similar workflow-facing spaces
+- one Building may contain facilities for labeling, storage, picking, packing, and outbound work at the same time
+- installed facilities and their Rules determine which work can happen; Building subclasses are a migration-era implementation detail
 - facility operating policy is assigned through building-scoped `FacilityRule` presets
+- Building stores the cargo process stage at which its capsules should eventually become outbound candidates
 - `AreaType` contains only `WorkerSpawn` and `RocketLanding`
 - areas are not owned by buildings and do not contain facilities or gameplay rules
 - workflows query buildings and facilities first; areas are used only by their owning spawn/landing systems
+
+Cargo process stages use one shared contract:
+
+`None -> Unlabeled -> Labeled -> Picked -> Packed -> LaunchReady`
+
+- `None` means no process-stage restriction for a FacilityRule and disables automatic outbound promotion when used as a Building policy
+- the stage is derived from actual ItemStatus and PickingManifest data; it is not duplicated onto ItemStack or CargoCapsule
+- `LaunchReady` is a Launch-context evaluation of otherwise Packed cargo using the existing outbound blocking and complete-manifest checks; callers must request that context explicitly
+- stage matching is exact and never uses enum numeric ordering
+- `Empty` is a Capsule lifecycle state, not a cargo process stage
+
+The runtime still uses the legacy Capsule and Dock state model while the relocation pipeline is migrated. The target Capsule lifecycle contract is `IB / Inside / Empty / OB`.
 
 ---
 

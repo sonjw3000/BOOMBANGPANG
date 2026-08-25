@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using System.Collections.Generic;
 
@@ -31,6 +32,52 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 
 		facility.SetDockState(newState);
 		return true;
+	}
+
+	public bool TryQueryRuleMatchedDestinations(
+		uint buildingId,
+		CargoCapsule capsule,
+		List<CapsuleBuffer> results,
+		bool evaluateLaunchReadiness,
+		Predicate<CapsuleBuffer> predicate = null)
+	{
+		if (results == null)
+			return false;
+
+		results.Clear();
+		if (capsule == null ||
+			FacilityFilter.TryForCapsule(
+				capsule,
+				evaluateLaunchReadiness,
+				out FacilityFilter filter) == false)
+		{
+			return false;
+		}
+
+		FacilityRuleManager ruleManager = GameContext.HasInstance
+			? GameContext.Instance.FacilityRuleMgr
+			: null;
+		FacilityManager facilityManager = FacilityManager;
+		if (ruleManager == null || facilityManager == null)
+			return false;
+
+		foreach (CapsuleBuffer candidate in GetBuffers(buildingId))
+		{
+			if (candidate == null ||
+				candidate.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
+				candidate.CanPutBox() == false ||
+				candidate.CanAcceptCargoRoute(capsule.RouteKind) == false ||
+				facilityManager.IsInvalidating(candidate) ||
+				filter.Matches(ruleManager, candidate) == false ||
+				(predicate != null && predicate(candidate) == false))
+			{
+				continue;
+			}
+
+			results.Add(candidate);
+		}
+
+		return results.Count > 0;
 	}
 
 	public IEnumerable<CapsuleBuffer> GetBuffers(uint buildingId = 0)

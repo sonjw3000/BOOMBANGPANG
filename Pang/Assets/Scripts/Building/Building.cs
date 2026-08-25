@@ -64,6 +64,7 @@ public class Building
 	private uint runtimeBuildingId;
 	private BuildingState state = BuildingState.Active;
 	private BuildingWorkScope workScope = BuildingWorkScope.HomeOnly;
+	private CargoProcessStage outboundTargetStage = CargoProcessStage.None;
 
 	private bool overrideCapsuleThreshold = false;
 	private float capsuleThresholdPercent = 80.0f;
@@ -108,6 +109,7 @@ public class Building
 	public uint RuntimeBuildingId => runtimeBuildingId;
 	public BuildingState State => state;
 	public BuildingWorkScope WorkScope => workScope;
+	public CargoProcessStage OutboundTargetStage => outboundTargetStage;
 	public IReadOnlyList<GridCell> OccupiedCells => occupiedCells;
 	public IReadOnlyList<IFacility> OccupiedFacilities => occupiedFacilities;
 	public IReadOnlyList<CargoPort> OccupiedCargoPorts => occupiedCargoPorts;
@@ -172,6 +174,12 @@ public class Building
 	internal void SetSuitRemovalAllowed(bool value) => suitRemovalAllowed = value;
 	internal void SetAddonSlotCapacity(int value) => addonSlotCapacity = UnityEngine.Mathf.Max(0, value);
 	internal void SetTargetTemperatureCelsius(float value) => targetTemperatureCelsius = value;
+	internal void SetOutboundTargetStage(CargoProcessStage stage)
+	{
+		outboundTargetStage = CargoProcessStageUtility.IsDefined(stage)
+			? stage
+			: GetDefaultOutboundTargetStage(buildingType);
+	}
 	internal void AssignRuntimeBuildingId(uint id) => runtimeBuildingId = id;
 	internal void SetRegistered(bool registered)
 	{
@@ -193,6 +201,14 @@ public class Building
 	public void Rename(string newDisplayName) => displayName = newDisplayName;
 	public void SetState(BuildingState newState) => state = newState;
 	public void SetWorkScope(BuildingWorkScope newWorkScope) => workScope = newWorkScope;
+	public bool TrySetOutboundTargetStage(CargoProcessStage stage)
+	{
+		if (CargoProcessStageUtility.IsDefined(stage) == false)
+			return false;
+
+		outboundTargetStage = stage;
+		return true;
+	}
 
 	protected virtual void OnRegistered() { }
 	protected virtual void OnUnregistered() { }
@@ -317,10 +333,23 @@ public class Building
 	{
 		this.displayName = displayName;
 		this.buildingType = buildingType;
+		outboundTargetStage = GetDefaultOutboundTargetStage(buildingType);
 		this.occupiedCells = occupiedCells ?? new List<GridCell>();
 
 		itemIndex = new(this);
 		itemIndex.OnItemStatusAdded += HandleItemStatusAdded;
+	}
+
+	public static CargoProcessStage GetDefaultOutboundTargetStage(BuildingType buildingType)
+	{
+		return buildingType switch
+		{
+			BuildingType.Staging => CargoProcessStage.Labeled,
+			BuildingType.Storage => CargoProcessStage.Picked,
+			BuildingType.Packing => CargoProcessStage.Packed,
+			BuildingType.Launch => CargoProcessStage.LaunchReady,
+			_ => CargoProcessStage.None,
+		};
 	}
 
 	internal bool AddInputBuilding(uint buildingId)
