@@ -290,8 +290,13 @@ public abstract partial class WorkerTask
 
 		if (endpoint is not IFacility facility)
 			return true;
+		if (facility.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId)
+			return true;
 
-		return FacilityFilter.ForWorker(worker).MatchesCurrentRules(facility);
+		FacilityRuleManager ruleManager = GameContext.HasInstance
+			? GameContext.Instance.FacilityRuleMgr
+			: null;
+		return ruleManager != null && ruleManager.IsWorkerAllowed(facility, worker);
 	}
 
 	//public static void SetTaskManager(TaskManager taskManager) { Manager = taskManager; }

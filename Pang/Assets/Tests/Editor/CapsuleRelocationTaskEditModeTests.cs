@@ -165,6 +165,50 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	}
 
 	[Test]
+	public void CanDispatchTo_StageSpecificEndpointRules_EvaluatesOnlyWorkerRule()
+	{
+		AlwaysOutboundReadyBuilding building = CreateBuilding();
+		InboundCargoPort source = CreateDock<InboundCargoPort>(building, "Stage Rule Dispatch Source");
+		CapsuleBuffer target = CreateBuffer(building, "Stage Rule Dispatch Target", CapsuleDockState.Empty);
+		ApplyFacilityRule(source, ItemProcessStage.Unlabeled);
+		ApplyFacilityRule(target, ItemProcessStage.Unlabeled);
+		CapsuleRelocationTask task = new(
+			WorkerTask.TaskType.IB,
+			source,
+			target,
+			building.RuntimeBuildingId,
+			CapsuleRelocationReason.RuleRouting);
+		HumanWorker worker = CreateWorker();
+		worker.SetPrimaryBuildingId(building.RuntimeBuildingId);
+
+		Assert.That(
+			FacilityFilter.ForWorker(worker).MatchesCurrentRules(source),
+			Is.False,
+			"The full Facility filter must remain stage-aware for cargo queries.");
+		Assert.That(task.CanDispatchTo(worker), Is.True);
+	}
+
+	[Test]
+	public void CanDispatchTo_WorkerRestrictedEndpoint_StillRejectsWorker()
+	{
+		AlwaysOutboundReadyBuilding building = CreateBuilding();
+		InboundCargoPort source = CreateDock<InboundCargoPort>(building, "Worker Rule Dispatch Source");
+		CapsuleBuffer target = CreateBuffer(building, "Worker Rule Dispatch Target", CapsuleDockState.Empty);
+		ApplyFacilityRule(source, ItemProcessStage.Unlabeled, WorkerKind.Robot);
+		ApplyFacilityRule(target, ItemProcessStage.Unlabeled);
+		CapsuleRelocationTask task = new(
+			WorkerTask.TaskType.IB,
+			source,
+			target,
+			building.RuntimeBuildingId,
+			CapsuleRelocationReason.RuleRouting);
+		HumanWorker worker = CreateWorker();
+		worker.SetPrimaryBuildingId(building.RuntimeBuildingId);
+
+		Assert.That(task.CanDispatchTo(worker), Is.False);
+	}
+
+	[Test]
 	public void SetSourceTarget_EmptyRocketCapsule_IsValidUnloadingSource()
 	{
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
@@ -1080,11 +1124,29 @@ public sealed class CapsuleRelocationTaskEditModeTests
 
 	private void ApplyBufferRule(CapsuleBuffer buffer, ItemProcessStage stage)
 	{
+		ApplyFacilityRule(buffer, stage);
+	}
+
+	private void ApplyFacilityRule(
+		IFacility facility,
+		ItemProcessStage stage,
+		WorkerKind requiredWorkerKind = WorkerKind.None)
+	{
 		FacilityRule rule = new();
 		rule.SetRequiredContentState(FacilityContentState.HasItems);
 		rule.SetRequiredItemProcessStage(stage);
-		FacilityRulePreset preset = facilityRuleManager.CreatePreset($"{buffer.name} {stage}", rule);
-		Assert.That(facilityRuleManager.ApplyPreset(buffer, preset.Id), Is.True);
+		if (requiredWorkerKind != WorkerKind.None)
+		{
+			FacilityWorkerRule workerRule = new();
+			workerRule.SetRequiredWorkerKind(requiredWorkerKind);
+			rule.SetWorkerRule(workerRule);
+		}
+
+		Component component = facility as Component;
+		FacilityRulePreset preset = facilityRuleManager.CreatePreset(
+			$"{component?.name ?? "Facility"} {stage}",
+			rule);
+		Assert.That(facilityRuleManager.ApplyPreset(facility, preset.Id), Is.True);
 	}
 
 	private CapsuleRelocationTask CreateOutboundTask(

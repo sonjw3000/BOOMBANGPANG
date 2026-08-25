@@ -402,6 +402,22 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 		return preset.Rule == null || preset.Rule.IsFilterCapable(filter);
 	}
 
+	public bool IsWorkerAllowed(IFacility facility, AIWorker worker)
+	{
+		if (facility == null || worker == null)
+			return false;
+
+		uint presetId = facility.FacilityRulePresetId;
+		if (presetId == NoRulePresetId)
+			return true;
+
+		if (TryGetPreset(presetId, out FacilityRulePreset preset) == false)
+			return false;
+
+		FacilityWorkerRule workerRule = preset.Rule?.WorkerRule;
+		return workerRule == null || workerRule.IsWorkerCapable(new FacilityWorkerFilter(worker));
+	}
+
 	public bool TryGetPresetColor(uint presetId, out Color color)
 	{
 		if (TryGetPreset(presetId, out FacilityRulePreset preset))
