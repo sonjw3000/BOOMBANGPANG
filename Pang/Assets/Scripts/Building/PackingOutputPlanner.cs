@@ -93,8 +93,9 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 			}
 
 			hasPackedPayload = true;
-			FacilityFilter projectedInputFilter = FacilityFilter.WithCapsuleBufferState(
-				FacilityFilter.ForManifestTransfer(
+			FacilityFilter projectedInputFilter = FacilityFilter.WithContentState(
+				FacilityFilter.WithItemProcessStage(
+					FacilityFilter.ForManifestTransfer(
 					sourceBox,
 					manifest,
 					stack.ItemID,
@@ -102,11 +103,12 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 					candidate => candidate.HasStatus(ItemStatus.Packed) &&
 						candidate.HasQuality(ItemQuality.Waste) == false,
 					worker),
-				CapsuleBufferStateRequirement.Empty);
+					ItemProcessStage.Packed),
+				FacilityContentState.HasItems);
 
 			foreach (CapsuleBuffer candidate in BufferService.GetBuffers(buildingId))
 			{
-				if (IsEmptyInputRuleMatchedBuffer(candidate, projectedInputFilter) == false)
+				if (IsProjectedInputRuleMatchedBuffer(candidate, projectedInputFilter) == false)
 					continue;
 
 				int movable = ItemTransferUtility.GetMovableQuantity(
@@ -191,7 +193,7 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 		EvaluateWork();
 	}
 
-	private bool IsEmptyInputRuleMatchedBuffer(
+	private bool IsProjectedInputRuleMatchedBuffer(
 		CapsuleBuffer buffer,
 		FacilityFilter projectedInputFilter)
 	{
@@ -200,15 +202,13 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 			capsule.LogisticsState != CapsuleLogisticsState.Empty ||
 			buffer.IsCapsuleEmpty() == false ||
 			buffer.CanReceiveOutboundItems() == false ||
-			projectedInputFilter.CapsuleBufferState != CapsuleBufferStateRequirement.Empty ||
-			projectedInputFilter.CargoProcessStage != CargoProcessStage.None ||
+			projectedInputFilter.ContentState != FacilityContentState.HasItems ||
+			projectedInputFilter.ItemProcessStage != ItemProcessStage.Packed ||
 			BufferService?.IsExplicitRuleMatchedBuffer(
 				buffer,
-				capsule,
-				CapsuleBufferStateRequirement.Empty,
-				CargoProcessStage.None,
-				evaluateLaunchReadiness: false) != true ||
-			projectedInputFilter.MatchesCurrentRules(buffer) == false)
+				projectedInputFilter,
+				FacilityContentState.HasItems,
+				ItemProcessStage.Packed) != true)
 		{
 			return false;
 		}

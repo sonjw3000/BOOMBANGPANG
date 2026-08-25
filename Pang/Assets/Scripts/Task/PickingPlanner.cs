@@ -415,15 +415,17 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		CapsuleBuffer bestBuffer = null;
 		int bestDistance = int.MaxValue;
 		outboundWorkflowService.TryGetPickingManifest(box, out PickingManifest manifest);
-		FacilityFilter filter = FacilityFilter.WithCapsuleBufferState(
-			FacilityFilter.ForManifestTransfer(
+		FacilityFilter filter = FacilityFilter.WithContentState(
+			FacilityFilter.WithItemProcessStage(
+				FacilityFilter.ForManifestTransfer(
 				box,
 				manifest,
 				pickedLine.ItemID,
 				remainingQuantity,
 				stack => pickedLine.RequiredStatus.HasValue == false || stack.HasStatus(pickedLine.RequiredStatus.Value),
 				worker),
-			CapsuleBufferStateRequirement.Empty);
+				ItemProcessStage.Picked),
+			FacilityContentState.HasItems);
 
 		ItemTransferTask activeTask = worker.CurrentTask as ItemTransferTask;
 		if (activeTask != null &&
@@ -452,7 +454,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		{
 			foreach (CapsuleBuffer buffer in EnumeratePlaceBuffers(targetBuildingId))
 			{
-				if (buffer == null || IsEmptyInputRuleMatchedBuffer(buffer, filter) == false)
+				if (buffer == null || IsProjectedInputRuleMatchedBuffer(buffer, filter) == false)
 					continue;
 
 				TrySelectPlaceBuffer(
@@ -968,28 +970,26 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		return quantity;
 	}
 
-	private static bool IsEmptyInputRuleMatchedBuffer(CapsuleBuffer buffer, FacilityFilter projectedInputFilter)
+	private static bool IsProjectedInputRuleMatchedBuffer(CapsuleBuffer buffer, FacilityFilter projectedInputFilter)
 	{
 		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
 			GameContext.HasInstance == false ||
 			capsule.RouteKind != CargoRouteKind.Standard ||
 			capsule.LogisticsState != CapsuleLogisticsState.Empty ||
 			buffer.IsCapsuleEmpty() == false ||
-			projectedInputFilter.CargoProcessStage != CargoProcessStage.None ||
-			projectedInputFilter.CapsuleBufferState != CapsuleBufferStateRequirement.Empty)
+			projectedInputFilter.ItemProcessStage != ItemProcessStage.Picked ||
+			projectedInputFilter.ContentState != FacilityContentState.HasItems)
 		{
 			return false;
 		}
 
-		FacilityRuleManager ruleManager = GameContext.Instance.FacilityRuleMgr;
 		CapsuleBufferService bufferService = GameContext.Instance.CapsuleBufferSvc;
-		if (ruleManager == null || bufferService == null ||
-			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
-			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) == false ||
-			preset?.Rule?.RequiredCapsuleBufferState != CapsuleBufferStateRequirement.Empty ||
-			preset.Rule.RequiredCargoProcessStage != CargoProcessStage.None ||
-			bufferService.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness: false) == false ||
-			projectedInputFilter.Matches(ruleManager, buffer) == false)
+		if (bufferService == null ||
+			bufferService.IsExplicitRuleMatchedBuffer(
+				buffer,
+				projectedInputFilter,
+				FacilityContentState.HasItems,
+				ItemProcessStage.Picked) == false)
 		{
 			return false;
 		}
@@ -1013,23 +1013,21 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			GameContext.HasInstance == false ||
 			capsule.RouteKind != CargoRouteKind.Standard ||
 			buffer.CanReceiveOutboundItems() == false ||
-			projectedInputFilter.CargoProcessStage != CargoProcessStage.None ||
-			projectedInputFilter.CapsuleBufferState != CapsuleBufferStateRequirement.Empty)
+			projectedInputFilter.ItemProcessStage != ItemProcessStage.Picked ||
+			projectedInputFilter.ContentState != FacilityContentState.HasItems)
 		{
 			return false;
 		}
 
 		CapsuleBufferService bufferService = GameContext.Instance.CapsuleBufferSvc;
-		FacilityRuleManager ruleManager = GameContext.Instance.FacilityRuleMgr;
 		if (bufferService == null ||
-			ruleManager == null ||
 			bufferService.TryGetRegisteredBuildingId(buffer, out uint ownerBuildingId) == false ||
 			ownerBuildingId != buildingId ||
-			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
-			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) == false ||
-			preset?.Rule?.RequiredCapsuleBufferState != CapsuleBufferStateRequirement.Empty ||
-			preset.Rule.RequiredCargoProcessStage != CargoProcessStage.None ||
-			projectedInputFilter.Matches(ruleManager, buffer) == false)
+			bufferService.IsExplicitRuleMatchedBuffer(
+				buffer,
+				projectedInputFilter,
+				FacilityContentState.HasItems,
+				ItemProcessStage.Picked) == false)
 		{
 			return false;
 		}

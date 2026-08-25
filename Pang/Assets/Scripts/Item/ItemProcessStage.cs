@@ -1,8 +1,15 @@
 using System.Collections.Generic;
 
-public enum CargoProcessStage
+public enum FacilityContentState
 {
-	None = 0,
+	Any = 0,
+	HasItems = 1,
+	Empty = 2,
+}
+
+public enum ItemProcessStage
+{
+	Any = 0,
 	Unlabeled = 1,
 	Labeled = 2,
 	Picked = 3,
@@ -10,42 +17,42 @@ public enum CargoProcessStage
 	LaunchReady = 5,
 }
 
-public static class CargoProcessStageUtility
+public static class ItemProcessStageUtility
 {
-	public static bool IsDefined(CargoProcessStage stage)
+	public static bool IsDefined(ItemProcessStage stage)
 	{
-		return stage is CargoProcessStage.None or
-			CargoProcessStage.Unlabeled or
-			CargoProcessStage.Labeled or
-			CargoProcessStage.Picked or
-			CargoProcessStage.Packed or
-			CargoProcessStage.LaunchReady;
+		return stage is ItemProcessStage.Any or
+			ItemProcessStage.Unlabeled or
+			ItemProcessStage.Labeled or
+			ItemProcessStage.Picked or
+			ItemProcessStage.Packed or
+			ItemProcessStage.LaunchReady;
 	}
 
-	public static string ToDisplayString(CargoProcessStage stage)
+	public static string ToDisplayString(ItemProcessStage stage)
 	{
 		return stage switch
 		{
-			CargoProcessStage.None => "None",
-			CargoProcessStage.Unlabeled => "Unlabeled",
-			CargoProcessStage.Labeled => "Labeled",
-			CargoProcessStage.Picked => "Picked",
-			CargoProcessStage.Packed => "Packed",
-			CargoProcessStage.LaunchReady => "Launch Ready",
+			ItemProcessStage.Any => "Any",
+			ItemProcessStage.Unlabeled => "Unlabeled",
+			ItemProcessStage.Labeled => "Labeled",
+			ItemProcessStage.Picked => "Picked",
+			ItemProcessStage.Packed => "Packed",
+			ItemProcessStage.LaunchReady => "Launch Ready",
 			_ => stage.ToString(),
 		};
 	}
 }
 
-public static class CargoProcessStageEvaluator
+public static class ItemProcessStageEvaluator
 {
 	public static bool TryEvaluate(
 		CargoCapsule capsule,
 		OutboundWorkflowService outboundWorkflow,
 		bool launchReady,
-		out CargoProcessStage stage)
+		out ItemProcessStage stage)
 	{
-		stage = CargoProcessStage.None;
+		stage = ItemProcessStage.Any;
 		if (capsule == null)
 			return false;
 
@@ -58,7 +65,7 @@ public static class CargoProcessStageEvaluator
 		IItemContainer container,
 		PickingManifest manifest,
 		bool launchReady,
-		out CargoProcessStage stage)
+		out ItemProcessStage stage)
 	{
 		return TryEvaluate(container?.Stacks, manifest, launchReady, out stage);
 	}
@@ -67,9 +74,9 @@ public static class CargoProcessStageEvaluator
 		IReadOnlyList<ItemStack> stacks,
 		PickingManifest manifest,
 		bool launchReady,
-		out CargoProcessStage stage)
+		out ItemProcessStage stage)
 	{
-		stage = CargoProcessStage.None;
+		stage = ItemProcessStage.Any;
 		if (TryGetUniformStatus(stacks, out ItemStatus status) == false)
 			return false;
 
@@ -79,20 +86,20 @@ public static class CargoProcessStageEvaluator
 				if (manifest != null && manifest.IsEmpty == false)
 					return false;
 
-				stage = CargoProcessStage.Unlabeled;
+				stage = ItemProcessStage.Unlabeled;
 				return true;
 
 			case ItemStatus.Labeled:
 				if (manifest == null || manifest.IsEmpty)
 				{
-					stage = CargoProcessStage.Labeled;
+					stage = ItemProcessStage.Labeled;
 					return true;
 				}
 
 				if (HasCompletePickedManifest(stacks, manifest) == false)
 					return false;
 
-				stage = CargoProcessStage.Picked;
+				stage = ItemProcessStage.Picked;
 				return true;
 
 			case ItemStatus.Packed:
@@ -105,8 +112,8 @@ public static class CargoProcessStageEvaluator
 					return false;
 
 				stage = launchReady
-					? CargoProcessStage.LaunchReady
-					: CargoProcessStage.Packed;
+					? ItemProcessStage.LaunchReady
+					: ItemProcessStage.Packed;
 				return true;
 
 			default:
@@ -118,10 +125,10 @@ public static class CargoProcessStageEvaluator
 		IReadOnlyList<ItemStack> stacks,
 		PickingManifest manifest,
 		bool launchReady,
-		CargoProcessStage requiredStage)
+		ItemProcessStage requiredStage)
 	{
-		return requiredStage == CargoProcessStage.None ||
-			(TryEvaluate(stacks, manifest, launchReady, out CargoProcessStage actualStage) &&
+		return requiredStage == ItemProcessStage.Any ||
+			(TryEvaluate(stacks, manifest, launchReady, out ItemProcessStage actualStage) &&
 			 actualStage == requiredStage);
 	}
 

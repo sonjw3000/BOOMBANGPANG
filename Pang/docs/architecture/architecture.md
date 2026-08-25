@@ -67,27 +67,29 @@ Target design direction:
 - one Building may contain facilities for labeling, storage, picking, packing, and outbound work at the same time
 - installed facilities and their Rules determine which work can happen; every player-created structure uses the same `Building` class
 - facility operating policy is assigned through building-scoped `FacilityRule` presets
-- Building stores the cargo process stage at which its capsules should eventually become outbound candidates
+- Building stores the item process stage at which its capsule contents should eventually become outbound candidates
 - `AreaType` contains only `WorkerSpawn` and `RocketLanding`
 - areas are not owned by buildings and do not contain facilities or gameplay rules
 - workflows query buildings and facilities first; areas are used only by their owning spawn/landing systems
 
 Rule-driven Capsule routing, Dirty reevaluation, lifecycle normalization, and relocation Task creation are owned by `CapsuleRelocateCoordinator`. Labeling and storing producers are owned by `InboundWorkflowService`, while picking, packing, and launch producers are owned by `OutboundWorkflowService`; any registered Building may host those operations when its facilities and Rules match.
 
-Cargo process stages use one shared contract:
+Item process stages use one shared contract:
 
-`None -> Unlabeled -> Labeled -> Picked -> Packed -> LaunchReady`
+`Unlabeled -> Labeled -> Picked -> Packed -> LaunchReady`
 
-- `None` means no process-stage restriction for a FacilityRule and disables automatic outbound promotion when used as a Building policy
-- the stage is derived from actual ItemStatus and PickingManifest data; it is not duplicated onto ItemStack or CargoCapsule
+- `Any` means no process-stage restriction for a FacilityRule and disables automatic outbound promotion when used as a Building policy
+- the stage is derived from actual `ItemStatus` and optional `PickingManifest` data; it is not duplicated onto ItemStack, CargoCapsule, or another container
+- the evaluator accepts `IItemContainer`, so the same Rule condition can be used for ordinary item storage as well as CapsuleBuffer and CargoPort flows
 - `LaunchReady` is a Launch-context evaluation of otherwise Packed cargo using the existing outbound blocking and complete-manifest checks; callers must request that context explicitly
 - stage matching is exact and never uses enum numeric ordering
-- `Empty` is a Capsule lifecycle state, not a cargo process stage
+- `FacilityContentState` (`Any / HasItems / Empty`) is a generic content condition and remains separate from the item process stage
+- the Rule editor exposes both dimensions under `Item Conditions`
 
 The runtime Capsule lifecycle contract is `IB / Inside / Empty / OB`.
 
 - `IB` and `OB` describe CargoPort-facing transport phases.
-- `Inside` and `Empty` describe CapsuleBuffer payload phases.
+- `Inside` and `Empty` describe the Capsule logistics lifecycle while docked at CapsuleBuffers; they are separate from the generic Rule content condition.
 - `CapsuleDockState` remains a separate facility-interface contract, so Dock roles such as `IBStandby` and `OBStandby` are not Capsule lifecycle states.
 - Task implementations change physical cargo, ItemStatus, or manifests. Dirty routing evaluation derives the lifecycle of docked standard Capsules instead of each work Task assigning it independently. A relocation Task may set a carried rejected outbound Capsule back to `Inside` before it can be redocked and evaluated.
 

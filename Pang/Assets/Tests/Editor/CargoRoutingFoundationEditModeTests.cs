@@ -2,30 +2,32 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using UnityEditor;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.UIElements;
 
-public sealed class CargoProcessStageEvaluatorEditModeTests
+public sealed class ItemProcessStageEvaluatorEditModeTests
 {
 	[Test]
 	public void TryEvaluate_EmptyCargo_ReturnsFalse()
 	{
 		Assert.That(
-			CargoProcessStageEvaluator.TryEvaluate(
+			ItemProcessStageEvaluator.TryEvaluate(
 				Array.Empty<ItemStack>(),
 				manifest: null,
 				launchReady: false,
-				out CargoProcessStage stage),
+				out ItemProcessStage stage),
 			Is.False);
-		Assert.That(stage, Is.EqualTo(CargoProcessStage.None));
+		Assert.That(stage, Is.EqualTo(ItemProcessStage.Any));
 	}
 
-	[TestCase(ItemStatus.None, CargoProcessStage.Unlabeled)]
-	[TestCase(ItemStatus.Labeled, CargoProcessStage.Labeled)]
-	[TestCase(ItemStatus.Packed, CargoProcessStage.Packed)]
+	[TestCase(ItemStatus.None, ItemProcessStage.Unlabeled)]
+	[TestCase(ItemStatus.Labeled, ItemProcessStage.Labeled)]
+	[TestCase(ItemStatus.Packed, ItemProcessStage.Packed)]
 	public void TryEvaluate_UniformPhysicalStatus_ReturnsExpectedStage(
 		ItemStatus status,
-		CargoProcessStage expected)
+		ItemProcessStage expected)
 	{
 		List<ItemStack> stacks = new()
 		{
@@ -34,11 +36,11 @@ public sealed class CargoProcessStageEvaluatorEditModeTests
 		};
 
 		Assert.That(
-			CargoProcessStageEvaluator.TryEvaluate(
+			ItemProcessStageEvaluator.TryEvaluate(
 				stacks,
 				manifest: null,
 				launchReady: false,
-				out CargoProcessStage stage),
+				out ItemProcessStage stage),
 			Is.True);
 		Assert.That(stage, Is.EqualTo(expected));
 	}
@@ -54,13 +56,13 @@ public sealed class CargoProcessStageEvaluatorEditModeTests
 		manifest.AddPicked(new OrderLine(null, 201, 4, null), 201, 4);
 
 		Assert.That(
-			CargoProcessStageEvaluator.TryEvaluate(
+			ItemProcessStageEvaluator.TryEvaluate(
 				stacks,
 				manifest,
 				launchReady: false,
-				out CargoProcessStage stage),
+				out ItemProcessStage stage),
 			Is.True);
-		Assert.That(stage, Is.EqualTo(CargoProcessStage.Picked));
+		Assert.That(stage, Is.EqualTo(ItemProcessStage.Picked));
 	}
 
 	[Test]
@@ -74,20 +76,20 @@ public sealed class CargoProcessStageEvaluatorEditModeTests
 		manifest.AddPicked(new OrderLine(null, 202, 3, null), 202, 3);
 
 		Assert.That(
-			CargoProcessStageEvaluator.TryEvaluate(
+			ItemProcessStageEvaluator.TryEvaluate(
 				stacks,
 				manifest,
 				launchReady: false,
-				out CargoProcessStage stage),
+				out ItemProcessStage stage),
 			Is.False);
-		Assert.That(stage, Is.EqualTo(CargoProcessStage.None));
+		Assert.That(stage, Is.EqualTo(ItemProcessStage.Any));
 	}
 
-	[TestCase(false, CargoProcessStage.Packed)]
-	[TestCase(true, CargoProcessStage.LaunchReady)]
+	[TestCase(false, ItemProcessStage.Packed)]
+	[TestCase(true, ItemProcessStage.LaunchReady)]
 	public void TryEvaluate_CompletePackedManifest_UsesExplicitLaunchReadiness(
 		bool launchReady,
-		CargoProcessStage expected)
+		ItemProcessStage expected)
 	{
 		List<ItemStack> stacks = new()
 		{
@@ -97,11 +99,11 @@ public sealed class CargoProcessStageEvaluatorEditModeTests
 		manifest.AddPacked(new OrderLine(null, 301, 5, null), 301, 5);
 
 		Assert.That(
-			CargoProcessStageEvaluator.TryEvaluate(
+			ItemProcessStageEvaluator.TryEvaluate(
 				stacks,
 				manifest,
 				launchReady,
-				out CargoProcessStage stage),
+				out ItemProcessStage stage),
 			Is.True);
 		Assert.That(stage, Is.EqualTo(expected));
 	}
@@ -120,109 +122,148 @@ public sealed class CargoProcessStageEvaluatorEditModeTests
 		};
 
 		Assert.That(
-			CargoProcessStageEvaluator.TryEvaluate(mixed, null, false, out _),
+			ItemProcessStageEvaluator.TryEvaluate(mixed, null, false, out _),
 			Is.False);
 		Assert.That(
-			CargoProcessStageEvaluator.TryEvaluate(waste, null, false, out _),
+			ItemProcessStageEvaluator.TryEvaluate(waste, null, false, out _),
 			Is.False);
 	}
 
 	[Test]
-	public void FacilityRule_CargoProcessStage_IsExactForAggregateCapsuleFilters()
+	public void FacilityRule_ItemProcessStage_IsExactAndRejectsUnknownStage()
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredCargoProcessStage(CargoProcessStage.Picked);
+		rule.SetRequiredItemProcessStage(ItemProcessStage.Picked);
 
 		Assert.That(
-			rule.IsFilterCapable(new FacilityFilter(cargoProcessStage: CargoProcessStage.Labeled)),
+			rule.IsFilterCapable(new FacilityFilter(itemProcessStage: ItemProcessStage.Labeled)),
 			Is.False);
 		Assert.That(
-			rule.IsFilterCapable(new FacilityFilter(cargoProcessStage: CargoProcessStage.Picked)),
+			rule.IsFilterCapable(new FacilityFilter(itemProcessStage: ItemProcessStage.Picked)),
 			Is.True);
 		Assert.That(
 			rule.IsFilterCapable(FacilityFilter.None),
-			Is.True,
-			"Legacy non-capsule queries do not carry an aggregate stage during the staged migration.");
+			Is.False,
+			"A stage-specific Rule must not accept a query that did not describe the incoming item's stage.");
 	}
 
 	[Test]
-	public void TransferFilter_ExplicitStageEnforcesRuleAndLegacyTransferRemainsUnstaged()
+	public void TransferFilter_ExplicitStageEnforcesRuleAndUnstagedTransferDoesNotMatch()
 	{
 		FacilityRule pickedRule = new();
-		pickedRule.SetRequiredCargoProcessStage(CargoProcessStage.Picked);
+		pickedRule.SetRequiredItemProcessStage(ItemProcessStage.Picked);
 		FacilityRule packedRule = new();
-		packedRule.SetRequiredCargoProcessStage(CargoProcessStage.Packed);
+		packedRule.SetRequiredItemProcessStage(ItemProcessStage.Packed);
 		FacilityRule emptyPickedRule = new();
-		emptyPickedRule.SetRequiredCargoProcessStage(CargoProcessStage.Picked);
-		emptyPickedRule.SetRequiredCapsuleBufferState(CapsuleBufferStateRequirement.Empty);
+		emptyPickedRule.SetRequiredItemProcessStage(ItemProcessStage.Picked);
+		emptyPickedRule.SetRequiredContentState(FacilityContentState.Empty);
 		FacilityRule insidePickedRule = new();
-		insidePickedRule.SetRequiredCargoProcessStage(CargoProcessStage.Picked);
-		insidePickedRule.SetRequiredCapsuleBufferState(CapsuleBufferStateRequirement.Inside);
+		insidePickedRule.SetRequiredItemProcessStage(ItemProcessStage.Picked);
+		insidePickedRule.SetRequiredContentState(FacilityContentState.HasItems);
 
 		FacilityFilter legacyTransfer = FacilityFilter.ForTransfer(
 			source: null,
 			itemId: 1,
 			quantity: 1);
-		FacilityFilter pickedTransfer = FacilityFilter.WithCapsuleBufferState(
-			FacilityFilter.WithCargoProcessStage(
+		FacilityFilter pickedTransfer = FacilityFilter.WithContentState(
+			FacilityFilter.WithItemProcessStage(
 				legacyTransfer,
-				CargoProcessStage.Picked),
-			CapsuleBufferStateRequirement.Inside);
-		FacilityFilter packedTransfer = FacilityFilter.WithCapsuleBufferState(
-			FacilityFilter.WithCargoProcessStage(
+				ItemProcessStage.Picked),
+			FacilityContentState.HasItems);
+		FacilityFilter packedTransfer = FacilityFilter.WithContentState(
+			FacilityFilter.WithItemProcessStage(
 				legacyTransfer,
-				CargoProcessStage.Packed),
-			CapsuleBufferStateRequirement.Inside);
+				ItemProcessStage.Packed),
+			FacilityContentState.HasItems);
 
-		Assert.That(legacyTransfer.CargoProcessStage, Is.EqualTo(CargoProcessStage.None));
-		Assert.That(pickedRule.IsFilterCapable(legacyTransfer), Is.True);
+		Assert.That(legacyTransfer.ItemProcessStage, Is.EqualTo(ItemProcessStage.Any));
+		Assert.That(pickedRule.IsFilterCapable(legacyTransfer), Is.False);
 		Assert.That(pickedRule.IsFilterCapable(pickedTransfer), Is.True);
 		Assert.That(packedRule.IsFilterCapable(pickedTransfer), Is.False);
 		Assert.That(pickedRule.IsFilterCapable(packedTransfer), Is.False);
 		Assert.That(packedRule.IsFilterCapable(packedTransfer), Is.True);
-		Assert.That(pickedTransfer.CapsuleBufferState, Is.EqualTo(CapsuleBufferStateRequirement.Inside));
+		Assert.That(pickedTransfer.ContentState, Is.EqualTo(FacilityContentState.HasItems));
 		Assert.That(emptyPickedRule.IsFilterCapable(pickedTransfer), Is.False);
 		Assert.That(insidePickedRule.IsFilterCapable(pickedTransfer), Is.True);
 	}
 
 	[Test]
-	public void FacilityRule_CapsuleBufferState_IsExactForCapsuleFilters()
+	public void FacilityRule_ContentState_IsExactAndRejectsUnknownContent()
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredCapsuleBufferState(CapsuleBufferStateRequirement.Empty);
+		rule.SetRequiredContentState(FacilityContentState.Empty);
 
 		Assert.That(
 			rule.IsFilterCapable(new FacilityFilter(
-				capsuleBufferState: CapsuleBufferStateRequirement.Inside)),
+				contentState: FacilityContentState.HasItems)),
 			Is.False);
 		Assert.That(
 			rule.IsFilterCapable(new FacilityFilter(
-				capsuleBufferState: CapsuleBufferStateRequirement.Empty)),
+				contentState: FacilityContentState.Empty)),
 			Is.True);
 		Assert.That(
 			rule.IsFilterCapable(FacilityFilter.None),
-			Is.True,
-			"Legacy non-capsule queries do not carry a capsule buffer state.");
+			Is.False,
+			"A content-specific Rule must not accept a query that did not describe the Facility contents.");
 	}
 
 	[Test]
-	public void Building_OutboundTargetStage_IsExplicitAndDefaultsToNone()
+	public void FacilityFilter_ForContainer_DerivesGenericContentAndItemProcessStage()
+	{
+		TestItemContainer container = new();
+
+		Assert.That(FacilityFilter.TryForContainer(
+			container,
+			manifest: null,
+			launchReady: false,
+			out FacilityFilter emptyFilter), Is.True);
+		Assert.That(emptyFilter.ContentState, Is.EqualTo(FacilityContentState.Empty));
+		Assert.That(emptyFilter.ItemProcessStage, Is.EqualTo(ItemProcessStage.Any));
+
+		container.StackList.Add(CreateStack(900, 2, ItemStatus.Labeled));
+		Assert.That(FacilityFilter.TryForContainer(
+			container,
+			manifest: null,
+			launchReady: false,
+			out FacilityFilter labeledFilter), Is.True);
+		Assert.That(labeledFilter.ContentState, Is.EqualTo(FacilityContentState.HasItems));
+		Assert.That(labeledFilter.ItemProcessStage, Is.EqualTo(ItemProcessStage.Labeled));
+
+		container.StackList.Add(CreateStack(901, 1, ItemStatus.Packed));
+		Assert.That(FacilityFilter.TryForContainer(
+			container,
+			manifest: null,
+			launchReady: false,
+			out FacilityFilter mixedFilter), Is.True);
+		Assert.That(mixedFilter.ContentState, Is.EqualTo(FacilityContentState.HasItems));
+		Assert.That(mixedFilter.ItemProcessStage, Is.EqualTo(ItemProcessStage.Any));
+
+		FacilityRule contentOnlyRule = new();
+		contentOnlyRule.SetRequiredContentState(FacilityContentState.HasItems);
+		FacilityRule stageRule = new();
+		stageRule.SetRequiredItemProcessStage(ItemProcessStage.Packed);
+		Assert.That(contentOnlyRule.IsFilterCapable(mixedFilter), Is.True);
+		Assert.That(stageRule.IsFilterCapable(mixedFilter), Is.False);
+	}
+
+	[Test]
+	public void Building_OutboundTargetStage_IsExplicitAndDefaultsToAny()
 	{
 		Assert.That(
-			new Building("Staging", new List<GridCell>(), CargoProcessStage.Labeled).OutboundTargetStage,
-			Is.EqualTo(CargoProcessStage.Labeled));
+			new Building("Staging", new List<GridCell>(), ItemProcessStage.Labeled).OutboundTargetStage,
+			Is.EqualTo(ItemProcessStage.Labeled));
 		Assert.That(
-			new Building("Storage", new List<GridCell>(), CargoProcessStage.Picked).OutboundTargetStage,
-			Is.EqualTo(CargoProcessStage.Picked));
+			new Building("Storage", new List<GridCell>(), ItemProcessStage.Picked).OutboundTargetStage,
+			Is.EqualTo(ItemProcessStage.Picked));
 		Assert.That(
-			new Building("Packing", new List<GridCell>(), CargoProcessStage.Packed).OutboundTargetStage,
-			Is.EqualTo(CargoProcessStage.Packed));
+			new Building("Packing", new List<GridCell>(), ItemProcessStage.Packed).OutboundTargetStage,
+			Is.EqualTo(ItemProcessStage.Packed));
 		Assert.That(
-			new Building("Launch", new List<GridCell>(), CargoProcessStage.LaunchReady).OutboundTargetStage,
-			Is.EqualTo(CargoProcessStage.LaunchReady));
+			new Building("Launch", new List<GridCell>(), ItemProcessStage.LaunchReady).OutboundTargetStage,
+			Is.EqualTo(ItemProcessStage.LaunchReady));
 		Assert.That(
 			new Building("Default", new List<GridCell>()).OutboundTargetStage,
-			Is.EqualTo(CargoProcessStage.None));
+			Is.EqualTo(ItemProcessStage.Any));
 	}
 
 	[Test]
@@ -230,6 +271,42 @@ public sealed class CargoProcessStageEvaluatorEditModeTests
 	{
 		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(17));
 		Assert.That(new GameSaveData().Version, Is.EqualTo(GameSaveData.CurrentVersion));
+	}
+
+	[Test]
+	public void FacilityRuleSaveData_KeepsLegacyJsonFieldNames()
+	{
+		FacilityRuleSaveData data = new()
+		{
+			RequiredCapsuleBufferState = FacilityContentState.HasItems,
+			RequiredCargoProcessStage = ItemProcessStage.Packed,
+		};
+
+		string json = JsonUtility.ToJson(data);
+
+		Assert.That(json, Does.Contain("\"RequiredCapsuleBufferState\":1"));
+		Assert.That(json, Does.Contain("\"RequiredCargoProcessStage\":4"));
+		Assert.That(json, Does.Not.Contain("RequiredContentState"));
+		Assert.That(json, Does.Not.Contain("RequiredItemProcessStage"));
+	}
+
+	[Test]
+	public void BuildManagementRuleEditor_GroupsGenericProcessFieldsUnderItemConditions()
+	{
+		const string assetPath = "Assets/UI/Toolkit/BuildManagementContent.uxml";
+		VisualTreeAsset template = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(assetPath);
+		Assert.That(template, Is.Not.Null, $"Missing {assetPath}");
+
+		VisualElement root = template.CloneTree();
+		DropdownField processStage = root.Q<DropdownField>("rule-editor-item-process-stage");
+		DropdownField contentState = root.Q<DropdownField>("rule-editor-content-state");
+
+		Assert.That(processStage, Is.Not.Null);
+		Assert.That(processStage.label, Is.EqualTo("Item process stage"));
+		Assert.That(contentState, Is.Not.Null);
+		Assert.That(contentState.label, Is.EqualTo("Content"));
+		Assert.That(root.Q("rule-editor-cargo-process-stage"), Is.Null);
+		Assert.That(root.Q("rule-editor-capsule-buffer-state"), Is.Null);
 	}
 
 	private static ItemStack CreateStack(
@@ -241,6 +318,30 @@ public sealed class CargoProcessStageEvaluatorEditModeTests
 		ItemStack stack = new(itemId, status: status, quality: quality);
 		Assert.That(stack.AddItem(quantity), Is.EqualTo(quantity));
 		return stack;
+	}
+
+	private sealed class TestItemContainer : IItemContainer
+	{
+		public List<ItemStack> StackList { get; } = new();
+		public IReadOnlyList<ItemStack> Stacks => StackList;
+		public IReadOnlyDictionary<uint, int> ItemTotals { get; } = new Dictionary<uint, int>();
+		public float TotalSize => 0.0f;
+		public float MaxSize => 100.0f;
+		public ItemTag ItemTags => ItemTag.None;
+
+		public bool CanRegister() => true;
+		public int GetQuantity(uint itemId) => 0;
+		public int GetAcceptableQuantity(uint itemId, int requested) => requested;
+		public bool CanAcceptStack(ItemStack stack) => stack != null;
+		public int AddItem(uint itemId, int quantity) => 0;
+		public int RemoveItem(uint itemId, int quantity) => 0;
+		public bool AddStack(ItemStack stack) => false;
+		public bool RemoveStack(ItemStack stack) => false;
+		public bool TryRemoveFromStack(ItemStack stack, int quantity, out ItemStack removedStack)
+		{
+			removedStack = null;
+			return false;
+		}
 	}
 }
 
@@ -326,9 +427,9 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		CapsuleBuffer matching = CreateBuffer("Matching", FirstBuildingId, 3);
 		CapsuleBuffer otherBuilding = CreateBuffer("Other Building", SecondBuildingId, 4);
 
-		ApplyRule(wrongStage, CargoProcessStage.Packed);
-		ApplyRule(matching, CargoProcessStage.Labeled);
-		ApplyRule(otherBuilding, CargoProcessStage.Labeled);
+		ApplyRule(wrongStage, ItemProcessStage.Packed);
+		ApplyRule(matching, ItemProcessStage.Labeled);
+		ApplyRule(otherBuilding, ItemProcessStage.Labeled);
 
 		List<CapsuleBuffer> results = new();
 		Assert.That(
@@ -360,9 +461,9 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		CapsuleBuffer lowPriority = CreateBuffer("Low Priority", FirstBuildingId, 20);
 		CapsuleBuffer highPriority = CreateBuffer("High Priority", FirstBuildingId, 21);
 		CapsuleBuffer equalPriority = CreateBuffer("Equal Priority", FirstBuildingId, 22);
-		ApplyRule(lowPriority, CargoProcessStage.Labeled, priority: 1);
-		ApplyRule(highPriority, CargoProcessStage.Labeled, priority: 10);
-		ApplyRule(equalPriority, CargoProcessStage.Labeled, priority: 10);
+		ApplyRule(lowPriority, ItemProcessStage.Labeled, priority: 1);
+		ApplyRule(highPriority, ItemProcessStage.Labeled, priority: 10);
+		ApplyRule(equalPriority, ItemProcessStage.Labeled, priority: 10);
 
 		List<CapsuleBuffer> results = new();
 		Assert.That(
@@ -376,11 +477,11 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
-	public void RuleSave_RoundTripsCapsuleBufferStateAndCargoProcessStage()
+	public void RuleSave_RoundTripsContentStateAndItemProcessStage()
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredCapsuleBufferState(CapsuleBufferStateRequirement.Inside);
-		rule.SetRequiredCargoProcessStage(CargoProcessStage.Packed);
+		rule.SetRequiredContentState(FacilityContentState.HasItems);
+		rule.SetRequiredItemProcessStage(ItemProcessStage.Packed);
 		FacilityRulePreset preset = ruleManager.CreatePreset("Round Trip Rule", rule);
 
 		FacilityRuleManagerSaveData save = ruleManager.CaptureState();
@@ -388,9 +489,9 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 
 		Assert.That(ruleManager.TryGetPreset(preset.Id, out FacilityRulePreset restored), Is.True);
 		Assert.That(
-			restored.Rule.RequiredCapsuleBufferState,
-			Is.EqualTo(CapsuleBufferStateRequirement.Inside));
-		Assert.That(restored.Rule.RequiredCargoProcessStage, Is.EqualTo(CargoProcessStage.Packed));
+			restored.Rule.RequiredContentState,
+			Is.EqualTo(FacilityContentState.HasItems));
+		Assert.That(restored.Rule.RequiredItemProcessStage, Is.EqualTo(ItemProcessStage.Packed));
 	}
 
 	[Test]
@@ -398,7 +499,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	{
 		CargoCapsule unlabeledCapsule = CreateCapsule("Unlabeled Capsule", 601, 2, ItemStatus.None);
 		CapsuleBuffer catchAll = CreateBuffer("Catch All", FirstBuildingId, 5);
-		ApplyRule(catchAll, CargoProcessStage.None);
+		ApplyRule(catchAll, ItemProcessStage.Any);
 
 		List<CapsuleBuffer> results = new();
 		Assert.That(
@@ -438,7 +539,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		CapsuleBuffer marsBuffer = CreateBuffer("Mars Buffer", FirstBuildingId, 6);
 		ApplyRule(
 			marsBuffer,
-			CargoProcessStage.Picked,
+			ItemProcessStage.Picked,
 			new[] { OrderDestination.Mars });
 
 		List<CapsuleBuffer> results = new();
@@ -500,7 +601,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			ItemStatus.Labeled);
 		capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 		Assert.That(inputBuffer.TryDockCapsule(capsule), Is.True);
-		ApplyRule(inputBuffer, CargoProcessStage.Labeled);
+		ApplyRule(inputBuffer, ItemProcessStage.Labeled);
 
 		StoringPlanner planner = new(bufferService);
 		Assert.That(planner.HasPendingCollectWork(storage.RuntimeBuildingId), Is.True);
@@ -529,7 +630,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			ItemStatus.Labeled);
 		capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 		Assert.That(buffer.TryDockCapsule(capsule), Is.True);
-		ApplyRule(buffer, CargoProcessStage.Packed);
+		ApplyRule(buffer, ItemProcessStage.Packed);
 
 		StoringPlanner planner = new(bufferService);
 		Assert.That(
@@ -565,10 +666,10 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 
 		CapsuleBuffer marsOnly = CreateBuffer("Mars Only", FirstBuildingId, 8);
 		CapsuleBuffer bothDestinations = CreateBuffer("Mars And Titan", FirstBuildingId, 9);
-		ApplyRule(marsOnly, CargoProcessStage.Picked, new[] { OrderDestination.Mars });
+		ApplyRule(marsOnly, ItemProcessStage.Picked, new[] { OrderDestination.Mars });
 		ApplyRule(
 			bothDestinations,
-			CargoProcessStage.Picked,
+			ItemProcessStage.Picked,
 			new[] { OrderDestination.Mars, OrderDestination.Titan });
 
 		List<CapsuleBuffer> results = new();
@@ -591,8 +692,8 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 
 		CapsuleBuffer packed = CreateBuffer("Packed", FirstBuildingId, 10);
 		CapsuleBuffer launchReady = CreateBuffer("Launch Ready", FirstBuildingId, 11);
-		ApplyRule(packed, CargoProcessStage.Packed);
-		ApplyRule(launchReady, CargoProcessStage.LaunchReady);
+		ApplyRule(packed, ItemProcessStage.Packed);
+		ApplyRule(launchReady, ItemProcessStage.LaunchReady);
 
 		List<CapsuleBuffer> results = new();
 		Assert.That(
@@ -622,10 +723,10 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		CapsuleBuffer wrongRoute = CreateBuffer("Wrong Route", FirstBuildingId, 13);
 		CapsuleBuffer invalidating = CreateBuffer("Invalidating", FirstBuildingId, 14);
 		CapsuleBuffer available = CreateBuffer("Available", FirstBuildingId, 15);
-		ApplyRule(occupied, CargoProcessStage.Labeled);
-		ApplyRule(wrongRoute, CargoProcessStage.Labeled);
-		ApplyRule(invalidating, CargoProcessStage.Labeled);
-		ApplyRule(available, CargoProcessStage.Labeled);
+		ApplyRule(occupied, ItemProcessStage.Labeled);
+		ApplyRule(wrongRoute, ItemProcessStage.Labeled);
+		ApplyRule(invalidating, ItemProcessStage.Labeled);
+		ApplyRule(available, ItemProcessStage.Labeled);
 
 		Assert.That(occupied.TryDockCapsule(CreateCapsule("Occupant")), Is.True);
 		SetPrivateField(
@@ -662,12 +763,12 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		CapsuleBuffer contradictoryEmpty = CreateBuffer("Contradictory Empty", FirstBuildingId, 8);
 		ApplyRule(
 			emptyOnly,
-			CargoProcessStage.None,
-			bufferState: CapsuleBufferStateRequirement.Empty);
+			ItemProcessStage.Any,
+			contentState: FacilityContentState.Empty);
 		ApplyRule(
 			contradictoryEmpty,
-			CargoProcessStage.Labeled,
-			bufferState: CapsuleBufferStateRequirement.Empty);
+			ItemProcessStage.Labeled,
+			contentState: FacilityContentState.Empty);
 
 		List<CapsuleBuffer> results = new();
 		Assert.That(
@@ -691,7 +792,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
-	public void PickingInput_UsesCurrentEmptyRuleThenBecomesPickedRuleMismatch()
+	public void PickingOutput_UsesProjectedPickedRuleDirectly()
 	{
 		const uint itemId = 803;
 		const int quantity = 2;
@@ -716,8 +817,8 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(emptyInput.TryDockCapsule(emptyInputCapsule), Is.True);
 		ApplyRule(
 			emptyInput,
-			CargoProcessStage.None,
-			bufferState: CapsuleBufferStateRequirement.Empty);
+			ItemProcessStage.Any,
+			contentState: FacilityContentState.Empty);
 
 		CapsuleBuffer pickedOutput = CreateBuffer("Picked Output", FirstBuildingId, 17);
 		CargoCapsule pickedOutputCapsule = CreateCapsule("Empty Capsule At Picked Output");
@@ -725,17 +826,19 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(pickedOutput.TryDockCapsule(pickedOutputCapsule), Is.True);
 		ApplyRule(
 			pickedOutput,
-			CargoProcessStage.Picked,
-			bufferState: CapsuleBufferStateRequirement.Inside);
+			ItemProcessStage.Picked,
+			contentState: FacilityContentState.HasItems);
 
-		FacilityFilter projectedInput = FacilityFilter.WithCapsuleBufferState(
-			FacilityFilter.ForManifestTransfer(
+		FacilityFilter projectedInput = FacilityFilter.WithContentState(
+			FacilityFilter.WithItemProcessStage(
+				FacilityFilter.ForManifestTransfer(
 				source,
 				sourceManifest,
 				itemId,
 				quantity,
 				stack => stack.HasStatus(ItemStatus.Labeled)),
-			CapsuleBufferStateRequirement.Empty);
+				ItemProcessStage.Picked),
+			FacilityContentState.HasItems);
 		ItemTransferTask pickingTask = new(
 			WorkerTask.TaskType.Picking,
 			new ItemTransferJob(
@@ -749,8 +852,8 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			"RetainPickingOutput",
 			new WorkLine(
 				WorkLineAction.Put,
-				emptyInput,
-				emptyInput,
+				pickedOutput,
+				pickedOutput,
 				itemId,
 				quantity,
 				orderLine));
@@ -758,70 +861,55 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(
 			InvokePrivateStatic<bool>(
 				typeof(PickingPlanner),
-				"IsEmptyInputRuleMatchedBuffer",
+				"IsProjectedInputRuleMatchedBuffer",
 				emptyInput,
 				projectedInput),
-			Is.True,
-			"Picking must begin at a currently matched Empty Rule buffer.");
+			Is.False,
+			"An Empty-only Rule does not describe the incoming Picked items.");
 		Assert.That(
 			InvokePrivateStatic<bool>(
 				typeof(PickingPlanner),
-				"IsEmptyInputRuleMatchedBuffer",
+				"IsProjectedInputRuleMatchedBuffer",
 				pickedOutput,
 				projectedInput),
-			Is.False,
-			"A Picked output Rule is the relocation destination, not the task input.");
+			Is.True,
+			"Picking should place directly into a physically empty container whose Rule accepts the projected Picked items.");
 
-		AddStack(emptyInputCapsule, itemId, quantity, ItemStatus.Labeled);
+		AddStack(pickedOutputCapsule, itemId, quantity, ItemStatus.Labeled);
 		Assert.That(
 			outboundWorkflow.TransferPickingManifest(
 				source,
-				emptyInputCapsule,
+				pickedOutputCapsule,
 				orderLine,
 				itemId,
 				quantity),
 			Is.EqualTo(quantity));
 		Assert.That(
 			FacilityFilter.TryForCapsule(
-				emptyInputCapsule,
+				pickedOutputCapsule,
 				evaluateLaunchReadiness: false,
 				out FacilityFilter pickedFilter),
 			Is.True);
-		Assert.That(pickedFilter.CargoProcessStage, Is.EqualTo(CargoProcessStage.Picked));
+		Assert.That(pickedFilter.ItemProcessStage, Is.EqualTo(ItemProcessStage.Picked));
 		Assert.That(
 			bufferService.IsRuleMatchedBuffer(
-				emptyInput,
-				emptyInputCapsule,
+				pickedOutput,
+				pickedOutputCapsule,
 				evaluateLaunchReadiness: false),
-			Is.False,
-			"The task mutation must make the Empty input Rule dirty for relocation.");
-		emptyInputCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
-		Assert.That(pickingTask.DependsOnFacility(emptyInput), Is.True);
+			Is.True,
+			"The completed Picking output should already match its selected Rule.");
+		pickedOutputCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+		Assert.That(pickingTask.DependsOnFacility(pickedOutput), Is.True);
 		Assert.That(
 			InvokePrivateStatic<bool>(
 				typeof(PickingPlanner),
 				"IsRetainedPickingOutputBuffer",
 				pickingTask,
-				emptyInput,
+				pickedOutput,
 				FirstBuildingId,
 				projectedInput),
 			Is.True,
-			"The same Picking task must keep using its owned output after the first line creates a Rule mismatch.");
-
-		Assert.That(pickedOutput.TryUndockCapsule(out CargoCapsule releasedCapsule), Is.True);
-		Assert.That(releasedCapsule, Is.SameAs(pickedOutputCapsule));
-		List<CapsuleBuffer> relocationTargets = new();
-		Assert.That(
-			bufferService.TryQueryRuleMatchedDestinations(
-				FirstBuildingId,
-				emptyInputCapsule,
-				relocationTargets,
-				evaluateLaunchReadiness: false),
-			Is.True);
-		Assert.That(
-			relocationTargets,
-			Is.EqualTo(new[] { pickedOutput }),
-			"Dirty routing must resolve the Picked Rule as the next destination.");
+			"The same Picking task must keep using its directly selected Picked output.");
 	}
 
 	[Test]
@@ -843,16 +931,16 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
 		ApplyRule(
 			source,
-			CargoProcessStage.Picked,
-			bufferState: CapsuleBufferStateRequirement.Inside);
+			ItemProcessStage.Picked,
+			contentState: FacilityContentState.HasItems);
 
 		PackingInputPlanner planner = new(FirstBuildingId);
 		Assert.That(planner.HasAvailableWork(), Is.True);
 
 		ApplyRule(
 			source,
-			CargoProcessStage.Picked,
-			bufferState: CapsuleBufferStateRequirement.Any);
+			ItemProcessStage.Picked,
+			contentState: FacilityContentState.Any);
 		Assert.That(
 			planner.HasAvailableWork(),
 			Is.False,
@@ -860,16 +948,16 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
-	public void PackingAndLaunchOutput_UseEmptyInputRuleBeforeDirtyRelocation()
+	public void PackingAndLaunchOutput_UseProjectedPackedRuleDirectly()
 	{
 		const uint itemId = 805;
 		const int quantity = 2;
 		Building building = new(
 			"Generic Launch Rule Building",
 			new List<GridCell>(),
-			CargoProcessStage.None);
+			ItemProcessStage.Any);
 		buildingManager.Register(building);
-		Assert.That(building.TrySetOutboundTargetStage(CargoProcessStage.LaunchReady), Is.True);
+		Assert.That(building.TrySetOutboundTargetStage(ItemProcessStage.LaunchReady), Is.True);
 
 		CargoCapsule source = CreateCapsule(
 			"Packed Output Source",
@@ -895,9 +983,9 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(emptyInput.TryDockCapsule(emptyCapsule), Is.True);
 		ApplyRule(
 			emptyInput,
-			CargoProcessStage.None,
+			ItemProcessStage.Any,
 			new[] { OrderDestination.Mars },
-			CapsuleBufferStateRequirement.Empty);
+			FacilityContentState.Empty);
 
 		CapsuleBuffer packedOutput = CreateBuffer(
 			"Packed Relocation Output",
@@ -908,18 +996,20 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(packedOutput.TryDockCapsule(packedOutputCapsule), Is.True);
 		ApplyRule(
 			packedOutput,
-			CargoProcessStage.Packed,
+			ItemProcessStage.Packed,
 			new[] { OrderDestination.Mars },
-			CapsuleBufferStateRequirement.Inside);
+			FacilityContentState.HasItems);
 
-		FacilityFilter projectedInput = FacilityFilter.WithCapsuleBufferState(
-			FacilityFilter.ForManifestTransfer(
+		FacilityFilter projectedInput = FacilityFilter.WithContentState(
+			FacilityFilter.WithItemProcessStage(
+				FacilityFilter.ForManifestTransfer(
 				source,
 				manifest,
 				itemId,
 				quantity,
 				stack => stack.HasStatus(ItemStatus.Packed)),
-			CapsuleBufferStateRequirement.Empty);
+				ItemProcessStage.Packed),
+			FacilityContentState.HasItems);
 		PackingOutputPlanner packingPlanner = new(building.RuntimeBuildingId);
 		LaunchSortPlanner launchPlanner = new(building.RuntimeBuildingId);
 
@@ -927,33 +1017,41 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			InvokePrivateInstance<bool>(
 				typeof(PackingOutputPlanner),
 				packingPlanner,
-				"IsEmptyInputRuleMatchedBuffer",
+				"IsProjectedInputRuleMatchedBuffer",
 				emptyInput,
 				projectedInput),
-			Is.True);
+			Is.False);
 		Assert.That(
 			InvokePrivateInstance<bool>(
 				typeof(LaunchSortPlanner),
 				launchPlanner,
-				"IsEmptyInputRuleMatchedBuffer",
+				"IsProjectedInputRuleMatchedBuffer",
 				emptyInput,
 				projectedInput),
-			Is.True);
+			Is.False);
 		Assert.That(
 			InvokePrivateInstance<bool>(
 				typeof(PackingOutputPlanner),
 				packingPlanner,
-				"IsEmptyInputRuleMatchedBuffer",
+				"IsProjectedInputRuleMatchedBuffer",
 				packedOutput,
 				projectedInput),
-			Is.False,
-			"The Packed Rule is a relocation destination, not the task input.");
+			Is.True,
+			"Packing should place directly into a physically empty container whose Rule accepts the projected Packed items.");
+		Assert.That(
+			InvokePrivateInstance<bool>(
+				typeof(LaunchSortPlanner),
+				launchPlanner,
+				"IsProjectedInputRuleMatchedBuffer",
+				packedOutput,
+				projectedInput),
+			Is.True);
 
-		AddStack(emptyCapsule, itemId, quantity, ItemStatus.Packed);
+		AddStack(packedOutputCapsule, itemId, quantity, ItemStatus.Packed);
 		Assert.That(
 			outboundWorkflow.TransferPickingManifest(
 				source,
-				emptyCapsule,
+				packedOutputCapsule,
 				orderLine,
 				itemId,
 				quantity,
@@ -961,11 +1059,18 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			Is.EqualTo(quantity));
 		Assert.That(
 			bufferService.IsRuleMatchedBuffer(
-				emptyInput,
-				emptyCapsule,
+				packedOutput,
+				packedOutputCapsule,
+				evaluateLaunchReadiness: false),
+			Is.True,
+			"Without Launch context the completed output remains Packed and matches its Rule.");
+		Assert.That(
+			bufferService.IsRuleMatchedBuffer(
+				packedOutput,
+				packedOutputCapsule,
 				evaluateLaunchReadiness: true),
 			Is.False,
-			"Task mutation must make the Empty input Rule dirty for relocation or OB promotion.");
+			"Launch context derives Launch Ready after the Packed transfer settles.");
 	}
 
 	[Test]
@@ -1052,8 +1157,8 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		target.SetDockState(CapsuleDockState.OBStandby);
 		ApplyRule(
 			target,
-			CargoProcessStage.Labeled,
-			bufferState: CapsuleBufferStateRequirement.Inside);
+			ItemProcessStage.Labeled,
+			contentState: FacilityContentState.HasItems);
 		List<CapsuleBuffer> ruleMatches = new();
 		Assert.That(
 			bufferService.TryQueryRuleMatchedDestinations(
@@ -1104,7 +1209,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 
 	private Building CreateStorageBuilding(string name)
 	{
-		Building building = new(name, new List<GridCell>(), CargoProcessStage.Picked);
+		Building building = new(name, new List<GridCell>(), ItemProcessStage.Picked);
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
@@ -1112,15 +1217,15 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 
 	private void ApplyRule(
 		CapsuleBuffer buffer,
-		CargoProcessStage stage,
+		ItemProcessStage stage,
 		IEnumerable<OrderDestination> destinations = null,
-		CapsuleBufferStateRequirement bufferState = CapsuleBufferStateRequirement.Any,
+		FacilityContentState contentState = FacilityContentState.Any,
 		int priority = 0)
 	{
 		FacilityRule rule = new();
 		rule.SetPriority(priority);
-		rule.SetRequiredCargoProcessStage(stage);
-		rule.SetRequiredCapsuleBufferState(bufferState);
+		rule.SetRequiredItemProcessStage(stage);
+		rule.SetRequiredContentState(contentState);
 		if (destinations != null)
 		{
 			FacilityManifestRule manifestRule = new();

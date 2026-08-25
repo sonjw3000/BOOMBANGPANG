@@ -228,7 +228,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void CanRequestWorkerRoleAssignment_ValidatesWithoutMutatingWorker()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Valid Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -253,7 +253,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void CanRequestWorkerRoleAssignment_RejectsRegistrationOperationalAndTargetFailures()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker registeredWorker = CreateWorker(
 			"Workforce Registered Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -306,7 +306,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void CanRequestWorkerRoleAssignment_UsesExistingAbilityAndComponentRequirements()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker missingComponent = CreateWorker(
 			"Workforce Missing Component Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox);
@@ -334,7 +334,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void CanRequestWorkerRoleAssignment_AcceptsPublicRoleOnlyInPublicScope()
 	{
-		Building staging = CreateBuilding(CargoProcessStage.Labeled);
+		Building staging = CreateBuilding(ItemProcessStage.Labeled);
 		HumanWorker worker = CreateWorker(
 			"Workforce Public Worker",
 			WorkerAbility.CargoHandling,
@@ -358,7 +358,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void TryRequestWorkerRoleAssignment_AppliesCatalogBundleImmediately()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Role Request Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -387,7 +387,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void TryRequestWorkerRoleAssignment_SchedulesCatalogBundleWhileWorkerIsBusy()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Busy Role Request Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -427,7 +427,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void TryRequestWorkerUnassignment_AppliesImmediatelyOrAfterCurrentTask()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker idleWorker = CreateWorker(
 			"Workforce Idle Unassignment Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -479,8 +479,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void WorkforceSummary_CountsCurrentFullAndPartialOperationalAssignments()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
-		Building otherStorage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
+		Building otherStorage = CreateBuilding(ItemProcessStage.Picked);
 		WorkerTask.TaskType[] capsuleTasks =
 		{
 			WorkerTask.TaskType.IB,
@@ -570,8 +570,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void WorkforceSummary_UsesCurrentAssignmentInsteadOfPendingAssignment()
 	{
-		Building currentStorage = CreateBuilding(CargoProcessStage.Picked);
-		Building pendingStorage = CreateBuilding(CargoProcessStage.Picked);
+		Building currentStorage = CreateBuilding(ItemProcessStage.Picked);
+		Building pendingStorage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Pending Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -607,7 +607,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void OperationalUnassignedWorkers_UsesCurrentAssignmentAndIgnoresPendingAssignment()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker pendingWorker = CreateWorker(
 			"Workforce Pending Unassigned Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -651,8 +651,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void WorkforceRoleWorkers_MatchesSummaryForExactBuildingAndPublicScopes()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
-		Building otherStorage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
+		Building otherStorage = CreateBuilding(ItemProcessStage.Picked);
 		WorkerTask.TaskType[] capsuleTasks =
 		{
 			WorkerTask.TaskType.IB,
@@ -776,7 +776,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void BuildingProvider_WorkforcePanelDisplaysSupportedRolesIncludingZero()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Panel Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -866,7 +866,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementAssignments_ShowsZeroRolesAndKeepsExpandedPartialWorker()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker unassignedWorker = CreateWorker(
 			"Workforce UI Unassigned Worker",
 			WorkerAbility.PickingStoring);
@@ -995,7 +995,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementAssignments_ScopesDefaultExpandedAndReportActiveRoles()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker publicWorker = CreateWorker(
 			"Workforce Public Scope Summary Worker",
 			WorkerAbility.CargoHandling,
@@ -1052,7 +1052,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementAssignments_CollapseRefreshExpandPreservesRoleStateAndZeroRows()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker partialWorker = CreateWorker(
 			"Workforce Fold Partial Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1195,7 +1195,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementAssignments_CollapsedScopesRemoveAndRestoreDragTargets()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Fold Drag Target Worker",
 			WorkerAbility.PickingStoring |
@@ -1272,7 +1272,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementAssignments_BuildingResetCancelsDragAndPrunesReusedScopeState()
 	{
-		Building originalStorage = CreateBuilding(CargoProcessStage.Picked);
+		Building originalStorage = CreateBuilding(ItemProcessStage.Picked);
 		uint reusedBuildingId = originalStorage.RuntimeBuildingId;
 		HumanWorker assignedWorker = CreateWorker(
 			"Workforce Fold State Worker",
@@ -1341,7 +1341,7 @@ public sealed class WorkforceAssignmentEditModeTests
 			Is.False,
 			"A building generation change must cancel the active drag.");
 
-		Building replacementStorage = CreateBuilding(CargoProcessStage.Picked);
+		Building replacementStorage = CreateBuilding(ItemProcessStage.Picked);
 		Assert.That(replacementStorage.RuntimeBuildingId, Is.EqualTo(reusedBuildingId));
 		SetCurrentAssignment(
 			assignedWorker,
@@ -1375,8 +1375,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_HighlightsOnlyEligibleRolesAndCancelDoesNotMutate()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
-		Building staging = CreateBuilding(CargoProcessStage.Labeled);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
+		Building staging = CreateBuilding(ItemProcessStage.Labeled);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Eligibility Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1481,7 +1481,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_UnassignedToRoleMutatesThroughWorkerManager()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Role Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1541,7 +1541,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_ExactCurrentRoleIsNoOpButUnassignedDropApplies()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Unassignment Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1636,8 +1636,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_AssignedRoleRejectsIneligibleAndReplacesEntireBundle()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
-		Building staging = CreateBuilding(CargoProcessStage.Labeled);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
+		Building staging = CreateBuilding(ItemProcessStage.Labeled);
 		HumanWorker worker = CreateWorker(
 			"Workforce Direct Role Replacement Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1759,7 +1759,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_PartialRoleCanNormalizeToItsExactBundle()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Partial Role Normalization Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1822,8 +1822,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_AssignedRoleSupportsCrossBuildingAndPublicRoundTrip()
 	{
-		Building storageA = CreateBuilding(CargoProcessStage.Picked);
-		Building storageB = CreateBuilding(CargoProcessStage.Picked);
+		Building storageA = CreateBuilding(ItemProcessStage.Picked);
+		Building storageB = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Cross Scope Reassignment Worker",
 			WorkerAbility.PickingStoring |
@@ -1926,8 +1926,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_BusyRoleReassignmentKeepsCurrentCountsUntilApplied()
 	{
-		Building sourceStorage = CreateBuilding(CargoProcessStage.Picked);
-		Building targetStorage = CreateBuilding(CargoProcessStage.Picked);
+		Building sourceStorage = CreateBuilding(ItemProcessStage.Picked);
+		Building targetStorage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Busy Direct Reassignment Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2067,7 +2067,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_BusyUnassignSchedulesPendingWithoutChangingCurrentCounts()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Busy Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2154,9 +2154,9 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_RejectsStaleOrForgedSourceRows()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
-		Building targetStorage = CreateBuilding(CargoProcessStage.Picked);
-		Building staging = CreateBuilding(CargoProcessStage.Labeled);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
+		Building targetStorage = CreateBuilding(ItemProcessStage.Picked);
+		Building staging = CreateBuilding(ItemProcessStage.Labeled);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Forged Source Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2301,7 +2301,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_PendingFeedbackStopsWhenRoleTargetDisappears()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Removed Target Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2363,7 +2363,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_RevalidatesSourceStateBeforeDrop()
 	{
-		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building storage = CreateBuilding(ItemProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Source Revalidation Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2421,7 +2421,7 @@ public sealed class WorkforceAssignmentEditModeTests
 		Building building = new(
 			"Workforce Event Storage",
 			new List<GridCell>(),
-			CargoProcessStage.Picked);
+			ItemProcessStage.Picked);
 
 		buildingManager.Register(building);
 		Assert.That(changedCount, Is.EqualTo(1));
@@ -2446,7 +2446,7 @@ public sealed class WorkforceAssignmentEditModeTests
 		worker.SetAssignedTaskTypes(taskTypes);
 	}
 
-	private Building CreateBuilding(CargoProcessStage outboundTargetStage)
+	private Building CreateBuilding(ItemProcessStage outboundTargetStage)
 	{
 		Building building = new($"Workforce Test {outboundTargetStage}", new List<GridCell>(), outboundTargetStage);
 		buildingManager.Register(building);

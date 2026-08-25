@@ -125,18 +125,18 @@ public sealed class WorkDemandMetricsEditModeTests
 			(201u, 3, ItemStatus.Labeled, ItemQuality.None),
 			(202u, 4, ItemStatus.Labeled, ItemQuality.None));
 		RegisterCapsuleBuffer(firstBuilding, firstBuffer);
-		ApplyBufferRule(firstBuffer, CargoProcessStage.Labeled);
+		ApplyBufferRule(firstBuffer, ItemProcessStage.Labeled);
 		CapsuleBuffer firstWasteBuffer = CreateInboundBuffer(
 			"First Storing Waste Buffer",
 			(201u, 2, ItemStatus.Labeled, ItemQuality.Waste));
 		RegisterCapsuleBuffer(firstBuilding, firstWasteBuffer);
-		ApplyBufferRule(firstWasteBuffer, CargoProcessStage.Labeled);
+		ApplyBufferRule(firstWasteBuffer, ItemProcessStage.Labeled);
 
 		CapsuleBuffer secondBuffer = CreateInboundBuffer(
 			"Second Storing Demand Buffer",
 			(203u, 6, ItemStatus.Labeled, ItemQuality.None));
 		RegisterCapsuleBuffer(secondBuilding, secondBuffer);
-		ApplyBufferRule(secondBuffer, CargoProcessStage.Labeled);
+		ApplyBufferRule(secondBuffer, ItemProcessStage.Labeled);
 		Assert.That(firstBuffer.CanProvideInboundItems(), Is.True);
 		Assert.That(
 			capsuleBufferService.IsRuleMatchedBuffer(
@@ -163,7 +163,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		Building generic = new(
 			"Generic Logistics Building",
 			new List<GridCell>(),
-			CargoProcessStage.None);
+			ItemProcessStage.Any);
 		buildingManager.Register(generic);
 		Assert.That(generic.RuntimeBuildingId, Is.Not.Zero);
 		Assert.That(
@@ -186,7 +186,7 @@ public sealed class WorkDemandMetricsEditModeTests
 			"Generic Storing Source",
 			(212u, 2, ItemStatus.Labeled, ItemQuality.None));
 		RegisterCapsuleBuffer(generic, storingSource);
-		ApplyBufferRule(storingSource, CargoProcessStage.Labeled);
+		ApplyBufferRule(storingSource, ItemProcessStage.Labeled);
 
 		AssertDemand(LogisticsWorkCategory.Picking, generic.RuntimeBuildingId, 1, 3);
 		AssertDemand(LogisticsWorkCategory.Storing, generic.RuntimeBuildingId, 1, 2);
@@ -198,7 +198,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		Building firstBuilding = new(
 			"First Packing Demand Building",
 			new List<GridCell>(),
-			CargoProcessStage.Packed);
+			ItemProcessStage.Packed);
 		buildingManager.Register(firstBuilding);
 
 		CapsuleBuffer firstInputBuffer = CreateInboundBuffer(
@@ -212,8 +212,8 @@ public sealed class WorkDemandMetricsEditModeTests
 		RegisterCapsuleBuffer(firstBuilding, firstInputBuffer);
 		ApplyBufferRule(
 			firstInputBuffer,
-			CargoProcessStage.Picked,
-			CapsuleBufferStateRequirement.Inside);
+			ItemProcessStage.Picked,
+			FacilityContentState.HasItems);
 
 		PackingStation firstStation = CreateComponent<PackingStation>("First Packing Demand Station", active: false);
 		ToteBox firstWaitingBox = CreateBox<ToteBox>(
@@ -244,7 +244,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		Building secondBuilding = new(
 			"Second Packing Demand Building",
 			new List<GridCell>(),
-			CargoProcessStage.Packed);
+			ItemProcessStage.Packed);
 		buildingManager.Register(secondBuilding);
 		CapsuleBuffer secondInputBuffer = CreateInboundBuffer(
 			"Second Packing Input Demand Buffer",
@@ -255,8 +255,8 @@ public sealed class WorkDemandMetricsEditModeTests
 		RegisterCapsuleBuffer(secondBuilding, secondInputBuffer);
 		ApplyBufferRule(
 			secondInputBuffer,
-			CargoProcessStage.Picked,
-			CapsuleBufferStateRequirement.Inside);
+			ItemProcessStage.Picked,
+			FacilityContentState.HasItems);
 
 		PackingStation secondStation = CreateComponent<PackingStation>("Second Packing Demand Station", active: false);
 		ToteBox secondWaitingBox = CreateBox<ToteBox>(
@@ -306,7 +306,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		Building building = new(
 			"Restored Packing Output Building",
 			new List<GridCell>(),
-			CargoProcessStage.None);
+			ItemProcessStage.Any);
 		buildingManager.Register(building);
 
 		PackingStation station = CreateComponent<PackingStation>(
@@ -345,7 +345,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		Building building = new(
 			"Restored Packing Input Building",
 			new List<GridCell>(),
-			CargoProcessStage.None);
+			ItemProcessStage.Any);
 		buildingManager.Register(building);
 
 		PackingStation station = CreateComponent<PackingStation>(
@@ -494,7 +494,7 @@ public sealed class WorkDemandMetricsEditModeTests
 
 	private Building CreateStorageBuilding(string displayName)
 	{
-		Building building = new(displayName, new List<GridCell>(), CargoProcessStage.Picked);
+		Building building = new(displayName, new List<GridCell>(), ItemProcessStage.Picked);
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
@@ -510,12 +510,12 @@ public sealed class WorkDemandMetricsEditModeTests
 
 	private void ApplyBufferRule(
 		CapsuleBuffer buffer,
-		CargoProcessStage stage,
-		CapsuleBufferStateRequirement bufferState = CapsuleBufferStateRequirement.Any)
+		ItemProcessStage stage,
+		FacilityContentState bufferState = FacilityContentState.Any)
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredCargoProcessStage(stage);
-		rule.SetRequiredCapsuleBufferState(bufferState);
+		rule.SetRequiredItemProcessStage(stage);
+		rule.SetRequiredContentState(bufferState);
 		FacilityRulePreset preset = facilityRuleManager.CreatePreset($"{buffer.name} Rule", rule);
 		Assert.That(facilityRuleManager.ApplyPreset(buffer, preset.Id), Is.True);
 	}

@@ -168,7 +168,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 				continue;
 
 			QueueLaunchSortEvaluation(building.RuntimeBuildingId);
-			if (building.OutboundTargetStage == CargoProcessStage.LaunchReady && GameContext.HasInstance)
+			if (building.OutboundTargetStage == ItemProcessStage.LaunchReady && GameContext.HasInstance)
 				GameContext.Instance.CapsuleRelocateCoordinator.MarkBuildingDirty(building.RuntimeBuildingId);
 		}
 	}
@@ -207,7 +207,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		{
 			if (BuildingManager?.TryGetBuilding(buildingId, out Building building) != true ||
 				building == null ||
-				building.OutboundTargetStage != CargoProcessStage.LaunchReady ||
+				building.OutboundTargetStage != ItemProcessStage.LaunchReady ||
 				TryGetLaunchSortPlanner(buildingId, out LaunchSortPlanner planner) == false)
 			{
 				scheduler.ClearDirty(buildingId, ItemTransferScheduleMode.LaunchSort);
@@ -257,7 +257,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (building == null || capsuleBuffer?.DockedCapsule == null)
 			return false;
 
-		if (building.OutboundTargetStage != CargoProcessStage.LaunchReady)
+		if (building.OutboundTargetStage != ItemProcessStage.LaunchReady)
 			return building.CanDispatchOutboundBuffer(capsuleBuffer);
 
 		RejectInvalidPackedCargo(capsuleBuffer);

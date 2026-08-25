@@ -55,8 +55,8 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 		try
 		{
 			BuildingManager buildingManager = managerObject.AddComponent<BuildingManager>();
-			Building firstDepot = new("Depot", new List<GridCell>(), CargoProcessStage.Picked);
-			Building secondDepot = new("Depot", new List<GridCell>(), CargoProcessStage.Picked);
+			Building firstDepot = new("Depot", new List<GridCell>(), ItemProcessStage.Picked);
+			Building secondDepot = new("Depot", new List<GridCell>(), ItemProcessStage.Picked);
 			buildingManager.Register(firstDepot);
 			buildingManager.Register(secondDepot);
 
@@ -109,7 +109,7 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 		try
 		{
 			BuildingManager buildingManager = managerObject.AddComponent<BuildingManager>();
-			Building storage = new("Storage Alpha", new List<GridCell>(), CargoProcessStage.Picked);
+			Building storage = new("Storage Alpha", new List<GridCell>(), ItemProcessStage.Picked);
 			buildingManager.Register(storage);
 
 			VisualElement root = LoadAttachedRoot(out documentObject);

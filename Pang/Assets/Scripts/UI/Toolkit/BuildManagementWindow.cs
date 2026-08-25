@@ -20,20 +20,20 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string ExpandedRoutingSourceClass = "build-routing-source--expanded";
 		private const string SelectedRoutingConnectionClass = "build-routing-connection--selected";
 		private static readonly WorkerKind[] RuleWorkerKinds = { WorkerKind.None, WorkerKind.Human, WorkerKind.Robot };
-		private static readonly CapsuleBufferStateRequirement[] RuleCapsuleBufferStates =
+		private static readonly FacilityContentState[] RuleContentStates =
 		{
-			CapsuleBufferStateRequirement.Any,
-			CapsuleBufferStateRequirement.Inside,
-			CapsuleBufferStateRequirement.Empty,
+			FacilityContentState.Any,
+			FacilityContentState.HasItems,
+			FacilityContentState.Empty,
 		};
-		private static readonly CargoProcessStage[] RuleCargoProcessStages =
+		private static readonly ItemProcessStage[] RuleItemProcessStages =
 		{
-			CargoProcessStage.None,
-			CargoProcessStage.Unlabeled,
-			CargoProcessStage.Labeled,
-			CargoProcessStage.Picked,
-			CargoProcessStage.Packed,
-			CargoProcessStage.LaunchReady,
+			ItemProcessStage.Any,
+			ItemProcessStage.Unlabeled,
+			ItemProcessStage.Labeled,
+			ItemProcessStage.Picked,
+			ItemProcessStage.Packed,
+			ItemProcessStage.LaunchReady,
 		};
 
 		private UIWindow window;
@@ -82,8 +82,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private Slider ruleGreenSlider;
 		private Slider ruleBlueSlider;
 		private VisualElement ruleColorPreview;
-		private DropdownField ruleCapsuleBufferStateField;
-		private DropdownField ruleCargoProcessStageField;
+		private DropdownField ruleContentStateField;
+		private DropdownField ruleItemProcessStageField;
 		private DropdownField ruleWorkerKindField;
 		private DropdownField ruleItemField;
 		private Label whiteListSummary;
@@ -227,8 +227,8 @@ namespace UniverseLogistics.UI.Toolkit
 			ruleGreenSlider = content.Q<Slider>("rule-editor-green");
 			ruleBlueSlider = content.Q<Slider>("rule-editor-blue");
 			ruleColorPreview = content.Q<VisualElement>("rule-editor-color-preview");
-			ruleCapsuleBufferStateField = content.Q<DropdownField>("rule-editor-capsule-state");
-			ruleCargoProcessStageField = content.Q<DropdownField>("rule-editor-cargo-stage");
+			ruleContentStateField = content.Q<DropdownField>("rule-editor-content-state");
+			ruleItemProcessStageField = content.Q<DropdownField>("rule-editor-item-process-stage");
 			ruleWorkerKindField = content.Q<DropdownField>("rule-editor-worker-kind");
 			ruleItemField = content.Q<DropdownField>("rule-editor-item");
 			whiteListSummary = content.Q<Label>("rule-whitelist-summary");
@@ -243,7 +243,7 @@ namespace UniverseLogistics.UI.Toolkit
 				placeableEmpty == null || createRuleButton == null || createColdChainRuleButton == null ||
 				ruleList == null || ruleEmpty == null || ruleMessage == null ||
 				ruleLibrary == null || ruleEditor == null || ruleNameField == null || rulePriorityField == null ||
-				ruleColorPreview == null || ruleCapsuleBufferStateField == null || ruleCargoProcessStageField == null ||
+				ruleColorPreview == null || ruleContentStateField == null || ruleItemProcessStageField == null ||
 				ruleWorkerKindField == null || ruleItemField == null)
 			{
 				Debug.LogError("[BuildManagementWindow] Required UXML elements are missing.", this);
@@ -967,8 +967,8 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void BindRuleEditor(VisualElement content)
 		{
-			ruleCapsuleBufferStateField.choices = ContentStateNames(RuleCapsuleBufferStates);
-			ruleCargoProcessStageField.choices = ItemProcessStageNames(RuleCargoProcessStages);
+			ruleContentStateField.choices = ContentStateNames(RuleContentStates);
+			ruleItemProcessStageField.choices = ItemProcessStageNames(RuleItemProcessStages);
 			ruleWorkerKindField.choices = EnumNames(RuleWorkerKinds);
 			ruleItems.Clear();
 			List<string> itemChoices = new();
@@ -988,15 +988,15 @@ namespace UniverseLogistics.UI.Toolkit
 			ruleRedSlider.RegisterValueChangedCallback(_ => OnRuleColorChanged());
 			ruleGreenSlider.RegisterValueChangedCallback(_ => OnRuleColorChanged());
 			ruleBlueSlider.RegisterValueChangedCallback(_ => OnRuleColorChanged());
-			ruleCapsuleBufferStateField.RegisterValueChangedCallback(_ =>
+			ruleContentStateField.RegisterValueChangedCallback(_ =>
 			{
-				if (!suppressRuleEditorEvents && ruleCapsuleBufferStateField.index >= 0)
-					workingRule.SetRequiredCapsuleBufferState(RuleCapsuleBufferStates[ruleCapsuleBufferStateField.index]);
+				if (!suppressRuleEditorEvents && ruleContentStateField.index >= 0)
+					workingRule.SetRequiredContentState(RuleContentStates[ruleContentStateField.index]);
 			});
-			ruleCargoProcessStageField.RegisterValueChangedCallback(_ =>
+			ruleItemProcessStageField.RegisterValueChangedCallback(_ =>
 			{
-				if (!suppressRuleEditorEvents && ruleCargoProcessStageField.index >= 0)
-					workingRule.SetRequiredCargoProcessStage(RuleCargoProcessStages[ruleCargoProcessStageField.index]);
+				if (!suppressRuleEditorEvents && ruleItemProcessStageField.index >= 0)
+					workingRule.SetRequiredItemProcessStage(RuleItemProcessStages[ruleItemProcessStageField.index]);
 			});
 			ruleWorkerKindField.RegisterValueChangedCallback(_ => { if (!suppressRuleEditorEvents && ruleWorkerKindField.index >= 0) workingRule.WorkerRule.SetRequiredWorkerKind(RuleWorkerKinds[ruleWorkerKindField.index]); });
 
@@ -1073,8 +1073,8 @@ namespace UniverseLogistics.UI.Toolkit
 			ruleGreenSlider.SetValueWithoutNotify(workingRuleColor.g);
 			ruleBlueSlider.SetValueWithoutNotify(workingRuleColor.b);
 			ruleColorPreview.style.backgroundColor = workingRuleColor;
-			ruleCapsuleBufferStateField.SetValueWithoutNotify(ContentStateName(workingRule.RequiredCapsuleBufferState));
-			ruleCargoProcessStageField.SetValueWithoutNotify(ItemProcessStageName(workingRule.RequiredCargoProcessStage));
+			ruleContentStateField.SetValueWithoutNotify(ContentStateName(workingRule.RequiredContentState));
+			ruleItemProcessStageField.SetValueWithoutNotify(ItemProcessStageName(workingRule.RequiredItemProcessStage));
 			ruleWorkerKindField.SetValueWithoutNotify(workingRule.WorkerRule.RequiredWorkerKind.ToString());
 			SetToggle("rule-required-tag-fragile", workingRule.ItemRule.RequiredItemTags.HasFlag(ItemTag.Fragile));
 			SetToggle("rule-required-tag-food", workingRule.ItemRule.RequiredItemTags.HasFlag(ItemTag.Food));
@@ -1206,35 +1206,35 @@ namespace UniverseLogistics.UI.Toolkit
 			return names;
 		}
 
-		private static List<string> ContentStateNames(IReadOnlyList<CapsuleBufferStateRequirement> values)
+		private static List<string> ContentStateNames(IReadOnlyList<FacilityContentState> values)
 		{
 			List<string> names = new();
 			for (int i = 0; i < values.Count; ++i) names.Add(ContentStateName(values[i]));
 			return names;
 		}
 
-		private static string ContentStateName(CapsuleBufferStateRequirement state)
+		private static string ContentStateName(FacilityContentState state)
 		{
 			return state switch
 			{
-				CapsuleBufferStateRequirement.Inside => "Has Items",
-				CapsuleBufferStateRequirement.Empty => "Empty",
+				FacilityContentState.HasItems => "Has Items",
+				FacilityContentState.Empty => "Empty",
 				_ => "Any",
 			};
 		}
 
-		private static List<string> ItemProcessStageNames(IReadOnlyList<CargoProcessStage> values)
+		private static List<string> ItemProcessStageNames(IReadOnlyList<ItemProcessStage> values)
 		{
 			List<string> names = new();
 			for (int i = 0; i < values.Count; ++i) names.Add(ItemProcessStageName(values[i]));
 			return names;
 		}
 
-		private static string ItemProcessStageName(CargoProcessStage stage)
+		private static string ItemProcessStageName(ItemProcessStage stage)
 		{
-			return stage == CargoProcessStage.None
+			return stage == ItemProcessStage.Any
 				? "Any"
-				: CargoProcessStageUtility.ToDisplayString(stage);
+				: ItemProcessStageUtility.ToDisplayString(stage);
 		}
 
 		private static void SetListValue<T>(List<T> values, T value, bool enabled)
@@ -1298,8 +1298,8 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (rule == null || rule.IsEmpty) return "No restrictions";
 			List<string> parts = new();
-			if (rule.RequiredCapsuleBufferState != CapsuleBufferStateRequirement.Any) parts.Add(ContentStateName(rule.RequiredCapsuleBufferState));
-			if (rule.RequiredCargoProcessStage != CargoProcessStage.None) parts.Add(CargoProcessStageUtility.ToDisplayString(rule.RequiredCargoProcessStage));
+			if (rule.RequiredContentState != FacilityContentState.Any) parts.Add(ContentStateName(rule.RequiredContentState));
+			if (rule.RequiredItemProcessStage != ItemProcessStage.Any) parts.Add(ItemProcessStageUtility.ToDisplayString(rule.RequiredItemProcessStage));
 			if (rule.ItemRule != null && rule.ItemRule.IsEmpty == false) parts.Add("Item");
 			if (rule.WorkerRule != null && rule.WorkerRule.IsEmpty == false) parts.Add("Worker");
 			if (rule.ManifestRule != null && rule.ManifestRule.IsEmpty == false) parts.Add("Destination");

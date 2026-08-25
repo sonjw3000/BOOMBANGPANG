@@ -540,7 +540,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		panel.Rows.Add(new SelectionDetailRow
 		{
 			Primary = "Outbound Target",
-			Secondary = CargoProcessStageUtility.ToDisplayString(Building.OutboundTargetStage),
+			Secondary = ItemProcessStageUtility.ToDisplayString(Building.OutboundTargetStage),
 		});
 
 		float averageOxygen = OxygenService?.GetAverageOxygen(Building) ?? GridCell.DefaultOxygen;
@@ -601,14 +601,14 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		if (Building == null)
 			return;
 
-		CargoProcessStage[] stages =
+		ItemProcessStage[] stages =
 		{
-			CargoProcessStage.None,
-			CargoProcessStage.Unlabeled,
-			CargoProcessStage.Labeled,
-			CargoProcessStage.Picked,
-			CargoProcessStage.Packed,
-			CargoProcessStage.LaunchReady,
+			ItemProcessStage.Any,
+			ItemProcessStage.Unlabeled,
+			ItemProcessStage.Labeled,
+			ItemProcessStage.Picked,
+			ItemProcessStage.Packed,
+			ItemProcessStage.LaunchReady,
 		};
 		int current = Array.IndexOf(stages, Building.OutboundTargetStage);
 		Building.TrySetOutboundTargetStage(stages[(current + 1 + stages.Length) % stages.Length]);

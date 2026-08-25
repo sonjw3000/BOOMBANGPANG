@@ -218,7 +218,7 @@ public sealed class BuildingSaveData
 	public string Name;
 	public BuildingState State;
 	public BuildingWorkScope WorkScope;
-	public CargoProcessStage OutboundTargetStage = CargoProcessStage.None;
+	public ItemProcessStage OutboundTargetStage = ItemProcessStage.Any;
 	public bool OverrideCapsuleThreshold;
 	public float CapsuleThresholdPercent;
 	public bool SuitRemovalAllowed;
@@ -288,8 +288,9 @@ public sealed class FacilityRulePresetSaveData
 public sealed class FacilityRuleSaveData
 {
 	public int Priority;
-	public CapsuleBufferStateRequirement RequiredCapsuleBufferState = CapsuleBufferStateRequirement.Any;
-	public CargoProcessStage RequiredCargoProcessStage = CargoProcessStage.None;
+	// Keep the legacy JSON field names so existing saves remain readable.
+	public FacilityContentState RequiredCapsuleBufferState = FacilityContentState.Any;
+	public ItemProcessStage RequiredCargoProcessStage = ItemProcessStage.Any;
 	public FacilityItemRuleSaveData ItemRule = new();
 	public FacilityWorkerRuleSaveData WorkerRule = new();
 	public FacilityManifestRuleSaveData ManifestRule = new();

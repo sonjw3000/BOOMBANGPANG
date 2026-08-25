@@ -309,7 +309,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		if (context.FacilityMgr?.TryGetBuildingId(sourceBuffer, out uint sourceBuildingId) == true &&
 			context.BuildingMgr?.TryGetBuilding(sourceBuildingId, out Building sourceBuilding) == true)
 		{
-			evaluateLaunchReadiness = sourceBuilding.OutboundTargetStage == CargoProcessStage.LaunchReady;
+			evaluateLaunchReadiness = sourceBuilding.OutboundTargetStage == ItemProcessStage.LaunchReady;
 		}
 
 		return context.CapsuleBufferSvc.IsRuleMatchedBuffer(
@@ -350,7 +350,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 		bool evaluateLaunchReadiness = false;
 		if (context.BuildingMgr?.TryGetBuilding(targetBuildingId, out Building targetBuilding) == true)
-			evaluateLaunchReadiness = targetBuilding.OutboundTargetStage == CargoProcessStage.LaunchReady;
+			evaluateLaunchReadiness = targetBuilding.OutboundTargetStage == ItemProcessStage.LaunchReady;
 
 		return context.CapsuleBufferSvc.IsRuleMatchedBuffer(
 			targetBuffer,
@@ -468,7 +468,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			buildingManager == null ||
 			facilityManager.TryGetBuildingId(sourceBuffer, out uint sourceBuildingId) == false ||
 			buildingManager.TryGetBuilding(sourceBuildingId, out Building sourceBuilding) == false ||
-			sourceBuilding.OutboundTargetStage != CargoProcessStage.LaunchReady)
+			sourceBuilding.OutboundTargetStage != ItemProcessStage.LaunchReady)
 		{
 			return true;
 		}
@@ -562,7 +562,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 		bool evaluateLaunchReadiness = false;
 		if (context.BuildingMgr?.TryGetBuilding(targetBuildingId, out Building targetBuilding) == true)
-			evaluateLaunchReadiness = targetBuilding.OutboundTargetStage == CargoProcessStage.LaunchReady;
+			evaluateLaunchReadiness = targetBuilding.OutboundTargetStage == ItemProcessStage.LaunchReady;
 
 		System.Collections.Generic.List<CapsuleBuffer> candidates = new();
 		if (bufferService.TryQueryRuleMatchedDestinations(

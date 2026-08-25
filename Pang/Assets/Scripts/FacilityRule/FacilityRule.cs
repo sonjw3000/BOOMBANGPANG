@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [Serializable]
 public sealed class FacilityItemRule
@@ -304,8 +305,10 @@ public sealed class FacilityManifestRule
 public sealed class FacilityRule
 {
 	[SerializeField] private int priority;
-	[SerializeField] private CapsuleBufferStateRequirement requiredCapsuleBufferState = CapsuleBufferStateRequirement.Any;
-	[SerializeField] private CargoProcessStage requiredCargoProcessStage = CargoProcessStage.None;
+	[FormerlySerializedAs("requiredCapsuleBufferState")]
+	[SerializeField] private FacilityContentState requiredContentState = FacilityContentState.Any;
+	[FormerlySerializedAs("requiredCargoProcessStage")]
+	[SerializeField] private ItemProcessStage requiredItemProcessStage = ItemProcessStage.Any;
 	[SerializeField] private FacilityItemRule itemRule = new();
 	[SerializeField] private FacilityWorkerRule workerRule = new();
 	[SerializeField] private FacilityManifestRule manifestRule = new();
@@ -320,42 +323,42 @@ public sealed class FacilityRule
 			return;
 
 		priority = source.priority;
-		requiredCapsuleBufferState = source.requiredCapsuleBufferState;
-		requiredCargoProcessStage = source.requiredCargoProcessStage;
+		requiredContentState = source.requiredContentState;
+		requiredItemProcessStage = source.requiredItemProcessStage;
 		itemRule = source.itemRule != null ? new FacilityItemRule(source.itemRule) : new FacilityItemRule();
 		workerRule = source.workerRule != null ? new FacilityWorkerRule(source.workerRule) : new FacilityWorkerRule();
 		manifestRule = source.manifestRule != null ? new FacilityManifestRule(source.manifestRule) : new FacilityManifestRule();
 	}
 
 	public int Priority => priority;
-	public CapsuleBufferStateRequirement RequiredCapsuleBufferState => requiredCapsuleBufferState;
-	public CargoProcessStage RequiredCargoProcessStage => requiredCargoProcessStage;
+	public FacilityContentState RequiredContentState => requiredContentState;
+	public ItemProcessStage RequiredItemProcessStage => requiredItemProcessStage;
 	public FacilityItemRule ItemRule => itemRule;
 	public FacilityWorkerRule WorkerRule => workerRule;
 	public FacilityManifestRule ManifestRule => manifestRule;
 
 	public bool IsEmpty =>
-		requiredCapsuleBufferState == CapsuleBufferStateRequirement.Any &&
-		requiredCargoProcessStage == CargoProcessStage.None &&
+		requiredContentState == FacilityContentState.Any &&
+		requiredItemProcessStage == ItemProcessStage.Any &&
 		(itemRule == null || itemRule.IsEmpty) &&
 		(workerRule == null || workerRule.IsEmpty) &&
 		(manifestRule == null || manifestRule.IsEmpty);
 
 	public void SetPriority(int newPriority) => priority = newPriority;
-	public void SetRequiredCapsuleBufferState(CapsuleBufferStateRequirement state)
+	public void SetRequiredContentState(FacilityContentState state)
 	{
-		requiredCapsuleBufferState = state is CapsuleBufferStateRequirement.Any or
-			CapsuleBufferStateRequirement.Inside or
-			CapsuleBufferStateRequirement.Empty
+		requiredContentState = state is FacilityContentState.Any or
+			FacilityContentState.HasItems or
+			FacilityContentState.Empty
 			? state
-			: CapsuleBufferStateRequirement.Any;
+			: FacilityContentState.Any;
 	}
 
-	public void SetRequiredCargoProcessStage(CargoProcessStage stage)
+	public void SetRequiredItemProcessStage(ItemProcessStage stage)
 	{
-		requiredCargoProcessStage = CargoProcessStageUtility.IsDefined(stage)
+		requiredItemProcessStage = ItemProcessStageUtility.IsDefined(stage)
 			? stage
-			: CargoProcessStage.None;
+			: ItemProcessStage.Any;
 	}
 
 	public void SetItemRule(FacilityItemRule rule)
@@ -376,8 +379,8 @@ public sealed class FacilityRule
 	public void Clear()
 	{
 		priority = 0;
-		requiredCapsuleBufferState = CapsuleBufferStateRequirement.Any;
-		requiredCargoProcessStage = CargoProcessStage.None;
+		requiredContentState = FacilityContentState.Any;
+		requiredItemProcessStage = ItemProcessStage.Any;
 		itemRule ??= new FacilityItemRule();
 		workerRule ??= new FacilityWorkerRule();
 		manifestRule ??= new FacilityManifestRule();
@@ -388,22 +391,20 @@ public sealed class FacilityRule
 
 	public bool IsFilterCapable(in FacilityFilter filter)
 	{
-		if (filter.CapsuleBufferState == CapsuleBufferStateRequirement.Empty &&
-			requiredCargoProcessStage != CargoProcessStage.None)
+		if (filter.ContentState == FacilityContentState.Empty &&
+			requiredItemProcessStage != ItemProcessStage.Any)
 		{
 			return false;
 		}
 
-		if (requiredCapsuleBufferState != CapsuleBufferStateRequirement.Any &&
-			filter.CapsuleBufferState != CapsuleBufferStateRequirement.Any &&
-			filter.CapsuleBufferState != requiredCapsuleBufferState)
+		if (requiredContentState != FacilityContentState.Any &&
+			filter.ContentState != requiredContentState)
 		{
 			return false;
 		}
 
-		if (requiredCargoProcessStage != CargoProcessStage.None &&
-			filter.CargoProcessStage != CargoProcessStage.None &&
-			filter.CargoProcessStage != requiredCargoProcessStage)
+		if (requiredItemProcessStage != ItemProcessStage.Any &&
+			filter.ItemProcessStage != requiredItemProcessStage)
 		{
 			return false;
 		}
@@ -416,7 +417,7 @@ public sealed class FacilityRule
 
 		if (manifestRule != null)
 		{
-			bool manifestCapable = filter.CargoProcessStage != CargoProcessStage.None
+			bool manifestCapable = filter.ItemProcessStage != ItemProcessStage.Any
 				? manifestRule.IsAggregateManifestCapable(filter.ManifestFilter)
 				: manifestRule.IsManifestCapable(filter.ManifestFilter);
 			if (manifestCapable == false)

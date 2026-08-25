@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,13 +8,6 @@ public enum CapsuleLogisticsState
 	Inside = 1,
 	Empty = 2,
 	OB = 3,
-}
-
-public enum CapsuleBufferStateRequirement
-{
-	Any = 0,
-	Inside = 1,
-	Empty = 2,
 }
 
 public enum CargoRouteKind

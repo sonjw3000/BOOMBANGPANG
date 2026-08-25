@@ -62,8 +62,8 @@
 				<ui:Slider name="rule-editor-blue" label="Blue" low-value="0" high-value="1" class="rule-editor-slider" />
 				<ui:VisualElement name="rule-editor-color-preview" class="rule-editor-color-preview" />
 				<ui:Label text="ITEM CONDITIONS" class="rule-editor-section" />
-				<ui:DropdownField name="rule-editor-cargo-stage" label="Item process stage" class="rule-editor-field" />
-				<ui:DropdownField name="rule-editor-capsule-state" label="Content" class="rule-editor-field" />
+				<ui:DropdownField name="rule-editor-item-process-stage" label="Item process stage" class="rule-editor-field" />
+				<ui:DropdownField name="rule-editor-content-state" label="Content" class="rule-editor-field" />
 				<ui:Label text="Required tags" class="rule-editor-label" />
 				<ui:VisualElement class="rule-editor-toggle-row">
 					<ui:Toggle name="rule-required-tag-fragile" text="Fragile" />

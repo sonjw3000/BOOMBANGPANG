@@ -394,7 +394,7 @@ public sealed class CapsuleRelocateCoordinator
 
 		if (dockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
 		{
-			bool evaluateLaunchReadiness = building.OutboundTargetStage == CargoProcessStage.LaunchReady;
+			bool evaluateLaunchReadiness = building.OutboundTargetStage == ItemProcessStage.LaunchReady;
 			bool isRuleMatched = bufferService?.IsRuleMatchedBuffer(
 				buffer,
 				dockedCapsule,
@@ -455,7 +455,7 @@ public sealed class CapsuleRelocateCoordinator
 			buildingId,
 			onMatched: match => EnqueueCapsuleRelocationTask(match, taskType, buildingId, CapsuleRelocationReason.RuleRouting),
 			requireRuleMatchedTarget: true,
-			evaluateLaunchReadiness: building.OutboundTargetStage == CargoProcessStage.LaunchReady));
+			evaluateLaunchReadiness: building.OutboundTargetStage == ItemProcessStage.LaunchReady));
 	}
 
 	private void TryRequestOutbound(CapsuleBuffer buffer, uint buildingId, Building building)
@@ -491,7 +491,7 @@ public sealed class CapsuleRelocateCoordinator
 			return;
 		}
 
-		bool evaluateLaunchReadiness = building.OutboundTargetStage == CargoProcessStage.LaunchReady;
+		bool evaluateLaunchReadiness = building.OutboundTargetStage == ItemProcessStage.LaunchReady;
 		if (bufferService?.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness) == true)
 		{
 			CancelPendingRequests(buffer);

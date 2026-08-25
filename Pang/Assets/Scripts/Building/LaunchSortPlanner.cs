@@ -547,17 +547,19 @@ public sealed class LaunchSortPlanner :
 			BufferService == null)
 			return false;
 
-		FacilityFilter filter = FacilityFilter.WithCapsuleBufferState(
-			FacilityFilter.WithManifest(
-				FacilityFilter.ForTransfer(
+		FacilityFilter filter = FacilityFilter.WithContentState(
+			FacilityFilter.WithItemProcessStage(
+				FacilityFilter.WithManifest(
+					FacilityFilter.ForTransfer(
 					source,
 					itemId,
 					requested,
 					stack => stack.HasStatus(ItemStatus.Packed) &&
 						stack.HasQuality(ItemQuality.Waste) == false,
 					worker),
-				FacilityManifestFilter.FromOrderLine(orderLine)),
-			CapsuleBufferStateRequirement.Empty);
+					FacilityManifestFilter.FromOrderLine(orderLine)),
+				ItemProcessStage.Packed),
+			FacilityContentState.HasItems);
 
 		int bestPriority = int.MinValue;
 		int bestMovable = 0;
@@ -565,7 +567,7 @@ public sealed class LaunchSortPlanner :
 		foreach (CapsuleBuffer candidate in BufferService.GetBuffers(buildingId))
 		{
 			if (ReferenceEquals(candidate, excludedBuffer) ||
-				IsEmptyInputRuleMatchedBuffer(candidate, filter) == false)
+				IsProjectedInputRuleMatchedBuffer(candidate, filter) == false)
 			{
 				continue;
 			}
@@ -612,7 +614,7 @@ public sealed class LaunchSortPlanner :
 	private bool CanRunForBuilding()
 	{
 		return TryGetBuilding(out Building building) &&
-			building.OutboundTargetStage == CargoProcessStage.LaunchReady;
+			building.OutboundTargetStage == ItemProcessStage.LaunchReady;
 	}
 
 	private bool TryGetBuilding(out Building building)
@@ -633,8 +635,8 @@ public sealed class LaunchSortPlanner :
 			BufferService?.IsExplicitRuleMatchedBuffer(
 				sourceBuffer,
 				capsule,
-				CapsuleBufferStateRequirement.Inside,
-				CargoProcessStage.Packed,
+				FacilityContentState.HasItems,
+				ItemProcessStage.Packed,
 				evaluateLaunchReadiness: false) != true ||
 			GameContext.Instance.FacilityMgr?.IsInvalidating(sourceBuffer) == true ||
 			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(sourceBuffer) == true)
@@ -645,7 +647,7 @@ public sealed class LaunchSortPlanner :
 		return IsDockAvailable(sourceBuffer);
 	}
 
-	private bool IsEmptyInputRuleMatchedBuffer(
+	private bool IsProjectedInputRuleMatchedBuffer(
 		CapsuleBuffer buffer,
 		FacilityFilter projectedInputFilter)
 	{
@@ -654,15 +656,13 @@ public sealed class LaunchSortPlanner :
 			capsule.LogisticsState != CapsuleLogisticsState.Empty ||
 			buffer.IsCapsuleEmpty() == false ||
 			buffer.CanReceiveOutboundItems() == false ||
-			projectedInputFilter.CapsuleBufferState != CapsuleBufferStateRequirement.Empty ||
-			projectedInputFilter.CargoProcessStage != CargoProcessStage.None ||
+			projectedInputFilter.ContentState != FacilityContentState.HasItems ||
+			projectedInputFilter.ItemProcessStage != ItemProcessStage.Packed ||
 			BufferService?.IsExplicitRuleMatchedBuffer(
 				buffer,
-				capsule,
-				CapsuleBufferStateRequirement.Empty,
-				CargoProcessStage.None,
-				evaluateLaunchReadiness: false) != true ||
-			projectedInputFilter.MatchesCurrentRules(buffer) == false ||
+				projectedInputFilter,
+				FacilityContentState.HasItems,
+				ItemProcessStage.Packed) != true ||
 			GameContext.Instance.FacilityMgr?.IsInvalidating(buffer) == true ||
 			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(buffer) == true)
 		{

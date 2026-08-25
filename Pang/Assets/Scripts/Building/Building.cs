@@ -38,7 +38,7 @@ public class Building
 	private uint runtimeBuildingId;
 	private BuildingState state = BuildingState.Active;
 	private BuildingWorkScope workScope = BuildingWorkScope.HomeOnly;
-	private CargoProcessStage outboundTargetStage = CargoProcessStage.None;
+	private ItemProcessStage outboundTargetStage = ItemProcessStage.Any;
 
 	private bool overrideCapsuleThreshold = false;
 	private float capsuleThresholdPercent = 80.0f;
@@ -69,7 +69,7 @@ public class Building
 	public uint RuntimeBuildingId => runtimeBuildingId;
 	public BuildingState State => state;
 	public BuildingWorkScope WorkScope => workScope;
-	public CargoProcessStage OutboundTargetStage => outboundTargetStage;
+	public ItemProcessStage OutboundTargetStage => outboundTargetStage;
 	public IReadOnlyList<GridCell> OccupiedCells => occupiedCells;
 	public IReadOnlyList<IFacility> OccupiedFacilities => occupiedFacilities;
 	public IReadOnlyList<CargoPort> OccupiedCargoPorts => occupiedCargoPorts;
@@ -139,11 +139,11 @@ public class Building
 	internal void SetSuitRemovalAllowed(bool value) => suitRemovalAllowed = value;
 	internal void SetAddonSlotCapacity(int value) => addonSlotCapacity = UnityEngine.Mathf.Max(0, value);
 	internal void SetTargetTemperatureCelsius(float value) => targetTemperatureCelsius = value;
-	internal void SetOutboundTargetStage(CargoProcessStage stage)
+	internal void SetOutboundTargetStage(ItemProcessStage stage)
 	{
-		outboundTargetStage = CargoProcessStageUtility.IsDefined(stage)
+		outboundTargetStage = ItemProcessStageUtility.IsDefined(stage)
 			? stage
-			: CargoProcessStage.None;
+			: ItemProcessStage.Any;
 	}
 	internal void AssignRuntimeBuildingId(uint id) => runtimeBuildingId = id;
 	internal void SetRegistered(bool registered)
@@ -166,9 +166,9 @@ public class Building
 	public void Rename(string newDisplayName) => displayName = newDisplayName;
 	public void SetState(BuildingState newState) => state = newState;
 	public void SetWorkScope(BuildingWorkScope newWorkScope) => workScope = newWorkScope;
-	public bool TrySetOutboundTargetStage(CargoProcessStage stage)
+	public bool TrySetOutboundTargetStage(ItemProcessStage stage)
 	{
-		if (CargoProcessStageUtility.IsDefined(stage) == false)
+		if (ItemProcessStageUtility.IsDefined(stage) == false)
 			return false;
 
 		if (outboundTargetStage == stage)
@@ -233,12 +233,12 @@ public class Building
 	public Building(
 		string displayName,
 		List<GridCell> occupiedCells,
-		CargoProcessStage outboundTargetStage = CargoProcessStage.None)
+		ItemProcessStage outboundTargetStage = ItemProcessStage.Any)
 	{
 		this.displayName = displayName;
-		this.outboundTargetStage = CargoProcessStageUtility.IsDefined(outboundTargetStage)
+		this.outboundTargetStage = ItemProcessStageUtility.IsDefined(outboundTargetStage)
 			? outboundTargetStage
-			: CargoProcessStage.None;
+			: ItemProcessStage.Any;
 		this.occupiedCells = occupiedCells ?? new List<GridCell>();
 
 		itemIndex = new(this);
@@ -373,19 +373,19 @@ public class Building
 	{
 		CargoCapsule capsule = capsuleBuffer?.DockedCapsule;
 		if (capsule == null || capsule.RouteKind != CargoRouteKind.Standard ||
-			capsuleBuffer.IsCapsuleEmpty() || outboundTargetStage == CargoProcessStage.None)
+			capsuleBuffer.IsCapsuleEmpty() || outboundTargetStage == ItemProcessStage.Any)
 		{
 			return false;
 		}
 
-		bool evaluateLaunchReadiness = outboundTargetStage == CargoProcessStage.LaunchReady;
+		bool evaluateLaunchReadiness = outboundTargetStage == ItemProcessStage.LaunchReady;
 		bool launchReady = evaluateLaunchReadiness &&
-			CargoProcessStageEvaluator.IsLaunchReady(capsule, OutboundWorkflowService);
-		if (CargoProcessStageEvaluator.TryEvaluate(
+			ItemProcessStageEvaluator.IsLaunchReady(capsule, OutboundWorkflowService);
+		if (ItemProcessStageEvaluator.TryEvaluate(
 				capsule,
 				OutboundWorkflowService,
 				launchReady,
-				out CargoProcessStage stage) == false ||
+				out ItemProcessStage stage) == false ||
 			stage != outboundTargetStage)
 		{
 			return false;

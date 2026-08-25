@@ -331,7 +331,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 		string displayName,
 		BuildingState state,
 		BuildingWorkScope workScope,
-		CargoProcessStage outboundTargetStage,
+		ItemProcessStage outboundTargetStage,
 		bool overrideCapsuleThreshold,
 		float capsuleThresholdPercent,
 		bool suitRemovalAllowed,

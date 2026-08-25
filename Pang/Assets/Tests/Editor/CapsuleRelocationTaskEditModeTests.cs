@@ -204,8 +204,8 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		CargoCapsule capsule = CreateCapsule("Rule Revalidation Capsule", CapsuleLogisticsState.IB);
 		AddCargo(capsule, 902, 2, ItemStatus.Labeled);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
-		ApplyBufferRule(previousTarget, CargoProcessStage.Labeled);
-		ApplyBufferRule(replacementTarget, CargoProcessStage.Labeled);
+		ApplyBufferRule(previousTarget, ItemProcessStage.Labeled);
+		ApplyBufferRule(replacementTarget, ItemProcessStage.Labeled);
 
 		CapsuleRelocationTask task = new(
 			WorkerTask.TaskType.IB,
@@ -214,7 +214,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 			building.RuntimeBuildingId,
 			CapsuleRelocationReason.RuleRouting);
 		Assert.That(coordinator.RestoreActiveRelocation(source, previousTarget, payloadAlreadyPicked: false), Is.True);
-		ApplyBufferRule(previousTarget, CargoProcessStage.Packed);
+		ApplyBufferRule(previousTarget, ItemProcessStage.Packed);
 
 		HumanWorker worker = CreateWorker();
 		AssignInProgress(task, worker);
@@ -236,8 +236,8 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		CargoCapsule capsule = CreateCapsule("Rule Store Revalidation Capsule", CapsuleLogisticsState.IB);
 		AddCargo(capsule, 904, 2, ItemStatus.Labeled);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
-		ApplyBufferRule(previousTarget, CargoProcessStage.Labeled);
-		ApplyBufferRule(replacementTarget, CargoProcessStage.Labeled);
+		ApplyBufferRule(previousTarget, ItemProcessStage.Labeled);
+		ApplyBufferRule(replacementTarget, ItemProcessStage.Labeled);
 
 		CapsuleRelocationTask task = new(
 			WorkerTask.TaskType.IB,
@@ -254,7 +254,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(coordinator.RestoreActiveRelocation(source, previousTarget, payloadAlreadyPicked: true), Is.True);
 		Assert.That(CapsuleRelocationTask.SetTargetDock(in taskContext), Is.EqualTo(IBaseNode.NodeState.Success));
 
-		ApplyBufferRule(previousTarget, CargoProcessStage.Packed);
+		ApplyBufferRule(previousTarget, ItemProcessStage.Packed);
 
 		Assert.That(CapsuleRelocationTask.StoreCapsuleToTarget(in taskContext), Is.EqualTo(IBaseNode.NodeState.Running));
 		Assert.That(GetTaskTarget(task), Is.SameAs(replacementTarget));
@@ -275,8 +275,8 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		CargoCapsule capsule = CreateCapsule("Returned Rule Capsule", CapsuleLogisticsState.IB);
 		AddCargo(capsule, 905, 2, ItemStatus.Labeled);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
-		ApplyBufferRule(staleTarget, CargoProcessStage.Labeled);
-		ApplyBufferRule(replacementTarget, CargoProcessStage.Labeled);
+		ApplyBufferRule(staleTarget, ItemProcessStage.Labeled);
+		ApplyBufferRule(replacementTarget, ItemProcessStage.Labeled);
 
 		CapsuleRelocationTask task = new(
 			WorkerTask.TaskType.IB,
@@ -290,7 +290,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(taskManager.ReturnTask(worker), Is.True);
 		Assert.That(task.CurrentStatus, Is.EqualTo(WorkerTask.Status.Returned));
 
-		ApplyBufferRule(staleTarget, CargoProcessStage.Packed);
+		ApplyBufferRule(staleTarget, ItemProcessStage.Packed);
 		coordinator.MarkDirty(source);
 		coordinator.ProcessDirty();
 
@@ -316,8 +316,8 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		CargoCapsule capsule = CreateCapsule("Returned Matched Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 906, 2, ItemStatus.Labeled);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
-		ApplyBufferRule(source, CargoProcessStage.Packed);
-		ApplyBufferRule(target, CargoProcessStage.Labeled);
+		ApplyBufferRule(source, ItemProcessStage.Packed);
+		ApplyBufferRule(target, ItemProcessStage.Labeled);
 
 		CapsuleRelocationTask task = new(
 			WorkerTask.TaskType.CapsuleClear,
@@ -330,7 +330,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		AssignInProgress(task, worker);
 		Assert.That(taskManager.ReturnTask(worker), Is.True);
 
-		ApplyBufferRule(source, CargoProcessStage.Labeled);
+		ApplyBufferRule(source, ItemProcessStage.Labeled);
 		coordinator.MarkDirty(source);
 		coordinator.ProcessDirty();
 
@@ -350,8 +350,8 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		CargoCapsule capsule = CreateCapsule("Queued Rule Capsule", CapsuleLogisticsState.IB);
 		AddCargo(capsule, 903, 2, ItemStatus.Labeled);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
-		ApplyBufferRule(staleTarget, CargoProcessStage.Labeled);
-		ApplyBufferRule(replacementTarget, CargoProcessStage.Labeled);
+		ApplyBufferRule(staleTarget, ItemProcessStage.Labeled);
+		ApplyBufferRule(replacementTarget, ItemProcessStage.Labeled);
 
 		CapsuleRelocationTask staleTask = new(
 			WorkerTask.TaskType.IB,
@@ -361,7 +361,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 			CapsuleRelocationReason.RuleRouting);
 		taskManager.EnqueueTask(staleTask);
 		Assert.That(coordinator.RestoreActiveRelocation(source, staleTarget, payloadAlreadyPicked: false), Is.True);
-		ApplyBufferRule(staleTarget, CargoProcessStage.Packed);
+		ApplyBufferRule(staleTarget, ItemProcessStage.Packed);
 
 		coordinator.MarkDirty(source);
 		coordinator.ProcessDirty();
@@ -508,8 +508,8 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(
 			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, target),
 			Is.True);
-		ApplyBufferRule(source, CargoProcessStage.Unlabeled);
-		ApplyBufferRule(target, CargoProcessStage.Labeled);
+		ApplyBufferRule(source, ItemProcessStage.Unlabeled);
+		ApplyBufferRule(target, ItemProcessStage.Labeled);
 		CargoCapsule capsule = CreateCapsule("Rule Stage Change Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 914, 3, ItemStatus.None);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
@@ -561,8 +561,8 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(
 			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, target),
 			Is.True);
-		ApplyBufferRule(source, CargoProcessStage.Unlabeled);
-		ApplyBufferRule(target, CargoProcessStage.Labeled);
+		ApplyBufferRule(source, ItemProcessStage.Unlabeled);
+		ApplyBufferRule(target, ItemProcessStage.Labeled);
 		CargoCapsule capsule = CreateCapsule("Busy Rule Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 915, 2, ItemStatus.Labeled);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
@@ -604,7 +604,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Building building = new(
 			"Rule Labeling Completion Building",
 			new List<GridCell>(),
-			CargoProcessStage.Labeled);
+			ItemProcessStage.Labeled);
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "Labeling Rule Source", CapsuleDockState.IB);
 		CapsuleBuffer target = CreateBuffer(building, "Labeled Rule Destination", CapsuleDockState.Empty);
@@ -614,8 +614,8 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(
 			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, target),
 			Is.True);
-		ApplyBufferRule(source, CargoProcessStage.Unlabeled);
-		ApplyBufferRule(target, CargoProcessStage.Labeled);
+		ApplyBufferRule(source, ItemProcessStage.Unlabeled);
+		ApplyBufferRule(target, ItemProcessStage.Labeled);
 		CargoCapsule capsule = CreateCapsule("Labeling Rule Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 916, 2, ItemStatus.None);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
@@ -657,12 +657,12 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Building building = new(
 			"Generic Labeling Outbound Promotion Building",
 			new List<GridCell>(),
-			CargoProcessStage.None);
+			ItemProcessStage.Any);
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "Generic Labeling Outbound Source", CapsuleDockState.IB);
 		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Generic Labeling Outbound Target");
 		Assert.That(buildingManager.TryRegisterFacility(building.RuntimeBuildingId, source), Is.True);
-		ApplyBufferRule(source, CargoProcessStage.Unlabeled);
+		ApplyBufferRule(source, ItemProcessStage.Unlabeled);
 		CargoCapsule capsule = CreateCapsule("Generic Labeling Outbound Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 917, 2, ItemStatus.None);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
@@ -674,7 +674,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 
 		InvokeNonPublic(typeof(Building), building, "SetOverrideCapsuleThreshold", true);
 		InvokeNonPublic(typeof(Building), building, "SetCapsuleThresholdPercent", 0.0f);
-		Assert.That(building.TrySetOutboundTargetStage(CargoProcessStage.Unlabeled), Is.True);
+		Assert.That(building.TrySetOutboundTargetStage(ItemProcessStage.Unlabeled), Is.True);
 		coordinator.ProcessDirty();
 
 		Assert.That(labelingTask.CurrentStatus, Is.EqualTo(WorkerTask.Status.Invalidated));
@@ -692,11 +692,11 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Building building = new(
 			"Generic Labeling Reactivation Building",
 			new List<GridCell>(),
-			CargoProcessStage.None);
+			ItemProcessStage.Any);
 		buildingManager.Register(building);
 		CapsuleBuffer buffer = CreateBuffer(building, "Generic Labeling Reactivation Buffer", CapsuleDockState.IB);
 		Assert.That(buildingManager.TryRegisterFacility(building.RuntimeBuildingId, buffer), Is.True);
-		ApplyBufferRule(buffer, CargoProcessStage.Unlabeled);
+		ApplyBufferRule(buffer, ItemProcessStage.Unlabeled);
 		CargoCapsule capsule = CreateCapsule("Generic Labeling Reactivation Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 918, 2, ItemStatus.None);
 		Assert.That(buffer.TryDockCapsule(capsule), Is.True);
@@ -988,7 +988,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Building building = new(
 			"Capsule Relocation Launch Test Building",
 			new List<GridCell>(),
-			CargoProcessStage.LaunchReady);
+			ItemProcessStage.LaunchReady);
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
@@ -999,7 +999,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Building building = new(
 			"Capsule Relocation Storage Test Building",
 			new List<GridCell>(),
-			CargoProcessStage.Picked);
+			ItemProcessStage.Picked);
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
@@ -1078,11 +1078,11 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		InvokeNonPublic(typeof(InboundWorkflowService), inboundWorkflow, "OnEnable");
 	}
 
-	private void ApplyBufferRule(CapsuleBuffer buffer, CargoProcessStage stage)
+	private void ApplyBufferRule(CapsuleBuffer buffer, ItemProcessStage stage)
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredCapsuleBufferState(CapsuleBufferStateRequirement.Inside);
-		rule.SetRequiredCargoProcessStage(stage);
+		rule.SetRequiredContentState(FacilityContentState.HasItems);
+		rule.SetRequiredItemProcessStage(stage);
 		FacilityRulePreset preset = facilityRuleManager.CreatePreset($"{buffer.name} {stage}", rule);
 		Assert.That(facilityRuleManager.ApplyPreset(buffer, preset.Id), Is.True);
 	}
@@ -1194,7 +1194,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private sealed class AlwaysOutboundReadyBuilding : Building
 	{
 		public AlwaysOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, CargoProcessStage.Labeled)
+			: base(displayName, occupiedCells, ItemProcessStage.Labeled)
 		{
 		}
 
@@ -1207,7 +1207,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private sealed class NeverOutboundReadyBuilding : Building
 	{
 		public NeverOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, CargoProcessStage.None)
+			: base(displayName, occupiedCells, ItemProcessStage.Any)
 		{
 		}
 
@@ -1220,7 +1220,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private sealed class ContentOutboundReadyBuilding : Building
 	{
 		public ContentOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, CargoProcessStage.None)
+			: base(displayName, occupiedCells, ItemProcessStage.Any)
 		{
 		}
 
@@ -1235,7 +1235,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		public bool OutboundReady { get; set; }
 
 		public ToggleOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, CargoProcessStage.None)
+			: base(displayName, occupiedCells, ItemProcessStage.Any)
 		{
 		}
 

@@ -83,9 +83,11 @@ Region classification such as indoor / outdoor should support placement and spat
 
 `FacilityRuleManager` owns building-scoped rule presets and their facility assignments. Rules provide explicit logistics filters and operating policy without owning physical space.
 
-`CargoProcessStageEvaluator` derives a capsule-wide process stage from ItemStatus and PickingManifest data. FacilityRule may require an exact aggregate stage in addition to its existing item, worker, and manifest filters. A whole-capsule manifest matches only when every manifest destination is allowed by the Rule; legacy single-work queries keep their existing any-match manifest behavior and ignore aggregate stage requirements.
+`ItemProcessStageEvaluator` derives one aggregate stage for an `IItemContainer` from its actual `ItemStatus` values and an optional `PickingManifest`. FacilityRule may require that exact stage in addition to its existing item, worker, and manifest filters. Capsule routing supplies the manifest owned by `OutboundWorkflowService`; ordinary storage can use the same evaluator without Capsule-specific state. A whole-container manifest matches only when every manifest destination is allowed by the Rule; single-work queries keep their existing any-match manifest behavior and must explicitly project a process stage when selecting an output destination.
 
-FacilityRule may also require the CapsuleBuffer payload phase `Inside` or `Empty`. `Any` leaves that dimension unrestricted. This phase is separate from `CargoProcessStage`; an Empty capsule has no process stage.
+FacilityRule may also require the generic content condition `HasItems` or `Empty`. `Any` leaves that dimension unrestricted. `FacilityContentState` is separate from `ItemProcessStage`; an empty container has no process stage. In the Rule editor, both are grouped under `Item Conditions`.
+
+Picking and Packing destination queries evaluate the items that will exist after the transfer (`HasItems + Picked` or `HasItems + Packed`) while still requiring a physically empty receiving Capsule. This lets work place items directly into the Rule-matched destination instead of first selecting an `Empty` Rule and relying on a later relocation.
 
 `CapsuleBufferService` owns BuildingId-scoped logical queries for Rule-matched CapsuleBuffer destinations and the reverse registration index from CapsuleBuffer to BuildingId. The caller must explicitly choose whether the query evaluates Launch readiness, so ordinary Packing routing remains `Packed` while Launch routing may produce `LaunchReady`. These queries return eligible facilities only; they do not decide relocation scope, reserve a Dock, or create a Task.
 

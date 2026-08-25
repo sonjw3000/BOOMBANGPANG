@@ -98,8 +98,8 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 	public bool IsExplicitRuleMatchedBuffer(
 		CapsuleBuffer buffer,
 		CargoCapsule capsule,
-		CapsuleBufferStateRequirement requiredBufferState,
-		CargoProcessStage requiredCargoStage,
+		FacilityContentState requiredContentState,
+		ItemProcessStage requiredItemProcessStage,
 		bool evaluateLaunchReadiness)
 	{
 		if (buffer == null ||
@@ -114,9 +114,33 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 			: null;
 		return ruleManager != null &&
 			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
-			preset?.Rule?.RequiredCapsuleBufferState == requiredBufferState &&
-			preset.Rule.RequiredCargoProcessStage == requiredCargoStage &&
+			preset?.Rule?.RequiredContentState == requiredContentState &&
+			preset.Rule.RequiredItemProcessStage == requiredItemProcessStage &&
 			IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness);
+	}
+
+	public bool IsExplicitRuleMatchedBuffer(
+		CapsuleBuffer buffer,
+		in FacilityFilter projectedFilter,
+		FacilityContentState requiredContentState,
+		ItemProcessStage requiredItemProcessStage)
+	{
+		if (buffer == null ||
+			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
+			projectedFilter.ContentState != requiredContentState ||
+			projectedFilter.ItemProcessStage != requiredItemProcessStage)
+		{
+			return false;
+		}
+
+		FacilityRuleManager ruleManager = GameContext.HasInstance
+			? GameContext.Instance.FacilityRuleMgr
+			: null;
+		return ruleManager != null &&
+			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
+			preset?.Rule?.RequiredContentState == requiredContentState &&
+			preset.Rule.RequiredItemProcessStage == requiredItemProcessStage &&
+			projectedFilter.Matches(ruleManager, buffer);
 	}
 
 	public bool TryGetRegisteredBuildingId(CapsuleBuffer buffer, out uint buildingId)

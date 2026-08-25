@@ -72,8 +72,8 @@ public sealed partial class FacilityRuleManager
 			return data;
 
 		data.Priority = rule.Priority;
-		data.RequiredCapsuleBufferState = rule.RequiredCapsuleBufferState;
-		data.RequiredCargoProcessStage = rule.RequiredCargoProcessStage;
+		data.RequiredCapsuleBufferState = rule.RequiredContentState;
+		data.RequiredCargoProcessStage = rule.RequiredItemProcessStage;
 		data.ItemRule = CaptureItemRule(rule.ItemRule);
 		data.WorkerRule = CaptureWorkerRule(rule.WorkerRule);
 		data.ManifestRule = CaptureManifestRule(rule.ManifestRule);
@@ -140,8 +140,8 @@ public sealed partial class FacilityRuleManager
 			return rule;
 
 		rule.SetPriority(data.Priority);
-		rule.SetRequiredCapsuleBufferState(data.RequiredCapsuleBufferState);
-		rule.SetRequiredCargoProcessStage(data.RequiredCargoProcessStage);
+		rule.SetRequiredContentState(data.RequiredCapsuleBufferState);
+		rule.SetRequiredItemProcessStage(data.RequiredCargoProcessStage);
 		rule.SetItemRule(RestoreItemRule(data.ItemRule));
 		rule.SetWorkerRule(RestoreWorkerRule(data.WorkerRule));
 		rule.SetManifestRule(RestoreManifestRule(data.ManifestRule));

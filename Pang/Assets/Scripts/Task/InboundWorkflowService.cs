@@ -154,7 +154,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			bufferService.TryGetRegisteredBuildingId(buffer, out uint registeredBuildingId) == false ||
 			registeredBuildingId != buildingId ||
 			bufferService.IsRuleMatchedBuffer(buffer, buffer.DockedCapsule, evaluateLaunchReadiness: false) == false ||
-			IsBufferRuleConfiguredForStage(buffer, CargoProcessStage.Unlabeled) == false)
+			IsBufferRuleConfiguredForStage(buffer, ItemProcessStage.Unlabeled) == false)
 		{
 			return false;
 		}
@@ -211,14 +211,14 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 		return false;
 	}
 
-	private bool IsBufferRuleConfiguredForStage(CapsuleBuffer buffer, CargoProcessStage stage)
+	private bool IsBufferRuleConfiguredForStage(CapsuleBuffer buffer, ItemProcessStage stage)
 	{
 		FacilityRuleManager ruleManager = GameContext.HasInstance ? GameContext.Instance.FacilityRuleMgr : null;
 		return buffer != null &&
 			ruleManager != null &&
 			buffer.FacilityRulePresetId != FacilityRuleManager.NoRulePresetId &&
 			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
-			preset?.Rule?.RequiredCargoProcessStage == stage;
+			preset?.Rule?.RequiredItemProcessStage == stage;
 	}
 
 	public bool TryGetUnloadingDestinationBuilding(out Building building)

@@ -325,7 +325,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		if (buildingManager == null ||
 			buildingManager.TryGetBuilding(ownerBuildingId, out Building building) == false ||
 			building == null ||
-			building.OutboundTargetStage == CargoProcessStage.Labeled)
+			building.OutboundTargetStage == ItemProcessStage.Labeled)
 		{
 			return false;
 		}
@@ -334,7 +334,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		if (ruleManager == null ||
 			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
 			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) == false ||
-			preset?.Rule?.RequiredCargoProcessStage != CargoProcessStage.Labeled ||
+			preset?.Rule?.RequiredItemProcessStage != ItemProcessStage.Labeled ||
 			capsuleBufferService.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness: false) == false)
 		{
 			return false;
@@ -407,7 +407,11 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		if (box == null)
 			return WorkPlanResult.Waiting;
 
-		FacilityFilter filter = FacilityFilter.ForTransfer(box, itemId, quantity, worker: worker);
+		FacilityFilter filter = FacilityFilter.WithContentState(
+			FacilityFilter.WithItemProcessStage(
+				FacilityFilter.ForTransfer(box, itemId, quantity, worker: worker),
+				ItemProcessStage.Labeled),
+			FacilityContentState.HasItems);
 		if (placingPolicy.TryDecide(
 			worker.GridPosition,
 			worker.PrimaryBuildingId,

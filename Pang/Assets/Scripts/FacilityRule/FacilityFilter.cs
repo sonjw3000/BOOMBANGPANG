@@ -101,27 +101,27 @@ public readonly struct FacilityFilter
 	public FacilityItemFilter ItemFilter { get; }
 	public FacilityWorkerFilter WorkerFilter { get; }
 	public FacilityManifestFilter ManifestFilter { get; }
-	public CargoProcessStage CargoProcessStage { get; }
-	public CapsuleBufferStateRequirement CapsuleBufferState { get; }
+	public ItemProcessStage ItemProcessStage { get; }
+	public FacilityContentState ContentState { get; }
 
 	public FacilityFilter(
 		FacilityItemFilter itemFilter = null,
 		FacilityWorkerFilter workerFilter = null,
 		FacilityManifestFilter manifestFilter = null,
-		CargoProcessStage cargoProcessStage = CargoProcessStage.None,
-		CapsuleBufferStateRequirement capsuleBufferState = CapsuleBufferStateRequirement.Any)
+		ItemProcessStage itemProcessStage = ItemProcessStage.Any,
+		FacilityContentState contentState = FacilityContentState.Any)
 	{
 		ItemFilter = itemFilter;
 		WorkerFilter = workerFilter;
 		ManifestFilter = manifestFilter;
-		CargoProcessStage = CargoProcessStageUtility.IsDefined(cargoProcessStage)
-			? cargoProcessStage
-			: CargoProcessStage.None;
-		CapsuleBufferState = capsuleBufferState is CapsuleBufferStateRequirement.Any or
-			CapsuleBufferStateRequirement.Inside or
-			CapsuleBufferStateRequirement.Empty
-			? capsuleBufferState
-			: CapsuleBufferStateRequirement.Any;
+		ItemProcessStage = ItemProcessStageUtility.IsDefined(itemProcessStage)
+			? itemProcessStage
+			: ItemProcessStage.Any;
+		ContentState = contentState is FacilityContentState.Any or
+			FacilityContentState.HasItems or
+			FacilityContentState.Empty
+			? contentState
+			: FacilityContentState.Any;
 	}
 
 	public bool Matches(FacilityRuleManager ruleManager, IFacility facility)
@@ -156,13 +156,56 @@ public readonly struct FacilityFilter
 
 	public static FacilityFilter ForContainer(IItemContainer container, AIWorker worker = null)
 	{
+		return TryForContainer(
+			container,
+			manifest: null,
+			launchReady: false,
+			out FacilityFilter filter,
+			worker)
+			? filter
+			: None;
+	}
+
+	public static bool TryForContainer(
+		IItemContainer container,
+		PickingManifest manifest,
+		bool launchReady,
+		out FacilityFilter filter,
+		AIWorker worker = null)
+	{
+		filter = None;
+		if (container == null)
+			return false;
+
+		FacilityContentState contentState = HasCargo(container)
+			? FacilityContentState.HasItems
+			: FacilityContentState.Empty;
+		if (contentState == FacilityContentState.Empty)
+		{
+			filter = new FacilityFilter(
+				workerFilter: worker != null ? new FacilityWorkerFilter(worker) : null,
+				contentState: contentState);
+			return true;
+		}
+
+		ItemProcessStage stage = ItemProcessStage.Any;
+		ItemProcessStageEvaluator.TryEvaluate(
+			container,
+			manifest,
+			launchReady,
+			out stage);
+
 		FacilityItemFilter itemFilter = null;
 		if (TryBuildItemFilter(container, out FacilityItemFilter builtFilter))
 			itemFilter = builtFilter;
 
-		return new FacilityFilter(
+		filter = new FacilityFilter(
 			itemFilter,
-			worker != null ? new FacilityWorkerFilter(worker) : null);
+			worker != null ? new FacilityWorkerFilter(worker) : null,
+			FacilityManifestFilter.FromManifest(manifest),
+			stage,
+			contentState);
+		return true;
 	}
 
 	public static bool TryForCapsule(
@@ -175,42 +218,14 @@ public readonly struct FacilityFilter
 		if (capsule == null)
 			return false;
 
-		CapsuleBufferStateRequirement bufferState = HasCargo(capsule)
-			? CapsuleBufferStateRequirement.Inside
-			: CapsuleBufferStateRequirement.Empty;
-		if (bufferState == CapsuleBufferStateRequirement.Empty)
-		{
-			filter = new FacilityFilter(capsuleBufferState: bufferState);
-			return true;
-		}
-
 		OutboundWorkflowService outbound = GameContext.HasInstance
 			? GameContext.Instance.OBWorkflowSvc
 			: null;
 		bool launchReady = evaluateLaunchReadiness &&
-			CargoProcessStageEvaluator.IsLaunchReady(capsule, outbound);
-		if (CargoProcessStageEvaluator.TryEvaluate(
-				capsule,
-				outbound,
-				launchReady,
-				out CargoProcessStage stage) == false)
-		{
-			return false;
-		}
-
-		FacilityItemFilter itemFilter = null;
-		if (TryBuildItemFilter(capsule, out FacilityItemFilter builtFilter))
-			itemFilter = builtFilter;
-
+			ItemProcessStageEvaluator.IsLaunchReady(capsule, outbound);
 		PickingManifest manifest = null;
 		outbound?.TryGetPickingManifest(capsule, out manifest);
-		filter = new FacilityFilter(
-			itemFilter,
-			worker != null ? new FacilityWorkerFilter(worker) : null,
-			FacilityManifestFilter.FromManifest(manifest),
-			stage,
-			bufferState);
-		return true;
+		return TryForContainer(capsule, manifest, launchReady, out filter, worker);
 	}
 
 	public static FacilityFilter ForTransfer(
@@ -250,42 +265,42 @@ public readonly struct FacilityFilter
 			source.ItemFilter,
 			source.WorkerFilter,
 			manifestFilter,
-			source.CargoProcessStage,
-			source.CapsuleBufferState);
+			source.ItemProcessStage,
+			source.ContentState);
 	}
 
-	public static FacilityFilter WithCargoProcessStage(
+	public static FacilityFilter WithItemProcessStage(
 		FacilityFilter source,
-		CargoProcessStage cargoProcessStage)
+		ItemProcessStage itemProcessStage)
 	{
 		return new FacilityFilter(
 			source.ItemFilter,
 			source.WorkerFilter,
 			source.ManifestFilter,
-			cargoProcessStage,
-			source.CapsuleBufferState);
+			itemProcessStage,
+			source.ContentState);
 	}
 
-	public static FacilityFilter WithCapsuleBufferState(
+	public static FacilityFilter WithContentState(
 		FacilityFilter source,
-		CapsuleBufferStateRequirement capsuleBufferState)
+		FacilityContentState contentState)
 	{
 		return new FacilityFilter(
 			source.ItemFilter,
 			source.WorkerFilter,
 			source.ManifestFilter,
-			source.CargoProcessStage,
-			capsuleBufferState);
+			source.ItemProcessStage,
+			contentState);
 	}
 
-	private static bool HasCargo(CargoCapsule capsule)
+	private static bool HasCargo(IItemContainer container)
 	{
-		if (capsule?.Stacks == null)
+		if (container?.Stacks == null)
 			return false;
 
-		for (int i = 0; i < capsule.Stacks.Count; ++i)
+		for (int i = 0; i < container.Stacks.Count; ++i)
 		{
-			if (capsule.Stacks[i]?.Quantity > 0)
+			if (container.Stacks[i]?.Quantity > 0)
 				return true;
 		}
 
