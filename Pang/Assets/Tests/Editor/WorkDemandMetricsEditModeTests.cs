@@ -240,6 +240,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		CapsuleBuffer source = CreateInboundBuffer(
 			"Capsule Relocate Demand Source",
 			(401u, 1, ItemStatus.None, ItemQuality.None));
+		source.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.IB);
 		CapsuleBuffer target = CreateComponent<CapsuleBuffer>("Capsule Relocate Demand Target", active: false);
 		target.SetDockState(CapsuleDockState.Empty);
 		CapsuleBuffer hubTarget = CreateComponent<CapsuleBuffer>("Capsule Relocate Hub Target", active: false);
@@ -366,7 +367,7 @@ public sealed class WorkDemandMetricsEditModeTests
 			$"{objectName} Capsule",
 			BoxType.Capsule,
 			contents);
-		capsule.SetLogisticsState(CapsuleLogisticsState.IB);
+		capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 
 		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>(objectName, active: false);
 		buffer.SetDockState(CapsuleDockState.IB);
