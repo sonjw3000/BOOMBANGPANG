@@ -661,6 +661,14 @@ public sealed class ItemTransferTask : WorkerTask
 		return retainedPickingOutputBuffers.Contains(buffer);
 	}
 
+	internal void ReleaseRetainedPickingOutput(CapsuleBuffer buffer)
+	{
+		if (buffer == null || retainedPickingOutputBuffers.Remove(buffer) == false)
+			return;
+
+		MarkPickingOutputDirty(buffer);
+	}
+
 	internal ItemTransferTaskSaveData CaptureState()
 	{
 		AIWorker preferredWorker = job?.PreferredWorker ?? OccupyWorker;

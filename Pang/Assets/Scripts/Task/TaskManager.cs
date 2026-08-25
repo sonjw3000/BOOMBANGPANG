@@ -328,6 +328,26 @@ public partial class TaskManager : MonoBehaviour
 		return QueueRetainsPickingOutput(returnedTaskQueue, buffer);
 	}
 
+	internal bool HasConflictingPickingOutputDependency(CapsuleBuffer buffer)
+	{
+		if (buffer == null)
+			return false;
+
+		foreach (LinkedList<WorkerTask> queue in taskQueue.Values)
+		{
+			if (QueueHasConflictingPickingOutputDependency(queue, buffer))
+				return true;
+		}
+
+		foreach (LinkedList<WorkerTask> queue in taskOnProgress.Values)
+		{
+			if (QueueHasConflictingPickingOutputDependency(queue, buffer))
+				return true;
+		}
+
+		return QueueHasConflictingPickingOutputDependency(returnedTaskQueue, buffer);
+	}
+
 	private void HandleFacilityInvalidating(
 		IFacility facility,
 		FacilityInvalidationContext context)
@@ -417,6 +437,28 @@ public partial class TaskManager : MonoBehaviour
 		{
 			if (task is ItemTransferTask transferTask && transferTask.RetainsPickingOutput(buffer))
 				return true;
+		}
+
+		return false;
+	}
+
+	private static bool QueueHasConflictingPickingOutputDependency(
+		IEnumerable<WorkerTask> tasks,
+		CapsuleBuffer buffer)
+	{
+		foreach (WorkerTask task in tasks)
+		{
+			if (task == null || task.DependsOnFacility(buffer) == false)
+				continue;
+
+			if (task is ItemTransferTask transferTask &&
+				transferTask.Type == WorkerTask.TaskType.Picking &&
+				transferTask.RetainsPickingOutput(buffer))
+			{
+				continue;
+			}
+
+			return true;
 		}
 
 		return false;

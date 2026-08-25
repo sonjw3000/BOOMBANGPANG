@@ -428,6 +428,8 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			FacilityContentState.HasItems);
 
 		ItemTransferTask activeTask = worker.CurrentTask as ItemTransferTask;
+		Building targetBuilding = null;
+		GameContext.Instance.BuildingMgr?.TryGetBuilding(targetBuildingId, out targetBuilding);
 		if (activeTask != null &&
 			activeTask.Type == WorkerTask.TaskType.Picking &&
 			activeTask.BuildingId == targetBuildingId)
@@ -436,7 +438,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			for (int i = 0; i < retainedOutputs.Count; ++i)
 			{
 				CapsuleBuffer buffer = retainedOutputs[i];
-				if (IsRetainedPickingOutputBuffer(activeTask, buffer, targetBuildingId, filter) == false)
+				if (IsRetainedPickingOutputBufferWithBuilding(activeTask, buffer, targetBuildingId, targetBuilding, filter) == false)
 					continue;
 
 				TrySelectPlaceBuffer(
@@ -454,7 +456,8 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		{
 			foreach (CapsuleBuffer buffer in EnumeratePlaceBuffers(targetBuildingId))
 			{
-				if (buffer == null || IsProjectedInputRuleMatchedBuffer(buffer, filter) == false)
+				if (buffer == null ||
+					IsPickingOutputBufferCandidate(activeTask, buffer, targetBuildingId, targetBuilding, filter) == false)
 					continue;
 
 				TrySelectPlaceBuffer(
@@ -477,10 +480,22 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 
 	public WorkPlanResult OnPlaceCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result)
 	{
+		ItemTransferTask activeTask = worker?.CurrentTask as ItemTransferTask;
+		CapsuleBuffer targetBuffer = placeLine?.Target as CapsuleBuffer;
 		if (result.Kind == TransferResultKind.None)
+		{
+			activeTask?.ReleaseRetainedPickingOutput(targetBuffer);
 			return WorkPlanResult.Waiting;
+		}
 
 		TransferPickingManifest(worker?.CarryingAbility?.CarryingBox, placeLine, result.Moved);
+		if (activeTask != null &&
+			targetBuffer != null &&
+			(result.Kind == TransferResultKind.Partial || IsOutboundThresholdReached(targetBuffer)))
+		{
+			activeTask.ReleaseRetainedPickingOutput(targetBuffer);
+		}
+
 		return OnPlaceLineCompleted(worker, placeLine, result);
 	}
 
@@ -972,16 +987,42 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 
 	private static bool IsProjectedInputRuleMatchedBuffer(CapsuleBuffer buffer, FacilityFilter projectedInputFilter)
 	{
+		return IsPickingOutputBufferCandidate(
+			task: null,
+			buffer: buffer,
+			buildingId: 0,
+			building: null,
+			projectedInputFilter: projectedInputFilter,
+			requireEmpty: true);
+	}
+
+	private static bool IsPickingOutputBufferCandidate(
+		ItemTransferTask task,
+		CapsuleBuffer buffer,
+		uint buildingId,
+		Building building,
+		FacilityFilter projectedInputFilter,
+		bool requireEmpty = false)
+	{
 		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
 			GameContext.HasInstance == false ||
 			capsule.RouteKind != CargoRouteKind.Standard ||
-			capsule.LogisticsState != CapsuleLogisticsState.Empty ||
-			buffer.IsCapsuleEmpty() == false ||
 			projectedInputFilter.ItemProcessStage != ItemProcessStage.Picked ||
 			projectedInputFilter.ContentState != FacilityContentState.HasItems)
 		{
 			return false;
 		}
+
+		bool isEmptyInput =
+			capsule.LogisticsState == CapsuleLogisticsState.Empty &&
+			buffer.IsCapsuleEmpty();
+		bool isSharedPickedInput =
+			requireEmpty == false &&
+			task != null &&
+			capsule.LogisticsState == CapsuleLogisticsState.Inside &&
+			buffer.IsCapsuleEmpty() == false;
+		if (isEmptyInput == false && isSharedPickedInput == false)
+			return false;
 
 		CapsuleBufferService bufferService = GameContext.Instance.CapsuleBufferSvc;
 		if (bufferService == null ||
@@ -994,9 +1035,29 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			return false;
 		}
 
-		TaskManager taskManager = GameContext.Instance.TaskMgr;
-		if (taskManager?.HasManagedTaskFacilityDependency(buffer) == true)
+		if (isSharedPickedInput &&
+			bufferService.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness: false) == false)
+		{
 			return false;
+		}
+
+		if (buildingId != 0 &&
+			(bufferService.TryGetRegisteredBuildingId(buffer, out uint ownerBuildingId) == false ||
+			 ownerBuildingId != buildingId))
+		{
+			return false;
+		}
+
+		TaskManager taskManager = GameContext.Instance.TaskMgr;
+		if (taskManager?.HasConflictingPickingOutputDependency(buffer) == true)
+			return false;
+
+		if (building != null &&
+			building.OutboundTargetStage == ItemProcessStage.Picked &&
+			building.CanDispatchOutboundBuffer(buffer))
+		{
+			return false;
+		}
 
 		return IsAvailableForPickingOutput(buffer);
 	}
@@ -1007,32 +1068,27 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		uint buildingId,
 		FacilityFilter projectedInputFilter)
 	{
+		Building building = null;
+		if (GameContext.HasInstance)
+			GameContext.Instance.BuildingMgr?.TryGetBuilding(buildingId, out building);
+
+		return IsRetainedPickingOutputBufferWithBuilding(task, buffer, buildingId, building, projectedInputFilter);
+	}
+
+	private static bool IsRetainedPickingOutputBufferWithBuilding(
+		ItemTransferTask task,
+		CapsuleBuffer buffer,
+		uint buildingId,
+		Building building,
+		FacilityFilter projectedInputFilter)
+	{
 		if (task == null ||
-			task.RetainsPickingOutput(buffer) == false ||
-			buffer?.DockedCapsule is not CargoCapsule capsule ||
-			GameContext.HasInstance == false ||
-			capsule.RouteKind != CargoRouteKind.Standard ||
-			buffer.CanReceiveOutboundItems() == false ||
-			projectedInputFilter.ItemProcessStage != ItemProcessStage.Picked ||
-			projectedInputFilter.ContentState != FacilityContentState.HasItems)
+			task.RetainsPickingOutput(buffer) == false)
 		{
 			return false;
 		}
 
-		CapsuleBufferService bufferService = GameContext.Instance.CapsuleBufferSvc;
-		if (bufferService == null ||
-			bufferService.TryGetRegisteredBuildingId(buffer, out uint ownerBuildingId) == false ||
-			ownerBuildingId != buildingId ||
-			bufferService.IsExplicitRuleMatchedBuffer(
-				buffer,
-				projectedInputFilter,
-				FacilityContentState.HasItems,
-				ItemProcessStage.Picked) == false)
-		{
-			return false;
-		}
-
-		return IsAvailableForPickingOutput(buffer);
+		return IsPickingOutputBufferCandidate(task, buffer, buildingId, building, projectedInputFilter);
 	}
 
 	private static bool IsAvailableForPickingOutput(CapsuleBuffer buffer)
@@ -1063,7 +1119,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 	{
 		if (worker == null ||
 			candidate == null ||
-			ItemTransferUtility.GetMovableQuantity(source, candidate, itemId, quantity) < quantity ||
+			ItemTransferUtility.GetMovableQuantity(source, candidate, itemId, quantity) <= 0 ||
 			InteractionPointSelector.TryGetInteractionPointInBuilding(
 				candidate,
 				InteractionKind.Put,
@@ -1078,6 +1134,16 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 
 		bestBuffer = candidate;
 		bestDistance = distance;
+	}
+
+	private static bool IsOutboundThresholdReached(CapsuleBuffer buffer)
+	{
+		if (buffer == null || GameContext.HasInstance == false)
+			return false;
+
+		return GameContext.Instance.FacilityMgr?.TryGetBuildingId(buffer, out uint buildingId) == true &&
+			GameContext.Instance.BuildingMgr?.TryGetBuilding(buildingId, out Building building) == true &&
+			building.CanDispatchOutboundBuffer(buffer);
 	}
 
 	private static void RemoveDispatchedCandidate(

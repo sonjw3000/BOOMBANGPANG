@@ -23,6 +23,14 @@ public sealed class LogisticsWorkStatusEditModeTests
 	}
 
 	[Test]
+	public void CapsuleDock_UsesOwnTransformWhenStatusSlotIsNotAssigned()
+	{
+		CapsuleBuffer buffer = CreateBuffer();
+
+		Assert.That(buffer.LogisticsStatusSlot, Is.SameAs(buffer.transform));
+	}
+
+	[Test]
 	public void CapsuleDock_StateAndBlockReasonCanChangeIndependently()
 	{
 		CapsuleBuffer buffer = CreateBuffer();
