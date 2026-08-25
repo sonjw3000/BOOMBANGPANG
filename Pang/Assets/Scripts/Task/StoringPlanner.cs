@@ -55,7 +55,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 	{
 		foreach (CapsuleBuffer buffer in EnumerateCollectBuffers(buildingId))
 		{
-			if (HasCollectableItem(buffer))
+			if (HasCollectableItem(buffer, buildingId))
 				return true;
 		}
 
@@ -69,7 +69,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 
 		foreach (CapsuleBuffer buffer in EnumerateCollectBuffers(buildingId))
 		{
-			if (buffer == null || buffer.CanProvideInboundItems() == false)
+			if (CanProvideStoringItems(buffer, buildingId) == false)
 				continue;
 
 			foreach (var itemTotal in buffer.ItemTotals)
@@ -127,7 +127,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 
 		foreach (CapsuleBuffer buffer in EnumerateCollectBuffers(buildingId))
 		{
-			if (buffer == null || HasCollectableItem(buffer) == false)
+			if (HasCollectableItem(buffer, buildingId) == false)
 				continue;
 
 			foreach (var itemTotal in buffer.ItemTotals)
@@ -287,9 +287,9 @@ public sealed class StoringPlanner : IItemTransferPlanner
 			yield return buffer;
 	}
 
-	private static bool HasCollectableItem(CapsuleBuffer buffer)
+	private bool HasCollectableItem(CapsuleBuffer buffer, uint buildingId)
 	{
-		if (buffer == null || buffer.CanProvideInboundItems() == false)
+		if (CanProvideStoringItems(buffer, buildingId) == false)
 			return false;
 
 		for (int i = 0; i < buffer.Stacks.Count; ++i)
@@ -300,6 +300,29 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		}
 
 		return false;
+	}
+
+	private bool CanProvideStoringItems(CapsuleBuffer buffer, uint buildingId)
+	{
+		if (buffer == null || buffer.CanProvideInboundItems() == false)
+			return false;
+
+		uint ownerBuildingId = buildingId;
+		if (ownerBuildingId == 0)
+			capsuleBufferService?.TryGetRegisteredBuildingId(buffer, out ownerBuildingId);
+
+		BuildingManager buildingManager = GameContext.HasInstance
+			? GameContext.Instance.BuildingMgr
+			: null;
+		if (ownerBuildingId != 0 &&
+			buildingManager != null &&
+			buildingManager.TryGetBuilding(ownerBuildingId, out Building building) &&
+			building is StorageBuilding storageBuilding)
+		{
+			return storageBuilding.CanProvideStoringItems(buffer);
+		}
+
+		return true;
 	}
 
 	private static int GetNonWasteQuantity(CapsuleBuffer buffer, uint itemId)

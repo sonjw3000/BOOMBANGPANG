@@ -95,8 +95,11 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		IReadOnlyList<Building> buildings = BuildingManager.RegisteredBuildings;
 		for (int i = 0; i < buildings.Count; ++i)
 		{
-			if (buildings[i] is LaunchBuilding launchBuilding)
+			Building building = buildings[i];
+			if (building is LaunchBuilding launchBuilding)
 				launchBuilding.EvaluateLaunchSortWork();
+			if (building?.OutboundTargetStage == CargoProcessStage.LaunchReady && GameContext.HasInstance)
+				GameContext.Instance.CapsuleRelocateCoordinator.MarkBuildingDirty(building.RuntimeBuildingId);
 		}
 	}
 
@@ -350,7 +353,10 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	public void ClearPickingManifest(BoxBase box)
 	{
 		if (box != null)
+		{
 			ClearPickingManifest(PickingManifestKey.From(box));
+			MarkCapsuleRoutingDirty(box);
+		}
 	}
 
 	private void ClearPickingManifest(PickingManifestKey key)
@@ -398,7 +404,10 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			return 0;
 
 		PickingManifest manifest = GetPickingManifest(box);
-		return manifest != null ? manifest.AddPicked(orderLine, itemId, quantity) : 0;
+		int added = manifest != null ? manifest.AddPicked(orderLine, itemId, quantity) : 0;
+		if (added > 0)
+			MarkCapsuleRoutingDirty(box);
+		return added;
 	}
 
 	public int TransferPickingManifest(BoxBase from, BoxBase to, OrderLine orderLine, uint itemId, int quantity)
@@ -438,6 +447,8 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 		if (sourceManifest.IsEmpty)
 			ClearPickingManifest(from);
+		MarkCapsuleRoutingDirty(from);
+		MarkCapsuleRoutingDirty(to);
 
 		return added;
 	}
@@ -499,6 +510,11 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 
 		if (sourceManifest.IsEmpty)
 			ClearPickingManifest(from);
+		if (movedTotal > 0)
+		{
+			MarkCapsuleRoutingDirty(from);
+			MarkCapsuleRoutingDirty(to);
+		}
 
 		return movedTotal;
 	}
@@ -548,7 +564,10 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (box == null || quantity <= 0 || TryGetPickingManifest(box, out PickingManifest manifest) == false)
 			return 0;
 
-		return manifest.ReportPacked(orderLine, itemId, quantity);
+		int packed = manifest.ReportPacked(orderLine, itemId, quantity);
+		if (packed > 0)
+			MarkCapsuleRoutingDirty(box);
+		return packed;
 	}
 
 	public bool TryGetPackableManifestLine(BoxBase box, OrderLine orderLine, uint itemId, out PickingManifestLine line)
@@ -641,7 +660,14 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			ClearPickingManifest(manifestOwner);
 
 		BuildingManager?.RefreshItemContainerState(sourceContainer);
+		MarkCapsuleRoutingDirty(manifestOwner);
 		return removed;
+	}
+
+	private static void MarkCapsuleRoutingDirty(BoxBase box)
+	{
+		if (box is CargoCapsule capsule && capsule.CurrentDock != null && GameContext.HasInstance)
+			GameContext.Instance.CapsuleRelocateCoordinator.MarkDirty(capsule.CurrentDock);
 	}
 
 	public int RejectInvalidPackedCargo(CapsuleBuffer sourceBuffer)

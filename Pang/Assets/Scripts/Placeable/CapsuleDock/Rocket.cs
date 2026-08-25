@@ -132,7 +132,7 @@ public partial class Rocket : CapsuleDock
 		CargoCapsule capsule = null;
 		if (BoxMgr.GetNewBox(BoxType.Capsule, out BoxBase newBox))
 			capsule = newBox as CargoCapsule;
-		capsule?.SetLogisticsState(CapsuleLogisticsState.IBStandby);
+		capsule?.SetLogisticsState(CapsuleLogisticsState.Empty);
 		if (capsule == null || TryDockCapsule(capsule) == false)
 		{
 			if (capsule != null)
@@ -166,7 +166,8 @@ public partial class Rocket : CapsuleDock
 
 			DeliveryService.AcceptDelivery();
 		}
-		
+
+		RefreshPayloadLogisticsState();
 	}
 
 	public void SetupPayload(List<ItemStack> payload)
@@ -180,7 +181,7 @@ public partial class Rocket : CapsuleDock
 		CargoCapsule capsule = null;
 		if (BoxMgr.GetNewBox(BoxType.Capsule, out BoxBase newBox))
 			capsule = newBox as CargoCapsule;
-		capsule?.SetLogisticsState(CapsuleLogisticsState.IBStandby);
+		capsule?.SetLogisticsState(CapsuleLogisticsState.Empty);
 		if (capsule == null || TryDockCapsule(capsule) == false)
 		{
 			if (capsule != null)
@@ -195,6 +196,21 @@ public partial class Rocket : CapsuleDock
 			if (stack != null && stack.Quantity <= 0)
 				stack.Recycle();
 		}
+
+		RefreshPayloadLogisticsState();
+	}
+
+	internal CapsuleLogisticsState RefreshPayloadLogisticsState()
+	{
+		CargoCapsule capsule = DockedCapsule;
+		if (capsule == null)
+			return CapsuleLogisticsState.Empty;
+
+		CapsuleLogisticsState state = IsCapsuleEmpty()
+			? CapsuleLogisticsState.Empty
+			: CapsuleLogisticsState.IB;
+		capsule.SetLogisticsState(state);
+		return state;
 	}
 
 	public IReadOnlyList<ItemStack> GetPayload()

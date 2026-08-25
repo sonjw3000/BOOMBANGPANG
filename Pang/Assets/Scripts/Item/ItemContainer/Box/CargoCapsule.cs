@@ -4,12 +4,17 @@ using UnityEngine;
 
 public enum CapsuleLogisticsState
 {
-	IBStandby,
-	IB,
-	Empty,
-	OBStandby,
-	OB,
-	Waste,
+	IB = 0,
+	Inside = 1,
+	Empty = 2,
+	OB = 3,
+}
+
+public enum CapsuleBufferStateRequirement
+{
+	Any = 0,
+	Inside = 1,
+	Empty = 2,
 }
 
 public enum CargoRouteKind
@@ -23,7 +28,7 @@ public class CargoCapsule : BoxBase
 	public event System.Action OnQuantityChanged;
 	public event System.Action<CargoCapsule> OnLogisticsStateChanged;
 
-	[SerializeField] private CapsuleLogisticsState logisticsState = CapsuleLogisticsState.IBStandby;
+	[SerializeField] private CapsuleLogisticsState logisticsState = CapsuleLogisticsState.IB;
 	private CapsuleDock currentDock;
 
 	public CapsuleLogisticsState LogisticsState => logisticsState;

@@ -73,6 +73,10 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 				"Work Monitor",
 				"Open logistics demand and Task states for this building."));
 		model.AddAction("Cycle Work Scope", CycleWorkScope, () => Building != null);
+		model.AddAction("Cycle Outbound Target", CycleOutboundTargetStage, () => Building != null,
+			tooltip: () => UITooltipContent.DescriptionOnly(
+				"Outbound target stage",
+				"A capsule becomes OB only when every cargo stack reaches this exact stage and the threshold is met."));
 		model.AddAction("Toggle Threshold", ToggleThresholdOverride, CanControlCapsuleThreshold,
 			tooltip: BuildThresholdTooltip);
 		model.AddAction("Pending Demolition", MarkPendingDemolition, () => Building != null && Building.State != BuildingState.PendingDemolition, true);
@@ -513,7 +517,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	{
 		if (Building == null) return 0;
 		return HashCode.Combine(
-			Building.WorkScope,
+			HashCode.Combine(Building.WorkScope, Building.OutboundTargetStage),
 			Building.OverrideCapsuleThreshold,
 			Mathf.RoundToInt(Building.CapsuleThresholdPercent),
 			Building.SuitRemovalAllowed,
@@ -533,6 +537,11 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		};
 		if (Building == null) return panel;
 		panel.Rows.Add(new SelectionDetailRow { Primary = "Work Scope", Secondary = WorkScopeDisplay });
+		panel.Rows.Add(new SelectionDetailRow
+		{
+			Primary = "Outbound Target",
+			Secondary = CargoProcessStageUtility.ToDisplayString(Building.OutboundTargetStage),
+		});
 
 		float averageOxygen = OxygenService?.GetAverageOxygen(Building) ?? GridCell.DefaultOxygen;
 		int suitlessHumanCount = OxygenService?.GetSuitlessHumanCount(Building) ?? 0;
@@ -587,11 +596,25 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		currentTarget?.BuildingManager?.SetBuildingWorkScope(Building, next);
 	}
 
-	private bool SupportsCapsuleThreshold() =>
-		Building != null &&
-		(Building.Type == BuildingType.Storage ||
-		 Building.Type == BuildingType.Packing ||
-		 Building.Type == BuildingType.Launch);
+	private void CycleOutboundTargetStage()
+	{
+		if (Building == null)
+			return;
+
+		CargoProcessStage[] stages =
+		{
+			CargoProcessStage.None,
+			CargoProcessStage.Unlabeled,
+			CargoProcessStage.Labeled,
+			CargoProcessStage.Picked,
+			CargoProcessStage.Packed,
+			CargoProcessStage.LaunchReady,
+		};
+		int current = Array.IndexOf(stages, Building.OutboundTargetStage);
+		Building.TrySetOutboundTargetStage(stages[(current + 1 + stages.Length) % stages.Length]);
+	}
+
+	private bool SupportsCapsuleThreshold() => Building != null;
 	private bool CanControlCapsuleThreshold() => SupportsCapsuleThreshold() && Building.CanControlCapsuleThreshold();
 	private UITooltipContent BuildThresholdTooltip()
 	{

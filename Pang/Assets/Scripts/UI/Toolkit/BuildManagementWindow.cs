@@ -28,6 +28,21 @@ namespace UniverseLogistics.UI.Toolkit
 		};
 		private static readonly ItemStatus[] RuleItemStatuses = { ItemStatus.NotDefined, ItemStatus.None, ItemStatus.Labeled, ItemStatus.Packed };
 		private static readonly WorkerKind[] RuleWorkerKinds = { WorkerKind.None, WorkerKind.Human, WorkerKind.Robot };
+		private static readonly CapsuleBufferStateRequirement[] RuleCapsuleBufferStates =
+		{
+			CapsuleBufferStateRequirement.Any,
+			CapsuleBufferStateRequirement.Inside,
+			CapsuleBufferStateRequirement.Empty,
+		};
+		private static readonly CargoProcessStage[] RuleCargoProcessStages =
+		{
+			CargoProcessStage.None,
+			CargoProcessStage.Unlabeled,
+			CargoProcessStage.Labeled,
+			CargoProcessStage.Picked,
+			CargoProcessStage.Packed,
+			CargoProcessStage.LaunchReady,
+		};
 
 		private UIWindow window;
 		private VisualTreeAsset contentTemplate;
@@ -76,6 +91,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private Slider ruleGreenSlider;
 		private Slider ruleBlueSlider;
 		private VisualElement ruleColorPreview;
+		private DropdownField ruleCapsuleBufferStateField;
+		private DropdownField ruleCargoProcessStageField;
 		private DropdownField ruleItemStatusField;
 		private DropdownField ruleWorkerKindField;
 		private DropdownField ruleItemField;
@@ -221,6 +238,8 @@ namespace UniverseLogistics.UI.Toolkit
 			ruleGreenSlider = content.Q<Slider>("rule-editor-green");
 			ruleBlueSlider = content.Q<Slider>("rule-editor-blue");
 			ruleColorPreview = content.Q<VisualElement>("rule-editor-color-preview");
+			ruleCapsuleBufferStateField = content.Q<DropdownField>("rule-editor-capsule-state");
+			ruleCargoProcessStageField = content.Q<DropdownField>("rule-editor-cargo-stage");
 			ruleItemStatusField = content.Q<DropdownField>("rule-editor-item-status");
 			ruleWorkerKindField = content.Q<DropdownField>("rule-editor-worker-kind");
 			ruleItemField = content.Q<DropdownField>("rule-editor-item");
@@ -236,7 +255,8 @@ namespace UniverseLogistics.UI.Toolkit
 				placeableEmpty == null || createRuleButton == null || createColdChainRuleButton == null ||
 				ruleList == null || ruleEmpty == null || ruleMessage == null ||
 				ruleLibrary == null || ruleEditor == null || ruleNameField == null || rulePriorityField == null ||
-				ruleColorPreview == null || ruleItemStatusField == null || ruleWorkerKindField == null || ruleItemField == null)
+				ruleColorPreview == null || ruleCapsuleBufferStateField == null || ruleCargoProcessStageField == null ||
+				ruleItemStatusField == null || ruleWorkerKindField == null || ruleItemField == null)
 			{
 				Debug.LogError("[BuildManagementWindow] Required UXML elements are missing.", this);
 				return false;
@@ -966,6 +986,8 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void BindRuleEditor(VisualElement content)
 		{
+			ruleCapsuleBufferStateField.choices = EnumNames(RuleCapsuleBufferStates);
+			ruleCargoProcessStageField.choices = EnumNames(RuleCargoProcessStages);
 			ruleItemStatusField.choices = EnumNames(RuleItemStatuses);
 			ruleWorkerKindField.choices = EnumNames(RuleWorkerKinds);
 			ruleItems.Clear();
@@ -986,6 +1008,16 @@ namespace UniverseLogistics.UI.Toolkit
 			ruleRedSlider.RegisterValueChangedCallback(_ => OnRuleColorChanged());
 			ruleGreenSlider.RegisterValueChangedCallback(_ => OnRuleColorChanged());
 			ruleBlueSlider.RegisterValueChangedCallback(_ => OnRuleColorChanged());
+			ruleCapsuleBufferStateField.RegisterValueChangedCallback(_ =>
+			{
+				if (!suppressRuleEditorEvents && ruleCapsuleBufferStateField.index >= 0)
+					workingRule.SetRequiredCapsuleBufferState(RuleCapsuleBufferStates[ruleCapsuleBufferStateField.index]);
+			});
+			ruleCargoProcessStageField.RegisterValueChangedCallback(_ =>
+			{
+				if (!suppressRuleEditorEvents && ruleCargoProcessStageField.index >= 0)
+					workingRule.SetRequiredCargoProcessStage(RuleCargoProcessStages[ruleCargoProcessStageField.index]);
+			});
 			ruleItemStatusField.RegisterValueChangedCallback(_ => { if (!suppressRuleEditorEvents && ruleItemStatusField.index >= 0) workingRule.ItemRule.SetRequiredItemStatus(RuleItemStatuses[ruleItemStatusField.index]); });
 			ruleWorkerKindField.RegisterValueChangedCallback(_ => { if (!suppressRuleEditorEvents && ruleWorkerKindField.index >= 0) workingRule.WorkerRule.SetRequiredWorkerKind(RuleWorkerKinds[ruleWorkerKindField.index]); });
 
@@ -1062,6 +1094,8 @@ namespace UniverseLogistics.UI.Toolkit
 			ruleGreenSlider.SetValueWithoutNotify(workingRuleColor.g);
 			ruleBlueSlider.SetValueWithoutNotify(workingRuleColor.b);
 			ruleColorPreview.style.backgroundColor = workingRuleColor;
+			ruleCapsuleBufferStateField.SetValueWithoutNotify(workingRule.RequiredCapsuleBufferState.ToString());
+			ruleCargoProcessStageField.SetValueWithoutNotify(workingRule.RequiredCargoProcessStage.ToString());
 			ruleItemStatusField.SetValueWithoutNotify(workingRule.ItemRule.RequiredItemStatus.ToString());
 			ruleWorkerKindField.SetValueWithoutNotify(workingRule.WorkerRule.RequiredWorkerKind.ToString());
 			SetToggle("rule-required-tag-fragile", workingRule.ItemRule.RequiredItemTags.HasFlag(ItemTag.Fragile));
@@ -1255,6 +1289,8 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (rule == null || rule.IsEmpty) return "No restrictions";
 			List<string> parts = new();
+			if (rule.RequiredCapsuleBufferState != CapsuleBufferStateRequirement.Any) parts.Add($"Capsule {rule.RequiredCapsuleBufferState}");
+			if (rule.RequiredCargoProcessStage != CargoProcessStage.None) parts.Add(CargoProcessStageUtility.ToDisplayString(rule.RequiredCargoProcessStage));
 			if (rule.ItemRule != null && rule.ItemRule.IsEmpty == false) parts.Add("Item");
 			if (rule.WorkerRule != null && rule.WorkerRule.IsEmpty == false) parts.Add("Worker");
 			if (rule.ManifestRule != null && rule.ManifestRule.IsEmpty == false) parts.Add("Destination");

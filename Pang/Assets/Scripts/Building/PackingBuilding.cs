@@ -22,23 +22,7 @@ public sealed class PackingBuilding : Building
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
 	{
-		if (capsuleBuffer == null ||
-			capsuleBuffer.DockState != CapsuleDockState.OBStandby ||
-			capsuleBuffer.DockedCapsule == null ||
-			(capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby &&
-			 capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB))
-		{
-			return false;
-		}
-
-        // todo
-        // have to check items are fully packed first
-
-		float workflowThreshold = GameContext.HasInstance && GameContext.Instance.OBWorkflowSvc != null
-			? GameContext.Instance.OBWorkflowSvc.CargoPortThresholdPercent
-			: CapsuleThresholdPercent;
-		float threshold = OverrideCapsuleThreshold ? CapsuleThresholdPercent : workflowThreshold;
-		return capsuleBuffer.FilledPercent >= threshold;
+		return base.IsBufferOutboundReady(capsuleBuffer);
 	}
 
 	protected override void OnIBDockDocked(CapsuleDock dock, CargoCapsule capsule)
@@ -53,6 +37,11 @@ public sealed class PackingBuilding : Building
 	{
 		if (IsPackingInputStatus(status) && container is CapsuleBuffer capsuleBuffer)
 			EvaluatePackingIngress(capsuleBuffer);
+	}
+
+	protected override void OnCapsuleRoutingSettled(CapsuleBuffer capsuleBuffer)
+	{
+		EvaluatePackingIngress(capsuleBuffer);
 	}
 
 	protected override void OnRegistered()
@@ -160,6 +149,7 @@ public sealed class PackingBuilding : Building
 	{
 		return capsuleBuffer != null &&
 			capsuleBuffer.CanProvideInboundItems() &&
+			IsCapsuleBufferTaskRuleSettled(capsuleBuffer) &&
 			HasAvailablePackingInput(capsuleBuffer) &&
 			GameContext.HasInstance &&
 			GameContext.Instance.OBWorkflowSvc != null &&

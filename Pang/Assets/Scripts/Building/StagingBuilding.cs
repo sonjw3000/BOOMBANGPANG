@@ -10,10 +10,7 @@ public sealed class StagingBuilding : Building
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
 	{
-		return capsuleBuffer != null &&
-			capsuleBuffer.HasCapsule &&
-			HasOnlyLabeledItems(capsuleBuffer) &&
-			capsuleBuffer.CanDispatchToOutbound();
+		return base.IsBufferOutboundReady(capsuleBuffer);
 	}
 
 	protected override void OnIBDockDocked(CapsuleDock dock, CargoCapsule capsule)
@@ -23,7 +20,6 @@ public sealed class StagingBuilding : Building
 		if (dock is CapsuleBuffer capsuleBuffer)
 			TryRequestLabelingTask(capsuleBuffer);
 
-		TryPromoteToOutboundState(dock as CapsuleBuffer);
 	}
 
 	internal bool HasLabelingWork(IItemContainer container)
@@ -61,6 +57,7 @@ public sealed class StagingBuilding : Building
 	{
 		return TaskManager != null &&
 			IsLabelingSourceBuffer(capsuleBuffer) &&
+			IsCapsuleBufferTaskRuleSettled(capsuleBuffer) &&
 			HasQueuedLabelingTask(capsuleBuffer) == false &&
 			HasLabelingWork(capsuleBuffer);
 	}
@@ -127,9 +124,8 @@ public sealed class StagingBuilding : Building
 
 		ItemIndex.RefreshContainer(container);
 		ClearItemContainerDirty(container);
-
 		if (container is CapsuleBuffer capsuleBuffer)
-			TryPromoteToOutboundState(capsuleBuffer);
+			MarkDockRoutingDirty(capsuleBuffer);
 
 		return true;
 	}
@@ -143,7 +139,11 @@ public sealed class StagingBuilding : Building
 		if (HasLabelingWork(capsuleBuffer))
 			TryRequestLabelingTask(capsuleBuffer);
 
-		TryPromoteToOutboundState(capsuleBuffer);
+	}
+
+	protected override void OnCapsuleRoutingSettled(CapsuleBuffer capsuleBuffer)
+	{
+		TryRequestLabelingTask(capsuleBuffer);
 	}
 
 	private bool TryRequestLabelingTask(CapsuleBuffer capsuleBuffer)
@@ -157,40 +157,8 @@ public sealed class StagingBuilding : Building
 	private static bool IsLabelingSourceBuffer(CapsuleBuffer capsuleBuffer)
 	{
 		return capsuleBuffer != null &&
-			capsuleBuffer.DockState == CapsuleDockState.IB &&
-			capsuleBuffer.HasCapsule;
+			capsuleBuffer.DockedCapsule?.LogisticsState == CapsuleLogisticsState.Inside &&
+			capsuleBuffer.IsCapsuleEmpty() == false;
 	}
 
-	private static void TryPromoteToOutboundState(CapsuleBuffer capsuleBuffer)
-	{
-		if (capsuleBuffer == null ||
-			capsuleBuffer.HasCapsule == false ||
-			capsuleBuffer.IsCapsuleEmpty() ||
-			capsuleBuffer.DockedCapsule == null ||
-			HasOnlyLabeledItems(capsuleBuffer) == false ||
-			capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
-		{
-			return;
-		}
-
-		capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.OB);
-	}
-
-	private static bool HasOnlyLabeledItems(CapsuleBuffer capsuleBuffer)
-	{
-		if (capsuleBuffer == null || capsuleBuffer.Stacks.Count <= 0)
-			return false;
-
-		for (int i = 0; i < capsuleBuffer.Stacks.Count; ++i)
-		{
-			ItemStack stack = capsuleBuffer.Stacks[i];
-			if (stack == null || stack.Quantity <= 0)
-				continue;
-
-			if (stack.Status != ItemStatus.Labeled)
-				return false;
-		}
-
-		return true;
-	}
 }

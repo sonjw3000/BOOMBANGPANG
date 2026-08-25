@@ -11,6 +11,7 @@ public enum CapsuleRelocationReason
 	StateMismatch,
 	RoleChanged,
 	WasteExport,
+	RuleRouting,
 }
 
 internal enum CapsuleDockPlayerPreemptionAction
@@ -44,6 +45,18 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	internal bool HasPickedCapsulePayload => ActivePayload is CargoCapsule;
 	internal bool UsesDock(CapsuleDock dock) =>
 		dock != null && (ReferenceEquals(sourceDock, dock) || ReferenceEquals(targetDock, dock));
+	internal bool IsRuleRoutingAssignmentValid() =>
+		reason != CapsuleRelocationReason.RuleRouting ||
+		(CanUseRuleRoutingSource() && CanUseRuleRoutingTarget(sourceDock?.DockedCapsule));
+	internal bool IsReadyQueueAssignmentValid() => CanUseSource() && CanUseTarget();
+	internal bool RevalidateReturnedRuleRoutingAssignment()
+	{
+		if (CurrentStatus != Status.Returned || reason != CapsuleRelocationReason.RuleRouting)
+			return true;
+
+		ReleaseInvalidRuleRoutingTarget();
+		return HasPickedCapsulePayload || IsRuleRoutingAssignmentValid();
+	}
 
 	public CapsuleRelocationTask(
 		TaskType taskType,
@@ -237,10 +250,13 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	{
 		if (sourceDock == null || sourceDock.CanGetBox() == false)
 			return false;
+		if (reason == CapsuleRelocationReason.RuleRouting)
+			return CanUseRuleRoutingSource();
 
 		return Type switch
 		{
-			TaskType.Unloading when sourceDock is Rocket => sourceDock.DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB,
+			TaskType.Unloading when sourceDock is Rocket =>
+				sourceDock.DockedCapsule?.LogisticsState is CapsuleLogisticsState.IB or CapsuleLogisticsState.Empty,
 			TaskType.IB when sourceDock is InboundCargoPort => sourceDock.IsCapsuleEmpty() == false && sourceDock.DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB,
 			TaskType.CapsuleClear when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleDockState.IB),
 			TaskType.CapsuleSupply when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleDockState.Empty),
@@ -259,12 +275,46 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			GameContext.Instance.BuildingMgr == null ||
 			GameContext.Instance.FacilityMgr.TryGetBuildingId(sourceBuffer, out uint sourceBuildingId) == false ||
 			GameContext.Instance.BuildingMgr.TryGetBuilding(sourceBuildingId, out Building sourceBuilding) == false ||
-			sourceBuilding is not LaunchBuilding launchBuilding)
+			sourceBuilding == null)
 		{
 			return true;
 		}
 
-		return launchBuilding.TryPrepareOutboundDispatch(sourceBuffer);
+		return sourceBuilding is LaunchBuilding launchBuilding
+			? launchBuilding.TryPrepareOutboundDispatch(sourceBuffer)
+			: sourceBuilding.CanDispatchOutboundBuffer(sourceBuffer);
+	}
+
+	private bool CanUseRuleRoutingSource()
+	{
+		CargoCapsule capsule = sourceDock?.DockedCapsule;
+		if (capsule == null || capsule.RouteKind != CargoRouteKind.Standard)
+			return false;
+
+		if (sourceDock is InboundCargoPort)
+			return capsule.LogisticsState is CapsuleLogisticsState.IB or CapsuleLogisticsState.Empty;
+
+		if (sourceDock is not CapsuleBuffer sourceBuffer ||
+			capsule.LogisticsState is not (CapsuleLogisticsState.Inside or CapsuleLogisticsState.Empty))
+		{
+			return false;
+		}
+
+		GameContext context = GameContext.HasInstance ? GameContext.Instance : null;
+		if (context?.CapsuleBufferSvc == null)
+			return true;
+
+		bool evaluateLaunchReadiness = false;
+		if (context.FacilityMgr?.TryGetBuildingId(sourceBuffer, out uint sourceBuildingId) == true &&
+			context.BuildingMgr?.TryGetBuilding(sourceBuildingId, out Building sourceBuilding) == true)
+		{
+			evaluateLaunchReadiness = sourceBuilding.OutboundTargetStage == CargoProcessStage.LaunchReady;
+		}
+
+		return context.CapsuleBufferSvc.IsRuleMatchedBuffer(
+			sourceBuffer,
+			capsule,
+			evaluateLaunchReadiness) == false;
 	}
 
 	private bool CanUseTarget()
@@ -275,6 +325,8 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		CargoCapsule payload = ActivePayload as CargoCapsule ?? sourceDock?.DockedCapsule;
 		if (payload != null && targetDock.CanAcceptCargoRoute(payload.RouteKind) == false)
 			return false;
+		if (reason == CapsuleRelocationReason.RuleRouting)
+			return CanUseRuleRoutingTarget(payload);
 
 		return Type switch
 		{
@@ -286,9 +338,29 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		};
 	}
 
+	private bool CanUseRuleRoutingTarget(CargoCapsule payload)
+	{
+		if (payload == null || targetDock is not CapsuleBuffer targetBuffer || targetBuffer.CanPutBox() == false)
+			return false;
+
+		GameContext context = GameContext.HasInstance ? GameContext.Instance : null;
+		if (context?.CapsuleBufferSvc == null)
+			return false;
+
+		bool evaluateLaunchReadiness = false;
+		if (context.BuildingMgr?.TryGetBuilding(targetBuildingId, out Building targetBuilding) == true)
+			evaluateLaunchReadiness = targetBuilding.OutboundTargetStage == CargoProcessStage.LaunchReady;
+
+		return context.CapsuleBufferSvc.IsRuleMatchedBuffer(
+			targetBuffer,
+			payload,
+			evaluateLaunchReadiness);
+	}
+
 	public static NodeState SetSourceTarget(in BTContext ctx)
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
+		task.ReleaseInvalidRuleRoutingTarget();
 		if (task.CanUseSource() == false)
 		{
 			task.MarkTerminalFailure(TaskInvalidationReason.SourceUnavailable);
@@ -353,6 +425,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	public static NodeState SetTargetDock(in BTContext ctx)
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
+		task.ReleaseInvalidRuleRoutingTarget();
 		if (task.TryRedirectRejectedOutboundPayload() == false ||
 			task.TryResolveReplacementTarget() == false ||
 			task.CanUseTarget() == false)
@@ -366,14 +439,25 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		return Success;
 	}
 
+	private void ReleaseInvalidRuleRoutingTarget()
+	{
+		if (reason != CapsuleRelocationReason.RuleRouting || targetDock == null || CanUseTarget())
+			return;
+
+		CapsuleDock released = targetDock;
+		targetDock = null;
+		if (GameContext.HasInstance)
+			GameContext.Instance.CapsuleRelocateCoordinator?.NotifyRelocationTargetReleased(released);
+	}
+
 	private bool TryRedirectRejectedOutboundPayload()
 	{
-		// Staging uses OB tasks to move labeled capsules out of IB buffers.
-		// Packed-manifest validation belongs to outbound-ready OBStandby buffers.
+		// Only LaunchReady buildings apply final dispatch-manifest validation.
+		// The source DockState is presentation/configuration data; Rule routing may
+		// promote a capsule to OB from any CapsuleBuffer.
 		if (Type != TaskType.OB ||
 			ActivePayload is not CargoCapsule capsule ||
-			sourceDock is not CapsuleBuffer sourceBuffer ||
-			sourceBuffer.DockState != CapsuleDockState.OBStandby)
+			sourceDock is not CapsuleBuffer sourceBuffer)
 			return true;
 
 		GameContext context = GameContext.HasInstance ? GameContext.Instance : null;
@@ -383,7 +467,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			buildingManager == null ||
 			facilityManager.TryGetBuildingId(sourceBuffer, out uint sourceBuildingId) == false ||
 			buildingManager.TryGetBuilding(sourceBuildingId, out Building sourceBuilding) == false ||
-			sourceBuilding is not LaunchBuilding)
+			sourceBuilding.OutboundTargetStage != CargoProcessStage.LaunchReady)
 		{
 			return true;
 		}
@@ -398,11 +482,10 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 		if (targetDock is CapsuleBuffer currentBuffer &&
 			ReferenceEquals(targetDock, sourceDock) &&
-			currentBuffer.DockState == CapsuleDockState.OBStandby &&
 			currentBuffer.CanPutBox() &&
 			currentBuffer.CanAcceptCargoRoute(capsule.RouteKind))
 		{
-			capsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
+			capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 			return true;
 		}
 
@@ -418,7 +501,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 		Debug.Log(
 			$"[OutboundQualityControl] Redirecting rejected capsule from {targetDock?.name ?? "None"} to {sourceBuffer.name}.");
-		capsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
+		capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 		targetDock = sourceBuffer;
 		return true;
 	}
@@ -427,6 +510,8 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	{
 		if (targetDock != null)
 			return true;
+		if (reason == CapsuleRelocationReason.RuleRouting)
+			return TryResolveRuleRoutingTarget();
 
 		if (targetDockType == null || GameContext.HasInstance == false)
 			return false;
@@ -460,9 +545,64 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		return true;
 	}
 
+	private bool TryResolveRuleRoutingTarget()
+	{
+		if (GameContext.HasInstance == false)
+			return false;
+
+		GameContext context = GameContext.Instance;
+		CapsuleBufferService bufferService = context.CapsuleBufferSvc;
+		CapsuleRelocateCoordinator coordinator = context.CapsuleRelocateCoordinator;
+		CargoCapsule payload = ActivePayload as CargoCapsule ?? sourceDock?.DockedCapsule;
+		if (bufferService == null || coordinator == null || payload == null)
+			return false;
+
+		bool evaluateLaunchReadiness = false;
+		if (context.BuildingMgr?.TryGetBuilding(targetBuildingId, out Building targetBuilding) == true)
+			evaluateLaunchReadiness = targetBuilding.OutboundTargetStage == CargoProcessStage.LaunchReady;
+
+		System.Collections.Generic.List<CapsuleBuffer> candidates = new();
+		if (bufferService.TryQueryRuleMatchedDestinations(
+				targetBuildingId,
+				payload,
+				candidates,
+				evaluateLaunchReadiness,
+				candidate => coordinator.IsReserved(candidate) == false &&
+					coordinator.IsRelocationTargetActive(candidate) == false) == false)
+		{
+			return false;
+		}
+
+		for (int i = 0; i < candidates.Count; ++i)
+		{
+			if (coordinator.TryReserveActiveTarget(candidates[i]) == false)
+				continue;
+
+			targetDock = candidates[i];
+			return true;
+		}
+
+		return false;
+	}
+
 	public static NodeState StoreCapsuleToTarget(in BTContext ctx)
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
+		if (task.reason == CapsuleRelocationReason.RuleRouting)
+		{
+			CapsuleDock previouslyReachedTarget = task.targetDock;
+			task.ReleaseInvalidRuleRoutingTarget();
+			if (task.TryResolveReplacementTarget() == false || task.CanUseTarget() == false)
+			{
+				return task.RestartTargetPlacement(ctx);
+			}
+
+			// A Rule can change while the worker is performing the placement work.
+			// Re-enter the movement branch before touching a newly selected Dock.
+			if (ReferenceEquals(previouslyReachedTarget, task.targetDock) == false)
+				return task.RestartTargetPlacement(ctx);
+		}
+
 		if (task.targetDock == null)
 			return Failure;
 
@@ -482,9 +622,16 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		}
 
 		task.WorkerCarryBox.PutBox(box);
-		ctx.Worker.SetWorkerTarget(task.GetTargetTarget());
+		return task.RestartTargetPlacement(ctx);
+	}
+
+	private NodeState RestartTargetPlacement(in BTContext ctx)
+	{
+		ctx.LocalBlackBoard.RemoveTargetBuilding();
+		ctx.Worker.SetWorkerTarget(GetTargetTarget());
 		ctx.Worker.SetWorkerAction(WorkerStatusAction.WaitingForTargetBuilding);
-		return AIWorker.KeepTaskWaiting(ctx);
+		ResetForReevaluation();
+		return Running;
 	}
 
 	private static NodeState PrepareOutboundPlacement(in BTContext ctx)

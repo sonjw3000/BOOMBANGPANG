@@ -18,32 +18,12 @@ public sealed class LaunchBuilding : Building
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
 	{
-		OutboundWorkflowService outbound = GameContext.HasInstance
-			? GameContext.Instance.OBWorkflowSvc
-			: null;
-		if (capsuleBuffer == null ||
-			capsuleBuffer.DockState != CapsuleDockState.OBStandby ||
-			capsuleBuffer.DockedCapsule == null ||
-			outbound == null ||
-			(capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby &&
-			 capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB) ||
-			outbound.HasDispatchBlockingCargo(capsuleBuffer) ||
-			outbound.HasCompleteDispatchManifest(capsuleBuffer) == false)
-		{
-			return false;
-		}
-
-		float workflowThreshold = GameContext.HasInstance && GameContext.Instance.OBWorkflowSvc != null
-			? GameContext.Instance.OBWorkflowSvc.CargoPortThresholdPercent
-			: CapsuleThresholdPercent;
-		float threshold = OverrideCapsuleThreshold ? CapsuleThresholdPercent : workflowThreshold;
-		return capsuleBuffer.FilledPercent >= threshold;
+		return base.IsBufferOutboundReady(capsuleBuffer);
 	}
 
 	internal void ReevaluateOutboundBuffer(CapsuleBuffer capsuleBuffer)
 	{
 		if (capsuleBuffer?.DockedCapsule == null ||
-			capsuleBuffer.DockState != CapsuleDockState.OBStandby ||
 			GameContext.HasInstance == false ||
 			GameContext.Instance.OBWorkflowSvc == null)
 		{
@@ -56,7 +36,7 @@ public sealed class LaunchBuilding : Building
 			outbound.HasCompleteDispatchManifest(capsuleBuffer) == false)
 		{
 			if (capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
-				capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
+				capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 			return;
 		}
 
@@ -78,7 +58,7 @@ public sealed class LaunchBuilding : Building
 			outbound.HasCompleteDispatchManifest(capsuleBuffer) == false)
 		{
 			if (capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
-				capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
+				capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 			EvaluateLaunchSortWork();
 			return false;
 		}
@@ -102,6 +82,11 @@ public sealed class LaunchBuilding : Building
 	protected override void OnCapsuleDockStateChanged(CapsuleBuffer capsuleBuffer)
 	{
 		base.OnCapsuleDockStateChanged(capsuleBuffer);
+		EvaluateLaunchSortWork();
+	}
+
+	protected override void OnCapsuleRoutingSettled(CapsuleBuffer capsuleBuffer)
+	{
 		EvaluateLaunchSortWork();
 	}
 
@@ -160,8 +145,7 @@ public sealed class LaunchBuilding : Building
 		{
 			CapsuleBuffer buffer = OccupiedCapsuleBuffers[i];
 			if (buffer?.DockedCapsule == null ||
-				buffer.DockState != CapsuleDockState.OBStandby ||
-				(buffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby &&
+				(buffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.Inside &&
 				 buffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB))
 			{
 				continue;
@@ -172,7 +156,7 @@ public sealed class LaunchBuilding : Building
 				 outbound.HasCompleteDispatchManifest(buffer) == false) &&
 				buffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
 			{
-				buffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.OBStandby);
+				buffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 			}
 		}
 	}

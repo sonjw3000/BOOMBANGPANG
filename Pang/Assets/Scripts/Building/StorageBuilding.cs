@@ -92,23 +92,7 @@ public sealed class StorageBuilding : Building
 
 	protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
 	{
-		if (capsuleBuffer == null ||
-			capsuleBuffer.DockState != CapsuleDockState.OBStandby ||
-			capsuleBuffer.DockedCapsule == null ||
-			(capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OBStandby &&
-			 capsuleBuffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB))
-		{
-			return false;
-		}
-
-        // todo
-        // have to check items are fully labeled first
-
-		float workflowThreshold = GameContext.HasInstance && GameContext.Instance.OBWorkflowSvc != null
-			? GameContext.Instance.OBWorkflowSvc.CargoPortThresholdPercent
-			: CapsuleThresholdPercent;
-		float threshold = OverrideCapsuleThreshold ? CapsuleThresholdPercent : workflowThreshold;
-		return capsuleBuffer.FilledPercent >= threshold;
+		return base.IsBufferOutboundReady(capsuleBuffer);
 	}
 
 	protected override void OnIBDockDocked(CapsuleDock dock, CargoCapsule capsule)
@@ -117,6 +101,11 @@ public sealed class StorageBuilding : Building
 
 		if (dock is CapsuleBuffer capsuleBuffer)
 			EvaluateStoringIngress(capsuleBuffer);
+	}
+
+	protected override void OnCapsuleRoutingSettled(CapsuleBuffer capsuleBuffer)
+	{
+		EvaluateStoringIngress(capsuleBuffer);
 	}
 
 	protected override void OnRegistered()
@@ -201,10 +190,36 @@ public sealed class StorageBuilding : Building
 			EvaluateStoringIngress(OccupiedCapsuleBuffers[i]);
 	}
 
-	private static bool CanBuildStoringTask(CapsuleBuffer capsuleBuffer)
+	internal bool CanProvideStoringItems(CapsuleBuffer capsuleBuffer)
 	{
-		return capsuleBuffer != null &&
-			capsuleBuffer.CanProvideInboundItems() &&
+		if (capsuleBuffer == null ||
+			capsuleBuffer.CanProvideInboundItems() == false ||
+			IsCapsuleBufferTaskRuleSettled(capsuleBuffer) == false)
+			return false;
+
+		FacilityRuleManager ruleManager = GameContext.HasInstance
+			? GameContext.Instance.FacilityRuleMgr
+			: null;
+		if (OutboundTargetStage != CargoProcessStage.None &&
+			ruleManager != null &&
+			ruleManager.TryGetPreset(capsuleBuffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
+			preset?.Rule?.RequiredCargoProcessStage == OutboundTargetStage)
+		{
+			return false;
+		}
+
+		OutboundWorkflowService outbound = GameContext.HasInstance
+			? GameContext.Instance.OBWorkflowSvc
+			: null;
+		return outbound == null ||
+			outbound.TryGetPickingManifest(capsuleBuffer.DockedCapsule, out PickingManifest manifest) == false ||
+			manifest == null ||
+			manifest.IsEmpty;
+	}
+
+	private bool CanBuildStoringTask(CapsuleBuffer capsuleBuffer)
+	{
+		return CanProvideStoringItems(capsuleBuffer) &&
 			capsuleBuffer.ItemTotals.Count > 0;
 	}
 }

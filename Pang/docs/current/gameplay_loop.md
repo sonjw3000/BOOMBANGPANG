@@ -21,6 +21,17 @@ At the hub level, this includes:
 - connecting those buildings through cargo interfaces
 - deciding how cargo moves both inside buildings and between buildings
 
+Inside a building, Capsule flow is Rule-driven:
+
+Inbound CargoPort
+-> matching CapsuleBuffer
+-> task-driven item or manifest changes
+-> matching CapsuleBuffer when the current Rule no longer matches
+-> Building outbound stage and threshold
+-> Outbound CargoPort
+
+The target model allows the same Building to host several or all of these operations. In the current migration step, Capsule routing and state normalization already use this generic model, while labeling, storing, picking, packing, and launch Task producers remain registered by the dedicated Building subclasses. Those subclasses are not the intended final player-facing capability boundary.
+
 ---
 
 ## Inbound

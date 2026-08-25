@@ -345,12 +345,18 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 
 		CapsuleBuffer bestBuffer = null;
 		int bestDistance = int.MaxValue;
-		FacilityFilter filter = FacilityFilter.ForTransfer(
-			box,
-			pickedLine.ItemID,
-			remainingQuantity,
-			stack => pickedLine.RequiredStatus.HasValue == false || stack.HasStatus(pickedLine.RequiredStatus.Value),
-			worker);
+		outboundWorkflowService.TryGetPickingManifest(box, out PickingManifest manifest);
+		FacilityFilter filter = FacilityFilter.WithCapsuleBufferState(
+			FacilityFilter.WithCargoProcessStage(
+				FacilityFilter.ForManifestTransfer(
+					box,
+					manifest,
+					pickedLine.ItemID,
+					remainingQuantity,
+					stack => pickedLine.RequiredStatus.HasValue == false || stack.HasStatus(pickedLine.RequiredStatus.Value),
+					worker),
+				CargoProcessStage.Picked),
+			CapsuleBufferStateRequirement.Inside);
 		foreach (CapsuleBuffer buffer in EnumeratePlaceBuffers(targetBuildingId))
 		{
 			if (buffer == null)

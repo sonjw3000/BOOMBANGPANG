@@ -20,15 +20,21 @@ public sealed partial class BuildingManager : MonoBehaviour
 
 	private void LateUpdate()
 	{
-		if (pendingLaunchQualityEvaluations.Count <= 0)
-			return;
+		if (pendingLaunchQualityEvaluations.Count > 0)
+		{
+			launchQualityEvaluationScratch.Clear();
+			launchQualityEvaluationScratch.AddRange(pendingLaunchQualityEvaluations);
+			pendingLaunchQualityEvaluations.Clear();
+			for (int i = 0; i < launchQualityEvaluationScratch.Count; ++i)
+				launchQualityEvaluationScratch[i]?.EvaluateLaunchSortWork();
+			launchQualityEvaluationScratch.Clear();
+		}
 
-		launchQualityEvaluationScratch.Clear();
-		launchQualityEvaluationScratch.AddRange(pendingLaunchQualityEvaluations);
-		pendingLaunchQualityEvaluations.Clear();
-		for (int i = 0; i < launchQualityEvaluationScratch.Count; ++i)
-			launchQualityEvaluationScratch[i]?.EvaluateLaunchSortWork();
-		launchQualityEvaluationScratch.Clear();
+		CapsuleRelocateCoordinator coordinator = GameContext.HasInstance
+			? GameContext.Instance.CapsuleRelocateCoordinator
+			: null;
+		if (coordinator?.HasDirty == true)
+			coordinator.ProcessDirty();
 	}
 
 	public void Register(Building building)
@@ -152,6 +158,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 				continue;
 
 			building.ItemIndex.RefreshContainer(indexedContainer);
+			if (indexedContainer is CapsuleBuffer capsuleBuffer && GameContext.HasInstance)
+				GameContext.Instance.CapsuleRelocateCoordinator.MarkDirty(capsuleBuffer);
 			if (building is LaunchBuilding launchBuilding)
 				pendingLaunchQualityEvaluations.Add(launchBuilding);
 		}

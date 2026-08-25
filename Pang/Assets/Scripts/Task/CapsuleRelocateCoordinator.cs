@@ -18,6 +18,8 @@ public readonly struct CapsuleRelocateSendRequest
 	public readonly uint SourceBuildingId;
 	public readonly uint RequiredTargetBuildingId;
 	public readonly CargoRouteKind RequiredRouteKind;
+	public readonly bool RequireRuleMatchedTarget;
+	public readonly bool EvaluateLaunchReadiness;
 	public readonly Func<CapsuleRelocateMatch, bool> OnMatched;
 
 	public CapsuleRelocateSendRequest(
@@ -29,7 +31,9 @@ public readonly struct CapsuleRelocateSendRequest
 		uint sourceBuildingId,
 		uint requiredTargetBuildingId = 0,
 		Func<CapsuleRelocateMatch, bool> onMatched = null,
-		CargoRouteKind requiredRouteKind = CargoRouteKind.Standard)
+		CargoRouteKind requiredRouteKind = CargoRouteKind.Standard,
+		bool requireRuleMatchedTarget = false,
+		bool evaluateLaunchReadiness = false)
 	{
 		SourceDock = sourceDock;
 		RequiredSourceDockState = requiredSourceDockState;
@@ -39,6 +43,8 @@ public readonly struct CapsuleRelocateSendRequest
 		SourceBuildingId = sourceBuildingId;
 		RequiredTargetBuildingId = requiredTargetBuildingId;
 		RequiredRouteKind = requiredRouteKind;
+		RequireRuleMatchedTarget = requireRuleMatchedTarget;
+		EvaluateLaunchReadiness = evaluateLaunchReadiness;
 		OnMatched = onMatched;
 	}
 }
@@ -114,6 +120,7 @@ public readonly struct CapsuleRelocateDemandSnapshot
 public sealed class CapsuleRelocateCoordinator
 {
 	private readonly CapsuleDockService dockService;
+	private readonly CapsuleBufferService bufferService;
 	private readonly LinkedList<CapsuleRelocateSendRequest> pendingSends = new();
 	private readonly LinkedList<CapsuleRelocateDemand> pendingDemands = new();
 	private readonly Dictionary<CapsuleDock, LinkedListNode<CapsuleRelocateSendRequest>> pendingSendNodeBySource = new();
@@ -123,13 +130,23 @@ public sealed class CapsuleRelocateCoordinator
 	private readonly HashSet<CapsuleDock> activeRelocationTargets = new();
 	private readonly HashSet<CapsuleDock> potentialReturnSources = new();
 	private readonly HashSet<CapsuleDock> playerClaimedDocks = new();
+	private readonly HashSet<CapsuleDock> dirtyDocks = new();
+	private readonly HashSet<uint> dirtyBuildingIds = new();
+	private readonly HashSet<uint> processingDirtyBuildingIds = new();
+	private readonly List<CapsuleBuffer> ruleTargetScratch = new();
 	private readonly Func<uint, uint, bool> canUseLinkedBuilding;
+	private readonly Action<CapsuleDock> evaluateDirtyDock;
+	private readonly Action<uint> evaluateDirtyBuilding;
 	private bool isRestoring;
+	private bool isProcessingDirty;
 
 	public event Action<CapsuleDock> OnPlayerClaimReleased;
 
 	public int PendingSendCount => pendingSendNodeBySource.Count;
 	public int PendingDemandCount => pendingDemandNodeByTarget.Count;
+	public int DirtyDockCount => dirtyDocks.Count;
+	public int DirtyBuildingCount => dirtyBuildingIds.Count;
+	public bool HasDirty => dirtyDocks.Count > 0 || dirtyBuildingIds.Count > 0;
 
 	public CapsuleRelocateDemandSnapshot GetDemandSnapshot()
 	{
@@ -168,10 +185,75 @@ public sealed class CapsuleRelocateCoordinator
 
 	public CapsuleRelocateCoordinator(
 		CapsuleDockService dockService,
-		Func<uint, uint, bool> canUseLinkedBuilding = null)
+		Func<uint, uint, bool> canUseLinkedBuilding = null,
+		CapsuleBufferService bufferService = null,
+		Action<CapsuleDock> evaluateDirtyDock = null,
+		Action<uint> evaluateDirtyBuilding = null)
 	{
 		this.dockService = dockService;
 		this.canUseLinkedBuilding = canUseLinkedBuilding;
+		this.bufferService = bufferService;
+		this.evaluateDirtyDock = evaluateDirtyDock;
+		this.evaluateDirtyBuilding = evaluateDirtyBuilding;
+	}
+
+	public void MarkDirty(CapsuleDock dock)
+	{
+		if (dock != null)
+			dirtyDocks.Add(dock);
+	}
+
+	public void MarkBuildingDirty(uint buildingId)
+	{
+		if (buildingId != 0)
+			dirtyBuildingIds.Add(buildingId);
+	}
+
+	public void ProcessDirty()
+	{
+		if (isRestoring || isProcessingDirty || HasDirty == false)
+			return;
+
+		isProcessingDirty = true;
+		try
+		{
+			const int maxPasses = 32;
+			for (int pass = 0; pass < maxPasses && HasDirty; ++pass)
+			{
+				uint[] buildingIds = new uint[dirtyBuildingIds.Count];
+				dirtyBuildingIds.CopyTo(buildingIds);
+				dirtyBuildingIds.Clear();
+				processingDirtyBuildingIds.Clear();
+				for (int i = 0; i < buildingIds.Length; ++i)
+					processingDirtyBuildingIds.Add(buildingIds[i]);
+
+				CapsuleDock[] docks = new CapsuleDock[dirtyDocks.Count];
+				dirtyDocks.CopyTo(docks);
+				dirtyDocks.Clear();
+
+				for (int i = 0; i < buildingIds.Length; ++i)
+					evaluateDirtyBuilding?.Invoke(buildingIds[i]);
+
+				for (int i = 0; i < docks.Length; ++i)
+				{
+					CapsuleDock dock = docks[i];
+					if (dock == null)
+						continue;
+					if (dockService?.TryGetRegisteredBuildingId(dock, out uint buildingId) == true &&
+						processingDirtyBuildingIds.Contains(buildingId))
+					{
+						continue;
+					}
+
+					evaluateDirtyDock?.Invoke(dock);
+				}
+			}
+		}
+		finally
+		{
+			processingDirtyBuildingIds.Clear();
+			isProcessingDirty = false;
+		}
 	}
 
 	public bool RequestSend(CapsuleRelocateSendRequest request)
@@ -216,6 +298,7 @@ public sealed class CapsuleRelocateCoordinator
 
 	public bool NotifyCapsuleDocked(CapsuleDock dock)
 	{
+		MarkDirty(dock);
 		potentialReturnSources.Remove(dock);
 		activeRelocationTargets.Remove(dock);
 		ReleaseReservation(dock);
@@ -226,6 +309,7 @@ public sealed class CapsuleRelocateCoordinator
 
 	public bool NotifyCapsuleUndocked(CapsuleDock dock)
 	{
+		MarkDirty(dock);
 		activeRelocationSources.Remove(dock);
 		if (potentialReturnSources.Contains(dock) == false)
 			ReleaseReservation(dock);
@@ -236,6 +320,7 @@ public sealed class CapsuleRelocateCoordinator
 
 	public bool NotifyDockStateChanged(CapsuleDock dock)
 	{
+		MarkDirty(dock);
 		if (potentialReturnSources.Contains(dock) == false)
 			ReleaseReservation(dock);
 		if (isRestoring)
@@ -259,6 +344,8 @@ public sealed class CapsuleRelocateCoordinator
 
 	public void NotifyRelocationEnded(CapsuleDock sourceDock, CapsuleDock targetDock)
 	{
+		MarkDirty(sourceDock);
+		MarkDirty(targetDock);
 		if (sourceDock != null)
 		{
 			potentialReturnSources.Remove(sourceDock);
@@ -281,6 +368,7 @@ public sealed class CapsuleRelocateCoordinator
 
 	public void NotifyRelocationTargetReleased(CapsuleDock targetDock)
 	{
+		MarkDirty(targetDock);
 		if (targetDock != null)
 		{
 			activeRelocationTargets.Remove(targetDock);
@@ -303,6 +391,11 @@ public sealed class CapsuleRelocateCoordinator
 		activeRelocationTargets.Clear();
 		potentialReturnSources.Clear();
 		playerClaimedDocks.Clear();
+		dirtyDocks.Clear();
+		dirtyBuildingIds.Clear();
+		processingDirtyBuildingIds.Clear();
+		ruleTargetScratch.Clear();
+		isProcessingDirty = false;
 	}
 
 	public void BeginRestore()
@@ -337,6 +430,7 @@ public sealed class CapsuleRelocateCoordinator
 		potentialReturnSources.Remove(dock);
 		reservedDocks.Remove(dock);
 		playerClaimedDocks.Remove(dock);
+		dirtyDocks.Remove(dock);
 		CancelPendingRequests(dock);
 	}
 
@@ -465,6 +559,7 @@ public sealed class CapsuleRelocateCoordinator
 		if (dock == null || playerClaimedDocks.Remove(dock) == false)
 			return;
 
+		MarkDirty(dock);
 		TryMatchPendingSend();
 		TryMatchPendingDemand();
 		OnPlayerClaimReleased?.Invoke(dock);
@@ -535,6 +630,9 @@ public sealed class CapsuleRelocateCoordinator
 	{
 		targetDock = null;
 		targetBuildingId = 0;
+		if (request.RequireRuleMatchedTarget)
+			return TryFindRuleMatchedReceiver(request, out targetDock, out targetBuildingId);
+
 		if (dockService == null)
 			return false;
 
@@ -551,6 +649,48 @@ public sealed class CapsuleRelocateCoordinator
 			out targetDock,
 			out targetBuildingId,
 			(candidate, candidateBuildingId) => CanMatch(request, candidate, candidateBuildingId));
+	}
+
+	private bool TryFindRuleMatchedReceiver(
+		CapsuleRelocateSendRequest request,
+		out CapsuleDock targetDock,
+		out uint targetBuildingId)
+	{
+		targetDock = null;
+		targetBuildingId = 0;
+		CargoCapsule capsule = request.SourceDock?.DockedCapsule;
+		if (bufferService == null || capsule == null)
+			return false;
+
+		uint queryBuildingId = request.RequiredTargetBuildingId != 0
+			? request.RequiredTargetBuildingId
+			: request.Scope == CapsuleRelocateScope.SameBuilding
+				? request.SourceBuildingId
+				: 0;
+		if (bufferService.TryQueryRuleMatchedDestinations(
+				queryBuildingId,
+				capsule,
+				ruleTargetScratch,
+				request.EvaluateLaunchReadiness) == false)
+		{
+			return false;
+		}
+
+		for (int i = 0; i < ruleTargetScratch.Count; ++i)
+		{
+			CapsuleBuffer candidate = ruleTargetScratch[i];
+			if (bufferService.TryGetRegisteredBuildingId(candidate, out uint candidateBuildingId) == false ||
+				CanMatch(request, candidate, candidateBuildingId) == false)
+			{
+				continue;
+			}
+
+			targetDock = candidate;
+			targetBuildingId = candidateBuildingId;
+			return true;
+		}
+
+		return false;
 	}
 
 	private bool TryFindSource(
@@ -589,7 +729,7 @@ public sealed class CapsuleRelocateCoordinator
 			reservedDocks.Contains(targetDock) ||
 			activeRelocationSources.Contains(request.SourceDock) ||
 			activeRelocationTargets.Contains(targetDock) ||
-			targetDock.DockState != request.WantedTargetDockState ||
+			(request.RequireRuleMatchedTarget == false && targetDock.DockState != request.WantedTargetDockState) ||
 			targetDock.CanAcceptCargoRoute(request.RequiredRouteKind) == false ||
 			targetDock.CanPutBox() == false)
 		{

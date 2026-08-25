@@ -102,12 +102,14 @@ public readonly struct FacilityFilter
 	public FacilityWorkerFilter WorkerFilter { get; }
 	public FacilityManifestFilter ManifestFilter { get; }
 	public CargoProcessStage CargoProcessStage { get; }
+	public CapsuleBufferStateRequirement CapsuleBufferState { get; }
 
 	public FacilityFilter(
 		FacilityItemFilter itemFilter = null,
 		FacilityWorkerFilter workerFilter = null,
 		FacilityManifestFilter manifestFilter = null,
-		CargoProcessStage cargoProcessStage = CargoProcessStage.None)
+		CargoProcessStage cargoProcessStage = CargoProcessStage.None,
+		CapsuleBufferStateRequirement capsuleBufferState = CapsuleBufferStateRequirement.Any)
 	{
 		ItemFilter = itemFilter;
 		WorkerFilter = workerFilter;
@@ -115,6 +117,11 @@ public readonly struct FacilityFilter
 		CargoProcessStage = CargoProcessStageUtility.IsDefined(cargoProcessStage)
 			? cargoProcessStage
 			: CargoProcessStage.None;
+		CapsuleBufferState = capsuleBufferState is CapsuleBufferStateRequirement.Any or
+			CapsuleBufferStateRequirement.Inside or
+			CapsuleBufferStateRequirement.Empty
+			? capsuleBufferState
+			: CapsuleBufferStateRequirement.Any;
 	}
 
 	public bool Matches(FacilityRuleManager ruleManager, IFacility facility)
@@ -168,6 +175,15 @@ public readonly struct FacilityFilter
 		if (capsule == null)
 			return false;
 
+		CapsuleBufferStateRequirement bufferState = HasCargo(capsule)
+			? CapsuleBufferStateRequirement.Inside
+			: CapsuleBufferStateRequirement.Empty;
+		if (bufferState == CapsuleBufferStateRequirement.Empty)
+		{
+			filter = new FacilityFilter(capsuleBufferState: bufferState);
+			return true;
+		}
+
 		OutboundWorkflowService outbound = GameContext.HasInstance
 			? GameContext.Instance.OBWorkflowSvc
 			: null;
@@ -192,7 +208,8 @@ public readonly struct FacilityFilter
 			itemFilter,
 			worker != null ? new FacilityWorkerFilter(worker) : null,
 			FacilityManifestFilter.FromManifest(manifest),
-			stage);
+			stage,
+			bufferState);
 		return true;
 	}
 
@@ -233,7 +250,8 @@ public readonly struct FacilityFilter
 			source.ItemFilter,
 			source.WorkerFilter,
 			manifestFilter,
-			source.CargoProcessStage);
+			source.CargoProcessStage,
+			source.CapsuleBufferState);
 	}
 
 	public static FacilityFilter WithCargoProcessStage(
@@ -244,7 +262,34 @@ public readonly struct FacilityFilter
 			source.ItemFilter,
 			source.WorkerFilter,
 			source.ManifestFilter,
-			cargoProcessStage);
+			cargoProcessStage,
+			source.CapsuleBufferState);
+	}
+
+	public static FacilityFilter WithCapsuleBufferState(
+		FacilityFilter source,
+		CapsuleBufferStateRequirement capsuleBufferState)
+	{
+		return new FacilityFilter(
+			source.ItemFilter,
+			source.WorkerFilter,
+			source.ManifestFilter,
+			source.CargoProcessStage,
+			capsuleBufferState);
+	}
+
+	private static bool HasCargo(CargoCapsule capsule)
+	{
+		if (capsule?.Stacks == null)
+			return false;
+
+		for (int i = 0; i < capsule.Stacks.Count; ++i)
+		{
+			if (capsule.Stacks[i]?.Quantity > 0)
+				return true;
+		}
+
+		return false;
 	}
 
 	private static bool TryBuildItemFilter(IItemContainer container, out FacilityItemFilter itemFilter)

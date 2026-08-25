@@ -63,7 +63,7 @@ These concepts have separate owners and purposes.
 - `FacilityRule` = how an installed facility should handle eligible work or items
 - `Area` = an outdoor rectangular marker used only for worker spawning or rocket landing
 
-Current design direction:
+Target design direction:
 - one Building may contain facilities for labeling, storage, picking, packing, and outbound work at the same time
 - installed facilities and their Rules determine which work can happen; Building subclasses are a migration-era implementation detail
 - facility operating policy is assigned through building-scoped `FacilityRule` presets
@@ -71,6 +71,8 @@ Current design direction:
 - `AreaType` contains only `WorkerSpawn` and `RocketLanding`
 - areas are not owned by buildings and do not contain facilities or gameplay rules
 - workflows query buildings and facilities first; areas are used only by their owning spawn/landing systems
+
+At the current migration step, Rule-driven Capsule routing, Dirty reevaluation, and Capsule lifecycle normalization are Building-generic. Labeling, storing, picking, packing, and launch Task producer registration is still implemented by the specialized Building subclasses; removing that final capability boundary is a later Building-lightening step.
 
 Cargo process stages use one shared contract:
 
@@ -82,7 +84,12 @@ Cargo process stages use one shared contract:
 - stage matching is exact and never uses enum numeric ordering
 - `Empty` is a Capsule lifecycle state, not a cargo process stage
 
-The runtime still uses the legacy Capsule and Dock state model while the relocation pipeline is migrated. The target Capsule lifecycle contract is `IB / Inside / Empty / OB`.
+The runtime Capsule lifecycle contract is `IB / Inside / Empty / OB`.
+
+- `IB` and `OB` describe CargoPort-facing transport phases.
+- `Inside` and `Empty` describe CapsuleBuffer payload phases.
+- `CapsuleDockState` remains a separate facility-interface contract, so Dock roles such as `IBStandby` and `OBStandby` are not Capsule lifecycle states.
+- Task implementations change physical cargo, ItemStatus, or manifests. Dirty routing evaluation derives the resulting Capsule lifecycle state instead of each Task assigning it independently.
 
 ---
 

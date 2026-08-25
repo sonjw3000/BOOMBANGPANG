@@ -73,7 +73,7 @@ Building systems should own:
 - building-owned interior space
 - worker affiliation scope
 
-Installed facilities and their FacilityRules define the available logistics capabilities. A Building may support several stages of the logistics loop without changing its class.
+Installed facilities and their FacilityRules are the target source of available logistics capabilities. Capsule routing and lifecycle evaluation already follow that ownership. During the current migration, specialized Building subclasses still register the labeling, storing, picking, packing, and launch Task producers; removing that remaining class-bound capability is deferred to the final Building-lightening step.
 
 Region classification such as indoor / outdoor should support placement and spatial reasoning, but should not replace building ownership as the source of truth for space identity.
 
@@ -83,9 +83,25 @@ Region classification such as indoor / outdoor should support placement and spat
 
 `FacilityRuleManager` owns building-scoped rule presets and their facility assignments. Rules provide explicit logistics filters and operating policy without owning physical space.
 
-`CargoProcessStageEvaluator` derives a capsule-wide process stage from ItemStatus and PickingManifest data. FacilityRule may require an exact aggregate stage in addition to its existing item, worker, and manifest filters. A whole-capsule manifest matches only when every manifest destination is allowed by the Rule; legacy single-work queries keep their existing any-match manifest behavior and ignore aggregate stage requirements during migration.
+`CargoProcessStageEvaluator` derives a capsule-wide process stage from ItemStatus and PickingManifest data. FacilityRule may require an exact aggregate stage in addition to its existing item, worker, and manifest filters. A whole-capsule manifest matches only when every manifest destination is allowed by the Rule; legacy single-work queries keep their existing any-match manifest behavior and ignore aggregate stage requirements.
 
-`CapsuleBufferService` owns BuildingId-scoped logical queries for Rule-matched CapsuleBuffer destinations. The caller must explicitly choose whether the query evaluates Launch readiness, so ordinary Packing routing remains `Packed` while Launch routing may produce `LaunchReady`. These queries return eligible facilities only; they do not decide relocation scope, reserve a Dock, or create a Task.
+FacilityRule may also require the CapsuleBuffer payload phase `Inside` or `Empty`. `Any` leaves that dimension unrestricted. This phase is separate from `CargoProcessStage`; an Empty capsule has no process stage.
+
+`CapsuleBufferService` owns BuildingId-scoped logical queries for Rule-matched CapsuleBuffer destinations and the reverse registration index from CapsuleBuffer to BuildingId. The caller must explicitly choose whether the query evaluates Launch readiness, so ordinary Packing routing remains `Packed` while Launch routing may produce `LaunchReady`. These queries return eligible facilities only; they do not decide relocation scope, reserve a Dock, or create a Task.
+
+`CapsuleRelocateCoordinator` owns relocation matching, Dock reservations, active relocation ownership, pending requests, and Dirty routing work. Dirty means that a Dock or Building must be reevaluated; it does not guarantee that a Task will be created. Repeated marks are coalesced and `BuildingManager.LateUpdate` flushes them after item and manifest mutations have settled.
+
+During Dirty evaluation, Building derives the Capsule lifecycle from current physical data:
+
+`empty payload -> Empty`
+
+`InboundCargoPort payload -> IB`
+
+`CapsuleBuffer payload below the Building outbound policy -> Inside`
+
+`CapsuleBuffer payload at the exact outbound target stage and effective threshold -> OB`
+
+Rule-mismatched `Inside` or `Empty` capsules request another Rule-matched CapsuleBuffer in the same Building. `OB` capsules request an OutboundCargoPort. The relocation Task still owns only the physical move; destination selection and state derivation remain with the owning services.
 
 `AreaManager` owns outdoor rectangular areas used by:
 - `WorkerSpawnManager` for `WorkerSpawn` candidates

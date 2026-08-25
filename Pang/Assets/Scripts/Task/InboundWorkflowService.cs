@@ -396,12 +396,12 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			return;
 		}
 
-		rocket.DockedCapsule?.SetLogisticsState(CapsuleLogisticsState.IB);
+		CapsuleLogisticsState requiredState = rocket.RefreshPayloadLogisticsState();
 
 		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
 			rocket,
 			CapsuleDockState.InboundSource,
-			CapsuleLogisticsState.IB,
+			requiredState,
 			CapsuleDockState.IBStandby,
 			CapsuleRelocateScope.LinkedBuilding,
 			0,

@@ -33,8 +33,7 @@ public partial class CapsuleBuffer :
 
 	public bool CanReceiveFromInbound() => dockState == CapsuleDockState.IB && CanPutBox();
 	public bool CanProvideInboundItems() =>
-		dockState == CapsuleDockState.IB &&
-		DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB &&
+		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Inside &&
 		IsCapsuleEmpty() == false;
 	public bool CanDispatchToOutbound() => CanGetBox() && DockedCapsule != null && DockedCapsule.LogisticsState == CapsuleLogisticsState.OB;
 	public bool CanRelocateEmptyCapsuleFrom(CapsuleDockState requiredState) =>
@@ -42,9 +41,9 @@ public partial class CapsuleBuffer :
 		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Empty &&
 		IsCapsuleEmpty();
 	public bool CanReceiveOutboundItems() =>
-		dockState == CapsuleDockState.OBStandby &&
 		DockedCapsule != null &&
-		DockedCapsule.LogisticsState == CapsuleLogisticsState.OBStandby;
+		(DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty ||
+		 DockedCapsule.LogisticsState == CapsuleLogisticsState.Inside);
 	public bool CanRegister() => DockedCapsule != null && DockedCapsule.CanRegister();
 	public int GetQuantity(uint itemId) => DockedCapsule != null ? DockedCapsule.GetQuantity(itemId) : 0;
 	public int GetPickableQuantity(uint itemId) => DockedCapsule != null ? DockedCapsule.GetQuantity(itemId) - itemsReservedPick.GetValueOrDefault(itemId) : 0;

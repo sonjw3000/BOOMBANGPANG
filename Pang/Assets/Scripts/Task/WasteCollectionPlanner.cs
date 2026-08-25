@@ -250,10 +250,13 @@ public sealed class WasteCollectionPlanner :
 		if (result.Moved <= 0)
 			return WorkPlanResult.Waiting;
 
-		if (placeLine?.Target is WasteBinDock targetDock && targetDock.DockedCapsule is WasteBin wasteBin && wasteBin.IsFull)
+		if (placeLine?.Target is WasteBinDock targetDock && targetDock.DockedCapsule is WasteBin wasteBin)
 		{
-			wasteBin.SetLogisticsState(CapsuleLogisticsState.Waste);
-			TryRequestFullBinExport(building);
+			wasteBin.SetLogisticsState(wasteBin.IsFull
+				? CapsuleLogisticsState.OB
+				: CapsuleLogisticsState.Inside);
+			if (wasteBin.IsFull)
+				TryRequestFullBinExport(building);
 		}
 
 		BoxBase workerBox = worker.CarryingAbility?.CarryingBox;
@@ -774,11 +777,11 @@ public sealed class WasteCollectionPlanner :
 				continue;
 			}
 
-			wasteBin.SetLogisticsState(CapsuleLogisticsState.Waste);
+			wasteBin.SetLogisticsState(CapsuleLogisticsState.OB);
 			GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
 				source,
 				CapsuleDockState.WasteBin,
-				CapsuleLogisticsState.Waste,
+				CapsuleLogisticsState.OB,
 				CapsuleDockState.OB,
 				CapsuleRelocateScope.SameBuilding,
 				building.RuntimeBuildingId,
@@ -795,11 +798,11 @@ public sealed class WasteCollectionPlanner :
 
 		uint sourceBuildingId = 0;
 		GameContext.Instance.FacilityMgr?.TryGetBuildingId(source, out sourceBuildingId);
-		wasteBin.SetLogisticsState(CapsuleLogisticsState.Waste);
+		wasteBin.SetLogisticsState(CapsuleLogisticsState.OB);
 		GameContext.Instance.CapsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
 			source,
 			CapsuleDockState.OB,
-			CapsuleLogisticsState.Waste,
+			CapsuleLogisticsState.OB,
 			CapsuleDockState.WasteContainer,
 			CapsuleRelocateScope.GlobalAllowed,
 			sourceBuildingId,

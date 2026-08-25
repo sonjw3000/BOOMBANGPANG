@@ -102,14 +102,14 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 
 	private bool CanPurchaseEmptyCapsule()
 	{
-		return currentTarget != null && currentTarget.DockState == CapsuleDockState.Empty &&
-			currentTarget.HasCapsule == false && GameContext.HasInstance && GameContext.Instance.BoxMgr != null;
+		return currentTarget != null && currentTarget.HasCapsule == false &&
+			GameContext.HasInstance && GameContext.Instance.BoxMgr != null;
 	}
 
 	private bool CanSellEmptyCapsule()
 	{
-		return currentTarget != null && currentTarget.DockState == CapsuleDockState.Empty &&
-			currentTarget.DockedCapsule != null && currentTarget.DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty &&
+		return currentTarget != null && currentTarget.DockedCapsule != null &&
+			currentTarget.DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty &&
 			currentTarget.IsCapsuleEmpty() && GameContext.HasInstance && GameContext.Instance.BoxMgr != null;
 	}
 

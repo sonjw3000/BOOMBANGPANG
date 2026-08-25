@@ -4,6 +4,7 @@ using UnityEngine;
 public abstract partial class CargoPort : CapsuleDock
 {
 	public event Action<CargoPort, CargoCapsule> OnCargoUndocking;
+	public event Action<CargoPort> OnCargoContentChanged;
 	public event Action<CargoPort> OnCargoQuantityZero;
 	public event Action<CargoPort> OnCargoQuantityOverPercent;
 
@@ -25,6 +26,7 @@ public abstract partial class CargoPort : CapsuleDock
 		if (DockedCapsule == null)
 			return;
 
+		OnCargoContentChanged?.Invoke(this);
 		if (FilledPercent <= 0)
 			OnCargoQuantityZero?.Invoke(this);
 		else if (FilledPercent >= CargoPortSvc.CargoStandardPercent)

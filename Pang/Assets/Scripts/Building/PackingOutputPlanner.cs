@@ -49,9 +49,11 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 			return WorkPlanResult.Completed;
 
 		PackingStation sourceStation = collectedLine?.Target as PackingStation;
-		PackingStationService stationService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc?.PackingStationService : null;
+		OutboundWorkflowService outbound = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
+		PackingStationService stationService = outbound?.PackingStationService;
 		if (stationService == null)
 			return WorkPlanResult.Waiting;
+		outbound.TryGetPickingManifest(sourceBox, out PickingManifest manifest);
 
 		bool hasPackedPayload = false;
 		for (int i = 0; i < sourceBox.Stacks.Count; ++i)
@@ -61,12 +63,17 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 				continue;
 
 			hasPackedPayload = true;
-			FacilityFilter filter = FacilityFilter.ForTransfer(
-				sourceBox,
-				stack.ItemID,
-				stack.Quantity,
-				candidate => candidate.HasStatus(ItemStatus.Packed),
-				worker);
+			FacilityFilter filter = FacilityFilter.WithCapsuleBufferState(
+				FacilityFilter.WithCargoProcessStage(
+					FacilityFilter.ForManifestTransfer(
+						sourceBox,
+						manifest,
+						stack.ItemID,
+						stack.Quantity,
+						candidate => candidate.HasStatus(ItemStatus.Packed),
+						worker),
+					CargoProcessStage.Packed),
+				CapsuleBufferStateRequirement.Inside);
 			if (stationService.TryResolveOutboundBuffer(sourceStation, filter, out CapsuleBuffer targetBuffer) == false)
 				continue;
 

@@ -112,6 +112,13 @@ public sealed class GameSaveService : MonoBehaviour
 			Debug.LogWarning($"[Save] Failed to parse save file at {savePath}");
 			return false;
 		}
+		if (data.Version != GameSaveData.CurrentVersion)
+		{
+			Debug.LogWarning(
+				$"[Save] Unsupported save version {data.Version}. Expected {GameSaveData.CurrentVersion}.");
+			data = null;
+			return false;
+		}
 
 		return true;
 	}
@@ -425,6 +432,16 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.BuildingMgr?.ValidateCapsuleRelocationInvariants("restore-complete", recoverOrphans: true);
 		Ctx.WorkerMgr.RebuildWorkerStatusCaches();
 		Ctx.FacilityRuleMgr.RebuildAppliedFacilityLookup();
+		if (Ctx.BuildingMgr != null)
+		{
+			IReadOnlyList<Building> restoredBuildings = Ctx.BuildingMgr.RegisteredBuildings;
+			for (int i = 0; i < restoredBuildings.Count; ++i)
+			{
+				if (restoredBuildings[i] != null)
+					Ctx.CapsuleRelocateCoordinator.MarkBuildingDirty(restoredBuildings[i].RuntimeBuildingId);
+			}
+		}
+		Ctx.CapsuleRelocateCoordinator.ProcessDirty();
 		Ctx.TemperatureSvc.RebuildRuntimeState();
 		Ctx.ItemThermalSvc.RebuildRuntimeState();
 		Ctx.OxygenSvc.RebuildRuntimeState();

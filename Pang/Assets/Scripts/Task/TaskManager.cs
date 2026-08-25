@@ -10,6 +10,7 @@ public enum TaskInvalidationReason
 	PlayerDockPreemption,
 	PlayerWorkerTakeover,
 	DispatchInvalid,
+	RuleChanged,
 	PayloadRecoveryFailed,
 	SourceUnavailable,
 	CoordinatorOwnershipLost,
@@ -80,22 +81,30 @@ public partial class TaskManager : MonoBehaviour
 
 	internal bool HasManagedCapsuleRelocationSource(CapsuleDock source)
 	{
+		return TryGetManagedCapsuleRelocationSource(source, out _);
+	}
+
+	internal bool TryGetManagedCapsuleRelocationSource(
+		CapsuleDock source,
+		out CapsuleRelocationTask relocationTask)
+	{
+		relocationTask = null;
 		if (source == null)
 			return false;
 
 		foreach (LinkedList<WorkerTask> tasks in taskQueue.Values)
 		{
-			if (ContainsCapsuleRelocationSource(tasks, source))
+			if (TryFindCapsuleRelocationSource(tasks, source, out relocationTask))
 				return true;
 		}
 
 		foreach (LinkedList<WorkerTask> tasks in taskOnProgress.Values)
 		{
-			if (ContainsCapsuleRelocationSource(tasks, source))
+			if (TryFindCapsuleRelocationSource(tasks, source, out relocationTask))
 				return true;
 		}
 
-		return ContainsCapsuleRelocationSource(returnedTaskQueue, source);
+		return TryFindCapsuleRelocationSource(returnedTaskQueue, source, out relocationTask);
 	}
 
 	private static bool ContainsCapsuleRelocationTarget(
@@ -114,19 +123,22 @@ public partial class TaskManager : MonoBehaviour
 		return false;
 	}
 
-	private static bool ContainsCapsuleRelocationSource(
+	private static bool TryFindCapsuleRelocationSource(
 		IEnumerable<WorkerTask> tasks,
-		CapsuleDock source)
+		CapsuleDock source,
+		out CapsuleRelocationTask relocationTask)
 	{
 		foreach (WorkerTask task in tasks)
 		{
-			if (task is CapsuleRelocationTask relocationTask &&
-				ReferenceEquals(relocationTask.SourceDock, source))
+			if (task is CapsuleRelocationTask candidate &&
+				ReferenceEquals(candidate.SourceDock, source))
 			{
+				relocationTask = candidate;
 				return true;
 			}
 		}
 
+		relocationTask = null;
 		return false;
 	}
 

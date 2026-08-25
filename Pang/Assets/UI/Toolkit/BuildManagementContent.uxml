@@ -63,6 +63,9 @@
 				<ui:Slider name="rule-editor-green" label="Green" low-value="0" high-value="1" class="rule-editor-slider" />
 				<ui:Slider name="rule-editor-blue" label="Blue" low-value="0" high-value="1" class="rule-editor-slider" />
 				<ui:VisualElement name="rule-editor-color-preview" class="rule-editor-color-preview" />
+				<ui:Label text="CAPSULE CONDITIONS" class="rule-editor-section" />
+				<ui:DropdownField name="rule-editor-capsule-state" label="Buffer state" class="rule-editor-field" />
+				<ui:DropdownField name="rule-editor-cargo-stage" label="Cargo process stage" class="rule-editor-field" />
 				<ui:Label text="ITEM CONDITIONS" class="rule-editor-section" />
 				<ui:DropdownField name="rule-editor-item-status" label="Required status" class="rule-editor-field" />
 				<ui:Label text="Required tags" class="rule-editor-label" />

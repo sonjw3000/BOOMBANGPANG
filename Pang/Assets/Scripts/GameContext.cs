@@ -1,5 +1,7 @@
 using UnityEngine;
 
+using System.Collections.Generic;
+
 using UnityEngine.Serialization;
 
 [DefaultExecutionOrder(-100)]
@@ -267,7 +269,7 @@ public class GameContext : MonoBehaviour
 	{
 		get
 		{
-			capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
+			capsuleRelocateCoordinator ??= CreateCapsuleRelocateCoordinator();
 			return capsuleRelocateCoordinator;
 		}
 	}
@@ -360,7 +362,7 @@ public class GameContext : MonoBehaviour
 		researchService.Initialize(researchCatalog, economyService, gameTime);
 		buildingAddonService.Initialize(buildingAddonCatalog, buildingManager, economyService, researchService);
 		interactionCtx ??= new InteractionContext();
-		capsuleRelocateCoordinator ??= new CapsuleRelocateCoordinator(CapsuleDockSvc, CanUseCapsuleRelocateLink);
+		capsuleRelocateCoordinator ??= CreateCapsuleRelocateCoordinator();
 		itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();
 		wasteCollectionPlanner ??= new WasteCollectionPlanner();
 		wasteCollectionPlanner.Initialize(itemTransferTaskScheduler, CapsuleDockSvc);
@@ -604,6 +606,19 @@ public class GameContext : MonoBehaviour
 	{
 		TaskMgr?.BindFacilityInvalidation(FacilityMgr);
 		CapsuleRelocateCoordinator.OnPlayerClaimReleased += HandleCapsuleRelocatePlayerClaimReleased;
+		if (FacilityMgr != null)
+			FacilityMgr.OnFacilityInvalidating += HandleCapsuleRoutingFacilityInvalidating;
+
+		if (FacilityRuleMgr != null)
+		{
+			FacilityRuleMgr.OnPresetChanged += HandleCapsuleRoutingPresetChanged;
+			FacilityRuleMgr.OnPresetDeleted += HandleCapsuleRoutingPresetDeleted;
+			FacilityRuleMgr.OnFacilityRulePresetApplied += HandleCapsuleRoutingRuleApplied;
+			FacilityRuleMgr.OnPresetsRebuilt += HandleCapsuleRoutingPresetsRebuilt;
+		}
+
+		if (CapsuleBufferSvc != null)
+			CapsuleBufferSvc.OnCapsuleContentChanged += HandleCapsuleRoutingContentChanged;
 
 		if (CapsuleDockSvc != null)
 		{
@@ -631,6 +646,19 @@ public class GameContext : MonoBehaviour
 		TaskMgr?.UnbindFacilityInvalidation();
 		if (capsuleRelocateCoordinator != null)
 			capsuleRelocateCoordinator.OnPlayerClaimReleased -= HandleCapsuleRelocatePlayerClaimReleased;
+		if (FacilityMgr != null)
+			FacilityMgr.OnFacilityInvalidating -= HandleCapsuleRoutingFacilityInvalidating;
+
+		if (FacilityRuleMgr != null)
+		{
+			FacilityRuleMgr.OnPresetChanged -= HandleCapsuleRoutingPresetChanged;
+			FacilityRuleMgr.OnPresetDeleted -= HandleCapsuleRoutingPresetDeleted;
+			FacilityRuleMgr.OnFacilityRulePresetApplied -= HandleCapsuleRoutingRuleApplied;
+			FacilityRuleMgr.OnPresetsRebuilt -= HandleCapsuleRoutingPresetsRebuilt;
+		}
+
+		if (CapsuleBufferSvc != null)
+			CapsuleBufferSvc.OnCapsuleContentChanged -= HandleCapsuleRoutingContentChanged;
 
 		if (CapsuleDockSvc != null)
 		{
@@ -668,17 +696,104 @@ public class GameContext : MonoBehaviour
 
 	private void HandleCapsuleRelocatePlayerClaimReleased(CapsuleDock dock)
 	{
-		if (dock == null || FacilityMgr == null || BuildingMgr == null)
+		if (dock == null)
 			return;
 
-		if (FacilityMgr.TryGetBuildingId(dock, out uint buildingId) == false ||
-			BuildingMgr.TryGetBuilding(buildingId, out Building building) == false ||
-			building == null)
+		CapsuleRelocateCoordinator.MarkDirty(dock);
+	}
+
+	private CapsuleRelocateCoordinator CreateCapsuleRelocateCoordinator()
+	{
+		return new CapsuleRelocateCoordinator(
+			CapsuleDockSvc,
+			CanUseCapsuleRelocateLink,
+			CapsuleBufferSvc,
+			EvaluateCapsuleRoutingDock,
+			EvaluateCapsuleRoutingBuilding);
+	}
+
+	private void EvaluateCapsuleRoutingDock(CapsuleDock dock)
+	{
+		if (dock == null || FacilityMgr == null || BuildingMgr == null ||
+			FacilityMgr.TryGetBuildingId(dock, out uint buildingId) == false ||
+			BuildingMgr.TryGetBuilding(buildingId, out Building building) == false)
 		{
 			return;
 		}
 
 		building.ReevaluateCapsuleDockAvailability(dock);
+	}
+
+	private void EvaluateCapsuleRoutingBuilding(uint buildingId)
+	{
+		if (BuildingMgr?.TryGetBuilding(buildingId, out Building building) == true)
+			building.ReevaluateCapsuleRouting();
+	}
+
+	private void HandleCapsuleRoutingContentChanged(uint buildingId, CapsuleBuffer buffer)
+	{
+		CapsuleRelocateCoordinator.MarkDirty(buffer);
+	}
+
+	private void HandleCapsuleRoutingFacilityInvalidating(
+		IFacility facility,
+		FacilityInvalidationContext context)
+	{
+		if (facility is not CapsuleDock dock)
+			return;
+
+		if (FacilityMgr?.TryGetBuildingId(dock, out uint buildingId) == true)
+			CapsuleRelocateCoordinator.MarkBuildingDirty(buildingId);
+	}
+
+	private void HandleCapsuleRoutingPresetChanged(FacilityRulePreset preset)
+	{
+		if (preset == null || BuildingMgr == null)
+			return;
+
+		IReadOnlyList<Building> buildings = BuildingMgr.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			Building building = buildings[i];
+			if (building == null)
+				continue;
+
+			for (int facilityIndex = 0; facilityIndex < building.OccupiedFacilities.Count; ++facilityIndex)
+			{
+				if (building.OccupiedFacilities[facilityIndex]?.FacilityRulePresetId != preset.Id)
+					continue;
+
+				CapsuleRelocateCoordinator.MarkBuildingDirty(building.RuntimeBuildingId);
+				break;
+			}
+		}
+	}
+
+	private void HandleCapsuleRoutingPresetDeleted(uint presetId)
+	{
+		// Applied facilities emit OnFacilityRulePresetApplied before this event.
+	}
+
+	private void HandleCapsuleRoutingRuleApplied(IFacility facility, uint previousPresetId, uint presetId)
+	{
+		if (facility is not CapsuleDock)
+			return;
+
+		if (FacilityMgr?.TryGetBuildingId(facility, out uint buildingId) == true)
+			CapsuleRelocateCoordinator.MarkBuildingDirty(buildingId);
+	}
+
+	private void HandleCapsuleRoutingPresetsRebuilt()
+	{
+		if (BuildingMgr == null)
+			return;
+
+		IReadOnlyList<Building> buildings = BuildingMgr.RegisteredBuildings;
+		for (int i = 0; i < buildings.Count; ++i)
+		{
+			if (buildings[i] != null)
+				CapsuleRelocateCoordinator.MarkBuildingDirty(buildings[i].RuntimeBuildingId);
+		}
 	}
 
 	private bool CanUseCapsuleRelocateLink(uint sourceBuildingId, uint targetBuildingId)
