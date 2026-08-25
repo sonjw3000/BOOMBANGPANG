@@ -9,6 +9,8 @@ public partial class PackingStationService : FacilityService<PackingStation>
 		public readonly LinkedList<PackingStation> WaitingQueue = new();
 		public readonly HashSet<PackingStation> WaitingSet = new();
 		public readonly HashSet<PackingStation> QueuedPackingTasks = new();
+		public readonly LinkedList<PackingStation> CompletedOutputQueue = new();
+		public readonly HashSet<PackingStation> CompletedOutputSet = new();
 	}
 
 	private static CapsuleBufferService CapsuleBufferService => GameContext.Instance.CapsuleBufferSvc;
@@ -23,7 +25,7 @@ public partial class PackingStationService : FacilityService<PackingStation>
 			return;
 
 		state.Stations.Add(facility);
-		RefreshWaitingStation(facility);
+		RefreshStationState(facility);
 	}
 
 	protected override void OnUnregisterFacility(uint buildingId, PackingStation facility)
@@ -33,14 +35,19 @@ public partial class PackingStationService : FacilityService<PackingStation>
 
 		state.Stations.Remove(facility);
 		RemoveWaitingStation(state, facility);
+		RemoveCompletedOutput(state, facility);
 		state.QueuedPackingTasks.Remove(facility);
 
 		if (state.Stations.Count <= 0 &&
 			state.WaitingQueue.Count <= 0 &&
+			state.CompletedOutputQueue.Count <= 0 &&
 			state.QueuedPackingTasks.Count <= 0)
 		{
 			statesByBuildingId.Remove(buildingId);
 		}
+
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.EvaluatePackingOutputWork(buildingId);
 	}
 
 	public bool TryReserveWaitingStation(AIWorker picker, out PackingStation station)
@@ -76,6 +83,46 @@ public partial class PackingStationService : FacilityService<PackingStation>
 			EnqueueWaitingStation(state, station);
 		else
 			RemoveWaitingStation(state, station);
+	}
+
+	public void RefreshStationState(PackingStation station)
+	{
+		if (station == null ||
+			TryGetState(station, out uint buildingId, out BuildingPackingState state) == false)
+		{
+			return;
+		}
+
+		RefreshWaitingStation(station);
+		if (station.EndPackingBox != null)
+			EnqueueCompletedOutput(state, station);
+		else
+			RemoveCompletedOutput(state, station);
+
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.EvaluatePackingOutputWork(buildingId);
+	}
+
+	public void ReconcileRestoredIncomingRequests()
+	{
+		foreach (BuildingPackingState state in statesByBuildingId.Values)
+		{
+			for (int i = 0; i < state.Stations.Count; ++i)
+			{
+				PackingStation station = state.Stations[i];
+				if (station?.IncomingRequestSuspended != true)
+					continue;
+
+				AIWorker packingWorker = station.CurrentPackingWorker;
+				if (packingWorker != null && packingWorker.ShouldPrioritizeRecovery())
+					continue;
+
+				// A PackingInput task only claims a station transiently. Its current
+				// WorkLine is intentionally not persisted, so that claim has no owner
+				// after restore and must become eligible for a fresh Rule-based query.
+				station.SetIncomingRequestSuspended(false);
+			}
+		}
 	}
 
 	public void RequestPackingTaskIfNeeded(PackingStation packingStation)
@@ -117,13 +164,82 @@ public partial class PackingStationService : FacilityService<PackingStation>
 
 	public void OnPackingComplete(PackingStation packingStation)
 	{
-		if (packingStation == null || TryGetBuildingId(packingStation, out uint buildingId) == false)
+		RefreshStationState(packingStation);
+	}
+
+	public bool HasCompletedOutput(uint buildingId)
+	{
+		if (statesByBuildingId.TryGetValue(buildingId, out BuildingPackingState state) == false)
+			return false;
+
+		PruneCompletedOutputs(state);
+		return state.CompletedOutputQueue.Count > 0;
+	}
+
+	public bool TryClaimCompletedOutput(uint buildingId, out PackingStation station)
+	{
+		station = null;
+		if (statesByBuildingId.TryGetValue(buildingId, out BuildingPackingState state) == false)
+			return false;
+
+		while (state.CompletedOutputQueue.First != null)
+		{
+			PackingStation candidate = state.CompletedOutputQueue.First.Value;
+			state.CompletedOutputQueue.RemoveFirst();
+			state.CompletedOutputSet.Remove(candidate);
+			if (candidate?.EndPackingBox == null)
+				continue;
+
+			station = candidate;
+			return true;
+		}
+
+		return false;
+	}
+
+	public void ReturnCompletedOutput(uint buildingId, PackingStation station)
+	{
+		if (station?.EndPackingBox == null ||
+			statesByBuildingId.TryGetValue(buildingId, out BuildingPackingState state) == false ||
+			state.Stations.Contains(station) == false)
+		{
+			return;
+		}
+
+		EnqueueCompletedOutput(state, station);
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.EvaluatePackingOutputWork(buildingId);
+	}
+
+	public void GetCompletedOutputDemand(uint buildingId, out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+		if (statesByBuildingId.TryGetValue(buildingId, out BuildingPackingState state) == false)
 			return;
 
-		if (GameContext.Instance.BuildingMgr.TryGetBuilding(buildingId, out Building building) &&
-			building is PackingBuilding packingBuilding)
+		PruneCompletedOutputs(state);
+		foreach (PackingStation station in state.CompletedOutputQueue)
 		{
-			packingBuilding.MarkPackingOutputDirty(packingStation);
+			BoxBase box = station?.EndPackingBox?.Box;
+			if (box == null)
+				continue;
+
+			++sourceCount;
+			foreach (var itemTotal in box.ItemTotals)
+				itemQuantity += Mathf.Max(0, itemTotal.Value);
+		}
+	}
+
+	public void GetCompletedOutputDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+		foreach (uint buildingId in statesByBuildingId.Keys)
+		{
+			GetCompletedOutputDemand(buildingId, out int buildingSources, out int buildingQuantity);
+			sourceCount += buildingSources;
+			itemQuantity += buildingQuantity;
 		}
 	}
 
@@ -204,8 +320,30 @@ public partial class PackingStationService : FacilityService<PackingStation>
 
 	private bool TryGetState(PackingStation station, out BuildingPackingState state)
 	{
+		return TryGetState(station, out _, out state);
+	}
+
+	private bool TryGetState(
+		PackingStation station,
+		out uint buildingId,
+		out BuildingPackingState state)
+	{
+		buildingId = 0;
 		state = null;
-		return TryGetBuildingId(station, out uint buildingId) && statesByBuildingId.TryGetValue(buildingId, out state);
+		if (station == null)
+			return false;
+
+		foreach (KeyValuePair<uint, BuildingPackingState> entry in statesByBuildingId)
+		{
+			if (entry.Value.Stations.Contains(station) == false)
+				continue;
+
+			buildingId = entry.Key;
+			state = entry.Value;
+			return true;
+		}
+
+		return false;
 	}
 
 	private static bool TryGetReservedStationForPicker(BuildingPackingState state, AIWorker picker, out PackingStation station)
@@ -287,6 +425,42 @@ public partial class PackingStationService : FacilityService<PackingStation>
 			return;
 
 		state.WaitingQueue.Remove(station);
+	}
+
+	private static void EnqueueCompletedOutput(BuildingPackingState state, PackingStation station)
+	{
+		if (state == null || station?.EndPackingBox == null || state.CompletedOutputSet.Add(station) == false)
+			return;
+
+		state.CompletedOutputQueue.AddLast(station);
+	}
+
+	private static void RemoveCompletedOutput(BuildingPackingState state, PackingStation station)
+	{
+		if (state == null || station == null || state.CompletedOutputSet.Remove(station) == false)
+			return;
+
+		state.CompletedOutputQueue.Remove(station);
+	}
+
+	private static void PruneCompletedOutputs(BuildingPackingState state)
+	{
+		if (state == null)
+			return;
+
+		LinkedListNode<PackingStation> node = state.CompletedOutputQueue.First;
+		while (node != null)
+		{
+			LinkedListNode<PackingStation> next = node.Next;
+			PackingStation station = node.Value;
+			if (station?.EndPackingBox == null || state.Stations.Contains(station) == false)
+			{
+				state.CompletedOutputQueue.Remove(node);
+				state.CompletedOutputSet.Remove(station);
+			}
+
+			node = next;
+		}
 	}
 
 	private CapsuleBuffer FindClosestOutboundBuffer(uint buildingId, in Unity.Mathematics.int3 from)

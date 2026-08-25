@@ -3,73 +3,173 @@ using UnityEngine;
 
 public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTaskInvalidationHandler
 {
-	private readonly PackingBuilding building;
+	private readonly uint buildingId;
 
-	public PackingInputPlanner(PackingBuilding building)
+	public uint BuildingId => buildingId;
+
+	private CapsuleBufferService BufferService =>
+		GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
+
+	public PackingInputPlanner(uint buildingId)
 	{
-		this.building = building;
+		this.buildingId = buildingId;
 	}
 
-	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
+	public bool HasAvailableWork(AIWorker worker = null)
+	{
+		if (buildingId == 0 || BufferService == null)
+			return false;
+
+		foreach (CapsuleBuffer buffer in BufferService.GetBuffers(buildingId))
+		{
+			if (CanUseSource(buffer) == false ||
+				(worker != null && InteractionPointSelector.TryGetInteractionPointInBuilding(
+					buffer,
+					InteractionKind.Pick,
+					worker.GridPosition,
+					buildingId,
+					out _,
+					out _) == false))
+			{
+				continue;
+			}
+
+			if (TryFindAvailableManifestLine(buffer, worker?.CarryingAbility?.CarryingBox, out _, out _, out _))
+				return true;
+		}
+
+		return false;
+	}
+
+	public void GetPendingDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+		if (buildingId == 0 || BufferService == null)
+			return;
+
+		foreach (CapsuleBuffer buffer in BufferService.GetBuffers(buildingId))
+		{
+			if (CanUseSource(buffer) == false ||
+				TryGetManifest(buffer, out PickingManifest manifest) == false)
+			{
+				continue;
+			}
+
+			int sourceQuantity = 0;
+			for (int i = 0; i < manifest.Lines.Count; ++i)
+			{
+				PickingManifestLine manifestLine = manifest.Lines[i];
+				if (manifestLine == null || manifestLine.PackableQuantity <= 0)
+					continue;
+
+				int available = GetAvailableLabeledQuantity(buffer, manifestLine.ItemId);
+				sourceQuantity += Mathf.Min(available, manifestLine.PackableQuantity);
+			}
+
+			if (sourceQuantity <= 0)
+				continue;
+
+			++sourceCount;
+			itemQuantity += sourceQuantity;
+		}
+	}
+
+	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint requestedBuildingId, out WorkLine line)
 	{
 		line = null;
 		BoxBase workerBox = worker?.CarryingAbility?.CarryingBox;
-		if (building == null || workerBox == null)
+		if (worker == null || workerBox == null || requestedBuildingId != buildingId || BufferService == null)
 			return WorkPlanResult.Waiting;
 
 		if (HasReachedBoxFillLimit(workerBox))
 			return WorkPlanResult.SwitchPhase;
 
-		List<IItemContainer> deferredContainers = null;
-		while (building.TryTakeDirtyItemContainer(out IItemContainer container))
+		CapsuleBuffer bestBuffer = null;
+		PickingManifestLine bestManifestLine = null;
+		int bestQuantity = 0;
+		int bestDistance = int.MaxValue;
+		foreach (CapsuleBuffer buffer in BufferService.GetBuffers(buildingId))
 		{
-			if (TryBuildCollectLine(worker, container, out line))
+			if (CanUseSource(buffer) == false ||
+				InteractionPointSelector.TryGetInteractionPointInBuilding(
+					buffer,
+					InteractionKind.Pick,
+					worker.GridPosition,
+					buildingId,
+					out _,
+					out int distance) == false ||
+				distance >= bestDistance ||
+				TryFindAvailableManifestLine(buffer, workerBox, out PickingManifestLine manifestLine, out int quantity, out _) == false)
 			{
-				RestoreDeferredContainers(deferredContainers);
-				return WorkPlanResult.Issued;
+				continue;
 			}
 
-			if (container is CapsuleBuffer buffer && building.CanBuildPackingInputTask(buffer))
-			{
-				deferredContainers ??= new List<IItemContainer>();
-				deferredContainers.Add(container);
-			}
+			bestBuffer = buffer;
+			bestManifestLine = manifestLine;
+			bestQuantity = quantity;
+			bestDistance = distance;
 		}
 
-		RestoreDeferredContainers(deferredContainers);
-		return workerBox.Stacks.Count > 0
-			? WorkPlanResult.SwitchPhase
-			: WorkPlanResult.Completed;
+		if (bestBuffer == null || bestManifestLine == null || bestQuantity <= 0)
+			return workerBox.Stacks.Count > 0
+				? WorkPlanResult.SwitchPhase
+				: WorkPlanResult.Completed;
+
+		int reserved = bestBuffer.ReservePicking(bestManifestLine.ItemId, bestQuantity);
+		if (reserved <= 0)
+			return WorkPlanResult.Waiting;
+
+		line = new WorkLine(
+			WorkLineAction.Pick,
+			bestBuffer,
+			bestBuffer,
+			bestManifestLine.ItemId,
+			reserved,
+			bestManifestLine.OrderLine,
+			ItemStatus.Labeled,
+			excludedQuality: ItemQuality.Waste);
+		return WorkPlanResult.Issued;
 	}
 
 	public WorkPlanResult OnCollectCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
 	{
 		ReleaseUnmovedReservation(line, result);
 
-		if (line?.Container != null)
+		if (result.Moved > 0)
 		{
-			if (building.HasAvailablePackingInput(line.Container))
-				building.MarkItemContainerDirty(line.Container);
-			else
-				building.ClearItemContainerDirty(line.Container);
+			TransferPickingManifest(
+				line?.Container,
+				worker?.CarryingAbility?.CarryingBox,
+				line?.RelatedOrderLine,
+				line != null ? line.ItemID : 0,
+				result.Moved);
 		}
 
+		EvaluateWork();
 		if (result.Moved <= 0)
+		{
 			return worker?.CarryingAbility?.CarryingBox?.Stacks.Count > 0
 				? WorkPlanResult.SwitchPhase
 				: WorkPlanResult.Completed;
+		}
 
-		BoxBase workerBox = worker?.CarryingAbility?.CarryingBox;
-		TransferPickingManifest(line.Container, workerBox, line.RelatedOrderLine, line.ItemID, result.Moved);
-		return HasReachedBoxFillLimit(workerBox)
+		return HasReachedBoxFillLimit(worker?.CarryingAbility?.CarryingBox)
 			? WorkPlanResult.SwitchPhase
 			: WorkPlanResult.Issued;
 	}
 
-	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine collectedLine, int remainingQuantity, out WorkLine line)
+	public WorkPlanResult TryGetPlaceLine(
+		AIWorker worker,
+		uint requestedBuildingId,
+		WorkLine collectedLine,
+		int remainingQuantity,
+		out WorkLine line)
 	{
 		line = null;
-		PackingStationService stationService = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc?.PackingStationService : null;
+		PackingStationService stationService = GameContext.HasInstance
+			? GameContext.Instance.OBWorkflowSvc?.PackingStationService
+			: null;
 		BoxBase box = worker?.CarryingAbility?.CarryingBox;
 		FacilityFilter filter = FacilityFilter.ForTransfer(
 			box,
@@ -79,15 +179,29 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 				collectedLine.RequiredStatus.HasValue == false ||
 				stack.HasStatus(collectedLine.RequiredStatus.Value),
 			worker);
-		if (stationService == null || stationService.TryClaimWaitingStation(buildingId, filter, out PackingStation station) == false)
+		if (stationService == null ||
+			requestedBuildingId != buildingId ||
+			stationService.TryClaimWaitingStation(buildingId, filter, out PackingStation station) == false)
+		{
 			return WorkPlanResult.Waiting;
+		}
 
-		line = new WorkLine(WorkLineAction.Put, station, station, collectedLine != null ? collectedLine.ItemID : 0, 1);
+		line = new WorkLine(
+			WorkLineAction.Put,
+			station,
+			station,
+			collectedLine != null ? collectedLine.ItemID : 0,
+			1);
 		return WorkPlanResult.Issued;
 	}
 
-	public WorkPlanResult OnPlaceCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result)
+	public WorkPlanResult OnPlaceCompleted(
+		AIWorker worker,
+		WorkLine collectedLine,
+		WorkLine placeLine,
+		ItemTransferResult result)
 	{
+		EvaluateWork();
 		if (result.Moved > 0)
 			return WorkPlanResult.Completed;
 
@@ -108,83 +222,118 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 			int remaining = Mathf.Max(0, line.Quantity - line.CompleteQuantity);
 			if (remaining > 0)
 				reservable.ReleaseReservedPick(line.ItemID, remaining);
-
-			FacilityManager facilityManager = GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
-			if (line.Container is IFacility facility && facilityManager?.IsInvalidating(facility) == true)
-				building?.ClearItemContainerDirty(line.Container);
-			else if (line.Container != null)
-				building?.MarkItemContainerDirty(line.Container);
 		}
 		else if (task.Phase == ItemTransferPhase.Place && line?.Target is PackingStation station)
 		{
 			station.SetIncomingRequestSuspended(false);
 		}
+
+		EvaluateWork();
 	}
 
-	private bool TryBuildCollectLine(AIWorker worker, IItemContainer container, out WorkLine line)
+	private bool CanUseSource(CapsuleBuffer buffer)
 	{
-		line = null;
-		if (container == null || container is not IGridPlaceable target || container is not IItemPickReservable reservable)
-			return false;
-
-		BoxBase sourceBox = ResolveManifestBox(container);
-		BoxBase workerBox = worker.CarryingAbility.CarryingBox;
-		if (sourceBox == null || workerBox == null || GameContext.HasInstance == false)
-			return false;
-
-		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
-		if (outbound == null || outbound.TryGetPickingManifest(sourceBox, out PickingManifest manifest) == false)
-			return false;
-
-		IReadOnlyList<PickingManifestLine> manifestLines = manifest.Lines;
-		for (int i = 0; i < manifestLines.Count; ++i)
+		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
+			GameContext.HasInstance == false ||
+			capsule.RouteKind != CargoRouteKind.Standard ||
+			capsule.LogisticsState != CapsuleLogisticsState.Inside ||
+			buffer.CanProvideInboundItems() == false ||
+			BufferService?.IsExplicitRuleMatchedBuffer(
+				buffer,
+				capsule,
+				CapsuleBufferStateRequirement.Inside,
+				CargoProcessStage.Picked,
+				evaluateLaunchReadiness: false) != true ||
+			TryGetManifest(buffer, out PickingManifest manifest) == false ||
+			manifest.IsEmpty)
 		{
-			PickingManifestLine manifestLine = manifestLines[i];
-			if (manifestLine == null || manifestLine.PackableQuantity <= 0)
+			return false;
+		}
+
+		FacilityManager facilityManager = GameContext.Instance.FacilityMgr;
+		if (facilityManager?.IsInvalidating(buffer) == true ||
+			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(buffer) == true)
+		{
+			return false;
+		}
+
+		CapsuleRelocateCoordinator coordinator = GameContext.Instance.ExistingCapsuleRelocateCoordinator;
+		return coordinator == null ||
+			(coordinator.IsPlayerClaimed(buffer) == false &&
+			 coordinator.IsReserved(buffer) == false &&
+			 coordinator.IsRelocationSourceActive(buffer) == false &&
+			 coordinator.IsRelocationTargetActive(buffer) == false);
+	}
+
+	private static bool TryGetManifest(CapsuleBuffer buffer, out PickingManifest manifest)
+	{
+		manifest = null;
+		return buffer?.DockedCapsule != null &&
+			GameContext.HasInstance &&
+			GameContext.Instance.OBWorkflowSvc?.TryGetPickingManifest(buffer.DockedCapsule, out manifest) == true;
+	}
+
+	private static bool TryFindAvailableManifestLine(
+		CapsuleBuffer buffer,
+		BoxBase targetBox,
+		out PickingManifestLine manifestLine,
+		out int quantity,
+		out int available)
+	{
+		manifestLine = null;
+		quantity = 0;
+		available = 0;
+		if (TryGetManifest(buffer, out PickingManifest manifest) == false)
+			return false;
+
+		for (int i = 0; i < manifest.Lines.Count; ++i)
+		{
+			PickingManifestLine candidate = manifest.Lines[i];
+			if (candidate?.OrderLine == null || candidate.PackableQuantity <= 0)
 				continue;
 
-			if (building.TryFindAvailablePackingInput(container, manifestLine.ItemId, out ItemStatus sourceStatus, out int available) == false)
-				continue;
-
-			int acceptable = GetAcceptableQuantityWithinFillLimit(
-				workerBox,
-				manifestLine.ItemId,
-				manifestLine.PackableQuantity);
-			int quantity = Mathf.Min(available, manifestLine.PackableQuantity, acceptable);
+			available = GetAvailableLabeledQuantity(buffer, candidate.ItemId);
+			int acceptable = targetBox != null
+				? GetAcceptableQuantityWithinFillLimit(targetBox, candidate.ItemId, candidate.PackableQuantity)
+				: candidate.PackableQuantity;
+			quantity = Mathf.Min(available, candidate.PackableQuantity, acceptable);
 			if (quantity <= 0)
 				continue;
 
-			int reserved = reservable.ReservePicking(manifestLine.ItemId, quantity);
-			if (reserved <= 0)
-				continue;
-
-			line = new WorkLine(
-				WorkLineAction.Pick,
-				container,
-				target,
-				manifestLine.ItemId,
-				reserved,
-				manifestLine.OrderLine,
-				sourceStatus);
-
-			if (building.HasAvailablePackingInput(container))
-				building.MarkItemContainerDirty(container);
-			else
-				building.ClearItemContainerDirty(container);
-
+			manifestLine = candidate;
 			return true;
 		}
 
 		return false;
 	}
 
-	private void RestoreDeferredContainers(List<IItemContainer> containers)
+	private static int GetAvailableLabeledQuantity(CapsuleBuffer buffer, uint itemId)
 	{
-		if (containers == null)
-			return;
+		if (buffer == null || itemId == 0)
+			return 0;
 
-		for (int i = 0; i < containers.Count; ++i)
-			building.MarkItemContainerDirty(containers[i]);
+		int physical = 0;
+		for (int i = 0; i < buffer.Stacks.Count; ++i)
+		{
+			ItemStack stack = buffer.Stacks[i];
+			if (stack != null &&
+				stack.ItemID == itemId &&
+				stack.Quantity > 0 &&
+				stack.HasStatus(ItemStatus.Labeled) &&
+				stack.HasQuality(ItemQuality.Waste) == false)
+			{
+				physical += stack.Quantity;
+			}
+		}
+
+		int reserved = buffer.ItemToBePicked.GetValueOrDefault(itemId);
+		return Mathf.Max(0, physical - reserved);
+	}
+
+	private void EvaluateWork()
+	{
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.EvaluatePackingInputWork(buildingId);
 	}
 
 	private static bool HasReachedBoxFillLimit(BoxBase box)
@@ -192,8 +341,7 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 		if (box == null || box.MaxSize <= 0.0f)
 			return false;
 
-		float filledPercent = (box.TotalSize / box.MaxSize) * 100.0f;
-		return filledPercent >= GetBoxFillLimitPercent();
+		return (box.TotalSize / box.MaxSize) * 100.0f >= GetBoxFillLimitPercent();
 	}
 
 	private static int GetAcceptableQuantityWithinFillLimit(BoxBase box, uint itemId, int requested)
@@ -210,13 +358,11 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 		if (itemSize <= 0.0f)
 			return 0;
 
-		float fillLimit = box.MaxSize * GetBoxFillLimitPercent() / 100.0f;
-		float remainingSize = fillLimit - box.TotalSize;
+		float remainingSize = box.MaxSize * GetBoxFillLimitPercent() / 100.0f - box.TotalSize;
 		if (remainingSize <= 0.0f)
 			return 0;
 
-		int fillLimitAcceptable = Mathf.FloorToInt((remainingSize / itemSize) + 0.0001f);
-		return Mathf.Min(acceptable, fillLimitAcceptable);
+		return Mathf.Min(acceptable, Mathf.FloorToInt((remainingSize / itemSize) + 0.0001f));
 	}
 
 	private static float GetBoxFillLimitPercent()
@@ -230,9 +376,9 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 		if (line?.Container is not IItemPickReservable reservable)
 			return;
 
-		int remainingReservation = Mathf.Max(0, line.Quantity - result.Moved);
-		if (remainingReservation > 0)
-			reservable.ReleaseReservedPick(line.ItemID, remainingReservation);
+		int remaining = Mathf.Max(0, line.Quantity - result.Moved);
+		if (remaining > 0)
+			reservable.ReleaseReservedPick(line.ItemID, remaining);
 	}
 
 	private static void TransferPickingManifest(
@@ -245,11 +391,18 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 		if (quantity <= 0 || GameContext.HasInstance == false)
 			return;
 
-		BoxBase sourceBox = ResolveManifestBox(sourceContainer);
+		BoxBase sourceBox = sourceContainer switch
+		{
+			BoxBase box => box,
+			CapsuleBuffer buffer => buffer.DockedCapsule,
+			_ => null,
+		};
 		if (sourceBox == null ||
 			targetBox == null ||
 			PickingManifestKey.From(sourceBox) == PickingManifestKey.From(targetBox))
+		{
 			return;
+		}
 
 		GameContext.Instance.OBWorkflowSvc?.TransferPickingManifest(
 			sourceBox,
@@ -258,15 +411,5 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 			itemId,
 			quantity,
 			false);
-	}
-
-	private static BoxBase ResolveManifestBox(IItemContainer container)
-	{
-		return container switch
-		{
-			BoxBase box => box,
-			CapsuleBuffer buffer => buffer.DockedCapsule,
-			_ => null,
-		};
 	}
 }

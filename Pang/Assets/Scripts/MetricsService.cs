@@ -215,9 +215,9 @@ public class MetricsService : MonoBehaviour
 		{
 			LogisticsWorkCategory.Picking => GetPickingDemandSnapshot(building.RuntimeBuildingId),
 			LogisticsWorkCategory.Storing => GetStoringDemandSnapshot(building.RuntimeBuildingId),
-			LogisticsWorkCategory.PackingInput => GetPackingBuildingDemand(building as PackingBuilding, input: true),
+			LogisticsWorkCategory.PackingInput => GetPackingTransferDemand(building.RuntimeBuildingId, input: true),
 			LogisticsWorkCategory.Packing => GetPackingDemandSnapshot(building.RuntimeBuildingId),
-			LogisticsWorkCategory.PackingOutput => GetPackingBuildingDemand(building as PackingBuilding, input: false),
+			LogisticsWorkCategory.PackingOutput => GetPackingTransferDemand(building.RuntimeBuildingId, input: false),
 			LogisticsWorkCategory.CapsuleRelocate => GetCapsuleRelocateDemandSnapshot(building.RuntimeBuildingId),
 			_ => default,
 		};
@@ -262,52 +262,42 @@ public class MetricsService : MonoBehaviour
 
 	private static WorkDemandSnapshot GetPackingInputDemandSnapshot()
 	{
-		return GetPackingBuildingDemand(input: true);
+		return GetPackingTransferDemand(input: true);
 	}
 
 	private static WorkDemandSnapshot GetPackingOutputDemandSnapshot()
 	{
-		return GetPackingBuildingDemand(input: false);
+		return GetPackingTransferDemand(input: false);
 	}
 
-	private static WorkDemandSnapshot GetPackingBuildingDemand(bool input)
+	private static WorkDemandSnapshot GetPackingTransferDemand(bool input)
 	{
-		int sourceCount = 0;
-		int itemQuantity = 0;
-		IReadOnlyList<Building> buildings = GameContext.Instance.BuildingMgr?.RegisteredBuildings;
-		if (buildings == null)
-			return default;
-
-		for (int i = 0; i < buildings.Count; ++i)
-		{
-			if (buildings[i] is not PackingBuilding packingBuilding)
-				continue;
-
-			int buildingSources;
-			int buildingQuantity;
-			if (input)
-				packingBuilding.GetPackingInputDemand(out buildingSources, out buildingQuantity);
-			else
-				packingBuilding.GetPackingOutputDemand(out buildingSources, out buildingQuantity);
-
-			sourceCount += buildingSources;
-			itemQuantity += buildingQuantity;
-		}
-
-		return new WorkDemandSnapshot(sourceCount, itemQuantity);
-	}
-
-	private static WorkDemandSnapshot GetPackingBuildingDemand(PackingBuilding packingBuilding, bool input)
-	{
-		if (packingBuilding == null)
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		if (outbound == null)
 			return default;
 
 		int sourceCount;
 		int itemQuantity;
 		if (input)
-			packingBuilding.GetPackingInputDemand(out sourceCount, out itemQuantity);
+			outbound.GetPackingInputDemand(out sourceCount, out itemQuantity);
 		else
-			packingBuilding.GetPackingOutputDemand(out sourceCount, out itemQuantity);
+			outbound.GetPackingOutputDemand(out sourceCount, out itemQuantity);
+
+		return new WorkDemandSnapshot(sourceCount, itemQuantity);
+	}
+
+	private static WorkDemandSnapshot GetPackingTransferDemand(uint buildingId, bool input)
+	{
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		if (outbound == null || buildingId == 0)
+			return default;
+
+		int sourceCount;
+		int itemQuantity;
+		if (input)
+			outbound.GetPackingInputDemand(buildingId, out sourceCount, out itemQuantity);
+		else
+			outbound.GetPackingOutputDemand(buildingId, out sourceCount, out itemQuantity);
 
 		return new WorkDemandSnapshot(sourceCount, itemQuantity);
 	}

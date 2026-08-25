@@ -95,6 +95,30 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 		return IsRuleMatchedBuffer(buffer, capsule, filter, ruleManager, FacilityManager);
 	}
 
+	public bool IsExplicitRuleMatchedBuffer(
+		CapsuleBuffer buffer,
+		CargoCapsule capsule,
+		CapsuleBufferStateRequirement requiredBufferState,
+		CargoProcessStage requiredCargoStage,
+		bool evaluateLaunchReadiness)
+	{
+		if (buffer == null ||
+			capsule == null ||
+			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId)
+		{
+			return false;
+		}
+
+		FacilityRuleManager ruleManager = GameContext.HasInstance
+			? GameContext.Instance.FacilityRuleMgr
+			: null;
+		return ruleManager != null &&
+			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
+			preset?.Rule?.RequiredCapsuleBufferState == requiredBufferState &&
+			preset.Rule.RequiredCargoProcessStage == requiredCargoStage &&
+			IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness);
+	}
+
 	public bool TryGetRegisteredBuildingId(CapsuleBuffer buffer, out uint buildingId)
 	{
 		if (buffer != null && registeredBuildingIdByBuffer.TryGetValue(buffer, out buildingId))

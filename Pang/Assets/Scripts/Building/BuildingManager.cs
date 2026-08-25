@@ -7,8 +7,6 @@ public sealed partial class BuildingManager : MonoBehaviour
 	[SerializeField] [HideInInspector] private uint nextRuntimeBuildingId = 1;
 
 	private readonly Dictionary<uint, Building> buildingsById = new();
-	private readonly HashSet<LaunchBuilding> pendingLaunchQualityEvaluations = new();
-	private readonly List<LaunchBuilding> launchQualityEvaluationScratch = new();
 
 	public IReadOnlyList<Building> RegisteredBuildings => registeredBuildings;
 	public event System.Action OnBuildingsChanged;
@@ -20,15 +18,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 
 	private void LateUpdate()
 	{
-		if (pendingLaunchQualityEvaluations.Count > 0)
-		{
-			launchQualityEvaluationScratch.Clear();
-			launchQualityEvaluationScratch.AddRange(pendingLaunchQualityEvaluations);
-			pendingLaunchQualityEvaluations.Clear();
-			for (int i = 0; i < launchQualityEvaluationScratch.Count; ++i)
-				launchQualityEvaluationScratch[i]?.EvaluateLaunchSortWork();
-			launchQualityEvaluationScratch.Clear();
-		}
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.ProcessPendingLaunchSortEvaluations();
 
 		CapsuleRelocateCoordinator coordinator = GameContext.HasInstance
 			? GameContext.Instance.CapsuleRelocateCoordinator
@@ -98,8 +89,6 @@ public sealed partial class BuildingManager : MonoBehaviour
 
 		RemoveBuildingLinks(building);
 		bool removed = registeredBuildings.Remove(building);
-		if (building is LaunchBuilding launchBuilding)
-			pendingLaunchQualityEvaluations.Remove(launchBuilding);
 		if (building.RuntimeBuildingId != 0)
 			buildingsById.Remove(building.RuntimeBuildingId);
 
@@ -160,8 +149,8 @@ public sealed partial class BuildingManager : MonoBehaviour
 			building.ItemIndex.RefreshContainer(indexedContainer);
 			if (indexedContainer is CapsuleBuffer capsuleBuffer && GameContext.HasInstance)
 				GameContext.Instance.CapsuleRelocateCoordinator.MarkDirty(capsuleBuffer);
-			if (building is LaunchBuilding launchBuilding)
-				pendingLaunchQualityEvaluations.Add(launchBuilding);
+			if (indexedContainer is CapsuleBuffer && building.RuntimeBuildingId != 0 && GameContext.HasInstance)
+				GameContext.Instance.OBWorkflowSvc?.QueueLaunchSortEvaluation(building.RuntimeBuildingId);
 		}
 	}
 
@@ -330,8 +319,6 @@ public sealed partial class BuildingManager : MonoBehaviour
 	public void RebuildLookup()
 	{
 		buildingsById.Clear();
-		pendingLaunchQualityEvaluations.Clear();
-		launchQualityEvaluationScratch.Clear();
 		registeredBuildings.RemoveAll(building => building == null);
 
 		foreach (var building in registeredBuildings)
@@ -417,14 +404,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 		BuildingType buildingType,
 		int addonSlotCapacity)
 	{
-		Building building = buildingType switch
-		{
-			BuildingType.Staging => new Building(displayName, ownedCells, buildingType),
-			BuildingType.Storage => new Building(displayName, ownedCells, buildingType),
-			BuildingType.Packing => new PackingBuilding(displayName, ownedCells),
-			BuildingType.Launch => new LaunchBuilding(displayName, ownedCells),
-			_ => new Building(displayName, ownedCells, buildingType),
-		};
+		Building building = new(displayName, ownedCells, buildingType);
 
 		building.SetAddonSlotCapacity(addonSlotCapacity);
 		return building;

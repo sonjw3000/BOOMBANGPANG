@@ -2,22 +2,34 @@ using UnityEngine;
 
 public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTaskInvalidationHandler
 {
-	private readonly PackingBuilding building;
+	private readonly uint buildingId;
 
-	public PackingOutputPlanner(PackingBuilding building)
+	public uint BuildingId => buildingId;
+
+	private PackingStationService StationService =>
+		GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc?.PackingStationService : null;
+	private CapsuleBufferService BufferService =>
+		GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
+
+	public PackingOutputPlanner(uint buildingId)
 	{
-		this.building = building;
+		this.buildingId = buildingId;
 	}
 
-	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
+	public bool HasAvailableWork()
+	{
+		return buildingId != 0 && StationService?.HasCompletedOutput(buildingId) == true;
+	}
+
+	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint requestedBuildingId, out WorkLine line)
 	{
 		line = null;
-		if (building == null)
+		if (requestedBuildingId != buildingId || StationService == null)
 			return WorkPlanResult.Completed;
 
-		while (building.TryTakeDirtyPackingOutputStation(out PackingStation station))
+		while (StationService.TryClaimCompletedOutput(buildingId, out PackingStation station))
 		{
-			if (building.CanBuildPackingOutputTask(station) == false)
+			if (station?.EndPackingBox == null)
 				continue;
 
 			line = new WorkLine(WorkLineAction.Pick, station, station, 0, 1);
@@ -31,99 +43,206 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 	{
 		if (result.Moved <= 0)
 		{
-			PackingStation sourceStation = line?.Target as PackingStation;
-			if (sourceStation != null && building.CanBuildPackingOutputTask(sourceStation))
-				building.MarkPackingOutputDirty(sourceStation);
+			if (line?.Target is PackingStation sourceStation && sourceStation.EndPackingBox != null)
+				StationService?.ReturnCompletedOutput(buildingId, sourceStation);
 
+			EvaluateWork();
 			return WorkPlanResult.Completed;
 		}
 
+		EvaluateWork();
 		return WorkPlanResult.SwitchPhase;
 	}
 
-	public WorkPlanResult TryGetPlaceLine(AIWorker worker, uint buildingId, WorkLine collectedLine, int remainingQuantity, out WorkLine line)
+	public WorkPlanResult TryGetPlaceLine(
+		AIWorker worker,
+		uint requestedBuildingId,
+		WorkLine collectedLine,
+		int remainingQuantity,
+		out WorkLine line)
 	{
 		line = null;
 		BoxBase sourceBox = worker?.CarryingAbility?.CarryingBox;
-		if (sourceBox == null)
+		if (worker == null ||
+			sourceBox == null ||
+			requestedBuildingId != buildingId ||
+			BufferService == null)
+		{
 			return WorkPlanResult.Completed;
+		}
 
-		PackingStation sourceStation = collectedLine?.Target as PackingStation;
-		OutboundWorkflowService outbound = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
-		PackingStationService stationService = outbound?.PackingStationService;
-		if (stationService == null)
-			return WorkPlanResult.Waiting;
-		outbound.TryGetPickingManifest(sourceBox, out PickingManifest manifest);
-
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		PickingManifest manifest = null;
+		if (outbound != null)
+			outbound.TryGetPickingManifest(sourceBox, out manifest);
 		bool hasPackedPayload = false;
+		CapsuleBuffer bestBuffer = null;
+		ItemStack bestStack = null;
+		int bestMovable = 0;
+		int bestPriority = int.MinValue;
+		int bestDistance = int.MaxValue;
 		for (int i = 0; i < sourceBox.Stacks.Count; ++i)
 		{
 			ItemStack stack = sourceBox.Stacks[i];
-			if (stack == null || stack.Quantity <= 0 || stack.HasStatus(ItemStatus.Packed) == false)
+			if (stack == null ||
+				stack.Quantity <= 0 ||
+				stack.HasStatus(ItemStatus.Packed) == false ||
+				stack.HasQuality(ItemQuality.Waste))
+			{
 				continue;
+			}
 
 			hasPackedPayload = true;
-			FacilityFilter filter = FacilityFilter.WithCapsuleBufferState(
-				FacilityFilter.WithCargoProcessStage(
-					FacilityFilter.ForManifestTransfer(
-						sourceBox,
-						manifest,
-						stack.ItemID,
-						stack.Quantity,
-						candidate => candidate.HasStatus(ItemStatus.Packed),
-						worker),
-					CargoProcessStage.Packed),
-				CapsuleBufferStateRequirement.Inside);
-			if (stationService.TryResolveOutboundBuffer(sourceStation, filter, out CapsuleBuffer targetBuffer) == false)
-				continue;
+			FacilityFilter projectedInputFilter = FacilityFilter.WithCapsuleBufferState(
+				FacilityFilter.ForManifestTransfer(
+					sourceBox,
+					manifest,
+					stack.ItemID,
+					stack.Quantity,
+					candidate => candidate.HasStatus(ItemStatus.Packed) &&
+						candidate.HasQuality(ItemQuality.Waste) == false,
+					worker),
+				CapsuleBufferStateRequirement.Empty);
 
-			int movable = ItemTransferUtility.GetMovableQuantity(
-				sourceBox,
-				targetBuffer,
-				stack.ItemID,
-				stack.Quantity,
-				candidate => candidate.HasStatus(ItemStatus.Packed));
-			if (movable <= 0)
-				continue;
+			foreach (CapsuleBuffer candidate in BufferService.GetBuffers(buildingId))
+			{
+				if (IsEmptyInputRuleMatchedBuffer(candidate, projectedInputFilter) == false)
+					continue;
 
-			line = new WorkLine(
-				WorkLineAction.Put,
-				targetBuffer,
-				targetBuffer,
-				stack.ItemID,
-				movable,
-				null,
-				ItemStatus.Packed);
-			return WorkPlanResult.Issued;
+				int movable = ItemTransferUtility.GetMovableQuantity(
+					sourceBox,
+					candidate,
+					stack.ItemID,
+					stack.Quantity,
+					item => item.HasStatus(ItemStatus.Packed) &&
+						item.HasQuality(ItemQuality.Waste) == false);
+				if (movable <= 0 ||
+					InteractionPointSelector.TryGetInteractionPointInBuilding(
+						candidate,
+						InteractionKind.Put,
+						worker.GridPosition,
+						buildingId,
+						out _,
+						out int distance) == false)
+				{
+					continue;
+				}
+
+				int priority = GetRulePriority(candidate);
+				bool isBetter = bestBuffer == null ||
+					priority > bestPriority ||
+					(priority == bestPriority && movable > bestMovable) ||
+					(priority == bestPriority && movable == bestMovable && distance < bestDistance);
+				if (isBetter == false)
+					continue;
+
+				bestBuffer = candidate;
+				bestStack = stack;
+				bestMovable = movable;
+				bestPriority = priority;
+				bestDistance = distance;
+			}
 		}
 
-		return hasPackedPayload ? WorkPlanResult.Waiting : WorkPlanResult.Completed;
+		if (bestBuffer == null || bestStack == null || bestMovable <= 0)
+			return hasPackedPayload ? WorkPlanResult.Waiting : WorkPlanResult.Completed;
+
+		line = new WorkLine(
+			WorkLineAction.Put,
+			bestBuffer,
+			bestBuffer,
+			bestStack.ItemID,
+			bestMovable,
+			null,
+			ItemStatus.Packed,
+			excludedQuality: ItemQuality.Waste);
+		return WorkPlanResult.Issued;
 	}
 
-	public WorkPlanResult OnPlaceCompleted(AIWorker worker, WorkLine collectedLine, WorkLine placeLine, ItemTransferResult result)
+	public WorkPlanResult OnPlaceCompleted(
+		AIWorker worker,
+		WorkLine collectedLine,
+		WorkLine placeLine,
+		ItemTransferResult result)
 	{
 		if (result.Moved <= 0)
 			return WorkPlanResult.Waiting;
 
 		TransferPackedManifest(worker?.CarryingAbility?.CarryingBox, placeLine);
-		if (IsWorkerCarryBoxEmpty(worker) == false)
-			return WorkPlanResult.Issued;
-
-		return WorkPlanResult.Completed;
+		EvaluateWork();
+		return IsWorkerCarryBoxEmpty(worker)
+			? WorkPlanResult.Completed
+			: WorkPlanResult.Issued;
 	}
 
 	public void OnTaskInvalidated(ItemTransferTask task)
 	{
-		if (task?.Phase != ItemTransferPhase.Collect || task.CurrentLine?.Target is not PackingStation station)
-			return;
-
-		FacilityManager facilityManager = GameContext.HasInstance ? GameContext.Instance.FacilityMgr : null;
-		if (building != null &&
-			(facilityManager == null || facilityManager.IsInvalidating(station) == false) &&
-			building.CanBuildPackingOutputTask(station))
+		if (task?.Phase == ItemTransferPhase.Collect &&
+			task.CurrentLine?.Target is PackingStation station &&
+			station.EndPackingBox != null)
 		{
-			building.MarkPackingOutputDirty(station);
+			FacilityManager facilityManager = GameContext.HasInstance
+				? GameContext.Instance.FacilityMgr
+				: null;
+			if (facilityManager == null || facilityManager.IsInvalidating(station) == false)
+				StationService?.ReturnCompletedOutput(buildingId, station);
 		}
+
+		EvaluateWork();
+	}
+
+	private bool IsEmptyInputRuleMatchedBuffer(
+		CapsuleBuffer buffer,
+		FacilityFilter projectedInputFilter)
+	{
+		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
+			capsule.RouteKind != CargoRouteKind.Standard ||
+			capsule.LogisticsState != CapsuleLogisticsState.Empty ||
+			buffer.IsCapsuleEmpty() == false ||
+			buffer.CanReceiveOutboundItems() == false ||
+			projectedInputFilter.CapsuleBufferState != CapsuleBufferStateRequirement.Empty ||
+			projectedInputFilter.CargoProcessStage != CargoProcessStage.None ||
+			BufferService?.IsExplicitRuleMatchedBuffer(
+				buffer,
+				capsule,
+				CapsuleBufferStateRequirement.Empty,
+				CargoProcessStage.None,
+				evaluateLaunchReadiness: false) != true ||
+			projectedInputFilter.MatchesCurrentRules(buffer) == false)
+		{
+			return false;
+		}
+
+		FacilityManager facilityManager = GameContext.Instance.FacilityMgr;
+		if (facilityManager?.IsInvalidating(buffer) == true ||
+			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(buffer) == true)
+		{
+			return false;
+		}
+
+		CapsuleRelocateCoordinator coordinator = GameContext.Instance.ExistingCapsuleRelocateCoordinator;
+		return coordinator == null ||
+			(coordinator.IsPlayerClaimed(buffer) == false &&
+			 coordinator.IsReserved(buffer) == false &&
+			 coordinator.IsRelocationSourceActive(buffer) == false &&
+			 coordinator.IsRelocationTargetActive(buffer) == false);
+	}
+
+	private static int GetRulePriority(CapsuleBuffer buffer)
+	{
+		FacilityRuleManager manager = GameContext.HasInstance ? GameContext.Instance.FacilityRuleMgr : null;
+		return buffer != null &&
+			manager != null &&
+			manager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
+			preset?.Rule != null
+			? preset.Rule.Priority
+			: 0;
+	}
+
+	private void EvaluateWork()
+	{
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.EvaluatePackingOutputWork(buildingId);
 	}
 
 	private static void TransferPackedManifest(BoxBase sourceBox, WorkLine placeLine)

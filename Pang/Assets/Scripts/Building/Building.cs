@@ -227,7 +227,10 @@ public class Building
 	private void MarkBuildingRoutingDirty()
 	{
 		if (runtimeBuildingId != 0 && GameContext.HasInstance)
+		{
+			GameContext.Instance.OBWorkflowSvc?.QueueLaunchSortEvaluation(runtimeBuildingId);
 			GameContext.Instance.CapsuleRelocateCoordinator.MarkBuildingDirty(runtimeBuildingId);
+		}
 	}
 
 	protected static void MarkDockRoutingDirty(CapsuleDock dock)

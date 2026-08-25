@@ -65,15 +65,11 @@ public static class WorkerTaskAssignmentPolicy
 			case WorkerTask.TaskType.Labeling:
 			case WorkerTask.TaskType.Storing:
 			case WorkerTask.TaskType.Picking:
-				return buildingType.HasValue;
-
 			case WorkerTask.TaskType.Packing:
 			case WorkerTask.TaskType.PackingInput:
 			case WorkerTask.TaskType.PackingOutput:
-				return buildingType == BuildingType.Packing;
-
 			case WorkerTask.TaskType.LaunchSort:
-				return buildingType == BuildingType.Launch;
+				return buildingType.HasValue;
 
 			default:
 				return false;

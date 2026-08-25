@@ -313,22 +313,24 @@ public sealed class GameSaveService : MonoBehaviour
 
 				if (task is ItemTransferTask recoveredWasteTask && task.Type == WorkerTask.TaskType.WasteCollection)
 					recoveredWasteTask.RestoreCollectedWastePayload(recoveryBox);
-				if (task is ItemTransferTask recoveredLaunchSortTask &&
-					task.Type == WorkerTask.TaskType.LaunchSort &&
-					taskData.ItemTransfer?.Phase == ItemTransferPhase.Place &&
-					recoveredLaunchSortTask.RestoreCollectedLaunchSortPayload(recoveryBox) == false)
+				if (task is ItemTransferTask recoveredItemTransferTask &&
+					IsRestorableOutboundItemTransfer(task.Type) &&
+					RestoreOutboundPayloadForSavedPhase(
+						recoveredItemTransferTask,
+						recoveryBox,
+						taskData.ItemTransfer.Phase) == false)
 				{
 					Ctx.TaskMgr.DiscardRestoredTask(task);
-					Debug.LogWarning("[Save] LaunchSort recovery payload did not match its packed manifest.");
+					Debug.LogWarning($"[Save] {task.Type} recovery payload could not restore its place phase.");
 					continue;
 				}
 			}
-			else if (task.Type == WorkerTask.TaskType.LaunchSort &&
+			else if (IsRestorableOutboundItemTransfer(task.Type) &&
 				taskData.ItemTransfer?.Phase == ItemTransferPhase.Place &&
 				taskData.IsInProgress == false)
 			{
 				Ctx.TaskMgr.DiscardRestoredTask(task);
-				Debug.LogWarning("[Save] LaunchSort place phase had no recovery payload.");
+				Debug.LogWarning($"[Save] {task.Type} place phase had no recovery payload.");
 				continue;
 			}
 
@@ -363,13 +365,15 @@ public sealed class GameSaveService : MonoBehaviour
 				{
 					inProgressWasteTask.RestoreCollectedWastePayload(carriedBox);
 				}
-				if (task is ItemTransferTask inProgressLaunchSortTask &&
-					task.Type == WorkerTask.TaskType.LaunchSort &&
-					taskData.ItemTransfer?.Phase == ItemTransferPhase.Place &&
-					(carriedBox == null || inProgressLaunchSortTask.RestoreCollectedLaunchSortPayload(carriedBox) == false))
+				if (task is ItemTransferTask inProgressItemTransferTask &&
+					IsRestorableOutboundItemTransfer(task.Type) &&
+					RestoreOutboundPayloadForSavedPhase(
+						inProgressItemTransferTask,
+						carriedBox,
+						taskData.ItemTransfer.Phase) == false)
 				{
 					Ctx.TaskMgr.DiscardRestoredTask(task);
-					Debug.LogWarning("[Save] In-progress LaunchSort payload did not match its packed manifest.");
+					Debug.LogWarning($"[Save] In-progress {task.Type} payload could not restore its place phase.");
 					continue;
 				}
 
@@ -422,6 +426,7 @@ public sealed class GameSaveService : MonoBehaviour
 			}
 		}
 
+		Ctx.OBWorkflowSvc.PackingStationService.ReconcileRestoredIncomingRequests();
 		foreach (AIWorker worker in workersById.Values)
 			worker?.FinalizeNavigationRestoreFromSave();
 
@@ -487,6 +492,18 @@ public sealed class GameSaveService : MonoBehaviour
 		ItemTransferScheduleMode mode;
 		switch (task.Type)
 		{
+			case WorkerTask.TaskType.PackingInput when taskData.ItemTransfer != null:
+				buildingId = taskData.ItemTransfer.BuildingId;
+				preferredWorkerId = taskData.ItemTransfer.PreferredWorkerId;
+				mode = ItemTransferScheduleMode.PackingInput;
+				break;
+
+			case WorkerTask.TaskType.PackingOutput when taskData.ItemTransfer != null:
+				buildingId = taskData.ItemTransfer.BuildingId;
+				preferredWorkerId = taskData.ItemTransfer.PreferredWorkerId;
+				mode = ItemTransferScheduleMode.PackingOutput;
+				break;
+
 			case WorkerTask.TaskType.LaunchSort when taskData.ItemTransfer != null:
 				buildingId = taskData.ItemTransfer.BuildingId;
 				preferredWorkerId = taskData.ItemTransfer.PreferredWorkerId;
@@ -784,7 +801,10 @@ public sealed class GameSaveService : MonoBehaviour
 			case LabelingTask labeling:
 				taskData.Labeling = labeling.CaptureState(GetPlaceableIdOrDefault);
 				break;
-			case ItemTransferTask itemTransfer when itemTransfer.Type == WorkerTask.TaskType.LaunchSort:
+			case ItemTransferTask itemTransfer when
+				itemTransfer.Type is WorkerTask.TaskType.PackingInput or
+					WorkerTask.TaskType.PackingOutput or
+					WorkerTask.TaskType.LaunchSort:
 				taskData.ItemTransfer = itemTransfer.CaptureState();
 				break;
 			case ItemTransferTask itemTransfer when itemTransfer.Type == WorkerTask.TaskType.WasteCollection:
@@ -918,8 +938,10 @@ public sealed class GameSaveService : MonoBehaviour
 				return taskData.Packing?.Restore(restoredPlaceables);
 			case WorkerTask.TaskType.Labeling:
 				return taskData.Labeling?.Restore(restoredPlaceables);
+			case WorkerTask.TaskType.PackingInput:
+			case WorkerTask.TaskType.PackingOutput:
 			case WorkerTask.TaskType.LaunchSort:
-				return RestoreLaunchSortTask(taskData.ItemTransfer, workersById);
+				return RestoreOutboundItemTransferTask(taskData.TaskType, taskData.ItemTransfer, workersById);
 			case WorkerTask.TaskType.WasteCollection:
 				if (taskData.WasteCollection == null ||
 					workersById == null ||
@@ -934,7 +956,8 @@ public sealed class GameSaveService : MonoBehaviour
 		}
 	}
 
-	private ItemTransferTask RestoreLaunchSortTask(
+	private ItemTransferTask RestoreOutboundItemTransferTask(
+		WorkerTask.TaskType taskType,
 		ItemTransferTaskSaveData data,
 		Dictionary<uint, AIWorker> workersById)
 	{
@@ -942,21 +965,92 @@ public sealed class GameSaveService : MonoBehaviour
 			data.BuildingId == 0 ||
 			workersById == null ||
 			workersById.TryGetValue(data.PreferredWorkerId, out AIWorker preferredWorker) == false ||
-			Ctx.BuildingMgr.TryGetBuilding(data.BuildingId, out Building building) == false ||
-			building is not LaunchBuilding launchBuilding)
+			Ctx.OBWorkflowSvc == null)
 		{
 			return null;
 		}
 
+		IItemTransferPlanner planner;
+		TransferObjectType collectType;
+		TransferObjectType placeType;
+		switch (taskType)
+		{
+			case WorkerTask.TaskType.PackingInput
+				when Ctx.OBWorkflowSvc.TryGetPackingInputPlanner(data.BuildingId, out PackingInputPlanner packingInputPlanner):
+				planner = packingInputPlanner;
+				collectType = TransferObjectType.Item;
+				placeType = TransferObjectType.Box;
+				break;
+
+			case WorkerTask.TaskType.PackingOutput
+				when Ctx.OBWorkflowSvc.TryGetPackingOutputPlanner(data.BuildingId, out PackingOutputPlanner packingOutputPlanner):
+				planner = packingOutputPlanner;
+				collectType = TransferObjectType.Box;
+				placeType = TransferObjectType.Item;
+				break;
+
+			case WorkerTask.TaskType.LaunchSort
+				when Ctx.OBWorkflowSvc.TryGetLaunchSortPlanner(data.BuildingId, out LaunchSortPlanner launchSortPlanner):
+				planner = launchSortPlanner;
+				collectType = TransferObjectType.Item;
+				placeType = TransferObjectType.Item;
+				break;
+
+			default:
+				return null;
+		}
+
 		ItemTransferTask task = new(
-			WorkerTask.TaskType.LaunchSort,
+			taskType,
 			new ItemTransferJob(
-				launchBuilding.LaunchSortPlanner,
-				TransferObjectType.Item,
-				TransferObjectType.Item,
+				planner,
+				collectType,
+				placeType,
 				data.BuildingId,
 				preferredWorker));
 		return task;
+	}
+
+	private static bool IsRestorableOutboundItemTransfer(WorkerTask.TaskType taskType)
+	{
+		return taskType is WorkerTask.TaskType.PackingInput or
+			WorkerTask.TaskType.PackingOutput or
+			WorkerTask.TaskType.LaunchSort;
+	}
+
+	private static bool RestoreOutboundPayloadForSavedPhase(
+		ItemTransferTask task,
+		BoxBase payloadBox,
+		ItemTransferPhase savedPhase)
+	{
+		if (task == null)
+			return false;
+		if (savedPhase == ItemTransferPhase.Collect && HasPhysicalPayload(payloadBox) == false)
+			return true;
+		if (payloadBox == null)
+			return false;
+
+		if (task.Type == WorkerTask.TaskType.LaunchSort)
+			return task.RestoreCollectedLaunchSortPayload(payloadBox);
+
+		ItemTransferPhase restoredPhase = task.Type == WorkerTask.TaskType.PackingInput
+			? savedPhase
+			: ItemTransferPhase.Place;
+		return task.RestoreCollectedPackingPayloadForPhase(payloadBox, restoredPhase);
+	}
+
+	private static bool HasPhysicalPayload(BoxBase box)
+	{
+		if (box == null)
+			return false;
+
+		for (int i = 0; i < box.Stacks.Count; ++i)
+		{
+			if (box.Stacks[i]?.Quantity > 0)
+				return true;
+		}
+
+		return false;
 	}
 
 	private int RegisterPlaceable(GameObject obj)

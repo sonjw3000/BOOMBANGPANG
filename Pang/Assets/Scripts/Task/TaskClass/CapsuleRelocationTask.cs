@@ -280,8 +280,9 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			return true;
 		}
 
-		return sourceBuilding is LaunchBuilding launchBuilding
-			? launchBuilding.TryPrepareOutboundDispatch(sourceBuffer)
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		return outbound != null
+			? outbound.TryPrepareOutboundDispatch(sourceBuilding, sourceBuffer)
 			: sourceBuilding.CanDispatchOutboundBuffer(sourceBuffer);
 	}
 

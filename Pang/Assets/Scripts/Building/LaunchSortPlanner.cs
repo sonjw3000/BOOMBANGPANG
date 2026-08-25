@@ -6,22 +6,27 @@ public sealed class LaunchSortPlanner :
 	IItemTransferTaskInvalidationHandler,
 	IItemTransferCollectGate
 {
-	private readonly LaunchBuilding building;
+	private readonly uint buildingId;
 
-	public LaunchSortPlanner(LaunchBuilding building)
+	public uint BuildingId => buildingId;
+
+	private CapsuleBufferService BufferService =>
+		GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
+
+	public LaunchSortPlanner(uint buildingId)
 	{
-		this.building = building;
+		this.buildingId = buildingId;
 	}
 
 	public bool HasSortableWork(AIWorker worker = null)
 	{
-		if (building == null || GameContext.HasInstance == false)
+		if (CanRunForBuilding() == false || BufferService == null)
 			return false;
 
-		for (int i = 0; i < building.OccupiedCapsuleBuffers.Count; ++i)
+		foreach (CapsuleBuffer sourceBuffer in BufferService.GetBuffers(buildingId))
 		{
-			CapsuleBuffer sourceBuffer = building.OccupiedCapsuleBuffers[i];
-			if (TryGetManifest(sourceBuffer, out PickingManifest manifest) == false)
+			if (CanUseSource(sourceBuffer) == false ||
+				TryGetManifest(sourceBuffer, out PickingManifest manifest) == false)
 				continue;
 
 			IReadOnlyList<PickingManifestLine> lines = manifest.Lines;
@@ -41,6 +46,7 @@ public sealed class LaunchSortPlanner :
 					manifestLine.ItemId,
 					available,
 					sourceBuffer.GridPosition,
+					sourceBuffer,
 					out _,
 					out _))
 				{
@@ -52,11 +58,15 @@ public sealed class LaunchSortPlanner :
 		return false;
 	}
 
-	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint buildingId, out WorkLine line)
+	public WorkPlanResult TryGetCollectLine(AIWorker worker, uint requestedBuildingId, out WorkLine line)
 	{
 		line = null;
 		BoxBase workerBox = worker?.CarryingAbility?.CarryingBox;
-		if (worker == null || workerBox == null || building == null)
+		if (worker == null ||
+			workerBox == null ||
+			requestedBuildingId != buildingId ||
+			CanRunForBuilding() == false ||
+			BufferService == null)
 			return WorkPlanResult.Waiting;
 
 		CapsuleBuffer bestSource = null;
@@ -64,17 +74,17 @@ public sealed class LaunchSortPlanner :
 		int bestQuantity = 0;
 		int bestDistance = int.MaxValue;
 
-		for (int i = 0; i < building.OccupiedCapsuleBuffers.Count; ++i)
+		foreach (CapsuleBuffer sourceBuffer in BufferService.GetBuffers(buildingId))
 		{
-			CapsuleBuffer sourceBuffer = building.OccupiedCapsuleBuffers[i];
-			if (TryGetManifest(sourceBuffer, out PickingManifest manifest) == false)
+			if (CanUseSource(sourceBuffer) == false ||
+				TryGetManifest(sourceBuffer, out PickingManifest manifest) == false)
 				continue;
 
 			if (InteractionPointSelector.TryGetInteractionPointInBuilding(
 				sourceBuffer,
 				InteractionKind.Pick,
 				worker.GridPosition,
-				building.RuntimeBuildingId,
+				buildingId,
 				out _,
 				out int sourceDistance) == false)
 			{
@@ -105,6 +115,7 @@ public sealed class LaunchSortPlanner :
 						manifestLine.ItemId,
 						requested,
 						worker.GridPosition,
+						sourceBuffer,
 						out _,
 						out movable) == false)
 				{
@@ -166,7 +177,7 @@ public sealed class LaunchSortPlanner :
 				staleSource.ReleaseReservedPick(line.ItemID, line.Quantity);
 
 			allowTransfer = false;
-			building?.EvaluateLaunchSortWork();
+			EvaluateWork();
 			return WorkPlanResult.Completed;
 		}
 
@@ -180,6 +191,7 @@ public sealed class LaunchSortPlanner :
 				line.ItemID,
 				line.Quantity,
 				worker.GridPosition,
+				sourceBuffer,
 				out _,
 				out _) == true)
 			{
@@ -190,7 +202,7 @@ public sealed class LaunchSortPlanner :
 				unavailableSource.ReleaseReservedPick(line.ItemID, line.Quantity);
 
 			allowTransfer = false;
-			building?.EvaluateLaunchSortWork();
+			EvaluateWork();
 			return WorkPlanResult.Completed;
 		}
 
@@ -209,7 +221,7 @@ public sealed class LaunchSortPlanner :
 				$"[LaunchSortPlanner] QC reject mismatch. item={line.ItemID}, requested={rejected}, applied={applied}");
 		}
 
-		building?.EvaluateLaunchSortWork();
+		EvaluateWork();
 		return WorkPlanResult.Issued;
 	}
 
@@ -220,7 +232,7 @@ public sealed class LaunchSortPlanner :
 
 		if (result.Moved <= 0)
 		{
-			building?.EvaluateLaunchSortWork();
+			EvaluateWork();
 			return WorkPlanResult.Completed;
 		}
 
@@ -236,14 +248,18 @@ public sealed class LaunchSortPlanner :
 
 	public WorkPlanResult TryGetPlaceLine(
 		AIWorker worker,
-		uint buildingId,
+		uint requestedBuildingId,
 		WorkLine collectedLine,
 		int remainingQuantity,
 		out WorkLine line)
 	{
 		line = null;
 		BoxBase workerBox = worker?.CarryingAbility?.CarryingBox;
-		if (worker == null || workerBox == null || collectedLine == null || remainingQuantity <= 0)
+		if (worker == null ||
+			workerBox == null ||
+			collectedLine == null ||
+			remainingQuantity <= 0 ||
+			requestedBuildingId != buildingId)
 			return WorkPlanResult.Waiting;
 
 		OutboundWorkflowService outbound = GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null;
@@ -288,6 +304,7 @@ public sealed class LaunchSortPlanner :
 			collectedLine.ItemID,
 			remainingQuantity,
 			worker.GridPosition,
+			collectedLine.Container as CapsuleBuffer,
 			out CapsuleBuffer targetBuffer,
 			out int movable) == false)
 		{
@@ -316,9 +333,9 @@ public sealed class LaunchSortPlanner :
 
 		if (placeLine?.Target is WasteBinDock)
 		{
-			if (GameContext.HasInstance)
+			if (TryGetBuilding(out Building building))
 				GameContext.Instance.WasteCollectionPlanner?.NotifyBuildingChanged(building);
-			building?.EvaluateLaunchSortWork();
+			EvaluateWork();
 			return WorkPlanResult.Issued;
 		}
 
@@ -330,10 +347,11 @@ public sealed class LaunchSortPlanner :
 				collectedLine?.RelatedOrderLine,
 				placeLine.ItemID,
 				result.Moved);
-			building?.ReevaluateOutboundBuffer(targetBuffer);
+			if (GameContext.HasInstance)
+				GameContext.Instance.CapsuleRelocateCoordinator.MarkDirty(targetBuffer);
 		}
 
-		building?.EvaluateLaunchSortWork();
+		EvaluateWork();
 		return WorkPlanResult.Issued;
 	}
 
@@ -360,7 +378,12 @@ public sealed class LaunchSortPlanner :
 		out WorkLine line)
 	{
 		line = null;
-		if (worker == null || workerBox == null || building == null || itemId == 0 || requested <= 0)
+		if (worker == null ||
+			workerBox == null ||
+			buildingId == 0 ||
+			itemId == 0 ||
+			requested <= 0 ||
+			BufferService == null)
 			return false;
 
 		ItemStack wasteStack = null;
@@ -382,9 +405,9 @@ public sealed class LaunchSortPlanner :
 		WasteBinDock bestTarget = null;
 		int bestMovable = 0;
 		int bestDistance = int.MaxValue;
-		for (int i = 0; i < building.OccupiedCapsuleBuffers.Count; ++i)
+		foreach (CapsuleBuffer buffer in BufferService.GetBuffers(buildingId))
 		{
-			if (building.OccupiedCapsuleBuffers[i] is not WasteBinDock candidate ||
+			if (buffer is not WasteBinDock candidate ||
 				candidate.DockedCapsule is not WasteBin wasteBin ||
 				wasteBin.IsFull)
 			{
@@ -402,7 +425,7 @@ public sealed class LaunchSortPlanner :
 					candidate,
 					InteractionKind.Put,
 					worker.GridPosition,
-					building.RuntimeBuildingId,
+					buildingId,
 					out _,
 					out int distance) == false ||
 				distance >= bestDistance)
@@ -441,7 +464,7 @@ public sealed class LaunchSortPlanner :
 				reservable.ReleaseReservedPick(line.ItemID, remaining);
 		}
 
-		building?.EvaluateLaunchSortWork();
+		EvaluateWork();
 	}
 
 	private bool TryGetAvailablePackedQuantity(
@@ -458,12 +481,31 @@ public sealed class LaunchSortPlanner :
 			return false;
 		}
 
-		int available = building.GetAvailableItemQuantity(
-			sourceBuffer,
-			manifestLine.ItemId,
-			ItemStatus.Packed);
+		int available = GetAvailablePackedQuantity(sourceBuffer, manifestLine.ItemId);
 		quantity = Mathf.Min(available, manifestLine.PackedQuantity);
 		return quantity > 0;
+	}
+
+	private static int GetAvailablePackedQuantity(CapsuleBuffer sourceBuffer, uint itemId)
+	{
+		if (sourceBuffer == null || itemId == 0)
+			return 0;
+
+		int physical = 0;
+		for (int i = 0; i < sourceBuffer.Stacks.Count; ++i)
+		{
+			ItemStack stack = sourceBuffer.Stacks[i];
+			if (stack != null &&
+				stack.ItemID == itemId &&
+				stack.Quantity > 0 &&
+				stack.HasStatus(ItemStatus.Packed))
+			{
+				physical += stack.Quantity;
+			}
+		}
+
+		int reserved = sourceBuffer.ItemToBePicked.GetValueOrDefault(itemId);
+		return Mathf.Max(0, physical - reserved);
 	}
 
 	private static int GetRejectedPackedQuantity(
@@ -491,33 +533,39 @@ public sealed class LaunchSortPlanner :
 		uint itemId,
 		int requested,
 		in Unity.Mathematics.int3 from,
+		CapsuleBuffer excludedBuffer,
 		out CapsuleBuffer buffer,
 		out int movableQuantity)
 	{
 		buffer = null;
 		movableQuantity = 0;
-		if (building == null || source == null || orderLine == null || itemId == 0 || requested <= 0)
+		if (buildingId == 0 ||
+			source == null ||
+			orderLine == null ||
+			itemId == 0 ||
+			requested <= 0 ||
+			BufferService == null)
 			return false;
 
-		FacilityFilter filter = FacilityFilter.WithManifest(
-			FacilityFilter.ForTransfer(
-				source,
-				itemId,
-				requested,
-				stack => stack.HasStatus(ItemStatus.Packed),
-				worker),
-			FacilityManifestFilter.FromOrderLine(orderLine));
+		FacilityFilter filter = FacilityFilter.WithCapsuleBufferState(
+			FacilityFilter.WithManifest(
+				FacilityFilter.ForTransfer(
+					source,
+					itemId,
+					requested,
+					stack => stack.HasStatus(ItemStatus.Packed) &&
+						stack.HasQuality(ItemQuality.Waste) == false,
+					worker),
+				FacilityManifestFilter.FromOrderLine(orderLine)),
+			CapsuleBufferStateRequirement.Empty);
 
 		int bestPriority = int.MinValue;
 		int bestMovable = 0;
 		int bestDistance = int.MaxValue;
-		for (int i = 0; i < building.OccupiedCapsuleBuffers.Count; ++i)
+		foreach (CapsuleBuffer candidate in BufferService.GetBuffers(buildingId))
 		{
-			CapsuleBuffer candidate = building.OccupiedCapsuleBuffers[i];
-			if (candidate == null ||
-				candidate.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
-				candidate.CanReceiveOutboundItems() == false ||
-				filter.MatchesCurrentRules(candidate) == false)
+			if (ReferenceEquals(candidate, excludedBuffer) ||
+				IsEmptyInputRuleMatchedBuffer(candidate, filter) == false)
 			{
 				continue;
 			}
@@ -527,7 +575,8 @@ public sealed class LaunchSortPlanner :
 				candidate,
 				itemId,
 				requested,
-				stack => stack.HasStatus(ItemStatus.Packed));
+				stack => stack.HasStatus(ItemStatus.Packed) &&
+					stack.HasQuality(ItemQuality.Waste) == false);
 			if (candidateMovable <= 0)
 				continue;
 
@@ -535,7 +584,7 @@ public sealed class LaunchSortPlanner :
 				candidate,
 				InteractionKind.Put,
 				from,
-				building.RuntimeBuildingId,
+				buildingId,
 				out _,
 				out int distance) == false)
 			{
@@ -558,6 +607,87 @@ public sealed class LaunchSortPlanner :
 		}
 
 		return buffer != null && movableQuantity > 0;
+	}
+
+	private bool CanRunForBuilding()
+	{
+		return TryGetBuilding(out Building building) &&
+			building.OutboundTargetStage == CargoProcessStage.LaunchReady;
+	}
+
+	private bool TryGetBuilding(out Building building)
+	{
+		building = null;
+		return buildingId != 0 &&
+			GameContext.HasInstance &&
+			GameContext.Instance.BuildingMgr?.TryGetBuilding(buildingId, out building) == true &&
+			building != null;
+	}
+
+	private bool CanUseSource(CapsuleBuffer sourceBuffer)
+	{
+		if (sourceBuffer?.DockedCapsule is not CargoCapsule capsule ||
+			capsule.RouteKind != CargoRouteKind.Standard ||
+			capsule.LogisticsState != CapsuleLogisticsState.Inside ||
+			sourceBuffer.CanProvideInboundItems() == false ||
+			BufferService?.IsExplicitRuleMatchedBuffer(
+				sourceBuffer,
+				capsule,
+				CapsuleBufferStateRequirement.Inside,
+				CargoProcessStage.Packed,
+				evaluateLaunchReadiness: false) != true ||
+			GameContext.Instance.FacilityMgr?.IsInvalidating(sourceBuffer) == true ||
+			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(sourceBuffer) == true)
+		{
+			return false;
+		}
+
+		return IsDockAvailable(sourceBuffer);
+	}
+
+	private bool IsEmptyInputRuleMatchedBuffer(
+		CapsuleBuffer buffer,
+		FacilityFilter projectedInputFilter)
+	{
+		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
+			capsule.RouteKind != CargoRouteKind.Standard ||
+			capsule.LogisticsState != CapsuleLogisticsState.Empty ||
+			buffer.IsCapsuleEmpty() == false ||
+			buffer.CanReceiveOutboundItems() == false ||
+			projectedInputFilter.CapsuleBufferState != CapsuleBufferStateRequirement.Empty ||
+			projectedInputFilter.CargoProcessStage != CargoProcessStage.None ||
+			BufferService?.IsExplicitRuleMatchedBuffer(
+				buffer,
+				capsule,
+				CapsuleBufferStateRequirement.Empty,
+				CargoProcessStage.None,
+				evaluateLaunchReadiness: false) != true ||
+			projectedInputFilter.MatchesCurrentRules(buffer) == false ||
+			GameContext.Instance.FacilityMgr?.IsInvalidating(buffer) == true ||
+			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(buffer) == true)
+		{
+			return false;
+		}
+
+		return IsDockAvailable(buffer);
+	}
+
+	private static bool IsDockAvailable(CapsuleDock dock)
+	{
+		CapsuleRelocateCoordinator coordinator = GameContext.HasInstance
+			? GameContext.Instance.ExistingCapsuleRelocateCoordinator
+			: null;
+		return coordinator == null ||
+			(coordinator.IsPlayerClaimed(dock) == false &&
+			 coordinator.IsReserved(dock) == false &&
+			 coordinator.IsRelocationSourceActive(dock) == false &&
+			 coordinator.IsRelocationTargetActive(dock) == false);
+	}
+
+	private void EvaluateWork()
+	{
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.QueueLaunchSortEvaluation(buildingId);
 	}
 
 	private static bool TryGetManifest(CapsuleBuffer sourceBuffer, out PickingManifest manifest)

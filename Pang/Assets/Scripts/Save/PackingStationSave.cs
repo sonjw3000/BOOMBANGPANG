@@ -7,7 +7,8 @@ public partial class PackingStation
 	public void InitializeForSaveLoad()
 	{
 		// Facility registration is now owned by GridService -> FacilityManager.
-		RefreshWaitingState();
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.PackingStationService?.RefreshStationState(this);
 	}
 
 	public PackingStationSaveData CaptureState(Func<OrderLine, int> registerOrderLine, Func<GameObject, int> getPlaceableId)

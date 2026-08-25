@@ -28,11 +28,18 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	private readonly Dictionary<OutboundCargoPort, InboundCargoPort> queuedCargoTransferTargets = new();
 	private readonly Dictionary<PickingManifestKey, PickingManifest> pickingManifests = new();
 	private readonly Dictionary<uint, PickingPlanner> pickingPlannersByBuildingId = new();
-	private readonly HashSet<uint> pickingScheduleBuildingIds = new();
+	private readonly Dictionary<uint, PackingInputPlanner> packingInputPlannersByBuildingId = new();
+	private readonly Dictionary<uint, PackingOutputPlanner> packingOutputPlannersByBuildingId = new();
+	private readonly Dictionary<uint, LaunchSortPlanner> launchSortPlannersByBuildingId = new();
+	private readonly HashSet<uint> taskScheduleBuildingIds = new();
+	private readonly HashSet<uint> pendingLaunchSortEvaluationBuildingIds = new();
+	private readonly HashSet<uint> evaluatingLaunchSortBuildingIds = new();
 	private readonly List<uint> buildingIdScratch = new();
+	private readonly List<uint> launchSortEvaluationScratch = new();
 	private readonly List<PickingDispatchCandidate> pickingDispatchCandidates = new();
 	private BuildingManager boundBuildingManager;
 	private ItemTransferTaskScheduler boundItemTransferTaskScheduler;
+	private CapsuleRelocateCoordinator boundCapsuleRelocateCoordinator;
 
 	public PackingStationService PackingStationService => packingStationService;
 	public LaunchStationService LaunchStationService => launchStationService;
@@ -68,6 +75,24 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 	{
 		planner = null;
 		return buildingId != 0 && pickingPlannersByBuildingId.TryGetValue(buildingId, out planner);
+	}
+
+	public bool TryGetPackingInputPlanner(uint buildingId, out PackingInputPlanner planner)
+	{
+		planner = null;
+		return buildingId != 0 && packingInputPlannersByBuildingId.TryGetValue(buildingId, out planner);
+	}
+
+	public bool TryGetPackingOutputPlanner(uint buildingId, out PackingOutputPlanner planner)
+	{
+		planner = null;
+		return buildingId != 0 && packingOutputPlannersByBuildingId.TryGetValue(buildingId, out planner);
+	}
+
+	public bool TryGetLaunchSortPlanner(uint buildingId, out LaunchSortPlanner planner)
+	{
+		planner = null;
+		return buildingId != 0 && launchSortPlannersByBuildingId.TryGetValue(buildingId, out planner);
 	}
 
 	public int AcceptPickingRequest(
@@ -139,11 +164,113 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		for (int i = 0; i < buildings.Count; ++i)
 		{
 			Building building = buildings[i];
-			if (building is LaunchBuilding launchBuilding)
-				launchBuilding.EvaluateLaunchSortWork();
-			if (building?.OutboundTargetStage == CargoProcessStage.LaunchReady && GameContext.HasInstance)
+			if (building?.RuntimeBuildingId == 0)
+				continue;
+
+			QueueLaunchSortEvaluation(building.RuntimeBuildingId);
+			if (building.OutboundTargetStage == CargoProcessStage.LaunchReady && GameContext.HasInstance)
 				GameContext.Instance.CapsuleRelocateCoordinator.MarkBuildingDirty(building.RuntimeBuildingId);
 		}
+	}
+
+	public void QueueLaunchSortEvaluation(uint buildingId)
+	{
+		if (buildingId != 0)
+			pendingLaunchSortEvaluationBuildingIds.Add(buildingId);
+	}
+
+	public void ProcessPendingLaunchSortEvaluations()
+	{
+		if (pendingLaunchSortEvaluationBuildingIds.Count <= 0)
+			return;
+
+		launchSortEvaluationScratch.Clear();
+		launchSortEvaluationScratch.AddRange(pendingLaunchSortEvaluationBuildingIds);
+		pendingLaunchSortEvaluationBuildingIds.Clear();
+		for (int i = 0; i < launchSortEvaluationScratch.Count; ++i)
+			EvaluateLaunchSortWork(launchSortEvaluationScratch[i]);
+		launchSortEvaluationScratch.Clear();
+	}
+
+	private void EvaluateLaunchSortWork(uint buildingId)
+	{
+		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
+			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
+		if (buildingId == 0 ||
+			scheduler == null ||
+			evaluatingLaunchSortBuildingIds.Add(buildingId) == false)
+		{
+			return;
+		}
+
+		try
+		{
+			if (BuildingManager?.TryGetBuilding(buildingId, out Building building) != true ||
+				building == null ||
+				building.OutboundTargetStage != CargoProcessStage.LaunchReady ||
+				TryGetLaunchSortPlanner(buildingId, out LaunchSortPlanner planner) == false)
+			{
+				scheduler.ClearDirty(buildingId, ItemTransferScheduleMode.LaunchSort);
+				return;
+			}
+
+			RejectInvalidOutboundStandbyCargo(buildingId);
+			if (planner.HasSortableWork())
+				scheduler.MarkDirty(buildingId, ItemTransferScheduleMode.LaunchSort);
+			else
+				scheduler.ClearDirty(buildingId, ItemTransferScheduleMode.LaunchSort);
+		}
+		finally
+		{
+			evaluatingLaunchSortBuildingIds.Remove(buildingId);
+		}
+	}
+
+	private void RejectInvalidOutboundStandbyCargo(uint buildingId)
+	{
+		CapsuleBufferService bufferService = GameContext.HasInstance
+			? GameContext.Instance.CapsuleBufferSvc
+			: null;
+		if (bufferService == null)
+			return;
+
+		foreach (CapsuleBuffer buffer in bufferService.GetBuffers(buildingId))
+		{
+			if (buffer?.DockedCapsule == null ||
+				(buffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.Inside &&
+				 buffer.DockedCapsule.LogisticsState != CapsuleLogisticsState.OB))
+			{
+				continue;
+			}
+
+			RejectInvalidPackedCargo(buffer);
+			if ((HasDispatchBlockingCargo(buffer) || HasCompleteDispatchManifest(buffer) == false) &&
+				buffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
+			{
+				buffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+			}
+		}
+	}
+
+	internal bool TryPrepareOutboundDispatch(Building building, CapsuleBuffer capsuleBuffer)
+	{
+		if (building == null || capsuleBuffer?.DockedCapsule == null)
+			return false;
+
+		if (building.OutboundTargetStage != CargoProcessStage.LaunchReady)
+			return building.CanDispatchOutboundBuffer(capsuleBuffer);
+
+		RejectInvalidPackedCargo(capsuleBuffer);
+		if (HasDispatchBlockingCargo(capsuleBuffer) ||
+			HasCompleteDispatchManifest(capsuleBuffer) == false)
+		{
+			if (capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
+				capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+			QueueLaunchSortEvaluation(building.RuntimeBuildingId);
+			return false;
+		}
+
+		return building.CanDispatchOutboundBuffer(capsuleBuffer);
 	}
 
 	public void OnTaskCompleted(WorkerTask task)
@@ -989,25 +1116,41 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (boundItemTransferTaskScheduler == null && GameContext.HasInstance)
 			boundItemTransferTaskScheduler = GameContext.Instance.ItemTransferTaskScheduler;
 
-		SyncPickingTaskProducers();
+		if (boundCapsuleRelocateCoordinator == null && GameContext.HasInstance)
+		{
+			boundCapsuleRelocateCoordinator = GameContext.Instance.ExistingCapsuleRelocateCoordinator;
+			if (boundCapsuleRelocateCoordinator != null)
+				boundCapsuleRelocateCoordinator.OnRuleRoutingEvaluated += HandleRuleRoutingEvaluated;
+		}
+
+		SyncBuildingTaskProducers();
 	}
 
 	private void UnbindBuildingEvents()
 	{
 		if (boundBuildingManager != null)
 			boundBuildingManager.OnBuildingsChanged -= HandleBuildingsChanged;
+		if (boundCapsuleRelocateCoordinator != null)
+			boundCapsuleRelocateCoordinator.OnRuleRoutingEvaluated -= HandleRuleRoutingEvaluated;
 
-		UnregisterPickingTaskProducers();
+		UnregisterBuildingTaskProducers();
 		boundBuildingManager = null;
 		boundItemTransferTaskScheduler = null;
+		boundCapsuleRelocateCoordinator = null;
 	}
 
 	private void HandleBuildingsChanged()
 	{
-		SyncPickingTaskProducers();
+		SyncBuildingTaskProducers();
 	}
 
-	private void SyncPickingTaskProducers()
+	private void HandleRuleRoutingEvaluated(uint buildingId, CapsuleBuffer buffer, bool isRuleMatched)
+	{
+		EvaluatePackingInputWork(buildingId);
+		QueueLaunchSortEvaluation(buildingId);
+	}
+
+	private void SyncBuildingTaskProducers()
 	{
 		BuildingManager buildingManager = boundBuildingManager ??
 			(GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null);
@@ -1035,18 +1178,42 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 						defaultPickingCollectingPolicyType,
 						defaultPickingPolicyType));
 			}
+			if (packingInputPlannersByBuildingId.ContainsKey(buildingId) == false)
+				packingInputPlannersByBuildingId.Add(buildingId, new PackingInputPlanner(buildingId));
+			if (packingOutputPlannersByBuildingId.ContainsKey(buildingId) == false)
+				packingOutputPlannersByBuildingId.Add(buildingId, new PackingOutputPlanner(buildingId));
+			if (launchSortPlannersByBuildingId.ContainsKey(buildingId) == false)
+				launchSortPlannersByBuildingId.Add(buildingId, new LaunchSortPlanner(buildingId));
 
 			scheduler.Register(
 				buildingId,
 				ItemTransferScheduleMode.Picking,
 				WorkerTask.TaskType.Picking,
 				TryBuildPickingItemTransferTask);
-			pickingScheduleBuildingIds.Add(buildingId);
+			scheduler.Register(
+				buildingId,
+				ItemTransferScheduleMode.PackingInput,
+				WorkerTask.TaskType.PackingInput,
+				TryBuildPackingInputItemTransferTask);
+			scheduler.Register(
+				buildingId,
+				ItemTransferScheduleMode.PackingOutput,
+				WorkerTask.TaskType.PackingOutput,
+				TryBuildPackingOutputItemTransferTask);
+			scheduler.Register(
+				buildingId,
+				ItemTransferScheduleMode.LaunchSort,
+				WorkerTask.TaskType.LaunchSort,
+				TryBuildLaunchSortItemTransferTask);
+			taskScheduleBuildingIds.Add(buildingId);
 			EvaluatePickingWork(buildingId);
+			EvaluatePackingInputWork(buildingId);
+			EvaluatePackingOutputWork(buildingId);
+			QueueLaunchSortEvaluation(buildingId);
 		}
 
-		uint[] registeredIds = new uint[pickingScheduleBuildingIds.Count];
-		pickingScheduleBuildingIds.CopyTo(registeredIds);
+		uint[] registeredIds = new uint[taskScheduleBuildingIds.Count];
+		taskScheduleBuildingIds.CopyTo(registeredIds);
 		for (int i = 0; i < registeredIds.Length; ++i)
 		{
 			uint buildingId = registeredIds[i];
@@ -1057,22 +1224,36 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 				planner?.CancelAllRequests();
 
 			scheduler.Unregister(buildingId, ItemTransferScheduleMode.Picking);
-			pickingScheduleBuildingIds.Remove(buildingId);
+			scheduler.Unregister(buildingId, ItemTransferScheduleMode.PackingInput);
+			scheduler.Unregister(buildingId, ItemTransferScheduleMode.PackingOutput);
+			scheduler.Unregister(buildingId, ItemTransferScheduleMode.LaunchSort);
+			taskScheduleBuildingIds.Remove(buildingId);
 			pickingPlannersByBuildingId.Remove(buildingId);
+			packingInputPlannersByBuildingId.Remove(buildingId);
+			packingOutputPlannersByBuildingId.Remove(buildingId);
+			launchSortPlannersByBuildingId.Remove(buildingId);
+			pendingLaunchSortEvaluationBuildingIds.Remove(buildingId);
 		}
 	}
 
-	private void UnregisterPickingTaskProducers()
+	private void UnregisterBuildingTaskProducers()
 	{
 		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
 			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
 		if (scheduler != null)
 		{
-			foreach (uint buildingId in pickingScheduleBuildingIds)
+			foreach (uint buildingId in taskScheduleBuildingIds)
+			{
 				scheduler.Unregister(buildingId, ItemTransferScheduleMode.Picking);
+				scheduler.Unregister(buildingId, ItemTransferScheduleMode.PackingInput);
+				scheduler.Unregister(buildingId, ItemTransferScheduleMode.PackingOutput);
+				scheduler.Unregister(buildingId, ItemTransferScheduleMode.LaunchSort);
+			}
 		}
 
-		pickingScheduleBuildingIds.Clear();
+		taskScheduleBuildingIds.Clear();
+		pendingLaunchSortEvaluationBuildingIds.Clear();
+		evaluatingLaunchSortBuildingIds.Clear();
 	}
 
 	private ItemTransferScheduleResult TryBuildPickingItemTransferTask(
@@ -1094,6 +1275,87 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		return ItemTransferScheduleResult.Scheduled;
 	}
 
+	private ItemTransferScheduleResult TryBuildPackingInputItemTransferTask(
+		ItemTransferScheduleRequest request,
+		out WorkerTask task)
+	{
+		task = null;
+		if (request.Worker == null || request.Worker.CanAcceptGeneralTask(request.TaskType) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		if (TryGetPackingInputPlanner(request.BuildingId, out PackingInputPlanner planner) == false ||
+			planner.HasAvailableWork() == false)
+		{
+			return ItemTransferScheduleResult.NoWork;
+		}
+
+		if (planner.HasAvailableWork(request.Worker) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		task = new ItemTransferTask(
+			WorkerTask.TaskType.PackingInput,
+			new ItemTransferJob(
+				planner,
+				TransferObjectType.Item,
+				TransferObjectType.Box,
+				request.BuildingId,
+				request.Worker));
+		return ItemTransferScheduleResult.Scheduled;
+	}
+
+	private ItemTransferScheduleResult TryBuildPackingOutputItemTransferTask(
+		ItemTransferScheduleRequest request,
+		out WorkerTask task)
+	{
+		task = null;
+		if (request.Worker == null || request.Worker.CanAcceptGeneralTask(request.TaskType) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		if (TryGetPackingOutputPlanner(request.BuildingId, out PackingOutputPlanner planner) == false ||
+			planner.HasAvailableWork() == false)
+		{
+			return ItemTransferScheduleResult.NoWork;
+		}
+
+		task = new ItemTransferTask(
+			WorkerTask.TaskType.PackingOutput,
+			new ItemTransferJob(
+				planner,
+				TransferObjectType.Box,
+				TransferObjectType.Item,
+				request.BuildingId,
+				request.Worker));
+		return ItemTransferScheduleResult.Scheduled;
+	}
+
+	private ItemTransferScheduleResult TryBuildLaunchSortItemTransferTask(
+		ItemTransferScheduleRequest request,
+		out WorkerTask task)
+	{
+		task = null;
+		if (request.Worker == null || request.Worker.CanAcceptGeneralTask(request.TaskType) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		if (TryGetLaunchSortPlanner(request.BuildingId, out LaunchSortPlanner planner) == false ||
+			planner.HasSortableWork() == false)
+		{
+			return ItemTransferScheduleResult.NoWork;
+		}
+
+		if (planner.HasSortableWork(request.Worker) == false)
+			return ItemTransferScheduleResult.WorkerRejected;
+
+		task = new ItemTransferTask(
+			WorkerTask.TaskType.LaunchSort,
+			new ItemTransferJob(
+				planner,
+				TransferObjectType.Item,
+				TransferObjectType.Item,
+				request.BuildingId,
+				request.Worker));
+		return ItemTransferScheduleResult.Scheduled;
+	}
+
 	private void EvaluatePickingWork(uint buildingId)
 	{
 		if (buildingId == 0)
@@ -1112,6 +1374,90 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		{
 			scheduler.ClearDirty(buildingId, ItemTransferScheduleMode.Picking);
 		}
+	}
+
+	public void EvaluatePackingInputWork(uint buildingId)
+	{
+		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
+			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
+		if (buildingId == 0 || scheduler == null)
+			return;
+
+		if (TryGetPackingInputPlanner(buildingId, out PackingInputPlanner planner) &&
+			planner.HasAvailableWork())
+		{
+			scheduler.MarkDirty(buildingId, ItemTransferScheduleMode.PackingInput);
+		}
+		else
+		{
+			scheduler.ClearDirty(buildingId, ItemTransferScheduleMode.PackingInput);
+		}
+	}
+
+	public void EvaluatePackingOutputWork(uint buildingId)
+	{
+		ItemTransferTaskScheduler scheduler = boundItemTransferTaskScheduler ??
+			(GameContext.HasInstance ? GameContext.Instance.ItemTransferTaskScheduler : null);
+		if (buildingId == 0 || scheduler == null)
+			return;
+
+		if (TryGetPackingOutputPlanner(buildingId, out PackingOutputPlanner planner) &&
+			planner.HasAvailableWork())
+		{
+			scheduler.MarkDirty(buildingId, ItemTransferScheduleMode.PackingOutput);
+		}
+		else
+		{
+			scheduler.ClearDirty(buildingId, ItemTransferScheduleMode.PackingOutput);
+		}
+	}
+
+	public void GetPackingInputDemand(uint buildingId, out int sourceCount, out int itemQuantity)
+	{
+		if (TryGetPackingInputPlanner(buildingId, out PackingInputPlanner planner))
+		{
+			planner.GetPendingDemand(out sourceCount, out itemQuantity);
+			return;
+		}
+
+		sourceCount = 0;
+		itemQuantity = 0;
+	}
+
+	public void GetPackingInputDemand(out int sourceCount, out int itemQuantity)
+	{
+		sourceCount = 0;
+		itemQuantity = 0;
+		foreach (PackingInputPlanner planner in packingInputPlannersByBuildingId.Values)
+		{
+			planner.GetPendingDemand(out int plannerSources, out int plannerQuantity);
+			sourceCount += plannerSources;
+			itemQuantity += plannerQuantity;
+		}
+	}
+
+	public void GetPackingOutputDemand(uint buildingId, out int sourceCount, out int itemQuantity)
+	{
+		if (packingStationService != null)
+		{
+			packingStationService.GetCompletedOutputDemand(buildingId, out sourceCount, out itemQuantity);
+			return;
+		}
+
+		sourceCount = 0;
+		itemQuantity = 0;
+	}
+
+	public void GetPackingOutputDemand(out int sourceCount, out int itemQuantity)
+	{
+		if (packingStationService != null)
+		{
+			packingStationService.GetCompletedOutputDemand(out sourceCount, out itemQuantity);
+			return;
+		}
+
+		sourceCount = 0;
+		itemQuantity = 0;
 	}
 
 	private void Update()

@@ -672,6 +672,57 @@ public sealed class ItemTransferTask : WorkerTask
 		};
 	}
 
+	internal bool RestoreCollectedPackingPayload(BoxBase payloadBox)
+	{
+		return RestoreCollectedPackingPayloadForPhase(payloadBox, ItemTransferPhase.Place);
+	}
+
+	internal bool RestoreCollectedPackingPayloadForPhase(
+		BoxBase payloadBox,
+		ItemTransferPhase restoredPhase)
+	{
+		if (payloadBox == null ||
+			(Type != TaskType.PackingInput && Type != TaskType.PackingOutput))
+		{
+			return false;
+		}
+
+		List<WorkLine> restoredLines = new();
+		for (int i = 0; i < payloadBox.Stacks.Count; ++i)
+		{
+			ItemStack candidate = payloadBox.Stacks[i];
+			if (candidate == null ||
+				candidate.Quantity <= 0 ||
+				candidate.HasQuality(ItemQuality.Waste) ||
+				(Type == TaskType.PackingInput && candidate.HasStatus(ItemStatus.Labeled) == false) ||
+				(Type == TaskType.PackingOutput && candidate.HasStatus(ItemStatus.Packed) == false))
+			{
+				continue;
+			}
+
+			restoredLines.Add(new WorkLine(
+				WorkLineAction.Pick,
+				payloadBox,
+				payloadBox,
+				candidate.ItemID,
+				Type == TaskType.PackingInput ? candidate.Quantity : 1,
+				requiredStatus: Type == TaskType.PackingInput ? ItemStatus.Labeled : ItemStatus.Packed,
+				consumeSourcePickReservation: false,
+				excludedQuality: ItemQuality.Waste));
+
+			// PackingOutput collected one physical box. Its planner scans that box for
+			// every packed stack while placing, so one synthetic collected line owns it.
+			if (Type == TaskType.PackingOutput)
+				break;
+		}
+
+		if (restoredLines.Count <= 0)
+			return false;
+
+		RestoreCollectedLines(restoredLines, restoredPhase);
+		return true;
+	}
+
 	internal bool RestoreCollectedLaunchSortPayload(BoxBase payloadBox)
 	{
 		if (payloadBox == null ||
@@ -745,17 +796,22 @@ public sealed class ItemTransferTask : WorkerTask
 		if (restoredLines.Count <= 0)
 			return false;
 
+		RestoreCollectedLines(restoredLines, ItemTransferPhase.Place);
+		return true;
+	}
+
+	private void RestoreCollectedLines(
+		IReadOnlyList<WorkLine> restoredLines,
+		ItemTransferPhase restoredPhase)
+	{
 		collectedLines.Clear();
 		for (int i = 0; i < restoredLines.Count; ++i)
-		{
 			collectedLines.Add(new ItemTransferCollectedLine(restoredLines[i]));
-		}
 
-		phase = ItemTransferPhase.Place;
+		phase = restoredPhase;
 		currentLine = null;
 		placingLineIndex = 0;
 		isTaskEnd = false;
-		return true;
 	}
 
 	internal bool RestoreCollectedWastePayload(BoxBase payloadBox)
