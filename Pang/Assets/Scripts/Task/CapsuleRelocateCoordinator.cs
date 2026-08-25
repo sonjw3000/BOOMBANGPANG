@@ -411,6 +411,16 @@ public sealed class CapsuleRelocateCoordinator
 		}
 	}
 
+	public void NotifyTaskDependenciesChanged()
+	{
+		if (isRestoring)
+			return;
+
+		while (TryMatchPendingDemand() || TryMatchPendingSend())
+		{
+		}
+	}
+
 	public void CancelPendingRequests(CapsuleDock dock)
 	{
 		if (dock == null)
@@ -723,6 +733,8 @@ public sealed class CapsuleRelocateCoordinator
 		if (targetDock == null ||
 			IsFacilityAvailable(request.SourceDock) == false ||
 			IsFacilityAvailable(targetDock) == false ||
+			HasTaskDependency(request.SourceDock) ||
+			HasTaskDependency(targetDock) ||
 			playerClaimedDocks.Contains(request.SourceDock) ||
 			playerClaimedDocks.Contains(targetDock) ||
 			reservedDocks.Contains(request.SourceDock) ||
@@ -745,6 +757,8 @@ public sealed class CapsuleRelocateCoordinator
 		if (sourceDock == null ||
 			IsFacilityAvailable(sourceDock) == false ||
 			IsFacilityAvailable(demand.TargetDock) == false ||
+			HasTaskDependency(sourceDock) ||
+			HasTaskDependency(demand.TargetDock) ||
 			playerClaimedDocks.Contains(sourceDock) ||
 			playerClaimedDocks.Contains(demand.TargetDock) ||
 			reservedDocks.Contains(sourceDock) ||
@@ -811,6 +825,13 @@ public sealed class CapsuleRelocateCoordinator
 			(GameContext.HasInstance == false ||
 			 GameContext.Instance.FacilityMgr == null ||
 			 GameContext.Instance.FacilityMgr.IsInvalidating(dock) == false);
+	}
+
+	private static bool HasTaskDependency(CapsuleDock dock)
+	{
+		return dock != null &&
+			GameContext.HasInstance &&
+			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(dock) == true;
 	}
 
 	private void Reserve(CapsuleDock sourceDock, CapsuleDock targetDock)

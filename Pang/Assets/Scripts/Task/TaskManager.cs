@@ -284,6 +284,14 @@ public partial class TaskManager : MonoBehaviour
 				return true;
 		}
 
+		return HasManagedTaskFacilityDependency(facility);
+	}
+
+	internal bool HasManagedTaskFacilityDependency(IFacility facility)
+	{
+		if (facility == null)
+			return false;
+
 		foreach (LinkedList<WorkerTask> queue in taskQueue.Values)
 		{
 			if (QueueDependsOnFacility(queue, facility))
@@ -585,6 +593,7 @@ public partial class TaskManager : MonoBehaviour
 
 			NotifyWorkflowTaskInvalidated(task);
 			NotifyBuildingCapsuleRelocationEnded(task);
+			NotifyCapsuleRelocateTaskDependenciesChanged();
 			LogTaskInvalidation(task, worker, previousStatus, reason);
 			if (removeRegisteredState)
 				ReportTaskStateChanged();
@@ -737,7 +746,14 @@ public partial class TaskManager : MonoBehaviour
 				break;
 		}
 
+		NotifyCapsuleRelocateTaskDependenciesChanged();
 		ReportTaskStateChanged();
+	}
+
+	private static void NotifyCapsuleRelocateTaskDependenciesChanged()
+	{
+		if (GameContext.HasInstance)
+			GameContext.Instance.ExistingCapsuleRelocateCoordinator?.NotifyTaskDependenciesChanged();
 	}
 
 	public void Update()

@@ -273,6 +273,7 @@ public class GameContext : MonoBehaviour
 			return capsuleRelocateCoordinator;
 		}
 	}
+	internal CapsuleRelocateCoordinator ExistingCapsuleRelocateCoordinator => capsuleRelocateCoordinator;
 	public ItemTransferTaskScheduler ItemTransferTaskScheduler => itemTransferTaskScheduler ??= new ItemTransferTaskScheduler();
 	public WasteCollectionPlanner WasteCollectionPlanner
 	{
