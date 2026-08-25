@@ -447,7 +447,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (editingTaskTypes.Count > 0)
 				selectedHandleGroup = GetHandleGroup(editingTaskTypes);
 			else if (selectedHandleGroup == HandleGroup.Undefined)
-				selectedHandleGroup = GetFirstAssignableHandleGroup(selectedWorker, GetEditingBuildingType(selectedWorker));
+				selectedHandleGroup = GetFirstAssignableHandleGroup(selectedWorker, GetEditingBuildingId(selectedWorker));
 			handleField.SetValueWithoutNotify(HandleGroups[(int)selectedHandleGroup]);
 			workerAssignmentMessage.text = BuildWorkerAssignmentMessage(selectedWorker);
 			RefreshTaskToggles();
@@ -479,17 +479,16 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			if (selectedWorker == null || buildingField.index < 0 || buildingField.index >= buildingIds.Count) return;
 			uint buildingId = buildingIds[buildingField.index];
-			BuildingType? buildingType = ResolveBuildingType(buildingId);
 			List<WorkerTask.TaskType> compatibleTypes = BuildCompatibleTaskTypes(
 				selectedWorker,
 				GetEditingTaskTypes(selectedWorker),
-				buildingType);
+				buildingId);
 			if (workerManager?.TryRequestWorkerAssignment(selectedWorker, buildingId, compatibleTypes) != true)
 				return;
 
 			selectedHandleGroup = compatibleTypes.Count > 0
 				? GetHandleGroup(compatibleTypes)
-				: GetFirstAssignableHandleGroup(selectedWorker, buildingType);
+				: GetFirstAssignableHandleGroup(selectedWorker, buildingId);
 			RefreshRoster();
 		}
 
@@ -505,7 +504,7 @@ namespace UniverseLogistics.UI.Toolkit
 			taskToggles.Clear();
 			if (selectedWorker == null || selectedHandleGroup == HandleGroup.Undefined) return;
 			List<WorkerTask.TaskType> assignable = new();
-			WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(selectedWorker, GetEditingBuildingType(selectedWorker), assignable);
+			WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(selectedWorker, GetEditingBuildingId(selectedWorker), assignable);
 			IReadOnlyList<WorkerTask.TaskType> editingTaskTypes = GetEditingTaskTypes(selectedWorker);
 			foreach (WorkerTask.TaskType type in assignable)
 			{
@@ -569,7 +568,7 @@ namespace UniverseLogistics.UI.Toolkit
 			selectedBuilding = null;
 			selectedHandleGroup = GetEditingTaskTypes(worker).Count > 0
 				? GetHandleGroup(GetEditingTaskTypes(worker))
-				: GetFirstAssignableHandleGroup(worker, building != null ? building.Type : null);
+				: GetFirstAssignableHandleGroup(worker, building?.RuntimeBuildingId ?? 0);
 			if (assigned)
 				RefreshRoster();
 			else
@@ -723,7 +722,7 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 
 			buildingName.text = building.DisplayName;
-			List<WorkerTask.TaskType> taskTypes = GetBuildingTaskTypes(building.Type);
+			List<WorkerTask.TaskType> taskTypes = GetBuildingTaskTypes(building.RuntimeBuildingId);
 			int currentCount = 0;
 			int plannedCount = 0;
 			IReadOnlyList<AIWorker> workers = workerManager?.Workers;
@@ -829,7 +828,7 @@ namespace UniverseLogistics.UI.Toolkit
 				toggle.SetEnabled(
 					leaving == false &&
 					worker.IsOperational &&
-					WorkerTaskAssignmentPolicy.CanAssign(worker, building.Type, taskType));
+					WorkerTaskAssignmentPolicy.CanAssign(worker, building.RuntimeBuildingId, taskType));
 				toggle.RegisterValueChangedCallback(evt =>
 					SetBuildingTaskAssigned(building, worker, taskType, evt.newValue));
 				row.Add(toggle);
@@ -1100,7 +1099,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private static List<WorkerTask.TaskType> BuildCompatibleTaskTypes(
 			AIWorker worker,
 			IReadOnlyList<WorkerTask.TaskType> sourceTypes,
-			BuildingType? buildingType)
+			uint buildingId)
 		{
 			List<WorkerTask.TaskType> results = new();
 			if (worker == null || sourceTypes == null)
@@ -1109,7 +1108,7 @@ namespace UniverseLogistics.UI.Toolkit
 			for (int i = 0; i < sourceTypes.Count; ++i)
 			{
 				WorkerTask.TaskType taskType = sourceTypes[i];
-				if (WorkerTaskAssignmentPolicy.CanAssign(worker, buildingType, taskType))
+				if (WorkerTaskAssignmentPolicy.CanAssign(worker, buildingId, taskType))
 					results.Add(taskType);
 			}
 
@@ -1117,14 +1116,14 @@ namespace UniverseLogistics.UI.Toolkit
 			return results;
 		}
 
-		private static List<WorkerTask.TaskType> GetBuildingTaskTypes(BuildingType buildingType)
+		private static List<WorkerTask.TaskType> GetBuildingTaskTypes(uint buildingId)
 		{
 			List<WorkerTask.TaskType> results = new();
 			foreach (WorkerTask.TaskType taskType in Enum.GetValues(typeof(WorkerTask.TaskType)))
 			{
 				if (taskType == WorkerTask.TaskType.Undefined ||
 					taskType == WorkerTask.TaskType.HandleMistake ||
-					WorkerTaskAssignmentPolicy.IsTaskTypeAllowedForBuilding(buildingType, taskType) == false)
+					WorkerTaskAssignmentPolicy.IsTaskTypeAllowedForBuilding(buildingId, taskType) == false)
 				{
 					continue;
 				}
@@ -1136,10 +1135,10 @@ namespace UniverseLogistics.UI.Toolkit
 			return results;
 		}
 
-		private static HandleGroup GetFirstAssignableHandleGroup(AIWorker worker, BuildingType? buildingType)
+		private static HandleGroup GetFirstAssignableHandleGroup(AIWorker worker, uint buildingId)
 		{
 			List<WorkerTask.TaskType> taskTypes = new();
-			WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, buildingType, taskTypes);
+			WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, buildingId, taskTypes);
 			for (int i = 0; i < taskTypes.Count; ++i)
 			{
 				HandleGroup group = GetHandleGroup(taskTypes[i]);
@@ -1148,24 +1147,6 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 
 			return HandleGroup.Undefined;
-		}
-
-		private BuildingType? GetEditingBuildingType(AIWorker worker)
-		{
-			return ResolveBuildingType(GetEditingBuildingId(worker));
-		}
-
-		private static BuildingType? ResolveBuildingType(uint buildingId)
-		{
-			if (buildingId == 0)
-				return null;
-
-			BuildingManager manager = GameContext.HasInstance ? GameContext.Instance.BuildingMgr : null;
-			return manager != null &&
-				manager.TryGetBuilding(buildingId, out Building building) &&
-				building != null
-					? building.Type
-					: null;
 		}
 
 		private static string GetWorkerBuildingDisplay(AIWorker worker)

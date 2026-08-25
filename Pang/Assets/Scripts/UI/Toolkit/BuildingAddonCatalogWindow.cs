@@ -246,8 +246,7 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				BuildingAddonDefinition definition = definitions[i];
 				if (definition == null ||
-					definition.Category != category ||
-					definition.IsAllowedFor(targetBuilding.Type) == false)
+					definition.Category != category)
 				{
 					continue;
 				}

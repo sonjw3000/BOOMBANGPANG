@@ -18,6 +18,7 @@ public sealed class WorkDemandMetricsEditModeTests
 	private PackingStationService packingStationService;
 	private CapsuleBufferService capsuleBufferService;
 	private CapsuleDockService capsuleDockService;
+	private FacilityRuleManager facilityRuleManager;
 	private CapsuleRelocateCoordinator capsuleRelocateCoordinator;
 	private uint nextBoxId;
 
@@ -36,6 +37,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		packingStationService = CreateComponent<PackingStationService>("Work Demand Test Packing Station Service", active: false);
 		capsuleBufferService = CreateComponent<CapsuleBufferService>("Work Demand Test Capsule Buffer Service", active: false);
 		capsuleDockService = CreateComponent<CapsuleDockService>("Work Demand Test Capsule Dock Service", active: false);
+		facilityRuleManager = CreateComponent<FacilityRuleManager>("Work Demand Test Facility Rule Manager", active: false);
 
 		InvokeNonPublic(typeof(TaskManager), taskManager, "Awake");
 		InvokeNonPublic(typeof(BuildingManager), buildingManager, "Awake");
@@ -50,16 +52,22 @@ public sealed class WorkDemandMetricsEditModeTests
 		SetPrivateField(typeof(GameContext), context, "outboundWorkflowService", outboundWorkflow);
 		SetPrivateField(typeof(GameContext), context, "capsuleBufferService", capsuleBufferService);
 		SetPrivateField(typeof(GameContext), context, "capsuleDockService", capsuleDockService);
+		SetPrivateField(typeof(GameContext), context, "facilityRuleManager", facilityRuleManager);
 		SetPrivateField(typeof(OutboundWorkflowService), outboundWorkflow, "packingStationService", packingStationService);
 
 		capsuleRelocateCoordinator = new CapsuleRelocateCoordinator(null);
 		SetPrivateField(typeof(GameContext), context, "capsuleRelocateCoordinator", capsuleRelocateCoordinator);
 		SetPrivateStaticField(typeof(GameContext), "instance", context);
+		facilityRuleManager.gameObject.SetActive(true);
+		outboundWorkflow.gameObject.SetActive(true);
+		InvokeNonPublic(typeof(OutboundWorkflowService), outboundWorkflow, "OnEnable");
 		SetPrivateField(
 			typeof(InboundWorkflowService),
 			inboundWorkflow,
 			"storingPlanner",
 			new StoringPlanner(capsuleBufferService));
+		inboundWorkflow.gameObject.SetActive(true);
+		InvokeNonPublic(typeof(InboundWorkflowService), inboundWorkflow, "OnEnable");
 
 		nextBoxId = 1;
 	}
@@ -81,21 +89,21 @@ public sealed class WorkDemandMetricsEditModeTests
 	[Test]
 	public void PickingDemand_CombinesUnallocatedOrdersAndPlannerRequestsWithoutAssignedQuantity()
 	{
-		StorageBuilding firstBuilding = CreateStorageBuilding("First Picking Demand Storage");
-		StorageBuilding secondBuilding = CreateStorageBuilding("Second Picking Demand Storage");
+		Building firstBuilding = CreateStorageBuilding("First Picking Demand Storage");
+		Building secondBuilding = CreateStorageBuilding("Second Picking Demand Storage");
 		OrderLine line = new(null, 101, 12, null);
 		InvokeNonPublic(typeof(OrderManager), orderManager, "RegisterOrderLineForPicking", line);
 		Assert.That(line.TryAllocatePicking(9), Is.EqualTo(9));
 
 		Shelf firstSource = CreateComponent<Shelf>("First Picking Demand Shelf", active: false);
 		Assert.That(
-			firstBuilding.PickingPlanner.AddReservedPickingRequest(line, firstSource, 4, out PickingRequest firstRequest),
+			GetPickingPlanner(firstBuilding).AddReservedPickingRequest(line, firstSource, 4, out PickingRequest firstRequest),
 			Is.True);
 		Assert.That(firstRequest.ReportAllocated(1), Is.EqualTo(1));
 
 		Shelf secondSource = CreateComponent<Shelf>("Second Picking Demand Shelf", active: false);
 		Assert.That(
-			secondBuilding.PickingPlanner.AddReservedPickingRequest(line, secondSource, 5, out PickingRequest secondRequest),
+			GetPickingPlanner(secondBuilding).AddReservedPickingRequest(line, secondSource, 5, out PickingRequest secondRequest),
 			Is.True);
 		Assert.That(secondRequest.ReportAllocated(1), Is.EqualTo(1));
 
@@ -109,20 +117,33 @@ public sealed class WorkDemandMetricsEditModeTests
 	[Test]
 	public void StoringDemand_CountsBufferItemSourcesAndExcludesWasteWithinBuildingScope()
 	{
-		StorageBuilding firstBuilding = CreateStorageBuilding("First Storing Demand Storage");
-		StorageBuilding secondBuilding = CreateStorageBuilding("Second Storing Demand Storage");
+		Building firstBuilding = CreateStorageBuilding("First Storing Demand Storage");
+		Building secondBuilding = CreateStorageBuilding("Second Storing Demand Storage");
 
 		CapsuleBuffer firstBuffer = CreateInboundBuffer(
 			"First Storing Demand Buffer",
-			(201u, 3, ItemStatus.None, ItemQuality.None),
-			(201u, 2, ItemStatus.None, ItemQuality.Waste),
+			(201u, 3, ItemStatus.Labeled, ItemQuality.None),
 			(202u, 4, ItemStatus.Labeled, ItemQuality.None));
 		RegisterCapsuleBuffer(firstBuilding, firstBuffer);
+		ApplyBufferRule(firstBuffer, CargoProcessStage.Labeled);
+		CapsuleBuffer firstWasteBuffer = CreateInboundBuffer(
+			"First Storing Waste Buffer",
+			(201u, 2, ItemStatus.Labeled, ItemQuality.Waste));
+		RegisterCapsuleBuffer(firstBuilding, firstWasteBuffer);
+		ApplyBufferRule(firstWasteBuffer, CargoProcessStage.Labeled);
 
 		CapsuleBuffer secondBuffer = CreateInboundBuffer(
 			"Second Storing Demand Buffer",
-			(203u, 6, ItemStatus.None, ItemQuality.None));
+			(203u, 6, ItemStatus.Labeled, ItemQuality.None));
 		RegisterCapsuleBuffer(secondBuilding, secondBuffer);
+		ApplyBufferRule(secondBuffer, CargoProcessStage.Labeled);
+		Assert.That(firstBuffer.CanProvideInboundItems(), Is.True);
+		Assert.That(
+			capsuleBufferService.IsRuleMatchedBuffer(
+				firstBuffer,
+				firstBuffer.DockedCapsule,
+				evaluateLaunchReadiness: false),
+			Is.True);
 
 		inboundWorkflow.StoringPlanner.GetPendingDemand(
 			firstBuilding.RuntimeBuildingId,
@@ -137,20 +158,62 @@ public sealed class WorkDemandMetricsEditModeTests
 	}
 
 	[Test]
+	public void GenericBuilding_RegistersAllFacilityDrivenProducersFromServices()
+	{
+		Building generic = new(
+			"Generic Logistics Building",
+			new List<GridCell>(),
+			CargoProcessStage.None);
+		buildingManager.Register(generic);
+		Assert.That(generic.RuntimeBuildingId, Is.Not.Zero);
+		Assert.That(
+			context.ItemTransferTaskScheduler.HandlerCount,
+			Is.EqualTo(5),
+			"Picking, Storing, PackingInput, PackingOutput, and LaunchSort producers must be registered for a Generic Building.");
+
+		PickingPlanner pickingPlanner = GetPickingPlanner(generic);
+		OrderLine pickingLine = new(null, 211, 3, null);
+		Shelf pickingSource = CreateComponent<Shelf>("Generic Picking Source", active: false);
+		Assert.That(
+			pickingPlanner.AddReservedPickingRequest(
+				pickingLine,
+				pickingSource,
+				3,
+				out _),
+			Is.True);
+
+		CapsuleBuffer storingSource = CreateInboundBuffer(
+			"Generic Storing Source",
+			(212u, 2, ItemStatus.Labeled, ItemQuality.None));
+		RegisterCapsuleBuffer(generic, storingSource);
+		ApplyBufferRule(storingSource, CargoProcessStage.Labeled);
+
+		AssertDemand(LogisticsWorkCategory.Picking, generic.RuntimeBuildingId, 1, 3);
+		AssertDemand(LogisticsWorkCategory.Storing, generic.RuntimeBuildingId, 1, 2);
+	}
+
+	[Test]
 	public void PackingDemand_SeparatesInputWaitingAndOutputPhysicalSources()
 	{
-		PackingBuilding firstBuilding = new("First Packing Demand Building", new List<GridCell>());
+		Building firstBuilding = new(
+			"First Packing Demand Building",
+			new List<GridCell>(),
+			CargoProcessStage.Packed);
 		buildingManager.Register(firstBuilding);
 
 		CapsuleBuffer firstInputBuffer = CreateInboundBuffer(
 			"First Packing Input Demand Buffer",
-			(301u, 5, ItemStatus.Labeled, ItemQuality.None),
-			(302u, 3, ItemStatus.None, ItemQuality.None));
+			(301u, 4, ItemStatus.Labeled, ItemQuality.None),
+			(302u, 3, ItemStatus.Labeled, ItemQuality.None));
 		PickingManifest firstManifest = outboundWorkflow.GetPickingManifest(firstInputBuffer.DockedCapsule);
 		Assert.That(firstManifest, Is.Not.Null);
 		firstManifest.AddPicked(new OrderLine(null, 301, 4, null), 301, 4);
-		firstManifest.AddPicked(new OrderLine(null, 302, 10, null), 302, 10);
+		firstManifest.AddPicked(new OrderLine(null, 302, 3, null), 302, 3);
 		RegisterCapsuleBuffer(firstBuilding, firstInputBuffer);
+		ApplyBufferRule(
+			firstInputBuffer,
+			CargoProcessStage.Picked,
+			CapsuleBufferStateRequirement.Inside);
 
 		PackingStation firstStation = CreateComponent<PackingStation>("First Packing Demand Station", active: false);
 		ToteBox firstWaitingBox = CreateBox<ToteBox>(
@@ -177,17 +240,23 @@ public sealed class WorkDemandMetricsEditModeTests
 			"OnRegisterFacility",
 			firstBuilding.RuntimeBuildingId,
 			firstStation);
-		InvokeNonPublic(typeof(PackingBuilding), firstBuilding, "MarkPackingOutputDirty", firstStation);
 
-		PackingBuilding secondBuilding = new("Second Packing Demand Building", new List<GridCell>());
+		Building secondBuilding = new(
+			"Second Packing Demand Building",
+			new List<GridCell>(),
+			CargoProcessStage.Packed);
 		buildingManager.Register(secondBuilding);
 		CapsuleBuffer secondInputBuffer = CreateInboundBuffer(
 			"Second Packing Input Demand Buffer",
-			(305u, 9, ItemStatus.Labeled, ItemQuality.None));
+			(305u, 5, ItemStatus.Labeled, ItemQuality.None));
 		PickingManifest secondManifest = outboundWorkflow.GetPickingManifest(secondInputBuffer.DockedCapsule);
 		Assert.That(secondManifest, Is.Not.Null);
 		secondManifest.AddPicked(new OrderLine(null, 305, 5, null), 305, 5);
 		RegisterCapsuleBuffer(secondBuilding, secondInputBuffer);
+		ApplyBufferRule(
+			secondInputBuffer,
+			CargoProcessStage.Picked,
+			CapsuleBufferStateRequirement.Inside);
 
 		PackingStation secondStation = CreateComponent<PackingStation>("Second Packing Demand Station", active: false);
 		ToteBox secondWaitingBox = CreateBox<ToteBox>(
@@ -214,7 +283,6 @@ public sealed class WorkDemandMetricsEditModeTests
 			"OnRegisterFacility",
 			secondBuilding.RuntimeBuildingId,
 			secondStation);
-		InvokeNonPublic(typeof(PackingBuilding), secondBuilding, "MarkPackingOutputDirty", secondStation);
 
 		AssertDemand(LogisticsWorkCategory.PackingInput, firstBuilding.RuntimeBuildingId, 1, 7);
 		AssertDemand(LogisticsWorkCategory.PackingInput, secondBuilding.RuntimeBuildingId, 1, 5);
@@ -233,10 +301,83 @@ public sealed class WorkDemandMetricsEditModeTests
 	}
 
 	[Test]
+	public void PackingStation_RestoredOutputAfterFacilityRegistration_ReentersOutputQueue()
+	{
+		Building building = new(
+			"Restored Packing Output Building",
+			new List<GridCell>(),
+			CargoProcessStage.None);
+		buildingManager.Register(building);
+
+		PackingStation station = CreateComponent<PackingStation>(
+			"Restored Packing Output Station",
+			active: false);
+		InvokeNonPublic(
+			typeof(PackingStationService),
+			packingStationService,
+			"OnRegisterFacility",
+			building.RuntimeBuildingId,
+			station);
+		Assert.That(packingStationService.HasCompletedOutput(building.RuntimeBuildingId), Is.False);
+
+		ToteBox restoredOutput = CreateBox<ToteBox>(
+			"Restored Packing Output Box",
+			BoxType.Personal,
+			(308u, 3, ItemStatus.Packed, ItemQuality.None));
+		SetPrivateField(
+			typeof(PackingStation),
+			station,
+			"endPackingBox",
+			new BoxWithOrder(restoredOutput, new WorkJob(5, new List<WorkLine>(), WorkOp.Packing)));
+
+		station.InitializeForSaveLoad();
+
+		Assert.That(packingStationService.HasCompletedOutput(building.RuntimeBuildingId), Is.True);
+		Assert.That(
+			packingStationService.TryClaimCompletedOutput(building.RuntimeBuildingId, out PackingStation claimed),
+			Is.True);
+		Assert.That(claimed, Is.SameAs(station));
+	}
+
+	[Test]
+	public void PackingStation_RestoredTransientInputClaim_ReentersWaitingQueue()
+	{
+		Building building = new(
+			"Restored Packing Input Building",
+			new List<GridCell>(),
+			CargoProcessStage.None);
+		buildingManager.Register(building);
+
+		PackingStation station = CreateComponent<PackingStation>(
+			"Restored Packing Input Station",
+			active: false);
+		InvokeNonPublic(
+			typeof(PackingStationService),
+			packingStationService,
+			"OnRegisterFacility",
+			building.RuntimeBuildingId,
+			station);
+
+		Assert.That(
+			packingStationService.TryClaimWaitingStation(building.RuntimeBuildingId, out PackingStation firstClaim),
+			Is.True);
+		Assert.That(firstClaim, Is.SameAs(station));
+		Assert.That(station.IncomingRequestSuspended, Is.True);
+
+		packingStationService.ReconcileRestoredIncomingRequests();
+
+		Assert.That(station.IncomingRequestSuspended, Is.False);
+		Assert.That(
+			packingStationService.TryClaimWaitingStation(building.RuntimeBuildingId, out PackingStation restoredClaim),
+			Is.True);
+		Assert.That(restoredClaim, Is.SameAs(station));
+	}
+
+	[Test]
 	public void CapsuleRelocateDemand_FiltersPendingEntriesThatAreNoLongerActionable()
 	{
-		StorageBuilding sourceBuilding = CreateStorageBuilding("Capsule Relocate Source Building");
-		StorageBuilding targetBuilding = CreateStorageBuilding("Capsule Relocate Target Building");
+		Building sourceBuilding = CreateStorageBuilding("Capsule Relocate Source Building");
+		Building targetBuilding = CreateStorageBuilding("Capsule Relocate Target Building");
 		CapsuleBuffer source = CreateInboundBuffer(
 			"Capsule Relocate Demand Source",
 			(401u, 1, ItemStatus.None, ItemQuality.None));
@@ -351,12 +492,32 @@ public sealed class WorkDemandMetricsEditModeTests
 		Assert.That(all.ItemQuantity, Is.EqualTo(partitionItemQuantity), $"{category} item partition");
 	}
 
-	private StorageBuilding CreateStorageBuilding(string displayName)
+	private Building CreateStorageBuilding(string displayName)
 	{
-		StorageBuilding building = new(displayName, new List<GridCell>());
+		Building building = new(displayName, new List<GridCell>(), CargoProcessStage.Picked);
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
+	}
+
+	private PickingPlanner GetPickingPlanner(Building building)
+	{
+		Assert.That(
+			outboundWorkflow.TryGetPickingPlanner(building.RuntimeBuildingId, out PickingPlanner planner),
+			Is.True);
+		return planner;
+	}
+
+	private void ApplyBufferRule(
+		CapsuleBuffer buffer,
+		CargoProcessStage stage,
+		CapsuleBufferStateRequirement bufferState = CapsuleBufferStateRequirement.Any)
+	{
+		FacilityRule rule = new();
+		rule.SetRequiredCargoProcessStage(stage);
+		rule.SetRequiredCapsuleBufferState(bufferState);
+		FacilityRulePreset preset = facilityRuleManager.CreatePreset($"{buffer.name} Rule", rule);
+		Assert.That(facilityRuleManager.ApplyPreset(buffer, preset.Id), Is.True);
 	}
 
 	private CapsuleBuffer CreateInboundBuffer(

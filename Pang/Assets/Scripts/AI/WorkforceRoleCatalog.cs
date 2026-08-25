@@ -66,7 +66,6 @@ public sealed class WorkforceRoleDefinition
 
 public static class WorkforceRoleCatalog
 {
-	private static readonly IReadOnlyList<WorkforceRole> noRoles = CreateRoleList();
 	private static readonly IReadOnlyList<WorkforceRole> buildingRoles = CreateRoleList(
 		WorkforceRole.Labeling,
 		WorkforceRole.Storing,
@@ -140,25 +139,14 @@ public static class WorkforceRoleCatalog
 		return definitions.TryGetValue(role, out definition);
 	}
 
-	public static IReadOnlyList<WorkforceRole> GetRoles(BuildingType? buildingType)
+	public static IReadOnlyList<WorkforceRole> GetRoles(uint buildingId)
 	{
-		if (buildingType.HasValue == false)
-			return publicRoles;
-
-		return buildingType.Value switch
-		{
-			BuildingType.Generic => buildingRoles,
-			BuildingType.Staging => buildingRoles,
-			BuildingType.Storage => buildingRoles,
-			BuildingType.Packing => buildingRoles,
-			BuildingType.Launch => buildingRoles,
-			_ => noRoles,
-		};
+		return buildingId == 0 ? publicRoles : buildingRoles;
 	}
 
-	public static bool IsRoleSupported(BuildingType? buildingType, WorkforceRole role)
+	public static bool IsRoleSupported(uint buildingId, WorkforceRole role)
 	{
-		IReadOnlyList<WorkforceRole> roles = GetRoles(buildingType);
+		IReadOnlyList<WorkforceRole> roles = GetRoles(buildingId);
 		for (int i = 0; i < roles.Count; ++i)
 		{
 			if (roles[i] == role)

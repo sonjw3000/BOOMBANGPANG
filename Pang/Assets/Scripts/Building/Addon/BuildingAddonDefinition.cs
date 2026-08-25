@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 public enum BuildingAddonType
@@ -31,14 +30,6 @@ public sealed class BuildingAddonDefinition : ScriptableObject
 	[SerializeField] private bool canHeat;
 	[SerializeField, Min(0.0f)] private float temperatureControlDegreesPerQuarterWeek;
 	[SerializeField] private string requiredResearchUid = string.Empty;
-	[SerializeField] private List<BuildingType> allowedBuildingTypes = new()
-	{
-		BuildingType.Generic,
-		BuildingType.Staging,
-		BuildingType.Storage,
-		BuildingType.Packing,
-		BuildingType.Launch,
-	};
 
 	public string AddonId => addonId;
 	public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
@@ -58,10 +49,4 @@ public sealed class BuildingAddonDefinition : ScriptableObject
 		Mathf.Max(0.0f, temperatureControlDegreesPerQuarterWeek);
 	public string RequiredResearchUid => requiredResearchUid;
 	public bool RequiresResearch => string.IsNullOrWhiteSpace(requiredResearchUid) == false;
-	public IReadOnlyList<BuildingType> AllowedBuildingTypes => allowedBuildingTypes;
-
-	public bool IsAllowedFor(BuildingType buildingType)
-	{
-		return allowedBuildingTypes != null && allowedBuildingTypes.Contains(buildingType);
-	}
 }

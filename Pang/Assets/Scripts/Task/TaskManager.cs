@@ -634,7 +634,6 @@ public partial class TaskManager : MonoBehaviour
 				GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskInvalidated(task);
 
 			NotifyWorkflowTaskInvalidated(task);
-			NotifyBuildingCapsuleRelocationEnded(task);
 			NotifyCapsuleRelocateTaskDependenciesChanged();
 			LogTaskInvalidation(task, worker, previousStatus, reason);
 			if (removeRegisteredState)
@@ -645,24 +644,6 @@ public partial class TaskManager : MonoBehaviour
 		finally
 		{
 			EndTaskStateChangeBatch();
-		}
-	}
-
-	private static void NotifyBuildingCapsuleRelocationEnded(WorkerTask task)
-	{
-		if (task is not CapsuleRelocationTask relocationTask ||
-			relocationTask.BuildingId == 0 ||
-			GameContext.HasInstance == false)
-		{
-			return;
-		}
-
-		BuildingManager buildingManager = GameContext.Instance.BuildingMgr;
-		if (buildingManager != null &&
-			buildingManager.TryGetBuilding(relocationTask.BuildingId, out Building building) &&
-			building != null)
-		{
-			building.OnCapsuleRelocationTaskEnded(relocationTask);
 		}
 	}
 
@@ -738,10 +719,7 @@ public partial class TaskManager : MonoBehaviour
 			GameContext.Instance.ItemTransferTaskScheduler.NotifyTaskCompleted(task);
 
 		if (task is CapsuleRelocationTask relocationTask)
-		{
 			relocationTask.NotifyRelocationEnded();
-			NotifyBuildingCapsuleRelocationEnded(relocationTask);
-		}
 
 		// todo
 		//

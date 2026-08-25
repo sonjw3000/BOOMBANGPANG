@@ -91,13 +91,12 @@ public sealed partial class BuildingFootprintService
 			Building restoredBuilding = BuildingManager.RestoreBuilding(
 				ownedCells,
 				savedFootprint.RuntimeBuildingId,
-				savedBuilding != null ? savedBuilding.Type : BuildingType.Generic,
 				string.IsNullOrWhiteSpace(savedBuilding?.Name) ? $"Building {savedFootprint.RuntimeBuildingId}" : savedBuilding.Name,
 				savedBuilding != null ? savedBuilding.State : BuildingState.Active,
 				savedBuilding != null ? savedBuilding.WorkScope : BuildingWorkScope.HomeOnly,
 				savedBuilding != null
 					? savedBuilding.OutboundTargetStage
-					: Building.GetDefaultOutboundTargetStage(BuildingType.Generic),
+					: CargoProcessStage.None,
 				savedBuilding != null && savedBuilding.OverrideCapsuleThreshold,
 				savedBuilding != null ? savedBuilding.CapsuleThresholdPercent : 80.0f,
 				savedBuilding != null && savedBuilding.SuitRemovalAllowed,

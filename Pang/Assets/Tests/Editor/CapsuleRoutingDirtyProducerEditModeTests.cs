@@ -10,6 +10,7 @@ public sealed class CapsuleRoutingDirtyProducerEditModeTests
 	private readonly List<UnityEngine.Object> createdObjects = new();
 	private GameContext previousContext;
 	private GameContext context;
+	private CargoPortService cargoPortService;
 
 	[SetUp]
 	public void SetUp()
@@ -19,7 +20,7 @@ public sealed class CapsuleRoutingDirtyProducerEditModeTests
 
 		context = CreateComponent<GameContext>("Dirty Producer Test Context");
 		ItemDatabase itemDatabase = CreateComponent<ItemDatabase>("Dirty Producer Test Item Database");
-		CargoPortService cargoPortService = CreateComponent<CargoPortService>("Dirty Producer Test Cargo Port Service");
+		cargoPortService = CreateComponent<CargoPortService>("Dirty Producer Test Cargo Port Service");
 		ItemDefinition itemDefinition = ScriptableObject.CreateInstance<ItemDefinition>();
 		createdObjects.Add(itemDefinition);
 		SetPrivateField(typeof(ItemDefinition), itemDefinition, "itemID", TestItemId);
@@ -52,18 +53,21 @@ public sealed class CapsuleRoutingDirtyProducerEditModeTests
 	[Test]
 	public void CargoPort_PartialContentChange_MarksDockDirtyWithoutThresholdEvent()
 	{
+		CapsuleDockService dockService = CreateComponent<CapsuleDockService>("Dirty Producer Dock Service");
 		CapsuleDock evaluatedDock = null;
 		CapsuleRelocateCoordinator coordinator = new(
-			dockService: null,
-			evaluateDirtyDock: dock => evaluatedDock = dock);
+			dockService,
+			evaluateDirtyDock: dock => evaluatedDock = dock,
+			cargoPortService: cargoPortService);
 		SetPrivateField(typeof(GameContext), context, "capsuleRelocateCoordinator", coordinator);
 
 		InboundCargoPort port = CreateComponent<InboundCargoPort>("Dirty Producer Inbound Port");
+		InvokeNonPublic(typeof(CapsuleDockService), dockService, "OnRegisterFacility", 41u, port);
+		InvokeNonPublic(typeof(CargoPortService), cargoPortService, "OnRegisterFacility", 41u, port);
 		CargoCapsule capsule = CreateComponent<CargoCapsule>("Dirty Producer Capsule");
 		Assert.That(port.TryDockCapsule(capsule), Is.True);
-
-		Building building = new("Dirty Producer Building", new List<GridCell>(), BuildingType.Generic);
-		InvokeNonPublic(typeof(Building), building, "SubscribeCargoPort", port);
+		coordinator.ProcessDirty();
+		evaluatedDock = null;
 
 		int contentChangeCount = 0;
 		int zeroThresholdCount = 0;
@@ -84,7 +88,8 @@ public sealed class CapsuleRoutingDirtyProducerEditModeTests
 
 		Assert.That(evaluatedDock, Is.SameAs(port));
 		Assert.That(coordinator.HasDirty, Is.False);
-		InvokeNonPublic(typeof(Building), building, "UnsubscribeCargoPort", port);
+		InvokeNonPublic(typeof(CargoPortService), cargoPortService, "OnUnregisterFacility", 41u, port);
+		InvokeNonPublic(typeof(CapsuleDockService), dockService, "OnUnregisterFacility", 41u, port);
 	}
 
 	[Test]

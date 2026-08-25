@@ -127,8 +127,8 @@ public sealed class TaskMetricsEditModeTests
 	[Test]
 	public void GetTaskCountSnapshot_BuildingScopePartitionsAllLogisticsCategories()
 	{
-		PackingBuilding firstBuilding = new("First Task Metrics Building", new List<GridCell>());
-		PackingBuilding secondBuilding = new("Second Task Metrics Building", new List<GridCell>());
+		Building firstBuilding = new("First Task Metrics Building", new List<GridCell>(), CargoProcessStage.Packed);
+		Building secondBuilding = new("Second Task Metrics Building", new List<GridCell>(), CargoProcessStage.Packed);
 		buildingManager.Register(firstBuilding);
 		buildingManager.Register(secondBuilding);
 
@@ -195,8 +195,8 @@ public sealed class TaskMetricsEditModeTests
 	[Test]
 	public void GetTaskCountSnapshot_BuildingScopeSupportsLegacyTaskOwnership()
 	{
-		StorageBuilding firstBuilding = new("Legacy Picking Task Building", new List<GridCell>());
-		StorageBuilding secondBuilding = new("Legacy Storing Task Building", new List<GridCell>());
+		Building firstBuilding = new("Legacy Picking Task Building", new List<GridCell>(), CargoProcessStage.Picked);
+		Building secondBuilding = new("Legacy Storing Task Building", new List<GridCell>(), CargoProcessStage.Picked);
 		buildingManager.Register(firstBuilding);
 		buildingManager.Register(secondBuilding);
 
@@ -254,7 +254,7 @@ public sealed class TaskMetricsEditModeTests
 	[Test]
 	public void GetTaskCountSnapshot_UnassignedActiveTaskDoesNotUseWorkerAffiliation()
 	{
-		StorageBuilding building = new("Worker Affiliation Task Metrics Building", new List<GridCell>());
+		Building building = new("Worker Affiliation Task Metrics Building", new List<GridCell>(), CargoProcessStage.Picked);
 		buildingManager.Register(building);
 		ItemTransferTask task = CreateItemTransferTask(WorkerTask.TaskType.Picking, 0);
 		HumanWorker worker = CreateWorker();

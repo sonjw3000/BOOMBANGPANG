@@ -37,9 +37,7 @@
 - reputation impact
 
 ## Buildings
-- storage buildings
-- packing buildings
-- launch buildings
+- generic buildings composed into storage, packing, and launch capabilities
 - interior build space
 - cargo ports / transfer points
 - airlocks and building access flow

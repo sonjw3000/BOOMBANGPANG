@@ -122,11 +122,6 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 
 	public bool TryCreateFootprint(int floor, in int3 center, out string reason)
 	{
-		return TryCreateFootprint(floor, center, BuildingType.Generic, out reason);
-	}
-
-	public bool TryCreateFootprint(int floor, in int3 center, BuildingType buildingType, out string reason)
-	{
 		BuildingFootprintPreset preset = ActivePreset;
 		if (CanCreateFootprint(floor, center, out reason) == false)
 			return false;
@@ -165,7 +160,6 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 		List<GridCell> ownedCells = BuildOwnedCells(center, preset, floor);
 		Building createdBuilding = BuildingManager.CreateBuilding(
 			ownedCells,
-			buildingType,
 			addonSlotCapacity: preset.AddonSlotCapacity);
 		if (createdBuilding == null)
 		{

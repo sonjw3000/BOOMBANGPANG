@@ -121,6 +121,9 @@ public sealed class CapsuleRelocateCoordinator
 {
 	private readonly CapsuleDockService dockService;
 	private readonly CapsuleBufferService bufferService;
+	private readonly TaskManager taskManager;
+	private readonly BuildingManager buildingManager;
+	private readonly FacilityManager facilityManager;
 	private readonly LinkedList<CapsuleRelocateSendRequest> pendingSends = new();
 	private readonly LinkedList<CapsuleRelocateDemand> pendingDemands = new();
 	private readonly Dictionary<CapsuleDock, LinkedListNode<CapsuleRelocateSendRequest>> pendingSendNodeBySource = new();
@@ -134,13 +137,13 @@ public sealed class CapsuleRelocateCoordinator
 	private readonly HashSet<uint> dirtyBuildingIds = new();
 	private readonly HashSet<uint> processingDirtyBuildingIds = new();
 	private readonly List<CapsuleBuffer> ruleTargetScratch = new();
+	private readonly List<CapsuleDock> buildingDockScratch = new();
 	private readonly Func<uint, uint, bool> canUseLinkedBuilding;
 	private readonly Action<CapsuleDock> evaluateDirtyDock;
 	private readonly Action<uint> evaluateDirtyBuilding;
 	private bool isRestoring;
 	private bool isProcessingDirty;
 
-	public event Action<CapsuleDock> OnPlayerClaimReleased;
 	public event Action<uint, CapsuleBuffer, bool> OnRuleRoutingEvaluated;
 
 	public int PendingSendCount => pendingSendNodeBySource.Count;
@@ -189,13 +192,35 @@ public sealed class CapsuleRelocateCoordinator
 		Func<uint, uint, bool> canUseLinkedBuilding = null,
 		CapsuleBufferService bufferService = null,
 		Action<CapsuleDock> evaluateDirtyDock = null,
-		Action<uint> evaluateDirtyBuilding = null)
+		Action<uint> evaluateDirtyBuilding = null,
+		TaskManager taskManager = null,
+		BuildingManager buildingManager = null,
+		FacilityManager facilityManager = null,
+		CargoPortService cargoPortService = null)
 	{
 		this.dockService = dockService;
 		this.canUseLinkedBuilding = canUseLinkedBuilding;
 		this.bufferService = bufferService;
 		this.evaluateDirtyDock = evaluateDirtyDock;
 		this.evaluateDirtyBuilding = evaluateDirtyBuilding;
+		this.taskManager = taskManager;
+		this.buildingManager = buildingManager;
+		this.facilityManager = facilityManager;
+
+		if (dockService != null)
+		{
+			dockService.OnCapsuleDocked += HandleCapsuleDocked;
+			dockService.OnCapsuleUndocked += HandleCapsuleUndocked;
+			dockService.OnDockStateChanged += HandleDockStateChanged;
+		}
+		if (bufferService != null)
+			bufferService.OnCapsuleContentChanged += HandleCapsuleContentChanged;
+		if (cargoPortService != null)
+		{
+			cargoPortService.OnCargoContentChanged += HandleCargoRoutingChanged;
+			cargoPortService.OnCargoQuantityZero += HandleCargoRoutingChanged;
+			cargoPortService.OnCargoQuantityOverPercent += HandleCargoRoutingChanged;
+		}
 	}
 
 	public void MarkDirty(CapsuleDock dock)
@@ -233,7 +258,12 @@ public sealed class CapsuleRelocateCoordinator
 				dirtyDocks.Clear();
 
 				for (int i = 0; i < buildingIds.Length; ++i)
-					evaluateDirtyBuilding?.Invoke(buildingIds[i]);
+				{
+					if (evaluateDirtyBuilding != null)
+						evaluateDirtyBuilding(buildingIds[i]);
+					else
+						ReevaluateBuilding(buildingIds[i]);
+				}
 
 				for (int i = 0; i < docks.Length; ++i)
 				{
@@ -246,7 +276,10 @@ public sealed class CapsuleRelocateCoordinator
 						continue;
 					}
 
-					evaluateDirtyDock?.Invoke(dock);
+					if (evaluateDirtyDock != null)
+						evaluateDirtyDock(dock);
+					else
+						ReevaluateDock(dock);
 				}
 			}
 		}
@@ -255,6 +288,245 @@ public sealed class CapsuleRelocateCoordinator
 			processingDirtyBuildingIds.Clear();
 			isProcessingDirty = false;
 		}
+	}
+
+	private void HandleCapsuleDocked(uint buildingId, CapsuleDock dock)
+	{
+		NotifyCapsuleDocked(dock);
+	}
+
+	private void HandleCapsuleUndocked(uint buildingId, CapsuleDock dock)
+	{
+		NotifyCapsuleUndocked(dock);
+	}
+
+	private void HandleDockStateChanged(uint buildingId, CapsuleDock dock)
+	{
+		NotifyDockStateChanged(dock);
+	}
+
+	private void HandleCapsuleContentChanged(uint buildingId, CapsuleBuffer buffer)
+	{
+		MarkDirty(buffer);
+	}
+
+	private void HandleCargoRoutingChanged(uint buildingId, CargoPort port)
+	{
+		MarkDirty(port);
+	}
+
+	private void ReevaluateBuilding(uint buildingId)
+	{
+		if (buildingId == 0 || dockService == null)
+			return;
+
+		if (dockService.TryQueryDocks(buildingId, buildingDockScratch) == false)
+			return;
+
+		CapsuleDock[] docks = buildingDockScratch.ToArray();
+		for (int i = 0; i < docks.Length; ++i)
+			ReevaluateDock(docks[i]);
+	}
+
+	private void ReevaluateDock(CapsuleDock dock)
+	{
+		if (dock == null || taskManager == null ||
+			dockService?.TryGetRegisteredBuildingId(dock, out uint buildingId) != true ||
+			buildingManager?.TryGetBuilding(buildingId, out Building building) != true ||
+			building == null ||
+			facilityManager?.IsInvalidating(dock) == true)
+		{
+			return;
+		}
+
+		taskManager.TryGetManagedCapsuleRelocationSource(
+			dock,
+			out CapsuleRelocationTask managedRelocation);
+
+		CargoCapsule dockedCapsule = dock.DockedCapsule;
+		if (dockedCapsule == null)
+		{
+			managedRelocation?.RevalidateReturnedRuleRoutingAssignment();
+			CancelPendingRequests(dock);
+			return;
+		}
+
+		if (dockedCapsule.RouteKind != CargoRouteKind.Standard)
+			return;
+
+		NormalizeCapsuleState(dock, dockedCapsule, building);
+		if (IsPlayerClaimed(dock))
+			return;
+
+		if (managedRelocation != null)
+		{
+			if (managedRelocation.CurrentStatus == WorkerTask.Status.Returned &&
+				managedRelocation.RevalidateReturnedRuleRoutingAssignment() == false)
+			{
+				taskManager.InvalidateTask(managedRelocation, TaskInvalidationReason.RuleChanged);
+				managedRelocation = null;
+			}
+			else
+			{
+				if (managedRelocation.CurrentStatus == WorkerTask.Status.Ready &&
+					managedRelocation.IsReadyQueueAssignmentValid() == false)
+				{
+					TaskInvalidationReason reason = managedRelocation.Reason == CapsuleRelocationReason.RuleRouting
+						? TaskInvalidationReason.RuleChanged
+						: TaskInvalidationReason.DispatchInvalid;
+					taskManager.InvalidateTask(managedRelocation, reason);
+				}
+				return;
+			}
+		}
+
+		if (IsRelocationSourceActive(dock))
+			return;
+
+		if (dock is InboundCargoPort inboundPort)
+		{
+			TryRequestInbound(inboundPort, buildingId, building);
+			return;
+		}
+
+		if (dock is not CapsuleBuffer buffer)
+			return;
+
+		if (dockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
+		{
+			bool evaluateLaunchReadiness = building.OutboundTargetStage == CargoProcessStage.LaunchReady;
+			bool isRuleMatched = bufferService?.IsRuleMatchedBuffer(
+				buffer,
+				dockedCapsule,
+				evaluateLaunchReadiness) == true;
+			NotifyRuleRoutingEvaluated(buildingId, buffer, isRuleMatched);
+			TryRequestOutbound(buffer, buildingId, building);
+			return;
+		}
+
+		TryRequestBufferRelocation(buffer, buildingId, building);
+	}
+
+	private void NormalizeCapsuleState(CapsuleDock dock, CargoCapsule capsule, Building building)
+	{
+		CapsuleLogisticsState normalized;
+		if (dock is InboundCargoPort || dock is Rocket)
+			normalized = dock.IsCapsuleEmpty() ? CapsuleLogisticsState.Empty : CapsuleLogisticsState.IB;
+		else if (dock is OutboundCargoPort)
+			normalized = dock.IsCapsuleEmpty() ? CapsuleLogisticsState.Empty : CapsuleLogisticsState.OB;
+		else if (dock is CapsuleBuffer buffer)
+		{
+			if (buffer.IsCapsuleEmpty())
+				normalized = CapsuleLogisticsState.Empty;
+			else if (taskManager.HasManagedPickingOutputDependency(buffer))
+				normalized = CapsuleLogisticsState.Inside;
+			else
+				normalized = building.CanDispatchOutboundBuffer(buffer)
+					? CapsuleLogisticsState.OB
+					: CapsuleLogisticsState.Inside;
+		}
+		else
+		{
+			return;
+		}
+
+		capsule.SetLogisticsState(normalized);
+	}
+
+	private void TryRequestInbound(InboundCargoPort port, uint buildingId, Building building)
+	{
+		CargoCapsule capsule = port?.DockedCapsule;
+		if (capsule == null || capsule.RouteKind != CargoRouteKind.Standard)
+			return;
+
+		CapsuleLogisticsState requiredState = port.IsCapsuleEmpty()
+			? CapsuleLogisticsState.Empty
+			: CapsuleLogisticsState.IB;
+		WorkerTask.TaskType taskType = requiredState == CapsuleLogisticsState.Empty
+			? WorkerTask.TaskType.CapsuleSupply
+			: WorkerTask.TaskType.IB;
+
+		RequestSend(new CapsuleRelocateSendRequest(
+			port,
+			port.DockState,
+			requiredState,
+			CapsuleDockState.Empty,
+			CapsuleRelocateScope.SameBuilding,
+			buildingId,
+			onMatched: match => EnqueueCapsuleRelocationTask(match, taskType, buildingId, CapsuleRelocationReason.RuleRouting),
+			requireRuleMatchedTarget: true,
+			evaluateLaunchReadiness: building.OutboundTargetStage == CargoProcessStage.LaunchReady));
+	}
+
+	private void TryRequestOutbound(CapsuleBuffer buffer, uint buildingId, Building building)
+	{
+		if (buffer?.DockedCapsule?.LogisticsState != CapsuleLogisticsState.OB ||
+			building.CanDispatchOutboundBuffer(buffer) == false)
+		{
+			CancelPendingRequests(buffer);
+			return;
+		}
+
+		RequestSend(new CapsuleRelocateSendRequest(
+			buffer,
+			buffer.DockState,
+			CapsuleLogisticsState.OB,
+			CapsuleDockState.OB,
+			CapsuleRelocateScope.SameBuilding,
+			buildingId,
+			onMatched: match => EnqueueCapsuleRelocationTask(
+				match,
+				WorkerTask.TaskType.OB,
+				buildingId,
+				CapsuleRelocationReason.DestinationNeedsCapsule)));
+	}
+
+	private void TryRequestBufferRelocation(CapsuleBuffer buffer, uint buildingId, Building building)
+	{
+		CargoCapsule capsule = buffer?.DockedCapsule;
+		if (capsule == null ||
+			(capsule.LogisticsState != CapsuleLogisticsState.Empty &&
+			 capsule.LogisticsState != CapsuleLogisticsState.Inside))
+		{
+			return;
+		}
+
+		bool evaluateLaunchReadiness = building.OutboundTargetStage == CargoProcessStage.LaunchReady;
+		if (bufferService?.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness) == true)
+		{
+			CancelPendingRequests(buffer);
+			NotifyRuleRoutingEvaluated(buildingId, buffer, isRuleMatched: true);
+			return;
+		}
+
+		NotifyRuleRoutingEvaluated(buildingId, buffer, isRuleMatched: false);
+		WorkerTask.TaskType taskType = capsule.LogisticsState == CapsuleLogisticsState.Empty
+			? WorkerTask.TaskType.CapsuleSupply
+			: WorkerTask.TaskType.CapsuleClear;
+		RequestSend(new CapsuleRelocateSendRequest(
+			buffer,
+			buffer.DockState,
+			capsule.LogisticsState,
+			CapsuleDockState.Empty,
+			CapsuleRelocateScope.SameBuilding,
+			buildingId,
+			onMatched: match => EnqueueCapsuleRelocationTask(match, taskType, buildingId, CapsuleRelocationReason.RuleRouting),
+			requireRuleMatchedTarget: true,
+			evaluateLaunchReadiness: evaluateLaunchReadiness));
+	}
+
+	private bool EnqueueCapsuleRelocationTask(
+		CapsuleRelocateMatch match,
+		WorkerTask.TaskType taskType,
+		uint buildingId,
+		CapsuleRelocationReason reason)
+	{
+		if (match.SourceDock == null || match.TargetDock == null)
+			return false;
+
+		CapsuleRelocationTask task = new(taskType, match.SourceDock, match.TargetDock, buildingId, reason);
+		taskManager.EnqueueTask(task);
+		return true;
 	}
 
 	public bool RequestSend(CapsuleRelocateSendRequest request)
@@ -584,7 +856,6 @@ public sealed class CapsuleRelocateCoordinator
 		MarkDirty(dock);
 		TryMatchPendingSend();
 		TryMatchPendingDemand();
-		OnPlayerClaimReleased?.Invoke(dock);
 	}
 
 	private bool TryMatchPendingSend()

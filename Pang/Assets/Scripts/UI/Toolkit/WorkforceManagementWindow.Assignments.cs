@@ -127,7 +127,7 @@ namespace UniverseLogistics.UI.Toolkit
 			assignmentUnassignedList.scrollOffset = unassignedScrollOffset;
 
 			assignmentTree.Clear();
-			AddAssignmentScope("PUBLIC LOGISTICS", "PUBLIC TASKS", 0, null);
+			AddAssignmentScope("PUBLIC LOGISTICS", "PUBLIC TASKS", 0);
 			IReadOnlyList<Building> buildings = buildingManager?.RegisteredBuildings;
 			if (buildings != null)
 			{
@@ -139,9 +139,8 @@ namespace UniverseLogistics.UI.Toolkit
 
 					AddAssignmentScope(
 						building.DisplayName,
-						building.Type.ToString().ToUpperInvariant(),
-						building.RuntimeBuildingId,
-						building.Type);
+						"BUILDING TASKS",
+						building.RuntimeBuildingId);
 				}
 			}
 
@@ -155,10 +154,9 @@ namespace UniverseLogistics.UI.Toolkit
 		private void AddAssignmentScope(
 			string displayName,
 			string scopeType,
-			uint buildingId,
-			BuildingType? buildingType)
+			uint buildingId)
 		{
-			IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(buildingType);
+			IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(buildingId);
 			bool collapsed = collapsedAssignmentScopes.Contains(buildingId);
 			VisualElement group = new();
 			group.AddToClassList("workforce-assignment-group");

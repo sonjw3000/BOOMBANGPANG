@@ -314,7 +314,7 @@ public sealed class WorkforceAssignmentModeController : MonoBehaviour
 		if (worker == null || building == null)
 			return false;
 
-		WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, building.Type, taskTypeBuffer);
+		WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, building.RuntimeBuildingId, taskTypeBuffer);
 		for (int i = 0; i < taskTypeBuffer.Count; ++i)
 		{
 			if (taskTypeBuffer[i] != WorkerTask.TaskType.Undefined)
@@ -329,7 +329,7 @@ public sealed class WorkforceAssignmentModeController : MonoBehaviour
 		if (worker == null)
 			return false;
 
-		WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, null, taskTypeBuffer);
+		WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, 0, taskTypeBuffer);
 		for (int i = 0; i < taskTypeBuffer.Count; ++i)
 		{
 			if (taskTypeBuffer[i] != WorkerTask.TaskType.Undefined)
@@ -348,14 +348,14 @@ public sealed class WorkforceAssignmentModeController : MonoBehaviour
 		if (worker == null)
 			return;
 
-		BuildingType? buildingType = building != null ? building.Type : null;
+		uint buildingId = building?.RuntimeBuildingId ?? 0;
 		IReadOnlyList<WorkerTask.TaskType> sourceTypes = worker.HasPendingAssignment
 			? worker.PendingAssignedTaskTypes
 			: worker.AssignedTaskTypes;
 		for (int i = 0; i < sourceTypes.Count; ++i)
 		{
 			WorkerTask.TaskType taskType = sourceTypes[i];
-			if (WorkerTaskAssignmentPolicy.CanAssign(worker, buildingType, taskType))
+			if (WorkerTaskAssignmentPolicy.CanAssign(worker, buildingId, taskType))
 				results.Add(taskType);
 		}
 	}

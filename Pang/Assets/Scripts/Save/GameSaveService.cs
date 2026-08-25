@@ -434,7 +434,6 @@ public sealed class GameSaveService : MonoBehaviour
 		Ctx.WasteCollectionPlanner.EndRestore();
 		Ctx.ItemTransferTaskScheduler.EndRestore();
 		RecoverOrphanedLoadedCapsules(workersById);
-		Ctx.BuildingMgr?.ValidateCapsuleRelocationInvariants("restore-complete", recoverOrphans: true);
 		Ctx.WorkerMgr.RebuildWorkerStatusCaches();
 		Ctx.FacilityRuleMgr.RebuildAppliedFacilityLookup();
 		if (Ctx.BuildingMgr != null)

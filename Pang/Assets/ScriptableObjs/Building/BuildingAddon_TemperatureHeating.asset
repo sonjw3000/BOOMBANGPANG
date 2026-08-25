@@ -26,9 +26,3 @@ MonoBehaviour:
   canHeat: 1
   temperatureControlDegreesPerQuarterWeek: 1
   requiredResearchUid: thermal_operations
-  allowedBuildingTypes:
-  - 0
-  - 1
-  - 2
-  - 3
-  - 4

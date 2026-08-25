@@ -19,13 +19,6 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string SelectedCategoryClass = "build-category-button--selected";
 		private const string ExpandedRoutingSourceClass = "build-routing-source--expanded";
 		private const string SelectedRoutingConnectionClass = "build-routing-connection--selected";
-		private static readonly BuildingType[] BuildingTypes =
-		{
-			BuildingType.Staging,
-			BuildingType.Storage,
-			BuildingType.Packing,
-			BuildingType.Launch,
-		};
 		private static readonly ItemStatus[] RuleItemStatuses = { ItemStatus.NotDefined, ItemStatus.None, ItemStatus.Labeled, ItemStatus.Packed };
 		private static readonly WorkerKind[] RuleWorkerKinds = { WorkerKind.None, WorkerKind.Human, WorkerKind.Robot };
 		private static readonly CapsuleBufferStateRequirement[] RuleCapsuleBufferStates =
@@ -66,7 +59,6 @@ namespace UniverseLogistics.UI.Toolkit
 		private Button routingLandingLinkButton;
 		private ScrollView routingSourceList;
 		private Label routingEmpty;
-		private DropdownField buildingTypeField;
 		private DropdownField footprintField;
 		private Label buildingSelectionName;
 		private Label buildingSelectionDetails;
@@ -213,7 +205,6 @@ namespace UniverseLogistics.UI.Toolkit
 			routingLandingLinkButton = content.Q<Button>("build-routing-landing-link-button");
 			routingSourceList = content.Q<ScrollView>("build-routing-source-list");
 			routingEmpty = content.Q<Label>("build-routing-empty");
-			buildingTypeField = content.Q<DropdownField>("building-type-field");
 			footprintField = content.Q<DropdownField>("building-footprint-field");
 			buildingSelectionName = content.Q<Label>("building-selection-name");
 			buildingSelectionDetails = content.Q<Label>("building-selection-details");
@@ -249,7 +240,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (buildingsButton == null || facilitiesButton == null || rulesButton == null || routingButton == null || buildingsTab == null ||
 				facilitiesTab == null || rulesTab == null || routingTab == null || routingSummary == null || routingMessage == null || routingLinkButton == null ||
 				routingLandingLinkButton == null || routingSourceList == null || routingEmpty == null ||
-				buildingTypeField == null || footprintField == null || buildingSelectionName == null ||
+				footprintField == null || buildingSelectionName == null ||
 				buildingSelectionDetails == null || buildingMessage == null || createBuildingButton == null ||
 				categoryList == null || catalogTitle == null || catalogMessage == null || placeableList == null ||
 				placeableEmpty == null || createRuleButton == null || createColdChainRuleButton == null ||
@@ -286,9 +277,6 @@ namespace UniverseLogistics.UI.Toolkit
 			createBuildingButton.clicked += BeginBuildingPlacement;
 			createRuleButton.clicked += CreateRule;
 			createColdChainRuleButton.clicked += CreateColdChainRule;
-			buildingTypeField.choices = BuildTypeChoices();
-			buildingTypeField.SetValueWithoutNotify(buildingTypeField.choices[0]);
-			buildingTypeField.RegisterValueChangedCallback(OnBuildingSelectionChanged);
 			footprintField.RegisterValueChangedCallback(OnFootprintChanged);
 			BindRuleEditor(content);
 			initialized = true;
@@ -324,7 +312,6 @@ namespace UniverseLogistics.UI.Toolkit
 			if (createBuildingButton != null) createBuildingButton.clicked -= BeginBuildingPlacement;
 			if (createRuleButton != null) createRuleButton.clicked -= CreateRule;
 			if (createColdChainRuleButton != null) createColdChainRuleButton.clicked -= CreateColdChainRule;
-			buildingTypeField?.UnregisterValueChangedCallback(OnBuildingSelectionChanged);
 			footprintField?.UnregisterValueChangedCallback(OnFootprintChanged);
 		}
 
@@ -782,7 +769,6 @@ namespace UniverseLogistics.UI.Toolkit
 			RefreshBuildingSelection();
 		}
 
-		private void OnBuildingSelectionChanged(ChangeEvent<string> _) => RefreshBuildingSelection();
 
 		private void OnFootprintChanged(ChangeEvent<string> _)
 		{
@@ -794,11 +780,10 @@ namespace UniverseLogistics.UI.Toolkit
 		private void RefreshBuildingSelection()
 		{
 			BuildingFootprintPreset preset = GetSelectedPreset();
-			BuildingType type = GetSelectedBuildingType();
 			bool available = preset != null && footprintService != null;
 			createBuildingButton.SetEnabled(available);
 			buildingSelectionName.text = available
-				? $"{BuildingTypeUtility.ToDisplayString(type)} · {preset.DisplayName}"
+				? $"Building · {preset.DisplayName}"
 				: "No footprint available";
 			buildingSelectionDetails.text = available
 				? $"{preset.Width} × {preset.Height} footprint. Wall costs are charged only when placement succeeds."
@@ -820,7 +805,6 @@ namespace UniverseLogistics.UI.Toolkit
 				return;
 			}
 
-			buildingPlacementOverlay.SetSelectedBuildingType(GetSelectedBuildingType());
 			window.Close();
 			buildingPlacementOverlay.BeginCreateOneShot();
 		}
@@ -1306,13 +1290,6 @@ namespace UniverseLogistics.UI.Toolkit
 		}
 
 		private BuildingFootprintPreset GetSelectedPreset() => footprintField.index >= 0 && footprintField.index < footprintPresets.Count ? footprintPresets[footprintField.index] : footprintService?.ActivePreset;
-		private BuildingType GetSelectedBuildingType() => buildingTypeField.index >= 0 && buildingTypeField.index < BuildingTypes.Length ? BuildingTypes[buildingTypeField.index] : BuildingTypes[0];
-		private static List<string> BuildTypeChoices()
-		{
-			List<string> choices = new();
-			foreach (BuildingType type in BuildingTypes) choices.Add(BuildingTypeUtility.ToDisplayString(type));
-			return choices;
-		}
 		private static string GetPlaceableName(PlaceableDefinition definition) => string.IsNullOrWhiteSpace(definition.displayName) ? definition.name : definition.displayName;
 		private static string GetSectionName(BuildPlaceableSection section) => string.IsNullOrWhiteSpace(section.displayName) ? section.sectionId : section.displayName;
 		private static string GetEnvironmentName(PlacementEnvironmentRequirement environment)

@@ -247,7 +247,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			if ((HasDispatchBlockingCargo(buffer) || HasCompleteDispatchManifest(buffer) == false) &&
 				buffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
 			{
-				buffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+				GameContext.Instance.CapsuleRelocateCoordinator.MarkDirty(buffer);
 			}
 		}
 	}
@@ -265,7 +265,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 			HasCompleteDispatchManifest(capsuleBuffer) == false)
 		{
 			if (capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
-				capsuleBuffer.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+				GameContext.Instance.CapsuleRelocateCoordinator.MarkDirty(capsuleBuffer);
 			QueueLaunchSortEvaluation(building.RuntimeBuildingId);
 			return false;
 		}

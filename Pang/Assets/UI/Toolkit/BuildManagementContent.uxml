@@ -11,10 +11,8 @@
 		<ui:ScrollView name="build-buildings-tab" mode="VerticalAndHorizontal" class="build-tab build-buildings-scroll">
 			<ui:VisualElement class="build-buildings-body">
 				<ui:Label text="Create a logistics process space" class="build-heading" />
-				<ui:Label text="Choose the building role and footprint, then place it directly on the map." class="build-caption" />
+				<ui:Label text="Choose a footprint, then place the building directly on the map." class="build-caption" />
 				<ui:VisualElement class="building-build-panel">
-				<ui:Label text="BUILDING TYPE" class="build-field-label" />
-				<ui:DropdownField name="building-type-field" class="build-field" />
 				<ui:Label text="FOOTPRINT" class="build-field-label" />
 				<ui:DropdownField name="building-footprint-field" class="build-field" />
 				<ui:VisualElement class="building-build-summary">

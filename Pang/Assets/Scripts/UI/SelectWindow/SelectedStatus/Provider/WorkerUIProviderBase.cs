@@ -344,7 +344,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 
 		List<uint> buildingIds = new();
 		List<string> buildingChoices = new();
-		int buildingIndex = BuildBuildingChoices(editingBuildingId, buildingIds, buildingChoices, out BuildingType? buildingType, out bool buildingValid);
+		int buildingIndex = BuildBuildingChoices(editingBuildingId, buildingIds, buildingChoices, out bool buildingValid);
 
 		SelectionDetailPanelModel panel = new()
 		{
@@ -407,7 +407,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 
 		List<WorkerTask.TaskType> assignableTaskTypes = new();
 		if (buildingValid)
-			WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, buildingType, assignableTaskTypes);
+			WorkerTaskAssignmentPolicy.GetAssignableTaskTypes(worker, editingBuildingId, assignableTaskTypes);
 		for (int i = 0; i < assignableTaskTypes.Count; ++i)
 		{
 			WorkerTask.TaskType taskType = assignableTaskTypes[i];
@@ -463,12 +463,10 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 		uint selectedBuildingId,
 		List<uint> buildingIds,
 		List<string> choices,
-		out BuildingType? selectedBuildingType,
 		out bool selectedBuildingValid)
 	{
 		buildingIds.Add(0);
 		choices.Add("None (Outdoor)");
-		selectedBuildingType = null;
 		selectedBuildingValid = selectedBuildingId == 0;
 		int selectedIndex = 0;
 
@@ -481,11 +479,10 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 					continue;
 
 				buildingIds.Add(building.RuntimeBuildingId);
-				choices.Add($"{building.DisplayName} · {building.Type}");
+				choices.Add(building.DisplayName);
 				if (building.RuntimeBuildingId == selectedBuildingId)
 				{
 					selectedIndex = buildingIds.Count - 1;
-					selectedBuildingType = building.Type;
 					selectedBuildingValid = true;
 				}
 			}
@@ -510,7 +507,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 			GameContext.Instance.BuildingMgr != null &&
 			GameContext.Instance.BuildingMgr.TryGetBuilding(buildingId, out Building building) &&
 			building != null
-				? $"{building.DisplayName} · {building.Type}"
+				? building.DisplayName
 				: $"Missing Building #{buildingId}";
 	}
 

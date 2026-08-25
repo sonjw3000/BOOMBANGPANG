@@ -65,14 +65,14 @@ These concepts have separate owners and purposes.
 
 Target design direction:
 - one Building may contain facilities for labeling, storage, picking, packing, and outbound work at the same time
-- installed facilities and their Rules determine which work can happen; Building subclasses are a migration-era implementation detail
+- installed facilities and their Rules determine which work can happen; every player-created structure uses the same `Building` class
 - facility operating policy is assigned through building-scoped `FacilityRule` presets
 - Building stores the cargo process stage at which its capsules should eventually become outbound candidates
 - `AreaType` contains only `WorkerSpawn` and `RocketLanding`
 - areas are not owned by buildings and do not contain facilities or gameplay rules
 - workflows query buildings and facilities first; areas are used only by their owning spawn/landing systems
 
-At the current migration step, Rule-driven Capsule routing, Dirty reevaluation, and Capsule lifecycle normalization are Building-generic. Labeling and storing producers are owned by `InboundWorkflowService`, while picking planners and producers are owned by `OutboundWorkflowService`; all registered Buildings may host those operations when their facilities and Rules match. Packing and launch producers still use their migration-era specialized Building classes and remain a later Building-lightening step.
+Rule-driven Capsule routing, Dirty reevaluation, lifecycle normalization, and relocation Task creation are owned by `CapsuleRelocateCoordinator`. Labeling and storing producers are owned by `InboundWorkflowService`, while picking, packing, and launch producers are owned by `OutboundWorkflowService`; any registered Building may host those operations when its facilities and Rules match.
 
 Cargo process stages use one shared contract:
 
@@ -89,7 +89,7 @@ The runtime Capsule lifecycle contract is `IB / Inside / Empty / OB`.
 - `IB` and `OB` describe CargoPort-facing transport phases.
 - `Inside` and `Empty` describe CapsuleBuffer payload phases.
 - `CapsuleDockState` remains a separate facility-interface contract, so Dock roles such as `IBStandby` and `OBStandby` are not Capsule lifecycle states.
-- Task implementations change physical cargo, ItemStatus, or manifests. Dirty routing evaluation derives the resulting Capsule lifecycle state instead of each Task assigning it independently.
+- Task implementations change physical cargo, ItemStatus, or manifests. Dirty routing evaluation derives the lifecycle of docked standard Capsules instead of each work Task assigning it independently. A relocation Task may set a carried rejected outbound Capsule back to `Inside` before it can be redocked and evaluated.
 
 ---
 

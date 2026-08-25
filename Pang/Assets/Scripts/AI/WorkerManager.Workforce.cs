@@ -164,8 +164,8 @@ public partial class WorkerManager
 		out WorkforceRoleDefinition definition)
 	{
 		definition = null;
-		return TryResolveBuildingType(buildingId, out BuildingType? buildingType) &&
-			WorkforceRoleCatalog.IsRoleSupported(buildingType, role) &&
+		return TryResolveBuildingScope(buildingId) &&
+			WorkforceRoleCatalog.IsRoleSupported(buildingId, role) &&
 			WorkforceRoleCatalog.TryGetDefinition(role, out definition);
 	}
 

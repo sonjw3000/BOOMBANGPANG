@@ -30,7 +30,7 @@ Inbound CargoPort
 -> Building outbound stage and threshold
 -> Outbound CargoPort
 
-The target model allows the same Building to host several or all of these operations. Capsule routing, state normalization, Labeling, Storing, and Picking now use this generic model and are selected by BuildingId-scoped facilities and Rules rather than Staging/Storage subclasses. Packing and launch Task producers remain on migration-era subclasses for the next implementation bundle; those classes are not the intended final player-facing capability boundary.
+The same Building may host several or all of these operations. Capsule routing, state normalization, and every Task producer use this generic model; BuildingId-scoped facilities and Rules select available work rather than Staging, Storage, Packing, or Launch subclasses.
 
 ---
 
@@ -38,7 +38,7 @@ The target model allows the same Building to host several or all of these operat
 
 Cargo spacecraft arrive and unload goods into the logistics hub through inbound cargo interfaces.
 
-Inbound flow may enter a dedicated storage building directly or pass through transfer cargo ports first.
+Inbound flow may enter a Building configured for storage directly or pass through transfer cargo ports first.
 
 Inbound logistics may introduce:
 - congestion
@@ -54,7 +54,7 @@ The player must maintain stable unloading flow and storage access.
 
 Items are transported into storage areas and organized throughout the storage side of the hub.
 
-Storage may live inside dedicated storage buildings rather than being treated as one shared warehouse floor.
+Storage may share a multi-purpose Building or live in a Building dedicated through its facilities and Rules.
 
 Storage layout directly affects:
 - travel distance
@@ -98,7 +98,7 @@ Picking is one of the primary bottleneck sources in the logistics flow.
 
 Retrieved items are packed and prepared for shipment.
 
-Packing may happen in dedicated packing facilities or buildings that receive cargo from storage through transfer logistics.
+Packing may happen in the same Building as storage or in a separately configured Building connected through transfer logistics.
 
 Packing introduces additional:
 - worker load
@@ -113,7 +113,7 @@ Inefficient packing flow may delay outbound logistics.
 
 Packed cargo is transferred to outbound logistics infrastructure and launched toward off-world destinations.
 
-Outbound flow may pass through launch buildings and outbound cargo ports rather than leaving directly from the original storage area.
+Outbound flow may pass through a separately configured launch Building and outbound cargo ports, or leave from the same multi-purpose Building.
 
 Outbound flow may be affected by:
 - launch delays

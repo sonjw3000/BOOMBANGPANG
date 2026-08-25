@@ -345,7 +345,7 @@ public partial class WorkerManager : MonoBehaviour
 		bool reportMissingComponent)
 	{
 		validTypes?.Clear();
-		if (worker == null || TryResolveBuildingType(buildingId, out BuildingType? buildingType) == false)
+		if (worker == null || TryResolveBuildingScope(buildingId) == false)
 			return false;
 
 		if (taskTypes == null)
@@ -358,7 +358,7 @@ public partial class WorkerManager : MonoBehaviour
 				(validTypes != null && validTypes.Contains(taskType)))
 				continue;
 
-			if (WorkerTaskAssignmentPolicy.CanAssign(worker, buildingType, taskType) == false ||
+			if (WorkerTaskAssignmentPolicy.CanAssign(worker, buildingId, taskType) == false ||
 				HasRequiredComponent(worker, taskType, reportMissingComponent) == false)
 			{
 				return false;
@@ -370,9 +370,8 @@ public partial class WorkerManager : MonoBehaviour
 		return true;
 	}
 
-	private static bool TryResolveBuildingType(uint buildingId, out BuildingType? buildingType)
+	private static bool TryResolveBuildingScope(uint buildingId)
 	{
-		buildingType = null;
 		if (buildingId == 0)
 			return true;
 
@@ -384,7 +383,6 @@ public partial class WorkerManager : MonoBehaviour
 			return false;
 		}
 
-		buildingType = building.Type;
 		return true;
 	}
 

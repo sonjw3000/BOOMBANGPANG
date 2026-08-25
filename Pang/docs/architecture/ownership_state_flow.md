@@ -73,7 +73,7 @@ Building systems should own:
 - building-owned interior space
 - worker affiliation scope
 
-Installed facilities and their FacilityRules are the source of available logistics capabilities. Capsule routing, lifecycle evaluation, Labeling, Storing, and Picking now follow that ownership: existing inbound/outbound services own producer registration and planners by BuildingId. Packing and launch producers remain class-bound during the current migration and are deferred to the later Building-lightening step.
+Installed facilities and their FacilityRules are the source of available logistics capabilities. Existing inbound/outbound services own producer registration and planners by BuildingId, so Labeling, Storing, Picking, Packing, and Launch capability is not selected by a Building class or role enum.
 
 Region classification such as indoor / outdoor should support placement and spatial reasoning, but should not replace building ownership as the source of truth for space identity.
 
@@ -89,9 +89,9 @@ FacilityRule may also require the CapsuleBuffer payload phase `Inside` or `Empty
 
 `CapsuleBufferService` owns BuildingId-scoped logical queries for Rule-matched CapsuleBuffer destinations and the reverse registration index from CapsuleBuffer to BuildingId. The caller must explicitly choose whether the query evaluates Launch readiness, so ordinary Packing routing remains `Packed` while Launch routing may produce `LaunchReady`. These queries return eligible facilities only; they do not decide relocation scope, reserve a Dock, or create a Task.
 
-`CapsuleRelocateCoordinator` owns relocation matching, Dock reservations, active relocation ownership, pending requests, and Dirty routing work. Dirty means that a Dock or Building must be reevaluated; it does not guarantee that a Task will be created. Repeated marks are coalesced and `BuildingManager.LateUpdate` flushes them after item and manifest mutations have settled.
+`CapsuleRelocateCoordinator` owns lifecycle normalization, Rule mismatch evaluation, relocation matching, Dock reservations, active relocation ownership, pending requests, and relocation Task creation. Dirty means that a Dock or Building must be reevaluated; it does not guarantee that a Task will be created. Repeated marks are coalesced and `BuildingManager.LateUpdate` flushes them after item and manifest mutations have settled.
 
-During Dirty evaluation, Building derives the Capsule lifecycle from current physical data:
+During Dirty evaluation, `CapsuleRelocateCoordinator` derives the Capsule lifecycle from current physical data and reads only the Building outbound-stage/threshold policy:
 
 `empty payload -> Empty`
 

@@ -16,7 +16,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	private int addonActionVersion;
 
 	public override string Name => Building != null ? Building.DisplayName : "Unknown Building";
-	public override string Subtitle => Building != null ? Building.Type.ToString() : "Unknown Building";
+	public override string Subtitle => Building != null ? "Building" : "Unknown Building";
 	public override Sprite Icon => null;
 
 	public string StateDisplay => Building != null ? Building.State.ToString() : "Unknown";
@@ -91,7 +91,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		unchecked
 		{
 			int version = (int)Building.RuntimeBuildingId;
-			IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(Building.Type);
+			IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(Building.RuntimeBuildingId);
 			for (int i = 0; i < roles.Count; ++i)
 			{
 				WorkforceRole role = roles[i];
@@ -120,7 +120,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		if (Building == null)
 			return panel;
 
-		IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(Building.Type);
+		IReadOnlyList<WorkforceRole> roles = WorkforceRoleCatalog.GetRoles(Building.RuntimeBuildingId);
 		for (int i = 0; i < roles.Count; ++i)
 		{
 			WorkforceRole role = roles[i];
@@ -509,7 +509,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		{
 			Building linked = connected[i];
 			if (linked != null)
-				panel.Rows.Add(new SelectionDetailRow { Primary = inputs ? "Input" : "Output", Trailing = linked.Type.ToString(), Secondary = linked.DisplayName });
+				panel.Rows.Add(new SelectionDetailRow { Primary = inputs ? "Input" : "Output", Secondary = linked.DisplayName });
 		}
 	}
 

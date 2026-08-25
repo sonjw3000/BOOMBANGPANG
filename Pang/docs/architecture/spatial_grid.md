@@ -87,7 +87,7 @@ Additional interpretation rules:
 
 Examples:
 - storage, staging, and packing are capabilities composed from installed facilities and their Rules
-- legacy `BuildingType` values may still describe player-facing presets without selecting Labeling, Storing, or Picking runtime producers
+- Building has no role enum; installed facilities, their Rules, and the Building outbound policy define its logistics behavior
 - fragile handling, hazard restrictions, and item filters are facility-rule policies
 
 ---

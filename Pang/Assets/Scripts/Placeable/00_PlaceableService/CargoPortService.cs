@@ -7,6 +7,7 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 {
 	public event Action<uint, CargoPort> OnCapsuleDocked;
 	public event Action<uint, CargoPort> OnCapsuleUndocked;
+	public event Action<uint, CargoPort> OnCargoContentChanged;
 	public event Action<uint, CargoPort> OnCargoQuantityZero;
 	public event Action<uint, CargoPort> OnCargoQuantityOverPercent;
 
@@ -18,6 +19,7 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		registeredBuildingIds[facility] = buildingId;
 		facility.OnCapsuleDocked += HandleCapsuleDocked;
 		facility.OnCapsuleUndocked += HandleCapsuleUndocked;
+		facility.OnCargoContentChanged += HandleCargoContentChanged;
 		if (facility is InboundCargoPort)
 			facility.OnCargoQuantityZero += HandleCargoQuantityZero;
 		else
@@ -29,6 +31,7 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		registeredBuildingIds.Remove(facility);
 		facility.OnCapsuleDocked -= HandleCapsuleDocked;
 		facility.OnCapsuleUndocked -= HandleCapsuleUndocked;
+		facility.OnCargoContentChanged -= HandleCargoContentChanged;
 		if (facility is InboundCargoPort)
 			facility.OnCargoQuantityZero -= HandleCargoQuantityZero;
 		else
@@ -58,6 +61,12 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 	{
 		if (TryGetRegisteredBuildingId(port, out uint buildingId))
 			OnCargoQuantityZero?.Invoke(buildingId, port);
+	}
+
+	private void HandleCargoContentChanged(CargoPort port)
+	{
+		if (TryGetRegisteredBuildingId(port, out uint buildingId))
+			OnCargoContentChanged?.Invoke(buildingId, port);
 	}
 
 	private void HandleCargoQuantityOverPercent(CargoPort port)

@@ -69,31 +69,31 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void Catalog_ExposesAgreedRolesInBuildingOrder()
 	{
+		WorkforceRole[] buildingRoles =
+		{
+			WorkforceRole.Labeling,
+			WorkforceRole.Storing,
+			WorkforceRole.Picking,
+			WorkforceRole.Packing,
+			WorkforceRole.PackingLogistics,
+			WorkforceRole.LaunchSorting,
+			WorkforceRole.CapsuleHandling,
+		};
 		CollectionAssert.AreEqual(
-			new[] { WorkforceRole.CapsuleHandling },
-			WorkforceRoleCatalog.GetRoles(BuildingType.Generic));
+			buildingRoles,
+			WorkforceRoleCatalog.GetRoles(1));
 		CollectionAssert.AreEqual(
-			new[] { WorkforceRole.Labeling, WorkforceRole.CapsuleHandling },
-			WorkforceRoleCatalog.GetRoles(BuildingType.Staging));
+			buildingRoles,
+			WorkforceRoleCatalog.GetRoles(1));
 		CollectionAssert.AreEqual(
-			new[]
-			{
-				WorkforceRole.Storing,
-				WorkforceRole.Picking,
-				WorkforceRole.CapsuleHandling,
-			},
-			WorkforceRoleCatalog.GetRoles(BuildingType.Storage));
+			buildingRoles,
+			WorkforceRoleCatalog.GetRoles(1));
 		CollectionAssert.AreEqual(
-			new[]
-			{
-				WorkforceRole.Packing,
-				WorkforceRole.PackingLogistics,
-				WorkforceRole.CapsuleHandling,
-			},
-			WorkforceRoleCatalog.GetRoles(BuildingType.Packing));
+			buildingRoles,
+			WorkforceRoleCatalog.GetRoles(1));
 		CollectionAssert.AreEqual(
-			new[] { WorkforceRole.LaunchSorting, WorkforceRole.CapsuleHandling },
-			WorkforceRoleCatalog.GetRoles(BuildingType.Launch));
+			buildingRoles,
+			WorkforceRoleCatalog.GetRoles(1));
 		CollectionAssert.AreEqual(
 			new[]
 			{
@@ -102,7 +102,7 @@ public sealed class WorkforceAssignmentEditModeTests
 				WorkforceRole.CargoTransfer,
 				WorkforceRole.WasteCollection,
 			},
-			WorkforceRoleCatalog.GetRoles(null));
+			WorkforceRoleCatalog.GetRoles(0));
 	}
 
 	[Test]
@@ -228,7 +228,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void CanRequestWorkerRoleAssignment_ValidatesWithoutMutatingWorker()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Valid Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -253,7 +253,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void CanRequestWorkerRoleAssignment_RejectsRegistrationOperationalAndTargetFailures()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker registeredWorker = CreateWorker(
 			"Workforce Registered Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -306,7 +306,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void CanRequestWorkerRoleAssignment_UsesExistingAbilityAndComponentRequirements()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker missingComponent = CreateWorker(
 			"Workforce Missing Component Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox);
@@ -334,7 +334,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void CanRequestWorkerRoleAssignment_AcceptsPublicRoleOnlyInPublicScope()
 	{
-		Building staging = CreateBuilding(BuildingType.Staging);
+		Building staging = CreateBuilding(CargoProcessStage.Labeled);
 		HumanWorker worker = CreateWorker(
 			"Workforce Public Worker",
 			WorkerAbility.CargoHandling,
@@ -358,7 +358,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void TryRequestWorkerRoleAssignment_AppliesCatalogBundleImmediately()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Role Request Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -387,7 +387,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void TryRequestWorkerRoleAssignment_SchedulesCatalogBundleWhileWorkerIsBusy()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Busy Role Request Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -427,7 +427,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void TryRequestWorkerUnassignment_AppliesImmediatelyOrAfterCurrentTask()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker idleWorker = CreateWorker(
 			"Workforce Idle Unassignment Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -479,8 +479,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void WorkforceSummary_CountsCurrentFullAndPartialOperationalAssignments()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
-		Building otherStorage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building otherStorage = CreateBuilding(CargoProcessStage.Picked);
 		WorkerTask.TaskType[] capsuleTasks =
 		{
 			WorkerTask.TaskType.IB,
@@ -562,15 +562,16 @@ public sealed class WorkforceAssignmentEditModeTests
 			workerManager.TryGetWorkforceRoleSummary(
 				storage.RuntimeBuildingId,
 				WorkforceRole.Labeling,
-				out _),
-			Is.False);
+				out WorkforceRoleSummary labelingSummary),
+			Is.True);
+		Assert.That(labelingSummary.OperationalCount, Is.Zero);
 	}
 
 	[Test]
 	public void WorkforceSummary_UsesCurrentAssignmentInsteadOfPendingAssignment()
 	{
-		Building currentStorage = CreateBuilding(BuildingType.Storage);
-		Building pendingStorage = CreateBuilding(BuildingType.Storage);
+		Building currentStorage = CreateBuilding(CargoProcessStage.Picked);
+		Building pendingStorage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Pending Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -606,7 +607,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void OperationalUnassignedWorkers_UsesCurrentAssignmentAndIgnoresPendingAssignment()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker pendingWorker = CreateWorker(
 			"Workforce Pending Unassigned Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -650,8 +651,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void WorkforceRoleWorkers_MatchesSummaryForExactBuildingAndPublicScopes()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
-		Building otherStorage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building otherStorage = CreateBuilding(CargoProcessStage.Picked);
 		WorkerTask.TaskType[] capsuleTasks =
 		{
 			WorkerTask.TaskType.IB,
@@ -775,7 +776,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void BuildingProvider_WorkforcePanelDisplaysSupportedRolesIncludingZero()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Panel Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -798,16 +799,20 @@ public sealed class WorkforceAssignmentEditModeTests
 		Assert.That(model.Tabs[0].Label, Is.EqualTo("Workforce"));
 		SelectionDetailPanelModel panel = model.Tabs[0].BuildContent();
 		Assert.That(panel.Title, Is.EqualTo("WORKFORCE"));
-		Assert.That(panel.Rows.Count, Is.EqualTo(3));
-		AssertWorkforceRow(panel.Rows[0], "Storing", "1");
-		AssertWorkforceRow(panel.Rows[1], "Picking", "0");
-		AssertWorkforceRow(panel.Rows[2], "Capsule Handling", "0");
+		Assert.That(panel.Rows.Count, Is.EqualTo(7));
+		AssertWorkforceRow(panel.Rows[0], "Labeling", "0");
+		AssertWorkforceRow(panel.Rows[1], "Storing", "1");
+		AssertWorkforceRow(panel.Rows[2], "Picking", "0");
+		AssertWorkforceRow(panel.Rows[3], "Packing", "0");
+		AssertWorkforceRow(panel.Rows[4], "Packing Logistics", "0");
+		AssertWorkforceRow(panel.Rows[5], "Launch Sorting", "0");
+		AssertWorkforceRow(panel.Rows[6], "Capsule Handling", "0");
 
 		int versionBeforeDeath = model.Tabs[0].GetContentVersion();
 		Assert.That(worker.EnterIncapacitatedState(WorkerOperationalState.Death), Is.True);
 		Assert.That(model.Tabs[0].GetContentVersion(), Is.Not.EqualTo(versionBeforeDeath));
 		SelectionDetailPanelModel panelAfterDeath = model.Tabs[0].BuildContent();
-		AssertWorkforceRow(panelAfterDeath.Rows[0], "Storing", "0");
+		AssertWorkforceRow(panelAfterDeath.Rows[1], "Storing", "0");
 
 		SelectionInspectorAction workMonitorAction = null;
 		for (int i = 0; i < model.Actions.Count; ++i)
@@ -861,7 +866,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementAssignments_ShowsZeroRolesAndKeepsExpandedPartialWorker()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker unassignedWorker = CreateWorker(
 			"Workforce UI Unassigned Worker",
 			WorkerAbility.PickingStoring);
@@ -941,14 +946,22 @@ public sealed class WorkforceAssignmentEditModeTests
 			"workforce-assignment-role");
 		AssertRoleOrder(
 			storageRoles,
+			WorkforceRole.Labeling,
 			WorkforceRole.Storing,
 			WorkforceRole.Picking,
+			WorkforceRole.Packing,
+			WorkforceRole.PackingLogistics,
+			WorkforceRole.LaunchSorting,
 			WorkforceRole.CapsuleHandling);
 		AssertRoleCount(storageRoles[0], "0");
 		AssertRoleCount(storageRoles[1], "0");
-		AssertRoleCount(storageRoles[2], "1");
+		AssertRoleCount(storageRoles[2], "0");
+		AssertRoleCount(storageRoles[3], "0");
+		AssertRoleCount(storageRoles[4], "0");
+		AssertRoleCount(storageRoles[5], "0");
+		AssertRoleCount(storageRoles[6], "1");
 		Assert.That(
-			storageRoles[2].ClassListContains("workforce-assignment-role--partial"),
+			storageRoles[6].ClassListContains("workforce-assignment-role--partial"),
 			Is.True);
 
 		InvokeNonPublic(
@@ -982,7 +995,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementAssignments_ScopesDefaultExpandedAndReportActiveRoles()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker publicWorker = CreateWorker(
 			"Workforce Public Scope Summary Worker",
 			WorkerAbility.CargoHandling,
@@ -1017,13 +1030,13 @@ public sealed class WorkforceAssignmentEditModeTests
 			Is.EqualTo(4));
 		Assert.That(
 			QueryByClass(storageGroup, "workforce-assignment-role").Count,
-			Is.EqualTo(3));
+			Is.EqualTo(7));
 		Assert.That(
 			publicGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
 			Is.EqualTo("1 / 4 ACTIVE ROLES"));
 		Assert.That(
 			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
-			Is.EqualTo("2 / 3 ACTIVE ROLES"),
+			Is.EqualTo("2 / 7 ACTIVE ROLES"),
 			"A partial Capsule Handling assignment still activates that role.");
 
 		InvokeNonPublic(
@@ -1033,13 +1046,13 @@ public sealed class WorkforceAssignmentEditModeTests
 		storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
 		Assert.That(
 			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
-			Is.EqualTo("2 / 3 ACTIVE ROLES"));
+			Is.EqualTo("2 / 7 ACTIVE ROLES"));
 	}
 
 	[Test]
 	public void ManagementAssignments_CollapseRefreshExpandPreservesRoleStateAndZeroRows()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker partialWorker = CreateWorker(
 			"Workforce Fold Partial Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1077,7 +1090,7 @@ public sealed class WorkforceAssignmentEditModeTests
 		Assert.That(QueryByClass(storageGroup, "workforce-assignment-worker-row").Count, Is.Zero);
 		Assert.That(
 			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
-			Is.EqualTo("1 / 3 ACTIVE ROLES"));
+			Is.EqualTo("1 / 7 ACTIVE ROLES"));
 
 		InvokeNonPublic(
 			typeof(WorkforceManagementWindow),
@@ -1100,7 +1113,7 @@ public sealed class WorkforceAssignmentEditModeTests
 			Is.True);
 		Assert.That(
 			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
-			Is.EqualTo("0 / 3 ACTIVE ROLES"),
+			Is.EqualTo("0 / 7 ACTIVE ROLES"),
 			"A folded scope must expose an operational role falling from one to zero.");
 		SetCurrentAssignment(
 			partialWorker,
@@ -1113,7 +1126,7 @@ public sealed class WorkforceAssignmentEditModeTests
 		storageGroup = FindAssignmentGroup(content, storage.RuntimeBuildingId);
 		Assert.That(
 			storageGroup.Q<Label>(className: "workforce-assignment-group__summary").text,
-			Is.EqualTo("1 / 3 ACTIVE ROLES"));
+			Is.EqualTo("1 / 7 ACTIVE ROLES"));
 
 		InvokeNonPublic(
 			typeof(WorkforceManagementWindow),
@@ -1126,12 +1139,20 @@ public sealed class WorkforceAssignmentEditModeTests
 			"workforce-assignment-role");
 		AssertRoleOrder(
 			storageRoles,
+			WorkforceRole.Labeling,
 			WorkforceRole.Storing,
 			WorkforceRole.Picking,
+			WorkforceRole.Packing,
+			WorkforceRole.PackingLogistics,
+			WorkforceRole.LaunchSorting,
 			WorkforceRole.CapsuleHandling);
 		AssertRoleCount(storageRoles[0], "0");
 		AssertRoleCount(storageRoles[1], "0");
-		AssertRoleCount(storageRoles[2], "1");
+		AssertRoleCount(storageRoles[2], "0");
+		AssertRoleCount(storageRoles[3], "0");
+		AssertRoleCount(storageRoles[4], "0");
+		AssertRoleCount(storageRoles[5], "0");
+		AssertRoleCount(storageRoles[6], "1");
 		Assert.That(
 			QueryByClass(storageGroup, "workforce-assignment-worker-row").Count,
 			Is.EqualTo(1),
@@ -1174,7 +1195,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementAssignments_CollapsedScopesRemoveAndRestoreDragTargets()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Fold Drag Target Worker",
 			WorkerAbility.PickingStoring |
@@ -1186,13 +1207,13 @@ public sealed class WorkforceAssignmentEditModeTests
 		WorkforceManagementWindow controller =
 			CreateAssignmentsController(out TemplateContainer content);
 
-		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(7));
+		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(11));
 		InvokeNonPublic(
 			typeof(WorkforceManagementWindow),
 			controller,
 			"ToggleAssignmentScope",
 			0u);
-		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(3));
+		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(7));
 		InvokeNonPublic(
 			typeof(WorkforceManagementWindow),
 			controller,
@@ -1216,7 +1237,7 @@ public sealed class WorkforceAssignmentEditModeTests
 			controller,
 			"ToggleAssignmentScope",
 			storage.RuntimeBuildingId);
-		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(7));
+		Assert.That(GetAssignmentRoleDropTargetCount(controller), Is.EqualTo(11));
 
 		Assert.That(
 			(bool)InvokeNonPublic(
@@ -1251,7 +1272,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementAssignments_BuildingResetCancelsDragAndPrunesReusedScopeState()
 	{
-		Building originalStorage = CreateBuilding(BuildingType.Storage);
+		Building originalStorage = CreateBuilding(CargoProcessStage.Picked);
 		uint reusedBuildingId = originalStorage.RuntimeBuildingId;
 		HumanWorker assignedWorker = CreateWorker(
 			"Workforce Fold State Worker",
@@ -1320,7 +1341,7 @@ public sealed class WorkforceAssignmentEditModeTests
 			Is.False,
 			"A building generation change must cancel the active drag.");
 
-		Building replacementStorage = CreateBuilding(BuildingType.Storage);
+		Building replacementStorage = CreateBuilding(CargoProcessStage.Picked);
 		Assert.That(replacementStorage.RuntimeBuildingId, Is.EqualTo(reusedBuildingId));
 		SetCurrentAssignment(
 			assignedWorker,
@@ -1344,7 +1365,7 @@ public sealed class WorkforceAssignmentEditModeTests
 			"A reused runtime ID must not inherit the previous building's fold state.");
 		Assert.That(
 			QueryByClass(replacementGroup, "workforce-assignment-role").Count,
-			Is.EqualTo(3));
+			Is.EqualTo(7));
 		Assert.That(
 			QueryByClass(replacementGroup, "workforce-assignment-worker-row").Count,
 			Is.Zero,
@@ -1354,8 +1375,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_HighlightsOnlyEligibleRolesAndCancelDoesNotMutate()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
-		Building staging = CreateBuilding(BuildingType.Staging);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building staging = CreateBuilding(CargoProcessStage.Labeled);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Eligibility Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1460,7 +1481,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_UnassignedToRoleMutatesThroughWorkerManager()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Role Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1520,7 +1541,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_ExactCurrentRoleIsNoOpButUnassignedDropApplies()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Unassignment Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1615,8 +1636,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_AssignedRoleRejectsIneligibleAndReplacesEntireBundle()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
-		Building staging = CreateBuilding(BuildingType.Staging);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building staging = CreateBuilding(CargoProcessStage.Labeled);
 		HumanWorker worker = CreateWorker(
 			"Workforce Direct Role Replacement Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1738,7 +1759,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_PartialRoleCanNormalizeToItsExactBundle()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Partial Role Normalization Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -1801,8 +1822,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_AssignedRoleSupportsCrossBuildingAndPublicRoundTrip()
 	{
-		Building storageA = CreateBuilding(BuildingType.Storage);
-		Building storageB = CreateBuilding(BuildingType.Storage);
+		Building storageA = CreateBuilding(CargoProcessStage.Picked);
+		Building storageB = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Cross Scope Reassignment Worker",
 			WorkerAbility.PickingStoring |
@@ -1905,8 +1926,8 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_BusyRoleReassignmentKeepsCurrentCountsUntilApplied()
 	{
-		Building sourceStorage = CreateBuilding(BuildingType.Storage);
-		Building targetStorage = CreateBuilding(BuildingType.Storage);
+		Building sourceStorage = CreateBuilding(CargoProcessStage.Picked);
+		Building targetStorage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Busy Direct Reassignment Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2046,7 +2067,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_BusyUnassignSchedulesPendingWithoutChangingCurrentCounts()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Busy Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2133,9 +2154,9 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_RejectsStaleOrForgedSourceRows()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
-		Building targetStorage = CreateBuilding(BuildingType.Storage);
-		Building staging = CreateBuilding(BuildingType.Staging);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
+		Building targetStorage = CreateBuilding(CargoProcessStage.Picked);
+		Building staging = CreateBuilding(CargoProcessStage.Labeled);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Forged Source Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2280,7 +2301,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_PendingFeedbackStopsWhenRoleTargetDisappears()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Removed Target Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2342,7 +2363,7 @@ public sealed class WorkforceAssignmentEditModeTests
 	[Test]
 	public void ManagementDrag_RevalidatesSourceStateBeforeDrop()
 	{
-		Building storage = CreateBuilding(BuildingType.Storage);
+		Building storage = CreateBuilding(CargoProcessStage.Picked);
 		HumanWorker worker = CreateWorker(
 			"Workforce Drag Source Revalidation Worker",
 			WorkerAbility.PickingStoring | WorkerAbility.CarryBox,
@@ -2400,7 +2421,7 @@ public sealed class WorkforceAssignmentEditModeTests
 		Building building = new(
 			"Workforce Event Storage",
 			new List<GridCell>(),
-			BuildingType.Storage);
+			CargoProcessStage.Picked);
 
 		buildingManager.Register(building);
 		Assert.That(changedCount, Is.EqualTo(1));
@@ -2425,9 +2446,9 @@ public sealed class WorkforceAssignmentEditModeTests
 		worker.SetAssignedTaskTypes(taskTypes);
 	}
 
-	private Building CreateBuilding(BuildingType buildingType)
+	private Building CreateBuilding(CargoProcessStage outboundTargetStage)
 	{
-		Building building = new($"Workforce Test {buildingType}", new List<GridCell>(), buildingType);
+		Building building = new($"Workforce Test {outboundTargetStage}", new List<GridCell>(), outboundTargetStage);
 		buildingManager.Register(building);
 		return building;
 	}

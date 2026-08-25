@@ -487,6 +487,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			currentBuffer.CanAcceptCargoRoute(capsule.RouteKind))
 		{
 			capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+			context.CapsuleRelocateCoordinator?.MarkDirty(currentBuffer);
 			return true;
 		}
 
@@ -503,6 +504,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		Debug.Log(
 			$"[OutboundQualityControl] Redirecting rejected capsule from {targetDock?.name ?? "None"} to {sourceBuffer.name}.");
 		capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+		coordinator.MarkDirty(sourceBuffer);
 		targetDock = sourceBuffer;
 		return true;
 	}

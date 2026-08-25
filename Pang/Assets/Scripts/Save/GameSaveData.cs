@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public const int CurrentVersion = 16;
+	public const int CurrentVersion = 17;
 	public int Version = CurrentVersion;
 	public string SavedAtUtc;
 
@@ -216,7 +216,6 @@ public sealed class BuildingSaveData
 {
 	public uint RuntimeBuildingId;
 	public string Name;
-	public BuildingType Type;
 	public BuildingState State;
 	public BuildingWorkScope WorkScope;
 	public CargoProcessStage OutboundTargetStage = CargoProcessStage.None;

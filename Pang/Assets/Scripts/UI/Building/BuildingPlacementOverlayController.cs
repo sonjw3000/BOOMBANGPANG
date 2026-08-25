@@ -6,7 +6,6 @@ using UnityEngine;
 public sealed class BuildingPlacementOverlayController : MonoBehaviour
 {
 	[SerializeField] private BuildingFootprintService footprintService;
-	[SerializeField] private BuildingType selectedBuildingType = BuildingType.Staging;
 	[SerializeField] private float previewHeight = 0.035f;
 	[SerializeField] private float labelHeight = 0.04f;
 	[SerializeField] private float overlayAlpha = 0.25f;
@@ -28,8 +27,6 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 	private bool startingOneShotCreate;
 	[System.NonSerialized] private InteractionContext boundInteraction;
 	[System.NonSerialized] private bool runtimeInitialized;
-
-	public BuildingType SelectedBuildingType => NormalizeSelectableBuildingType(selectedBuildingType);
 
 	private InteractionContext Interaction => boundInteraction ??
 		(GameContext.HasInstance ? GameContext.Instance.InteractionCtx : null);
@@ -179,11 +176,6 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		startingOneShotCreate = false;
 	}
 
-	public void SetSelectedBuildingType(BuildingType buildingType)
-	{
-		selectedBuildingType = NormalizeSelectableBuildingType(buildingType);
-	}
-
 	private void HandleInteractionModeChanged(InteractionContext.InteractionDomain domain, InteractionContext.InteractionAction action)
 	{
 		if (oneShotCreate == false || startingOneShotCreate || Interaction.Mode == InteractionContext.InteractionMode.BuildingPlacement)
@@ -191,11 +183,6 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 
 		oneShotCreate = false;
 		SetOverlayVisible(false);
-	}
-
-	private static BuildingType NormalizeSelectableBuildingType(BuildingType buildingType)
-	{
-		return buildingType == BuildingType.Generic ? BuildingType.Staging : buildingType;
 	}
 
 	public BuildingSelectionProxy GetSelectionProxy(Building building)
@@ -226,7 +213,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		ConfigureLabel(
 			previewLabel,
 			preview.Center,
-			$"{BuildingTypeUtility.ToDisplayString(selectedBuildingType)}\nDiameter {preset.Width}",
+			$"Building\nDiameter {preset.Width}",
 			cellColor,
 			preset.Width);
 	}
@@ -236,7 +223,7 @@ public sealed class BuildingPlacementOverlayController : MonoBehaviour
 		if (FootprintService == null)
 			return;
 
-		if (FootprintService.TryCreateFootprint(floor, center, selectedBuildingType, out string reason) == false)
+		if (FootprintService.TryCreateFootprint(floor, center, out string reason) == false)
 		{
 			if (string.IsNullOrWhiteSpace(reason) == false)
 			{

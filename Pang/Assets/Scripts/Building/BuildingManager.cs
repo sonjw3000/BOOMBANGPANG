@@ -52,7 +52,6 @@ public sealed partial class BuildingManager : MonoBehaviour
 
 	public Building CreateBuilding(
 		List<GridCell> ownedCells,
-		BuildingType buildingType = BuildingType.Generic,
 		string displayName = null,
 		int addonSlotCapacity = 0)
 	{
@@ -67,10 +66,10 @@ public sealed partial class BuildingManager : MonoBehaviour
 		}
 
 		string resolvedName = string.IsNullOrWhiteSpace(displayName)
-			? BuildDefaultBuildingName(buildingType)
+			? BuildDefaultBuildingName()
 			: displayName;
 
-		Building building = CreateBuildingInstance(resolvedName, ownedCells, buildingType, addonSlotCapacity);
+		Building building = CreateBuildingInstance(resolvedName, ownedCells, addonSlotCapacity);
 		Register(building);
 
 		for (int i = 0; i < ownedCells.Count; ++i)
@@ -106,18 +105,6 @@ public sealed partial class BuildingManager : MonoBehaviour
 		}
 
 		return buildingsById.TryGetValue(runtimeBuildingId, out building) && building != null;
-	}
-
-	internal int ValidateCapsuleRelocationInvariants(string trigger, bool recoverOrphans)
-	{
-		int violationCount = 0;
-		for (int i = 0; i < registeredBuildings.Count; ++i)
-		{
-			if (registeredBuildings[i] != null)
-				violationCount += registeredBuildings[i].ValidateCapsuleRelocationInvariants(trigger, recoverOrphans);
-		}
-
-		return violationCount;
 	}
 
 	public bool TryGetBuilding(GridCell cell, out Building building)
@@ -341,7 +328,6 @@ public sealed partial class BuildingManager : MonoBehaviour
 	public Building RestoreBuilding(
 		List<GridCell> ownedCells,
 		uint runtimeBuildingId,
-		BuildingType buildingType,
 		string displayName,
 		BuildingState state,
 		BuildingWorkScope workScope,
@@ -354,7 +340,7 @@ public sealed partial class BuildingManager : MonoBehaviour
 		if (ownedCells == null || ownedCells.Count <= 0)
 			return null;
 
-		Building building = CreateBuildingInstance(displayName, ownedCells, buildingType, addonSlotCapacity);
+		Building building = CreateBuildingInstance(displayName, ownedCells, addonSlotCapacity);
 		building.AssignRuntimeBuildingId(runtimeBuildingId);
 		building.SetState(state);
 		building.SetWorkScope(workScope);
@@ -401,10 +387,9 @@ public sealed partial class BuildingManager : MonoBehaviour
 	private static Building CreateBuildingInstance(
 		string displayName,
 		List<GridCell> ownedCells,
-		BuildingType buildingType,
 		int addonSlotCapacity)
 	{
-		Building building = new(displayName, ownedCells, buildingType);
+		Building building = new(displayName, ownedCells);
 
 		building.SetAddonSlotCapacity(addonSlotCapacity);
 		return building;
@@ -437,9 +422,9 @@ public sealed partial class BuildingManager : MonoBehaviour
 		return allocatedId;
 	}
 
-	private string BuildDefaultBuildingName(BuildingType buildingType)
+	private string BuildDefaultBuildingName()
 	{
-		string baseName = buildingType == BuildingType.Generic ? "Building" : $"{buildingType} Building";
+		const string baseName = "Building";
 		int suffix = 1;
 		string candidate = baseName;
 

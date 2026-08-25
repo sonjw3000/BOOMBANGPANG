@@ -26,9 +26,3 @@ MonoBehaviour:
   canHeat: 0
   temperatureControlDegreesPerQuarterWeek: 0
   requiredResearchUid:
-  allowedBuildingTypes:
-  - 0
-  - 1
-  - 2
-  - 3
-  - 4

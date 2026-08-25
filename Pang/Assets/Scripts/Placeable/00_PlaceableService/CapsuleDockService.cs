@@ -139,6 +139,21 @@ public sealed class CapsuleDockService : FacilityService<CapsuleDock>
 		return results.Count > 0;
 	}
 
+	public bool TryQueryDocks(uint buildingId, List<CapsuleDock> results)
+	{
+		if (results == null)
+			return false;
+
+		results.Clear();
+		foreach (KeyValuePair<CapsuleDock, DockIndexEntry> entry in indexByDock)
+		{
+			if (entry.Key != null && (buildingId == 0 || entry.Value.BuildingId == buildingId))
+				results.Add(entry.Key);
+		}
+
+		return results.Count > 0;
+	}
+
 	public bool TryGetRegisteredBuildingId(CapsuleDock dock, out uint buildingId)
 	{
 		return TryGetIndexedBuildingId(dock, out buildingId);

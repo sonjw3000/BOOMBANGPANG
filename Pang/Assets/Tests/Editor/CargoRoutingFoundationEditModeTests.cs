@@ -206,29 +206,29 @@ public sealed class CargoProcessStageEvaluatorEditModeTests
 	}
 
 	[Test]
-	public void Building_DefaultOutboundTargetStage_PreservesCurrentSpecializedRoles()
+	public void Building_OutboundTargetStage_IsExplicitAndDefaultsToNone()
 	{
 		Assert.That(
-			new Building("Staging", new List<GridCell>(), BuildingType.Staging).OutboundTargetStage,
+			new Building("Staging", new List<GridCell>(), CargoProcessStage.Labeled).OutboundTargetStage,
 			Is.EqualTo(CargoProcessStage.Labeled));
 		Assert.That(
-			new Building("Storage", new List<GridCell>(), BuildingType.Storage).OutboundTargetStage,
+			new Building("Storage", new List<GridCell>(), CargoProcessStage.Picked).OutboundTargetStage,
 			Is.EqualTo(CargoProcessStage.Picked));
 		Assert.That(
-			new Building("Packing", new List<GridCell>(), BuildingType.Packing).OutboundTargetStage,
+			new Building("Packing", new List<GridCell>(), CargoProcessStage.Packed).OutboundTargetStage,
 			Is.EqualTo(CargoProcessStage.Packed));
 		Assert.That(
-			new Building("Launch", new List<GridCell>(), BuildingType.Launch).OutboundTargetStage,
+			new Building("Launch", new List<GridCell>(), CargoProcessStage.LaunchReady).OutboundTargetStage,
 			Is.EqualTo(CargoProcessStage.LaunchReady));
 		Assert.That(
-			new Building("Generic", new List<GridCell>(), BuildingType.Generic).OutboundTargetStage,
+			new Building("Default", new List<GridCell>()).OutboundTargetStage,
 			Is.EqualTo(CargoProcessStage.None));
 	}
 
 	[Test]
 	public void GameSaveData_UsesCurrentBreakingSchemaVersion()
 	{
-		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(16));
+		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(17));
 		Assert.That(new GameSaveData().Version, Is.EqualTo(GameSaveData.CurrentVersion));
 	}
 
@@ -464,7 +464,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	[Test]
 	public void StoringPlanner_RejectsBufferRuleOwnedByStorageOutboundStage()
 	{
-		StorageBuilding storage = CreateStorageBuilding("Outbound-owned Storage");
+		Building storage = CreateStorageBuilding("Outbound-owned Storage");
 		CapsuleBuffer outputBuffer = CreateBuffer(
 			"Picked Output Buffer",
 			storage.RuntimeBuildingId,
@@ -488,7 +488,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	[Test]
 	public void StoringPlanner_StopsConsumingInputBufferAfterPickingManifestAppears()
 	{
-		StorageBuilding storage = CreateStorageBuilding("Manifest Storage");
+		Building storage = CreateStorageBuilding("Manifest Storage");
 		CapsuleBuffer inputBuffer = CreateBuffer(
 			"Labeled Input Buffer",
 			storage.RuntimeBuildingId,
@@ -517,7 +517,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	[Test]
 	public void StoringPlanner_DoesNotConsumeExplicitRuleMismatchBeforeRelocationSettles()
 	{
-		StorageBuilding storage = CreateStorageBuilding("Rule-mismatch Storage");
+		Building storage = CreateStorageBuilding("Rule-mismatch Storage");
 		CapsuleBuffer buffer = CreateBuffer(
 			"Packed-only Input Buffer",
 			storage.RuntimeBuildingId,
@@ -691,6 +691,354 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
+	public void PickingInput_UsesCurrentEmptyRuleThenBecomesPickedRuleMismatch()
+	{
+		const uint itemId = 803;
+		const int quantity = 2;
+		CargoCapsule source = CreateCapsule(
+			"Picked Transfer Source",
+			itemId,
+			quantity,
+			ItemStatus.Labeled);
+		Order order = new()
+		{
+			Destination = OrderDestination.Mars,
+			Lines = new List<OrderLine>(),
+		};
+		OrderLine orderLine = new(order, itemId, quantity, null);
+		order.Lines.Add(orderLine);
+		PickingManifest sourceManifest = outboundWorkflow.GetPickingManifest(source);
+		Assert.That(sourceManifest.AddPicked(orderLine, itemId, quantity), Is.EqualTo(quantity));
+
+		CapsuleBuffer emptyInput = CreateBuffer("Empty Picking Input", FirstBuildingId, 16);
+		CargoCapsule emptyInputCapsule = CreateCapsule("Empty Picking Capsule");
+		emptyInputCapsule.SetLogisticsState(CapsuleLogisticsState.Empty);
+		Assert.That(emptyInput.TryDockCapsule(emptyInputCapsule), Is.True);
+		ApplyRule(
+			emptyInput,
+			CargoProcessStage.None,
+			bufferState: CapsuleBufferStateRequirement.Empty);
+
+		CapsuleBuffer pickedOutput = CreateBuffer("Picked Output", FirstBuildingId, 17);
+		CargoCapsule pickedOutputCapsule = CreateCapsule("Empty Capsule At Picked Output");
+		pickedOutputCapsule.SetLogisticsState(CapsuleLogisticsState.Empty);
+		Assert.That(pickedOutput.TryDockCapsule(pickedOutputCapsule), Is.True);
+		ApplyRule(
+			pickedOutput,
+			CargoProcessStage.Picked,
+			bufferState: CapsuleBufferStateRequirement.Inside);
+
+		FacilityFilter projectedInput = FacilityFilter.WithCapsuleBufferState(
+			FacilityFilter.ForManifestTransfer(
+				source,
+				sourceManifest,
+				itemId,
+				quantity,
+				stack => stack.HasStatus(ItemStatus.Labeled)),
+			CapsuleBufferStateRequirement.Empty);
+		ItemTransferTask pickingTask = new(
+			WorkerTask.TaskType.Picking,
+			new ItemTransferJob(
+				planner: null,
+				TransferObjectType.Item,
+				TransferObjectType.Item,
+				FirstBuildingId));
+		InvokeNonPublic(
+			typeof(ItemTransferTask),
+			pickingTask,
+			"RetainPickingOutput",
+			new WorkLine(
+				WorkLineAction.Put,
+				emptyInput,
+				emptyInput,
+				itemId,
+				quantity,
+				orderLine));
+
+		Assert.That(
+			InvokePrivateStatic<bool>(
+				typeof(PickingPlanner),
+				"IsEmptyInputRuleMatchedBuffer",
+				emptyInput,
+				projectedInput),
+			Is.True,
+			"Picking must begin at a currently matched Empty Rule buffer.");
+		Assert.That(
+			InvokePrivateStatic<bool>(
+				typeof(PickingPlanner),
+				"IsEmptyInputRuleMatchedBuffer",
+				pickedOutput,
+				projectedInput),
+			Is.False,
+			"A Picked output Rule is the relocation destination, not the task input.");
+
+		AddStack(emptyInputCapsule, itemId, quantity, ItemStatus.Labeled);
+		Assert.That(
+			outboundWorkflow.TransferPickingManifest(
+				source,
+				emptyInputCapsule,
+				orderLine,
+				itemId,
+				quantity),
+			Is.EqualTo(quantity));
+		Assert.That(
+			FacilityFilter.TryForCapsule(
+				emptyInputCapsule,
+				evaluateLaunchReadiness: false,
+				out FacilityFilter pickedFilter),
+			Is.True);
+		Assert.That(pickedFilter.CargoProcessStage, Is.EqualTo(CargoProcessStage.Picked));
+		Assert.That(
+			bufferService.IsRuleMatchedBuffer(
+				emptyInput,
+				emptyInputCapsule,
+				evaluateLaunchReadiness: false),
+			Is.False,
+			"The task mutation must make the Empty input Rule dirty for relocation.");
+		emptyInputCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+		Assert.That(pickingTask.DependsOnFacility(emptyInput), Is.True);
+		Assert.That(
+			InvokePrivateStatic<bool>(
+				typeof(PickingPlanner),
+				"IsRetainedPickingOutputBuffer",
+				pickingTask,
+				emptyInput,
+				FirstBuildingId,
+				projectedInput),
+			Is.True,
+			"The same Picking task must keep using its owned output after the first line creates a Rule mismatch.");
+
+		Assert.That(pickedOutput.TryUndockCapsule(out CargoCapsule releasedCapsule), Is.True);
+		Assert.That(releasedCapsule, Is.SameAs(pickedOutputCapsule));
+		List<CapsuleBuffer> relocationTargets = new();
+		Assert.That(
+			bufferService.TryQueryRuleMatchedDestinations(
+				FirstBuildingId,
+				emptyInputCapsule,
+				relocationTargets,
+				evaluateLaunchReadiness: false),
+			Is.True);
+		Assert.That(
+			relocationTargets,
+			Is.EqualTo(new[] { pickedOutput }),
+			"Dirty routing must resolve the Picked Rule as the next destination.");
+	}
+
+	[Test]
+	public void PackingInput_RequiresCurrentPickedInsideRule()
+	{
+		const uint itemId = 804;
+		const int quantity = 3;
+		CapsuleBuffer source = CreateBuffer("Packing Picked Input", FirstBuildingId, 18);
+		CargoCapsule capsule = CreateCapsule(
+			"Packing Picked Capsule",
+			itemId,
+			quantity,
+			ItemStatus.Labeled);
+		capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+		OrderLine line = new(null, itemId, quantity, null);
+		Assert.That(
+			outboundWorkflow.GetPickingManifest(capsule).AddPicked(line, itemId, quantity),
+			Is.EqualTo(quantity));
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+		ApplyRule(
+			source,
+			CargoProcessStage.Picked,
+			bufferState: CapsuleBufferStateRequirement.Inside);
+
+		PackingInputPlanner planner = new(FirstBuildingId);
+		Assert.That(planner.HasAvailableWork(), Is.True);
+
+		ApplyRule(
+			source,
+			CargoProcessStage.Picked,
+			bufferState: CapsuleBufferStateRequirement.Any);
+		Assert.That(
+			planner.HasAvailableWork(),
+			Is.False,
+			"Packing must be activated by an explicit Picked/Inside Rule, not a building type or an Any-state Rule.");
+	}
+
+	[Test]
+	public void PackingAndLaunchOutput_UseEmptyInputRuleBeforeDirtyRelocation()
+	{
+		const uint itemId = 805;
+		const int quantity = 2;
+		Building building = new(
+			"Generic Launch Rule Building",
+			new List<GridCell>(),
+			CargoProcessStage.None);
+		buildingManager.Register(building);
+		Assert.That(building.TrySetOutboundTargetStage(CargoProcessStage.LaunchReady), Is.True);
+
+		CargoCapsule source = CreateCapsule(
+			"Packed Output Source",
+			itemId,
+			quantity,
+			ItemStatus.Packed);
+		Order order = new()
+		{
+			Destination = OrderDestination.Mars,
+			Lines = new List<OrderLine>(),
+		};
+		OrderLine orderLine = new(order, itemId, quantity, null);
+		order.Lines.Add(orderLine);
+		PickingManifest manifest = outboundWorkflow.GetPickingManifest(source);
+		Assert.That(manifest.AddPacked(orderLine, itemId, quantity), Is.EqualTo(quantity));
+
+		CapsuleBuffer emptyInput = CreateBuffer(
+			"Mars Empty Output Input",
+			building.RuntimeBuildingId,
+			20);
+		CargoCapsule emptyCapsule = CreateCapsule("Mars Empty Output Capsule");
+		emptyCapsule.SetLogisticsState(CapsuleLogisticsState.Empty);
+		Assert.That(emptyInput.TryDockCapsule(emptyCapsule), Is.True);
+		ApplyRule(
+			emptyInput,
+			CargoProcessStage.None,
+			new[] { OrderDestination.Mars },
+			CapsuleBufferStateRequirement.Empty);
+
+		CapsuleBuffer packedOutput = CreateBuffer(
+			"Packed Relocation Output",
+			building.RuntimeBuildingId,
+			21);
+		CargoCapsule packedOutputCapsule = CreateCapsule("Empty Capsule At Packed Output");
+		packedOutputCapsule.SetLogisticsState(CapsuleLogisticsState.Empty);
+		Assert.That(packedOutput.TryDockCapsule(packedOutputCapsule), Is.True);
+		ApplyRule(
+			packedOutput,
+			CargoProcessStage.Packed,
+			new[] { OrderDestination.Mars },
+			CapsuleBufferStateRequirement.Inside);
+
+		FacilityFilter projectedInput = FacilityFilter.WithCapsuleBufferState(
+			FacilityFilter.ForManifestTransfer(
+				source,
+				manifest,
+				itemId,
+				quantity,
+				stack => stack.HasStatus(ItemStatus.Packed)),
+			CapsuleBufferStateRequirement.Empty);
+		PackingOutputPlanner packingPlanner = new(building.RuntimeBuildingId);
+		LaunchSortPlanner launchPlanner = new(building.RuntimeBuildingId);
+
+		Assert.That(
+			InvokePrivateInstance<bool>(
+				typeof(PackingOutputPlanner),
+				packingPlanner,
+				"IsEmptyInputRuleMatchedBuffer",
+				emptyInput,
+				projectedInput),
+			Is.True);
+		Assert.That(
+			InvokePrivateInstance<bool>(
+				typeof(LaunchSortPlanner),
+				launchPlanner,
+				"IsEmptyInputRuleMatchedBuffer",
+				emptyInput,
+				projectedInput),
+			Is.True);
+		Assert.That(
+			InvokePrivateInstance<bool>(
+				typeof(PackingOutputPlanner),
+				packingPlanner,
+				"IsEmptyInputRuleMatchedBuffer",
+				packedOutput,
+				projectedInput),
+			Is.False,
+			"The Packed Rule is a relocation destination, not the task input.");
+
+		AddStack(emptyCapsule, itemId, quantity, ItemStatus.Packed);
+		Assert.That(
+			outboundWorkflow.TransferPickingManifest(
+				source,
+				emptyCapsule,
+				orderLine,
+				itemId,
+				quantity,
+				packed: true),
+			Is.EqualTo(quantity));
+		Assert.That(
+			bufferService.IsRuleMatchedBuffer(
+				emptyInput,
+				emptyCapsule,
+				evaluateLaunchReadiness: true),
+			Is.False,
+			"Task mutation must make the Empty input Rule dirty for relocation or OB promotion.");
+	}
+
+	[Test]
+	public void PackingItemTransfer_RestoresPlacePhaseFromSavedWorkerPayload()
+	{
+		ToteBox packingInputPayload = CreateBox<ToteBox>(
+			"Restored Packing Input Payload",
+			BoxType.Personal);
+		AddStack(packingInputPayload, 806, 3, ItemStatus.Labeled);
+		AddStack(packingInputPayload, 808, 2, ItemStatus.Labeled);
+		ItemTransferTask packingInputTask = new(
+			WorkerTask.TaskType.PackingInput,
+			new ItemTransferJob(
+				new PackingInputPlanner(FirstBuildingId),
+				TransferObjectType.Item,
+				TransferObjectType.Box,
+				FirstBuildingId));
+
+		Assert.That(
+			InvokePrivateInstance<bool>(
+				typeof(ItemTransferTask),
+				packingInputTask,
+				"RestoreCollectedPackingPayload",
+				packingInputPayload),
+			Is.True);
+		Assert.That(packingInputTask.Phase, Is.EqualTo(ItemTransferPhase.Place));
+		Assert.That(packingInputTask.CollectedLines.Count, Is.EqualTo(2));
+		Assert.That(packingInputTask.CollectedLines[0].CollectLine.ItemID, Is.EqualTo(806u));
+		Assert.That(packingInputTask.CollectedLines[1].CollectLine.ItemID, Is.EqualTo(808u));
+
+		ItemTransferTask collectingPackingInputTask = new(
+			WorkerTask.TaskType.PackingInput,
+			new ItemTransferJob(
+				new PackingInputPlanner(FirstBuildingId),
+				TransferObjectType.Item,
+				TransferObjectType.Box,
+				FirstBuildingId));
+		Assert.That(
+			InvokePrivateStatic<bool>(
+				typeof(GameSaveService),
+				"RestoreOutboundPayloadForSavedPhase",
+				collectingPackingInputTask,
+				packingInputPayload,
+				ItemTransferPhase.Collect),
+			Is.True);
+		Assert.That(collectingPackingInputTask.Phase, Is.EqualTo(ItemTransferPhase.Collect));
+		Assert.That(collectingPackingInputTask.CollectedLines.Count, Is.EqualTo(2));
+
+		ToteBox packingOutputPayload = CreateBox<ToteBox>(
+			"Restored Packing Output Payload",
+			BoxType.Personal);
+		AddStack(packingOutputPayload, 807, 2, ItemStatus.Packed);
+		ItemTransferTask packingOutputTask = new(
+			WorkerTask.TaskType.PackingOutput,
+			new ItemTransferJob(
+				new PackingOutputPlanner(FirstBuildingId),
+				TransferObjectType.Box,
+				TransferObjectType.Item,
+				FirstBuildingId));
+
+		Assert.That(
+			InvokePrivateInstance<bool>(
+				typeof(ItemTransferTask),
+				packingOutputTask,
+				"RestoreCollectedPackingPayload",
+				packingOutputPayload),
+			Is.True);
+		Assert.That(packingOutputTask.Phase, Is.EqualTo(ItemTransferPhase.Place));
+		Assert.That(packingOutputTask.CollectedLines.Count, Is.EqualTo(1));
+		Assert.That(packingOutputTask.CollectedLines[0].CollectLine.ItemID, Is.EqualTo(807u));
+	}
+
+	[Test]
 	public void Coordinator_RuleSendUsesRuleMatchedBufferInsteadOfLegacyDockState()
 	{
 		CargoCapsule capsule = CreateCapsule("Inbound Labeled Capsule", 811, 2, ItemStatus.Labeled);
@@ -754,9 +1102,9 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		return buffer;
 	}
 
-	private StorageBuilding CreateStorageBuilding(string name)
+	private Building CreateStorageBuilding(string name)
 	{
-		StorageBuilding building = new(name, new List<GridCell>());
+		Building building = new(name, new List<GridCell>(), CargoProcessStage.Picked);
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
@@ -798,8 +1146,16 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		return capsule;
 	}
 
+	private T CreateBox<T>(string name, BoxType boxType) where T : BoxBase
+	{
+		T box = CreateComponent<T>(name, active: false);
+		SetPrivateField(typeof(BoxBase), box, "boxType", boxType);
+		box.SetBoxId(nextBoxId++);
+		return box;
+	}
+
 	private static void AddStack(
-		CargoCapsule capsule,
+		BoxBase box,
 		uint itemId,
 		int quantity,
 		ItemStatus status)
@@ -808,9 +1164,9 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(stack.AddItem(quantity), Is.EqualTo(quantity));
 
 		List<ItemStack> stacks =
-			(List<ItemStack>)GetPrivateField(typeof(BoxBase), capsule, "stacks");
+			(List<ItemStack>)GetPrivateField(typeof(BoxBase), box, "stacks");
 		Dictionary<uint, int> totals =
-			(Dictionary<uint, int>)GetPrivateField(typeof(BoxBase), capsule, "itemTotals");
+			(Dictionary<uint, int>)GetPrivateField(typeof(BoxBase), box, "itemTotals");
 		stacks.Add(stack);
 		totals[itemId] = totals.GetValueOrDefault(itemId) + quantity;
 	}
@@ -856,11 +1212,33 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		field.SetValue(null, value);
 	}
 
-	private static void InvokeNonPublic(Type ownerType, object target, string methodName)
+	private static void InvokeNonPublic(
+		Type ownerType,
+		object target,
+		string methodName,
+		params object[] arguments)
 	{
 		MethodInfo method = ownerType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
 		Assert.That(method, Is.Not.Null, $"Missing test method {ownerType.Name}.{methodName}");
-		method.Invoke(target, null);
+		method.Invoke(target, arguments);
+	}
+
+	private static T InvokePrivateStatic<T>(Type ownerType, string methodName, params object[] arguments)
+	{
+		MethodInfo method = ownerType.GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic);
+		Assert.That(method, Is.Not.Null, $"Missing test method {ownerType.Name}.{methodName}");
+		return (T)method.Invoke(null, arguments);
+	}
+
+	private static T InvokePrivateInstance<T>(
+		Type ownerType,
+		object target,
+		string methodName,
+		params object[] arguments)
+	{
+		MethodInfo method = ownerType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.That(method, Is.Not.Null, $"Missing test method {ownerType.Name}.{methodName}");
+		return (T)method.Invoke(target, arguments);
 	}
 }
 

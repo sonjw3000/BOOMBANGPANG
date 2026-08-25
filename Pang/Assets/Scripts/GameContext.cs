@@ -606,7 +606,6 @@ public class GameContext : MonoBehaviour
 	private void AddEvent()
 	{
 		TaskMgr?.BindFacilityInvalidation(FacilityMgr);
-		CapsuleRelocateCoordinator.OnPlayerClaimReleased += HandleCapsuleRelocatePlayerClaimReleased;
 		if (FacilityMgr != null)
 			FacilityMgr.OnFacilityInvalidating += HandleCapsuleRoutingFacilityInvalidating;
 
@@ -616,16 +615,6 @@ public class GameContext : MonoBehaviour
 			FacilityRuleMgr.OnPresetDeleted += HandleCapsuleRoutingPresetDeleted;
 			FacilityRuleMgr.OnFacilityRulePresetApplied += HandleCapsuleRoutingRuleApplied;
 			FacilityRuleMgr.OnPresetsRebuilt += HandleCapsuleRoutingPresetsRebuilt;
-		}
-
-		if (CapsuleBufferSvc != null)
-			CapsuleBufferSvc.OnCapsuleContentChanged += HandleCapsuleRoutingContentChanged;
-
-		if (CapsuleDockSvc != null)
-		{
-			CapsuleDockSvc.OnCapsuleDocked += HandleCapsuleRelocateDocked;
-			CapsuleDockSvc.OnCapsuleUndocked += HandleCapsuleRelocateUndocked;
-			CapsuleDockSvc.OnDockStateChanged += HandleCapsuleRelocateDockStateChanged;
 		}
 
 		// times to process
@@ -645,8 +634,6 @@ public class GameContext : MonoBehaviour
 	private void RemoveEvent()
 	{
 		TaskMgr?.UnbindFacilityInvalidation();
-		if (capsuleRelocateCoordinator != null)
-			capsuleRelocateCoordinator.OnPlayerClaimReleased -= HandleCapsuleRelocatePlayerClaimReleased;
 		if (FacilityMgr != null)
 			FacilityMgr.OnFacilityInvalidating -= HandleCapsuleRoutingFacilityInvalidating;
 
@@ -656,16 +643,6 @@ public class GameContext : MonoBehaviour
 			FacilityRuleMgr.OnPresetDeleted -= HandleCapsuleRoutingPresetDeleted;
 			FacilityRuleMgr.OnFacilityRulePresetApplied -= HandleCapsuleRoutingRuleApplied;
 			FacilityRuleMgr.OnPresetsRebuilt -= HandleCapsuleRoutingPresetsRebuilt;
-		}
-
-		if (CapsuleBufferSvc != null)
-			CapsuleBufferSvc.OnCapsuleContentChanged -= HandleCapsuleRoutingContentChanged;
-
-		if (CapsuleDockSvc != null)
-		{
-			CapsuleDockSvc.OnCapsuleDocked -= HandleCapsuleRelocateDocked;
-			CapsuleDockSvc.OnCapsuleUndocked -= HandleCapsuleRelocateUndocked;
-			CapsuleDockSvc.OnDockStateChanged -= HandleCapsuleRelocateDockStateChanged;
 		}
 
 		gameTime.OnWeekPassed -= contractService.AdvanceWeek;
@@ -680,60 +657,16 @@ public class GameContext : MonoBehaviour
 		gridService.OnPlaceableInstalled -= economyService.OnPlacement;
 	}
 
-	private void HandleCapsuleRelocateDocked(uint buildingId, CapsuleDock dock)
-	{
-		CapsuleRelocateCoordinator.NotifyCapsuleDocked(dock);
-	}
-
-	private void HandleCapsuleRelocateUndocked(uint buildingId, CapsuleDock dock)
-	{
-		CapsuleRelocateCoordinator.NotifyCapsuleUndocked(dock);
-	}
-
-	private void HandleCapsuleRelocateDockStateChanged(uint buildingId, CapsuleDock dock)
-	{
-		CapsuleRelocateCoordinator.NotifyDockStateChanged(dock);
-	}
-
-	private void HandleCapsuleRelocatePlayerClaimReleased(CapsuleDock dock)
-	{
-		if (dock == null)
-			return;
-
-		CapsuleRelocateCoordinator.MarkDirty(dock);
-	}
-
 	private CapsuleRelocateCoordinator CreateCapsuleRelocateCoordinator()
 	{
 		return new CapsuleRelocateCoordinator(
 			CapsuleDockSvc,
 			CanUseCapsuleRelocateLink,
 			CapsuleBufferSvc,
-			EvaluateCapsuleRoutingDock,
-			EvaluateCapsuleRoutingBuilding);
-	}
-
-	private void EvaluateCapsuleRoutingDock(CapsuleDock dock)
-	{
-		if (dock == null || FacilityMgr == null || BuildingMgr == null ||
-			FacilityMgr.TryGetBuildingId(dock, out uint buildingId) == false ||
-			BuildingMgr.TryGetBuilding(buildingId, out Building building) == false)
-		{
-			return;
-		}
-
-		building.ReevaluateCapsuleDockAvailability(dock);
-	}
-
-	private void EvaluateCapsuleRoutingBuilding(uint buildingId)
-	{
-		if (BuildingMgr?.TryGetBuilding(buildingId, out Building building) == true)
-			building.ReevaluateCapsuleRouting();
-	}
-
-	private void HandleCapsuleRoutingContentChanged(uint buildingId, CapsuleBuffer buffer)
-	{
-		CapsuleRelocateCoordinator.MarkDirty(buffer);
+			taskManager: TaskMgr,
+			buildingManager: BuildingMgr,
+			facilityManager: FacilityMgr,
+			cargoPortService: CargoPortSvc);
 	}
 
 	private void HandleCapsuleRoutingFacilityInvalidating(

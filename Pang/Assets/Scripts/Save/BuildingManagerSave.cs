@@ -24,7 +24,6 @@ public sealed partial class BuildingManager
 			{
 				RuntimeBuildingId = building.RuntimeBuildingId,
 				Name = building.DisplayName,
-				Type = building.Type,
 				State = building.State,
 				WorkScope = building.WorkScope,
 				OutboundTargetStage = building.OutboundTargetStage,

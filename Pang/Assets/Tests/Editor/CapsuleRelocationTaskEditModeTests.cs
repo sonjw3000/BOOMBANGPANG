@@ -19,6 +19,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private FacilityManager facilityManager;
 	private BuildingManager buildingManager;
 	private ProcessStatsCollector processStats;
+	private InboundWorkflowService inboundWorkflow;
 	private OutboundWorkflowService outboundWorkflow;
 	private RestFacilityService restFacilityService;
 	private CapsuleDockService dockService;
@@ -39,6 +40,10 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		facilityManager = CreateComponent<FacilityManager>("Capsule Relocation Test Facility Manager");
 		buildingManager = CreateComponent<BuildingManager>("Capsule Relocation Test Building Manager");
 		processStats = CreateComponent<ProcessStatsCollector>("Capsule Relocation Test Process Stats");
+		GameObject inboundWorkflowObject = CreateGameObject(
+			"Capsule Relocation Test Inbound Workflow",
+			active: false);
+		inboundWorkflow = inboundWorkflowObject.AddComponent<InboundWorkflowService>();
 		outboundWorkflow = CreateComponent<OutboundWorkflowService>("Capsule Relocation Test Outbound Workflow");
 		restFacilityService = CreateComponent<RestFacilityService>("Capsule Relocation Test Rest Facility Service");
 
@@ -56,6 +61,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		SetPrivateField(typeof(GameContext), context, "facilityManager", facilityManager);
 		SetPrivateField(typeof(GameContext), context, "buildingManager", buildingManager);
 		SetPrivateField(typeof(GameContext), context, "processStats", processStats);
+		SetPrivateField(typeof(GameContext), context, "inboundWorkflowService", inboundWorkflow);
 		SetPrivateField(typeof(GameContext), context, "outboundWorkflowService", outboundWorkflow);
 		SetPrivateField(typeof(GameContext), context, "restFacilityService", restFacilityService);
 		GameObject ruleManagerObject = CreateGameObject("Capsule Relocation Test Rule Manager", active: false);
@@ -84,23 +90,9 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		coordinator = new CapsuleRelocateCoordinator(
 			dockService,
 			bufferService: bufferService,
-			evaluateDirtyDock: dock =>
-			{
-				if (facilityManager.TryGetBuildingId(dock, out uint buildingId) &&
-					buildingManager.TryGetBuilding(buildingId, out Building building))
-				{
-					InvokeNonPublic(
-						typeof(Building),
-						building,
-						"ReevaluateCapsuleDockAvailability",
-						dock);
-				}
-			},
-			evaluateDirtyBuilding: buildingId =>
-			{
-				if (buildingManager.TryGetBuilding(buildingId, out Building building))
-					InvokeNonPublic(typeof(Building), building, "ReevaluateCapsuleRouting");
-			});
+			taskManager: taskManager,
+			buildingManager: buildingManager,
+			facilityManager: facilityManager);
 		SetPrivateField(typeof(GameContext), context, "capsuleRelocateCoordinator", coordinator);
 		nextBoxId = 1;
 		nextPosition = 20;
@@ -121,7 +113,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	}
 
 	[Test]
-	public void CompleteTask_NormalOutbound_ClearsBuildingMarkerAndCoordinatorOwnership()
+	public void CompleteTask_NormalOutbound_ClearsCoordinatorOwnership()
 	{
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
 		CapsuleBuffer source = CreateBuffer(building, "Normal OB Source", CapsuleDockState.IB);
@@ -130,7 +122,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
 
 		CapsuleRelocationTask task = CreateOutboundTask(building, source, target);
-		MarkBuildingTaskBuilt(building, task);
 		Assert.That(coordinator.RestoreActiveRelocation(source, target, payloadAlreadyPicked: false), Is.True);
 		HumanWorker worker = CreateWorker();
 		AssignInProgress(task, worker);
@@ -144,7 +135,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(task.CurrentStatus, Is.EqualTo(WorkerTask.Status.Completed));
 		Assert.That(worker.CurrentTask, Is.Null);
 		Assert.That(target.DockedCapsule, Is.SameAs(capsule));
-		AssertOutboundMarkerCleared(building, source);
 		AssertCoordinatorOwnershipReleased(source, target);
 	}
 
@@ -158,7 +148,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
 
 		CapsuleRelocationTask task = CreateOutboundTask(building, source, target);
-		MarkBuildingTaskBuilt(building, task);
 		Assert.That(coordinator.RestoreActiveRelocation(source, target, payloadAlreadyPicked: false), Is.True);
 		HumanWorker worker = CreateWorker();
 		AssignInProgress(task, worker);
@@ -172,7 +161,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 
 		Assert.That(task.CurrentStatus, Is.EqualTo(WorkerTask.Status.Invalidated));
 		Assert.That(worker.CurrentTask, Is.Null);
-		AssertOutboundMarkerCleared(building, source);
 		AssertCoordinatorOwnershipReleased(source, target);
 	}
 
@@ -399,13 +387,12 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
 
 		CapsuleRelocationTask originalTask = CreateOutboundTask(building, source, target);
-		MarkBuildingTaskBuilt(building, originalTask);
 		HumanWorker worker = CreateWorker();
 		AssignInProgress(originalTask, worker);
 		BTContext taskContext = CreateTaskContext(worker);
 
-		// The Building still owns this task marker, but the Coordinator has lost the
-		// active-source reservation. Pick must invalidate rather than complete it.
+		// The task has lost the Coordinator's active-source reservation. Pick must
+		// invalidate rather than complete it, then dirty evaluation recreates the work.
 		Assert.That(CapsuleRelocationTask.PickCapsule(in taskContext), Is.EqualTo(IBaseNode.NodeState.Failure));
 		Assert.That(originalTask.CheckTaskEnd(), Is.True);
 		originalTask.EndTask();
@@ -416,7 +403,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(queue.Count, Is.EqualTo(1), "source reevaluation must enqueue replacement OB work");
 		CapsuleRelocationTask replacementTask = queue.OfType<CapsuleRelocationTask>().Single();
 		Assert.That(replacementTask, Is.Not.SameAs(originalTask));
-		AssertOutboundMarkerOwnedBy(building, source, replacementTask);
 		Assert.That(coordinator.IsRelocationSourceActive(source), Is.True);
 		Assert.That(coordinator.IsRelocationTargetActive(target), Is.True);
 		Assert.That(coordinator.IsReserved(source), Is.True);
@@ -433,7 +419,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(source.TryDockCapsule(payload), Is.True);
 
 		CapsuleRelocationTask task = CreateOutboundTask(building, source, target);
-		MarkBuildingTaskBuilt(building, task);
 		Assert.That(coordinator.RestoreActiveRelocation(source, target, payloadAlreadyPicked: false), Is.True);
 		HumanWorker worker = CreateWorker();
 		AssignInProgress(task, worker);
@@ -461,7 +446,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(source.TryDockCapsule(payload), Is.True);
 
 		CapsuleRelocationTask task = CreateOutboundTask(building, source, target);
-		MarkBuildingTaskBuilt(building, task);
 		Assert.That(coordinator.RestoreActiveRelocation(source, target, payloadAlreadyPicked: false), Is.True);
 		HumanWorker worker = CreateWorker();
 		AssignInProgress(task, worker);
@@ -478,14 +462,13 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	[Test]
 	public void SetTargetDock_LaunchOutboundWithIncompleteManifest_RuleOnlySourceRedirectsToSource()
 	{
-		LaunchBuilding building = CreateLaunchBuilding();
+		Building building = CreateLaunchBuilding();
 		CapsuleBuffer source = CreateBuffer(building, "Launch OB Source", CapsuleDockState.IB);
 		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Launch OB Target");
 		CargoCapsule payload = CreateCapsule("Launch OB Payload", CapsuleLogisticsState.OB);
 		Assert.That(source.TryDockCapsule(payload), Is.True);
 
 		CapsuleRelocationTask task = CreateOutboundTask(building, source, target);
-		MarkBuildingTaskBuilt(building, task);
 		HumanWorker worker = CreateWorker();
 		AssignInProgress(task, worker);
 		BTContext taskContext = CreateTaskContext(worker);
@@ -508,6 +491,235 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(GetTaskTarget(task), Is.SameAs(source));
 		Assert.That(payload.LogisticsState, Is.EqualTo(CapsuleLogisticsState.Inside));
 		Assert.That(worker.CarryingAbility.CarryingBox, Is.SameAs(payload));
+	}
+
+	[Test]
+	public void ProcessDirty_ItemStageChanged_RelocatesToMatchingRuleExactlyOnce()
+	{
+		NeverOutboundReadyBuilding building = new(
+			"Rule Stage Change Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Unlabeled Rule Source", CapsuleDockState.IB);
+		CapsuleBuffer target = CreateBuffer(building, "Labeled Rule Target", CapsuleDockState.Empty);
+		Assert.That(
+			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, source),
+			Is.True);
+		Assert.That(
+			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, target),
+			Is.True);
+		ApplyBufferRule(source, CargoProcessStage.Unlabeled);
+		ApplyBufferRule(target, CargoProcessStage.Labeled);
+		CargoCapsule capsule = CreateCapsule("Rule Stage Change Capsule", CapsuleLogisticsState.Inside);
+		AddCargo(capsule, 914, 3, ItemStatus.None);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		buildingManager.RefreshItemContainerState(source);
+		coordinator.ProcessDirty();
+
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear], Is.Empty);
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
+
+		source.Stacks.Single().SetStatus(ItemStatus.Labeled);
+		buildingManager.RefreshItemContainerState(source);
+		coordinator.ProcessDirty();
+
+		CapsuleRelocationTask relocation = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskSource(relocation), Is.SameAs(source));
+		Assert.That(GetTaskTarget(relocation), Is.SameAs(target));
+		Assert.That(
+			(CapsuleRelocationReason)GetPrivateField(
+				typeof(CapsuleRelocationTask),
+				relocation,
+				"reason"),
+			Is.EqualTo(CapsuleRelocationReason.RuleRouting));
+
+		buildingManager.RefreshItemContainerState(source);
+		coordinator.ProcessDirty();
+
+		Assert.That(
+			taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
+				.OfType<CapsuleRelocationTask>()
+				.Count(),
+			Is.EqualTo(1));
+	}
+
+	[Test]
+	public void ProcessDirty_DockTaskDefersRuleRelocationUntilDependencyEnds()
+	{
+		NeverOutboundReadyBuilding building = new(
+			"Rule Dependency Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Busy Rule Source", CapsuleDockState.IB);
+		CapsuleBuffer target = CreateBuffer(building, "Busy Rule Target", CapsuleDockState.Empty);
+		Assert.That(
+			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, source),
+			Is.True);
+		Assert.That(
+			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, target),
+			Is.True);
+		ApplyBufferRule(source, CargoProcessStage.Unlabeled);
+		ApplyBufferRule(target, CargoProcessStage.Labeled);
+		CargoCapsule capsule = CreateCapsule("Busy Rule Capsule", CapsuleLogisticsState.Inside);
+		AddCargo(capsule, 915, 2, ItemStatus.Labeled);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+		FacilityDependentTestTask blocker = new(source);
+		taskManager.EnqueueTask(blocker);
+
+		buildingManager.RefreshItemContainerState(source);
+		coordinator.ProcessDirty();
+
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear], Is.Empty);
+		Assert.That(coordinator.PendingSendCount, Is.EqualTo(1));
+		Assert.That(coordinator.IsReserved(source), Is.False);
+		Assert.That(coordinator.IsReserved(target), Is.False);
+
+		Assert.That(
+			taskManager.InvalidateTask(blocker, TaskInvalidationReason.DispatchInvalid),
+			Is.True);
+
+		CapsuleRelocationTask relocation = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskSource(relocation), Is.SameAs(source));
+		Assert.That(GetTaskTarget(relocation), Is.SameAs(target));
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
+
+		buildingManager.RefreshItemContainerState(source);
+		coordinator.ProcessDirty();
+		Assert.That(
+			taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
+				.OfType<CapsuleRelocationTask>()
+				.Count(),
+			Is.EqualTo(1));
+	}
+
+	[Test]
+	public void LabelingTask_CompletionRelocatesToLabeledRuleWithoutManualDirty()
+	{
+		ActivateInboundWorkflow();
+		Building building = new(
+			"Rule Labeling Completion Building",
+			new List<GridCell>(),
+			CargoProcessStage.Labeled);
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Labeling Rule Source", CapsuleDockState.IB);
+		CapsuleBuffer target = CreateBuffer(building, "Labeled Rule Destination", CapsuleDockState.Empty);
+		Assert.That(
+			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, source),
+			Is.True);
+		Assert.That(
+			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, target),
+			Is.True);
+		ApplyBufferRule(source, CargoProcessStage.Unlabeled);
+		ApplyBufferRule(target, CargoProcessStage.Labeled);
+		CargoCapsule capsule = CreateCapsule("Labeling Rule Capsule", CapsuleLogisticsState.Inside);
+		AddCargo(capsule, 916, 2, ItemStatus.None);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+		coordinator.ProcessDirty();
+		InvokeNonPublic(typeof(TaskManager), taskManager, "ProcessTaskBuildQueue");
+		LabelingTask labelingTask = taskManager.TaskQueue[WorkerTask.TaskType.Labeling]
+			.OfType<LabelingTask>()
+			.Single();
+		taskManager.TaskQueue[WorkerTask.TaskType.Labeling].Remove(labelingTask);
+		HumanWorker worker = CreateWorker();
+		Assert.That(worker.SetTask(labelingTask), Is.True);
+		taskManager.AddRestoredInProgressTask(labelingTask);
+		BTContext taskContext = CreateTaskContext(worker);
+
+		Assert.That(
+			LabelingTask.ApplyLabel(in taskContext),
+			Is.EqualTo(IBaseNode.NodeState.Success));
+		Assert.That(source.Stacks.Single().Status, Is.EqualTo(ItemStatus.Labeled));
+		coordinator.ProcessDirty();
+
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear], Is.Empty);
+		Assert.That(coordinator.PendingSendCount, Is.EqualTo(1));
+
+		Assert.That(labelingTask.CheckTaskEnd(), Is.True);
+		labelingTask.EndTask();
+
+		CapsuleRelocationTask relocation = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskSource(relocation), Is.SameAs(source));
+		Assert.That(GetTaskTarget(relocation), Is.SameAs(target));
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
+	}
+
+	[Test]
+	public void LabelingTask_OutboundPromotionInvalidatesReadyTaskBeforeDispatch()
+	{
+		ActivateInboundWorkflow();
+		Building building = new(
+			"Generic Labeling Outbound Promotion Building",
+			new List<GridCell>(),
+			CargoProcessStage.None);
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Generic Labeling Outbound Source", CapsuleDockState.IB);
+		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Generic Labeling Outbound Target");
+		Assert.That(buildingManager.TryRegisterFacility(building.RuntimeBuildingId, source), Is.True);
+		ApplyBufferRule(source, CargoProcessStage.Unlabeled);
+		CargoCapsule capsule = CreateCapsule("Generic Labeling Outbound Capsule", CapsuleLogisticsState.Inside);
+		AddCargo(capsule, 917, 2, ItemStatus.None);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+		coordinator.ProcessDirty();
+		InvokeNonPublic(typeof(TaskManager), taskManager, "ProcessTaskBuildQueue");
+		LabelingTask labelingTask = taskManager.TaskQueue[WorkerTask.TaskType.Labeling]
+			.OfType<LabelingTask>()
+			.Single();
+
+		InvokeNonPublic(typeof(Building), building, "SetOverrideCapsuleThreshold", true);
+		InvokeNonPublic(typeof(Building), building, "SetCapsuleThresholdPercent", 0.0f);
+		Assert.That(building.TrySetOutboundTargetStage(CargoProcessStage.Unlabeled), Is.True);
+		coordinator.ProcessDirty();
+
+		Assert.That(labelingTask.CurrentStatus, Is.EqualTo(WorkerTask.Status.Invalidated));
+		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.OB));
+		CapsuleRelocationTask outboundTask = taskManager.TaskQueue[WorkerTask.TaskType.OB]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskSource(outboundTask), Is.SameAs(source));
+		Assert.That(GetTaskTarget(outboundTask), Is.SameAs(target));
+	}
+
+	[Test]
+	public void LabelingService_ReenabledDiscoversMatchedGenericBufferWithoutNewDirty()
+	{
+		Building building = new(
+			"Generic Labeling Reactivation Building",
+			new List<GridCell>(),
+			CargoProcessStage.None);
+		buildingManager.Register(building);
+		CapsuleBuffer buffer = CreateBuffer(building, "Generic Labeling Reactivation Buffer", CapsuleDockState.IB);
+		Assert.That(buildingManager.TryRegisterFacility(building.RuntimeBuildingId, buffer), Is.True);
+		ApplyBufferRule(buffer, CargoProcessStage.Unlabeled);
+		CargoCapsule capsule = CreateCapsule("Generic Labeling Reactivation Capsule", CapsuleLogisticsState.Inside);
+		AddCargo(capsule, 918, 2, ItemStatus.None);
+		Assert.That(buffer.TryDockCapsule(capsule), Is.True);
+		coordinator.ProcessDirty();
+		InvokeNonPublic(typeof(TaskManager), taskManager, "ProcessTaskBuildQueue");
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.Labeling], Is.Empty);
+
+		ActivateInboundWorkflow();
+		Assert.That(
+			InvokeNonPublic(
+				typeof(InboundWorkflowService),
+				inboundWorkflow,
+				"IsLabelingTargetReady",
+				building.RuntimeBuildingId,
+				buffer),
+			Is.EqualTo(true));
+		InvokeNonPublic(typeof(TaskManager), taskManager, "ProcessTaskBuildQueue");
+
+		LabelingTask task = taskManager.TaskQueue[WorkerTask.TaskType.Labeling]
+			.OfType<LabelingTask>()
+			.Single();
+		Assert.That(task.BuildingId, Is.EqualTo(building.RuntimeBuildingId));
+		Assert.That(task.TargetBuffer, Is.SameAs(buffer));
 	}
 
 	[Test]
@@ -561,6 +773,70 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	}
 
 	[Test]
+	public void ProcessDirty_PickingOutputStaysInsideUntilPlayerPreemptsOwningTask()
+	{
+		const uint itemId = 914;
+		ContentOutboundReadyBuilding building = new(
+			"Picking Output Ownership Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(
+			building,
+			"Picking Output Ownership Source",
+			CapsuleDockState.OBStandby);
+		OutboundCargoPort target = CreateDock<OutboundCargoPort>(
+			building,
+			"Picking Output Ownership Target");
+		CargoCapsule capsule = CreateCapsule(
+			"Picking Output Ownership Capsule",
+			CapsuleLogisticsState.Inside);
+		AddCargo(capsule, itemId, 3, ItemStatus.Labeled);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		ItemTransferTask pickingTask = new(
+			WorkerTask.TaskType.Picking,
+			new ItemTransferJob(
+				planner: null,
+				TransferObjectType.Item,
+				TransferObjectType.Item,
+				building.RuntimeBuildingId));
+		InvokeNonPublic(
+			typeof(ItemTransferTask),
+			pickingTask,
+			"RetainPickingOutput",
+			new WorkLine(
+				WorkLineAction.Put,
+				source,
+				source,
+				itemId,
+				3));
+		HumanWorker worker = CreateWorker();
+		Assert.That(worker.SetTask(pickingTask), Is.True);
+		taskManager.AddRestoredInProgressTask(pickingTask);
+
+		coordinator.MarkDirty(source);
+		coordinator.ProcessDirty();
+
+		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.Inside));
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.OB], Is.Empty);
+		Assert.That(pickingTask.DependsOnFacility(source), Is.True);
+
+		Assert.That(coordinator.TryClaimForPlayer(source), Is.True);
+		Assert.That(taskManager.TryPreemptCapsuleDockForPlayer(source), Is.True);
+		Assert.That(pickingTask.CurrentStatus, Is.EqualTo(WorkerTask.Status.Invalidated));
+		Assert.That(pickingTask.DependsOnFacility(source), Is.False);
+		coordinator.ReleasePlayerClaim(source);
+		coordinator.ProcessDirty();
+
+		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.OB));
+		CapsuleRelocationTask outboundTask = taskManager.TaskQueue[WorkerTask.TaskType.OB]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskSource(outboundTask), Is.SameAs(source));
+		Assert.That(GetTaskTarget(outboundTask), Is.SameAs(target));
+	}
+
+	[Test]
 	public void ProcessDirty_ReadyOutboundNoLongerEligible_InvalidatesBeforeDispatch()
 	{
 		ToggleOutboundReadyBuilding building = new(
@@ -603,7 +879,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(source.TryDockCapsule(payload), Is.True);
 
 		CapsuleRelocationTask task = CreateOutboundTask(building, source, originalTarget);
-		MarkBuildingTaskBuilt(building, task);
 		Assert.That(coordinator.RestoreActiveRelocation(source, originalTarget, payloadAlreadyPicked: false), Is.True);
 		HumanWorker worker = CreateWorker();
 		AssignInProgress(task, worker);
@@ -622,7 +897,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(coordinator.IsPlayerClaimed(originalTarget), Is.True);
 		Assert.That(coordinator.IsRelocationTargetActive(replacementTarget), Is.True);
 		Assert.That(coordinator.IsReserved(replacementTarget), Is.True);
-		AssertOutboundMarkerOwnedBy(building, source, task);
 	}
 
 	[Test]
@@ -673,13 +947,12 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	}
 
 	[Test]
-	public void DiscardRestoredTask_ClearsBuildingAndCoordinatorOwnership()
+	public void DiscardRestoredTask_ClearsCoordinatorOwnership()
 	{
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
 		CapsuleBuffer source = CreateBuffer(building, "Discard Source", CapsuleDockState.IB);
 		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Discard Target");
 		CapsuleRelocationTask task = CreateOutboundTask(building, source, target);
-		MarkBuildingTaskBuilt(building, task);
 		Assert.That(coordinator.RestoreActiveRelocation(source, target, payloadAlreadyPicked: false), Is.True);
 		processStats.AddQueue(WorkerTask.TaskType.OB, amount: 3);
 		Assert.That(processStats.GetStats(WorkerTask.TaskType.OB).CurrentQueue, Is.EqualTo(3));
@@ -693,107 +966,11 @@ public sealed class CapsuleRelocationTaskEditModeTests
 
 		Assert.That(discarded, Is.True);
 		Assert.That(task.CurrentStatus, Is.EqualTo(WorkerTask.Status.Invalidated));
-		AssertOutboundMarkerCleared(building, source);
 		AssertCoordinatorOwnershipReleased(source, target);
 		Assert.That(
 			processStats.GetStats(WorkerTask.TaskType.OB).CurrentQueue,
 			Is.EqualTo(3),
 			"discarding an unregistered restored task must not decrement queue stats");
-	}
-
-	[Test]
-	public void RestoreInvariant_CoordinatorOnlyMarker_RecoversSourceAndTargetOwnership()
-	{
-		AlwaysOutboundReadyBuilding building = CreateBuilding();
-		CapsuleBuffer source = CreateBuffer(building, "Invariant Ghost Source", CapsuleDockState.IB);
-		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Invariant Ghost Target");
-		CapsuleRelocationTask task = CreateOutboundTask(building, source, target);
-		MarkBuildingTaskBuilt(building, task);
-		Assert.That(coordinator.RestoreActiveRelocation(source, target, payloadAlreadyPicked: false), Is.True);
-
-		LogAssert.Expect(
-			LogType.Error,
-			new Regex(@"\[CapsuleRelocationInvariant\].*trigger=restore-test"));
-		int violations = (int)InvokeNonPublic(
-			typeof(Building),
-			building,
-			"ValidateCapsuleRelocationInvariants",
-			"restore-test",
-			true);
-
-		Assert.That(violations, Is.EqualTo(1));
-		AssertOutboundMarkerCleared(building, source);
-		AssertCoordinatorOwnershipReleased(source, target);
-	}
-
-	[Test]
-	public void RestoreInvariant_StaleMarker_DoesNotReleaseManagedRelocationSource()
-	{
-		AlwaysOutboundReadyBuilding building = CreateBuilding();
-		CapsuleBuffer source = CreateBuffer(building, "Managed Invariant Source", CapsuleDockState.IB);
-		OutboundCargoPort staleTarget = CreateDock<OutboundCargoPort>(building, "Stale Marker Target");
-		CapsuleBuffer managedTarget = CreateBuffer(building, "Managed Relocation Target", CapsuleDockState.Empty);
-		CapsuleRelocationTask staleTask = CreateOutboundTask(building, source, staleTarget);
-		CapsuleRelocationTask managedTask = new(
-			WorkerTask.TaskType.CapsuleClear,
-			source,
-			managedTarget,
-			building.RuntimeBuildingId,
-			CapsuleRelocationReason.StateMismatch);
-		MarkBuildingTaskBuilt(building, staleTask);
-		taskManager.EnqueueTask(managedTask);
-		Assert.That(coordinator.RestoreActiveRelocation(source, managedTarget, payloadAlreadyPicked: false), Is.True);
-
-		LogAssert.Expect(
-			LogType.Error,
-			new Regex(@"\[CapsuleRelocationInvariant\].*trigger=restore-managed-source-test"));
-		int violations = (int)InvokeNonPublic(
-			typeof(Building),
-			building,
-			"ValidateCapsuleRelocationInvariants",
-			"restore-managed-source-test",
-			true);
-
-		Assert.That(violations, Is.EqualTo(1));
-		AssertOutboundMarkerCleared(building, source);
-		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear].Contains(managedTask), Is.True);
-		Assert.That(coordinator.IsRelocationSourceActive(source), Is.True);
-		Assert.That(coordinator.IsReserved(source), Is.True);
-		Assert.That(coordinator.IsRelocationTargetActive(managedTarget), Is.True);
-		Assert.That(coordinator.IsReserved(managedTarget), Is.True);
-		Assert.That(coordinator.IsRelocationTargetActive(staleTarget), Is.False);
-		Assert.That(coordinator.IsReserved(staleTarget), Is.False);
-	}
-
-	[Test]
-	public void RestoreInvariant_OrphanTargetCandidate_DoesNotReleaseManagedSourceReservation()
-	{
-		AlwaysOutboundReadyBuilding building = CreateBuilding();
-		CapsuleBuffer sharedDock = CreateBuffer(building, "Shared Target And Source", CapsuleDockState.IB);
-		CapsuleBuffer managedTarget = CreateBuffer(building, "Shared Source Managed Target", CapsuleDockState.Empty);
-		CapsuleRelocationTask managedTask = new(
-			WorkerTask.TaskType.CapsuleClear,
-			sharedDock,
-			managedTarget,
-			building.RuntimeBuildingId,
-			CapsuleRelocationReason.StateMismatch);
-		taskManager.EnqueueTask(managedTask);
-		Assert.That(coordinator.TryReserveActiveTarget(sharedDock), Is.True);
-		Assert.That(coordinator.RestoreActiveRelocation(sharedDock, managedTarget, payloadAlreadyPicked: false), Is.True);
-
-		InvokeNonPublic(
-			typeof(Building),
-			target: null,
-			"TryReleaseOrphanedRelocationTarget",
-			sharedDock,
-			taskManager,
-			coordinator);
-
-		Assert.That(coordinator.IsRelocationTargetActive(sharedDock), Is.True);
-		Assert.That(coordinator.IsRelocationSourceActive(sharedDock), Is.True);
-		Assert.That(coordinator.IsReserved(sharedDock), Is.True);
-		Assert.That(coordinator.IsRelocationTargetActive(managedTarget), Is.True);
-		Assert.That(coordinator.IsReserved(managedTarget), Is.True);
 	}
 
 	private AlwaysOutboundReadyBuilding CreateBuilding()
@@ -806,21 +983,23 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		return building;
 	}
 
-	private LaunchBuilding CreateLaunchBuilding()
+	private Building CreateLaunchBuilding()
 	{
-		LaunchBuilding building = new(
+		Building building = new(
 			"Capsule Relocation Launch Test Building",
-			new List<GridCell>());
+			new List<GridCell>(),
+			CargoProcessStage.LaunchReady);
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
 	}
 
-	private StorageBuilding CreateStorageBuilding()
+	private Building CreateStorageBuilding()
 	{
-		StorageBuilding building = new(
+		Building building = new(
 			"Capsule Relocation Storage Test Building",
-			new List<GridCell>());
+			new List<GridCell>(),
+			CargoProcessStage.Picked);
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
@@ -891,6 +1070,14 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		return worker;
 	}
 
+	private void ActivateInboundWorkflow()
+	{
+		inboundWorkflow.gameObject.SetActive(true);
+		// EditMode runners do not consistently dispatch MonoBehaviour OnEnable.
+		// Invoke it explicitly while keeping event binding idempotent.
+		InvokeNonPublic(typeof(InboundWorkflowService), inboundWorkflow, "OnEnable");
+	}
+
 	private void ApplyBufferRule(CapsuleBuffer buffer, CargoProcessStage stage)
 	{
 		FacilityRule rule = new();
@@ -931,12 +1118,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		};
 	}
 
-	private static void MarkBuildingTaskBuilt(Building building, CapsuleRelocationTask task)
-	{
-		InvokeNonPublic(typeof(Building), building, "OnCapsuleRelocationTaskBuilt", task);
-		AssertOutboundMarkerOwnedBy(building, (CapsuleBuffer)GetTaskSource(task), task);
-	}
-
 	private static CapsuleDock GetTaskSource(CapsuleRelocationTask task)
 	{
 		return (CapsuleDock)GetPrivateField(typeof(CapsuleRelocationTask), task, "sourceDock");
@@ -945,42 +1126,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private static CapsuleDock GetTaskTarget(CapsuleRelocationTask task)
 	{
 		return (CapsuleDock)GetPrivateField(typeof(CapsuleRelocationTask), task, "targetDock");
-	}
-
-	private static void AssertOutboundMarkerOwnedBy(
-		Building building,
-		CapsuleBuffer source,
-		CapsuleRelocationTask expectedOwner)
-	{
-		HashSet<CapsuleBuffer> queuedBuffers = (HashSet<CapsuleBuffer>)GetPrivateField(
-			typeof(Building),
-			building,
-			"queuedOutboundBuffers");
-		Dictionary<CapsuleBuffer, CapsuleRelocationTask> owners =
-			(Dictionary<CapsuleBuffer, CapsuleRelocationTask>)GetPrivateField(
-				typeof(Building),
-				building,
-				"queuedOutboundTaskOwners");
-
-		Assert.That(queuedBuffers.Contains(source), Is.True);
-		Assert.That(owners.TryGetValue(source, out CapsuleRelocationTask owner), Is.True);
-		Assert.That(owner, Is.SameAs(expectedOwner));
-	}
-
-	private static void AssertOutboundMarkerCleared(Building building, CapsuleBuffer source)
-	{
-		HashSet<CapsuleBuffer> queuedBuffers = (HashSet<CapsuleBuffer>)GetPrivateField(
-			typeof(Building),
-			building,
-			"queuedOutboundBuffers");
-		Dictionary<CapsuleBuffer, CapsuleRelocationTask> owners =
-			(Dictionary<CapsuleBuffer, CapsuleRelocationTask>)GetPrivateField(
-				typeof(Building),
-				building,
-				"queuedOutboundTaskOwners");
-
-		Assert.That(queuedBuffers.Contains(source), Is.False);
-		Assert.That(owners.ContainsKey(source), Is.False);
 	}
 
 	private void AssertCoordinatorOwnershipReleased(CapsuleDock source, CapsuleDock target)
@@ -1049,7 +1194,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private sealed class AlwaysOutboundReadyBuilding : Building
 	{
 		public AlwaysOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, BuildingType.Staging)
+			: base(displayName, occupiedCells, CargoProcessStage.Labeled)
 		{
 		}
 
@@ -1062,7 +1207,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private sealed class NeverOutboundReadyBuilding : Building
 	{
 		public NeverOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, BuildingType.Generic)
+			: base(displayName, occupiedCells, CargoProcessStage.None)
 		{
 		}
 
@@ -1075,7 +1220,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private sealed class ContentOutboundReadyBuilding : Building
 	{
 		public ContentOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, BuildingType.Generic)
+			: base(displayName, occupiedCells, CargoProcessStage.None)
 		{
 		}
 
@@ -1090,7 +1235,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		public bool OutboundReady { get; set; }
 
 		public ToggleOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, BuildingType.Generic)
+			: base(displayName, occupiedCells, CargoProcessStage.None)
 		{
 		}
 
@@ -1098,5 +1243,33 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		{
 			return OutboundReady && capsuleBuffer?.DockedCapsule != null;
 		}
+	}
+
+	private sealed class FacilityDependentTestTask : WorkerTask
+	{
+		private readonly IFacility facility;
+
+		public FacilityDependentTestTask(IFacility facility)
+			: base(TaskType.PackingInput)
+		{
+			this.facility = facility;
+		}
+
+		public override bool DependsOnFacility(IFacility candidate) =>
+			ReferenceEquals(facility, candidate);
+
+		public override string GetStatusSummary() => "Facility dependency blocker";
+
+		protected override IBaseNode BuildWorkNode() =>
+			new ActionNode(CompleteImmediately);
+
+		public override bool CheckTaskEnd() => false;
+
+#if UNITY_EDITOR
+		public override string ShowStatus() => GetStatusSummary();
+#endif
+
+		private static IBaseNode.NodeState CompleteImmediately(in BTContext context) =>
+			IBaseNode.NodeState.Success;
 	}
 }

@@ -4,20 +4,17 @@ using System.Collections.Generic;
 public readonly struct CompanyBuildingStateSnapshot
 {
 	public uint BuildingId { get; }
-	public BuildingType BuildingType { get; }
 	public BuildingState State { get; }
 	public float AverageTemperatureCelsius { get; }
 	public float PowerSupplyRatio { get; }
 
 	public CompanyBuildingStateSnapshot(
 		uint buildingId,
-		BuildingType buildingType,
 		BuildingState state,
 		float averageTemperatureCelsius,
 		float powerSupplyRatio)
 	{
 		BuildingId = buildingId;
-		BuildingType = buildingType;
 		State = state;
 		AverageTemperatureCelsius = averageTemperatureCelsius;
 		PowerSupplyRatio = powerSupplyRatio;
@@ -61,7 +58,6 @@ public sealed class CompanyStateSnapshot
 
 			capturedBuildings.Add(new CompanyBuildingStateSnapshot(
 				building.RuntimeBuildingId,
-				building.Type,
 				building.State,
 				building.AverageTemperatureCelsius,
 				building.PowerEfficiency));

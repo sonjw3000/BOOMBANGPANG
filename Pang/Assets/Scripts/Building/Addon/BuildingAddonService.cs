@@ -248,12 +248,6 @@ public sealed class BuildingAddonService
 			return false;
 		}
 
-		if (definition.IsAllowedFor(building.Type) == false)
-		{
-			reason = "This addon cannot be installed in this building type.";
-			return false;
-		}
-
 		if (building.AvailableAddonSlots <= 0)
 		{
 			reason = "No addon slots are available.";

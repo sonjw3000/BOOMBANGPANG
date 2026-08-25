@@ -10,7 +10,7 @@ It exists to prevent older `Zone = everything` assumptions from leaking back int
 
 The project is no longer framed only as a single warehouse shelf-layout simulation.
 
-The current direction is a lunar logistics hub simulation where the player builds and operates multiple connected logistics buildings on the moon.
+The current direction is a lunar logistics hub simulation where the player builds and operates one or more logistics buildings on the moon.
 
 This changes the player question from:
 
@@ -21,8 +21,8 @@ Where should this shelf go?
 to:
 
 ```text
-Where should storage, packing, and launch buildings go?
-How should they connect?
+Where should storage, packing, and launch capabilities go?
+Should they share one Building or connect across several?
 Who or what should move cargo between them?
 ```
 
@@ -37,9 +37,8 @@ The hub should currently be interpreted through three separate layers:
 Physical space.
 
 Examples:
-- Storage Building
-- Packing Building
-- Launch Building
+- one multi-purpose Building
+- several Buildings dedicated by their installed facilities, Rules, and outbound policy
 
 Buildings are responsible for:
 - interior logistics space
@@ -110,15 +109,15 @@ Example flow:
 ```text
 Rocket Landing
 -> Inbound Port
--> Storage Building
+-> Building with storage facilities
 -> Transfer Port
--> Packing Building
+-> Building with packing facilities
 -> Transfer Port
--> Launch Building
+-> Building with launch facilities
 -> Outbound Port
 ```
 
-This is one of the key structures that makes the hub feel like a moon-base logistics operation rather than a single warehouse floor.
+This is one possible structure. The same flow may remain inside one Building when its facilities and Rules support every operation.
 
 ---
 
@@ -129,7 +128,7 @@ This direction exists to support:
 - clearer human versus robot role separation
 - visible inter-building logistics pressure
 - higher-level hub layout decisions
-- future building specialization without rewriting the gameplay loop
+- player-directed building specialization without rewriting the gameplay loop
 
 The core logistics loop remains:
 

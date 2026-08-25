@@ -55,8 +55,8 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 		try
 		{
 			BuildingManager buildingManager = managerObject.AddComponent<BuildingManager>();
-			Building firstDepot = new("Depot", new List<GridCell>(), BuildingType.Storage);
-			Building secondDepot = new("Depot", new List<GridCell>(), BuildingType.Storage);
+			Building firstDepot = new("Depot", new List<GridCell>(), CargoProcessStage.Picked);
+			Building secondDepot = new("Depot", new List<GridCell>(), CargoProcessStage.Picked);
 			buildingManager.Register(firstDepot);
 			buildingManager.Register(secondDepot);
 
@@ -69,8 +69,8 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 			{
 				"All Buildings",
 				"Hub / Unassigned",
-				$"Depot · Storage · #{firstDepot.RuntimeBuildingId}",
-				$"Depot · Storage · #{secondDepot.RuntimeBuildingId}",
+				$"Depot · #{firstDepot.RuntimeBuildingId}",
+				$"Depot · #{secondDepot.RuntimeBuildingId}",
 			}));
 
 			AssertRenderScope(presenter, null);
@@ -78,7 +78,7 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 			Assert.That(scope.value, Is.EqualTo("Hub / Unassigned"));
 			AssertRenderScope(presenter, 0);
 			scope.index = 3;
-			Assert.That(scope.value, Is.EqualTo($"Depot · Storage · #{secondDepot.RuntimeBuildingId}"));
+			Assert.That(scope.value, Is.EqualTo($"Depot · #{secondDepot.RuntimeBuildingId}"));
 			AssertRenderScope(presenter, secondDepot.RuntimeBuildingId);
 			Assert.That(presenter.TrySelectBuildingScope(firstDepot.RuntimeBuildingId), Is.True);
 			AssertRenderScope(presenter, firstDepot.RuntimeBuildingId);
@@ -88,7 +88,7 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 
 			buildingManager.Unregister(firstDepot);
 			AssertRenderScope(presenter, secondDepot.RuntimeBuildingId);
-			Assert.That(scope.value, Is.EqualTo($"Depot · Storage · #{secondDepot.RuntimeBuildingId}"));
+			Assert.That(scope.value, Is.EqualTo($"Depot · #{secondDepot.RuntimeBuildingId}"));
 			Assert.That(scope.index, Is.EqualTo(2));
 		}
 		finally
@@ -109,7 +109,7 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 		try
 		{
 			BuildingManager buildingManager = managerObject.AddComponent<BuildingManager>();
-			Building storage = new("Storage Alpha", new List<GridCell>(), BuildingType.Storage);
+			Building storage = new("Storage Alpha", new List<GridCell>(), CargoProcessStage.Picked);
 			buildingManager.Register(storage);
 
 			VisualElement root = LoadAttachedRoot(out documentObject);

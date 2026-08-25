@@ -325,8 +325,7 @@ namespace UniverseLogistics.UI.Toolkit
 					}
 
 					scopeBuildingIds.Add(building.RuntimeBuildingId);
-					choices.Add(
-						$"{building.DisplayName} · {BuildingTypeUtility.ToDisplayString(building.Type)} · #{building.RuntimeBuildingId}");
+					choices.Add($"{building.DisplayName} · #{building.RuntimeBuildingId}");
 				}
 
 				if (selectedBuildingFound == false)
