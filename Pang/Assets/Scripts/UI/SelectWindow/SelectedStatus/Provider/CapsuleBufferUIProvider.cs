@@ -65,8 +65,6 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 		model.AddOverview("Outbound", () => OutboundAccessDisplay);
 		model.AddAction("Purchase Capsule", PurchaseEmptyCapsule, CanPurchaseEmptyCapsule);
 		model.AddAction("Sell Capsule", SellEmptyCapsule, CanSellEmptyCapsule);
-		model.AddAction("Set IB", () => SetDockState(CapsuleDockState.IB), () => CanSetDockState(CapsuleDockState.IB));
-		model.AddAction("Set OB Standby", () => SetDockState(CapsuleDockState.OBStandby), () => CanSetDockState(CapsuleDockState.OBStandby));
 		model.AddAction("Remove", DeleteObject, isDangerous: true);
 	}
 
@@ -85,18 +83,6 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 			"CARGO",
 			$"{CurrentSizeDisplay} / {CapacityDisplay}",
 			GetItemDisplay());
-	}
-
-	private bool CanSetDockState(CapsuleDockState state) => currentTarget != null && currentTarget.DockState != state;
-
-	private void SetDockState(CapsuleDockState state)
-	{
-		if (currentTarget == null) return;
-		CapsuleBufferService service = GameContext.HasInstance ? GameContext.Instance.CapsuleBufferSvc : null;
-		if (service != null)
-			service.SetDockState(currentTarget, state);
-		else
-			currentTarget.SetDockState(state);
 	}
 
 	private bool CanPurchaseEmptyCapsule()
