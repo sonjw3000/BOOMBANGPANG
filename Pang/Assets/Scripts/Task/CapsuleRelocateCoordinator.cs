@@ -508,6 +508,12 @@ public sealed class CapsuleRelocateCoordinator
 		{
 			return;
 		}
+		if (capsule.LogisticsState == CapsuleLogisticsState.Empty)
+		{
+			CancelPendingRequests(buffer);
+			NotifyRuleRoutingEvaluated(buildingId, buffer, isRuleMatched: true);
+			return;
+		}
 
 		bool evaluateLaunchReadiness = building.OutboundTargetStage == ItemProcessStage.LaunchReady;
 		if (bufferService?.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness) == true)
@@ -518,9 +524,6 @@ public sealed class CapsuleRelocateCoordinator
 		}
 
 		NotifyRuleRoutingEvaluated(buildingId, buffer, isRuleMatched: false);
-		WorkerTask.TaskType taskType = capsule.LogisticsState == CapsuleLogisticsState.Empty
-			? WorkerTask.TaskType.CapsuleSupply
-			: WorkerTask.TaskType.CapsuleClear;
 		RequestSend(new CapsuleRelocateSendRequest(
 			buffer,
 			buffer.DockState,
@@ -528,7 +531,11 @@ public sealed class CapsuleRelocateCoordinator
 			null,
 			CapsuleRelocateScope.SameBuilding,
 			buildingId,
-			onMatched: match => EnqueueCapsuleRelocationTask(match, taskType, buildingId, CapsuleRelocationReason.RuleRouting),
+			onMatched: match => EnqueueCapsuleRelocationTask(
+				match,
+				WorkerTask.TaskType.CapsuleClear,
+				buildingId,
+				CapsuleRelocationReason.RuleRouting),
 			requireRuleMatchedTarget: true,
 			evaluateLaunchReadiness: evaluateLaunchReadiness));
 	}

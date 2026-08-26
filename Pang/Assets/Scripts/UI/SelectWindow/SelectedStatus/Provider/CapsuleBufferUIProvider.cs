@@ -84,23 +84,16 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 
 	private bool CanPurchaseEmptyCapsule()
 	{
-		return currentTarget != null && currentTarget.HasCapsule == false &&
-			GameContext.HasInstance && GameContext.Instance.BoxMgr != null;
+		CapsuleBufferService service = GameContext.HasInstance
+			? GameContext.Instance.CapsuleBufferSvc
+			: null;
+		return service?.CanPurchaseCapsule(currentTarget) == true;
 	}
 
 	private void PurchaseEmptyCapsule()
 	{
-		if (CanPurchaseEmptyCapsule() == false) return;
-		BoxManager boxManager = GameContext.Instance.BoxMgr;
-		if (boxManager.GetNewBox(BoxType.Capsule, out BoxBase box) == false) return;
-		if (box is not CargoCapsule capsule)
-		{
-			boxManager.DisableBox(box);
-			return;
-		}
-		capsule.SetLogisticsState(CapsuleLogisticsState.Empty);
-		if (currentTarget.TryDockCapsule(capsule) == false)
-			boxManager.DisableBox(capsule);
+		if (GameContext.HasInstance)
+			GameContext.Instance.CapsuleBufferSvc?.TryPurchaseCapsule(currentTarget);
 	}
 
 	private static string GetStateLabel(CapsuleBuffer buffer)

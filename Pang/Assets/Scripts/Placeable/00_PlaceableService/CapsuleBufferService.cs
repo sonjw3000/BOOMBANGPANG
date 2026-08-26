@@ -5,10 +5,53 @@ using System.Collections.Generic;
 public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 {
 	// capsule buffer management
+	[SerializeField] private int capsulePurchaseCost = 100;
 
 	private readonly Dictionary<uint, List<CapsuleBuffer>> registeredBuffers = new();
 	private readonly Dictionary<CapsuleBuffer, uint> registeredBuildingIdByBuffer = new();
 	public event Action<uint, CapsuleBuffer> OnCapsuleContentChanged;
+	public int CapsulePurchaseCost => Mathf.Max(0, capsulePurchaseCost);
+
+	public bool CanPurchaseCapsule(CapsuleBuffer buffer)
+	{
+		if (buffer == null || buffer.HasCapsule || GameContext.HasInstance == false)
+			return false;
+
+		GameContext context = GameContext.Instance;
+		return context.BoxMgr != null &&
+			context.EconomyService != null &&
+			context.EconomyService.CanAfford(CapsulePurchaseCost);
+	}
+
+	public bool TryPurchaseCapsule(CapsuleBuffer buffer)
+	{
+		if (CanPurchaseCapsule(buffer) == false)
+			return false;
+
+		GameContext context = GameContext.Instance;
+		if (context.BoxMgr.GetNewBox(BoxType.Capsule, out BoxBase box) == false)
+			return false;
+		if (box is not CargoCapsule capsule)
+		{
+			context.BoxMgr.DisableBox(box);
+			return false;
+		}
+
+		capsule.SetLogisticsState(CapsuleLogisticsState.Empty);
+		if (buffer.TryDockCapsule(capsule) == false)
+		{
+			context.BoxMgr.DisableBox(capsule);
+			return false;
+		}
+
+		context.EconomyService.ApplyTransaction(new EconomyTransaction
+		{
+			moneyDelta = -CapsulePurchaseCost,
+			reputationDelta = 0f,
+			reason = EconomyTransaction.Reason.CapsulePurchase,
+		});
+		return true;
+	}
 
 	protected override bool IsDestinationCandidate(
 		CapsuleBuffer facility,
@@ -215,9 +258,18 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 		FacilityRuleManager ruleManager,
 		FacilityManager facilityManager)
 	{
-		return buffer != null &&
-			capsule != null &&
-			buffer.FacilityRulePresetId != FacilityRuleManager.NoRulePresetId &&
+		if (buffer == null ||
+			capsule == null ||
+			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
+			ruleManager == null ||
+			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) == false ||
+			preset?.Rule == null ||
+			preset.Rule.IsEmpty)
+		{
+			return false;
+		}
+
+		return
 			buffer.CanAcceptCargoRoute(capsule.RouteKind) &&
 			(facilityManager == null || facilityManager.IsInvalidating(buffer) == false) &&
 			filter.Matches(ruleManager, buffer);
