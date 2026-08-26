@@ -90,7 +90,7 @@ The runtime Capsule lifecycle contract is `IB / Inside / Empty / OB`.
 
 - `IB` and `OB` describe CargoPort-facing transport phases. A standard Capsule becomes `OB` only when the Building outbound policy is met and a non-empty Rule on an OutboundCargoPort in the same Building accepts its current cargo.
 - `Inside` and `Empty` describe the Capsule logistics lifecycle while docked at CapsuleBuffers; they are separate from the generic Rule content condition.
-- `CapsuleDockState` remains a separate facility-interface contract, so Dock roles such as `IBStandby` and `OBStandby` are not Capsule lifecycle states.
+- `CapsuleDockState` remains a separate facility-interface contract, so Dock roles such as `IB`, `IBStandby`, and `OBStandby` are not Capsule lifecycle states. CapsuleBuffer exposes only the `IB` and `OBStandby` roles; it has no `Empty` Dock role. Physical emptiness belongs to the Capsule lifecycle and Rule content condition.
 - Task implementations change physical cargo, ItemStatus, or manifests. Dirty routing evaluation derives the lifecycle of docked standard Capsules instead of each work Task assigning it independently. Outbound Rule eligibility gates `Inside -> OB`, while temporary port occupancy only delays the relocation match. A relocation Task may set a carried rejected outbound Capsule back to `Inside` before it can be redocked and evaluated.
 
 ---

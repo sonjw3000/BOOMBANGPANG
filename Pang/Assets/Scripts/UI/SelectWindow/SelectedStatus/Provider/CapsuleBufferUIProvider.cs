@@ -65,7 +65,6 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 		model.AddOverview("Outbound", () => OutboundAccessDisplay);
 		model.AddAction("Purchase Capsule", PurchaseEmptyCapsule, CanPurchaseEmptyCapsule);
 		model.AddAction("Sell Capsule", SellEmptyCapsule, CanSellEmptyCapsule);
-		model.AddAction("Set Empty", () => SetDockState(CapsuleDockState.Empty), () => CanSetDockState(CapsuleDockState.Empty));
 		model.AddAction("Set IB", () => SetDockState(CapsuleDockState.IB), () => CanSetDockState(CapsuleDockState.IB));
 		model.AddAction("Set OB Standby", () => SetDockState(CapsuleDockState.OBStandby), () => CanSetDockState(CapsuleDockState.OBStandby));
 		model.AddAction("Remove", DeleteObject, isDangerous: true);
@@ -141,7 +140,6 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 		{
 			CapsuleDockState.IB => "IB",
 			CapsuleDockState.OBStandby => "OB Standby",
-			CapsuleDockState.Empty => "Empty",
 			_ => "Unknown",
 		};
 	}

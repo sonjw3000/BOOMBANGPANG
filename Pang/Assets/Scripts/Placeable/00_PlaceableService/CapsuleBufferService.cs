@@ -29,7 +29,7 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 
 	public bool SetDockState(CapsuleBuffer facility, CapsuleDockState newState)
 	{
-		if (facility == null)
+		if (facility == null || CapsuleBuffer.IsSupportedDockState(newState) == false)
 			return false;
 
 		facility.SetDockState(newState);

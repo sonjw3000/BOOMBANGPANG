@@ -17,7 +17,7 @@ public partial class CapsuleBuffer :
 
 	[SerializeField] private GameObject boxStackPos;
 	[FormerlySerializedAs("bufferState")]
-	[SerializeField] private CapsuleDockState dockState = CapsuleDockState.Empty;
+	[SerializeField] private CapsuleDockState dockState = CapsuleDockState.IB;
 
 	public event Action<CapsuleBuffer, CargoCapsule> OnCapsuleUndocking;
 	public event Action<CapsuleBuffer> OnCapsuleContentChanged;
@@ -36,10 +36,11 @@ public partial class CapsuleBuffer :
 		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Inside &&
 		IsCapsuleEmpty() == false;
 	public bool CanDispatchToOutbound() => CanGetBox() && DockedCapsule != null && DockedCapsule.LogisticsState == CapsuleLogisticsState.OB;
-	public bool CanRelocateEmptyCapsuleFrom(CapsuleDockState requiredState) =>
-		dockState == requiredState &&
+	public bool CanRelocateEmptyCapsule() =>
 		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Empty &&
 		IsCapsuleEmpty();
+	public static bool IsSupportedDockState(CapsuleDockState state) =>
+		state is CapsuleDockState.IB or CapsuleDockState.OBStandby;
 	public bool CanReceiveOutboundItems() =>
 		DockedCapsule != null &&
 		(DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty ||
@@ -125,7 +126,7 @@ public partial class CapsuleBuffer :
 
 	public void SetDockState(CapsuleDockState newState)
 	{
-		if (dockState == newState)
+		if (IsSupportedDockState(newState) == false || dockState == newState)
 			return;
 
 		dockState = newState;

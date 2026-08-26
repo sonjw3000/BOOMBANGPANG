@@ -13,7 +13,7 @@ public readonly struct CapsuleRelocateSendRequest
 	public readonly CapsuleDock SourceDock;
 	public readonly CapsuleDockState RequiredSourceDockState;
 	public readonly CapsuleLogisticsState RequiredCapsuleState;
-	public readonly CapsuleDockState WantedTargetDockState;
+	public readonly CapsuleDockState? WantedTargetDockState;
 	public readonly CapsuleRelocateScope Scope;
 	public readonly uint SourceBuildingId;
 	public readonly uint RequiredTargetBuildingId;
@@ -26,7 +26,7 @@ public readonly struct CapsuleRelocateSendRequest
 		CapsuleDock sourceDock,
 		CapsuleDockState requiredSourceDockState,
 		CapsuleLogisticsState requiredCapsuleState,
-		CapsuleDockState wantedTargetDockState,
+		CapsuleDockState? wantedTargetDockState,
 		CapsuleRelocateScope scope,
 		uint sourceBuildingId,
 		uint requiredTargetBuildingId = 0,
@@ -472,7 +472,7 @@ public sealed class CapsuleRelocateCoordinator
 			port,
 			port.DockState,
 			requiredState,
-			CapsuleDockState.Empty,
+			null,
 			CapsuleRelocateScope.SameBuilding,
 			buildingId,
 			onMatched: match => EnqueueCapsuleRelocationTask(match, taskType, buildingId, CapsuleRelocationReason.RuleRouting),
@@ -531,7 +531,7 @@ public sealed class CapsuleRelocateCoordinator
 			buffer,
 			buffer.DockState,
 			capsule.LogisticsState,
-			CapsuleDockState.Empty,
+			null,
 			CapsuleRelocateScope.SameBuilding,
 			buildingId,
 			onMatched: match => EnqueueCapsuleRelocationTask(match, taskType, buildingId, CapsuleRelocationReason.RuleRouting),
@@ -950,7 +950,7 @@ public sealed class CapsuleRelocateCoordinator
 		if (request.RequireRuleMatchedTarget)
 			return TryFindRuleMatchedReceiver(request, out targetDock, out targetBuildingId);
 
-		if (dockService == null)
+		if (dockService == null || request.WantedTargetDockState.HasValue == false)
 			return false;
 
 		uint queryBuildingId = request.RequiredTargetBuildingId != 0
@@ -961,7 +961,7 @@ public sealed class CapsuleRelocateCoordinator
 
 		return dockService.TryFindDock(
 			queryBuildingId,
-			request.WantedTargetDockState,
+			request.WantedTargetDockState.Value,
 			false,
 			out targetDock,
 			out targetBuildingId,
@@ -1066,7 +1066,9 @@ public sealed class CapsuleRelocateCoordinator
 			reservedDocks.Contains(targetDock) ||
 			activeRelocationSources.Contains(request.SourceDock) ||
 			activeRelocationTargets.Contains(targetDock) ||
-			(request.RequireRuleMatchedTarget == false && targetDock.DockState != request.WantedTargetDockState) ||
+			(request.RequireRuleMatchedTarget == false &&
+				(request.WantedTargetDockState.HasValue == false ||
+				 targetDock.DockState != request.WantedTargetDockState.Value)) ||
 			targetDock.CanAcceptCargoRoute(request.RequiredRouteKind) == false ||
 			targetDock.CanPutBox() == false)
 		{

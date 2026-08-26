@@ -28,7 +28,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	private readonly uint buildingId;
 	private readonly CapsuleRelocationReason reason;
 	private readonly uint targetBuildingId;
-	private readonly CapsuleDockState targetDockState;
+	private readonly CapsuleDockState? targetDockState;
 	private readonly Type targetDockType;
 	private readonly WorkerStatusTarget targetWorkerStatus;
 	private readonly CargoRouteKind routeKind;
@@ -70,7 +70,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		this.targetDock = targetDock;
 		this.buildingId = buildingId;
 		this.reason = reason;
-		targetDockState = targetDock != null ? targetDock.DockState : CapsuleDockState.Empty;
+		targetDockState = targetDock?.DockState;
 		targetDockType = targetDock?.GetType();
 		targetWorkerStatus = targetDock != null ? targetDock.BuildingTarget : WorkerStatusTarget.None;
 		routeKind = restoredRouteKind ?? sourceDock?.DockedCapsule?.RouteKind ?? CargoRouteKind.Standard;
@@ -258,8 +258,9 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			TaskType.Unloading when sourceDock is Rocket =>
 				sourceDock.DockedCapsule?.LogisticsState is CapsuleLogisticsState.IB or CapsuleLogisticsState.Empty,
 			TaskType.IB when sourceDock is InboundCargoPort => sourceDock.IsCapsuleEmpty() == false && sourceDock.DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB,
-			TaskType.CapsuleClear when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleDockState.IB),
-			TaskType.CapsuleSupply when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsuleFrom(CapsuleDockState.Empty),
+			TaskType.CapsuleClear when sourceDock is CapsuleBuffer sourceBuffer =>
+				sourceBuffer.DockState == CapsuleDockState.IB && sourceBuffer.CanRelocateEmptyCapsule(),
+			TaskType.CapsuleSupply when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsule(),
 			TaskType.OB when sourceDock is CapsuleBuffer sourceBuffer => CanDispatchOutbound(sourceBuffer),
 			_ => true,
 		};
@@ -333,7 +334,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		{
 			TaskType.Unloading when targetDock is InboundCargoPort => targetDock.CanPutBox(),
 			TaskType.IB when targetDock is CapsuleBuffer targetBuffer => targetBuffer.CanReceiveFromInbound(),
-			TaskType.CapsuleClear when targetDock is CapsuleBuffer targetBuffer => targetBuffer.DockState == CapsuleDockState.Empty && targetBuffer.CanPutBox(),
+			TaskType.CapsuleClear when targetDock is CapsuleBuffer targetBuffer => targetBuffer.CanPutBox(),
 			TaskType.CapsuleSupply when targetDock is CapsuleBuffer targetBuffer => targetBuffer.DockState == CapsuleDockState.OBStandby && targetBuffer.CanPutBox(),
 			_ => targetDock.CanPutBox(),
 		};
@@ -516,7 +517,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		if (reason == CapsuleRelocationReason.RuleRouting)
 			return TryResolveRuleRoutingTarget();
 
-		if (targetDockType == null || GameContext.HasInstance == false)
+		if (targetDockType == null || targetDockState.HasValue == false || GameContext.HasInstance == false)
 			return false;
 
 		GameContext context = GameContext.Instance;
@@ -528,7 +529,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 		if (dockService.TryFindDock(
 			targetBuildingId,
-			targetDockState,
+			targetDockState.Value,
 			false,
 			out CapsuleDock replacement,
 			candidate => candidate != null &&
