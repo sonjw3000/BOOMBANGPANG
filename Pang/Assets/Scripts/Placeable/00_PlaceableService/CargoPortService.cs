@@ -174,6 +174,97 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		return TryQueryFacilities(buildingId, results, predicate);
 	}
 
+	public bool IsRuleMatchedOutboundPort(
+		OutboundCargoPort port,
+		CargoCapsule capsule,
+		bool evaluateLaunchReadiness)
+	{
+		if (port == null || capsule == null || capsule.RouteKind != CargoRouteKind.Standard ||
+			FacilityFilter.TryForCapsule(capsule, evaluateLaunchReadiness, out FacilityFilter filter) == false)
+		{
+			return false;
+		}
+
+		FacilityRuleManager ruleManager = GameContext.HasInstance
+			? GameContext.Instance.FacilityRuleMgr
+			: null;
+		return IsRuleMatchedOutboundPort(port, capsule, filter, ruleManager);
+	}
+
+	public bool TryFindRuleMatchedOutboundPort(
+		uint buildingId,
+		CargoCapsule capsule,
+		bool evaluateLaunchReadiness,
+		out OutboundCargoPort port,
+		bool requireAvailable = true,
+		Predicate<OutboundCargoPort> predicate = null)
+	{
+		port = null;
+		if (buildingId == 0 || capsule == null || capsule.RouteKind != CargoRouteKind.Standard ||
+			FacilityManager == null ||
+			FacilityFilter.TryForCapsule(capsule, evaluateLaunchReadiness, out FacilityFilter filter) == false ||
+			TryGetBuildingFacilities(buildingId, out IReadOnlyList<CargoPort> ports) == false)
+		{
+			return false;
+		}
+
+		FacilityRuleManager ruleManager = GameContext.HasInstance
+			? GameContext.Instance.FacilityRuleMgr
+			: null;
+		if (ruleManager == null)
+			return false;
+
+		int bestPriority = int.MinValue;
+		for (int i = 0; i < ports.Count; ++i)
+		{
+			if (ports[i] is not OutboundCargoPort candidate ||
+				(requireAvailable && candidate.CanPutBox() == false) ||
+				(predicate != null && predicate(candidate) == false) ||
+				IsRuleMatchedOutboundPort(candidate, capsule, filter, ruleManager) == false)
+			{
+				continue;
+			}
+
+			int priority = GetRulePriority(candidate, ruleManager);
+			if (port != null && priority <= bestPriority)
+				continue;
+
+			port = candidate;
+			bestPriority = priority;
+		}
+
+		return port != null;
+	}
+
+	private bool IsRuleMatchedOutboundPort(
+		OutboundCargoPort port,
+		CargoCapsule capsule,
+		in FacilityFilter filter,
+		FacilityRuleManager ruleManager)
+	{
+		return port != null &&
+			capsule != null &&
+			capsule.RouteKind == CargoRouteKind.Standard &&
+			port.FacilityRulePresetId != FacilityRuleManager.NoRulePresetId &&
+			port.CanAcceptCargoRoute(capsule.RouteKind) &&
+			(FacilityManager == null || FacilityManager.IsInvalidating(port) == false) &&
+			ruleManager != null &&
+			ruleManager.TryGetPreset(port.FacilityRulePresetId, out FacilityRulePreset preset) &&
+			preset?.Rule != null &&
+			preset.Rule.IsEmpty == false &&
+			preset.Rule.IsFilterCapable(filter);
+	}
+
+	private static int GetRulePriority(OutboundCargoPort port, FacilityRuleManager ruleManager)
+	{
+		return port != null &&
+			ruleManager != null &&
+			ruleManager.TryGetPreset(port.FacilityRulePresetId, out FacilityRulePreset preset) &&
+			preset?.Rule != null
+			? preset.Rule.Priority
+			: 0;
+	}
+
 	private static bool CanAcceptBox(CargoPort port, BoxBase box, InteractionKind interactionKind)
 	{
 		if (port == null || box is not CargoCapsule capsule || port.CanAcceptCargoRoute(capsule.RouteKind) == false)

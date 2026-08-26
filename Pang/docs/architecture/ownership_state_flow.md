@@ -101,9 +101,9 @@ During Dirty evaluation, `CapsuleRelocateCoordinator` derives the Capsule lifecy
 
 `CapsuleBuffer payload below the Building outbound policy -> Inside`
 
-`CapsuleBuffer payload at the exact outbound target stage and effective threshold -> OB`
+`CapsuleBuffer payload at the exact outbound target stage and effective threshold + matching non-empty same-Building OutboundCargoPort Rule -> OB`
 
-Rule-mismatched `Inside` or `Empty` capsules request another Rule-matched CapsuleBuffer in the same Building. `OB` capsules request an OutboundCargoPort. The relocation Task still owns only the physical move; destination selection and state derivation remain with the owning services.
+Rule-mismatched `Inside` or `Empty` capsules request another Rule-matched CapsuleBuffer in the same Building. `OB` capsules request the same-Building OutboundCargoPort whose non-empty Rule matches the cargo. Rule eligibility gates the `Inside -> OB` transition; temporary OutboundCargoPort occupancy leaves the Capsule in `OB` with a pending send until a matched port becomes available. If the applied outbound Rule is removed or becomes a mismatch, Dirty evaluation returns the Capsule to `Inside` and invalidates stale outbound work. The relocation Task still owns only the physical move; destination selection and state derivation remain with the owning services.
 
 `AreaManager` owns outdoor rectangular areas used by:
 - `WorkerSpawnManager` for `WorkerSpawn` candidates

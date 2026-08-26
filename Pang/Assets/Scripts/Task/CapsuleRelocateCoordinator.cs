@@ -121,6 +121,7 @@ public sealed class CapsuleRelocateCoordinator
 {
 	private readonly CapsuleDockService dockService;
 	private readonly CapsuleBufferService bufferService;
+	private readonly CargoPortService cargoPortService;
 	private readonly TaskManager taskManager;
 	private readonly BuildingManager buildingManager;
 	private readonly FacilityManager facilityManager;
@@ -201,6 +202,7 @@ public sealed class CapsuleRelocateCoordinator
 		this.dockService = dockService;
 		this.canUseLinkedBuilding = canUseLinkedBuilding;
 		this.bufferService = bufferService;
+		this.cargoPortService = cargoPortService;
 		this.evaluateDirtyDock = evaluateDirtyDock;
 		this.evaluateDirtyBuilding = evaluateDirtyBuilding;
 		this.taskManager = taskManager;
@@ -421,7 +423,7 @@ public sealed class CapsuleRelocateCoordinator
 			else if (taskManager.HasManagedCapsuleOutputDependency(buffer))
 				normalized = CapsuleLogisticsState.Inside;
 			else
-				normalized = building.CanDispatchOutboundBuffer(buffer)
+				normalized = CanPromoteToOutbound(buffer, capsule, building)
 					? CapsuleLogisticsState.OB
 					: CapsuleLogisticsState.Inside;
 		}
@@ -431,6 +433,26 @@ public sealed class CapsuleRelocateCoordinator
 		}
 
 		capsule.SetLogisticsState(normalized);
+	}
+
+	private bool CanPromoteToOutbound(
+		CapsuleBuffer buffer,
+		CargoCapsule capsule,
+		Building building)
+	{
+		if (buffer == null || capsule == null || building == null ||
+			building.CanDispatchOutboundBuffer(buffer) == false)
+		{
+			return false;
+		}
+
+		bool evaluateLaunchReadiness = building.OutboundTargetStage == ItemProcessStage.LaunchReady;
+		return cargoPortService?.TryFindRuleMatchedOutboundPort(
+			building.RuntimeBuildingId,
+			capsule,
+			evaluateLaunchReadiness,
+			out _,
+			requireAvailable: false) == true;
 	}
 
 	private void TryRequestInbound(InboundCargoPort port, uint buildingId, Building building)
@@ -478,7 +500,9 @@ public sealed class CapsuleRelocateCoordinator
 				match,
 				WorkerTask.TaskType.OB,
 				buildingId,
-				CapsuleRelocationReason.DestinationNeedsCapsule)));
+				CapsuleRelocationReason.DestinationNeedsCapsule),
+			requireRuleMatchedTarget: true,
+			evaluateLaunchReadiness: building.OutboundTargetStage == ItemProcessStage.LaunchReady));
 	}
 
 	private void TryRequestBufferRelocation(CapsuleBuffer buffer, uint buildingId, Building building)
@@ -960,6 +984,24 @@ public sealed class CapsuleRelocateCoordinator
 			: request.Scope == CapsuleRelocateScope.SameBuilding
 				? request.SourceBuildingId
 				: 0;
+		if (request.WantedTargetDockState == CapsuleDockState.OB)
+		{
+			if (cargoPortService?.TryFindRuleMatchedOutboundPort(
+				queryBuildingId,
+				capsule,
+				request.EvaluateLaunchReadiness,
+				out OutboundCargoPort outboundPort,
+				requireAvailable: true,
+				predicate: candidate => CanMatch(request, candidate, queryBuildingId)) != true)
+			{
+				return false;
+			}
+
+			targetDock = outboundPort;
+			targetBuildingId = queryBuildingId;
+			return true;
+		}
+
 		if (bufferService.TryQueryRuleMatchedDestinations(
 				queryBuildingId,
 				capsule,
