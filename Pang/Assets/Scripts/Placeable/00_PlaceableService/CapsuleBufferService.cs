@@ -115,7 +115,7 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 		return ruleManager != null &&
 			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
 			preset?.Rule?.RequiredContentState == requiredContentState &&
-			preset.Rule.RequiredItemProcessStage == requiredItemProcessStage &&
+			preset.Rule.AllowsItemProcessStage(requiredItemProcessStage) &&
 			IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness);
 	}
 
@@ -139,7 +139,7 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 		return ruleManager != null &&
 			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
 			preset?.Rule?.RequiredContentState == requiredContentState &&
-			preset.Rule.RequiredItemProcessStage == requiredItemProcessStage &&
+			preset.Rule.AllowsItemProcessStage(requiredItemProcessStage) &&
 			projectedFilter.Matches(ruleManager, buffer);
 	}
 

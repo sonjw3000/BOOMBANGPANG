@@ -307,8 +307,7 @@ public sealed class FacilityRule
 	[SerializeField] private int priority;
 	[FormerlySerializedAs("requiredCapsuleBufferState")]
 	[SerializeField] private FacilityContentState requiredContentState = FacilityContentState.Any;
-	[FormerlySerializedAs("requiredCargoProcessStage")]
-	[SerializeField] private ItemProcessStage requiredItemProcessStage = ItemProcessStage.Any;
+	[SerializeField] private ItemProcessStageMask allowedItemProcessStages = ItemProcessStageMask.None;
 	[SerializeField] private FacilityItemRule itemRule = new();
 	[SerializeField] private FacilityWorkerRule workerRule = new();
 	[SerializeField] private FacilityManifestRule manifestRule = new();
@@ -324,7 +323,7 @@ public sealed class FacilityRule
 
 		priority = source.priority;
 		requiredContentState = source.requiredContentState;
-		requiredItemProcessStage = source.requiredItemProcessStage;
+		allowedItemProcessStages = source.allowedItemProcessStages;
 		itemRule = source.itemRule != null ? new FacilityItemRule(source.itemRule) : new FacilityItemRule();
 		workerRule = source.workerRule != null ? new FacilityWorkerRule(source.workerRule) : new FacilityWorkerRule();
 		manifestRule = source.manifestRule != null ? new FacilityManifestRule(source.manifestRule) : new FacilityManifestRule();
@@ -332,14 +331,14 @@ public sealed class FacilityRule
 
 	public int Priority => priority;
 	public FacilityContentState RequiredContentState => requiredContentState;
-	public ItemProcessStage RequiredItemProcessStage => requiredItemProcessStage;
+	public ItemProcessStageMask AllowedItemProcessStages => allowedItemProcessStages;
 	public FacilityItemRule ItemRule => itemRule;
 	public FacilityWorkerRule WorkerRule => workerRule;
 	public FacilityManifestRule ManifestRule => manifestRule;
 
 	public bool IsEmpty =>
 		requiredContentState == FacilityContentState.Any &&
-		requiredItemProcessStage == ItemProcessStage.Any &&
+		allowedItemProcessStages == ItemProcessStageMask.None &&
 		(itemRule == null || itemRule.IsEmpty) &&
 		(workerRule == null || workerRule.IsEmpty) &&
 		(manifestRule == null || manifestRule.IsEmpty);
@@ -354,11 +353,28 @@ public sealed class FacilityRule
 			: FacilityContentState.Any;
 	}
 
-	public void SetRequiredItemProcessStage(ItemProcessStage stage)
+	public void SetAllowedItemProcessStages(ItemProcessStageMask stages)
 	{
-		requiredItemProcessStage = ItemProcessStageUtility.IsDefined(stage)
-			? stage
-			: ItemProcessStage.Any;
+		allowedItemProcessStages = ItemProcessStageUtility.IsDefined(stages)
+			? stages
+			: ItemProcessStageMask.None;
+	}
+
+	public void SetItemProcessStageAllowed(ItemProcessStage stage, bool allowed)
+	{
+		ItemProcessStageMask stageMask = ItemProcessStageUtility.ToMask(stage);
+		if (stageMask == ItemProcessStageMask.None)
+			return;
+
+		allowedItemProcessStages = allowed
+			? allowedItemProcessStages | stageMask
+			: allowedItemProcessStages & ~stageMask;
+	}
+
+	public bool AllowsItemProcessStage(ItemProcessStage stage)
+	{
+		return allowedItemProcessStages == ItemProcessStageMask.None ||
+			ItemProcessStageUtility.Contains(allowedItemProcessStages, stage);
 	}
 
 	public void SetItemRule(FacilityItemRule rule)
@@ -380,7 +396,7 @@ public sealed class FacilityRule
 	{
 		priority = 0;
 		requiredContentState = FacilityContentState.Any;
-		requiredItemProcessStage = ItemProcessStage.Any;
+		allowedItemProcessStages = ItemProcessStageMask.None;
 		itemRule ??= new FacilityItemRule();
 		workerRule ??= new FacilityWorkerRule();
 		manifestRule ??= new FacilityManifestRule();
@@ -392,7 +408,7 @@ public sealed class FacilityRule
 	public bool IsFilterCapable(in FacilityFilter filter)
 	{
 		if (filter.ContentState == FacilityContentState.Empty &&
-			requiredItemProcessStage != ItemProcessStage.Any)
+			allowedItemProcessStages != ItemProcessStageMask.None)
 		{
 			return false;
 		}
@@ -403,8 +419,8 @@ public sealed class FacilityRule
 			return false;
 		}
 
-		if (requiredItemProcessStage != ItemProcessStage.Any &&
-			filter.ItemProcessStage != requiredItemProcessStage)
+		if (allowedItemProcessStages != ItemProcessStageMask.None &&
+			ItemProcessStageUtility.Contains(allowedItemProcessStages, filter.ItemProcessStage) == false)
 		{
 			return false;
 		}

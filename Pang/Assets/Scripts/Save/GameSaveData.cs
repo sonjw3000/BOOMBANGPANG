@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public const int CurrentVersion = 17;
+	public const int CurrentVersion = 18;
 	public int Version = CurrentVersion;
 	public string SavedAtUtc;
 
@@ -290,7 +290,7 @@ public sealed class FacilityRuleSaveData
 	public int Priority;
 	// Keep the legacy JSON field names so existing saves remain readable.
 	public FacilityContentState RequiredCapsuleBufferState = FacilityContentState.Any;
-	public ItemProcessStage RequiredCargoProcessStage = ItemProcessStage.Any;
+	public ItemProcessStageMask AllowedItemProcessStages = ItemProcessStageMask.None;
 	public FacilityItemRuleSaveData ItemRule = new();
 	public FacilityWorkerRuleSaveData WorkerRule = new();
 	public FacilityManifestRuleSaveData ManifestRule = new();

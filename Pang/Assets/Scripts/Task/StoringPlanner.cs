@@ -359,7 +359,7 @@ public sealed class StoringPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		if (ruleManager == null ||
 			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
 			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) == false ||
-			preset?.Rule?.RequiredItemProcessStage != ItemProcessStage.Labeled ||
+			preset?.Rule?.AllowsItemProcessStage(ItemProcessStage.Labeled) != true ||
 			capsuleBufferService.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness: false) == false)
 		{
 			return false;

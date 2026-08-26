@@ -274,7 +274,7 @@ public partial class InboundWorkflowService : MonoBehaviour, IBoundService
 			ruleManager != null &&
 			buffer.FacilityRulePresetId != FacilityRuleManager.NoRulePresetId &&
 			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
-			preset?.Rule?.RequiredItemProcessStage == stage;
+			preset?.Rule?.AllowsItemProcessStage(stage) == true;
 	}
 
 	public bool TryGetUnloadingDestinationBuilding(out Building building)

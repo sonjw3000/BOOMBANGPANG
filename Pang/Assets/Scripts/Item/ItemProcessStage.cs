@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 public enum FacilityContentState
@@ -17,8 +18,25 @@ public enum ItemProcessStage
 	LaunchReady = 5,
 }
 
+[Flags]
+public enum ItemProcessStageMask
+{
+	None = 0,
+	Unlabeled = 1 << 0,
+	Labeled = 1 << 1,
+	Picked = 1 << 2,
+	Packed = 1 << 3,
+	LaunchReady = 1 << 4,
+	All = Unlabeled | Labeled | Picked | Packed | LaunchReady,
+}
+
 public static class ItemProcessStageUtility
 {
+	public static bool IsDefined(ItemProcessStageMask stages)
+	{
+		return (stages & ~ItemProcessStageMask.All) == 0;
+	}
+
 	public static bool IsDefined(ItemProcessStage stage)
 	{
 		return stage is ItemProcessStage.Any or
@@ -27,6 +45,39 @@ public static class ItemProcessStageUtility
 			ItemProcessStage.Picked or
 			ItemProcessStage.Packed or
 			ItemProcessStage.LaunchReady;
+	}
+
+	public static ItemProcessStageMask ToMask(ItemProcessStage stage)
+	{
+		return stage switch
+		{
+			ItemProcessStage.Unlabeled => ItemProcessStageMask.Unlabeled,
+			ItemProcessStage.Labeled => ItemProcessStageMask.Labeled,
+			ItemProcessStage.Picked => ItemProcessStageMask.Picked,
+			ItemProcessStage.Packed => ItemProcessStageMask.Packed,
+			ItemProcessStage.LaunchReady => ItemProcessStageMask.LaunchReady,
+			_ => ItemProcessStageMask.None,
+		};
+	}
+
+	public static bool Contains(ItemProcessStageMask stages, ItemProcessStage stage)
+	{
+		ItemProcessStageMask stageMask = ToMask(stage);
+		return stageMask != ItemProcessStageMask.None && (stages & stageMask) != 0;
+	}
+
+	public static string ToDisplayString(ItemProcessStageMask stages)
+	{
+		if (stages == ItemProcessStageMask.None)
+			return "Any";
+
+		List<string> names = new();
+		AppendStageName(names, stages, ItemProcessStageMask.Unlabeled, ItemProcessStage.Unlabeled);
+		AppendStageName(names, stages, ItemProcessStageMask.Labeled, ItemProcessStage.Labeled);
+		AppendStageName(names, stages, ItemProcessStageMask.Picked, ItemProcessStage.Picked);
+		AppendStageName(names, stages, ItemProcessStageMask.Packed, ItemProcessStage.Packed);
+		AppendStageName(names, stages, ItemProcessStageMask.LaunchReady, ItemProcessStage.LaunchReady);
+		return string.Join(", ", names);
 	}
 
 	public static string ToDisplayString(ItemProcessStage stage)
@@ -41,6 +92,16 @@ public static class ItemProcessStageUtility
 			ItemProcessStage.LaunchReady => "Launch Ready",
 			_ => stage.ToString(),
 		};
+	}
+
+	private static void AppendStageName(
+		List<string> names,
+		ItemProcessStageMask stages,
+		ItemProcessStageMask stageMask,
+		ItemProcessStage stage)
+	{
+		if ((stages & stageMask) != 0)
+			names.Add(ToDisplayString(stage));
 	}
 }
 

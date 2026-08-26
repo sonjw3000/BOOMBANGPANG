@@ -26,16 +26,6 @@ namespace UniverseLogistics.UI.Toolkit
 			FacilityContentState.HasItems,
 			FacilityContentState.Empty,
 		};
-		private static readonly ItemProcessStage[] RuleItemProcessStages =
-		{
-			ItemProcessStage.Any,
-			ItemProcessStage.Unlabeled,
-			ItemProcessStage.Labeled,
-			ItemProcessStage.Picked,
-			ItemProcessStage.Packed,
-			ItemProcessStage.LaunchReady,
-		};
-
 		private UIWindow window;
 		private VisualTreeAsset contentTemplate;
 		private VisualTreeAsset placeableRowTemplate;
@@ -83,7 +73,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private Slider ruleBlueSlider;
 		private VisualElement ruleColorPreview;
 		private DropdownField ruleContentStateField;
-		private DropdownField ruleItemProcessStageField;
+		private VisualElement ruleItemProcessStages;
 		private DropdownField ruleWorkerKindField;
 		private DropdownField ruleItemField;
 		private Label whiteListSummary;
@@ -228,7 +218,7 @@ namespace UniverseLogistics.UI.Toolkit
 			ruleBlueSlider = content.Q<Slider>("rule-editor-blue");
 			ruleColorPreview = content.Q<VisualElement>("rule-editor-color-preview");
 			ruleContentStateField = content.Q<DropdownField>("rule-editor-content-state");
-			ruleItemProcessStageField = content.Q<DropdownField>("rule-editor-item-process-stage");
+			ruleItemProcessStages = content.Q<VisualElement>("rule-editor-item-process-stages");
 			ruleWorkerKindField = content.Q<DropdownField>("rule-editor-worker-kind");
 			ruleItemField = content.Q<DropdownField>("rule-editor-item");
 			whiteListSummary = content.Q<Label>("rule-whitelist-summary");
@@ -243,7 +233,7 @@ namespace UniverseLogistics.UI.Toolkit
 				placeableEmpty == null || createRuleButton == null || createColdChainRuleButton == null ||
 				ruleList == null || ruleEmpty == null || ruleMessage == null ||
 				ruleLibrary == null || ruleEditor == null || ruleNameField == null || rulePriorityField == null ||
-				ruleColorPreview == null || ruleContentStateField == null || ruleItemProcessStageField == null ||
+				ruleColorPreview == null || ruleContentStateField == null || ruleItemProcessStages == null ||
 				ruleWorkerKindField == null || ruleItemField == null)
 			{
 				Debug.LogError("[BuildManagementWindow] Required UXML elements are missing.", this);
@@ -968,7 +958,6 @@ namespace UniverseLogistics.UI.Toolkit
 		private void BindRuleEditor(VisualElement content)
 		{
 			ruleContentStateField.choices = ContentStateNames(RuleContentStates);
-			ruleItemProcessStageField.choices = ItemProcessStageNames(RuleItemProcessStages);
 			ruleWorkerKindField.choices = EnumNames(RuleWorkerKinds);
 			ruleItems.Clear();
 			List<string> itemChoices = new();
@@ -993,13 +982,13 @@ namespace UniverseLogistics.UI.Toolkit
 				if (!suppressRuleEditorEvents && ruleContentStateField.index >= 0)
 					workingRule.SetRequiredContentState(RuleContentStates[ruleContentStateField.index]);
 			});
-			ruleItemProcessStageField.RegisterValueChangedCallback(_ =>
-			{
-				if (!suppressRuleEditorEvents && ruleItemProcessStageField.index >= 0)
-					workingRule.SetRequiredItemProcessStage(RuleItemProcessStages[ruleItemProcessStageField.index]);
-			});
 			ruleWorkerKindField.RegisterValueChangedCallback(_ => { if (!suppressRuleEditorEvents && ruleWorkerKindField.index >= 0) workingRule.WorkerRule.SetRequiredWorkerKind(RuleWorkerKinds[ruleWorkerKindField.index]); });
 
+			BindItemProcessStageToggle(content, "rule-process-stage-unlabeled", ItemProcessStage.Unlabeled);
+			BindItemProcessStageToggle(content, "rule-process-stage-labeled", ItemProcessStage.Labeled);
+			BindItemProcessStageToggle(content, "rule-process-stage-picked", ItemProcessStage.Picked);
+			BindItemProcessStageToggle(content, "rule-process-stage-packed", ItemProcessStage.Packed);
+			BindItemProcessStageToggle(content, "rule-process-stage-launch-ready", ItemProcessStage.LaunchReady);
 			BindFlagToggle(content, "rule-required-tag-fragile", ItemTag.Fragile, true);
 			BindFlagToggle(content, "rule-required-tag-food", ItemTag.Food, true);
 			BindFlagToggle(content, "rule-required-tag-danger", ItemTag.Danger, true);
@@ -1074,7 +1063,11 @@ namespace UniverseLogistics.UI.Toolkit
 			ruleBlueSlider.SetValueWithoutNotify(workingRuleColor.b);
 			ruleColorPreview.style.backgroundColor = workingRuleColor;
 			ruleContentStateField.SetValueWithoutNotify(ContentStateName(workingRule.RequiredContentState));
-			ruleItemProcessStageField.SetValueWithoutNotify(ItemProcessStageName(workingRule.RequiredItemProcessStage));
+			SetToggle("rule-process-stage-unlabeled", ItemProcessStageUtility.Contains(workingRule.AllowedItemProcessStages, ItemProcessStage.Unlabeled));
+			SetToggle("rule-process-stage-labeled", ItemProcessStageUtility.Contains(workingRule.AllowedItemProcessStages, ItemProcessStage.Labeled));
+			SetToggle("rule-process-stage-picked", ItemProcessStageUtility.Contains(workingRule.AllowedItemProcessStages, ItemProcessStage.Picked));
+			SetToggle("rule-process-stage-packed", ItemProcessStageUtility.Contains(workingRule.AllowedItemProcessStages, ItemProcessStage.Packed));
+			SetToggle("rule-process-stage-launch-ready", ItemProcessStageUtility.Contains(workingRule.AllowedItemProcessStages, ItemProcessStage.LaunchReady));
 			ruleWorkerKindField.SetValueWithoutNotify(workingRule.WorkerRule.RequiredWorkerKind.ToString());
 			SetToggle("rule-required-tag-fragile", workingRule.ItemRule.RequiredItemTags.HasFlag(ItemTag.Fragile));
 			SetToggle("rule-required-tag-food", workingRule.ItemRule.RequiredItemTags.HasFlag(ItemTag.Food));
@@ -1206,6 +1199,15 @@ namespace UniverseLogistics.UI.Toolkit
 			return names;
 		}
 
+		private void BindItemProcessStageToggle(VisualElement root, string name, ItemProcessStage stage)
+		{
+			root.Q<Toggle>(name).RegisterValueChangedCallback(evt =>
+			{
+				if (!suppressRuleEditorEvents)
+					workingRule.SetItemProcessStageAllowed(stage, evt.newValue);
+			});
+		}
+
 		private static List<string> ContentStateNames(IReadOnlyList<FacilityContentState> values)
 		{
 			List<string> names = new();
@@ -1221,20 +1223,6 @@ namespace UniverseLogistics.UI.Toolkit
 				FacilityContentState.Empty => "Empty",
 				_ => "Any",
 			};
-		}
-
-		private static List<string> ItemProcessStageNames(IReadOnlyList<ItemProcessStage> values)
-		{
-			List<string> names = new();
-			for (int i = 0; i < values.Count; ++i) names.Add(ItemProcessStageName(values[i]));
-			return names;
-		}
-
-		private static string ItemProcessStageName(ItemProcessStage stage)
-		{
-			return stage == ItemProcessStage.Any
-				? "Any"
-				: ItemProcessStageUtility.ToDisplayString(stage);
 		}
 
 		private static void SetListValue<T>(List<T> values, T value, bool enabled)
@@ -1299,7 +1287,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (rule == null || rule.IsEmpty) return "No restrictions";
 			List<string> parts = new();
 			if (rule.RequiredContentState != FacilityContentState.Any) parts.Add(ContentStateName(rule.RequiredContentState));
-			if (rule.RequiredItemProcessStage != ItemProcessStage.Any) parts.Add(ItemProcessStageUtility.ToDisplayString(rule.RequiredItemProcessStage));
+			if (rule.AllowedItemProcessStages != ItemProcessStageMask.None) parts.Add(ItemProcessStageUtility.ToDisplayString(rule.AllowedItemProcessStages));
 			if (rule.ItemRule != null && rule.ItemRule.IsEmpty == false) parts.Add("Item");
 			if (rule.WorkerRule != null && rule.WorkerRule.IsEmpty == false) parts.Add("Worker");
 			if (rule.ManifestRule != null && rule.ManifestRule.IsEmpty == false) parts.Add("Destination");
