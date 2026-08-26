@@ -130,17 +130,21 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 	}
 
 	[Test]
-	public void FacilityRule_ItemProcessStage_IsExactAndRejectsUnknownStage()
+	public void FacilityRule_ItemProcessStages_AcceptEverySelectedStageAndRejectOthers()
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredItemProcessStage(ItemProcessStage.Picked);
+		rule.SetItemProcessStageAllowed(ItemProcessStage.Unlabeled, true);
+		rule.SetItemProcessStageAllowed(ItemProcessStage.Labeled, true);
 
 		Assert.That(
+			rule.IsFilterCapable(new FacilityFilter(itemProcessStage: ItemProcessStage.Unlabeled)),
+			Is.True);
+		Assert.That(
 			rule.IsFilterCapable(new FacilityFilter(itemProcessStage: ItemProcessStage.Labeled)),
-			Is.False);
+			Is.True);
 		Assert.That(
 			rule.IsFilterCapable(new FacilityFilter(itemProcessStage: ItemProcessStage.Picked)),
-			Is.True);
+			Is.False);
 		Assert.That(
 			rule.IsFilterCapable(FacilityFilter.None),
 			Is.False,
@@ -151,14 +155,14 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 	public void TransferFilter_ExplicitStageEnforcesRuleAndUnstagedTransferDoesNotMatch()
 	{
 		FacilityRule pickedRule = new();
-		pickedRule.SetRequiredItemProcessStage(ItemProcessStage.Picked);
+		pickedRule.SetItemProcessStageAllowed(ItemProcessStage.Picked, true);
 		FacilityRule packedRule = new();
-		packedRule.SetRequiredItemProcessStage(ItemProcessStage.Packed);
+		packedRule.SetItemProcessStageAllowed(ItemProcessStage.Packed, true);
 		FacilityRule emptyPickedRule = new();
-		emptyPickedRule.SetRequiredItemProcessStage(ItemProcessStage.Picked);
+		emptyPickedRule.SetItemProcessStageAllowed(ItemProcessStage.Picked, true);
 		emptyPickedRule.SetRequiredContentState(FacilityContentState.Empty);
 		FacilityRule insidePickedRule = new();
-		insidePickedRule.SetRequiredItemProcessStage(ItemProcessStage.Picked);
+		insidePickedRule.SetItemProcessStageAllowed(ItemProcessStage.Picked, true);
 		insidePickedRule.SetRequiredContentState(FacilityContentState.HasItems);
 
 		FacilityFilter legacyTransfer = FacilityFilter.ForTransfer(
@@ -241,7 +245,7 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 		FacilityRule contentOnlyRule = new();
 		contentOnlyRule.SetRequiredContentState(FacilityContentState.HasItems);
 		FacilityRule stageRule = new();
-		stageRule.SetRequiredItemProcessStage(ItemProcessStage.Packed);
+		stageRule.SetItemProcessStageAllowed(ItemProcessStage.Packed, true);
 		Assert.That(contentOnlyRule.IsFilterCapable(mixedFilter), Is.True);
 		Assert.That(stageRule.IsFilterCapable(mixedFilter), Is.False);
 	}
@@ -269,25 +273,25 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 	[Test]
 	public void GameSaveData_UsesCurrentBreakingSchemaVersion()
 	{
-		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(17));
+		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(19));
 		Assert.That(new GameSaveData().Version, Is.EqualTo(GameSaveData.CurrentVersion));
 	}
 
 	[Test]
-	public void FacilityRuleSaveData_KeepsLegacyJsonFieldNames()
+	public void FacilityRuleSaveData_StoresAllowedItemProcessStageMask()
 	{
 		FacilityRuleSaveData data = new()
 		{
 			RequiredCapsuleBufferState = FacilityContentState.HasItems,
-			RequiredCargoProcessStage = ItemProcessStage.Packed,
+			AllowedItemProcessStages = ItemProcessStageMask.Unlabeled | ItemProcessStageMask.Labeled,
 		};
 
 		string json = JsonUtility.ToJson(data);
 
 		Assert.That(json, Does.Contain("\"RequiredCapsuleBufferState\":1"));
-		Assert.That(json, Does.Contain("\"RequiredCargoProcessStage\":4"));
+		Assert.That(json, Does.Contain("\"AllowedItemProcessStages\":3"));
 		Assert.That(json, Does.Not.Contain("RequiredContentState"));
-		Assert.That(json, Does.Not.Contain("RequiredItemProcessStage"));
+		Assert.That(json, Does.Not.Contain("RequiredCargoProcessStage"));
 	}
 
 	[Test]
@@ -301,7 +305,7 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 		Foldout itemConditions = root.Q<Foldout>("rule-editor-item-conditions");
 		Foldout workerConditions = root.Q<Foldout>("rule-editor-worker-conditions");
 		Foldout manifestConditions = root.Q<Foldout>("rule-editor-manifest-conditions");
-		DropdownField processStage = root.Q<DropdownField>("rule-editor-item-process-stage");
+		VisualElement processStages = root.Q<VisualElement>("rule-editor-item-process-stages");
 		DropdownField contentState = root.Q<DropdownField>("rule-editor-content-state");
 
 		Assert.That(itemConditions, Is.Not.Null);
@@ -310,11 +314,12 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 		Assert.That(itemConditions.value, Is.True);
 		Assert.That(workerConditions.value, Is.True);
 		Assert.That(manifestConditions.value, Is.True);
-		Assert.That(processStage, Is.Not.Null);
-		Assert.That(processStage.label, Is.EqualTo("Item process stage"));
+		Assert.That(processStages, Is.Not.Null);
+		Assert.That(processStages.Q<Toggle>("rule-process-stage-unlabeled"), Is.Not.Null);
+		Assert.That(processStages.Q<Toggle>("rule-process-stage-labeled"), Is.Not.Null);
 		Assert.That(contentState, Is.Not.Null);
 		Assert.That(contentState.label, Is.EqualTo("Content"));
-		Assert.That(itemConditions.Contains(processStage), Is.True);
+		Assert.That(itemConditions.Contains(processStages), Is.True);
 		Assert.That(itemConditions.Contains(contentState), Is.True);
 		Assert.That(root.Q("rule-editor-cargo-process-stage"), Is.Null);
 		Assert.That(root.Q("rule-editor-capsule-buffer-state"), Is.Null);
@@ -368,6 +373,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	private BuildingManager buildingManager;
 	private CapsuleDockService dockService;
 	private CapsuleBufferService bufferService;
+	private CargoPortService cargoPortService;
 	private OutboundWorkflowService outboundWorkflow;
 	private uint nextBoxId;
 
@@ -388,6 +394,8 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		dockService = dockServiceObject.AddComponent<CapsuleDockService>();
 		GameObject serviceObject = CreateGameObject("Cargo Rule Query Buffer Service", active: false);
 		bufferService = serviceObject.AddComponent<CapsuleBufferService>();
+		GameObject cargoPortServiceObject = CreateGameObject("Cargo Rule Query Port Service", active: false);
+		cargoPortService = cargoPortServiceObject.AddComponent<CargoPortService>();
 
 		GameObject contextObject = CreateGameObject("Cargo Rule Query Context", active: false);
 		GameContext context = contextObject.AddComponent<GameContext>();
@@ -397,12 +405,14 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		SetPrivateField(typeof(GameContext), context, "buildingManager", buildingManager);
 		SetPrivateField(typeof(GameContext), context, "capsuleDockService", dockService);
 		SetPrivateField(typeof(GameContext), context, "capsuleBufferService", bufferService);
+		SetPrivateField(typeof(GameContext), context, "cargoPortService", cargoPortService);
 		SetPrivateField(typeof(GameContext), context, "outboundWorkflowService", outboundWorkflow);
 		SetPrivateStaticField(typeof(GameContext), "instance", context);
 
 		ruleManagerObject.SetActive(true);
 		dockServiceObject.SetActive(true);
 		serviceObject.SetActive(true);
+		cargoPortServiceObject.SetActive(true);
 		InvokeNonPublic(
 			typeof(FacilityService<CapsuleDock>),
 			dockService,
@@ -410,6 +420,10 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		InvokeNonPublic(
 			typeof(FacilityService<CapsuleBuffer>),
 			bufferService,
+			"TryBindFacilityManager");
+		InvokeNonPublic(
+			typeof(FacilityService<CargoPort>),
+			cargoPortService,
 			"TryBindFacilityManager");
 
 		nextBoxId = 1;
@@ -488,11 +502,11 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
-	public void RuleSave_RoundTripsContentStateAndItemProcessStage()
+	public void RuleSave_RoundTripsContentStateAndAllowedItemProcessStages()
 	{
 		FacilityRule rule = new();
 		rule.SetRequiredContentState(FacilityContentState.HasItems);
-		rule.SetRequiredItemProcessStage(ItemProcessStage.Packed);
+		rule.SetAllowedItemProcessStages(ItemProcessStageMask.Unlabeled | ItemProcessStageMask.Labeled);
 		FacilityRulePreset preset = ruleManager.CreatePreset("Round Trip Rule", rule);
 
 		FacilityRuleManagerSaveData save = ruleManager.CaptureState();
@@ -502,7 +516,9 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(
 			restored.Rule.RequiredContentState,
 			Is.EqualTo(FacilityContentState.HasItems));
-		Assert.That(restored.Rule.RequiredItemProcessStage, Is.EqualTo(ItemProcessStage.Packed));
+		Assert.That(
+			restored.Rule.AllowedItemProcessStages,
+			Is.EqualTo(ItemProcessStageMask.Unlabeled | ItemProcessStageMask.Labeled));
 	}
 
 	[Test]
@@ -1192,7 +1208,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			source,
 			source.DockState,
 			CapsuleLogisticsState.IB,
-			CapsuleDockState.Empty,
+			null,
 			CapsuleRelocateScope.SameBuilding,
 			FirstBuildingId,
 			onMatched: match =>
@@ -1210,12 +1226,87 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(target.DockState, Is.EqualTo(CapsuleDockState.OBStandby));
 	}
 
+	[Test]
+	public void OutboundPortQuery_RequiresNonEmptyMatchingRuleInSameBuilding()
+	{
+		CargoCapsule capsule = CreateCapsule("Outbound Rule Capsule", 940, 2, ItemStatus.None);
+		OutboundCargoPort noRule = CreateOutboundPort("No Rule Port", FirstBuildingId, 30);
+		OutboundCargoPort emptyRule = CreateOutboundPort("Empty Rule Port", FirstBuildingId, 31);
+		OutboundCargoPort wrongStage = CreateOutboundPort("Wrong Stage Port", FirstBuildingId, 32);
+		OutboundCargoPort matching = CreateOutboundPort("Matching Port", FirstBuildingId, 33);
+		OutboundCargoPort otherBuilding = CreateOutboundPort("Other Building Port", SecondBuildingId, 34);
+
+		ApplyOutboundRule(emptyRule, ItemProcessStageMask.None);
+		ApplyOutboundRule(wrongStage, ItemProcessStageMask.Packed);
+		ApplyOutboundRule(
+			matching,
+			ItemProcessStageMask.Unlabeled | ItemProcessStageMask.Labeled,
+			priority: 5);
+		ApplyOutboundRule(otherBuilding, ItemProcessStageMask.Unlabeled, priority: 10);
+
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(noRule, capsule, false), Is.False);
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(emptyRule, capsule, false), Is.False);
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(wrongStage, capsule, false), Is.False);
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(matching, capsule, false), Is.True);
+		Assert.That(
+			cargoPortService.TryFindRuleMatchedOutboundPort(
+				FirstBuildingId,
+				capsule,
+				evaluateLaunchReadiness: false,
+				out OutboundCargoPort result),
+			Is.True);
+		Assert.That(result, Is.SameAs(matching));
+	}
+
+	[Test]
+	public void OutboundPortQuery_AvailabilityIsExplicitAndPriorityIsStable()
+	{
+		CargoCapsule capsule = CreateCapsule("Available Outbound Capsule", 941, 2, ItemStatus.Labeled);
+		OutboundCargoPort occupiedHighPriority = CreateOutboundPort("Occupied High Priority Port", FirstBuildingId, 35);
+		OutboundCargoPort availableLowPriority = CreateOutboundPort("Available Low Priority Port", FirstBuildingId, 36);
+		ApplyOutboundRule(occupiedHighPriority, ItemProcessStageMask.Labeled, priority: 10);
+		ApplyOutboundRule(availableLowPriority, ItemProcessStageMask.Labeled, priority: 1);
+		Assert.That(
+			occupiedHighPriority.TryDockCapsule(CreateCapsule("Occupying Capsule")),
+			Is.True);
+
+		Assert.That(
+			cargoPortService.TryFindRuleMatchedOutboundPort(
+				FirstBuildingId,
+				capsule,
+				evaluateLaunchReadiness: false,
+				out OutboundCargoPort availableResult),
+			Is.True);
+		Assert.That(availableResult, Is.SameAs(availableLowPriority));
+
+		Assert.That(
+			cargoPortService.TryFindRuleMatchedOutboundPort(
+				FirstBuildingId,
+				capsule,
+				evaluateLaunchReadiness: false,
+				out OutboundCargoPort policyResult,
+				requireAvailable: false),
+			Is.True);
+		Assert.That(policyResult, Is.SameAs(occupiedHighPriority));
+
+		WasteBin waste = CreateComponent<WasteBin>("Waste Outbound Capsule", active: false);
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(availableLowPriority, waste, false), Is.False);
+	}
+
 	private CapsuleBuffer CreateBuffer(string name, uint buildingId, int x)
 	{
 		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>(name, active: false);
 		buffer.OnPositionSet(new int3(x, 0, 1), FacingDirection.North);
 		facilityManager.RegisterFacility(buildingId, buffer);
 		return buffer;
+	}
+
+	private OutboundCargoPort CreateOutboundPort(string name, uint buildingId, int x)
+	{
+		OutboundCargoPort port = CreateComponent<OutboundCargoPort>(name, active: false);
+		port.OnPositionSet(new int3(x, 0, 1), FacingDirection.North);
+		facilityManager.RegisterFacility(buildingId, port);
+		return port;
 	}
 
 	private Building CreateStorageBuilding(string name)
@@ -1235,7 +1326,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	{
 		FacilityRule rule = new();
 		rule.SetPriority(priority);
-		rule.SetRequiredItemProcessStage(stage);
+		rule.SetItemProcessStageAllowed(stage, true);
 		rule.SetRequiredContentState(contentState);
 		if (destinations != null)
 		{
@@ -1246,6 +1337,18 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 
 		FacilityRulePreset preset = ruleManager.CreatePreset($"{buffer.name} Rule", rule);
 		Assert.That(ruleManager.ApplyPreset(buffer, preset.Id), Is.True);
+	}
+
+	private void ApplyOutboundRule(
+		OutboundCargoPort port,
+		ItemProcessStageMask stages,
+		int priority = 0)
+	{
+		FacilityRule rule = new();
+		rule.SetPriority(priority);
+		rule.SetAllowedItemProcessStages(stages);
+		FacilityRulePreset preset = ruleManager.CreatePreset($"{port.name} Rule", rule);
+		Assert.That(ruleManager.ApplyPreset(port, preset.Id), Is.True);
 	}
 
 	private CargoCapsule CreateCapsule(

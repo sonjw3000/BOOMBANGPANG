@@ -24,6 +24,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private RestFacilityService restFacilityService;
 	private CapsuleDockService dockService;
 	private CapsuleBufferService bufferService;
+	private CargoPortService cargoPortService;
 	private FacilityRuleManager facilityRuleManager;
 	private CapsuleRelocateCoordinator coordinator;
 	private uint nextBoxId;
@@ -86,13 +87,22 @@ public sealed class CapsuleRelocationTaskEditModeTests
 			typeof(FacilityService<CapsuleBuffer>),
 			bufferService,
 			"TryBindFacilityManager");
+		GameObject cargoPortServiceObject = CreateGameObject("Capsule Relocation Test Cargo Port Service", active: false);
+		cargoPortService = cargoPortServiceObject.AddComponent<CargoPortService>();
+		SetPrivateField(typeof(GameContext), context, "cargoPortService", cargoPortService);
+		cargoPortServiceObject.SetActive(true);
+		InvokeNonPublic(
+			typeof(FacilityService<CargoPort>),
+			cargoPortService,
+			"TryBindFacilityManager");
 
 		coordinator = new CapsuleRelocateCoordinator(
 			dockService,
 			bufferService: bufferService,
 			taskManager: taskManager,
 			buildingManager: buildingManager,
-			facilityManager: facilityManager);
+			facilityManager: facilityManager,
+			cargoPortService: cargoPortService);
 		SetPrivateField(typeof(GameContext), context, "capsuleRelocateCoordinator", coordinator);
 		nextBoxId = 1;
 		nextPosition = 20;
@@ -169,7 +179,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
 		InboundCargoPort source = CreateDock<InboundCargoPort>(building, "Stage Rule Dispatch Source");
-		CapsuleBuffer target = CreateBuffer(building, "Stage Rule Dispatch Target", CapsuleDockState.Empty);
+		CapsuleBuffer target = CreateBuffer(building, "Stage Rule Dispatch Target", CapsuleDockState.IB);
 		ApplyFacilityRule(source, ItemProcessStage.Unlabeled);
 		ApplyFacilityRule(target, ItemProcessStage.Unlabeled);
 		CapsuleRelocationTask task = new(
@@ -193,7 +203,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
 		InboundCargoPort source = CreateDock<InboundCargoPort>(building, "Worker Rule Dispatch Source");
-		CapsuleBuffer target = CreateBuffer(building, "Worker Rule Dispatch Target", CapsuleDockState.Empty);
+		CapsuleBuffer target = CreateBuffer(building, "Worker Rule Dispatch Target", CapsuleDockState.IB);
 		ApplyFacilityRule(source, ItemProcessStage.Unlabeled, WorkerKind.Robot);
 		ApplyFacilityRule(target, ItemProcessStage.Unlabeled);
 		CapsuleRelocationTask task = new(
@@ -314,7 +324,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
 		InboundCargoPort source = CreateDock<InboundCargoPort>(building, "Returned Rule Source");
-		CapsuleBuffer staleTarget = CreateBuffer(building, "Returned Rule Stale Target", CapsuleDockState.Empty);
+		CapsuleBuffer staleTarget = CreateBuffer(building, "Returned Rule Stale Target", CapsuleDockState.IB);
 		CapsuleBuffer replacementTarget = CreateBuffer(building, "Returned Rule Replacement Target", CapsuleDockState.OBStandby);
 		CargoCapsule capsule = CreateCapsule("Returned Rule Capsule", CapsuleLogisticsState.IB);
 		AddCargo(capsule, 905, 2, ItemStatus.Labeled);
@@ -356,7 +366,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
 		CapsuleBuffer source = CreateBuffer(building, "Returned Matched Source", CapsuleDockState.IB);
-		CapsuleBuffer target = CreateBuffer(building, "Returned Matched Target", CapsuleDockState.Empty);
+		CapsuleBuffer target = CreateBuffer(building, "Returned Matched Target", CapsuleDockState.IB);
 		CargoCapsule capsule = CreateCapsule("Returned Matched Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 906, 2, ItemStatus.Labeled);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
@@ -389,7 +399,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
 		InboundCargoPort source = CreateDock<InboundCargoPort>(building, "Queued Rule Source");
-		CapsuleBuffer staleTarget = CreateBuffer(building, "Queued Stale Target", CapsuleDockState.Empty);
+		CapsuleBuffer staleTarget = CreateBuffer(building, "Queued Stale Target", CapsuleDockState.IB);
 		CapsuleBuffer replacementTarget = CreateBuffer(building, "Queued Replacement Target", CapsuleDockState.OBStandby);
 		CargoCapsule capsule = CreateCapsule("Queued Rule Capsule", CapsuleLogisticsState.IB);
 		AddCargo(capsule, 903, 2, ItemStatus.Labeled);
@@ -426,6 +436,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		AlwaysOutboundReadyBuilding building = CreateBuilding();
 		CapsuleBuffer source = CreateBuffer(building, "Ownership Lost Source", CapsuleDockState.IB);
 		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Ownership Lost Target");
+		ApplyFacilityRule(target, ItemProcessStage.Labeled);
 		CargoCapsule capsule = CreateCapsule("Ownership Lost Capsule", CapsuleLogisticsState.OB);
 		AddCargo(capsule, 901, 1, ItemStatus.Labeled);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
@@ -545,7 +556,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 			new List<GridCell>());
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "Unlabeled Rule Source", CapsuleDockState.IB);
-		CapsuleBuffer target = CreateBuffer(building, "Labeled Rule Target", CapsuleDockState.Empty);
+		CapsuleBuffer target = CreateBuffer(building, "Labeled Rule Target", CapsuleDockState.IB);
 		Assert.That(
 			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, source),
 			Is.True);
@@ -598,7 +609,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 			new List<GridCell>());
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "Busy Rule Source", CapsuleDockState.IB);
-		CapsuleBuffer target = CreateBuffer(building, "Busy Rule Target", CapsuleDockState.Empty);
+		CapsuleBuffer target = CreateBuffer(building, "Busy Rule Target", CapsuleDockState.IB);
 		Assert.That(
 			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, source),
 			Is.True);
@@ -651,7 +662,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 			ItemProcessStage.Labeled);
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "Labeling Rule Source", CapsuleDockState.IB);
-		CapsuleBuffer target = CreateBuffer(building, "Labeled Rule Destination", CapsuleDockState.Empty);
+		CapsuleBuffer target = CreateBuffer(building, "Labeled Rule Destination", CapsuleDockState.IB);
 		Assert.That(
 			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, source),
 			Is.True);
@@ -707,6 +718,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Generic Labeling Outbound Target");
 		Assert.That(buildingManager.TryRegisterFacility(building.RuntimeBuildingId, source), Is.True);
 		ApplyBufferRule(source, ItemProcessStage.Unlabeled);
+		ApplyFacilityRule(target, ItemProcessStage.Unlabeled);
 		CargoCapsule capsule = CreateCapsule("Generic Labeling Outbound Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 917, 2, ItemStatus.None);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
@@ -779,7 +791,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		AddCargo(insideCapsule, 911, 2, ItemStatus.Labeled);
 		Assert.That(insideBuffer.TryDockCapsule(insideCapsule), Is.True);
 
-		CapsuleBuffer emptyBuffer = CreateBuffer(building, "Empty Normalization Buffer", CapsuleDockState.Empty);
+		CapsuleBuffer emptyBuffer = CreateBuffer(building, "Empty Normalization Buffer", CapsuleDockState.IB);
 		CargoCapsule emptyCapsule = CreateCapsule("Empty Normalization Capsule", CapsuleLogisticsState.Inside);
 		Assert.That(emptyBuffer.TryDockCapsule(emptyCapsule), Is.True);
 
@@ -792,6 +804,98 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	}
 
 	[Test]
+	public void ProcessDirty_EmptyCapsuleUsesContentRuleWithoutEmptyDockRole()
+	{
+		NeverOutboundReadyBuilding building = new(
+			"Empty Capsule Rule Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Empty Capsule Rule Source", CapsuleDockState.IB);
+		CapsuleBuffer target = CreateBuffer(building, "Empty Capsule Rule Target", CapsuleDockState.OBStandby);
+		ApplyEmptyContentRule(target);
+		CargoCapsule capsule = CreateCapsule("Empty Capsule Rule Payload", CapsuleLogisticsState.Inside);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		coordinator.MarkDirty(source);
+		coordinator.ProcessDirty();
+
+		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.Empty));
+		CapsuleRelocationTask task = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleSupply]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskSource(task), Is.SameAs(source));
+		Assert.That(GetTaskTarget(task), Is.SameAs(target));
+	}
+
+	[Test]
+	public void CapsuleBuffer_DockRoleExcludesEmptyAndRejectsNonBufferStates()
+	{
+		Assert.That(Enum.GetNames(typeof(CapsuleDockState)), Does.Not.Contain("Empty"));
+		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>("Dock Role Validation Buffer");
+
+		Assert.That(buffer.DockState, Is.EqualTo(CapsuleDockState.IB));
+		buffer.SetDockState(CapsuleDockState.OBStandby);
+		Assert.That(buffer.DockState, Is.EqualTo(CapsuleDockState.OBStandby));
+		buffer.SetDockState(CapsuleDockState.OB);
+		Assert.That(
+			buffer.DockState,
+			Is.EqualTo(CapsuleDockState.OBStandby),
+			"CargoPort-only states must not become CapsuleBuffer roles.");
+	}
+
+	[Test]
+	public void ProcessDirty_InboundPortStillRoutesToRuleMatchedInsideBufferWithoutOutboundRule()
+	{
+		Building building = new(
+			"Inbound Route Preservation Building",
+			new List<GridCell>(),
+			ItemProcessStage.Any);
+		buildingManager.Register(building);
+		InboundCargoPort source = CreateDock<InboundCargoPort>(building, "Inbound Route Source");
+		CapsuleBuffer target = CreateBuffer(building, "Inbound Route Target", CapsuleDockState.IB);
+		ApplyBufferRule(target, ItemProcessStage.Unlabeled);
+		CargoCapsule capsule = CreateCapsule("Inbound Route Capsule", CapsuleLogisticsState.Inside);
+		AddCargo(capsule, 919, 2, ItemStatus.None);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		coordinator.MarkDirty(source);
+		coordinator.ProcessDirty();
+
+		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.IB));
+		CapsuleRelocationTask task = taskManager.TaskQueue[WorkerTask.TaskType.IB]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskSource(task), Is.SameAs(source));
+		Assert.That(GetTaskTarget(task), Is.SameAs(target));
+	}
+
+	[Test]
+	public void ProcessDirty_OutboundReadyWithoutMatchingNonEmptyPortRuleStaysInside()
+	{
+		ContentOutboundReadyBuilding building = new(
+			"Outbound Rule Gate Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Outbound Rule Gate Source", CapsuleDockState.OBStandby);
+		ApplyBufferRule(source, ItemProcessStage.Packed);
+		CreateDock<OutboundCargoPort>(building, "No Rule Outbound Target");
+		OutboundCargoPort emptyRuleTarget = CreateDock<OutboundCargoPort>(building, "Empty Rule Outbound Target");
+		OutboundCargoPort mismatchedTarget = CreateDock<OutboundCargoPort>(building, "Mismatched Outbound Target");
+		ApplyEmptyFacilityRule(emptyRuleTarget);
+		ApplyFacilityRule(mismatchedTarget, ItemProcessStage.Labeled);
+		CargoCapsule capsule = CreateCapsule("Outbound Rule Gate Capsule", CapsuleLogisticsState.OB);
+		AddCargo(capsule, 920, 3, ItemStatus.Packed);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		coordinator.MarkDirty(source);
+		coordinator.ProcessDirty();
+
+		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.Inside));
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.OB], Is.Empty);
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
+	}
+
+	[Test]
 	public void ProcessDirty_OutboundReadyContentPromotesToObAndQueuesDispatch()
 	{
 		ContentOutboundReadyBuilding building = new(
@@ -799,7 +903,9 @@ public sealed class CapsuleRelocationTaskEditModeTests
 			new List<GridCell>());
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "OB Promotion Source", CapsuleDockState.OBStandby);
+		CreateDock<OutboundCargoPort>(building, "OB Promotion No Rule Target");
 		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "OB Promotion Target");
+		ApplyFacilityRule(target, ItemProcessStage.Packed);
 		CargoCapsule capsule = CreateCapsule("OB Promotion Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 912, 3, ItemStatus.Packed);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
@@ -817,6 +923,70 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	}
 
 	[Test]
+	public void ProcessDirty_OccupiedMatchingOutboundPortPromotesAndWaitsForAvailability()
+	{
+		ContentOutboundReadyBuilding building = new(
+			"Occupied Outbound Rule Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Occupied Outbound Source", CapsuleDockState.OBStandby);
+		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Occupied Outbound Target");
+		ApplyFacilityRule(target, ItemProcessStage.Packed);
+		CargoCapsule occupyingCapsule = CreateCapsule("Occupying Outbound Capsule", CapsuleLogisticsState.OB);
+		Assert.That(target.TryDockCapsule(occupyingCapsule), Is.True);
+		CargoCapsule capsule = CreateCapsule("Waiting Outbound Capsule", CapsuleLogisticsState.Inside);
+		AddCargo(capsule, 921, 3, ItemStatus.Packed);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		coordinator.MarkDirty(source);
+		coordinator.ProcessDirty();
+
+		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.OB));
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.OB], Is.Empty);
+		Assert.That(coordinator.PendingSendCount, Is.EqualTo(1));
+
+		Assert.That(target.TryUndockCapsule(out CargoCapsule removed), Is.True);
+		Assert.That(removed, Is.SameAs(occupyingCapsule));
+
+		CapsuleRelocationTask task = taskManager.TaskQueue[WorkerTask.TaskType.OB]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskSource(task), Is.SameAs(source));
+		Assert.That(GetTaskTarget(task), Is.SameAs(target));
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
+	}
+
+	[Test]
+	public void ProcessDirty_OutboundPortRuleRemovedDemotesAndInvalidatesReadyTask()
+	{
+		ContentOutboundReadyBuilding building = new(
+			"Outbound Rule Removal Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Outbound Rule Removal Source", CapsuleDockState.OBStandby);
+		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Outbound Rule Removal Target");
+		ApplyFacilityRule(target, ItemProcessStage.Packed);
+		CargoCapsule capsule = CreateCapsule("Outbound Rule Removal Capsule", CapsuleLogisticsState.Inside);
+		AddCargo(capsule, 922, 3, ItemStatus.Packed);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		coordinator.MarkDirty(source);
+		coordinator.ProcessDirty();
+		CapsuleRelocationTask staleTask = taskManager.TaskQueue[WorkerTask.TaskType.OB]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+
+		ApplyEmptyFacilityRule(target);
+		coordinator.MarkBuildingDirty(building.RuntimeBuildingId);
+		coordinator.ProcessDirty();
+
+		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.Inside));
+		Assert.That(staleTask.CurrentStatus, Is.EqualTo(WorkerTask.Status.Invalidated));
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.OB], Is.Empty);
+		AssertCoordinatorOwnershipReleased(source, target);
+	}
+
+	[Test]
 	public void ProcessDirty_PickingOutputStaysInsideUntilPlayerPreemptsOwningTask()
 	{
 		const uint itemId = 914;
@@ -831,6 +1001,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		OutboundCargoPort target = CreateDock<OutboundCargoPort>(
 			building,
 			"Picking Output Ownership Target");
+		ApplyFacilityRule(target, ItemProcessStage.Labeled);
 		CargoCapsule capsule = CreateCapsule(
 			"Picking Output Ownership Capsule",
 			CapsuleLogisticsState.Inside);
@@ -892,6 +1063,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "OB Demotion Source", CapsuleDockState.OBStandby);
 		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "OB Demotion Target");
+		ApplyFacilityRule(target, ItemProcessStage.Packed);
 		CargoCapsule capsule = CreateCapsule("OB Demotion Capsule", CapsuleLogisticsState.Inside);
 		AddCargo(capsule, 913, 3, ItemStatus.Packed);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
@@ -1134,7 +1306,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		FacilityRule rule = new();
 		rule.SetRequiredContentState(FacilityContentState.HasItems);
-		rule.SetRequiredItemProcessStage(stage);
+		rule.SetItemProcessStageAllowed(stage, true);
 		if (requiredWorkerKind != WorkerKind.None)
 		{
 			FacilityWorkerRule workerRule = new();
@@ -1146,6 +1318,28 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		FacilityRulePreset preset = facilityRuleManager.CreatePreset(
 			$"{component?.name ?? "Facility"} {stage}",
 			rule);
+		Assert.That(facilityRuleManager.ApplyPreset(facility, preset.Id), Is.True);
+	}
+
+	private void ApplyEmptyFacilityRule(IFacility facility)
+	{
+		Component component = facility as Component;
+		FacilityRulePreset preset = facilityRuleManager.CreatePreset(
+			$"{component?.name ?? "Facility"} Empty Rule",
+			new FacilityRule());
+		Assert.That(preset.Rule.IsEmpty, Is.True);
+		Assert.That(facilityRuleManager.ApplyPreset(facility, preset.Id), Is.True);
+	}
+
+	private void ApplyEmptyContentRule(IFacility facility)
+	{
+		FacilityRule rule = new();
+		rule.SetRequiredContentState(FacilityContentState.Empty);
+		Component component = facility as Component;
+		FacilityRulePreset preset = facilityRuleManager.CreatePreset(
+			$"{component?.name ?? "Facility"} Empty Content Rule",
+			rule);
+		Assert.That(preset.Rule.IsEmpty, Is.False);
 		Assert.That(facilityRuleManager.ApplyPreset(facility, preset.Id), Is.True);
 	}
 

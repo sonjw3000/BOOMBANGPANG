@@ -14,6 +14,7 @@ public sealed class CapsuleContentSharingEditModeTests
 	private FacilityRuleManager ruleManager;
 	private BuildingManager buildingManager;
 	private CapsuleBufferService bufferService;
+	private CargoPortService cargoPortService;
 	private OutboundWorkflowService outboundWorkflow;
 	private TaskManager taskManager;
 	private Building building;
@@ -40,6 +41,7 @@ public sealed class CapsuleContentSharingEditModeTests
 		ruleManager = CreateComponent<FacilityRuleManager>("Shared Picking Rule Manager", false);
 		buildingManager = CreateComponent<BuildingManager>("Shared Picking Building Manager", false);
 		bufferService = CreateComponent<CapsuleBufferService>("Shared Picking Buffer Service", false);
+		cargoPortService = CreateComponent<CargoPortService>("Shared Picking Cargo Port Service", false);
 		outboundWorkflow = CreateComponent<OutboundWorkflowService>("Shared Picking Outbound", false);
 		taskManager = CreateComponent<TaskManager>("Shared Picking Task Manager", false);
 
@@ -49,6 +51,7 @@ public sealed class CapsuleContentSharingEditModeTests
 		SetPrivateField(typeof(GameContext), context, "facilityRuleManager", ruleManager);
 		SetPrivateField(typeof(GameContext), context, "buildingManager", buildingManager);
 		SetPrivateField(typeof(GameContext), context, "capsuleBufferService", bufferService);
+		SetPrivateField(typeof(GameContext), context, "cargoPortService", cargoPortService);
 		SetPrivateField(typeof(GameContext), context, "outboundWorkflowService", outboundWorkflow);
 		SetPrivateField(typeof(GameContext), context, "taskManager", taskManager);
 		SetPrivateStaticField(typeof(GameContext), "instance", context);
@@ -57,9 +60,14 @@ public sealed class CapsuleContentSharingEditModeTests
 		InvokeNonPublic(typeof(TaskManager), taskManager, "Awake");
 		ruleManager.gameObject.SetActive(true);
 		bufferService.gameObject.SetActive(true);
+		cargoPortService.gameObject.SetActive(true);
 		InvokeNonPublic(
 			typeof(FacilityService<CapsuleBuffer>),
 			bufferService,
+			"TryBindFacilityManager");
+		InvokeNonPublic(
+			typeof(FacilityService<CargoPort>),
+			cargoPortService,
 			"TryBindFacilityManager");
 
 		building = new Building("Shared Picking Building", new List<GridCell>(), ItemProcessStage.Picked);
@@ -131,12 +139,14 @@ public sealed class CapsuleContentSharingEditModeTests
 
 		Assert.That(IsPickingOutputCandidate(late, buffer), Is.False);
 		Assert.That(HasPickingDependency(buffer), Is.True);
+		CreateOutboundPortWithRule(ItemProcessStage.Picked);
 
 		CapsuleRelocateCoordinator coordinator = new(
 			dockService: null,
 			taskManager: taskManager,
 			buildingManager: buildingManager,
-			facilityManager: facilityManager);
+			facilityManager: facilityManager,
+			cargoPortService: cargoPortService);
 		ReleaseRetain(first, buffer);
 		InvokeNonPublic(
 			typeof(CapsuleRelocateCoordinator),
@@ -292,7 +302,7 @@ public sealed class CapsuleContentSharingEditModeTests
 
 		FacilityRule rule = new();
 		rule.SetRequiredContentState(FacilityContentState.HasItems);
-		rule.SetRequiredItemProcessStage(ItemProcessStage.Picked);
+		rule.SetItemProcessStageAllowed(ItemProcessStage.Picked, true);
 		FacilityRulePreset preset = ruleManager.CreatePreset("Shared Picked Rule", rule);
 		Assert.That(ruleManager.ApplyPreset(buffer, preset.Id), Is.True);
 		return buffer;
@@ -317,10 +327,24 @@ public sealed class CapsuleContentSharingEditModeTests
 
 		FacilityRule rule = new();
 		rule.SetRequiredContentState(FacilityContentState.HasItems);
-		rule.SetRequiredItemProcessStage(ItemProcessStage.Packed);
+		rule.SetItemProcessStageAllowed(ItemProcessStage.Packed, true);
 		FacilityRulePreset preset = ruleManager.CreatePreset("Shared Packed Rule", rule);
 		Assert.That(ruleManager.ApplyPreset(buffer, preset.Id), Is.True);
 		return buffer;
+	}
+
+	private OutboundCargoPort CreateOutboundPortWithRule(ItemProcessStage stage)
+	{
+		OutboundCargoPort port = CreateComponent<OutboundCargoPort>("Shared Picking Outbound Port", false);
+		port.OnPositionSet(new int3(3, 0, 1), FacingDirection.North);
+		facilityManager.RegisterFacility(building.RuntimeBuildingId, port);
+
+		FacilityRule rule = new();
+		rule.SetRequiredContentState(FacilityContentState.HasItems);
+		rule.SetItemProcessStageAllowed(stage, true);
+		FacilityRulePreset preset = ruleManager.CreatePreset("Shared Picking Outbound Rule", rule);
+		Assert.That(ruleManager.ApplyPreset(port, preset.Id), Is.True);
+		return port;
 	}
 
 	private ItemTransferTask CreatePickingTask()
