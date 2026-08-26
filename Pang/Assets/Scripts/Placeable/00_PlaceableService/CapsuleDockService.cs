@@ -34,15 +34,11 @@ public sealed class CapsuleDockService : FacilityService<CapsuleDock>
 
 	public event Action<uint, CapsuleDock> OnCapsuleDocked;
 	public event Action<uint, CapsuleDock> OnCapsuleUndocked;
-	public event Action<uint, CapsuleDock> OnDockStateChanged;
 
 	protected override void OnRegisterFacility(uint buildingId, CapsuleDock facility)
 	{
 		facility.OnCapsuleDocked += HandleCapsuleDocked;
 		facility.OnCapsuleUndocked += HandleCapsuleUndocked;
-
-		if (facility is CapsuleBuffer buffer)
-			buffer.OnDockStateChanged += HandleBufferDockStateChanged;
 
 		AddOrMoveDock(buildingId, facility);
 		if (facility.HasCapsule)
@@ -55,9 +51,6 @@ public sealed class CapsuleDockService : FacilityService<CapsuleDock>
 	{
 		facility.OnCapsuleDocked -= HandleCapsuleDocked;
 		facility.OnCapsuleUndocked -= HandleCapsuleUndocked;
-
-		if (facility is CapsuleBuffer buffer)
-			buffer.OnDockStateChanged -= HandleBufferDockStateChanged;
 
 		if (GameContext.HasInstance)
 			GameContext.Instance.CapsuleRelocateCoordinator?.RemoveDock(facility);
@@ -175,15 +168,6 @@ public sealed class CapsuleDockService : FacilityService<CapsuleDock>
 
 		AddOrMoveDock(buildingId, dock);
 		OnCapsuleUndocked?.Invoke(buildingId, dock);
-	}
-
-	private void HandleBufferDockStateChanged(CapsuleBuffer buffer)
-	{
-		if (TryGetIndexedBuildingId(buffer, out uint buildingId) == false)
-			return;
-
-		AddOrMoveDock(buildingId, buffer);
-		OnDockStateChanged?.Invoke(buildingId, buffer);
 	}
 
 	private bool TryGetIndexedBuildingId(CapsuleDock dock, out uint buildingId)

@@ -5,6 +5,7 @@ public enum CapsuleDockState
 {
 	IB = 0,
 	OBStandby = 1,
+	Buffer = 2,
 	IBStandby = 3,
 	OB = 4,
 	InboundSource = 5,

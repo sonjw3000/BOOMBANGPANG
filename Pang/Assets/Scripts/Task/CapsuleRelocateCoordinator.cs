@@ -213,7 +213,6 @@ public sealed class CapsuleRelocateCoordinator
 		{
 			dockService.OnCapsuleDocked += HandleCapsuleDocked;
 			dockService.OnCapsuleUndocked += HandleCapsuleUndocked;
-			dockService.OnDockStateChanged += HandleDockStateChanged;
 		}
 		if (bufferService != null)
 			bufferService.OnCapsuleContentChanged += HandleCapsuleContentChanged;
@@ -300,11 +299,6 @@ public sealed class CapsuleRelocateCoordinator
 	private void HandleCapsuleUndocked(uint buildingId, CapsuleDock dock)
 	{
 		NotifyCapsuleUndocked(dock);
-	}
-
-	private void HandleDockStateChanged(uint buildingId, CapsuleDock dock)
-	{
-		NotifyDockStateChanged(dock);
 	}
 
 	private void HandleCapsuleContentChanged(uint buildingId, CapsuleBuffer buffer)

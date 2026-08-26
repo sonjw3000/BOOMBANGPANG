@@ -114,8 +114,6 @@ public class CargoPortUIProvider : UIProvider<CargoPort>, IShelfBaseUIProvider, 
 		return state switch
 		{
 			CapsuleDockState.IBStandby => "IB Standby",
-			CapsuleDockState.IB => "IB",
-			CapsuleDockState.OBStandby => "OB Standby",
 			CapsuleDockState.OB => "OB",
 			_ => "Unknown",
 		};

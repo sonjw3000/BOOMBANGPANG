@@ -163,7 +163,6 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				capsuleDockService.OnCapsuleDocked += OnCapsuleDockChanged;
 				capsuleDockService.OnCapsuleUndocked += OnCapsuleDockChanged;
-				capsuleDockService.OnDockStateChanged += OnCapsuleDockChanged;
 			}
 			if (gameTime != null)
 			{
@@ -190,7 +189,6 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				capsuleDockService.OnCapsuleDocked -= OnCapsuleDockChanged;
 				capsuleDockService.OnCapsuleUndocked -= OnCapsuleDockChanged;
-				capsuleDockService.OnDockStateChanged -= OnCapsuleDockChanged;
 			}
 			if (gameTime != null)
 			{

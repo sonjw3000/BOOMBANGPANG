@@ -54,7 +54,7 @@ namespace Assets.Scripts.Save
 [Serializable]
 public sealed class GameSaveData
 {
-	public const int CurrentVersion = 19;
+	public const int CurrentVersion = 20;
 	public int Version = CurrentVersion;
 	public string SavedAtUtc;
 
@@ -611,7 +611,6 @@ public sealed class BoxPoolSaveData
 public sealed class CapsuleBufferSaveData
 {
 	public BoxReferenceSaveData Box;
-	public CapsuleDockState DockState;
 }
 
 [Serializable]

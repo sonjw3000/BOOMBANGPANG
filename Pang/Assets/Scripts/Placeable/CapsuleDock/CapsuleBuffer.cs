@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 // box base를 보관하는 타일 단 하나
 
@@ -16,22 +15,19 @@ public partial class CapsuleBuffer :
 	private readonly Dictionary<uint, int> itemsReservedPick = new();
 
 	[SerializeField] private GameObject boxStackPos;
-	[FormerlySerializedAs("bufferState")]
-	[SerializeField] private CapsuleDockState dockState = CapsuleDockState.IB;
 
 	public event Action<CapsuleBuffer, CargoCapsule> OnCapsuleUndocking;
 	public event Action<CapsuleBuffer> OnCapsuleContentChanged;
-	public event Action<CapsuleBuffer> OnDockStateChanged;
 	public event Action<IItemContainer, uint, int> OnItemReservedPickChanged;
 
-	public override CapsuleDockState DockState => dockState;
+	public override CapsuleDockState DockState => CapsuleDockState.Buffer;
 	public override WorkerStatusTarget BuildingTarget => WorkerStatusTarget.CapsuleBuffer;
 	public IReadOnlyList<ItemStack> Stacks => DockedCapsule != null ? DockedCapsule.Stacks : EmptyStacks;
 	public IReadOnlyDictionary<uint, int> ItemTotals => DockedCapsule != null ? DockedCapsule.ItemTotals : EmptyItemTotals;
 	public IReadOnlyDictionary<uint, int> ItemToBePicked => itemsReservedPick;
 	public ItemTag ItemTags => DockedCapsule != null ? DockedCapsule.ItemTags : ItemTag.None;
 
-	public bool CanReceiveFromInbound() => dockState == CapsuleDockState.IB && CanPutBox();
+	public bool CanReceiveCapsule() => CanPutBox();
 	public bool CanProvideInboundItems() =>
 		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Inside &&
 		IsCapsuleEmpty() == false;
@@ -39,8 +35,6 @@ public partial class CapsuleBuffer :
 	public bool CanRelocateEmptyCapsule() =>
 		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Empty &&
 		IsCapsuleEmpty();
-	public static bool IsSupportedDockState(CapsuleDockState state) =>
-		state is CapsuleDockState.IB or CapsuleDockState.OBStandby;
 	public bool CanReceiveOutboundItems() =>
 		DockedCapsule != null &&
 		(DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty ||
@@ -122,15 +116,6 @@ public partial class CapsuleBuffer :
 		OnItemReservedPickChanged?.Invoke(this, itemId, -released);
 
 		return released;
-	}
-
-	public void SetDockState(CapsuleDockState newState)
-	{
-		if (IsSupportedDockState(newState) == false || dockState == newState)
-			return;
-
-		dockState = newState;
-		OnDockStateChanged?.Invoke(this);
 	}
 
 	public override void OnPositionSet(in int3 position, FacingDirection direction)

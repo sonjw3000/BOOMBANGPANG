@@ -21,19 +21,10 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 
 		return interactionKind switch
 		{
-			InteractionKind.Put => facility.CanReceiveFromInbound(),
+			InteractionKind.Put => facility.CanReceiveCapsule(),
 			InteractionKind.Pick => facility.CanDispatchToOutbound(),
 			_ => false,
 		};
-	}
-
-	public bool SetDockState(CapsuleBuffer facility, CapsuleDockState newState)
-	{
-		if (facility == null || CapsuleBuffer.IsSupportedDockState(newState) == false)
-			return false;
-
-		facility.SetDockState(newState);
-		return true;
 	}
 
 	public bool TryQueryRuleMatchedDestinations(

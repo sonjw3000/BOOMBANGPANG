@@ -9,7 +9,7 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 	public override string Subtitle => "Capsule Buffer";
 	public override Sprite Icon => null;
 
-	public string StateDisplay => currentTarget != null ? GetStateLabel(currentTarget.DockState) : "Unknown";
+	public string StateDisplay => GetStateLabel(currentTarget);
 	public string CapsuleDisplay => currentTarget?.DockedCapsule != null
 		? $"Capsule #{currentTarget.DockedCapsule.BoxId}"
 		: "Empty";
@@ -19,7 +19,6 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 	public string CapacityDisplay => currentTarget != null ? $"{currentTarget.MaxSize:0.0} units" : "0.0 units";
 	public string CurrentSizeDisplay => currentTarget != null ? $"{currentTarget.TotalSize:0.0} units" : "0.0 units";
 	public string FilledPercentDisplay => currentTarget != null ? $"{currentTarget.FilledPercent:0.0}%" : "0.0%";
-	public string InboundAccessDisplay => currentTarget != null && currentTarget.CanReceiveFromInbound() ? "Open" : "Closed";
 	public string OutboundAccessDisplay => currentTarget != null && currentTarget.CanDispatchToOutbound() ? "Open" : "Closed";
 
 	public ItemContainerDisplayInfo GetItemDisplay() => new()
@@ -61,10 +60,8 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 		model.AddOverview("Capsule", () => CapsuleDisplay);
 		model.AddOverview("Logistics", () => DockedBufferDisplay);
 		model.AddOverview("Filled", () => FilledPercentDisplay);
-		model.AddOverview("Inbound", () => InboundAccessDisplay);
 		model.AddOverview("Outbound", () => OutboundAccessDisplay);
 		model.AddAction("Purchase Capsule", PurchaseEmptyCapsule, CanPurchaseEmptyCapsule);
-		model.AddAction("Sell Capsule", SellEmptyCapsule, CanSellEmptyCapsule);
 		model.AddAction("Remove", DeleteObject, isDangerous: true);
 	}
 
@@ -91,13 +88,6 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 			GameContext.HasInstance && GameContext.Instance.BoxMgr != null;
 	}
 
-	private bool CanSellEmptyCapsule()
-	{
-		return currentTarget != null && currentTarget.DockedCapsule != null &&
-			currentTarget.DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty &&
-			currentTarget.IsCapsuleEmpty() && GameContext.HasInstance && GameContext.Instance.BoxMgr != null;
-	}
-
 	private void PurchaseEmptyCapsule()
 	{
 		if (CanPurchaseEmptyCapsule() == false) return;
@@ -113,20 +103,17 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 			boxManager.DisableBox(capsule);
 	}
 
-	private void SellEmptyCapsule()
+	private static string GetStateLabel(CapsuleBuffer buffer)
 	{
-		if (CanSellEmptyCapsule() == false || currentTarget.TryUndockCapsule(out CargoCapsule capsule) == false)
-			return;
-		GameContext.Instance.BoxMgr.DisableBox(capsule);
-	}
+		if (buffer == null)
+			return "Unknown";
+		if (buffer.DockedCapsule == null)
+			return "Vacant";
+		if (buffer.IsCapsuleEmpty())
+			return "Empty";
 
-	private static string GetStateLabel(CapsuleDockState state)
-	{
-		return state switch
-		{
-			CapsuleDockState.IB => "IB",
-			CapsuleDockState.OBStandby => "OB Standby",
-			_ => "Unknown",
-		};
+		return buffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB
+			? "Outbound"
+			: "Loaded";
 	}
 }
