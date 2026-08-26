@@ -92,6 +92,7 @@ public abstract class CapsuleDock :
 		OnCapsuleDocked?.Invoke(this);
 
 		dockedCapsule.OnQuantityChanged += OnCapsuleQuantityChanged;
+		dockedCapsule.OnContentStateChanged += OnCapsuleContentStateChanged;
 
 		return true;
 	}
@@ -106,6 +107,7 @@ public abstract class CapsuleDock :
 			return false;
 
 		dockedCapsule.OnQuantityChanged -= OnCapsuleQuantityChanged;
+		dockedCapsule.OnContentStateChanged -= OnCapsuleContentStateChanged;
 		dockedCapsule.OnInvalidated -= HandleDockedCapsuleInvalidated;
 
 		capsule = dockedCapsule;
@@ -200,6 +202,10 @@ public abstract class CapsuleDock :
 	}
 
 	protected virtual void OnCapsuleQuantityChanged()
+	{
+	}
+
+	protected virtual void OnCapsuleContentStateChanged()
 	{
 	}
 

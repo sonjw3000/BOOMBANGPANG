@@ -141,11 +141,6 @@ public sealed partial class LabelingTask : WorkerTask
 
 		task.isTaskEnd = true;
 		task.rejectedQuantity = rejectedQuantity;
-		BuildingManager buildingManager = GameContext.Instance.BuildingMgr;
-		if (buildingManager != null)
-			buildingManager.RefreshItemContainerState(task.targetBuffer);
-		else
-			GameContext.Instance.ExistingCapsuleRelocateCoordinator?.MarkDirty(task.targetBuffer);
 
 		if (labeledQuantity <= 0 && rejectedQuantity <= 0)
 			Debug.LogWarning($"[LabelingTask] Completed without labeled items. target={task.TargetName}");

@@ -578,7 +578,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(coordinator.PendingSendCount, Is.Zero);
 
 		source.Stacks.Single().SetStatus(ItemStatus.Labeled);
-		buildingManager.RefreshItemContainerState(source);
+		Assert.That(coordinator.DirtyDockCount, Is.EqualTo(1));
 		coordinator.ProcessDirty();
 
 		CapsuleRelocationTask relocation = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
@@ -691,19 +691,77 @@ public sealed class CapsuleRelocationTaskEditModeTests
 			LabelingTask.ApplyLabel(in taskContext),
 			Is.EqualTo(IBaseNode.NodeState.Success));
 		Assert.That(source.Stacks.Single().Status, Is.EqualTo(ItemStatus.Labeled));
+		Assert.That(coordinator.DirtyDockCount, Is.Zero);
 		coordinator.ProcessDirty();
 
 		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear], Is.Empty);
-		Assert.That(coordinator.PendingSendCount, Is.EqualTo(1));
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
 
 		Assert.That(labelingTask.CheckTaskEnd(), Is.True);
 		labelingTask.EndTask();
+		coordinator.ProcessDirty();
 
 		CapsuleRelocationTask relocation = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
 			.OfType<CapsuleRelocationTask>()
 			.Single();
 		Assert.That(GetTaskSource(relocation), Is.SameAs(source));
 		Assert.That(GetTaskTarget(relocation), Is.SameAs(target));
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
+	}
+
+	[Test]
+	public void LabelingTask_CompletionReevaluatesSameBufferAndRequestsStoring()
+	{
+		ActivateInboundWorkflow();
+		Building building = new(
+			"Multi Stage Labeling Building",
+			new List<GridCell>(),
+			ItemProcessStage.Packed);
+		buildingManager.Register(building);
+		CapsuleBuffer buffer = CreateBuffer(building, "Multi Stage Labeling Buffer", CapsuleDockState.IB);
+		Assert.That(
+			buildingManager.TryRegisterFacility(building.RuntimeBuildingId, buffer),
+			Is.True);
+		ApplyBufferRule(
+			buffer,
+			ItemProcessStage.Unlabeled,
+			ItemProcessStage.Labeled);
+		CargoCapsule capsule = CreateCapsule("Multi Stage Labeling Capsule", CapsuleLogisticsState.Inside);
+		AddCargo(capsule, 921, 2, ItemStatus.None);
+		Assert.That(buffer.TryDockCapsule(capsule), Is.True);
+		coordinator.ProcessDirty();
+		InvokeNonPublic(typeof(TaskManager), taskManager, "ProcessTaskBuildQueue");
+		LabelingTask labelingTask = taskManager.TaskQueue[WorkerTask.TaskType.Labeling]
+			.OfType<LabelingTask>()
+			.Single();
+		taskManager.TaskQueue[WorkerTask.TaskType.Labeling].Remove(labelingTask);
+		HumanWorker worker = CreateWorker();
+		Assert.That(worker.SetTask(labelingTask), Is.True);
+		taskManager.AddRestoredInProgressTask(labelingTask);
+		BTContext taskContext = CreateTaskContext(worker);
+
+		Assert.That(
+			LabelingTask.ApplyLabel(in taskContext),
+			Is.EqualTo(IBaseNode.NodeState.Success));
+		Assert.That(buffer.Stacks.Single().Status, Is.EqualTo(ItemStatus.Labeled));
+		coordinator.ProcessDirty();
+
+		Assert.That(
+			context.ItemTransferTaskScheduler.HasDirty(
+				building.RuntimeBuildingId,
+				ItemTransferScheduleMode.Storing),
+			Is.False);
+
+		Assert.That(labelingTask.CheckTaskEnd(), Is.True);
+		labelingTask.EndTask();
+		coordinator.ProcessDirty();
+
+		Assert.That(
+			context.ItemTransferTaskScheduler.HasDirty(
+				building.RuntimeBuildingId,
+				ItemTransferScheduleMode.Storing),
+			Is.True);
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear], Is.Empty);
 		Assert.That(coordinator.PendingSendCount, Is.Zero);
 	}
 
@@ -733,10 +791,11 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		InvokeNonPublic(typeof(Building), building, "SetOverrideCapsuleThreshold", true);
 		InvokeNonPublic(typeof(Building), building, "SetCapsuleThresholdPercent", 0.0f);
 		Assert.That(building.TrySetOutboundTargetStage(ItemProcessStage.Unlabeled), Is.True);
+		Assert.That(coordinator.HasDirty, Is.True);
 		coordinator.ProcessDirty();
 
-		Assert.That(labelingTask.CurrentStatus, Is.EqualTo(WorkerTask.Status.Invalidated));
 		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.OB));
+		Assert.That(labelingTask.CurrentStatus, Is.EqualTo(WorkerTask.Status.Invalidated));
 		CapsuleRelocationTask outboundTask = taskManager.TaskQueue[WorkerTask.TaskType.OB]
 			.OfType<CapsuleRelocationTask>()
 			.Single();
@@ -1339,9 +1398,17 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		InvokeNonPublic(typeof(InboundWorkflowService), inboundWorkflow, "OnEnable");
 	}
 
-	private void ApplyBufferRule(CapsuleBuffer buffer, ItemProcessStage stage)
+	private void ApplyBufferRule(CapsuleBuffer buffer, params ItemProcessStage[] stages)
 	{
-		ApplyFacilityRule(buffer, stage);
+		FacilityRule rule = new();
+		rule.SetRequiredContentState(FacilityContentState.HasItems);
+		for (int i = 0; i < stages.Length; ++i)
+			rule.SetItemProcessStageAllowed(stages[i], true);
+
+		FacilityRulePreset preset = facilityRuleManager.CreatePreset(
+			$"{buffer.name} {string.Join(" + ", stages)}",
+			rule);
+		Assert.That(facilityRuleManager.ApplyPreset(buffer, preset.Id), Is.True);
 	}
 
 	private void ApplyFacilityRule(

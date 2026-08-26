@@ -19,10 +19,12 @@ public enum CargoRouteKind
 public class CargoCapsule : BoxBase
 {
 	public event System.Action OnQuantityChanged;
+	public event System.Action OnContentStateChanged;
 	public event System.Action<CargoCapsule> OnLogisticsStateChanged;
 
 	[SerializeField] private CapsuleLogisticsState logisticsState = CapsuleLogisticsState.IB;
 	private CapsuleDock currentDock;
+	private readonly HashSet<ItemStack> observedStacks = new();
 
 	public CapsuleLogisticsState LogisticsState => logisticsState;
 	public virtual CargoRouteKind RouteKind => CargoRouteKind.Standard;
@@ -40,7 +42,16 @@ public class CargoCapsule : BoxBase
 
 	public void SetCurrentDock(CapsuleDock dock)
 	{
+		if (dock != null)
+			SyncObservedStacks();
+
 		currentDock = dock;
+	}
+
+	public override void ResetContainer()
+	{
+		UnsubscribeObservedStacks();
+		base.ResetContainer();
 	}
 
 	public void ApplyDamage(int damageRate, int maximumDamageAmount)
@@ -189,6 +200,47 @@ public class CargoCapsule : BoxBase
 	{
 		size = stacks.Sum(s => itemDB.GetItemSize(s.ItemID) * s.Quantity);
 		RebuildItemTags();
+		SyncObservedStacks();
 		OnQuantityChanged?.Invoke();
+	}
+
+	private void SyncObservedStacks()
+	{
+		ItemStack[] observed = observedStacks.ToArray();
+		for (int i = 0; i < observed.Length; ++i)
+		{
+			ItemStack stack = observed[i];
+			if (stack != null && stacks.Contains(stack))
+				continue;
+
+			if (stack != null)
+				stack.OnStateChanged -= HandleStackStateChanged;
+			observedStacks.Remove(stack);
+		}
+
+		for (int i = 0; i < stacks.Count; ++i)
+		{
+			ItemStack stack = stacks[i];
+			if (stack == null || observedStacks.Add(stack) == false)
+				continue;
+
+			stack.OnStateChanged += HandleStackStateChanged;
+		}
+	}
+
+	private void UnsubscribeObservedStacks()
+	{
+		foreach (ItemStack stack in observedStacks)
+		{
+			if (stack != null)
+				stack.OnStateChanged -= HandleStackStateChanged;
+		}
+
+		observedStacks.Clear();
+	}
+
+	private void HandleStackStateChanged(ItemStack _)
+	{
+		OnContentStateChanged?.Invoke();
 	}
 }

@@ -135,6 +135,7 @@ public sealed class CapsuleRelocateCoordinator
 	private readonly HashSet<CapsuleDock> potentialReturnSources = new();
 	private readonly HashSet<CapsuleDock> playerClaimedDocks = new();
 	private readonly HashSet<CapsuleDock> dirtyDocks = new();
+	private readonly HashSet<CapsuleDock> deferredDirtyDocks = new();
 	private readonly HashSet<uint> dirtyBuildingIds = new();
 	private readonly HashSet<uint> processingDirtyBuildingIds = new();
 	private readonly List<CapsuleBuffer> ruleTargetScratch = new();
@@ -303,6 +304,15 @@ public sealed class CapsuleRelocateCoordinator
 
 	private void HandleCapsuleContentChanged(uint buildingId, CapsuleBuffer buffer)
 	{
+		if (buffer == null)
+			return;
+
+		if (taskManager?.HasManagedTaskFacilityDependency(buffer) == true)
+		{
+			deferredDirtyDocks.Add(buffer);
+			return;
+		}
+
 		MarkDirty(buffer);
 	}
 
@@ -690,6 +700,7 @@ public sealed class CapsuleRelocateCoordinator
 		potentialReturnSources.Clear();
 		playerClaimedDocks.Clear();
 		dirtyDocks.Clear();
+		deferredDirtyDocks.Clear();
 		dirtyBuildingIds.Clear();
 		processingDirtyBuildingIds.Clear();
 		ruleTargetScratch.Clear();
@@ -713,6 +724,21 @@ public sealed class CapsuleRelocateCoordinator
 	{
 		if (isRestoring)
 			return;
+
+		if (deferredDirtyDocks.Count > 0)
+		{
+			CapsuleDock[] deferred = new CapsuleDock[deferredDirtyDocks.Count];
+			deferredDirtyDocks.CopyTo(deferred);
+			for (int i = 0; i < deferred.Length; ++i)
+			{
+				CapsuleDock dock = deferred[i];
+				if (dock == null || taskManager?.HasManagedTaskFacilityDependency(dock) == true)
+					continue;
+
+				deferredDirtyDocks.Remove(dock);
+				MarkDirty(dock);
+			}
+		}
 
 		while (TryMatchPendingDemand() || TryMatchPendingSend())
 		{
@@ -748,8 +774,9 @@ public sealed class CapsuleRelocateCoordinator
 		activeRelocationTargets.Remove(dock);
 		potentialReturnSources.Remove(dock);
 		reservedDocks.Remove(dock);
-		playerClaimedDocks.Remove(dock);
 		dirtyDocks.Remove(dock);
+		deferredDirtyDocks.Remove(dock);
+		playerClaimedDocks.Remove(dock);
 		CancelPendingRequests(dock);
 	}
 

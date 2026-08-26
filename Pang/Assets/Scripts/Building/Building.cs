@@ -242,7 +242,6 @@ public class Building
 		this.occupiedCells = occupiedCells ?? new List<GridCell>();
 
 		itemIndex = new(this);
-		itemIndex.OnItemStatusAdded += HandleItemStatusAdded;
 	}
 
 	internal bool AddInputBuilding(uint buildingId)
@@ -401,12 +400,6 @@ public class Building
 	internal bool CanDispatchOutboundBuffer(CapsuleBuffer capsuleBuffer)
 	{
 		return IsBufferOutboundReady(capsuleBuffer);
-	}
-
-	private void HandleItemStatusAdded(uint itemId, ItemStatus status, IItemContainer container)
-	{
-		if (container is CapsuleBuffer capsuleBuffer)
-			MarkDockRoutingDirty(capsuleBuffer);
 	}
 
 }

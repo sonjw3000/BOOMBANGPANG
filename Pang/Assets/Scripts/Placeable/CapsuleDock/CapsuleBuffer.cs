@@ -154,6 +154,14 @@ public partial class CapsuleBuffer :
 		OnCapsuleContentChanged?.Invoke(this);
 	}
 
+	protected override void OnCapsuleContentStateChanged()
+	{
+		if (DockedCapsule == null)
+			return;
+
+		OnCapsuleContentChanged?.Invoke(this);
+	}
+
 	private void ClearPickReservations()
 	{
 		if (itemsReservedPick.Count <= 0)

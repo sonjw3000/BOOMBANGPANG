@@ -116,6 +116,8 @@ public class ItemStack
 	private ItemQuality quality = ItemQuality.None;
 	private PackageOutboundStage outboundStage = PackageOutboundStage.None;
 
+	public event System.Action<ItemStack> OnStateChanged;
+
 	public uint ItemID => itemID;
 	public int Quantity => quantity;
 	public float CurrentFreshness => currentFreshness;
@@ -236,17 +238,30 @@ public class ItemStack
 
 	public void SetStatus(ItemStatus status)
 	{
+		if (this.status == status)
+			return;
+
 		this.status = status;
+		OnStateChanged?.Invoke(this);
 	}
 
 	public void AddQuality(ItemQuality quality)
 	{
-		this.quality |= quality;
+		ItemQuality nextQuality = this.quality | quality;
+		if (this.quality == nextQuality)
+			return;
+
+		this.quality = nextQuality;
+		OnStateChanged?.Invoke(this);
 	}
 
 	public void SetOutboundStage(PackageOutboundStage outboundStage)
 	{
+		if (this.outboundStage == outboundStage)
+			return;
+
 		this.outboundStage = outboundStage;
+		OnStateChanged?.Invoke(this);
 	}
 
 	public bool HasMatchingIdentity(ItemStack other)
@@ -401,6 +416,7 @@ public class ItemStack
 
 	private void ResetState()
 	{
+		OnStateChanged = null;
 		itemID = 0;
 		quantity = 0;
 		currentFreshness = DefaultConditionMaximum;
