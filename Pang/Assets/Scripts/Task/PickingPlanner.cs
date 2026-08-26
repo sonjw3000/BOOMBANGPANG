@@ -434,7 +434,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			activeTask.Type == WorkerTask.TaskType.Picking &&
 			activeTask.BuildingId == targetBuildingId)
 		{
-			IReadOnlyList<CapsuleBuffer> retainedOutputs = activeTask.RetainedPickingOutputBuffers;
+			IReadOnlyList<CapsuleBuffer> retainedOutputs = activeTask.RetainedCapsuleOutputBuffers;
 			for (int i = 0; i < retainedOutputs.Count; ++i)
 			{
 				CapsuleBuffer buffer = retainedOutputs[i];
@@ -484,7 +484,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		CapsuleBuffer targetBuffer = placeLine?.Target as CapsuleBuffer;
 		if (result.Kind == TransferResultKind.None)
 		{
-			activeTask?.ReleaseRetainedPickingOutput(targetBuffer);
+			activeTask?.ReleaseRetainedCapsuleOutput(targetBuffer);
 			return WorkPlanResult.Waiting;
 		}
 
@@ -493,7 +493,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			targetBuffer != null &&
 			(result.Kind == TransferResultKind.Partial || IsOutboundThresholdReached(targetBuffer)))
 		{
-			activeTask.ReleaseRetainedPickingOutput(targetBuffer);
+			activeTask.ReleaseRetainedCapsuleOutput(targetBuffer);
 		}
 
 		return OnPlaceLineCompleted(worker, placeLine, result);
@@ -1018,7 +1018,6 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			buffer.IsCapsuleEmpty();
 		bool isSharedPickedInput =
 			requireEmpty == false &&
-			task != null &&
 			capsule.LogisticsState == CapsuleLogisticsState.Inside &&
 			buffer.IsCapsuleEmpty() == false;
 		if (isEmptyInput == false && isSharedPickedInput == false)
@@ -1049,7 +1048,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		}
 
 		TaskManager taskManager = GameContext.Instance.TaskMgr;
-		if (taskManager?.HasConflictingPickingOutputDependency(buffer) == true)
+		if (taskManager?.HasConflictingCapsuleContentDependency(buffer, WorkLineAction.Put) == true)
 			return false;
 
 		if (building != null &&
@@ -1083,7 +1082,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		FacilityFilter projectedInputFilter)
 	{
 		if (task == null ||
-			task.RetainsPickingOutput(buffer) == false)
+			task.RetainsCapsuleOutput(buffer) == false)
 		{
 			return false;
 		}

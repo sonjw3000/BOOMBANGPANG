@@ -140,6 +140,13 @@ public partial class StoringTask : WorkerTask
 		if (DependsOnFacility(facility) == false)
 			return FacilityTaskInvalidationAction.None;
 
+		if (CurrentPhase == Phase.Collect && currentLine?.Container is IItemPickReservable reservable)
+		{
+			int remaining = Mathf.Max(0, currentLine.Quantity - currentLine.CompleteQuantity);
+			if (remaining > 0)
+				reservable.ReleaseReservedPick(currentLine.ItemID, remaining);
+		}
+
 		if (CurrentPhase == Phase.Place)
 		{
 			currentLine = null;
@@ -211,6 +218,7 @@ public partial class StoringTask : WorkerTask
 			box,
 			line.ItemID,
 			remainingQuantity,
+			consumeSourcePickReservation: line.ConsumeSourcePickReservation && line.Container is IItemPickReservable,
 			stackPredicate: stack =>
 				stack.HasQuality(ItemQuality.Waste) == false &&
 				(line.RequiredStatus.HasValue == false || stack.HasStatus(line.RequiredStatus.Value)) &&

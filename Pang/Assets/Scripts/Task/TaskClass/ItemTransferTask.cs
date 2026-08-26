@@ -84,7 +84,7 @@ public sealed class ItemTransferTask : WorkerTask
 {
 	private readonly ItemTransferJob job;
 	private readonly List<ItemTransferCollectedLine> collectedLines = new();
-	private readonly List<CapsuleBuffer> retainedPickingOutputBuffers = new();
+	private readonly List<CapsuleBuffer> retainedCapsuleOutputBuffers = new();
 
 	private ItemTransferPhase phase = ItemTransferPhase.Collect;
 	private WorkLine currentLine;
@@ -96,7 +96,7 @@ public sealed class ItemTransferTask : WorkerTask
 	public ItemTransferPhase Phase => phase;
 	public WorkLine CurrentLine => currentLine;
 	public IReadOnlyList<ItemTransferCollectedLine> CollectedLines => collectedLines;
-	internal IReadOnlyList<CapsuleBuffer> RetainedPickingOutputBuffers => retainedPickingOutputBuffers;
+	internal IReadOnlyList<CapsuleBuffer> RetainedCapsuleOutputBuffers => retainedCapsuleOutputBuffers;
 	internal bool IsReevaluatingFacility => isReevaluatingFacility;
 
 	public ItemTransferTask(TaskType taskType, ItemTransferJob job) : base(taskType)
@@ -121,7 +121,7 @@ public sealed class ItemTransferTask : WorkerTask
 		if (job?.Planner is IItemTransferTaskInvalidationHandler handler)
 			handler.OnTaskInvalidated(this);
 
-		ReleaseRetainedPickingOutputsForRouting();
+		ReleaseRetainedCapsuleOutputsForRouting();
 	}
 
 	protected override IBaseNode BuildWorkNode()
@@ -178,7 +178,7 @@ public sealed class ItemTransferTask : WorkerTask
 
 	public override bool DependsOnFacility(IFacility facility)
 	{
-		return ReferencesFacility(currentLine, facility) || RetainsPickingOutput(facility);
+		return ReferencesFacility(currentLine, facility) || RetainsCapsuleOutput(facility);
 	}
 
 	internal override FacilityTaskInvalidationAction HandleFacilityInvalidating(
@@ -186,14 +186,14 @@ public sealed class ItemTransferTask : WorkerTask
 		in FacilityInvalidationContext context)
 	{
 		bool referencesCurrentLine = ReferencesFacility(currentLine, facility);
-		bool retainsPickingOutput = RetainsPickingOutput(facility);
-		if (referencesCurrentLine == false && retainsPickingOutput == false)
+		bool retainsCapsuleOutput = RetainsCapsuleOutput(facility);
+		if (referencesCurrentLine == false && retainsCapsuleOutput == false)
 			return FacilityTaskInvalidationAction.None;
 
-		if (retainsPickingOutput && facility is CapsuleBuffer invalidatingBuffer)
+		if (retainsCapsuleOutput && facility is CapsuleBuffer invalidatingBuffer)
 		{
-			retainedPickingOutputBuffers.Remove(invalidatingBuffer);
-			MarkPickingOutputDirty(invalidatingBuffer);
+			retainedCapsuleOutputBuffers.Remove(invalidatingBuffer);
+			MarkCapsuleOutputDirty(invalidatingBuffer);
 		}
 
 		if (referencesCurrentLine == false)
@@ -362,7 +362,7 @@ public sealed class ItemTransferTask : WorkerTask
 				}
 
 				task.currentLine = nextLine;
-				task.RetainPickingOutput(nextLine);
+				task.RetainCapsuleOutput(nextLine);
 			}
 			else
 			{
@@ -650,23 +650,37 @@ public sealed class ItemTransferTask : WorkerTask
 		if (job?.Planner is IItemTransferTaskCompletionHandler handler)
 			handler.OnTaskCompleted(this);
 
-		ReleaseRetainedPickingOutputsForRouting();
+		ReleaseRetainedCapsuleOutputsForRouting();
 	}
 
-	internal bool RetainsPickingOutput(IFacility facility)
+	internal bool RetainsCapsuleOutput(IFacility facility)
 	{
-		if (Type != TaskType.Picking || facility is not CapsuleBuffer buffer)
+		if (facility is not CapsuleBuffer buffer)
 			return false;
 
-		return retainedPickingOutputBuffers.Contains(buffer);
+		return retainedCapsuleOutputBuffers.Contains(buffer);
 	}
 
-	internal void ReleaseRetainedPickingOutput(CapsuleBuffer buffer)
+	internal bool CanShareCapsuleContentDependency(CapsuleBuffer buffer, WorkLineAction action)
 	{
-		if (buffer == null || retainedPickingOutputBuffers.Remove(buffer) == false)
+		if (buffer == null)
+			return false;
+
+		if (action == WorkLineAction.Put)
+			return RetainsCapsuleOutput(buffer);
+
+		return phase == ItemTransferPhase.Collect &&
+			currentLine?.Action == WorkLineAction.Pick &&
+			ReferenceEquals(currentLine.Container, buffer) &&
+			currentLine.ConsumeSourcePickReservation;
+	}
+
+	internal void ReleaseRetainedCapsuleOutput(CapsuleBuffer buffer)
+	{
+		if (buffer == null || retainedCapsuleOutputBuffers.Remove(buffer) == false)
 			return;
 
-		MarkPickingOutputDirty(buffer);
+		MarkCapsuleOutputDirty(buffer);
 	}
 
 	internal ItemTransferTaskSaveData CaptureState()
@@ -862,30 +876,31 @@ public sealed class ItemTransferTask : WorkerTask
 			(ReferenceEquals(line.Target, facility) || ReferenceEquals(line.Container, facility));
 	}
 
-	private void RetainPickingOutput(WorkLine line)
+	private void RetainCapsuleOutput(WorkLine line)
 	{
-		if (Type != TaskType.Picking ||
-			line?.Target is not CapsuleBuffer buffer ||
-			retainedPickingOutputBuffers.Contains(buffer))
+		if (line?.Action != WorkLineAction.Put ||
+			line.Target is not CapsuleBuffer buffer ||
+			buffer.DockedCapsule?.RouteKind != CargoRouteKind.Standard ||
+			retainedCapsuleOutputBuffers.Contains(buffer))
 		{
 			return;
 		}
 
-		retainedPickingOutputBuffers.Add(buffer);
+		retainedCapsuleOutputBuffers.Add(buffer);
 	}
 
-	private void ReleaseRetainedPickingOutputsForRouting()
+	private void ReleaseRetainedCapsuleOutputsForRouting()
 	{
-		if (retainedPickingOutputBuffers.Count <= 0)
+		if (retainedCapsuleOutputBuffers.Count <= 0)
 			return;
 
-		List<CapsuleBuffer> releasedBuffers = new(retainedPickingOutputBuffers);
-		retainedPickingOutputBuffers.Clear();
+		List<CapsuleBuffer> releasedBuffers = new(retainedCapsuleOutputBuffers);
+		retainedCapsuleOutputBuffers.Clear();
 		for (int i = 0; i < releasedBuffers.Count; ++i)
-			MarkPickingOutputDirty(releasedBuffers[i]);
+			MarkCapsuleOutputDirty(releasedBuffers[i]);
 	}
 
-	private static void MarkPickingOutputDirty(CapsuleBuffer buffer)
+	private static void MarkCapsuleOutputDirty(CapsuleBuffer buffer)
 	{
 		if (buffer == null || GameContext.HasInstance == false)
 			return;

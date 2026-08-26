@@ -385,8 +385,13 @@ public sealed class LaunchSortPlanner :
 		WorkLine placeLine,
 		ItemTransferResult result)
 	{
+		ItemTransferTask activeTask = worker?.CurrentTask as ItemTransferTask;
+		CapsuleBuffer retainedTarget = placeLine?.Target as CapsuleBuffer;
 		if (result.Moved <= 0)
+		{
+			activeTask?.ReleaseRetainedCapsuleOutput(retainedTarget);
 			return WorkPlanResult.Waiting;
+		}
 
 		if (placeLine?.Target is WasteBinDock)
 		{
@@ -406,6 +411,12 @@ public sealed class LaunchSortPlanner :
 				result.Moved);
 			if (GameContext.HasInstance)
 				GameContext.Instance.CapsuleRelocateCoordinator.MarkDirty(targetBuffer);
+
+			if (activeTask != null &&
+				(result.Kind == TransferResultKind.Partial || IsOutboundThresholdReached(targetBuffer)))
+			{
+				activeTask.ReleaseRetainedCapsuleOutput(targetBuffer);
+			}
 		}
 
 		EvaluateWork();
@@ -621,10 +632,17 @@ public sealed class LaunchSortPlanner :
 		int bestPriority = int.MinValue;
 		int bestMovable = 0;
 		int bestDistance = int.MaxValue;
+		bool bestRetained = false;
+		ItemTransferTask activeTask = worker?.CurrentTask as ItemTransferTask;
+		TryGetBuilding(out Building targetBuilding);
 		foreach (CapsuleBuffer candidate in BufferService.GetBuffers(buildingId))
 		{
 			if (ReferenceEquals(candidate, excludedBuffer) ||
-				IsProjectedInputRuleMatchedBuffer(candidate, filter) == false)
+				IsCapsuleOutputCandidate(
+					activeTask,
+					candidate,
+					targetBuilding,
+					filter) == false)
 			{
 				continue;
 			}
@@ -650,16 +668,19 @@ public sealed class LaunchSortPlanner :
 				continue;
 			}
 
+			bool retained = activeTask?.RetainsCapsuleOutput(candidate) == true;
 			int priority = GetRulePriority(candidate);
 			bool isBetter = buffer == null ||
-				priority > bestPriority ||
-				(priority == bestPriority && candidateMovable > bestMovable) ||
-				(priority == bestPriority && candidateMovable == bestMovable && distance < bestDistance);
+				(retained && bestRetained == false) ||
+				(retained == bestRetained && priority > bestPriority) ||
+				(retained == bestRetained && priority == bestPriority && candidateMovable > bestMovable) ||
+				(retained == bestRetained && priority == bestPriority && candidateMovable == bestMovable && distance < bestDistance);
 			if (isBetter == false)
 				continue;
 
 			buffer = candidate;
 			movableQuantity = candidateMovable;
+			bestRetained = retained;
 			bestPriority = priority;
 			bestMovable = candidateMovable;
 			bestDistance = distance;
@@ -696,7 +717,9 @@ public sealed class LaunchSortPlanner :
 				ItemProcessStage.Packed,
 				evaluateLaunchReadiness: false) != true ||
 			GameContext.Instance.FacilityMgr?.IsInvalidating(sourceBuffer) == true ||
-			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(sourceBuffer) == true)
+			GameContext.Instance.TaskMgr?.HasConflictingCapsuleContentDependency(
+				sourceBuffer,
+				WorkLineAction.Pick) == true)
 		{
 			return false;
 		}
@@ -708,10 +731,23 @@ public sealed class LaunchSortPlanner :
 		CapsuleBuffer buffer,
 		FacilityFilter projectedInputFilter)
 	{
+		return IsCapsuleOutputCandidate(
+			task: null,
+			buffer: buffer,
+			building: null,
+			projectedInputFilter: projectedInputFilter,
+			requireEmpty: true);
+	}
+
+	private bool IsCapsuleOutputCandidate(
+		ItemTransferTask task,
+		CapsuleBuffer buffer,
+		Building building,
+		FacilityFilter projectedInputFilter,
+		bool requireEmpty = false)
+	{
 		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
 			capsule.RouteKind != CargoRouteKind.Standard ||
-			capsule.LogisticsState != CapsuleLogisticsState.Empty ||
-			buffer.IsCapsuleEmpty() == false ||
 			buffer.CanReceiveOutboundItems() == false ||
 			projectedInputFilter.ContentState != FacilityContentState.HasItems ||
 			projectedInputFilter.ItemProcessStage != ItemProcessStage.Packed ||
@@ -719,14 +755,53 @@ public sealed class LaunchSortPlanner :
 				buffer,
 				projectedInputFilter,
 				FacilityContentState.HasItems,
-				ItemProcessStage.Packed) != true ||
-			GameContext.Instance.FacilityMgr?.IsInvalidating(buffer) == true ||
-			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(buffer) == true)
+				ItemProcessStage.Packed) != true)
+		{
+			return false;
+		}
+
+		bool isEmptyInput =
+			capsule.LogisticsState == CapsuleLogisticsState.Empty &&
+			buffer.IsCapsuleEmpty();
+		bool isSharedPackedInput =
+			requireEmpty == false &&
+			capsule.LogisticsState == CapsuleLogisticsState.Inside &&
+			buffer.IsCapsuleEmpty() == false;
+		if (isEmptyInput == false && isSharedPackedInput == false)
+			return false;
+
+		if (isSharedPackedInput &&
+			BufferService.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness: false) == false)
+		{
+			return false;
+		}
+
+		if (GameContext.Instance.FacilityMgr?.IsInvalidating(buffer) == true ||
+			GameContext.Instance.TaskMgr?.HasConflictingCapsuleContentDependency(
+				buffer,
+				WorkLineAction.Put) == true)
+		{
+			return false;
+		}
+
+		if (building != null &&
+			building.OutboundTargetStage == ItemProcessStage.LaunchReady &&
+			building.CanDispatchOutboundBuffer(buffer))
 		{
 			return false;
 		}
 
 		return IsDockAvailable(buffer);
+	}
+
+	private static bool IsOutboundThresholdReached(CapsuleBuffer buffer)
+	{
+		if (buffer == null || GameContext.HasInstance == false)
+			return false;
+
+		return GameContext.Instance.FacilityMgr?.TryGetBuildingId(buffer, out uint buildingId) == true &&
+			GameContext.Instance.BuildingMgr?.TryGetBuilding(buildingId, out Building building) == true &&
+			building.CanDispatchOutboundBuffer(buffer);
 	}
 
 	private static bool IsDockAvailable(CapsuleDock dock)

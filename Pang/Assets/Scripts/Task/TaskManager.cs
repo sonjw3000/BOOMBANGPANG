@@ -308,44 +308,46 @@ public partial class TaskManager : MonoBehaviour
 		return QueueDependsOnFacility(returnedTaskQueue, facility);
 	}
 
-	internal bool HasManagedPickingOutputDependency(CapsuleBuffer buffer)
+	internal bool HasManagedCapsuleOutputDependency(CapsuleBuffer buffer)
 	{
 		if (buffer == null)
 			return false;
 
 		foreach (LinkedList<WorkerTask> queue in taskQueue.Values)
 		{
-			if (QueueRetainsPickingOutput(queue, buffer))
+			if (QueueRetainsCapsuleOutput(queue, buffer))
 				return true;
 		}
 
 		foreach (LinkedList<WorkerTask> queue in taskOnProgress.Values)
 		{
-			if (QueueRetainsPickingOutput(queue, buffer))
+			if (QueueRetainsCapsuleOutput(queue, buffer))
 				return true;
 		}
 
-		return QueueRetainsPickingOutput(returnedTaskQueue, buffer);
+		return QueueRetainsCapsuleOutput(returnedTaskQueue, buffer);
 	}
 
-	internal bool HasConflictingPickingOutputDependency(CapsuleBuffer buffer)
+	internal bool HasConflictingCapsuleContentDependency(
+		CapsuleBuffer buffer,
+		WorkLineAction requestedAction)
 	{
 		if (buffer == null)
 			return false;
 
 		foreach (LinkedList<WorkerTask> queue in taskQueue.Values)
 		{
-			if (QueueHasConflictingPickingOutputDependency(queue, buffer))
+			if (QueueHasConflictingCapsuleContentDependency(queue, buffer, requestedAction))
 				return true;
 		}
 
 		foreach (LinkedList<WorkerTask> queue in taskOnProgress.Values)
 		{
-			if (QueueHasConflictingPickingOutputDependency(queue, buffer))
+			if (QueueHasConflictingCapsuleContentDependency(queue, buffer, requestedAction))
 				return true;
 		}
 
-		return QueueHasConflictingPickingOutputDependency(returnedTaskQueue, buffer);
+		return QueueHasConflictingCapsuleContentDependency(returnedTaskQueue, buffer, requestedAction);
 	}
 
 	private void HandleFacilityInvalidating(
@@ -431,20 +433,21 @@ public partial class TaskManager : MonoBehaviour
 		return false;
 	}
 
-	private static bool QueueRetainsPickingOutput(IEnumerable<WorkerTask> tasks, CapsuleBuffer buffer)
+	private static bool QueueRetainsCapsuleOutput(IEnumerable<WorkerTask> tasks, CapsuleBuffer buffer)
 	{
 		foreach (WorkerTask task in tasks)
 		{
-			if (task is ItemTransferTask transferTask && transferTask.RetainsPickingOutput(buffer))
+			if (task is ItemTransferTask transferTask && transferTask.RetainsCapsuleOutput(buffer))
 				return true;
 		}
 
 		return false;
 	}
 
-	private static bool QueueHasConflictingPickingOutputDependency(
+	private static bool QueueHasConflictingCapsuleContentDependency(
 		IEnumerable<WorkerTask> tasks,
-		CapsuleBuffer buffer)
+		CapsuleBuffer buffer,
+		WorkLineAction requestedAction)
 	{
 		foreach (WorkerTask task in tasks)
 		{
@@ -452,8 +455,7 @@ public partial class TaskManager : MonoBehaviour
 				continue;
 
 			if (task is ItemTransferTask transferTask &&
-				transferTask.Type == WorkerTask.TaskType.Picking &&
-				transferTask.RetainsPickingOutput(buffer))
+				transferTask.CanShareCapsuleContentDependency(buffer, requestedAction))
 			{
 				continue;
 			}
@@ -518,7 +520,7 @@ public partial class TaskManager : MonoBehaviour
 		{
 			if (task is CapsuleRelocationTask relocationTask && relocationTask.UsesDock(dock))
 				playerPreemptedCapsuleTasks.Add(relocationTask);
-			else if (task is ItemTransferTask transferTask && transferTask.RetainsPickingOutput(dock))
+			else if (task is ItemTransferTask transferTask && transferTask.RetainsCapsuleOutput(dock))
 				playerPreemptedPickingTasks.Add(transferTask);
 		}
 	}

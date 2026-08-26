@@ -252,7 +252,9 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 
 		FacilityManager facilityManager = GameContext.Instance.FacilityMgr;
 		if (facilityManager?.IsInvalidating(buffer) == true ||
-			GameContext.Instance.TaskMgr?.HasManagedTaskFacilityDependency(buffer) == true)
+			GameContext.Instance.TaskMgr?.HasConflictingCapsuleContentDependency(
+				buffer,
+				WorkLineAction.Pick) == true)
 		{
 			return false;
 		}

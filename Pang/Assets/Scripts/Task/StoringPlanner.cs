@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-public sealed class StoringPlanner : IItemTransferPlanner
+public sealed class StoringPlanner : IItemTransferPlanner, IItemTransferTaskInvalidationHandler
 {
 	private static int jobID = 1;
 
@@ -74,7 +74,9 @@ public sealed class StoringPlanner : IItemTransferPlanner
 
 			foreach (var itemTotal in buffer.ItemTotals)
 			{
-				int quantity = GetLabeledNonWasteQuantity(buffer, itemTotal.Key);
+				int quantity = Mathf.Min(
+					GetLabeledNonWasteQuantity(buffer, itemTotal.Key),
+					buffer.GetPickableQuantity(itemTotal.Key));
 				if (quantity <= 0)
 					continue;
 
@@ -133,11 +135,15 @@ public sealed class StoringPlanner : IItemTransferPlanner
 			foreach (var itemTotal in buffer.ItemTotals)
 			{
 				uint itemId = itemTotal.Key;
+				int pickable = buffer.GetPickableQuantity(itemId);
+				if (pickable <= 0)
+					continue;
+
 				int available = ItemTransferUtility.GetMovableQuantity(
 					buffer,
 					box,
 					itemId,
-					itemTotal.Value,
+					Mathf.Min(itemTotal.Value, pickable),
 					IsLabeledNonWaste);
 				if (available <= 0)
 					continue;
@@ -170,12 +176,16 @@ public sealed class StoringPlanner : IItemTransferPlanner
 
 		if (bestBuffer != null && bestQuantity > 0)
 		{
+			int reserved = bestBuffer.ReservePicking(bestItemId, bestQuantity);
+			if (reserved <= 0)
+				return WorkPlanResult.Waiting;
+
 			line = new WorkLine(
 				WorkLineAction.Pick,
 				bestBuffer,
 				bestBuffer,
 				bestItemId,
-				bestQuantity,
+				reserved,
 				requiredStatus: ItemStatus.Labeled,
 				excludedQuality: ItemQuality.Waste);
 			return WorkPlanResult.Issued;
@@ -194,6 +204,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 
 	public WorkPlanResult OnCollectLineCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
 	{
+		ReleaseUnmovedReservation(line, result);
 		if (result.Kind == TransferResultKind.None)
 			return WorkPlanResult.Waiting;
 
@@ -210,6 +221,20 @@ public sealed class StoringPlanner : IItemTransferPlanner
 	public WorkPlanResult OnCollectCompleted(AIWorker worker, WorkLine line, ItemTransferResult result)
 	{
 		return OnCollectLineCompleted(worker, line, result);
+	}
+
+	public void OnTaskInvalidated(ItemTransferTask task)
+	{
+		if (task?.Phase != ItemTransferPhase.Collect ||
+			task.CurrentLine?.Container is not IItemPickReservable reservable)
+		{
+			return;
+		}
+
+		WorkLine line = task.CurrentLine;
+		int remaining = Mathf.Max(0, line.Quantity - line.CompleteQuantity);
+		if (remaining > 0)
+			reservable.ReleaseReservedPick(line.ItemID, remaining);
 	}
 
 	public bool TryDecideNextPlacingLine(AIWorker worker, out WorkLine line)
@@ -296,7 +321,7 @@ public sealed class StoringPlanner : IItemTransferPlanner
 		for (int i = 0; i < buffer.Stacks.Count; ++i)
 		{
 			ItemStack stack = buffer.Stacks[i];
-			if (IsLabeledNonWaste(stack))
+			if (IsLabeledNonWaste(stack) && buffer.GetPickableQuantity(stack.ItemID) > 0)
 				return true;
 		}
 
@@ -350,6 +375,13 @@ public sealed class StoringPlanner : IItemTransferPlanner
 			return false;
 		}
 
+		if (GameContext.Instance.TaskMgr?.HasConflictingCapsuleContentDependency(
+			buffer,
+			WorkLineAction.Pick) == true)
+		{
+			return false;
+		}
+
 		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
 		return outbound == null ||
 			outbound.TryGetPickingManifest(capsule, out PickingManifest manifest) == false ||
@@ -383,6 +415,16 @@ public sealed class StoringPlanner : IItemTransferPlanner
 			stack.Quantity > 0 &&
 			stack.HasStatus(ItemStatus.Labeled) &&
 			stack.HasQuality(ItemQuality.Waste) == false;
+	}
+
+	private static void ReleaseUnmovedReservation(WorkLine line, ItemTransferResult result)
+	{
+		if (line?.Container is not IItemPickReservable reservable)
+			return;
+
+		int remaining = Mathf.Max(0, line.Quantity - result.Moved);
+		if (remaining > 0)
+			reservable.ReleaseReservedPick(line.ItemID, remaining);
 	}
 
 	private bool IsShelfInBuilding(ShelfBase shelf, uint buildingId)

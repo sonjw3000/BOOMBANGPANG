@@ -418,7 +418,7 @@ public sealed class CapsuleRelocateCoordinator
 		{
 			if (buffer.IsCapsuleEmpty())
 				normalized = CapsuleLogisticsState.Empty;
-			else if (taskManager.HasManagedPickingOutputDependency(buffer))
+			else if (taskManager.HasManagedCapsuleOutputDependency(buffer))
 				normalized = CapsuleLogisticsState.Inside;
 			else
 				normalized = building.CanDispatchOutboundBuffer(buffer)
