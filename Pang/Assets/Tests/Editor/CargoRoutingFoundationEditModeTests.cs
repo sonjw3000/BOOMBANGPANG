@@ -444,6 +444,42 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
+	public void DefaultProcessStagePresets_CreateOneRuleForEachConcreteStage()
+	{
+		ruleManager.EnsureDefaultProcessStagePresets();
+
+		Assert.That(ruleManager.Presets, Has.Count.EqualTo(5));
+		ItemProcessStage[] expectedStages =
+		{
+			ItemProcessStage.Unlabeled,
+			ItemProcessStage.Labeled,
+			ItemProcessStage.Picked,
+			ItemProcessStage.Packed,
+			ItemProcessStage.LaunchReady,
+		};
+
+		for (int i = 0; i < expectedStages.Length; ++i)
+		{
+			FacilityRulePreset preset = ruleManager.Presets[i];
+			Assert.That(preset.DisplayName, Is.EqualTo(ItemProcessStageUtility.ToDisplayString(expectedStages[i])));
+			Assert.That(preset.Rule.AllowedItemProcessStages, Is.EqualTo(ItemProcessStageUtility.ToMask(expectedStages[i])));
+		}
+
+		ruleManager.EnsureDefaultProcessStagePresets();
+		Assert.That(ruleManager.Presets, Has.Count.EqualTo(5));
+	}
+
+	[Test]
+	public void DefaultProcessStagePresets_DoNotModifyExistingRules()
+	{
+		FacilityRulePreset existing = ruleManager.CreatePreset("Custom Rule", new FacilityRule());
+
+		ruleManager.EnsureDefaultProcessStagePresets();
+
+		Assert.That(ruleManager.Presets, Is.EqualTo(new[] { existing }));
+	}
+
+	[Test]
 	public void Query_UsesExactStageExplicitRuleAndBuildingScope()
 	{
 		CargoCapsule labeledCapsule = CreateCapsule("Labeled Capsule", 501, 3, ItemStatus.Labeled);

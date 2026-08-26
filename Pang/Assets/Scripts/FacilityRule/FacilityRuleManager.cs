@@ -43,6 +43,7 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 
 	private void Start()
 	{
+		EnsureDefaultProcessStagePresets();
 		if (TryBindFacilityManager())
 			RebuildAppliedFacilityLookup();
 	}
@@ -128,6 +129,25 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 		OnPresetCreated?.Invoke(preset);
 		OnGridOverlayRefreshRequested?.Invoke();
 		return preset;
+	}
+
+	public void EnsureDefaultProcessStagePresets()
+	{
+		if (presets.Count > 0)
+			return;
+
+		CreateProcessStagePreset(ItemProcessStage.Unlabeled, new Color(0.95f, 0.74f, 0.24f));
+		CreateProcessStagePreset(ItemProcessStage.Labeled, new Color(0.31f, 0.72f, 0.96f));
+		CreateProcessStagePreset(ItemProcessStage.Picked, new Color(0.48f, 0.82f, 0.42f));
+		CreateProcessStagePreset(ItemProcessStage.Packed, new Color(0.72f, 0.49f, 0.91f));
+		CreateProcessStagePreset(ItemProcessStage.LaunchReady, new Color(0.96f, 0.42f, 0.35f));
+	}
+
+	private void CreateProcessStagePreset(ItemProcessStage stage, Color color)
+	{
+		FacilityRule rule = new();
+		rule.SetItemProcessStageAllowed(stage, true);
+		CreatePreset(ItemProcessStageUtility.ToDisplayString(stage), rule, color);
 	}
 
 	public bool TryGetPreset(uint presetId, out FacilityRulePreset preset)
