@@ -90,7 +90,7 @@ public abstract partial class AIWorker
 
 	private static NodeState SetGoalClosestBoxPoolPick(in BTContext context)
 	{
-		WMSys.BoxPoolService.TryFindDestination(0, context.Worker.GridPosition, InteractionKind.Pick, FacilityFilter.ForWorker(context.Worker), out BoxPool pool);
+		WMSys.BoxPoolService.TryFindDestination(context.Worker.PrimaryBuildingId, context.Worker.GridPosition, InteractionKind.Pick, FacilityFilter.ForWorker(context.Worker), out BoxPool pool);
 		context.LocalBlackBoard.SetTargetBuilding(pool);
 
 		return Success;
@@ -98,7 +98,7 @@ public abstract partial class AIWorker
 
 	private static NodeState SetGoalClosestBoxPoolPut(in BTContext context)
 	{
-		WMSys.BoxPoolService.TryFindDestination(0, context.Worker.GridPosition, InteractionKind.Put, FacilityFilter.ForWorker(context.Worker), out BoxPool pool);
+		WMSys.BoxPoolService.TryFindDestination(context.Worker.PrimaryBuildingId, context.Worker.GridPosition, InteractionKind.Put, FacilityFilter.ForWorker(context.Worker), out BoxPool pool);
 		context.LocalBlackBoard.SetTargetBuilding(pool);
 
 		return Success;
@@ -119,7 +119,7 @@ public abstract partial class AIWorker
 
 		if (box == null)
 		{
-			WMSys.BoxPoolService.TryFindDestination(0, context.Worker.GridPosition, InteractionKind.Pick, FacilityFilter.ForWorker(context.Worker), out BoxPool nextPool);
+			WMSys.BoxPoolService.TryFindDestination(context.Worker.PrimaryBuildingId, context.Worker.GridPosition, InteractionKind.Pick, FacilityFilter.ForWorker(context.Worker), out BoxPool nextPool);
 			context.LocalBlackBoard.SetTargetBuilding(nextPool);
 
 			if (nextPool != null)
