@@ -174,6 +174,7 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 
 	protected virtual bool TryGetDestinationScore(
 		T facility,
+		uint buildingId,
 		in int3 from,
 		InteractionKind interactionKind,
 		out int score)
@@ -436,7 +437,7 @@ public class FacilityService<T> : MonoBehaviour where T : class, IFacility
 			if (IsDestinationCandidate(candidate, buildingId, interactionKind, facilityFilter) == false)
 				continue;
 
-			if (TryGetDestinationScore(candidate, from, interactionKind, out int candidateScore) == false)
+			if (TryGetDestinationScore(candidate, buildingId, from, interactionKind, out int candidateScore) == false)
 				continue;
 
 			if (found && candidateScore >= bestScore)

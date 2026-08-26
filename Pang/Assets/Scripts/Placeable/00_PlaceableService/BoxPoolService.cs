@@ -17,6 +17,24 @@ public class BoxPoolService : FacilityService<BoxPool>
 			&& facility.IsInteractionAvailable(interactionKind);
 	}
 
+	protected override bool TryGetDestinationScore(
+		BoxPool facility,
+		uint buildingId,
+		in int3 from,
+		InteractionKind interactionKind,
+		out int score)
+	{
+		score = int.MaxValue;
+		return facility != null &&
+			InteractionPointSelector.TryGetInteractionPointInBuilding(
+				facility,
+				interactionKind,
+				from,
+				buildingId,
+				out _,
+				out score);
+	}
+
 	private IReadOnlyList<BoxPool> CollectRegisteredBoxPools()
 	{
 		List<BoxPool> result = new();
