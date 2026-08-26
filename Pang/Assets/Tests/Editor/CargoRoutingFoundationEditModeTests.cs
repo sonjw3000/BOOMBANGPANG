@@ -273,7 +273,7 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 	[Test]
 	public void GameSaveData_UsesCurrentBreakingSchemaVersion()
 	{
-		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(19));
+		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(20));
 		Assert.That(new GameSaveData().Version, Is.EqualTo(GameSaveData.CurrentVersion));
 	}
 
@@ -522,7 +522,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
-	public void Query_ExplicitEmptyRuleActsAsCatchAllAndPredicateCanExcludeIt()
+	public void Query_EmptyRuleRejectsAllCargo()
 	{
 		CargoCapsule unlabeledCapsule = CreateCapsule("Unlabeled Capsule", 601, 2, ItemStatus.None);
 		CapsuleBuffer catchAll = CreateBuffer("Catch All", FirstBuildingId, 5);
@@ -535,16 +535,6 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 				unlabeledCapsule,
 				results,
 				evaluateLaunchReadiness: false),
-			Is.True);
-		Assert.That(results, Is.EqualTo(new[] { catchAll }));
-
-		Assert.That(
-			bufferService.TryQueryRuleMatchedDestinations(
-				FirstBuildingId,
-				unlabeledCapsule,
-				results,
-				evaluateLaunchReadiness: false,
-				candidate => candidate != catchAll),
 			Is.False);
 		Assert.That(results, Is.Empty);
 	}
@@ -1181,7 +1171,6 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
 
 		CapsuleBuffer target = CreateBuffer("Rule Target", FirstBuildingId, 19);
-		target.SetDockState(CapsuleDockState.OBStandby);
 		ApplyRule(
 			target,
 			ItemProcessStage.Labeled,
@@ -1223,7 +1212,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(callbackInvoked, Is.True);
 		Assert.That(matched.SourceDock, Is.SameAs(source));
 		Assert.That(matched.TargetDock, Is.SameAs(target));
-		Assert.That(target.DockState, Is.EqualTo(CapsuleDockState.OBStandby));
+		Assert.That(target.DockState, Is.EqualTo(CapsuleDockState.Buffer));
 	}
 
 	[Test]

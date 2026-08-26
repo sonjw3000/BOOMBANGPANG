@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using AYellowpaper.SerializedCollections;
 using Assets.Scripts.AI.BT;
 using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UniverseLogistics.UI.Toolkit;
 
 public sealed class CapsuleRelocationTaskEditModeTests
 {
@@ -804,7 +806,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	}
 
 	[Test]
-	public void ProcessDirty_EmptyCapsuleUsesContentRuleWithoutEmptyDockRole()
+	public void ProcessDirty_EmptyCapsuleRemainsAsBufferPreparationRegardlessOfCargoRule()
 	{
 		NeverOutboundReadyBuilding building = new(
 			"Empty Capsule Rule Building",
@@ -820,27 +822,70 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		coordinator.ProcessDirty();
 
 		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.Empty));
-		CapsuleRelocationTask task = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleSupply]
-			.OfType<CapsuleRelocationTask>()
-			.Single();
-		Assert.That(GetTaskSource(task), Is.SameAs(source));
-		Assert.That(GetTaskTarget(task), Is.SameAs(target));
+		Assert.That(source.DockedCapsule, Is.SameAs(capsule));
+		Assert.That(target.DockedCapsule, Is.Null);
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleSupply], Is.Empty);
 	}
 
 	[Test]
-	public void CapsuleBuffer_DockRoleExcludesEmptyAndRejectsNonBufferStates()
+	public void CapsuleBuffer_DockKindIsImmutableBuffer()
 	{
 		Assert.That(Enum.GetNames(typeof(CapsuleDockState)), Does.Not.Contain("Empty"));
 		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>("Dock Role Validation Buffer");
 
-		Assert.That(buffer.DockState, Is.EqualTo(CapsuleDockState.IB));
-		buffer.SetDockState(CapsuleDockState.OBStandby);
-		Assert.That(buffer.DockState, Is.EqualTo(CapsuleDockState.OBStandby));
-		buffer.SetDockState(CapsuleDockState.OB);
-		Assert.That(
-			buffer.DockState,
-			Is.EqualTo(CapsuleDockState.OBStandby),
-			"CargoPort-only states must not become CapsuleBuffer roles.");
+		Assert.That(buffer.DockState, Is.EqualTo(CapsuleDockState.Buffer));
+	}
+
+	[Test]
+	public void CapsuleBufferInspector_OffersPurchaseWithoutRoleOrSellActions()
+	{
+		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>("Purchase Policy Buffer");
+		CapsuleBufferUIProvider provider = new();
+		provider.LinkObject(buffer.gameObject);
+		SelectionInspectorModel model = new();
+
+		provider.BuildInspectorModel(model);
+
+		Assert.That(provider.StateDisplay, Is.EqualTo("Vacant"));
+		Assert.That(model.Actions.Select(action => action.Label), Is.EqualTo(new[]
+		{
+			"Purchase Capsule",
+			"Remove",
+		}));
+	}
+
+	[Test]
+	public void CapsuleBufferService_PurchaseCreatesEmptyCapsuleAndChargesEconomy()
+	{
+		GameObject capsulePrefab = CreateGameObject("Capsule Purchase Prefab", active: false);
+		CargoCapsule prefabCapsule = capsulePrefab.AddComponent<CargoCapsule>();
+		SetPrivateField(typeof(BoxBase), prefabCapsule, "boxType", BoxType.Capsule);
+		BoxManager boxManager = CreateComponent<BoxManager>("Capsule Purchase Box Manager");
+		SerializedDictionary<BoxType, GameObject> prefabs = new()
+		{
+			[BoxType.Capsule] = capsulePrefab,
+		};
+		SetPrivateField(typeof(BoxManager), boxManager, "boxPrefabs", prefabs);
+		InvokeNonPublic(typeof(BoxManager), boxManager, "Awake");
+		EconomyService economy = CreateComponent<EconomyService>("Capsule Purchase Economy");
+		economy.ApplyTransaction(new EconomyTransaction
+		{
+			moneyDelta = 1000,
+			reason = EconomyTransaction.Reason.DebugAdjustment,
+		});
+		SetPrivateField(typeof(GameContext), context, "boxManager", boxManager);
+		SetPrivateField(typeof(GameContext), context, "economyService", economy);
+		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>("Purchasable Buffer");
+		int expectedMoney = economy.Money - bufferService.CapsulePurchaseCost;
+
+		Assert.That(bufferService.TryPurchaseCapsule(buffer), Is.True);
+
+		Assert.That(buffer.DockedCapsule, Is.Not.Null);
+		Assert.That(buffer.DockedCapsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.Empty));
+		Assert.That(buffer.IsCapsuleEmpty(), Is.True);
+		Assert.That(economy.Money, Is.EqualTo(expectedMoney));
+		Assert.That(economy.History.Last().reason, Is.EqualTo(EconomyTransaction.Reason.CapsulePurchase));
+		Assert.That(bufferService.TryPurchaseCapsule(buffer), Is.False);
 	}
 
 	[Test]
@@ -1224,10 +1269,10 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private CapsuleBuffer CreateBuffer(
 		Building building,
 		string objectName,
-		CapsuleDockState dockState)
+		CapsuleDockState _)
 	{
 		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>(objectName);
-		buffer.SetDockState(dockState);
+		Assert.That(buffer.DockState, Is.EqualTo(CapsuleDockState.Buffer));
 		return RegisterDock(building, buffer);
 	}
 

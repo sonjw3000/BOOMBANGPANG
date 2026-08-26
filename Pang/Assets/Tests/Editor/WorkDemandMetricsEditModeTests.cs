@@ -383,26 +383,23 @@ public sealed class WorkDemandMetricsEditModeTests
 			(401u, 1, ItemStatus.None, ItemQuality.None));
 		source.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.IB);
 		CapsuleBuffer target = CreateComponent<CapsuleBuffer>("Capsule Relocate Demand Target", active: false);
-		target.SetDockState(CapsuleDockState.OBStandby);
 		CapsuleBuffer hubTarget = CreateComponent<CapsuleBuffer>("Capsule Relocate Hub Target", active: false);
-		hubTarget.SetDockState(CapsuleDockState.OBStandby);
 		CapsuleBuffer orphanTarget = CreateComponent<CapsuleBuffer>("Capsule Relocate Orphan Target", active: false);
-		orphanTarget.SetDockState(CapsuleDockState.OBStandby);
 
 		Assert.That(
 			capsuleRelocateCoordinator.RequestSend(new CapsuleRelocateSendRequest(
 				source,
-				CapsuleDockState.IB,
+				CapsuleDockState.Buffer,
 				CapsuleLogisticsState.IB,
-				CapsuleDockState.OBStandby,
+				CapsuleDockState.Buffer,
 				CapsuleRelocateScope.GlobalAllowed,
 				sourceBuilding.RuntimeBuildingId)),
 			Is.False);
 		Assert.That(
 			capsuleRelocateCoordinator.RequestDemand(new CapsuleRelocateDemand(
 				target,
-				CapsuleDockState.OBStandby,
-				CapsuleDockState.IB,
+				CapsuleDockState.Buffer,
+				CapsuleDockState.Buffer,
 				CapsuleLogisticsState.IB,
 				CapsuleRelocateScope.GlobalAllowed,
 				targetBuilding.RuntimeBuildingId)),
@@ -410,8 +407,8 @@ public sealed class WorkDemandMetricsEditModeTests
 		Assert.That(
 			capsuleRelocateCoordinator.RequestDemand(new CapsuleRelocateDemand(
 				hubTarget,
-				CapsuleDockState.OBStandby,
-				CapsuleDockState.IB,
+				CapsuleDockState.Buffer,
+				CapsuleDockState.Buffer,
 				CapsuleLogisticsState.IB,
 				CapsuleRelocateScope.GlobalAllowed,
 				0)),
@@ -419,8 +416,8 @@ public sealed class WorkDemandMetricsEditModeTests
 		Assert.That(
 			capsuleRelocateCoordinator.RequestDemand(new CapsuleRelocateDemand(
 				orphanTarget,
-				CapsuleDockState.OBStandby,
-				CapsuleDockState.IB,
+				CapsuleDockState.Buffer,
+				CapsuleDockState.Buffer,
 				CapsuleLogisticsState.IB,
 				CapsuleRelocateScope.GlobalAllowed,
 				uint.MaxValue)),
@@ -435,7 +432,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		AssertDemand(LogisticsWorkCategory.CapsuleRelocate, uint.MaxValue, 0, 0);
 		AssertGlobalPartition(LogisticsWorkCategory.CapsuleRelocate, 4, 0);
 
-		source.SetDockState(CapsuleDockState.OBStandby);
+		source.DockedCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 
 		CapsuleRelocateDemandSnapshot filtered = capsuleRelocateCoordinator.GetDemandSnapshot();
 		Assert.That(capsuleRelocateCoordinator.PendingSendCount, Is.EqualTo(1));
@@ -531,7 +528,6 @@ public sealed class WorkDemandMetricsEditModeTests
 		capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 
 		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>(objectName, active: false);
-		buffer.SetDockState(CapsuleDockState.IB);
 		Assert.That(buffer.TryDockCapsule(capsule), Is.True);
 		return buffer;
 	}
