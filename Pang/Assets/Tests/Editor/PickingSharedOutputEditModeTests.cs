@@ -5,7 +5,7 @@ using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
 
-public sealed class PickingSharedOutputEditModeTests
+public sealed class CapsuleContentSharingEditModeTests
 {
 	private const uint TestItemId = 97001;
 	private readonly List<UnityEngine.Object> createdObjects = new();
@@ -176,6 +176,103 @@ public sealed class PickingSharedOutputEditModeTests
 		Assert.That(source.GetQuantity(TestItemId), Is.EqualTo(2));
 	}
 
+	[Test]
+	public void PackingOutput_AllowsCompatibleInsidePackedCapsuleSharedByTasks()
+	{
+		InvokeNonPublic(
+			typeof(Building),
+			building,
+			"SetOutboundTargetStage",
+			ItemProcessStage.Packed);
+		CapsuleBuffer buffer = CreatePackedBuffer(currentQuantity: 3);
+		ItemTransferTask first = CreateTransferTask(WorkerTask.TaskType.PackingOutput);
+		ItemTransferTask second = CreateTransferTask(WorkerTask.TaskType.PackingOutput);
+		AddReadyTask(first);
+		AddReadyTask(second);
+		Retain(first, buffer, quantity: 2);
+
+		FacilityFilter filter = CreateProjectedPackedFilter();
+		PackingOutputPlanner planner = new(building.RuntimeBuildingId);
+		Assert.That(
+			InvokePrivateInstance<bool>(
+				typeof(PackingOutputPlanner),
+				planner,
+				"IsCapsuleOutputCandidate",
+				second,
+				buffer,
+				building,
+				filter,
+				false),
+			Is.True);
+		Assert.That(HasConflictingDependency(buffer, WorkLineAction.Put), Is.False);
+	}
+
+	[Test]
+	public void LaunchSortOutput_AllowsCompatibleInsidePackedCapsuleSharedByTasks()
+	{
+		InvokeNonPublic(
+			typeof(Building),
+			building,
+			"SetOutboundTargetStage",
+			ItemProcessStage.LaunchReady);
+		CapsuleBuffer buffer = CreatePackedBuffer(currentQuantity: 3);
+		ItemTransferTask first = CreateTransferTask(WorkerTask.TaskType.LaunchSort);
+		ItemTransferTask second = CreateTransferTask(WorkerTask.TaskType.LaunchSort);
+		AddReadyTask(first);
+		AddReadyTask(second);
+		Retain(first, buffer, quantity: 2);
+
+		FacilityFilter filter = CreateProjectedPackedFilter();
+		LaunchSortPlanner planner = new(building.RuntimeBuildingId);
+		Assert.That(
+			InvokePrivateInstance<bool>(
+				typeof(LaunchSortPlanner),
+				planner,
+				"IsCapsuleOutputCandidate",
+				second,
+				buffer,
+				building,
+				filter,
+				false),
+			Is.True);
+		Assert.That(HasConflictingDependency(buffer, WorkLineAction.Put), Is.False);
+	}
+
+	[Test]
+	public void CapsuleItemPick_AllowsReservedConsumersButConflictsWithPut()
+	{
+		CapsuleBuffer buffer = CreatePickedBuffer(currentQuantity: 6);
+		ItemTransferTask storing = CreateTransferTask(WorkerTask.TaskType.Storing);
+		ItemTransferTask packingInput = CreateTransferTask(WorkerTask.TaskType.PackingInput);
+		ItemTransferTask launchSort = CreateTransferTask(WorkerTask.TaskType.LaunchSort);
+		AddReadyTask(storing);
+		AddReadyTask(packingInput);
+		AddReadyTask(launchSort);
+
+		Assert.That(buffer.ReservePicking(TestItemId, 1), Is.EqualTo(1));
+		Assert.That(buffer.ReservePicking(TestItemId, 2), Is.EqualTo(2));
+		Assert.That(buffer.ReservePicking(TestItemId, 1), Is.EqualTo(1));
+		SetPrivateField(
+			typeof(ItemTransferTask),
+			storing,
+			"currentLine",
+			new WorkLine(WorkLineAction.Pick, buffer, buffer, TestItemId, 1));
+		SetPrivateField(
+			typeof(ItemTransferTask),
+			packingInput,
+			"currentLine",
+			new WorkLine(WorkLineAction.Pick, buffer, buffer, TestItemId, 2));
+		SetPrivateField(
+			typeof(ItemTransferTask),
+			launchSort,
+			"currentLine",
+			new WorkLine(WorkLineAction.Pick, buffer, buffer, TestItemId, 1));
+
+		Assert.That(buffer.GetPickableQuantity(TestItemId), Is.EqualTo(2));
+		Assert.That(HasConflictingDependency(buffer, WorkLineAction.Pick), Is.False);
+		Assert.That(HasConflictingDependency(buffer, WorkLineAction.Put), Is.True);
+	}
+
 	private CapsuleBuffer CreatePickedBuffer(int currentQuantity)
 	{
 		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>("Shared Picked Buffer", false);
@@ -201,10 +298,40 @@ public sealed class PickingSharedOutputEditModeTests
 		return buffer;
 	}
 
+	private CapsuleBuffer CreatePackedBuffer(int currentQuantity)
+	{
+		CapsuleBuffer buffer = CreateComponent<CapsuleBuffer>("Shared Packed Buffer", false);
+		buffer.OnPositionSet(new int3(2, 0, 1), FacingDirection.North);
+		facilityManager.RegisterFacility(building.RuntimeBuildingId, buffer);
+
+		CargoCapsule capsule = CreateBox<CargoCapsule>("Shared Packed Capsule", BoxType.Capsule, 10.0f);
+		Assert.That(capsule.AddItem(TestItemId, currentQuantity), Is.EqualTo(currentQuantity));
+		for (int i = 0; i < capsule.Stacks.Count; ++i)
+			capsule.Stacks[i].SetStatus(ItemStatus.Packed);
+		OrderLine existingLine = new(null, TestItemId, currentQuantity, null);
+		Assert.That(
+			outboundWorkflow.GetPickingManifest(capsule).AddPacked(existingLine, TestItemId, currentQuantity),
+			Is.EqualTo(currentQuantity));
+		capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+		Assert.That(buffer.TryDockCapsule(capsule), Is.True);
+
+		FacilityRule rule = new();
+		rule.SetRequiredContentState(FacilityContentState.HasItems);
+		rule.SetRequiredItemProcessStage(ItemProcessStage.Packed);
+		FacilityRulePreset preset = ruleManager.CreatePreset("Shared Packed Rule", rule);
+		Assert.That(ruleManager.ApplyPreset(buffer, preset.Id), Is.True);
+		return buffer;
+	}
+
 	private ItemTransferTask CreatePickingTask()
 	{
+		return CreateTransferTask(WorkerTask.TaskType.Picking);
+	}
+
+	private ItemTransferTask CreateTransferTask(WorkerTask.TaskType taskType)
+	{
 		return new ItemTransferTask(
-			WorkerTask.TaskType.Picking,
+			taskType,
 			new ItemTransferJob(
 				planner: null,
 				TransferObjectType.Item,
@@ -214,7 +341,7 @@ public sealed class PickingSharedOutputEditModeTests
 
 	private void AddReadyTask(ItemTransferTask task)
 	{
-		taskManager.TaskQueue[WorkerTask.TaskType.Picking].AddLast(task);
+		taskManager.TaskQueue[task.Type].AddLast(task);
 	}
 
 	private bool IsPickingOutputCandidate(ItemTransferTask task, CapsuleBuffer buffer)
@@ -270,18 +397,26 @@ public sealed class PickingSharedOutputEditModeTests
 			contentState: FacilityContentState.HasItems);
 	}
 
+	private static FacilityFilter CreateProjectedPackedFilter()
+	{
+		return new FacilityFilter(
+			manifestFilter: FacilityManifestFilter.FromOrderLine(new OrderLine(null, TestItemId, 1, null)),
+			itemProcessStage: ItemProcessStage.Packed,
+			contentState: FacilityContentState.HasItems);
+	}
+
 	private static void Retain(ItemTransferTask task, CapsuleBuffer buffer, int quantity)
 	{
 		InvokeNonPublic(
 			typeof(ItemTransferTask),
 			task,
-			"RetainPickingOutput",
+			"RetainCapsuleOutput",
 			new WorkLine(WorkLineAction.Put, buffer, buffer, TestItemId, quantity));
 	}
 
 	private static void ReleaseRetain(ItemTransferTask task, CapsuleBuffer buffer)
 	{
-		InvokeNonPublic(typeof(ItemTransferTask), task, "ReleaseRetainedPickingOutput", buffer);
+		InvokeNonPublic(typeof(ItemTransferTask), task, "ReleaseRetainedCapsuleOutput", buffer);
 	}
 
 	private bool HasPickingDependency(CapsuleBuffer buffer)
@@ -289,17 +424,23 @@ public sealed class PickingSharedOutputEditModeTests
 		return InvokePrivateInstance<bool>(
 			typeof(TaskManager),
 			taskManager,
-			"HasManagedPickingOutputDependency",
+			"HasManagedCapsuleOutputDependency",
 			buffer);
 	}
 
 	private bool HasConflictingDependency(CapsuleBuffer buffer)
 	{
+		return HasConflictingDependency(buffer, WorkLineAction.Put);
+	}
+
+	private bool HasConflictingDependency(CapsuleBuffer buffer, WorkLineAction action)
+	{
 		return InvokePrivateInstance<bool>(
 			typeof(TaskManager),
 			taskManager,
-			"HasConflictingPickingOutputDependency",
-			buffer);
+			"HasConflictingCapsuleContentDependency",
+			buffer,
+			action);
 	}
 
 	private T CreateBox<T>(string name, BoxType boxType, float capacity) where T : BoxBase

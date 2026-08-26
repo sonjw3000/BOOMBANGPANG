@@ -860,7 +860,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		InvokeNonPublic(
 			typeof(ItemTransferTask),
 			pickingTask,
-			"RetainPickingOutput",
+			"RetainCapsuleOutput",
 			new WorkLine(
 				WorkLineAction.Put,
 				pickedOutput,

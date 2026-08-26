@@ -847,7 +847,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		InvokeNonPublic(
 			typeof(ItemTransferTask),
 			pickingTask,
-			"RetainPickingOutput",
+			"RetainCapsuleOutput",
 			new WorkLine(
 				WorkLineAction.Put,
 				source,
