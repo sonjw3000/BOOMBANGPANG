@@ -388,6 +388,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CapsuleBuffer
   boxStackPos: {fileID: 6358179339064224690}
+  retainEmptyCapsule: 1
   logisticsStatusSlot: {fileID: 9000000000000000022}
 --- !u!1 &9000000000000000021
 GameObject:

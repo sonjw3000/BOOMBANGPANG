@@ -15,6 +15,7 @@ public partial class CapsuleBuffer :
 	private readonly Dictionary<uint, int> itemsReservedPick = new();
 
 	[SerializeField] private GameObject boxStackPos;
+	[SerializeField] private bool retainEmptyCapsule = true;
 
 	public event Action<CapsuleBuffer, CargoCapsule> OnCapsuleUndocking;
 	public event Action<CapsuleBuffer> OnCapsuleContentChanged;
@@ -26,6 +27,7 @@ public partial class CapsuleBuffer :
 	public IReadOnlyDictionary<uint, int> ItemTotals => DockedCapsule != null ? DockedCapsule.ItemTotals : EmptyItemTotals;
 	public IReadOnlyDictionary<uint, int> ItemToBePicked => itemsReservedPick;
 	public ItemTag ItemTags => DockedCapsule != null ? DockedCapsule.ItemTags : ItemTag.None;
+	public bool RetainEmptyCapsule => retainEmptyCapsule;
 
 	public bool CanReceiveCapsule() => CanPutBox();
 	public bool CanProvideInboundItems() =>
@@ -35,6 +37,9 @@ public partial class CapsuleBuffer :
 	public bool CanRelocateEmptyCapsule() =>
 		DockedCapsule?.LogisticsState == CapsuleLogisticsState.Empty &&
 		IsCapsuleEmpty();
+	public bool ShouldClearEmptyCapsule() =>
+		retainEmptyCapsule == false &&
+		CanRelocateEmptyCapsule();
 	public bool CanReceiveOutboundItems() =>
 		DockedCapsule != null &&
 		(DockedCapsule.LogisticsState == CapsuleLogisticsState.Empty ||
@@ -48,6 +53,16 @@ public partial class CapsuleBuffer :
 	public int RemoveItem(uint itemId, int quantity) => DockedCapsule != null ? DockedCapsule.RemoveItem(itemId, quantity) : 0;
 	public bool AddStack(ItemStack stack) => DockedCapsule != null && DockedCapsule.AddStack(stack);
 	public bool RemoveStack(ItemStack stack) => DockedCapsule != null && DockedCapsule.RemoveStack(stack);
+
+	internal bool SetRetainEmptyCapsule(bool retain)
+	{
+		if (retainEmptyCapsule == retain)
+			return false;
+
+		retainEmptyCapsule = retain;
+		return true;
+	}
+
 	public bool TryRemoveFromStack(ItemStack stack, int quantity, out ItemStack removedStack)
 	{
 		removedStack = null;

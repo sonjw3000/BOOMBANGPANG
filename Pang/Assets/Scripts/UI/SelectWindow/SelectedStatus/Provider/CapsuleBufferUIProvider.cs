@@ -56,11 +56,13 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 	{
 		model.Clear();
 		model.AddTab("Cargo", GetCargoVersion, BuildCargoPanel);
+		model.AddTab("Settings", GetSettingsVersion, BuildSettingsPanel);
 		model.AddOverview("State", () => StateDisplay);
 		model.AddOverview("Capsule", () => CapsuleDisplay);
 		model.AddOverview("Logistics", () => DockedBufferDisplay);
 		model.AddOverview("Filled", () => FilledPercentDisplay);
 		model.AddOverview("Outbound", () => OutboundAccessDisplay);
+		model.AddOverview("Empty Capsule", GetEmptyCapsulePolicyDisplay);
 		model.AddAction("Purchase Capsule", PurchaseEmptyCapsule, CanPurchaseEmptyCapsule);
 		model.AddAction("Remove", DeleteObject, isDangerous: true);
 	}
@@ -88,6 +90,40 @@ public sealed class CapsuleBufferUIProvider : UIProvider<CapsuleBuffer>, IShelfB
 			? GameContext.Instance.CapsuleBufferSvc
 			: null;
 		return service?.CanPurchaseCapsule(currentTarget) == true;
+	}
+
+	private int GetSettingsVersion() => currentTarget?.RetainEmptyCapsule == true ? 1 : 0;
+
+	private SelectionDetailPanelModel BuildSettingsPanel()
+	{
+		bool retain = currentTarget?.RetainEmptyCapsule == true;
+		SelectionDetailPanelModel panel = new()
+		{
+			Title = "SETTINGS",
+			Summary = "Capsule Buffer policy",
+			HasToggle = true,
+			ToggleLabel = "Retain Empty Capsule",
+			ToggleValue = retain,
+			ToggleChanged = SetRetainEmptyCapsule,
+			ToggleDescription = retain
+				? "Keep an empty capsule here and accept empty capsules cleared from other buffers."
+				: "Clear the capsule to a Retain-enabled buffer after its contents are removed.",
+		};
+		panel.Rows.Add(new SelectionDetailRow
+		{
+			Primary = "When capsule becomes empty",
+			Secondary = retain ? "Retain at this buffer" : "Request Capsule Clear",
+		});
+		return panel;
+	}
+
+	private string GetEmptyCapsulePolicyDisplay() =>
+		currentTarget?.RetainEmptyCapsule == true ? "Retain" : "Clear";
+
+	private void SetRetainEmptyCapsule(bool retain)
+	{
+		if (GameContext.HasInstance)
+			GameContext.Instance.CapsuleBufferSvc?.TrySetRetainEmptyCapsule(currentTarget, retain);
 	}
 
 	private void PurchaseEmptyCapsule()

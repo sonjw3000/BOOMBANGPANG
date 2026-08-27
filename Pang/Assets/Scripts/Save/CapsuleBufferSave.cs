@@ -4,7 +4,10 @@ public partial class CapsuleBuffer
 {
 	public CapsuleBufferSaveData CaptureState()
 	{
-		CapsuleBufferSaveData data = new();
+		CapsuleBufferSaveData data = new()
+		{
+			RetainEmptyCapsule = RetainEmptyCapsule,
+		};
 		if (DockedCapsule != null)
 		{
 			data.Box = new BoxReferenceSaveData
@@ -21,6 +24,8 @@ public partial class CapsuleBuffer
 	{
 		if (data == null)
 			return;
+
+		SetRetainEmptyCapsule(data.RetainEmptyCapsule);
 
 		if (data.Box != null)
 		{

@@ -10,11 +10,15 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 	private readonly Dictionary<uint, List<CapsuleBuffer>> registeredBuffers = new();
 	private readonly Dictionary<CapsuleBuffer, uint> registeredBuildingIdByBuffer = new();
 	public event Action<uint, CapsuleBuffer> OnCapsuleContentChanged;
+	public event Action<uint, CapsuleBuffer> OnEmptyCapsuleRetentionChanged;
 	public int CapsulePurchaseCost => Mathf.Max(0, capsulePurchaseCost);
 
 	public bool CanPurchaseCapsule(CapsuleBuffer buffer)
 	{
-		if (buffer == null || buffer.HasCapsule || GameContext.HasInstance == false)
+		if (buffer == null ||
+			buffer.RetainEmptyCapsule == false ||
+			buffer.HasCapsule ||
+			GameContext.HasInstance == false)
 			return false;
 
 		GameContext context = GameContext.Instance;
@@ -50,6 +54,19 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 			reputationDelta = 0f,
 			reason = EconomyTransaction.Reason.CapsulePurchase,
 		});
+		return true;
+	}
+
+	public bool TrySetRetainEmptyCapsule(CapsuleBuffer buffer, bool retain)
+	{
+		if (buffer == null)
+			return false;
+		if (buffer.SetRetainEmptyCapsule(retain) == false)
+			return true;
+
+		if (TryGetRegisteredBuildingId(buffer, out uint buildingId))
+			OnEmptyCapsuleRetentionChanged?.Invoke(buildingId, buffer);
+
 		return true;
 	}
 

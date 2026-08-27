@@ -49,13 +49,25 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		reason != CapsuleRelocationReason.RuleRouting ||
 		(CanUseRuleRoutingSource() && CanUseRuleRoutingTarget(sourceDock?.DockedCapsule));
 	internal bool IsReadyQueueAssignmentValid() => CanUseSource() && CanUseTarget();
-	internal bool RevalidateReturnedRuleRoutingAssignment()
+	internal bool RevalidateReturnedAssignment()
 	{
-		if (CurrentStatus != Status.Returned || reason != CapsuleRelocationReason.RuleRouting)
+		if (CurrentStatus != Status.Returned)
 			return true;
 
-		ReleaseInvalidRuleRoutingTarget();
-		return HasPickedCapsulePayload || IsRuleRoutingAssignmentValid();
+		if (reason == CapsuleRelocationReason.RuleRouting)
+		{
+			ReleaseInvalidDynamicTarget();
+			return HasPickedCapsulePayload || IsRuleRoutingAssignmentValid();
+		}
+		if (IsEmptyRetentionTask())
+		{
+			ReleaseInvalidDynamicTarget();
+			return HasPickedCapsulePayload
+				? CanUseTarget()
+				: CanUseSource() && CanUseTarget();
+		}
+
+		return true;
 	}
 
 	public CapsuleRelocationTask(
@@ -259,7 +271,11 @@ public sealed class CapsuleRelocationTask : WorkerTask
 				sourceDock.DockedCapsule?.LogisticsState is CapsuleLogisticsState.IB or CapsuleLogisticsState.Empty,
 			TaskType.IB when sourceDock is InboundCargoPort => sourceDock.IsCapsuleEmpty() == false && sourceDock.DockedCapsule?.LogisticsState == CapsuleLogisticsState.IB,
 			TaskType.CapsuleClear when sourceDock is CapsuleBuffer sourceBuffer =>
-				sourceBuffer.CanRelocateEmptyCapsule(),
+				sourceBuffer.CanRelocateEmptyCapsule() &&
+				(reason != CapsuleRelocationReason.SourceMustClear || sourceBuffer.RetainEmptyCapsule == false),
+			TaskType.CapsuleSupply when sourceDock is InboundCargoPort =>
+				sourceDock.IsCapsuleEmpty() &&
+				sourceDock.DockedCapsule?.LogisticsState == CapsuleLogisticsState.Empty,
 			TaskType.CapsuleSupply when sourceDock is CapsuleBuffer sourceBuffer => sourceBuffer.CanRelocateEmptyCapsule(),
 			TaskType.OB when sourceDock is CapsuleBuffer sourceBuffer => CanDispatchOutbound(sourceBuffer),
 			_ => true,
@@ -334,11 +350,32 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		{
 			TaskType.Unloading when targetDock is InboundCargoPort => targetDock.CanPutBox(),
 			TaskType.IB when targetDock is CapsuleBuffer targetBuffer => targetBuffer.CanReceiveCapsule(),
-			TaskType.CapsuleClear when targetDock is CapsuleBuffer targetBuffer => targetBuffer.CanPutBox(),
-			TaskType.CapsuleSupply when targetDock is CapsuleBuffer targetBuffer => targetBuffer.CanPutBox(),
+			TaskType.CapsuleClear when targetDock is CapsuleBuffer targetBuffer =>
+				CanUseCapsuleBufferTarget(targetBuffer, payload),
+			TaskType.CapsuleSupply when targetDock is CapsuleBuffer targetBuffer =>
+				CanUseCapsuleBufferTarget(targetBuffer, payload),
 			_ => targetDock.CanPutBox(),
 		};
 	}
+
+	private bool CanUseCapsuleBufferTarget(CapsuleBuffer targetBuffer, CargoCapsule payload)
+	{
+		return targetBuffer != null &&
+			targetBuffer.CanPutBox() &&
+			(IsEmptyRetentionTransfer(payload) == false || targetBuffer.RetainEmptyCapsule);
+	}
+
+	private bool IsEmptyRetentionTransfer(CargoCapsule payload = null)
+	{
+		payload ??= ActivePayload as CargoCapsule ?? sourceDock?.DockedCapsule;
+		return IsEmptyRetentionTask() &&
+			payload?.LogisticsState == CapsuleLogisticsState.Empty &&
+			payload.Stacks.Count == 0;
+	}
+
+	private bool IsEmptyRetentionTask() =>
+		reason == CapsuleRelocationReason.SourceMustClear &&
+		Type is TaskType.CapsuleClear or TaskType.CapsuleSupply;
 
 	private bool CanUseRuleRoutingTarget(CargoCapsule payload)
 	{
@@ -362,7 +399,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	public static NodeState SetSourceTarget(in BTContext ctx)
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
-		task.ReleaseInvalidRuleRoutingTarget();
+		task.ReleaseInvalidDynamicTarget();
 		if (task.CanUseSource() == false)
 		{
 			task.MarkTerminalFailure(TaskInvalidationReason.SourceUnavailable);
@@ -427,7 +464,7 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	public static NodeState SetTargetDock(in BTContext ctx)
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
-		task.ReleaseInvalidRuleRoutingTarget();
+		task.ReleaseInvalidDynamicTarget();
 		if (task.TryRedirectRejectedOutboundPayload() == false ||
 			task.TryResolveReplacementTarget() == false ||
 			task.CanUseTarget() == false)
@@ -441,9 +478,11 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		return Success;
 	}
 
-	private void ReleaseInvalidRuleRoutingTarget()
+	private void ReleaseInvalidDynamicTarget()
 	{
-		if (reason != CapsuleRelocationReason.RuleRouting || targetDock == null || CanUseTarget())
+		if (targetDock == null ||
+			CanUseTarget() ||
+			(reason != CapsuleRelocationReason.RuleRouting && IsEmptyRetentionTask() == false))
 			return;
 
 		CapsuleDock released = targetDock;
@@ -535,6 +574,8 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			candidate => candidate != null &&
 				candidate.GetType() == targetDockType &&
 				candidate.CanAcceptCargoRoute((ActivePayload as CargoCapsule)?.RouteKind ?? RouteKind) &&
+				(IsEmptyRetentionTransfer(ActivePayload as CargoCapsule) == false ||
+				 candidate is CapsuleBuffer { RetainEmptyCapsule: true }) &&
 				(facilityManager == null || facilityManager.IsInvalidating(candidate) == false) &&
 				coordinator.IsReserved(candidate) == false &&
 				coordinator.IsRelocationTargetActive(candidate) == false) == false)
@@ -592,10 +633,10 @@ public sealed class CapsuleRelocationTask : WorkerTask
 	public static NodeState StoreCapsuleToTarget(in BTContext ctx)
 	{
 		CapsuleRelocationTask task = (CapsuleRelocationTask)ctx.Worker.CurrentTask;
-		if (task.reason == CapsuleRelocationReason.RuleRouting)
+		if (task.reason == CapsuleRelocationReason.RuleRouting || task.IsEmptyRetentionTransfer())
 		{
 			CapsuleDock previouslyReachedTarget = task.targetDock;
-			task.ReleaseInvalidRuleRoutingTarget();
+			task.ReleaseInvalidDynamicTarget();
 			if (task.TryResolveReplacementTarget() == false || task.CanUseTarget() == false)
 			{
 				return task.RestartTargetPlacement(ctx);
