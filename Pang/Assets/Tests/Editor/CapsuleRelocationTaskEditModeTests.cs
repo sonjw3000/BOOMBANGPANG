@@ -880,10 +880,141 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		coordinator.MarkDirty(source);
 		coordinator.ProcessDirty();
 
+		Assert.That(source.RetainEmptyCapsule, Is.True);
 		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.Empty));
 		Assert.That(source.DockedCapsule, Is.SameAs(capsule));
 		Assert.That(target.DockedCapsule, Is.Null);
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear], Is.Empty);
 		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleSupply], Is.Empty);
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
+	}
+
+	[Test]
+	public void SetRetainEmptyCapsule_FalseQueuesClearToRetainingBufferWithoutCargoRule()
+	{
+		NeverOutboundReadyBuilding building = new(
+			"Empty Retention Clear Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Empty Retention Clear Source", CapsuleDockState.IB);
+		CapsuleBuffer target = CreateBuffer(building, "Empty Retention Clear Target", CapsuleDockState.OBStandby);
+		ApplyBufferRule(source, ItemProcessStage.Labeled);
+		ApplyBufferRule(target, ItemProcessStage.Packed);
+		CargoCapsule capsule = CreateCapsule("Empty Retention Clear Capsule", CapsuleLogisticsState.Inside);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		coordinator.ProcessDirty();
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear], Is.Empty);
+
+		Assert.That(bufferService.TrySetRetainEmptyCapsule(source, false), Is.True);
+		coordinator.ProcessDirty();
+
+		CapsuleRelocationTask relocation = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskSource(relocation), Is.SameAs(source));
+		Assert.That(GetTaskTarget(relocation), Is.SameAs(target));
+		Assert.That(
+			(CapsuleRelocationReason)GetPrivateField(
+				typeof(CapsuleRelocationTask),
+				relocation,
+				"reason"),
+			Is.EqualTo(CapsuleRelocationReason.SourceMustClear));
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
+	}
+
+	[Test]
+	public void ProcessDirty_EmptyClearSkipsNonRetainingTarget()
+	{
+		NeverOutboundReadyBuilding building = new(
+			"Empty Retention Target Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Empty Retention Source", CapsuleDockState.IB);
+		CapsuleBuffer rejectedTarget = CreateBuffer(building, "Non Retaining Target", CapsuleDockState.IB);
+		CapsuleBuffer acceptedTarget = CreateBuffer(building, "Retaining Target", CapsuleDockState.IB);
+		Assert.That(bufferService.TrySetRetainEmptyCapsule(rejectedTarget, false), Is.True);
+		Assert.That(bufferService.TrySetRetainEmptyCapsule(source, false), Is.True);
+		CargoCapsule capsule = CreateCapsule("Empty Retention Target Capsule", CapsuleLogisticsState.Empty);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		coordinator.ProcessDirty();
+
+		CapsuleRelocationTask relocation = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(GetTaskTarget(relocation), Is.SameAs(acceptedTarget));
+		Assert.That(GetTaskTarget(relocation), Is.Not.SameAs(rejectedTarget));
+	}
+
+	[Test]
+	public void ProcessDirty_RetainEnabledAfterClearQueued_InvalidatesClearTask()
+	{
+		NeverOutboundReadyBuilding building = new(
+			"Empty Retention Revalidation Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		CapsuleBuffer source = CreateBuffer(building, "Empty Retention Revalidation Source", CapsuleDockState.IB);
+		CreateBuffer(building, "Empty Retention Revalidation Target", CapsuleDockState.IB);
+		Assert.That(bufferService.TrySetRetainEmptyCapsule(source, false), Is.True);
+		CargoCapsule capsule = CreateCapsule("Empty Retention Revalidation Capsule", CapsuleLogisticsState.Empty);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+		coordinator.ProcessDirty();
+		CapsuleRelocationTask relocation = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+
+		Assert.That(bufferService.TrySetRetainEmptyCapsule(source, true), Is.True);
+		coordinator.ProcessDirty();
+
+		Assert.That(relocation.CurrentStatus, Is.EqualTo(WorkerTask.Status.Invalidated));
+		Assert.That(taskManager.TaskQueue[WorkerTask.TaskType.CapsuleClear], Is.Empty);
+		Assert.That(source.DockedCapsule, Is.SameAs(capsule));
+		Assert.That(coordinator.PendingSendCount, Is.Zero);
+	}
+
+	[Test]
+	public void ProcessDirty_EmptyInboundCapsuleTargetsRetainingBufferWithoutCargoRule()
+	{
+		NeverOutboundReadyBuilding building = new(
+			"Empty Inbound Retention Building",
+			new List<GridCell>());
+		buildingManager.Register(building);
+		InboundCargoPort source = CreateDock<InboundCargoPort>(building, "Empty Inbound Retention Source");
+		CapsuleBuffer rejectedTarget = CreateBuffer(building, "Empty Inbound Non Retaining Target", CapsuleDockState.IB);
+		CapsuleBuffer acceptedTarget = CreateBuffer(building, "Empty Inbound Retaining Target", CapsuleDockState.IB);
+		Assert.That(bufferService.TrySetRetainEmptyCapsule(rejectedTarget, false), Is.True);
+		CargoCapsule capsule = CreateCapsule("Empty Inbound Retention Capsule", CapsuleLogisticsState.IB);
+		Assert.That(source.TryDockCapsule(capsule), Is.True);
+
+		coordinator.ProcessDirty();
+
+		CapsuleRelocationTask relocation = taskManager.TaskQueue[WorkerTask.TaskType.CapsuleSupply]
+			.OfType<CapsuleRelocationTask>()
+			.Single();
+		Assert.That(capsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.Empty));
+		Assert.That(GetTaskSource(relocation), Is.SameAs(source));
+		Assert.That(GetTaskTarget(relocation), Is.SameAs(acceptedTarget));
+		Assert.That(
+			(CapsuleRelocationReason)GetPrivateField(
+				typeof(CapsuleRelocationTask),
+				relocation,
+				"reason"),
+			Is.EqualTo(CapsuleRelocationReason.SourceMustClear));
+	}
+
+	[Test]
+	public void CapsuleBufferSave_RoundTripsRetainEmptyCapsule()
+	{
+		CapsuleBuffer source = CreateComponent<CapsuleBuffer>("Retain Empty Save Source");
+		Assert.That(bufferService.TrySetRetainEmptyCapsule(source, false), Is.True);
+
+		CapsuleBufferSaveData data = source.CaptureState();
+		CapsuleBuffer restored = CreateComponent<CapsuleBuffer>("Retain Empty Save Restored");
+		restored.RestoreState(data);
+
+		Assert.That(data.RetainEmptyCapsule, Is.False);
+		Assert.That(restored.RetainEmptyCapsule, Is.False);
 	}
 
 	[Test]
@@ -906,11 +1037,27 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		provider.BuildInspectorModel(model);
 
 		Assert.That(provider.StateDisplay, Is.EqualTo("Vacant"));
+		Assert.That(model.Tabs.Select(tab => tab.Label), Is.EqualTo(new[]
+		{
+			"Cargo",
+			"Settings",
+		}));
 		Assert.That(model.Actions.Select(action => action.Label), Is.EqualTo(new[]
 		{
 			"Purchase Capsule",
 			"Remove",
 		}));
+
+		SelectionInspectorTab settingsTab = model.Tabs.Single(tab => tab.Label == "Settings");
+		SelectionDetailPanelModel settings = settingsTab.BuildContent();
+		Assert.That(settings.HasToggle, Is.True);
+		Assert.That(settings.ToggleLabel, Is.EqualTo("Retain Empty Capsule"));
+		Assert.That(settings.ToggleValue, Is.True);
+
+		settings.ToggleChanged(false);
+
+		Assert.That(buffer.RetainEmptyCapsule, Is.False);
+		Assert.That(settingsTab.GetContentVersion(), Is.Zero);
 	}
 
 	[Test]
@@ -945,6 +1092,11 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(economy.Money, Is.EqualTo(expectedMoney));
 		Assert.That(economy.History.Last().reason, Is.EqualTo(EconomyTransaction.Reason.CapsulePurchase));
 		Assert.That(bufferService.TryPurchaseCapsule(buffer), Is.False);
+
+		CapsuleBuffer nonRetainingBuffer = CreateComponent<CapsuleBuffer>("Non Retaining Purchase Buffer");
+		Assert.That(bufferService.TrySetRetainEmptyCapsule(nonRetainingBuffer, false), Is.True);
+		Assert.That(bufferService.CanPurchaseCapsule(nonRetainingBuffer), Is.False);
+		Assert.That(bufferService.TryPurchaseCapsule(nonRetainingBuffer), Is.False);
 	}
 
 	[Test]

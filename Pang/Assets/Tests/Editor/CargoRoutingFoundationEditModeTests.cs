@@ -273,7 +273,7 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 	[Test]
 	public void GameSaveData_UsesCurrentBreakingSchemaVersion()
 	{
-		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(20));
+		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(21));
 		Assert.That(new GameSaveData().Version, Is.EqualTo(GameSaveData.CurrentVersion));
 	}
 
