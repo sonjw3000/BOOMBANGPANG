@@ -212,8 +212,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		RegisterCapsuleBuffer(firstBuilding, firstInputBuffer);
 		ApplyBufferRule(
 			firstInputBuffer,
-			ItemProcessStage.Picked,
-			FacilityContentState.HasItems);
+			ItemProcessStage.Picked);
 
 		PackingStation firstStation = CreateComponent<PackingStation>("First Packing Demand Station", active: false);
 		ToteBox firstWaitingBox = CreateBox<ToteBox>(
@@ -255,8 +254,7 @@ public sealed class WorkDemandMetricsEditModeTests
 		RegisterCapsuleBuffer(secondBuilding, secondInputBuffer);
 		ApplyBufferRule(
 			secondInputBuffer,
-			ItemProcessStage.Picked,
-			FacilityContentState.HasItems);
+			ItemProcessStage.Picked);
 
 		PackingStation secondStation = CreateComponent<PackingStation>("Second Packing Demand Station", active: false);
 		ToteBox secondWaitingBox = CreateBox<ToteBox>(
@@ -507,12 +505,10 @@ public sealed class WorkDemandMetricsEditModeTests
 
 	private void ApplyBufferRule(
 		CapsuleBuffer buffer,
-		ItemProcessStage stage,
-		FacilityContentState bufferState = FacilityContentState.Any)
+		ItemProcessStage stage)
 	{
 		FacilityRule rule = new();
 		rule.SetItemProcessStageAllowed(stage, true);
-		rule.SetRequiredContentState(bufferState);
 		FacilityRulePreset preset = facilityRuleManager.CreatePreset($"{buffer.name} Rule", rule);
 		Assert.That(facilityRuleManager.ApplyPreset(buffer, preset.Id), Is.True);
 	}

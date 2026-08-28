@@ -873,7 +873,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "Empty Capsule Rule Source", CapsuleDockState.IB);
 		CapsuleBuffer target = CreateBuffer(building, "Empty Capsule Rule Target", CapsuleDockState.OBStandby);
-		ApplyEmptyContentRule(target);
+		ApplyEmptyStageRule(target);
 		CargoCapsule capsule = CreateCapsule("Empty Capsule Rule Payload", CapsuleLogisticsState.Inside);
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
 
@@ -1553,7 +1553,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private void ApplyBufferRule(CapsuleBuffer buffer, params ItemProcessStage[] stages)
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredContentState(FacilityContentState.HasItems);
 		for (int i = 0; i < stages.Length; ++i)
 			rule.SetItemProcessStageAllowed(stages[i], true);
 
@@ -1569,7 +1568,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		WorkerKind requiredWorkerKind = WorkerKind.None)
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredContentState(FacilityContentState.HasItems);
 		rule.SetItemProcessStageAllowed(stage, true);
 		if (requiredWorkerKind != WorkerKind.None)
 		{
@@ -1595,13 +1593,13 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		Assert.That(facilityRuleManager.ApplyPreset(facility, preset.Id), Is.True);
 	}
 
-	private void ApplyEmptyContentRule(IFacility facility)
+	private void ApplyEmptyStageRule(IFacility facility)
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredContentState(FacilityContentState.Empty);
+		rule.SetItemProcessStageAllowed(ItemProcessStage.Empty, true);
 		Component component = facility as Component;
 		FacilityRulePreset preset = facilityRuleManager.CreatePreset(
-			$"{component?.name ?? "Facility"} Empty Content Rule",
+			$"{component?.name ?? "Facility"} Empty Stage Rule",
 			rule);
 		Assert.That(preset.Rule.IsEmpty, Is.False);
 		Assert.That(facilityRuleManager.ApplyPreset(facility, preset.Id), Is.True);

@@ -449,11 +449,9 @@ public sealed class StoringPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		if (box == null)
 			return WorkPlanResult.Waiting;
 
-		FacilityFilter filter = FacilityFilter.WithContentState(
-			FacilityFilter.WithItemProcessStage(
-				FacilityFilter.ForTransfer(box, itemId, quantity, worker: worker),
-				ItemProcessStage.Labeled),
-			FacilityContentState.HasItems);
+		FacilityFilter filter = FacilityFilter.WithItemProcessStage(
+			FacilityFilter.ForTransfer(box, itemId, quantity, worker: worker),
+			ItemProcessStage.Labeled);
 		if (placingPolicy.TryDecide(
 			worker.GridPosition,
 			worker.PrimaryBuildingId,

@@ -10,12 +10,28 @@ using UnityEngine.UIElements;
 public sealed class ItemProcessStageEvaluatorEditModeTests
 {
 	[Test]
-	public void TryEvaluate_EmptyCargo_ReturnsFalse()
+	public void TryEvaluate_EmptyCargo_ReturnsEmpty()
 	{
 		Assert.That(
 			ItemProcessStageEvaluator.TryEvaluate(
 				Array.Empty<ItemStack>(),
 				manifest: null,
+				launchReady: false,
+				out ItemProcessStage stage),
+			Is.True);
+		Assert.That(stage, Is.EqualTo(ItemProcessStage.Empty));
+	}
+
+	[Test]
+	public void TryEvaluate_EmptyCargoWithManifest_IsInvalid()
+	{
+		PickingManifest manifest = new();
+		manifest.AddPicked(new OrderLine(null, 100, 1, null), 100, 1);
+
+		Assert.That(
+			ItemProcessStageEvaluator.TryEvaluate(
+				Array.Empty<ItemStack>(),
+				manifest,
 				launchReady: false,
 				out ItemProcessStage stage),
 			Is.False);
@@ -158,27 +174,19 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 		pickedRule.SetItemProcessStageAllowed(ItemProcessStage.Picked, true);
 		FacilityRule packedRule = new();
 		packedRule.SetItemProcessStageAllowed(ItemProcessStage.Packed, true);
-		FacilityRule emptyPickedRule = new();
-		emptyPickedRule.SetItemProcessStageAllowed(ItemProcessStage.Picked, true);
-		emptyPickedRule.SetRequiredContentState(FacilityContentState.Empty);
-		FacilityRule insidePickedRule = new();
-		insidePickedRule.SetItemProcessStageAllowed(ItemProcessStage.Picked, true);
-		insidePickedRule.SetRequiredContentState(FacilityContentState.HasItems);
+		FacilityRule emptyRule = new();
+		emptyRule.SetItemProcessStageAllowed(ItemProcessStage.Empty, true);
 
 		FacilityFilter legacyTransfer = FacilityFilter.ForTransfer(
 			source: null,
 			itemId: 1,
 			quantity: 1);
-		FacilityFilter pickedTransfer = FacilityFilter.WithContentState(
-			FacilityFilter.WithItemProcessStage(
-				legacyTransfer,
-				ItemProcessStage.Picked),
-			FacilityContentState.HasItems);
-		FacilityFilter packedTransfer = FacilityFilter.WithContentState(
-			FacilityFilter.WithItemProcessStage(
-				legacyTransfer,
-				ItemProcessStage.Packed),
-			FacilityContentState.HasItems);
+		FacilityFilter pickedTransfer = FacilityFilter.WithItemProcessStage(
+			legacyTransfer,
+			ItemProcessStage.Picked);
+		FacilityFilter packedTransfer = FacilityFilter.WithItemProcessStage(
+			legacyTransfer,
+			ItemProcessStage.Packed);
 
 		Assert.That(legacyTransfer.ItemProcessStage, Is.EqualTo(ItemProcessStage.Any));
 		Assert.That(pickedRule.IsFilterCapable(legacyTransfer), Is.False);
@@ -186,33 +194,47 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 		Assert.That(packedRule.IsFilterCapable(pickedTransfer), Is.False);
 		Assert.That(pickedRule.IsFilterCapable(packedTransfer), Is.False);
 		Assert.That(packedRule.IsFilterCapable(packedTransfer), Is.True);
-		Assert.That(pickedTransfer.ContentState, Is.EqualTo(FacilityContentState.HasItems));
-		Assert.That(emptyPickedRule.IsFilterCapable(pickedTransfer), Is.False);
-		Assert.That(insidePickedRule.IsFilterCapable(pickedTransfer), Is.True);
+		Assert.That(emptyRule.IsFilterCapable(pickedTransfer), Is.False);
 	}
 
 	[Test]
-	public void FacilityRule_ContentState_IsExactAndRejectsUnknownContent()
+	public void FacilityRule_EmptyStage_IsExactAndRejectsUnknownStage()
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredContentState(FacilityContentState.Empty);
+		rule.SetItemProcessStageAllowed(ItemProcessStage.Empty, true);
 
 		Assert.That(
 			rule.IsFilterCapable(new FacilityFilter(
-				contentState: FacilityContentState.HasItems)),
+				itemProcessStage: ItemProcessStage.Packed)),
 			Is.False);
 		Assert.That(
 			rule.IsFilterCapable(new FacilityFilter(
-				contentState: FacilityContentState.Empty)),
+				itemProcessStage: ItemProcessStage.Empty)),
 			Is.True);
 		Assert.That(
 			rule.IsFilterCapable(FacilityFilter.None),
 			Is.False,
-			"A content-specific Rule must not accept a query that did not describe the Facility contents.");
+			"An Empty-stage Rule must not accept a query that did not describe the Facility stage.");
 	}
 
 	[Test]
-	public void FacilityFilter_ForContainer_DerivesGenericContentAndItemProcessStage()
+	public void FacilityRule_EmptyStage_RejectsItemAndManifestConditions()
+	{
+		FacilityFilter emptyFilter = new(itemProcessStage: ItemProcessStage.Empty);
+
+		FacilityRule itemRule = new();
+		itemRule.SetItemProcessStageAllowed(ItemProcessStage.Empty, true);
+		itemRule.ItemRule.SetRequiredItemStatus(ItemStatus.Labeled);
+		Assert.That(itemRule.IsFilterCapable(emptyFilter), Is.False);
+
+		FacilityRule manifestRule = new();
+		manifestRule.SetItemProcessStageAllowed(ItemProcessStage.Empty, true);
+		manifestRule.ManifestRule.SetRequiredDestinations(new[] { OrderDestination.Mars });
+		Assert.That(manifestRule.IsFilterCapable(emptyFilter), Is.False);
+	}
+
+	[Test]
+	public void FacilityFilter_ForContainer_DerivesEmptyAndCargoProcessStages()
 	{
 		TestItemContainer container = new();
 
@@ -221,8 +243,7 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 			manifest: null,
 			launchReady: false,
 			out FacilityFilter emptyFilter), Is.True);
-		Assert.That(emptyFilter.ContentState, Is.EqualTo(FacilityContentState.Empty));
-		Assert.That(emptyFilter.ItemProcessStage, Is.EqualTo(ItemProcessStage.Any));
+		Assert.That(emptyFilter.ItemProcessStage, Is.EqualTo(ItemProcessStage.Empty));
 
 		container.StackList.Add(CreateStack(900, 2, ItemStatus.Labeled));
 		Assert.That(FacilityFilter.TryForContainer(
@@ -230,7 +251,6 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 			manifest: null,
 			launchReady: false,
 			out FacilityFilter labeledFilter), Is.True);
-		Assert.That(labeledFilter.ContentState, Is.EqualTo(FacilityContentState.HasItems));
 		Assert.That(labeledFilter.ItemProcessStage, Is.EqualTo(ItemProcessStage.Labeled));
 
 		container.StackList.Add(CreateStack(901, 1, ItemStatus.Packed));
@@ -239,14 +259,13 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 			manifest: null,
 			launchReady: false,
 			out FacilityFilter mixedFilter), Is.True);
-		Assert.That(mixedFilter.ContentState, Is.EqualTo(FacilityContentState.HasItems));
 		Assert.That(mixedFilter.ItemProcessStage, Is.EqualTo(ItemProcessStage.Any));
 
-		FacilityRule contentOnlyRule = new();
-		contentOnlyRule.SetRequiredContentState(FacilityContentState.HasItems);
+		FacilityRule emptyRule = new();
+		emptyRule.SetItemProcessStageAllowed(ItemProcessStage.Empty, true);
 		FacilityRule stageRule = new();
 		stageRule.SetItemProcessStageAllowed(ItemProcessStage.Packed, true);
-		Assert.That(contentOnlyRule.IsFilterCapable(mixedFilter), Is.True);
+		Assert.That(emptyRule.IsFilterCapable(mixedFilter), Is.False);
 		Assert.That(stageRule.IsFilterCapable(mixedFilter), Is.False);
 	}
 
@@ -273,7 +292,7 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 	[Test]
 	public void GameSaveData_UsesCurrentBreakingSchemaVersion()
 	{
-		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(21));
+		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(22));
 		Assert.That(new GameSaveData().Version, Is.EqualTo(GameSaveData.CurrentVersion));
 	}
 
@@ -282,14 +301,13 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 	{
 		FacilityRuleSaveData data = new()
 		{
-			RequiredCapsuleBufferState = FacilityContentState.HasItems,
-			AllowedItemProcessStages = ItemProcessStageMask.Unlabeled | ItemProcessStageMask.Labeled,
+			AllowedItemProcessStages = ItemProcessStageMask.Empty | ItemProcessStageMask.Unlabeled | ItemProcessStageMask.Labeled,
 		};
 
 		string json = JsonUtility.ToJson(data);
 
-		Assert.That(json, Does.Contain("\"RequiredCapsuleBufferState\":1"));
-		Assert.That(json, Does.Contain("\"AllowedItemProcessStages\":3"));
+		Assert.That(json, Does.Contain("\"AllowedItemProcessStages\":35"));
+		Assert.That(json, Does.Not.Contain("RequiredCapsuleBufferState"));
 		Assert.That(json, Does.Not.Contain("RequiredContentState"));
 		Assert.That(json, Does.Not.Contain("RequiredCargoProcessStage"));
 	}
@@ -306,7 +324,6 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 		Foldout workerConditions = root.Q<Foldout>("rule-editor-worker-conditions");
 		Foldout manifestConditions = root.Q<Foldout>("rule-editor-manifest-conditions");
 		VisualElement processStages = root.Q<VisualElement>("rule-editor-item-process-stages");
-		DropdownField contentState = root.Q<DropdownField>("rule-editor-content-state");
 
 		Assert.That(itemConditions, Is.Not.Null);
 		Assert.That(workerConditions, Is.Not.Null);
@@ -315,12 +332,11 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 		Assert.That(workerConditions.value, Is.True);
 		Assert.That(manifestConditions.value, Is.True);
 		Assert.That(processStages, Is.Not.Null);
+		Assert.That(processStages.Q<Toggle>("rule-process-stage-empty"), Is.Not.Null);
 		Assert.That(processStages.Q<Toggle>("rule-process-stage-unlabeled"), Is.Not.Null);
 		Assert.That(processStages.Q<Toggle>("rule-process-stage-labeled"), Is.Not.Null);
-		Assert.That(contentState, Is.Not.Null);
-		Assert.That(contentState.label, Is.EqualTo("Content"));
+		Assert.That(root.Q<DropdownField>("rule-editor-content-state"), Is.Null);
 		Assert.That(itemConditions.Contains(processStages), Is.True);
-		Assert.That(itemConditions.Contains(contentState), Is.True);
 		Assert.That(root.Q("rule-editor-cargo-process-stage"), Is.Null);
 		Assert.That(root.Q("rule-editor-capsule-buffer-state"), Is.Null);
 	}
@@ -448,9 +464,10 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	{
 		ruleManager.EnsureDefaultProcessStagePresets();
 
-		Assert.That(ruleManager.Presets, Has.Count.EqualTo(5));
+		Assert.That(ruleManager.Presets, Has.Count.EqualTo(6));
 		ItemProcessStage[] expectedStages =
 		{
+			ItemProcessStage.Empty,
 			ItemProcessStage.Unlabeled,
 			ItemProcessStage.Labeled,
 			ItemProcessStage.Picked,
@@ -466,7 +483,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		}
 
 		ruleManager.EnsureDefaultProcessStagePresets();
-		Assert.That(ruleManager.Presets, Has.Count.EqualTo(5));
+		Assert.That(ruleManager.Presets, Has.Count.EqualTo(6));
 	}
 
 	[Test]
@@ -538,11 +555,10 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
-	public void RuleSave_RoundTripsContentStateAndAllowedItemProcessStages()
+	public void RuleSave_RoundTripsAllowedItemProcessStagesIncludingEmpty()
 	{
 		FacilityRule rule = new();
-		rule.SetRequiredContentState(FacilityContentState.HasItems);
-		rule.SetAllowedItemProcessStages(ItemProcessStageMask.Unlabeled | ItemProcessStageMask.Labeled);
+		rule.SetAllowedItemProcessStages(ItemProcessStageMask.Empty | ItemProcessStageMask.Labeled);
 		FacilityRulePreset preset = ruleManager.CreatePreset("Round Trip Rule", rule);
 
 		FacilityRuleManagerSaveData save = ruleManager.CaptureState();
@@ -550,11 +566,8 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 
 		Assert.That(ruleManager.TryGetPreset(preset.Id, out FacilityRulePreset restored), Is.True);
 		Assert.That(
-			restored.Rule.RequiredContentState,
-			Is.EqualTo(FacilityContentState.HasItems));
-		Assert.That(
 			restored.Rule.AllowedItemProcessStages,
-			Is.EqualTo(ItemProcessStageMask.Unlabeled | ItemProcessStageMask.Labeled));
+			Is.EqualTo(ItemProcessStageMask.Empty | ItemProcessStageMask.Labeled));
 	}
 
 	[Test]
@@ -816,12 +829,10 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		CapsuleBuffer contradictoryEmpty = CreateBuffer("Contradictory Empty", FirstBuildingId, 8);
 		ApplyRule(
 			emptyOnly,
-			ItemProcessStage.Any,
-			contentState: FacilityContentState.Empty);
+			ItemProcessStage.Empty);
 		ApplyRule(
 			contradictoryEmpty,
-			ItemProcessStage.Labeled,
-			contentState: FacilityContentState.Empty);
+			ItemProcessStage.Labeled);
 
 		List<CapsuleBuffer> results = new();
 		Assert.That(
@@ -870,8 +881,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(emptyInput.TryDockCapsule(emptyInputCapsule), Is.True);
 		ApplyRule(
 			emptyInput,
-			ItemProcessStage.Any,
-			contentState: FacilityContentState.Empty);
+			ItemProcessStage.Empty);
 
 		CapsuleBuffer pickedOutput = CreateBuffer("Picked Output", FirstBuildingId, 17);
 		CargoCapsule pickedOutputCapsule = CreateCapsule("Empty Capsule At Picked Output");
@@ -879,19 +889,16 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(pickedOutput.TryDockCapsule(pickedOutputCapsule), Is.True);
 		ApplyRule(
 			pickedOutput,
-			ItemProcessStage.Picked,
-			contentState: FacilityContentState.HasItems);
+			ItemProcessStage.Picked);
 
-		FacilityFilter projectedInput = FacilityFilter.WithContentState(
-			FacilityFilter.WithItemProcessStage(
-				FacilityFilter.ForManifestTransfer(
+		FacilityFilter projectedInput = FacilityFilter.WithItemProcessStage(
+			FacilityFilter.ForManifestTransfer(
 				source,
 				sourceManifest,
 				itemId,
 				quantity,
 				stack => stack.HasStatus(ItemStatus.Labeled)),
-				ItemProcessStage.Picked),
-			FacilityContentState.HasItems);
+			ItemProcessStage.Picked);
 		ItemTransferTask pickingTask = new(
 			WorkerTask.TaskType.Picking,
 			new ItemTransferJob(
@@ -984,20 +991,18 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(source.TryDockCapsule(capsule), Is.True);
 		ApplyRule(
 			source,
-			ItemProcessStage.Picked,
-			contentState: FacilityContentState.HasItems);
+			ItemProcessStage.Picked);
 
 		PackingInputPlanner planner = new(FirstBuildingId);
 		Assert.That(planner.HasAvailableWork(), Is.True);
 
 		ApplyRule(
 			source,
-			ItemProcessStage.Picked,
-			contentState: FacilityContentState.Any);
+			ItemProcessStage.Labeled);
 		Assert.That(
 			planner.HasAvailableWork(),
 			Is.False,
-			"Packing must be activated by an explicit Picked/Inside Rule, not a building type or an Any-state Rule.");
+			"Packing must be activated by an explicit Picked Rule, not a building type or another process stage.");
 	}
 
 	[Test]
@@ -1036,9 +1041,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		Assert.That(emptyInput.TryDockCapsule(emptyCapsule), Is.True);
 		ApplyRule(
 			emptyInput,
-			ItemProcessStage.Any,
-			new[] { OrderDestination.Mars },
-			FacilityContentState.Empty);
+			ItemProcessStage.Empty);
 
 		CapsuleBuffer packedOutput = CreateBuffer(
 			"Packed Relocation Output",
@@ -1050,19 +1053,16 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		ApplyRule(
 			packedOutput,
 			ItemProcessStage.Packed,
-			new[] { OrderDestination.Mars },
-			FacilityContentState.HasItems);
+			new[] { OrderDestination.Mars });
 
-		FacilityFilter projectedInput = FacilityFilter.WithContentState(
-			FacilityFilter.WithItemProcessStage(
-				FacilityFilter.ForManifestTransfer(
+		FacilityFilter projectedInput = FacilityFilter.WithItemProcessStage(
+			FacilityFilter.ForManifestTransfer(
 				source,
 				manifest,
 				itemId,
 				quantity,
 				stack => stack.HasStatus(ItemStatus.Packed)),
-				ItemProcessStage.Packed),
-			FacilityContentState.HasItems);
+			ItemProcessStage.Packed);
 		PackingOutputPlanner packingPlanner = new(building.RuntimeBuildingId);
 		LaunchSortPlanner launchPlanner = new(building.RuntimeBuildingId);
 
@@ -1209,8 +1209,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		CapsuleBuffer target = CreateBuffer("Rule Target", FirstBuildingId, 19);
 		ApplyRule(
 			target,
-			ItemProcessStage.Labeled,
-			contentState: FacilityContentState.HasItems);
+			ItemProcessStage.Labeled);
 		List<CapsuleBuffer> ruleMatches = new();
 		Assert.That(
 			bufferService.TryQueryRuleMatchedDestinations(
@@ -1346,13 +1345,11 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		CapsuleBuffer buffer,
 		ItemProcessStage stage,
 		IEnumerable<OrderDestination> destinations = null,
-		FacilityContentState contentState = FacilityContentState.Any,
 		int priority = 0)
 	{
 		FacilityRule rule = new();
 		rule.SetPriority(priority);
 		rule.SetItemProcessStageAllowed(stage, true);
-		rule.SetRequiredContentState(contentState);
 		if (destinations != null)
 		{
 			FacilityManifestRule manifestRule = new();

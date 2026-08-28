@@ -136,6 +136,7 @@ public sealed partial class FacilityRuleManager : MonoBehaviour, IGridOverlayPro
 		if (presets.Count > 0)
 			return;
 
+		CreateProcessStagePreset(ItemProcessStage.Empty, new Color(0.58f, 0.62f, 0.68f));
 		CreateProcessStagePreset(ItemProcessStage.Unlabeled, new Color(0.95f, 0.74f, 0.24f));
 		CreateProcessStagePreset(ItemProcessStage.Labeled, new Color(0.31f, 0.72f, 0.96f));
 		CreateProcessStagePreset(ItemProcessStage.Picked, new Color(0.48f, 0.82f, 0.42f));

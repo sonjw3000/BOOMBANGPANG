@@ -615,19 +615,17 @@ public sealed class LaunchSortPlanner :
 			BufferService == null)
 			return false;
 
-		FacilityFilter filter = FacilityFilter.WithContentState(
-			FacilityFilter.WithItemProcessStage(
-				FacilityFilter.WithManifest(
-					FacilityFilter.ForTransfer(
+		FacilityFilter filter = FacilityFilter.WithItemProcessStage(
+			FacilityFilter.WithManifest(
+				FacilityFilter.ForTransfer(
 					source,
 					itemId,
 					requested,
 					stack => stack.HasStatus(ItemStatus.Packed) &&
 						stack.HasQuality(ItemQuality.Waste) == false,
 					worker),
-					FacilityManifestFilter.FromOrderLine(orderLine)),
-				ItemProcessStage.Packed),
-			FacilityContentState.HasItems);
+				FacilityManifestFilter.FromOrderLine(orderLine)),
+			ItemProcessStage.Packed);
 
 		int bestPriority = int.MinValue;
 		int bestMovable = 0;
@@ -713,7 +711,6 @@ public sealed class LaunchSortPlanner :
 			BufferService?.IsExplicitRuleMatchedBuffer(
 				sourceBuffer,
 				capsule,
-				FacilityContentState.HasItems,
 				ItemProcessStage.Packed,
 				evaluateLaunchReadiness: false) != true ||
 			GameContext.Instance.FacilityMgr?.IsInvalidating(sourceBuffer) == true ||
@@ -749,12 +746,10 @@ public sealed class LaunchSortPlanner :
 		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
 			capsule.RouteKind != CargoRouteKind.Standard ||
 			buffer.CanReceiveOutboundItems() == false ||
-			projectedInputFilter.ContentState != FacilityContentState.HasItems ||
 			projectedInputFilter.ItemProcessStage != ItemProcessStage.Packed ||
 			BufferService?.IsExplicitRuleMatchedBuffer(
 				buffer,
 				projectedInputFilter,
-				FacilityContentState.HasItems,
 				ItemProcessStage.Packed) != true)
 		{
 			return false;

@@ -415,17 +415,15 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		CapsuleBuffer bestBuffer = null;
 		int bestDistance = int.MaxValue;
 		outboundWorkflowService.TryGetPickingManifest(box, out PickingManifest manifest);
-		FacilityFilter filter = FacilityFilter.WithContentState(
-			FacilityFilter.WithItemProcessStage(
-				FacilityFilter.ForManifestTransfer(
+		FacilityFilter filter = FacilityFilter.WithItemProcessStage(
+			FacilityFilter.ForManifestTransfer(
 				box,
 				manifest,
 				pickedLine.ItemID,
 				remainingQuantity,
 				stack => pickedLine.RequiredStatus.HasValue == false || stack.HasStatus(pickedLine.RequiredStatus.Value),
 				worker),
-				ItemProcessStage.Picked),
-			FacilityContentState.HasItems);
+			ItemProcessStage.Picked);
 
 		ItemTransferTask activeTask = worker.CurrentTask as ItemTransferTask;
 		Building targetBuilding = null;
@@ -1007,8 +1005,7 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
 			GameContext.HasInstance == false ||
 			capsule.RouteKind != CargoRouteKind.Standard ||
-			projectedInputFilter.ItemProcessStage != ItemProcessStage.Picked ||
-			projectedInputFilter.ContentState != FacilityContentState.HasItems)
+			projectedInputFilter.ItemProcessStage != ItemProcessStage.Picked)
 		{
 			return false;
 		}
@@ -1028,7 +1025,6 @@ public sealed class PickingPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			bufferService.IsExplicitRuleMatchedBuffer(
 				buffer,
 				projectedInputFilter,
-				FacilityContentState.HasItems,
 				ItemProcessStage.Picked) == false)
 		{
 			return false;

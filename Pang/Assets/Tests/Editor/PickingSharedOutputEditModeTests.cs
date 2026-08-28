@@ -301,7 +301,6 @@ public sealed class CapsuleContentSharingEditModeTests
 		Assert.That(buffer.TryDockCapsule(capsule), Is.True);
 
 		FacilityRule rule = new();
-		rule.SetRequiredContentState(FacilityContentState.HasItems);
 		rule.SetItemProcessStageAllowed(ItemProcessStage.Picked, true);
 		FacilityRulePreset preset = ruleManager.CreatePreset("Shared Picked Rule", rule);
 		Assert.That(ruleManager.ApplyPreset(buffer, preset.Id), Is.True);
@@ -326,7 +325,6 @@ public sealed class CapsuleContentSharingEditModeTests
 		Assert.That(buffer.TryDockCapsule(capsule), Is.True);
 
 		FacilityRule rule = new();
-		rule.SetRequiredContentState(FacilityContentState.HasItems);
 		rule.SetItemProcessStageAllowed(ItemProcessStage.Packed, true);
 		FacilityRulePreset preset = ruleManager.CreatePreset("Shared Packed Rule", rule);
 		Assert.That(ruleManager.ApplyPreset(buffer, preset.Id), Is.True);
@@ -340,7 +338,6 @@ public sealed class CapsuleContentSharingEditModeTests
 		facilityManager.RegisterFacility(building.RuntimeBuildingId, port);
 
 		FacilityRule rule = new();
-		rule.SetRequiredContentState(FacilityContentState.HasItems);
 		rule.SetItemProcessStageAllowed(stage, true);
 		FacilityRulePreset preset = ruleManager.CreatePreset("Shared Picking Outbound Rule", rule);
 		Assert.That(ruleManager.ApplyPreset(port, preset.Id), Is.True);
@@ -391,7 +388,6 @@ public sealed class CapsuleContentSharingEditModeTests
 			bufferService.IsExplicitRuleMatchedBuffer(
 				buffer,
 				filter,
-				FacilityContentState.HasItems,
 				ItemProcessStage.Picked),
 			Is.True,
 			"projected rule");
@@ -417,16 +413,14 @@ public sealed class CapsuleContentSharingEditModeTests
 	{
 		return new FacilityFilter(
 			manifestFilter: FacilityManifestFilter.FromOrderLine(new OrderLine(null, TestItemId, 1, null)),
-			itemProcessStage: ItemProcessStage.Picked,
-			contentState: FacilityContentState.HasItems);
+			itemProcessStage: ItemProcessStage.Picked);
 	}
 
 	private static FacilityFilter CreateProjectedPackedFilter()
 	{
 		return new FacilityFilter(
 			manifestFilter: FacilityManifestFilter.FromOrderLine(new OrderLine(null, TestItemId, 1, null)),
-			itemProcessStage: ItemProcessStage.Packed,
-			contentState: FacilityContentState.HasItems);
+			itemProcessStage: ItemProcessStage.Packed);
 	}
 
 	private static void Retain(ItemTransferTask task, CapsuleBuffer buffer, int quantity)

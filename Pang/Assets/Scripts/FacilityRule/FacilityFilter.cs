@@ -102,14 +102,12 @@ public readonly struct FacilityFilter
 	public FacilityWorkerFilter WorkerFilter { get; }
 	public FacilityManifestFilter ManifestFilter { get; }
 	public ItemProcessStage ItemProcessStage { get; }
-	public FacilityContentState ContentState { get; }
 
 	public FacilityFilter(
 		FacilityItemFilter itemFilter = null,
 		FacilityWorkerFilter workerFilter = null,
 		FacilityManifestFilter manifestFilter = null,
-		ItemProcessStage itemProcessStage = ItemProcessStage.Any,
-		FacilityContentState contentState = FacilityContentState.Any)
+		ItemProcessStage itemProcessStage = ItemProcessStage.Any)
 	{
 		ItemFilter = itemFilter;
 		WorkerFilter = workerFilter;
@@ -117,11 +115,6 @@ public readonly struct FacilityFilter
 		ItemProcessStage = ItemProcessStageUtility.IsDefined(itemProcessStage)
 			? itemProcessStage
 			: ItemProcessStage.Any;
-		ContentState = contentState is FacilityContentState.Any or
-			FacilityContentState.HasItems or
-			FacilityContentState.Empty
-			? contentState
-			: FacilityContentState.Any;
 	}
 
 	public bool Matches(FacilityRuleManager ruleManager, IFacility facility)
@@ -177,17 +170,6 @@ public readonly struct FacilityFilter
 		if (container == null)
 			return false;
 
-		FacilityContentState contentState = HasCargo(container)
-			? FacilityContentState.HasItems
-			: FacilityContentState.Empty;
-		if (contentState == FacilityContentState.Empty)
-		{
-			filter = new FacilityFilter(
-				workerFilter: worker != null ? new FacilityWorkerFilter(worker) : null,
-				contentState: contentState);
-			return true;
-		}
-
 		ItemProcessStage stage = ItemProcessStage.Any;
 		ItemProcessStageEvaluator.TryEvaluate(
 			container,
@@ -203,8 +185,7 @@ public readonly struct FacilityFilter
 			itemFilter,
 			worker != null ? new FacilityWorkerFilter(worker) : null,
 			FacilityManifestFilter.FromManifest(manifest),
-			stage,
-			contentState);
+			stage);
 		return true;
 	}
 
@@ -265,8 +246,7 @@ public readonly struct FacilityFilter
 			source.ItemFilter,
 			source.WorkerFilter,
 			manifestFilter,
-			source.ItemProcessStage,
-			source.ContentState);
+			source.ItemProcessStage);
 	}
 
 	public static FacilityFilter WithItemProcessStage(
@@ -277,34 +257,7 @@ public readonly struct FacilityFilter
 			source.ItemFilter,
 			source.WorkerFilter,
 			source.ManifestFilter,
-			itemProcessStage,
-			source.ContentState);
-	}
-
-	public static FacilityFilter WithContentState(
-		FacilityFilter source,
-		FacilityContentState contentState)
-	{
-		return new FacilityFilter(
-			source.ItemFilter,
-			source.WorkerFilter,
-			source.ManifestFilter,
-			source.ItemProcessStage,
-			contentState);
-	}
-
-	private static bool HasCargo(IItemContainer container)
-	{
-		if (container?.Stacks == null)
-			return false;
-
-		for (int i = 0; i < container.Stacks.Count; ++i)
-		{
-			if (container.Stacks[i]?.Quantity > 0)
-				return true;
-		}
-
-		return false;
+			itemProcessStage);
 	}
 
 	private static bool TryBuildItemFilter(IItemContainer container, out FacilityItemFilter itemFilter)

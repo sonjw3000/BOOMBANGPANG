@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 [Serializable]
 public sealed class FacilityItemRule
@@ -305,8 +304,6 @@ public sealed class FacilityManifestRule
 public sealed class FacilityRule
 {
 	[SerializeField] private int priority;
-	[FormerlySerializedAs("requiredCapsuleBufferState")]
-	[SerializeField] private FacilityContentState requiredContentState = FacilityContentState.Any;
 	[SerializeField] private ItemProcessStageMask allowedItemProcessStages = ItemProcessStageMask.None;
 	[SerializeField] private FacilityItemRule itemRule = new();
 	[SerializeField] private FacilityWorkerRule workerRule = new();
@@ -322,7 +319,6 @@ public sealed class FacilityRule
 			return;
 
 		priority = source.priority;
-		requiredContentState = source.requiredContentState;
 		allowedItemProcessStages = source.allowedItemProcessStages;
 		itemRule = source.itemRule != null ? new FacilityItemRule(source.itemRule) : new FacilityItemRule();
 		workerRule = source.workerRule != null ? new FacilityWorkerRule(source.workerRule) : new FacilityWorkerRule();
@@ -330,28 +326,18 @@ public sealed class FacilityRule
 	}
 
 	public int Priority => priority;
-	public FacilityContentState RequiredContentState => requiredContentState;
 	public ItemProcessStageMask AllowedItemProcessStages => allowedItemProcessStages;
 	public FacilityItemRule ItemRule => itemRule;
 	public FacilityWorkerRule WorkerRule => workerRule;
 	public FacilityManifestRule ManifestRule => manifestRule;
 
 	public bool IsEmpty =>
-		requiredContentState == FacilityContentState.Any &&
 		allowedItemProcessStages == ItemProcessStageMask.None &&
 		(itemRule == null || itemRule.IsEmpty) &&
 		(workerRule == null || workerRule.IsEmpty) &&
 		(manifestRule == null || manifestRule.IsEmpty);
 
 	public void SetPriority(int newPriority) => priority = newPriority;
-	public void SetRequiredContentState(FacilityContentState state)
-	{
-		requiredContentState = state is FacilityContentState.Any or
-			FacilityContentState.HasItems or
-			FacilityContentState.Empty
-			? state
-			: FacilityContentState.Any;
-	}
 
 	public void SetAllowedItemProcessStages(ItemProcessStageMask stages)
 	{
@@ -395,7 +381,6 @@ public sealed class FacilityRule
 	public void Clear()
 	{
 		priority = 0;
-		requiredContentState = FacilityContentState.Any;
 		allowedItemProcessStages = ItemProcessStageMask.None;
 		itemRule ??= new FacilityItemRule();
 		workerRule ??= new FacilityWorkerRule();
@@ -407,20 +392,15 @@ public sealed class FacilityRule
 
 	public bool IsFilterCapable(in FacilityFilter filter)
 	{
-		if (filter.ContentState == FacilityContentState.Empty &&
-			allowedItemProcessStages != ItemProcessStageMask.None)
-		{
-			return false;
-		}
-
-		if (requiredContentState != FacilityContentState.Any &&
-			filter.ContentState != requiredContentState)
-		{
-			return false;
-		}
-
 		if (allowedItemProcessStages != ItemProcessStageMask.None &&
 			ItemProcessStageUtility.Contains(allowedItemProcessStages, filter.ItemProcessStage) == false)
+		{
+			return false;
+		}
+
+		if (filter.ItemProcessStage == ItemProcessStage.Empty &&
+			((itemRule != null && itemRule.IsEmpty == false) ||
+			 (manifestRule != null && manifestRule.IsEmpty == false)))
 		{
 			return false;
 		}

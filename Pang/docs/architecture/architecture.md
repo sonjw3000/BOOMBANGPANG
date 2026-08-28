@@ -76,21 +76,22 @@ Rule-driven Capsule routing, Dirty reevaluation, lifecycle normalization, and re
 
 Item process stages use one shared contract:
 
-`Unlabeled -> Labeled -> Picked -> Packed -> LaunchReady`
+`Empty -> Unlabeled -> Labeled -> Picked -> Packed -> LaunchReady`
 
-- `Any` means no process-stage restriction for a FacilityRule and disables automatic outbound promotion when used as a Building policy
+- `Empty` is the derived process stage for a container with no positive-quantity stacks and no manifest work; every other concrete stage implies physical cargo
+- `Any` is a query/policy sentinel rather than a derived container stage: it means no process-stage restriction for a FacilityRule and disables automatic outbound promotion when used as a Building policy
 - the stage is derived from actual `ItemStatus` and optional `PickingManifest` data; it is not duplicated onto ItemStack, CargoCapsule, or another container
 - the evaluator accepts `IItemContainer`, so the same Rule condition can be used for ordinary item storage as well as CapsuleBuffer and CargoPort flows
 - `LaunchReady` is a Launch-context evaluation of otherwise Packed cargo using the existing outbound blocking and complete-manifest checks; callers must request that context explicitly
 - stage matching is exact and never uses enum numeric ordering
-- `FacilityContentState` (`Any / HasItems / Empty`) is a generic content condition and remains separate from the item process stage
-- the Rule editor exposes both dimensions under `Item Conditions`
+- item and manifest conditions cannot match `Empty`, because there is no cargo or manifest to inspect
+- the Rule editor exposes this single stage dimension under `Item Conditions`
 
 The runtime Capsule lifecycle contract is `IB / Inside / Empty / OB`.
 
 - `IB` and `OB` describe CargoPort-facing transport phases. A standard Capsule becomes `OB` only when the Building outbound policy is met and a non-empty Rule on an OutboundCargoPort in the same Building accepts its current cargo.
-- `Inside` and `Empty` describe the Capsule logistics lifecycle while docked at CapsuleBuffers; they are separate from the generic Rule content condition.
-- `CapsuleDockState` remains a facility-interface contract for physical Dock kinds. CapsuleBuffer has one immutable `Buffer` kind and no configurable `IB`, `OBStandby`, or `Empty` role. Physical emptiness belongs to the Capsule lifecycle and Rule content condition.
+- `Inside` and `Empty` describe the Capsule logistics lifecycle while docked at CapsuleBuffers. `CapsuleLogisticsState.Empty` remains distinct from `ItemProcessStage.Empty`: the former owns Capsule movement lifecycle, while the latter is the Rule filter derived from container contents.
+- `CapsuleDockState` remains a facility-interface contract for physical Dock kinds. CapsuleBuffer has one immutable `Buffer` kind and no configurable `IB`, `OBStandby`, or `Empty` role. Physical emptiness is observed by both the Capsule lifecycle evaluator and item process-stage evaluator without creating a separate Rule content axis.
 - A docked empty Capsule is Buffer preparation rather than cargo, so it is not relocated for a cargo Rule mismatch. Every vacant CapsuleBuffer can purchase a replacement Capsule through CapsuleBufferService and EconomyService.
 - Task implementations change physical cargo, ItemStatus, or manifests. Dirty routing evaluation derives the lifecycle of docked standard Capsules instead of each work Task assigning it independently. Outbound Rule eligibility gates `Inside -> OB`, while temporary port occupancy only delays the relocation match. A relocation Task may set a carried rejected outbound Capsule back to `Inside` before it can be redocked and evaluated.
 

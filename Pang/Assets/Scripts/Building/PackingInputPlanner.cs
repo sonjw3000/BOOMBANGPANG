@@ -241,7 +241,6 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 			BufferService?.IsExplicitRuleMatchedBuffer(
 				buffer,
 				capsule,
-				FacilityContentState.HasItems,
 				ItemProcessStage.Picked,
 				evaluateLaunchReadiness: false) != true ||
 			TryGetManifest(buffer, out PickingManifest manifest) == false ||

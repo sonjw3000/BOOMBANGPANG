@@ -149,7 +149,6 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 	public bool IsExplicitRuleMatchedBuffer(
 		CapsuleBuffer buffer,
 		CargoCapsule capsule,
-		FacilityContentState requiredContentState,
 		ItemProcessStage requiredItemProcessStage,
 		bool evaluateLaunchReadiness)
 	{
@@ -165,20 +164,17 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 			: null;
 		return ruleManager != null &&
 			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
-			preset?.Rule?.RequiredContentState == requiredContentState &&
-			preset.Rule.AllowsItemProcessStage(requiredItemProcessStage) &&
+			preset?.Rule?.AllowsItemProcessStage(requiredItemProcessStage) == true &&
 			IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness);
 	}
 
 	public bool IsExplicitRuleMatchedBuffer(
 		CapsuleBuffer buffer,
 		in FacilityFilter projectedFilter,
-		FacilityContentState requiredContentState,
 		ItemProcessStage requiredItemProcessStage)
 	{
 		if (buffer == null ||
 			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||
-			projectedFilter.ContentState != requiredContentState ||
 			projectedFilter.ItemProcessStage != requiredItemProcessStage)
 		{
 			return false;
@@ -189,8 +185,7 @@ public sealed class CapsuleBufferService : FacilityService<CapsuleBuffer>
 			: null;
 		return ruleManager != null &&
 			ruleManager.TryGetPreset(buffer.FacilityRulePresetId, out FacilityRulePreset preset) &&
-			preset?.Rule?.RequiredContentState == requiredContentState &&
-			preset.Rule.AllowsItemProcessStage(requiredItemProcessStage) &&
+			preset?.Rule?.AllowsItemProcessStage(requiredItemProcessStage) == true &&
 			projectedFilter.Matches(ruleManager, buffer);
 	}
 

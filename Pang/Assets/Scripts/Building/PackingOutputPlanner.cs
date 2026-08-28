@@ -97,18 +97,16 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 			}
 
 			hasPackedPayload = true;
-			FacilityFilter projectedInputFilter = FacilityFilter.WithContentState(
-				FacilityFilter.WithItemProcessStage(
-					FacilityFilter.ForManifestTransfer(
-					sourceBox,
-					manifest,
-					stack.ItemID,
-					stack.Quantity,
-					candidate => candidate.HasStatus(ItemStatus.Packed) &&
-						candidate.HasQuality(ItemQuality.Waste) == false,
-					worker),
-					ItemProcessStage.Packed),
-				FacilityContentState.HasItems);
+			FacilityFilter projectedInputFilter = FacilityFilter.WithItemProcessStage(
+				FacilityFilter.ForManifestTransfer(
+				sourceBox,
+				manifest,
+				stack.ItemID,
+				stack.Quantity,
+				candidate => candidate.HasStatus(ItemStatus.Packed) &&
+					candidate.HasQuality(ItemQuality.Waste) == false,
+				worker),
+				ItemProcessStage.Packed);
 
 			foreach (CapsuleBuffer candidate in BufferService.GetBuffers(buildingId))
 			{
@@ -238,12 +236,10 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 		if (buffer?.DockedCapsule is not CargoCapsule capsule ||
 			capsule.RouteKind != CargoRouteKind.Standard ||
 			buffer.CanReceiveOutboundItems() == false ||
-			projectedInputFilter.ContentState != FacilityContentState.HasItems ||
 			projectedInputFilter.ItemProcessStage != ItemProcessStage.Packed ||
 			BufferService?.IsExplicitRuleMatchedBuffer(
 				buffer,
 				projectedInputFilter,
-				FacilityContentState.HasItems,
 				ItemProcessStage.Packed) != true)
 		{
 			return false;

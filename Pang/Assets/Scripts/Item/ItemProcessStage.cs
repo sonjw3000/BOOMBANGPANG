@@ -1,13 +1,6 @@
 using System;
 using System.Collections.Generic;
 
-public enum FacilityContentState
-{
-	Any = 0,
-	HasItems = 1,
-	Empty = 2,
-}
-
 public enum ItemProcessStage
 {
 	Any = 0,
@@ -16,6 +9,7 @@ public enum ItemProcessStage
 	Picked = 3,
 	Packed = 4,
 	LaunchReady = 5,
+	Empty = 6,
 }
 
 [Flags]
@@ -27,7 +21,8 @@ public enum ItemProcessStageMask
 	Picked = 1 << 2,
 	Packed = 1 << 3,
 	LaunchReady = 1 << 4,
-	All = Unlabeled | Labeled | Picked | Packed | LaunchReady,
+	Empty = 1 << 5,
+	All = Empty | Unlabeled | Labeled | Picked | Packed | LaunchReady,
 }
 
 public static class ItemProcessStageUtility
@@ -40,6 +35,7 @@ public static class ItemProcessStageUtility
 	public static bool IsDefined(ItemProcessStage stage)
 	{
 		return stage is ItemProcessStage.Any or
+			ItemProcessStage.Empty or
 			ItemProcessStage.Unlabeled or
 			ItemProcessStage.Labeled or
 			ItemProcessStage.Picked or
@@ -51,6 +47,7 @@ public static class ItemProcessStageUtility
 	{
 		return stage switch
 		{
+			ItemProcessStage.Empty => ItemProcessStageMask.Empty,
 			ItemProcessStage.Unlabeled => ItemProcessStageMask.Unlabeled,
 			ItemProcessStage.Labeled => ItemProcessStageMask.Labeled,
 			ItemProcessStage.Picked => ItemProcessStageMask.Picked,
@@ -72,6 +69,7 @@ public static class ItemProcessStageUtility
 			return "Any";
 
 		List<string> names = new();
+		AppendStageName(names, stages, ItemProcessStageMask.Empty, ItemProcessStage.Empty);
 		AppendStageName(names, stages, ItemProcessStageMask.Unlabeled, ItemProcessStage.Unlabeled);
 		AppendStageName(names, stages, ItemProcessStageMask.Labeled, ItemProcessStage.Labeled);
 		AppendStageName(names, stages, ItemProcessStageMask.Picked, ItemProcessStage.Picked);
@@ -85,6 +83,7 @@ public static class ItemProcessStageUtility
 		return stage switch
 		{
 			ItemProcessStage.Any => "Any",
+			ItemProcessStage.Empty => "Empty",
 			ItemProcessStage.Unlabeled => "Unlabeled",
 			ItemProcessStage.Labeled => "Labeled",
 			ItemProcessStage.Picked => "Picked",
@@ -138,6 +137,28 @@ public static class ItemProcessStageEvaluator
 		out ItemProcessStage stage)
 	{
 		stage = ItemProcessStage.Any;
+		if (stacks == null)
+			return false;
+
+		bool hasCargo = false;
+		for (int i = 0; i < stacks.Count; ++i)
+		{
+			if (stacks[i]?.Quantity > 0)
+			{
+				hasCargo = true;
+				break;
+			}
+		}
+
+		if (hasCargo == false)
+		{
+			if (manifest != null && manifest.IsEmpty == false)
+				return false;
+
+			stage = ItemProcessStage.Empty;
+			return true;
+		}
+
 		if (TryGetUniformStatus(stacks, out ItemStatus status) == false)
 			return false;
 
