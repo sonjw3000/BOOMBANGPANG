@@ -367,55 +367,53 @@ namespace UniverseLogistics.UI.Toolkit
 			activeResearchLabel.text = active != null ? active.DisplayName : "No active research";
 			activeResearchTime.text = active != null ? $"{researchService.RemainingWeeks} weeks remaining" : string.Empty;
 			researchQueueStatus.text = BuildResearchQueueStatus();
-			List<ResearchDefinition> definitions = BuildResearchDisplayOrder();
-			for (int i = 0; i < definitions.Count; ++i)
+			IReadOnlyList<ResearchDefinition> definitions = researchService?.Definitions ?? Array.Empty<ResearchDefinition>();
+			Dictionary<string, int> depths = new(StringComparer.Ordinal);
+			VisualElement tree = new();
+			tree.AddToClassList("company-research-tree");
+			for (int depth = 0; depth < definitions.Count; ++depth)
 			{
-				ResearchDefinition definition = definitions[i];
-				if (definition != null) researchList.Add(CreateResearchRow(definition));
+				VisualElement column = new();
+				column.AddToClassList("company-research-tree__column");
+				Label stage = new(depth == 0 ? "FOUNDATION" : $"STAGE {depth + 1}");
+				stage.AddToClassList("company-research-tree__stage");
+				column.Add(stage);
+
+				for (int i = 0; i < definitions.Count; ++i)
+				{
+					ResearchDefinition definition = definitions[i];
+					if (definition != null && GetResearchDepth(definition, depths, new HashSet<string>(StringComparer.Ordinal)) == depth)
+						column.Add(CreateResearchRow(definition));
+				}
+
+				if (column.childCount > 1)
+					tree.Add(column);
 			}
+			researchList.Add(tree);
 			researchEmpty.style.display = definitions.Count == 0 ? DisplayStyle.Flex : DisplayStyle.None;
 			if (definitions.Count == 0) researchMessage.text = string.Empty;
 		}
 
-		private List<ResearchDefinition> BuildResearchDisplayOrder()
+		private int GetResearchDepth(
+			ResearchDefinition definition,
+			IDictionary<string, int> depths,
+			ISet<string> visiting)
 		{
-			List<ResearchDefinition> ordered = new();
-			HashSet<string> addedIds = new(StringComparer.Ordinal);
-			if (researchService == null)
-				return ordered;
+			if (depths.TryGetValue(definition.Uid, out int cachedDepth))
+				return cachedDepth;
+			if (visiting.Add(definition.Uid) == false)
+				return 0;
 
-			AddResearchDefinition(ordered, addedIds, researchService.ActiveResearch);
-			for (int i = 0; i < researchService.QueuedResearchIds.Count; ++i)
+			int depth = 0;
+			for (int i = 0; i < definition.PrerequisiteUids.Count; ++i)
 			{
-				if (researchService.Catalog.TryGet(researchService.QueuedResearchIds[i], out ResearchDefinition queued))
-					AddResearchDefinition(ordered, addedIds, queued);
+				if (researchService.Catalog.TryGet(definition.PrerequisiteUids[i], out ResearchDefinition prerequisite))
+					depth = Math.Max(depth, GetResearchDepth(prerequisite, depths, visiting) + 1);
 			}
 
-			IReadOnlyList<ResearchDefinition> definitions = researchService.Definitions;
-			for (int i = 0; i < definitions.Count; ++i)
-			{
-				ResearchDefinition definition = definitions[i];
-				if (definition != null && researchService.GetState(definition.Uid) != ResearchState.Completed)
-					AddResearchDefinition(ordered, addedIds, definition);
-			}
-
-			for (int i = 0; i < definitions.Count; ++i)
-			{
-				ResearchDefinition definition = definitions[i];
-				if (definition != null && researchService.GetState(definition.Uid) == ResearchState.Completed)
-					AddResearchDefinition(ordered, addedIds, definition);
-			}
-
-			return ordered;
-		}
-
-		private static void AddResearchDefinition(
-			ICollection<ResearchDefinition> definitions,
-			ISet<string> addedIds,
-			ResearchDefinition definition)
-		{
-			if (definition != null && addedIds.Add(definition.Uid))
-				definitions.Add(definition);
+			visiting.Remove(definition.Uid);
+			depths[definition.Uid] = depth;
+			return depth;
 		}
 
 		private VisualElement CreateResearchRow(ResearchDefinition definition)
