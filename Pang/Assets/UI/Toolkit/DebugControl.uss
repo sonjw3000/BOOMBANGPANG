@@ -232,6 +232,7 @@
 	flex-grow: 1;
 }
 
+.debug-research-action,
 .debug-research-return {
 	min-width: 112px;
 	margin-bottom: 2px;

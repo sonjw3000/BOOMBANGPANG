@@ -61,6 +61,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private Button moneyApplyButton;
 		private Label moneyMessage;
 		private DropdownField researchSelectField;
+		private Button researchCompleteButton;
 		private Button researchReturnButton;
 		private Label researchMessage;
 		private readonly List<ItemDefinition> grantItems = new();
@@ -157,6 +158,7 @@ namespace UniverseLogistics.UI.Toolkit
 			moneyApplyButton = moneyContent.Q<Button>("debug-money-apply");
 			moneyMessage = moneyContent.Q<Label>("debug-money-message");
 			researchSelectField = researchContent.Q<DropdownField>("debug-research-select");
+			researchCompleteButton = researchContent.Q<Button>("debug-research-complete");
 			researchReturnButton = researchContent.Q<Button>("debug-research-return");
 			researchMessage = researchContent.Q<Label>("debug-research-message");
 			if (explosionRadiusField == null || explosionSeverityField == null || fireIntensityField == null ||
@@ -166,7 +168,7 @@ namespace UniverseLogistics.UI.Toolkit
 				itemRefreshButton == null || itemGrantItemField == null || itemGrantQuantityField == null ||
 				itemGrantButton == null || moneyCurrentLabel == null || moneyValueField == null ||
 				moneyApplyButton == null || moneyMessage == null || researchSelectField == null ||
-				researchReturnButton == null || researchMessage == null)
+				researchCompleteButton == null || researchReturnButton == null || researchMessage == null)
 			{
 				Debug.LogError("[DebugControl] Required controls are missing.", this);
 				return false;
@@ -198,6 +200,8 @@ namespace UniverseLogistics.UI.Toolkit
 			itemGrantButton.clicked += GiveSelectedItem;
 			itemGrantButton.SetEnabled(false);
 			moneyApplyButton.clicked += ApplyMoney;
+			researchSelectField.RegisterValueChangedCallback(_ => RefreshResearchActions());
+			researchCompleteButton.clicked += CompleteSelectedResearch;
 			researchReturnButton.clicked += ReturnSelectedResearch;
 
 			window.SetTitle("Debug Controls");
@@ -374,24 +378,50 @@ namespace UniverseLogistics.UI.Toolkit
 				for (int i = 0; i < definitions.Count; ++i)
 				{
 					ResearchDefinition definition = definitions[i];
-					if (definition == null || researchService.IsResearched(definition.Uid) == false)
+					if (definition == null)
 						continue;
 
 					researchDefinitions.Add(definition);
-					choices.Add(definition.DisplayName);
+					choices.Add($"{definition.DisplayName} [{researchService.GetState(definition.Uid)}]");
 				}
 			}
 
 			researchSelectField.choices = choices;
 			int selectedIndex = researchDefinitions.FindIndex(definition => definition.Uid == selectedId);
 			researchSelectField.index = selectedIndex >= 0 ? selectedIndex : choices.Count > 0 ? 0 : -1;
-			researchReturnButton.SetEnabled(researchDefinitions.Count > 0);
+			RefreshResearchActions();
+		}
+
+		private void RefreshResearchActions()
+		{
+			ResearchDefinition definition = GetSelectedResearch();
+			bool completed = definition != null && researchService?.IsResearched(definition.Uid) == true;
+			researchCompleteButton.SetEnabled(definition != null && completed == false);
+			researchReturnButton.SetEnabled(completed);
 		}
 
 		private ResearchDefinition GetSelectedResearch()
 		{
 			int index = researchSelectField?.index ?? -1;
 			return index >= 0 && index < researchDefinitions.Count ? researchDefinitions[index] : null;
+		}
+
+		private void CompleteSelectedResearch()
+		{
+			ResearchDefinition definition = GetSelectedResearch();
+			if (definition == null || researchService == null)
+			{
+				Report(researchMessage, "Select a research to complete.", LogType.Warning);
+				return;
+			}
+
+			if (researchService.TryCompleteResearch(definition.Uid) == false)
+			{
+				Report(researchMessage, "Research is already completed or unavailable.", LogType.Warning);
+				return;
+			}
+
+			Report(researchMessage, $"Completed research: {definition.DisplayName}.");
 		}
 
 		private void ReturnSelectedResearch()
