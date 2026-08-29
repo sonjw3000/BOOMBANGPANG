@@ -832,6 +832,93 @@ public sealed class WorkforceAssignmentEditModeTests
 	}
 
 	[Test]
+	public void BuildingProvider_SettingsActionOpensConsolidatedSettingsEditor()
+	{
+		Building building = CreateBuilding(ItemProcessStage.Picked);
+		GameObject proxyObject = CreateGameObject("Settings Building Selection Proxy");
+		BuildingSelectionProxy proxy = proxyObject.AddComponent<BuildingSelectionProxy>();
+		proxy.Bind(buildingManager, building);
+		BuildingUIProvider provider = new();
+		provider.LinkObject(proxyObject);
+		SelectionInspectorModel model = new();
+		provider.BuildInspectorModel(model);
+
+		SelectionInspectorAction settingsAction = null;
+		for (int i = 0; i < model.Actions.Count; ++i)
+		{
+			SelectionInspectorAction action = model.Actions[i];
+			Assert.That(action.Label, Does.Not.StartWith("Cycle "));
+			if (action.Label == "Settings")
+				settingsAction = action;
+		}
+
+		Assert.That(settingsAction, Is.Not.Null);
+		Assert.That(settingsAction.TargetTabLabel, Is.EqualTo("Settings"));
+		Assert.That(settingsAction.CanExecute?.Invoke(), Is.True);
+		settingsAction.Execute?.Invoke();
+
+		SelectionInspectorTab settingsTab = null;
+		for (int i = 0; i < model.Tabs.Count; ++i)
+		{
+			if (model.Tabs[i].Label == "Settings")
+			{
+				settingsTab = model.Tabs[i];
+				break;
+			}
+		}
+
+		Assert.That(settingsTab, Is.Not.Null);
+		SelectionDetailPanelModel panel = settingsTab.BuildContent();
+		Assert.That(panel.Title, Is.EqualTo("SETTINGS"));
+		Assert.That(panel.PreferredWidth, Is.GreaterThanOrEqualTo(420.0f));
+		Assert.That(panel.PreferredHeight, Is.GreaterThanOrEqualTo(540.0f));
+		Assert.That(panel.HasSlider, Is.True);
+		Assert.That(panel.Editor, Is.Not.Null);
+		Assert.That(panel.Editor.DropdownLabel, Is.EqualTo("Work Scope"));
+		Assert.That(panel.Editor.DropdownChoices, Is.Not.Empty);
+		Assert.That(panel.Editor.SecondaryDropdownLabel, Is.EqualTo("Outbound Target"));
+		Assert.That(panel.Editor.SecondaryDropdownChoices, Does.Contain("Launch Ready"));
+		Assert.That(panel.Editor.Toggles.Count, Is.EqualTo(2));
+		Assert.That(panel.Editor.Toggles[0].Label, Is.EqualTo("Use Building Threshold"));
+		Assert.That(panel.Editor.Toggles[1].Label, Is.EqualTo("Allow EVA Suit Removal"));
+		Assert.That(panel.Editor.PrimaryActionLabel, Is.EqualTo("Apply"));
+		Assert.That(panel.Editor.SecondaryActionLabel, Is.EqualTo("Cancel"));
+
+		SetPrivateField(
+			typeof(GameContext),
+			context,
+			"capsuleDockService",
+			CreateComponent<CapsuleDockService>("Settings Test Capsule Dock Service", active: false));
+		SetPrivateField(
+			typeof(GameContext),
+			context,
+			"capsuleBufferService",
+			CreateComponent<CapsuleBufferService>("Settings Test Capsule Buffer Service", active: false));
+		SetPrivateField(
+			typeof(GameContext),
+			context,
+			"facilityManager",
+			CreateComponent<FacilityManager>("Settings Test Facility Manager", active: false));
+		SetPrivateField(
+			typeof(GameContext),
+			context,
+			"cargoPortService",
+			CreateComponent<CargoPortService>("Settings Test Cargo Port Service", active: false));
+
+		int launchReadyIndex = panel.Editor.SecondaryDropdownChoices.IndexOf("Launch Ready");
+		Assert.That(launchReadyIndex, Is.GreaterThanOrEqualTo(0));
+		panel.Editor.SecondaryDropdownChanged?.Invoke(launchReadyIndex);
+		panel.Editor.PrimaryAction?.Invoke();
+		Assert.That(building.OutboundTargetStage, Is.EqualTo(ItemProcessStage.LaunchReady));
+
+		int packedIndex = panel.Editor.SecondaryDropdownChoices.IndexOf("Packed");
+		panel.Editor.SecondaryDropdownChanged?.Invoke(packedIndex);
+		panel.Editor.SecondaryAction?.Invoke();
+		panel.Editor.PrimaryAction?.Invoke();
+		Assert.That(building.OutboundTargetStage, Is.EqualTo(ItemProcessStage.LaunchReady));
+	}
+
+	[Test]
 	public void ManagementContent_DeclaresAssignmentsFirstAndIncludesHierarchyShell()
 	{
 		VisualTreeAsset template = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(

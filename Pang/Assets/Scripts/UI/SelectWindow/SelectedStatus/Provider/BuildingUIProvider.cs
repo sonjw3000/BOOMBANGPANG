@@ -12,8 +12,31 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		GameContext.HasInstance ? GameContext.Instance.OxygenSvc : null;
 	private WorkerManager WorkerManager =>
 		GameContext.HasInstance ? GameContext.Instance.WorkerMgr : null;
+	private float GlobalCapsuleThresholdPercent =>
+		GameContext.HasInstance && GameContext.Instance.OBWorkflowSvc != null
+			? GameContext.Instance.OBWorkflowSvc.CargoPortThresholdPercent
+			: 80.0f;
 	private string addonActionMessage = string.Empty;
 	private int addonActionVersion;
+	private uint settingsDraftBuildingId;
+	private bool settingsDraftActive;
+	private BuildingWorkScope settingsWorkScopeDraft;
+	private ItemProcessStage settingsOutboundTargetDraft;
+	private bool settingsThresholdOverrideDraft;
+	private float settingsThresholdPercentDraft;
+	private bool settingsSuitRemovalDraft;
+	private string settingsActionMessage = string.Empty;
+	private int settingsDraftVersion;
+
+	private static readonly ItemProcessStage[] OutboundTargetStages =
+	{
+		ItemProcessStage.Any,
+		ItemProcessStage.Unlabeled,
+		ItemProcessStage.Labeled,
+		ItemProcessStage.Picked,
+		ItemProcessStage.Packed,
+		ItemProcessStage.LaunchReady,
+	};
 
 	public override string Name => Building != null ? Building.DisplayName : "Unknown Building";
 	public override string Subtitle => Building != null ? "Building" : "Unknown Building";
@@ -72,13 +95,10 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 			tooltip: () => UITooltipContent.DescriptionOnly(
 				"Work Monitor",
 				"Open logistics demand and Task states for this building."));
-		model.AddAction("Cycle Work Scope", CycleWorkScope, () => Building != null);
-		model.AddAction("Cycle Outbound Target", CycleOutboundTargetStage, () => Building != null,
+		model.AddTabAction("Settings", "Settings", BeginSettingsEdit, () => Building != null,
 			tooltip: () => UITooltipContent.DescriptionOnly(
-				"Outbound target stage",
-				"A capsule becomes OB only when every cargo stack reaches this exact stage and the threshold is met."));
-		model.AddAction("Toggle Threshold", ToggleThresholdOverride, CanControlCapsuleThreshold,
-			tooltip: BuildThresholdTooltip);
+				"Building settings",
+				"Configure work scope, outbound target, capsule threshold, and indoor policy."));
 		model.AddAction("Pending Demolition", MarkPendingDemolition, () => Building != null && Building.State != BuildingState.PendingDemolition, true);
 		model.AddAction("Restore Active", RestoreActive, () => Building != null && Building.State != BuildingState.Active);
 	}
@@ -518,7 +538,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		if (Building == null) return 0;
 		return HashCode.Combine(
 			HashCode.Combine(Building.WorkScope, Building.OutboundTargetStage),
-			Building.OverrideCapsuleThreshold,
+			HashCode.Combine(Building.OverrideCapsuleThreshold, settingsDraftVersion),
 			Mathf.RoundToInt(Building.CapsuleThresholdPercent),
 			Building.SuitRemovalAllowed,
 			Building.CanControlSuitRemoval(),
@@ -529,19 +549,16 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 
 	private SelectionDetailPanelModel BuildSettingsPanel()
 	{
+		EnsureSettingsDraft();
 		bool thresholdUnlocked = CanControlCapsuleThreshold();
 		SelectionDetailPanelModel panel = new()
 		{
 			Title = "SETTINGS",
-			Summary = "Building operating policies",
+			Summary = "Review and apply building operating policies",
+			PreferredWidth = 420.0f,
+			PreferredHeight = 540.0f,
 		};
 		if (Building == null) return panel;
-		panel.Rows.Add(new SelectionDetailRow { Primary = "Work Scope", Secondary = WorkScopeDisplay });
-		panel.Rows.Add(new SelectionDetailRow
-		{
-			Primary = "Outbound Target",
-			Secondary = ItemProcessStageUtility.ToDisplayString(Building.OutboundTargetStage),
-		});
 
 		float averageOxygen = OxygenService?.GetAverageOxygen(Building) ?? GridCell.DefaultOxygen;
 		int suitlessHumanCount = OxygenService?.GetSuitlessHumanCount(Building) ?? 0;
@@ -559,59 +576,69 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 				$"Net {netOxygen:+0.##;-0.##;0}/tick",
 		});
 
-		bool suitPolicyUnlocked = Building.CanControlSuitRemoval();
-		panel.HasToggle = true;
-		panel.ToggleLabel = "Allow EVA Suit Removal";
-		panel.ToggleValue = Building.SuitRemovalAllowed;
-		panel.ToggleEnabled = suitPolicyUnlocked;
-		panel.ToggleChanged = SetSuitRemovalAllowed;
-		panel.ToggleTooltip = BuildSuitRemovalTooltip;
-		float oxygenPerHuman = OxygenService?.HumanOxygenConsumptionPerTick ?? 1.0f;
-		panel.ToggleDescription = suitPolicyUnlocked
-			? Building.SuitRemovalAllowed
-				? $"After airlock entry: 200% speed at 100 O2, 100% at 80 O2; {oxygenPerHuman:0.##} O2/tick each."
-				: "Humans keep EVA suits on and do not consume building oxygen."
-			: "Required research: Indoor Work Protocols";
 		if (SupportsCapsuleThreshold())
 		{
-			panel.Rows.Add(new SelectionDetailRow { Primary = "Threshold Override", Secondary = Building.OverrideCapsuleThreshold ? "Enabled" : "Disabled" });
-			panel.Rows.Add(new SelectionDetailRow { Primary = "Capsule Threshold", Secondary = $"{Mathf.RoundToInt(Building.CapsuleThresholdPercent)}%" });
+			float effectiveThreshold = settingsThresholdOverrideDraft
+				? settingsThresholdPercentDraft
+				: GlobalCapsuleThresholdPercent;
+			panel.Rows.Add(new SelectionDetailRow
+			{
+				Primary = "Effective Threshold",
+				Trailing = $"{Mathf.RoundToInt(effectiveThreshold)}%",
+				Secondary = settingsThresholdOverrideDraft ? "Building override" : "Global workflow threshold",
+			});
 			panel.HasSlider = true;
 			panel.SliderLabel = "Capsule Threshold";
-			panel.SliderValue = Building.CapsuleThresholdPercent;
+			panel.SliderValue = settingsThresholdPercentDraft;
 			panel.SliderLowValue = 0.0f;
 			panel.SliderHighValue = 100.0f;
-			panel.SliderEnabled = thresholdUnlocked && Building.OverrideCapsuleThreshold;
-			panel.SliderChanged = SetThreshold;
+			panel.SliderEnabled = thresholdUnlocked && settingsThresholdOverrideDraft;
+			panel.SliderChanged = SetDraftThreshold;
 			panel.SliderTooltip = BuildThresholdTooltip;
 		}
-		return panel;
-	}
 
-	private void CycleWorkScope()
-	{
-		if (Building == null) return;
-		int enumCount = Enum.GetValues(typeof(BuildingWorkScope)).Length;
-		BuildingWorkScope next = (BuildingWorkScope)((((int)Building.WorkScope) + 1) % enumCount);
-		currentTarget?.BuildingManager?.SetBuildingWorkScope(Building, next);
-	}
+		BuildingWorkScope[] workScopes = (BuildingWorkScope[])Enum.GetValues(typeof(BuildingWorkScope));
+		List<string> workScopeChoices = new(workScopes.Length);
+		for (int i = 0; i < workScopes.Length; ++i)
+			workScopeChoices.Add(BuildingWorkScopeUtility.ToDisplayString(workScopes[i]));
 
-	private void CycleOutboundTargetStage()
-	{
-		if (Building == null)
-			return;
+		List<string> outboundChoices = new(OutboundTargetStages.Length);
+		for (int i = 0; i < OutboundTargetStages.Length; ++i)
+			outboundChoices.Add(ItemProcessStageUtility.ToDisplayString(OutboundTargetStages[i]));
 
-		ItemProcessStage[] stages =
+		SelectionDetailEditorModel editor = new()
 		{
-			ItemProcessStage.Any,
-			ItemProcessStage.Unlabeled,
-			ItemProcessStage.Labeled,
-			ItemProcessStage.Picked,
-			ItemProcessStage.Packed,
-			ItemProcessStage.LaunchReady,
+			Message = BuildSettingsMessage(thresholdUnlocked),
+			DropdownLabel = "Work Scope",
+			DropdownChoices = workScopeChoices,
+			DropdownIndex = Mathf.Max(0, Array.IndexOf(workScopes, settingsWorkScopeDraft)),
+			DropdownChanged = index => SetDraftWorkScope(workScopes, index),
+			SecondaryDropdownLabel = "Outbound Target",
+			SecondaryDropdownChoices = outboundChoices,
+			SecondaryDropdownIndex = Mathf.Max(0, Array.IndexOf(OutboundTargetStages, settingsOutboundTargetDraft)),
+			SecondaryDropdownChanged = SetDraftOutboundTarget,
+			ToggleLabel = "Policies",
+			PrimaryActionLabel = "Apply",
+			PrimaryAction = ApplySettings,
+			SecondaryActionLabel = "Cancel",
+			SecondaryAction = CancelSettingsEdit,
 		};
-		int current = Array.IndexOf(stages, Building.OutboundTargetStage);
-		Building.TrySetOutboundTargetStage(stages[(current + 1 + stages.Length) % stages.Length]);
+		editor.Toggles.Add(new SelectionDetailToggleModel
+		{
+			Label = "Use Building Threshold",
+			Value = settingsThresholdOverrideDraft,
+			Enabled = thresholdUnlocked,
+			Changed = SetDraftThresholdOverride,
+		});
+		editor.Toggles.Add(new SelectionDetailToggleModel
+		{
+			Label = "Allow EVA Suit Removal",
+			Value = settingsSuitRemovalDraft,
+			Enabled = Building.CanControlSuitRemoval(),
+			Changed = SetDraftSuitRemoval,
+		});
+		panel.Editor = editor;
+		return panel;
 	}
 
 	private bool SupportsCapsuleThreshold() => Building != null;
@@ -625,23 +652,112 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 			: UITooltipContent.Locked(title, description,
 				"Required research: Workflow Policy Optimization");
 	}
-	private UITooltipContent BuildSuitRemovalTooltip()
+	private void BeginSettingsEdit()
 	{
-		const string title = "Allow EVA Suit Removal";
-		float oxygenPerHuman = OxygenService?.HumanOxygenConsumptionPerTick ?? 1.0f;
-		string description =
-			"Human workers remove suits only after completing outside-to-inside airlock transit. " +
-			$"Work speed is 200% at 100 O2 and 100% at 80 O2. They consume {oxygenPerHuman:0.##} O2 per tick and take damage at critical O2.";
-		return Building?.CanControlSuitRemoval() == true
-			? UITooltipContent.DescriptionOnly(title, description)
-			: UITooltipContent.Locked(title, description, "Required research: Indoor Work Protocols");
+		if (Building == null)
+			return;
+
+		settingsDraftBuildingId = Building.RuntimeBuildingId;
+		settingsDraftActive = true;
+		settingsWorkScopeDraft = Building.WorkScope;
+		settingsOutboundTargetDraft = Building.OutboundTargetStage;
+		settingsThresholdOverrideDraft = Building.OverrideCapsuleThreshold;
+		settingsThresholdPercentDraft = Building.CapsuleThresholdPercent;
+		settingsSuitRemovalDraft = Building.SuitRemovalAllowed;
+		settingsActionMessage = string.Empty;
+		++settingsDraftVersion;
 	}
-	private void ToggleThresholdOverride() { if (SupportsCapsuleThreshold()) Building.TrySetOverrideCapsuleThreshold(Building.OverrideCapsuleThreshold == false); }
-	private void SetThreshold(float value) { if (SupportsCapsuleThreshold()) Building.TrySetCapsuleThresholdPercent(value); }
-	private void SetSuitRemovalAllowed(bool allowed)
+
+	private void EnsureSettingsDraft()
 	{
-		if (Building != null)
-			currentTarget?.BuildingManager?.TrySetSuitRemovalAllowed(Building, allowed);
+		if (Building != null &&
+			(settingsDraftActive == false || settingsDraftBuildingId != Building.RuntimeBuildingId))
+		{
+			BeginSettingsEdit();
+		}
+	}
+
+	private string BuildSettingsMessage(bool thresholdUnlocked)
+	{
+		float effectiveThreshold = settingsThresholdOverrideDraft
+			? settingsThresholdPercentDraft
+			: GlobalCapsuleThresholdPercent;
+		string message =
+			$"Effective threshold {Mathf.RoundToInt(effectiveThreshold)}% · " +
+			$"Global {Mathf.RoundToInt(GlobalCapsuleThresholdPercent)}%. " +
+			"Changes are committed together with Apply.";
+		if (thresholdUnlocked == false)
+			message += " Threshold override requires Workflow Policy Optimization.";
+		if (Building?.CanControlSuitRemoval() != true)
+			message += " Suit removal requires Indoor Work Protocols.";
+		if (string.IsNullOrWhiteSpace(settingsActionMessage) == false)
+			message = settingsActionMessage + "\n" + message;
+		return message;
+	}
+
+	private void SetDraftWorkScope(BuildingWorkScope[] choices, int index)
+	{
+		if (choices == null || index < 0 || index >= choices.Length)
+			return;
+		settingsWorkScopeDraft = choices[index];
+		++settingsDraftVersion;
+	}
+
+	private void SetDraftOutboundTarget(int index)
+	{
+		if (index < 0 || index >= OutboundTargetStages.Length)
+			return;
+		settingsOutboundTargetDraft = OutboundTargetStages[index];
+		++settingsDraftVersion;
+	}
+
+	private void SetDraftThresholdOverride(bool value)
+	{
+		settingsThresholdOverrideDraft = value;
+		++settingsDraftVersion;
+	}
+
+	private void SetDraftThreshold(float value)
+	{
+		settingsThresholdPercentDraft = Mathf.Clamp(value, 0.0f, 100.0f);
+		++settingsDraftVersion;
+	}
+
+	private void SetDraftSuitRemoval(bool value)
+	{
+		settingsSuitRemovalDraft = value;
+		++settingsDraftVersion;
+	}
+
+	private void ApplySettings()
+	{
+		Building building = Building;
+		BuildingManager manager = currentTarget?.BuildingManager;
+		if (building == null || manager == null)
+		{
+			settingsActionMessage = "Building settings are unavailable.";
+			++settingsDraftVersion;
+			return;
+		}
+
+		bool applied = manager.SetBuildingWorkScope(building, settingsWorkScopeDraft);
+		applied &= building.TrySetOutboundTargetStage(settingsOutboundTargetDraft);
+		if (building.OverrideCapsuleThreshold != settingsThresholdOverrideDraft)
+			applied &= building.TrySetOverrideCapsuleThreshold(settingsThresholdOverrideDraft);
+		if (settingsThresholdOverrideDraft)
+			applied &= building.TrySetCapsuleThresholdPercent(settingsThresholdPercentDraft);
+		applied &= manager.TrySetSuitRemovalAllowed(building, settingsSuitRemovalDraft);
+
+		BeginSettingsEdit();
+		settingsActionMessage = applied ? "Settings applied." : "Some settings could not be applied.";
+		++settingsDraftVersion;
+	}
+
+	private void CancelSettingsEdit()
+	{
+		BeginSettingsEdit();
+		settingsActionMessage = "Changes discarded.";
+		++settingsDraftVersion;
 	}
 	private void MarkPendingDemolition() { if (Building != null) currentTarget?.BuildingManager?.SetBuildingState(Building, BuildingState.PendingDemolition); }
 	private void RestoreActive() { if (Building != null) currentTarget?.BuildingManager?.SetBuildingState(Building, BuildingState.Active); }

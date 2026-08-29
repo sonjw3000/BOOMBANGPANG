@@ -30,7 +30,19 @@ namespace UniverseLogistics.UI.Toolkit
 		public void AddAction(string label, Action execute, Func<bool> canExecute = null, bool isDangerous = false,
 			Func<UITooltipContent> tooltip = null)
 		{
-			Actions.Add(new SelectionInspectorAction(label, execute, canExecute, isDangerous, tooltip));
+			Actions.Add(new SelectionInspectorAction(label, execute, canExecute, isDangerous, tooltip, null));
+		}
+
+		public void AddTabAction(string label, string targetTabLabel, Action execute = null,
+			Func<bool> canExecute = null, Func<UITooltipContent> tooltip = null)
+		{
+			Actions.Add(new SelectionInspectorAction(
+				label,
+				execute,
+				canExecute,
+				false,
+				tooltip,
+				targetTabLabel));
 		}
 
 		public void AddTab(string label, Func<int> getContentVersion, Func<SelectionDetailPanelModel> buildContent)
@@ -57,6 +69,8 @@ namespace UniverseLogistics.UI.Toolkit
 	{
 		public string Title { get; set; }
 		public string Summary { get; set; }
+		public float PreferredWidth { get; set; }
+		public float PreferredHeight { get; set; }
 		public readonly List<SelectionDetailRow> Rows = new();
 		public bool HasSlider { get; set; }
 		public string SliderLabel { get; set; }
@@ -85,6 +99,11 @@ namespace UniverseLogistics.UI.Toolkit
 		public int DropdownIndex { get; set; }
 		public bool DropdownEnabled { get; set; } = true;
 		public Action<int> DropdownChanged { get; set; }
+		public string SecondaryDropdownLabel { get; set; }
+		public List<string> SecondaryDropdownChoices { get; set; } = new();
+		public int SecondaryDropdownIndex { get; set; }
+		public bool SecondaryDropdownEnabled { get; set; } = true;
+		public Action<int> SecondaryDropdownChanged { get; set; }
 		public string ToggleLabel { get; set; }
 		public readonly List<SelectionDetailToggleModel> Toggles = new();
 		public string PrimaryActionLabel { get; set; }
@@ -228,15 +247,17 @@ namespace UniverseLogistics.UI.Toolkit
 		public Func<bool> CanExecute { get; }
 		public bool IsDangerous { get; }
 		public Func<UITooltipContent> Tooltip { get; }
+		public string TargetTabLabel { get; }
 
 		public SelectionInspectorAction(string label, Action execute, Func<bool> canExecute, bool isDangerous,
-			Func<UITooltipContent> tooltip)
+			Func<UITooltipContent> tooltip, string targetTabLabel)
 		{
 			Label = label;
 			Execute = execute;
 			CanExecute = canExecute;
 			IsDangerous = isDangerous;
 			Tooltip = tooltip;
+			TargetTabLabel = targetTabLabel;
 		}
 	}
 
@@ -300,6 +321,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label detailEditorMessage;
 		private Label detailEditorDropdownLabel;
 		private DropdownField detailEditorDropdown;
+		private Label detailEditorSecondaryDropdownLabel;
+		private DropdownField detailEditorSecondaryDropdown;
 		private Label detailEditorToggleLabel;
 		private ScrollView detailEditorToggles;
 		private VisualElement detailEditorActions;
@@ -349,6 +372,8 @@ namespace UniverseLogistics.UI.Toolkit
 			detailEditorMessage = documentRoot.Q<Label>("selection-detail-editor-message");
 			detailEditorDropdownLabel = documentRoot.Q<Label>("selection-detail-editor-dropdown-label");
 			detailEditorDropdown = documentRoot.Q<DropdownField>("selection-detail-editor-dropdown");
+			detailEditorSecondaryDropdownLabel = documentRoot.Q<Label>("selection-detail-editor-secondary-dropdown-label");
+			detailEditorSecondaryDropdown = documentRoot.Q<DropdownField>("selection-detail-editor-secondary-dropdown");
 			detailEditorToggleLabel = documentRoot.Q<Label>("selection-detail-editor-toggle-label");
 			detailEditorToggles = documentRoot.Q<ScrollView>("selection-detail-editor-toggles");
 			detailEditorActions = documentRoot.Q<VisualElement>("selection-detail-editor-actions");
@@ -362,6 +387,7 @@ namespace UniverseLogistics.UI.Toolkit
 				detailSliderControl == null || detailSliderLabel == null || detailSlider == null || detailSliderValue == null ||
 				detailToggleControl == null || detailToggle == null || detailToggleDescription == null ||
 				detailEditor == null || detailEditorMessage == null || detailEditorDropdownLabel == null || detailEditorDropdown == null ||
+				detailEditorSecondaryDropdownLabel == null || detailEditorSecondaryDropdown == null ||
 				detailEditorToggleLabel == null || detailEditorToggles == null || detailEditorActions == null ||
 				detailEditorPrimaryAction == null || detailEditorSecondaryAction == null ||
 				focusButton == null || detailsButton == null)
@@ -528,7 +554,7 @@ namespace UniverseLogistics.UI.Toolkit
 			for (int i = 0; i < inspectorModel.Actions.Count; ++i)
 			{
 				SelectionInspectorAction inspectorAction = inspectorModel.Actions[i];
-				Button button = new(inspectorAction.Execute) { text = inspectorAction.Label };
+				Button button = new(() => ExecuteInspectorAction(inspectorAction)) { text = inspectorAction.Label };
 				button.AddToClassList("selection-card__context-button");
 				if (inspectorAction.IsDangerous)
 					button.AddToClassList("selection-card__context-button--danger");
@@ -746,6 +772,16 @@ namespace UniverseLogistics.UI.Toolkit
 				if (index >= 0)
 					editor.DropdownChanged?.Invoke(index);
 			});
+			detailEditorSecondaryDropdown.RegisterValueChangedCallback(evt =>
+			{
+				SelectionDetailEditorModel editor = activeDetailModel?.Editor;
+				if (editor == null)
+					return;
+
+				int index = editor.SecondaryDropdownChoices.IndexOf(evt.newValue);
+				if (index >= 0)
+					editor.SecondaryDropdownChanged?.Invoke(index);
+			});
 			detailEditorPrimaryAction.clicked += () => activeDetailModel?.Editor?.PrimaryAction?.Invoke();
 			detailEditorSecondaryAction.clicked += () => activeDetailModel?.Editor?.SecondaryAction?.Invoke();
 		}
@@ -771,6 +807,38 @@ namespace UniverseLogistics.UI.Toolkit
 			RefreshDetailPanel();
 		}
 
+		private void ExecuteInspectorAction(SelectionInspectorAction action)
+		{
+			if (action == null)
+				return;
+
+			action.Execute?.Invoke();
+			if (string.IsNullOrWhiteSpace(action.TargetTabLabel) == false)
+				OpenDetailTab(action.TargetTabLabel);
+		}
+
+		private void OpenDetailTab(string label)
+		{
+			if (inspectorExpanded == false || string.IsNullOrWhiteSpace(label))
+				return;
+
+			for (int i = 0; i < inspectorTabs.Count; ++i)
+			{
+				if (string.Equals(inspectorTabs[i].Tab.Label, label, StringComparison.OrdinalIgnoreCase) == false)
+					continue;
+
+				if (activeTabIndex == i)
+				{
+					activeDetailVersion = int.MinValue;
+					RefreshDetailPanel();
+					return;
+				}
+
+				ToggleDetailTab(i);
+				return;
+			}
+		}
+
 		private void RefreshDetailPanel()
 		{
 			if (activeTabIndex < 0 || activeTabIndex >= inspectorTabs.Count)
@@ -785,7 +853,13 @@ namespace UniverseLogistics.UI.Toolkit
 			activeDetailModel = tab.BuildContent?.Invoke() ?? new SelectionDetailPanelModel();
 			detailTitle.text = activeDetailModel.Title ?? tab.Label;
 			detailSummary.text = activeDetailModel.Summary ?? string.Empty;
-			detailPanel.style.height = activeDetailModel.Editor != null ? 400 : expandedCardHeight;
+			if (activeDetailModel.PreferredWidth > 0.0f)
+				detailPanel.style.width = activeDetailModel.PreferredWidth;
+			else
+				detailPanel.style.width = StyleKeyword.Null;
+			detailPanel.style.height = activeDetailModel.PreferredHeight > 0.0f
+				? activeDetailModel.PreferredHeight
+				: activeDetailModel.Editor != null ? 400 : expandedCardHeight;
 			detailSliderControl.style.display = activeDetailModel.HasSlider ? DisplayStyle.Flex : DisplayStyle.None;
 			if (activeDetailModel.HasSlider)
 			{
@@ -833,6 +907,25 @@ namespace UniverseLogistics.UI.Toolkit
 				detailEditorDropdown.SetValueWithoutNotify(string.Empty);
 			}
 			detailEditorDropdown.SetEnabled(editor.DropdownEnabled);
+			detailEditorSecondaryDropdownLabel.text = editor.SecondaryDropdownLabel ?? string.Empty;
+			detailEditorSecondaryDropdown.choices = editor.SecondaryDropdownChoices ?? new List<string>();
+			bool hasSecondaryDropdown = detailEditorSecondaryDropdown.choices.Count > 0;
+			detailEditorSecondaryDropdownLabel.style.display = hasSecondaryDropdown ? DisplayStyle.Flex : DisplayStyle.None;
+			detailEditorSecondaryDropdown.style.display = hasSecondaryDropdown ? DisplayStyle.Flex : DisplayStyle.None;
+			if (hasSecondaryDropdown)
+			{
+				int secondaryIndex = UnityEngine.Mathf.Clamp(
+					editor.SecondaryDropdownIndex,
+					0,
+					detailEditorSecondaryDropdown.choices.Count - 1);
+				detailEditorSecondaryDropdown.SetValueWithoutNotify(
+					detailEditorSecondaryDropdown.choices[secondaryIndex]);
+			}
+			else
+			{
+				detailEditorSecondaryDropdown.SetValueWithoutNotify(string.Empty);
+			}
+			detailEditorSecondaryDropdown.SetEnabled(editor.SecondaryDropdownEnabled);
 			detailEditorToggleLabel.text = editor.ToggleLabel ?? string.Empty;
 			detailEditorToggles.Clear();
 			for (int i = 0; i < editor.Toggles.Count; ++i)
@@ -876,6 +969,7 @@ namespace UniverseLogistics.UI.Toolkit
 			if (detailPanel != null)
 			{
 				detailPanel.RemoveFromClassList("selection-detail-panel--open");
+				detailPanel.style.width = StyleKeyword.Null;
 				detailPanel.pickingMode = PickingMode.Ignore;
 			}
 		}
