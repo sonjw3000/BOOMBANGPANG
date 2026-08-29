@@ -14,6 +14,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private const int WorkerTabIndex = 4;
 		private const int ItemTabIndex = 5;
 		private const int MoneyTabIndex = 6;
+		private const int ResearchTabIndex = 7;
 		private const string ExplosionTabName = "debug-explosion-tab";
 		private const string FireTabName = "debug-fire-tab";
 		private const string TemperatureTabName = "debug-temperature-tab";
@@ -21,6 +22,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private const string WorkerTabName = "debug-worker-tab";
 		private const string ItemTabName = "debug-item-tab";
 		private const string MoneyTabName = "debug-money-tab";
+		private const string ResearchTabName = "debug-research-tab";
 
 		private static readonly string[] TabNames =
 		{
@@ -31,6 +33,7 @@ namespace UniverseLogistics.UI.Toolkit
 			WorkerTabName,
 			ItemTabName,
 			MoneyTabName,
+			ResearchTabName,
 		};
 
 		private UIWindow window;
@@ -57,9 +60,14 @@ namespace UniverseLogistics.UI.Toolkit
 		private IntegerField moneyValueField;
 		private Button moneyApplyButton;
 		private Label moneyMessage;
+		private DropdownField researchSelectField;
+		private Button researchReturnButton;
+		private Label researchMessage;
 		private readonly List<ItemDefinition> grantItems = new();
+		private readonly List<ResearchDefinition> researchDefinitions = new();
 		private InteractionContext interaction;
 		private EconomyService economyService;
+		private ResearchService researchService;
 		private GameObject inspectedItemTarget;
 		private IItemContainer inspectedItemContainer;
 		private string inspectedItemContainerName;
@@ -117,8 +125,10 @@ namespace UniverseLogistics.UI.Toolkit
 			TemplateContainer workerContent = CreateTabContent(WorkerTabName);
 			TemplateContainer itemContent = CreateTabContent(ItemTabName);
 			TemplateContainer moneyContent = CreateTabContent(MoneyTabName);
+			TemplateContainer researchContent = CreateTabContent(ResearchTabName);
 			if (explosionContent == null || fireContent == null || temperatureContent == null ||
-				damageContent == null || workerContent == null || itemContent == null || moneyContent == null)
+				damageContent == null || workerContent == null || itemContent == null || moneyContent == null ||
+				researchContent == null)
 			{
 				Debug.LogError("[DebugControl] Required tab roots are missing.", this);
 				return false;
@@ -146,13 +156,17 @@ namespace UniverseLogistics.UI.Toolkit
 			moneyValueField = moneyContent.Q<IntegerField>("debug-money-value");
 			moneyApplyButton = moneyContent.Q<Button>("debug-money-apply");
 			moneyMessage = moneyContent.Q<Label>("debug-money-message");
+			researchSelectField = researchContent.Q<DropdownField>("debug-research-select");
+			researchReturnButton = researchContent.Q<Button>("debug-research-return");
+			researchMessage = researchContent.Q<Label>("debug-research-message");
 			if (explosionRadiusField == null || explosionSeverityField == null || fireIntensityField == null ||
 				temperatureCelsiusField == null || damageAmountField == null || explosionMessage == null ||
 				fireMessage == null || temperatureMessage == null || damageMessage == null || workerMessage == null ||
 				itemSelection == null || itemEmpty == null || itemMessage == null || itemList == null ||
 				itemRefreshButton == null || itemGrantItemField == null || itemGrantQuantityField == null ||
 				itemGrantButton == null || moneyCurrentLabel == null || moneyValueField == null ||
-				moneyApplyButton == null || moneyMessage == null)
+				moneyApplyButton == null || moneyMessage == null || researchSelectField == null ||
+				researchReturnButton == null || researchMessage == null)
 			{
 				Debug.LogError("[DebugControl] Required controls are missing.", this);
 				return false;
@@ -184,6 +198,7 @@ namespace UniverseLogistics.UI.Toolkit
 			itemGrantButton.clicked += GiveSelectedItem;
 			itemGrantButton.SetEnabled(false);
 			moneyApplyButton.clicked += ApplyMoney;
+			researchReturnButton.clicked += ReturnSelectedResearch;
 
 			window.SetTitle("Debug Controls");
 			window.ClearTabs();
@@ -194,6 +209,7 @@ namespace UniverseLogistics.UI.Toolkit
 			window.AddTab("Worker", workerContent);
 			window.AddTab("Item", itemContent);
 			window.AddTab("Money", moneyContent);
+			window.AddTab("Research", researchContent);
 			window.SelectTab(ExplosionTabIndex);
 			initialized = true;
 			return true;
@@ -239,6 +255,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 			interaction = GameContext.Instance.InteractionCtx;
 			economyService = GameContext.Instance.EconomyService;
+			researchService = GameContext.Instance.ResearchService;
 			if (interaction != null)
 				interaction.OnHandlePriorityLeftClick += HandleWorldClick;
 			if (economyService != null)
@@ -246,8 +263,11 @@ namespace UniverseLogistics.UI.Toolkit
 				economyService.OnMoneyChanged += OnMoneyChanged;
 				OnMoneyChanged(economyService.Money);
 			}
+			if (researchService != null)
+				researchService.OnResearchStateChanged += RefreshResearchChoices;
 
 			RefreshGrantItemChoices();
+			RefreshResearchChoices();
 		}
 
 		private void UnbindServices()
@@ -256,9 +276,12 @@ namespace UniverseLogistics.UI.Toolkit
 				interaction.OnHandlePriorityLeftClick -= HandleWorldClick;
 			if (economyService != null)
 				economyService.OnMoneyChanged -= OnMoneyChanged;
+			if (researchService != null)
+				researchService.OnResearchStateChanged -= RefreshResearchChoices;
 
 			interaction = null;
 			economyService = null;
+			researchService = null;
 		}
 
 		private bool HandleWorldClick(int3 position)
@@ -293,6 +316,7 @@ namespace UniverseLogistics.UI.Toolkit
 					break;
 
 				case MoneyTabIndex:
+				case ResearchTabIndex:
 					return false;
 			}
 
@@ -337,6 +361,60 @@ namespace UniverseLogistics.UI.Toolkit
 				moneyCurrentLabel.text = $"Current Money: ${value:N0}";
 			if (moneyValueField != null)
 				moneyValueField.SetValueWithoutNotify(value);
+		}
+
+		private void RefreshResearchChoices()
+		{
+			string selectedId = GetSelectedResearch()?.Uid;
+			researchDefinitions.Clear();
+			List<string> choices = new();
+			IReadOnlyList<ResearchDefinition> definitions = researchService?.Definitions;
+			if (definitions != null)
+			{
+				for (int i = 0; i < definitions.Count; ++i)
+				{
+					ResearchDefinition definition = definitions[i];
+					if (definition == null || researchService.IsResearched(definition.Uid) == false)
+						continue;
+
+					researchDefinitions.Add(definition);
+					choices.Add(definition.DisplayName);
+				}
+			}
+
+			researchSelectField.choices = choices;
+			int selectedIndex = researchDefinitions.FindIndex(definition => definition.Uid == selectedId);
+			researchSelectField.index = selectedIndex >= 0 ? selectedIndex : choices.Count > 0 ? 0 : -1;
+			researchReturnButton.SetEnabled(researchDefinitions.Count > 0);
+		}
+
+		private ResearchDefinition GetSelectedResearch()
+		{
+			int index = researchSelectField?.index ?? -1;
+			return index >= 0 && index < researchDefinitions.Count ? researchDefinitions[index] : null;
+		}
+
+		private void ReturnSelectedResearch()
+		{
+			ResearchDefinition definition = GetSelectedResearch();
+			if (definition == null || researchService == null)
+			{
+				Report(researchMessage, "Select a research to return.", LogType.Warning);
+				return;
+			}
+
+			if (researchService.TryReturnResearch(definition.Uid, out ResearchReturnFailureReason reason) == false)
+			{
+				string message = reason == ResearchReturnFailureReason.RequiredByPlannedResearch
+					? "Return its completed, active, or queued dependent research first."
+					: reason == ResearchReturnFailureReason.NotCompleted
+						? "Only completed research can be returned."
+						: "Research return failed.";
+				Report(researchMessage, message, LogType.Warning);
+				return;
+			}
+
+			Report(researchMessage, $"Returned research: {definition.DisplayName}.");
 		}
 
 		private void TriggerExplosion(in int3 position)

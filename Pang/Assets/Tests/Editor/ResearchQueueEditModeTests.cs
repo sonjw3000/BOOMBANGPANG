@@ -248,6 +248,37 @@ public sealed class ResearchQueueEditModeTests
 	}
 
 	[Test]
+	public void TryReturnResearch_CompletedLeaf_RemovesOnlyResearchState()
+	{
+		Assert.That(researchService.TryCompleteResearch(ResearchIds.TemperatureMonitoring), Is.True);
+		int moneyBeforeReturn = economyService.Money;
+
+		bool returned = researchService.TryReturnResearch(
+			ResearchIds.TemperatureMonitoring,
+			out ResearchReturnFailureReason reason);
+
+		Assert.That(returned, Is.True);
+		Assert.That(reason, Is.EqualTo(ResearchReturnFailureReason.None));
+		Assert.That(researchService.IsResearched(ResearchIds.TemperatureMonitoring), Is.False);
+		Assert.That(economyService.Money, Is.EqualTo(moneyBeforeReturn));
+	}
+
+	[Test]
+	public void TryReturnResearch_RequiredByCompletedResearch_IsRejected()
+	{
+		Assert.That(researchService.TryCompleteResearch(ResearchIds.InventoryDigitization), Is.True);
+		Assert.That(researchService.TryCompleteResearch(ResearchIds.RoboticWorkforce), Is.True);
+
+		bool returned = researchService.TryReturnResearch(
+			ResearchIds.InventoryDigitization,
+			out ResearchReturnFailureReason reason);
+
+		Assert.That(returned, Is.False);
+		Assert.That(reason, Is.EqualTo(ResearchReturnFailureReason.RequiredByPlannedResearch));
+		Assert.That(researchService.IsResearched(ResearchIds.InventoryDigitization), Is.True);
+	}
+
+	[Test]
 	public void InitializeTwice_MoneyChangeStartsQueuedResearchOnlyOnce()
 	{
 		ResearchDefinition definition = GetDefinition(ResearchIds.TemperatureMonitoring);

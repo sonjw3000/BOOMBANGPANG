@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 public static class ResearchIds
 {
@@ -38,6 +39,15 @@ public enum ResearchStartFailureReason
 	NotQueued,
 	InvalidQueuePosition,
 	InvalidQueueOrder,
+}
+
+public enum ResearchReturnFailureReason
+{
+	None,
+	ServiceUnavailable,
+	UnknownResearch,
+	NotCompleted,
+	RequiredByPlannedResearch,
 }
 
 public sealed partial class ResearchService
@@ -339,6 +349,46 @@ public sealed partial class ResearchService
 		OnResearchCompleted?.Invoke(researchId);
 		TryStartNextQueuedResearch();
 		OnResearchStateChanged?.Invoke();
+		return true;
+	}
+
+	public bool TryReturnResearch(string researchId, out ResearchReturnFailureReason reason)
+	{
+		if (catalog == null)
+		{
+			reason = ResearchReturnFailureReason.ServiceUnavailable;
+			return false;
+		}
+
+		if (catalog.TryGet(researchId, out _) == false)
+		{
+			reason = ResearchReturnFailureReason.UnknownResearch;
+			return false;
+		}
+
+		if (researchedIds.Contains(researchId) == false)
+		{
+			reason = ResearchReturnFailureReason.NotCompleted;
+			return false;
+		}
+
+		foreach (ResearchDefinition definition in Definitions)
+		{
+			if (definition == null || definition.PrerequisiteUids.Contains(researchId) == false)
+				continue;
+
+			if (IsResearched(definition.Uid) ||
+				string.Equals(activeResearchId, definition.Uid, StringComparison.Ordinal) ||
+				GetQueueIndex(definition.Uid) >= 0)
+			{
+				reason = ResearchReturnFailureReason.RequiredByPlannedResearch;
+				return false;
+			}
+		}
+
+		researchedIds.Remove(researchId);
+		OnResearchStateChanged?.Invoke();
+		reason = ResearchReturnFailureReason.None;
 		return true;
 	}
 

@@ -77,4 +77,15 @@
 		<ui:Label text="Applying creates a Debug Adjustment transaction so the change remains visible in economy history." class="debug-control-hint" />
 		<ui:Label name="debug-money-message" text="Ready." class="debug-control-message" />
 	</ui:VisualElement>
+
+	<ui:VisualElement name="debug-research-tab" class="debug-control-tab">
+		<ui:Label text="RESEARCH" class="debug-control-heading" />
+		<ui:Label text="Return one completed research without refunding its cost or reverting unlocked world state." class="debug-control-description" />
+		<ui:VisualElement class="debug-research-controls">
+			<ui:DropdownField name="debug-research-select" label="Research" class="debug-research-select" />
+			<ui:Button name="debug-research-return" text="Return Research" class="debug-research-return" />
+		</ui:VisualElement>
+		<ui:Label text="A research required by completed, active, or queued research cannot be returned first." class="debug-control-hint" />
+		<ui:Label name="debug-research-message" text="Ready." class="debug-control-message" />
+	</ui:VisualElement>
 </ui:UXML>

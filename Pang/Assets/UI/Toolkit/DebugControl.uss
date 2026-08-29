@@ -216,3 +216,24 @@
 	margin-bottom: 8px;
 	margin-left: 8px;
 }
+
+.debug-research-controls {
+	flex-direction: row;
+	align-items: flex-end;
+	margin-bottom: 10px;
+	padding-top: 12px;
+	padding-right: 14px;
+	padding-bottom: 8px;
+	padding-left: 14px;
+	background-color: rgba(23, 38, 49, 0.9);
+}
+
+.debug-research-select {
+	flex-grow: 1;
+}
+
+.debug-research-return {
+	min-width: 112px;
+	margin-bottom: 2px;
+	margin-left: 8px;
+}
