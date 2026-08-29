@@ -181,8 +181,6 @@
 				<ui:Label name="selection-detail-editor-message" class="selection-detail-editor__message" />
 				<ui:Label name="selection-detail-editor-dropdown-label" text="Workplace" class="selection-detail-editor__label" />
 				<ui:DropdownField name="selection-detail-editor-dropdown" class="selection-detail-editor__dropdown" />
-				<ui:Label name="selection-detail-editor-secondary-dropdown-label" class="selection-detail-editor__label" />
-				<ui:DropdownField name="selection-detail-editor-secondary-dropdown" class="selection-detail-editor__dropdown" />
 				<ui:Label name="selection-detail-editor-toggle-label" text="Assigned Tasks" class="selection-detail-editor__label" />
 				<ui:ScrollView name="selection-detail-editor-toggles" class="selection-detail-editor__toggles" />
 				<ui:VisualElement name="selection-detail-editor-actions" class="selection-detail-editor__actions">

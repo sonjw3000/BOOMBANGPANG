@@ -162,8 +162,7 @@ public sealed class WorkDemandMetricsEditModeTests
 	{
 		Building generic = new(
 			"Generic Logistics Building",
-			new List<GridCell>(),
-			ItemProcessStage.Any);
+			new List<GridCell>());
 		buildingManager.Register(generic);
 		Assert.That(generic.RuntimeBuildingId, Is.Not.Zero);
 		Assert.That(
@@ -197,8 +196,7 @@ public sealed class WorkDemandMetricsEditModeTests
 	{
 		Building firstBuilding = new(
 			"First Packing Demand Building",
-			new List<GridCell>(),
-			ItemProcessStage.Packed);
+			new List<GridCell>());
 		buildingManager.Register(firstBuilding);
 
 		CapsuleBuffer firstInputBuffer = CreateInboundBuffer(
@@ -242,8 +240,7 @@ public sealed class WorkDemandMetricsEditModeTests
 
 		Building secondBuilding = new(
 			"Second Packing Demand Building",
-			new List<GridCell>(),
-			ItemProcessStage.Packed);
+			new List<GridCell>());
 		buildingManager.Register(secondBuilding);
 		CapsuleBuffer secondInputBuffer = CreateInboundBuffer(
 			"Second Packing Input Demand Buffer",
@@ -303,8 +300,7 @@ public sealed class WorkDemandMetricsEditModeTests
 	{
 		Building building = new(
 			"Restored Packing Output Building",
-			new List<GridCell>(),
-			ItemProcessStage.Any);
+			new List<GridCell>());
 		buildingManager.Register(building);
 
 		PackingStation station = CreateComponent<PackingStation>(
@@ -342,8 +338,7 @@ public sealed class WorkDemandMetricsEditModeTests
 	{
 		Building building = new(
 			"Restored Packing Input Building",
-			new List<GridCell>(),
-			ItemProcessStage.Any);
+			new List<GridCell>());
 		buildingManager.Register(building);
 
 		PackingStation station = CreateComponent<PackingStation>(
@@ -489,7 +484,7 @@ public sealed class WorkDemandMetricsEditModeTests
 
 	private Building CreateStorageBuilding(string displayName)
 	{
-		Building building = new(displayName, new List<GridCell>(), ItemProcessStage.Picked);
+		Building building = new(displayName, new List<GridCell>());
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;

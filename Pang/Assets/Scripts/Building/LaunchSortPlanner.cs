@@ -412,11 +412,7 @@ public sealed class LaunchSortPlanner :
 			if (GameContext.HasInstance)
 				GameContext.Instance.CapsuleRelocateCoordinator.MarkDirty(targetBuffer);
 
-			if (activeTask != null &&
-				(result.Kind == TransferResultKind.Partial || IsOutboundThresholdReached(targetBuffer)))
-			{
-				activeTask.ReleaseRetainedCapsuleOutput(targetBuffer);
-			}
+			activeTask?.ReleaseRetainedCapsuleOutput(targetBuffer);
 		}
 
 		EvaluateWork();
@@ -626,20 +622,27 @@ public sealed class LaunchSortPlanner :
 					worker),
 				FacilityManifestFilter.FromOrderLine(orderLine)),
 			ItemProcessStage.Packed);
+		FacilityFilter launchFilter = FacilityFilter.WithItemProcessStage(
+			filter,
+			ItemProcessStage.LaunchReady);
+		CapsuleRelocateCoordinator coordinator = GameContext.Instance.CapsuleRelocateCoordinator;
+		if (coordinator?.HasProjectedOutboundRoute(buildingId, filter) != true &&
+			coordinator?.HasProjectedOutboundRoute(buildingId, launchFilter) != true)
+		{
+			return false;
+		}
 
 		int bestPriority = int.MinValue;
 		int bestMovable = 0;
 		int bestDistance = int.MaxValue;
 		bool bestRetained = false;
 		ItemTransferTask activeTask = worker?.CurrentTask as ItemTransferTask;
-		TryGetBuilding(out Building targetBuilding);
 		foreach (CapsuleBuffer candidate in BufferService.GetBuffers(buildingId))
 		{
 			if (ReferenceEquals(candidate, excludedBuffer) ||
 				IsCapsuleOutputCandidate(
 					activeTask,
 					candidate,
-					targetBuilding,
 					filter) == false)
 			{
 				continue;
@@ -689,8 +692,7 @@ public sealed class LaunchSortPlanner :
 
 	private bool CanRunForBuilding()
 	{
-		return TryGetBuilding(out Building building) &&
-			building.OutboundTargetStage == ItemProcessStage.LaunchReady;
+		return TryGetBuilding(out _);
 	}
 
 	private bool TryGetBuilding(out Building building)
@@ -716,7 +718,8 @@ public sealed class LaunchSortPlanner :
 			GameContext.Instance.FacilityMgr?.IsInvalidating(sourceBuffer) == true ||
 			GameContext.Instance.TaskMgr?.HasConflictingCapsuleContentDependency(
 				sourceBuffer,
-				WorkLineAction.Pick) == true)
+				WorkLineAction.Pick) == true ||
+			GameContext.Instance.CapsuleRelocateCoordinator?.HasMatchedOutboundRoute(sourceBuffer) == true)
 		{
 			return false;
 		}
@@ -731,7 +734,6 @@ public sealed class LaunchSortPlanner :
 		return IsCapsuleOutputCandidate(
 			task: null,
 			buffer: buffer,
-			building: null,
 			projectedInputFilter: projectedInputFilter,
 			requireEmpty: true);
 	}
@@ -739,7 +741,6 @@ public sealed class LaunchSortPlanner :
 	private bool IsCapsuleOutputCandidate(
 		ItemTransferTask task,
 		CapsuleBuffer buffer,
-		Building building,
 		FacilityFilter projectedInputFilter,
 		bool requireEmpty = false)
 	{
@@ -779,24 +780,7 @@ public sealed class LaunchSortPlanner :
 			return false;
 		}
 
-		if (building != null &&
-			building.OutboundTargetStage == ItemProcessStage.LaunchReady &&
-			building.CanDispatchOutboundBuffer(buffer))
-		{
-			return false;
-		}
-
 		return IsDockAvailable(buffer);
-	}
-
-	private static bool IsOutboundThresholdReached(CapsuleBuffer buffer)
-	{
-		if (buffer == null || GameContext.HasInstance == false)
-			return false;
-
-		return GameContext.Instance.FacilityMgr?.TryGetBuildingId(buffer, out uint buildingId) == true &&
-			GameContext.Instance.BuildingMgr?.TryGetBuilding(buildingId, out Building building) == true &&
-			building.CanDispatchOutboundBuffer(buffer);
 	}
 
 	private static bool IsDockAvailable(CapsuleDock dock)

@@ -218,7 +218,6 @@ public sealed class BuildingSaveData
 	public string Name;
 	public BuildingState State;
 	public BuildingWorkScope WorkScope;
-	public ItemProcessStage OutboundTargetStage = ItemProcessStage.Any;
 	public bool OverrideCapsuleThreshold;
 	public float CapsuleThresholdPercent;
 	public bool SuitRemovalAllowed;

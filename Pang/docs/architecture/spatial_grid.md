@@ -87,7 +87,7 @@ Additional interpretation rules:
 
 Examples:
 - storage, staging, and packing are capabilities composed from installed facilities and their Rules
-- Building has no role enum; installed facilities, their Rules, and the Building outbound policy define its logistics behavior
+- Building has no role enum; installed facilities and their Rules define logistics behavior, while Building owns only the shared capsule dispatch threshold
 - fragile handling, hazard restrictions, and item filters are facility-rule policies
 
 ---

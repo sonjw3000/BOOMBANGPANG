@@ -21,22 +21,11 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	private uint settingsDraftBuildingId;
 	private bool settingsDraftActive;
 	private BuildingWorkScope settingsWorkScopeDraft;
-	private ItemProcessStage settingsOutboundTargetDraft;
 	private bool settingsThresholdOverrideDraft;
 	private float settingsThresholdPercentDraft;
 	private bool settingsSuitRemovalDraft;
 	private string settingsActionMessage = string.Empty;
 	private int settingsDraftVersion;
-
-	private static readonly ItemProcessStage[] OutboundTargetStages =
-	{
-		ItemProcessStage.Any,
-		ItemProcessStage.Unlabeled,
-		ItemProcessStage.Labeled,
-		ItemProcessStage.Picked,
-		ItemProcessStage.Packed,
-		ItemProcessStage.LaunchReady,
-	};
 
 	public override string Name => Building != null ? Building.DisplayName : "Unknown Building";
 	public override string Subtitle => Building != null ? "Building" : "Unknown Building";
@@ -98,7 +87,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		model.AddTabAction("Settings", "Settings", BeginSettingsEdit, () => Building != null,
 			tooltip: () => UITooltipContent.DescriptionOnly(
 				"Building settings",
-				"Configure work scope, outbound target, capsule threshold, and indoor policy."));
+				"Configure work scope, capsule threshold, and indoor policy."));
 		model.AddAction("Pending Demolition", MarkPendingDemolition, () => Building != null && Building.State != BuildingState.PendingDemolition, true);
 		model.AddAction("Restore Active", RestoreActive, () => Building != null && Building.State != BuildingState.Active);
 	}
@@ -537,7 +526,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 	{
 		if (Building == null) return 0;
 		return HashCode.Combine(
-			HashCode.Combine(Building.WorkScope, Building.OutboundTargetStage),
+			Building.WorkScope,
 			HashCode.Combine(Building.OverrideCapsuleThreshold, settingsDraftVersion),
 			Mathf.RoundToInt(Building.CapsuleThresholdPercent),
 			Building.SuitRemovalAllowed,
@@ -556,7 +545,7 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 			Title = "SETTINGS",
 			Summary = "Review and apply building operating policies",
 			PreferredWidth = 420.0f,
-			PreferredHeight = 540.0f,
+			PreferredHeight = 500.0f,
 		};
 		if (Building == null) return panel;
 
@@ -602,10 +591,6 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		for (int i = 0; i < workScopes.Length; ++i)
 			workScopeChoices.Add(BuildingWorkScopeUtility.ToDisplayString(workScopes[i]));
 
-		List<string> outboundChoices = new(OutboundTargetStages.Length);
-		for (int i = 0; i < OutboundTargetStages.Length; ++i)
-			outboundChoices.Add(ItemProcessStageUtility.ToDisplayString(OutboundTargetStages[i]));
-
 		SelectionDetailEditorModel editor = new()
 		{
 			Message = BuildSettingsMessage(thresholdUnlocked),
@@ -613,10 +598,6 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 			DropdownChoices = workScopeChoices,
 			DropdownIndex = Mathf.Max(0, Array.IndexOf(workScopes, settingsWorkScopeDraft)),
 			DropdownChanged = index => SetDraftWorkScope(workScopes, index),
-			SecondaryDropdownLabel = "Outbound Target",
-			SecondaryDropdownChoices = outboundChoices,
-			SecondaryDropdownIndex = Mathf.Max(0, Array.IndexOf(OutboundTargetStages, settingsOutboundTargetDraft)),
-			SecondaryDropdownChanged = SetDraftOutboundTarget,
 			ToggleLabel = "Policies",
 			PrimaryActionLabel = "Apply",
 			PrimaryAction = ApplySettings,
@@ -660,7 +641,6 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		settingsDraftBuildingId = Building.RuntimeBuildingId;
 		settingsDraftActive = true;
 		settingsWorkScopeDraft = Building.WorkScope;
-		settingsOutboundTargetDraft = Building.OutboundTargetStage;
 		settingsThresholdOverrideDraft = Building.OverrideCapsuleThreshold;
 		settingsThresholdPercentDraft = Building.CapsuleThresholdPercent;
 		settingsSuitRemovalDraft = Building.SuitRemovalAllowed;
@@ -703,14 +683,6 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		++settingsDraftVersion;
 	}
 
-	private void SetDraftOutboundTarget(int index)
-	{
-		if (index < 0 || index >= OutboundTargetStages.Length)
-			return;
-		settingsOutboundTargetDraft = OutboundTargetStages[index];
-		++settingsDraftVersion;
-	}
-
 	private void SetDraftThresholdOverride(bool value)
 	{
 		settingsThresholdOverrideDraft = value;
@@ -741,7 +713,6 @@ public sealed class BuildingUIProvider : UIProvider<BuildingSelectionProxy>, ISe
 		}
 
 		bool applied = manager.SetBuildingWorkScope(building, settingsWorkScopeDraft);
-		applied &= building.TrySetOutboundTargetStage(settingsOutboundTargetDraft);
 		if (building.OverrideCapsuleThreshold != settingsThresholdOverrideDraft)
 			applied &= building.TrySetOverrideCapsuleThreshold(settingsThresholdOverrideDraft);
 		if (settingsThresholdOverrideDraft)

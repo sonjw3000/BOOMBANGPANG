@@ -169,7 +169,7 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 				continue;
 
 			QueueLaunchSortEvaluation(building.RuntimeBuildingId);
-			if (building.OutboundTargetStage == ItemProcessStage.LaunchReady && GameContext.HasInstance)
+			if (GameContext.HasInstance)
 				GameContext.Instance.CapsuleRelocateCoordinator.MarkBuildingDirty(building.RuntimeBuildingId);
 		}
 	}
@@ -208,7 +208,6 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		{
 			if (BuildingManager?.TryGetBuilding(buildingId, out Building building) != true ||
 				building == null ||
-				building.OutboundTargetStage != ItemProcessStage.LaunchReady ||
 				TryGetLaunchSortPlanner(buildingId, out LaunchSortPlanner planner) == false)
 			{
 				scheduler.ClearDirty(buildingId, ItemTransferScheduleMode.LaunchSort);
@@ -258,20 +257,22 @@ public partial class OutboundWorkflowService : MonoBehaviour, IBoundService
 		if (building == null || capsuleBuffer?.DockedCapsule == null)
 			return false;
 
-		if (building.OutboundTargetStage != ItemProcessStage.LaunchReady)
-			return building.CanDispatchOutboundBuffer(capsuleBuffer);
-
 		RejectInvalidPackedCargo(capsuleBuffer);
-		if (HasDispatchBlockingCargo(capsuleBuffer) ||
-			HasCompleteDispatchManifest(capsuleBuffer) == false)
+		CapsuleRelocateCoordinator coordinator = GameContext.HasInstance
+			? GameContext.Instance.CapsuleRelocateCoordinator
+			: null;
+		if (coordinator?.CanDispatchOutbound(capsuleBuffer, requireAvailable: false) == true)
 		{
-			if (capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
-				GameContext.Instance.CapsuleRelocateCoordinator.MarkDirty(capsuleBuffer);
-			QueueLaunchSortEvaluation(building.RuntimeBuildingId);
-			return false;
+			return true;
 		}
 
-		return building.CanDispatchOutboundBuffer(capsuleBuffer);
+		if (capsuleBuffer.DockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
+		{
+			coordinator?.MarkDirty(capsuleBuffer);
+		}
+
+		QueueLaunchSortEvaluation(building.RuntimeBuildingId);
+		return false;
 	}
 
 	public void OnTaskCompleted(WorkerTask task)

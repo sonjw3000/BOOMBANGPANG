@@ -660,8 +660,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		ActivateInboundWorkflow();
 		Building building = new(
 			"Rule Labeling Completion Building",
-			new List<GridCell>(),
-			ItemProcessStage.Labeled);
+			new List<GridCell>());
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "Labeling Rule Source", CapsuleDockState.IB);
 		CapsuleBuffer target = CreateBuffer(building, "Labeled Rule Destination", CapsuleDockState.IB);
@@ -715,8 +714,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		ActivateInboundWorkflow();
 		Building building = new(
 			"Multi Stage Labeling Building",
-			new List<GridCell>(),
-			ItemProcessStage.Packed);
+			new List<GridCell>());
 		buildingManager.Register(building);
 		CapsuleBuffer buffer = CreateBuffer(building, "Multi Stage Labeling Buffer", CapsuleDockState.IB);
 		Assert.That(
@@ -771,8 +769,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		ActivateInboundWorkflow();
 		Building building = new(
 			"Generic Labeling Outbound Promotion Building",
-			new List<GridCell>(),
-			ItemProcessStage.Any);
+			new List<GridCell>());
 		buildingManager.Register(building);
 		CapsuleBuffer source = CreateBuffer(building, "Generic Labeling Outbound Source", CapsuleDockState.IB);
 		OutboundCargoPort target = CreateDock<OutboundCargoPort>(building, "Generic Labeling Outbound Target");
@@ -790,7 +787,6 @@ public sealed class CapsuleRelocationTaskEditModeTests
 
 		InvokeNonPublic(typeof(Building), building, "SetOverrideCapsuleThreshold", true);
 		InvokeNonPublic(typeof(Building), building, "SetCapsuleThresholdPercent", 0.0f);
-		Assert.That(building.TrySetOutboundTargetStage(ItemProcessStage.Unlabeled), Is.True);
 		Assert.That(coordinator.HasDirty, Is.True);
 		coordinator.ProcessDirty();
 
@@ -808,8 +804,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		Building building = new(
 			"Generic Labeling Reactivation Building",
-			new List<GridCell>(),
-			ItemProcessStage.Any);
+			new List<GridCell>());
 		buildingManager.Register(building);
 		CapsuleBuffer buffer = CreateBuffer(building, "Generic Labeling Reactivation Buffer", CapsuleDockState.IB);
 		Assert.That(buildingManager.TryRegisterFacility(building.RuntimeBuildingId, buffer), Is.True);
@@ -1104,8 +1099,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		Building building = new(
 			"Inbound Route Preservation Building",
-			new List<GridCell>(),
-			ItemProcessStage.Any);
+			new List<GridCell>());
 		buildingManager.Register(building);
 		InboundCargoPort source = CreateDock<InboundCargoPort>(building, "Inbound Route Source");
 		CapsuleBuffer target = CreateBuffer(building, "Inbound Route Target", CapsuleDockState.IB);
@@ -1459,8 +1453,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		Building building = new(
 			"Capsule Relocation Launch Test Building",
-			new List<GridCell>(),
-			ItemProcessStage.LaunchReady);
+			new List<GridCell>());
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
@@ -1470,8 +1463,7 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	{
 		Building building = new(
 			"Capsule Relocation Storage Test Building",
-			new List<GridCell>(),
-			ItemProcessStage.Picked);
+			new List<GridCell>());
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;
@@ -1712,11 +1704,11 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private sealed class AlwaysOutboundReadyBuilding : Building
 	{
 		public AlwaysOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, ItemProcessStage.Labeled)
+			: base(displayName, occupiedCells)
 		{
 		}
 
-		protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
+		protected override bool IsBufferOutboundThresholdReached(CapsuleBuffer capsuleBuffer)
 		{
 			return capsuleBuffer?.DockedCapsule?.LogisticsState == CapsuleLogisticsState.OB;
 		}
@@ -1725,11 +1717,11 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private sealed class NeverOutboundReadyBuilding : Building
 	{
 		public NeverOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, ItemProcessStage.Any)
+			: base(displayName, occupiedCells)
 		{
 		}
 
-		protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
+		protected override bool IsBufferOutboundThresholdReached(CapsuleBuffer capsuleBuffer)
 		{
 			return false;
 		}
@@ -1738,11 +1730,11 @@ public sealed class CapsuleRelocationTaskEditModeTests
 	private sealed class ContentOutboundReadyBuilding : Building
 	{
 		public ContentOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, ItemProcessStage.Any)
+			: base(displayName, occupiedCells)
 		{
 		}
 
-		protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
+		protected override bool IsBufferOutboundThresholdReached(CapsuleBuffer capsuleBuffer)
 		{
 			return capsuleBuffer != null && capsuleBuffer.IsCapsuleEmpty() == false;
 		}
@@ -1753,11 +1745,11 @@ public sealed class CapsuleRelocationTaskEditModeTests
 		public bool OutboundReady { get; set; }
 
 		public ToggleOutboundReadyBuilding(string displayName, List<GridCell> occupiedCells)
-			: base(displayName, occupiedCells, ItemProcessStage.Any)
+			: base(displayName, occupiedCells)
 		{
 		}
 
-		protected override bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
+		protected override bool IsBufferOutboundThresholdReached(CapsuleBuffer capsuleBuffer)
 		{
 			return OutboundReady && capsuleBuffer?.DockedCapsule != null;
 		}

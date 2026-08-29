@@ -176,11 +176,10 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 
 	public bool IsRuleMatchedOutboundPort(
 		OutboundCargoPort port,
-		CargoCapsule capsule,
-		bool evaluateLaunchReadiness)
+		CargoCapsule capsule)
 	{
-		if (port == null || capsule == null || capsule.RouteKind != CargoRouteKind.Standard ||
-			FacilityFilter.TryForCapsule(capsule, evaluateLaunchReadiness, out FacilityFilter filter) == false)
+		if (TryBuildOutboundFilters(capsule, out FacilityFilter physicalFilter, out FacilityFilter launchFilter,
+				out bool hasLaunchFilter) == false)
 		{
 			return false;
 		}
@@ -188,13 +187,13 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		FacilityRuleManager ruleManager = GameContext.HasInstance
 			? GameContext.Instance.FacilityRuleMgr
 			: null;
-		return IsRuleMatchedOutboundPort(port, capsule, filter, ruleManager);
+		return IsRuleMatchedOutboundPort(port, capsule, physicalFilter, ruleManager) ||
+			(hasLaunchFilter && IsRuleMatchedOutboundPort(port, capsule, launchFilter, ruleManager));
 	}
 
 	public bool TryFindRuleMatchedOutboundPort(
 		uint buildingId,
 		CargoCapsule capsule,
-		bool evaluateLaunchReadiness,
 		out OutboundCargoPort port,
 		bool requireAvailable = true,
 		Predicate<OutboundCargoPort> predicate = null)
@@ -202,7 +201,8 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		port = null;
 		if (buildingId == 0 || capsule == null || capsule.RouteKind != CargoRouteKind.Standard ||
 			FacilityManager == null ||
-			FacilityFilter.TryForCapsule(capsule, evaluateLaunchReadiness, out FacilityFilter filter) == false ||
+			TryBuildOutboundFilters(capsule, out FacilityFilter physicalFilter, out FacilityFilter launchFilter,
+				out bool hasLaunchFilter) == false ||
 			TryGetBuildingFacilities(buildingId, out IReadOnlyList<CargoPort> ports) == false)
 		{
 			return false;
@@ -220,7 +220,9 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 			if (ports[i] is not OutboundCargoPort candidate ||
 				(requireAvailable && candidate.CanPutBox() == false) ||
 				(predicate != null && predicate(candidate) == false) ||
-				IsRuleMatchedOutboundPort(candidate, capsule, filter, ruleManager) == false)
+				(IsRuleMatchedOutboundPort(candidate, capsule, physicalFilter, ruleManager) == false &&
+				 (hasLaunchFilter == false ||
+				  IsRuleMatchedOutboundPort(candidate, capsule, launchFilter, ruleManager) == false)))
 			{
 				continue;
 			}
@@ -236,6 +238,97 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 		return port != null;
 	}
 
+	public bool TryFindRuleMatchedOutboundPort(
+		uint buildingId,
+		in FacilityFilter filter,
+		out OutboundCargoPort port,
+		Predicate<OutboundCargoPort> predicate = null)
+	{
+		port = null;
+		if (buildingId == 0 || FacilityManager == null ||
+			TryGetBuildingFacilities(buildingId, out IReadOnlyList<CargoPort> ports) == false)
+		{
+			return false;
+		}
+
+		FacilityRuleManager ruleManager = GameContext.HasInstance
+			? GameContext.Instance.FacilityRuleMgr
+			: null;
+		if (ruleManager == null)
+			return false;
+
+		int bestPriority = int.MinValue;
+		for (int i = 0; i < ports.Count; ++i)
+		{
+			if (ports[i] is not OutboundCargoPort candidate ||
+				(predicate != null && predicate(candidate) == false) ||
+				IsRuleMatchedOutboundPort(candidate, filter, ruleManager) == false)
+			{
+				continue;
+			}
+
+			int priority = GetRulePriority(candidate, ruleManager);
+			if (port != null && priority <= bestPriority)
+				continue;
+
+			port = candidate;
+			bestPriority = priority;
+		}
+
+		return port != null;
+	}
+
+	public bool TryFindDispatchPort(
+		uint buildingId,
+		CapsuleBuffer buffer,
+		out OutboundCargoPort port,
+		bool requireAvailable = true,
+		Predicate<OutboundCargoPort> predicate = null)
+	{
+		port = null;
+		if (buffer?.DockedCapsule == null || GameContext.HasInstance == false ||
+			GameContext.Instance.BuildingMgr?.TryGetBuilding(buildingId, out Building building) != true ||
+			building == null || building.IsOutboundThresholdReached(buffer) == false)
+		{
+			return false;
+		}
+
+		return TryFindRuleMatchedOutboundPort(
+			buildingId,
+			buffer.DockedCapsule,
+			out port,
+			requireAvailable,
+			predicate);
+	}
+
+	private static bool TryBuildOutboundFilters(
+		CargoCapsule capsule,
+		out FacilityFilter physicalFilter,
+		out FacilityFilter launchFilter,
+		out bool hasLaunchFilter)
+	{
+		launchFilter = FacilityFilter.None;
+		hasLaunchFilter = false;
+		if (capsule == null || capsule.RouteKind != CargoRouteKind.Standard ||
+			FacilityFilter.TryForCapsule(capsule, evaluateLaunchReadiness: false, out physicalFilter) == false)
+		{
+			physicalFilter = FacilityFilter.None;
+			return false;
+		}
+
+		if (ItemProcessStageEvaluator.IsLaunchReady(
+				capsule,
+				GameContext.HasInstance ? GameContext.Instance.OBWorkflowSvc : null))
+		{
+			hasLaunchFilter = FacilityFilter.TryForCapsule(
+				capsule,
+				evaluateLaunchReadiness: true,
+				out launchFilter);
+		}
+
+		return true;
+	}
+
 	private bool IsRuleMatchedOutboundPort(
 		OutboundCargoPort port,
 		CargoCapsule capsule,
@@ -247,6 +340,21 @@ public class CargoPortService : FacilityService<CargoPort>, ICollectSupplySource
 			capsule.RouteKind == CargoRouteKind.Standard &&
 			port.FacilityRulePresetId != FacilityRuleManager.NoRulePresetId &&
 			port.CanAcceptCargoRoute(capsule.RouteKind) &&
+			(FacilityManager == null || FacilityManager.IsInvalidating(port) == false) &&
+			ruleManager != null &&
+			ruleManager.TryGetPreset(port.FacilityRulePresetId, out FacilityRulePreset preset) &&
+			preset?.Rule != null &&
+			preset.Rule.IsEmpty == false &&
+			preset.Rule.IsFilterCapable(filter);
+	}
+
+	private bool IsRuleMatchedOutboundPort(
+		OutboundCargoPort port,
+		in FacilityFilter filter,
+		FacilityRuleManager ruleManager)
+	{
+		return port != null &&
+			port.FacilityRulePresetId != FacilityRuleManager.NoRulePresetId &&
 			(FacilityManager == null || FacilityManager.IsInvalidating(port) == false) &&
 			ruleManager != null &&
 			ruleManager.TryGetPreset(port.FacilityRulePresetId, out FacilityRulePreset preset) &&

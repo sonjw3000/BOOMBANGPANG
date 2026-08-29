@@ -270,26 +270,6 @@ public sealed class ItemProcessStageEvaluatorEditModeTests
 	}
 
 	[Test]
-	public void Building_OutboundTargetStage_IsExplicitAndDefaultsToAny()
-	{
-		Assert.That(
-			new Building("Staging", new List<GridCell>(), ItemProcessStage.Labeled).OutboundTargetStage,
-			Is.EqualTo(ItemProcessStage.Labeled));
-		Assert.That(
-			new Building("Storage", new List<GridCell>(), ItemProcessStage.Picked).OutboundTargetStage,
-			Is.EqualTo(ItemProcessStage.Picked));
-		Assert.That(
-			new Building("Packing", new List<GridCell>(), ItemProcessStage.Packed).OutboundTargetStage,
-			Is.EqualTo(ItemProcessStage.Packed));
-		Assert.That(
-			new Building("Launch", new List<GridCell>(), ItemProcessStage.LaunchReady).OutboundTargetStage,
-			Is.EqualTo(ItemProcessStage.LaunchReady));
-		Assert.That(
-			new Building("Default", new List<GridCell>()).OutboundTargetStage,
-			Is.EqualTo(ItemProcessStage.Any));
-	}
-
-	[Test]
 	public void GameSaveData_UsesCurrentBreakingSchemaVersion()
 	{
 		Assert.That(GameSaveData.CurrentVersion, Is.EqualTo(22));
@@ -629,7 +609,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
-	public void StoringPlanner_RejectsBufferRuleOwnedByStorageOutboundStage()
+	public void StoringPlanner_RejectsBufferWhoseRuleDoesNotAllowLabeledInput()
 	{
 		Building storage = CreateStorageBuilding("Outbound-owned Storage");
 		CapsuleBuffer outputBuffer = CreateBuffer(
@@ -643,13 +623,13 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			ItemStatus.Labeled);
 		capsule.SetLogisticsState(CapsuleLogisticsState.Inside);
 		Assert.That(outputBuffer.TryDockCapsule(capsule), Is.True);
-		ApplyRule(outputBuffer, storage.OutboundTargetStage);
+		ApplyRule(outputBuffer, ItemProcessStage.Picked);
 
 		StoringPlanner planner = new(bufferService);
 		Assert.That(
 			planner.HasPendingCollectWork(storage.RuntimeBuildingId),
 			Is.False,
-			"The Buffer Rule already assigns this partial capsule to the Building outbound stage.");
+			"Storing requires a Buffer Rule that allows the current Labeled input stage.");
 	}
 
 	[Test]
@@ -1012,10 +992,8 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 		const int quantity = 2;
 		Building building = new(
 			"Generic Launch Rule Building",
-			new List<GridCell>(),
-			ItemProcessStage.Any);
+			new List<GridCell>());
 		buildingManager.Register(building);
-		Assert.That(building.TrySetOutboundTargetStage(ItemProcessStage.LaunchReady), Is.True);
 
 		CargoCapsule source = CreateCapsule(
 			"Packed Output Source",
@@ -1268,15 +1246,14 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			priority: 5);
 		ApplyOutboundRule(otherBuilding, ItemProcessStageMask.Unlabeled, priority: 10);
 
-		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(noRule, capsule, false), Is.False);
-		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(emptyRule, capsule, false), Is.False);
-		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(wrongStage, capsule, false), Is.False);
-		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(matching, capsule, false), Is.True);
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(noRule, capsule), Is.False);
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(emptyRule, capsule), Is.False);
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(wrongStage, capsule), Is.False);
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(matching, capsule), Is.True);
 		Assert.That(
 			cargoPortService.TryFindRuleMatchedOutboundPort(
 				FirstBuildingId,
 				capsule,
-				evaluateLaunchReadiness: false,
 				out OutboundCargoPort result),
 			Is.True);
 		Assert.That(result, Is.SameAs(matching));
@@ -1298,7 +1275,6 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			cargoPortService.TryFindRuleMatchedOutboundPort(
 				FirstBuildingId,
 				capsule,
-				evaluateLaunchReadiness: false,
 				out OutboundCargoPort availableResult),
 			Is.True);
 		Assert.That(availableResult, Is.SameAs(availableLowPriority));
@@ -1307,14 +1283,13 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 			cargoPortService.TryFindRuleMatchedOutboundPort(
 				FirstBuildingId,
 				capsule,
-				evaluateLaunchReadiness: false,
 				out OutboundCargoPort policyResult,
 				requireAvailable: false),
 			Is.True);
 		Assert.That(policyResult, Is.SameAs(occupiedHighPriority));
 
 		WasteBin waste = CreateComponent<WasteBin>("Waste Outbound Capsule", active: false);
-		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(availableLowPriority, waste, false), Is.False);
+		Assert.That(cargoPortService.IsRuleMatchedOutboundPort(availableLowPriority, waste), Is.False);
 	}
 
 	private CapsuleBuffer CreateBuffer(string name, uint buildingId, int x)
@@ -1335,7 +1310,7 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 
 	private Building CreateStorageBuilding(string name)
 	{
-		Building building = new(name, new List<GridCell>(), ItemProcessStage.Picked);
+		Building building = new(name, new List<GridCell>());
 		buildingManager.Register(building);
 		Assert.That(building.RuntimeBuildingId, Is.Not.Zero);
 		return building;

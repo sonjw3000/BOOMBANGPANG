@@ -871,13 +871,11 @@ public sealed class WorkforceAssignmentEditModeTests
 		SelectionDetailPanelModel panel = settingsTab.BuildContent();
 		Assert.That(panel.Title, Is.EqualTo("SETTINGS"));
 		Assert.That(panel.PreferredWidth, Is.GreaterThanOrEqualTo(420.0f));
-		Assert.That(panel.PreferredHeight, Is.GreaterThanOrEqualTo(540.0f));
+		Assert.That(panel.PreferredHeight, Is.GreaterThanOrEqualTo(500.0f));
 		Assert.That(panel.HasSlider, Is.True);
 		Assert.That(panel.Editor, Is.Not.Null);
 		Assert.That(panel.Editor.DropdownLabel, Is.EqualTo("Work Scope"));
 		Assert.That(panel.Editor.DropdownChoices, Is.Not.Empty);
-		Assert.That(panel.Editor.SecondaryDropdownLabel, Is.EqualTo("Outbound Target"));
-		Assert.That(panel.Editor.SecondaryDropdownChoices, Does.Contain("Launch Ready"));
 		Assert.That(panel.Editor.Toggles.Count, Is.EqualTo(2));
 		Assert.That(panel.Editor.Toggles[0].Label, Is.EqualTo("Use Building Threshold"));
 		Assert.That(panel.Editor.Toggles[1].Label, Is.EqualTo("Allow EVA Suit Removal"));
@@ -905,17 +903,7 @@ public sealed class WorkforceAssignmentEditModeTests
 			"cargoPortService",
 			CreateComponent<CargoPortService>("Settings Test Cargo Port Service", active: false));
 
-		int launchReadyIndex = panel.Editor.SecondaryDropdownChoices.IndexOf("Launch Ready");
-		Assert.That(launchReadyIndex, Is.GreaterThanOrEqualTo(0));
-		panel.Editor.SecondaryDropdownChanged?.Invoke(launchReadyIndex);
 		panel.Editor.PrimaryAction?.Invoke();
-		Assert.That(building.OutboundTargetStage, Is.EqualTo(ItemProcessStage.LaunchReady));
-
-		int packedIndex = panel.Editor.SecondaryDropdownChoices.IndexOf("Packed");
-		panel.Editor.SecondaryDropdownChanged?.Invoke(packedIndex);
-		panel.Editor.SecondaryAction?.Invoke();
-		panel.Editor.PrimaryAction?.Invoke();
-		Assert.That(building.OutboundTargetStage, Is.EqualTo(ItemProcessStage.LaunchReady));
 	}
 
 	[Test]
@@ -2507,8 +2495,7 @@ public sealed class WorkforceAssignmentEditModeTests
 		buildingManager.OnBuildingsChanged += () => ++changedCount;
 		Building building = new(
 			"Workforce Event Storage",
-			new List<GridCell>(),
-			ItemProcessStage.Picked);
+			new List<GridCell>());
 
 		buildingManager.Register(building);
 		Assert.That(changedCount, Is.EqualTo(1));
@@ -2533,9 +2520,9 @@ public sealed class WorkforceAssignmentEditModeTests
 		worker.SetAssignedTaskTypes(taskTypes);
 	}
 
-	private Building CreateBuilding(ItemProcessStage outboundTargetStage)
+	private Building CreateBuilding(ItemProcessStage testStageLabel)
 	{
-		Building building = new($"Workforce Test {outboundTargetStage}", new List<GridCell>(), outboundTargetStage);
+		Building building = new($"Workforce Test {testStageLabel}", new List<GridCell>());
 		buildingManager.Register(building);
 		return building;
 	}

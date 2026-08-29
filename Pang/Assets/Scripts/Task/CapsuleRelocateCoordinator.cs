@@ -19,7 +19,6 @@ public readonly struct CapsuleRelocateSendRequest
 	public readonly uint RequiredTargetBuildingId;
 	public readonly CargoRouteKind RequiredRouteKind;
 	public readonly bool RequireRuleMatchedTarget;
-	public readonly bool EvaluateLaunchReadiness;
 	public readonly Func<CapsuleRelocateMatch, bool> OnMatched;
 
 	public CapsuleRelocateSendRequest(
@@ -32,8 +31,7 @@ public readonly struct CapsuleRelocateSendRequest
 		uint requiredTargetBuildingId = 0,
 		Func<CapsuleRelocateMatch, bool> onMatched = null,
 		CargoRouteKind requiredRouteKind = CargoRouteKind.Standard,
-		bool requireRuleMatchedTarget = false,
-		bool evaluateLaunchReadiness = false)
+		bool requireRuleMatchedTarget = false)
 	{
 		SourceDock = sourceDock;
 		RequiredSourceDockState = requiredSourceDockState;
@@ -44,7 +42,6 @@ public readonly struct CapsuleRelocateSendRequest
 		RequiredTargetBuildingId = requiredTargetBuildingId;
 		RequiredRouteKind = requiredRouteKind;
 		RequireRuleMatchedTarget = requireRuleMatchedTarget;
-		EvaluateLaunchReadiness = evaluateLaunchReadiness;
 		OnMatched = onMatched;
 	}
 }
@@ -240,6 +237,38 @@ public sealed class CapsuleRelocateCoordinator
 			dirtyBuildingIds.Add(buildingId);
 	}
 
+	public bool HasMatchedOutboundRoute(CapsuleBuffer buffer)
+	{
+		if (buffer?.DockedCapsule == null ||
+			bufferService?.TryGetRegisteredBuildingId(buffer, out uint buildingId) != true)
+		{
+			return false;
+		}
+
+		return cargoPortService?.TryFindRuleMatchedOutboundPort(
+			buildingId,
+			buffer.DockedCapsule,
+			out _,
+			requireAvailable: false) == true;
+	}
+
+	public bool HasProjectedOutboundRoute(uint buildingId, in FacilityFilter filter)
+	{
+		return buildingId != 0 &&
+			cargoPortService?.TryFindRuleMatchedOutboundPort(buildingId, filter, out _) == true;
+	}
+
+	public bool CanDispatchOutbound(CapsuleBuffer buffer, bool requireAvailable = true)
+	{
+		return buffer != null &&
+			bufferService?.TryGetRegisteredBuildingId(buffer, out uint buildingId) == true &&
+			cargoPortService?.TryFindDispatchPort(
+				buildingId,
+				buffer,
+				out _,
+				requireAvailable) == true;
+	}
+
 	public void ProcessDirty()
 	{
 		if (isRestoring || isProcessingDirty || HasDirty == false)
@@ -417,17 +446,16 @@ public sealed class CapsuleRelocateCoordinator
 
 		if (dockedCapsule.LogisticsState == CapsuleLogisticsState.OB)
 		{
-			bool evaluateLaunchReadiness = building.OutboundTargetStage == ItemProcessStage.LaunchReady;
 			bool isRuleMatched = bufferService?.IsRuleMatchedBuffer(
 				buffer,
 				dockedCapsule,
-				evaluateLaunchReadiness) == true;
+				evaluateLaunchReadiness: false) == true;
 			NotifyRuleRoutingEvaluated(buildingId, buffer, isRuleMatched);
-			TryRequestOutbound(buffer, buildingId, building);
+			TryRequestOutbound(buffer, buildingId);
 			return;
 		}
 
-		TryRequestBufferRelocation(buffer, buildingId, building);
+		TryRequestBufferRelocation(buffer, buildingId);
 	}
 
 	private void NormalizeCapsuleState(CapsuleDock dock, CargoCapsule capsule, Building building)
@@ -461,17 +489,14 @@ public sealed class CapsuleRelocateCoordinator
 		CargoCapsule capsule,
 		Building building)
 	{
-		if (buffer == null || capsule == null || building == null ||
-			building.CanDispatchOutboundBuffer(buffer) == false)
+		if (buffer == null || capsule == null || building == null)
 		{
 			return false;
 		}
 
-		bool evaluateLaunchReadiness = building.OutboundTargetStage == ItemProcessStage.LaunchReady;
-		return cargoPortService?.TryFindRuleMatchedOutboundPort(
+		return cargoPortService?.TryFindDispatchPort(
 			building.RuntimeBuildingId,
-			capsule,
-			evaluateLaunchReadiness,
+			buffer,
 			out _,
 			requireAvailable: false) == true;
 	}
@@ -504,14 +529,17 @@ public sealed class CapsuleRelocateCoordinator
 				isEmptyCapsule
 					? CapsuleRelocationReason.SourceMustClear
 					: CapsuleRelocationReason.RuleRouting),
-			requireRuleMatchedTarget: isEmptyCapsule == false,
-			evaluateLaunchReadiness: building.OutboundTargetStage == ItemProcessStage.LaunchReady));
+			requireRuleMatchedTarget: isEmptyCapsule == false));
 	}
 
-	private void TryRequestOutbound(CapsuleBuffer buffer, uint buildingId, Building building)
+	private void TryRequestOutbound(CapsuleBuffer buffer, uint buildingId)
 	{
 		if (buffer?.DockedCapsule?.LogisticsState != CapsuleLogisticsState.OB ||
-			building.CanDispatchOutboundBuffer(buffer) == false)
+			cargoPortService?.TryFindDispatchPort(
+				buildingId,
+				buffer,
+				out _,
+				requireAvailable: false) != true)
 		{
 			CancelPendingRequests(buffer);
 			return;
@@ -529,11 +557,10 @@ public sealed class CapsuleRelocateCoordinator
 				WorkerTask.TaskType.OB,
 				buildingId,
 				CapsuleRelocationReason.DestinationNeedsCapsule),
-			requireRuleMatchedTarget: true,
-			evaluateLaunchReadiness: building.OutboundTargetStage == ItemProcessStage.LaunchReady));
+			requireRuleMatchedTarget: true));
 	}
 
-	private void TryRequestBufferRelocation(CapsuleBuffer buffer, uint buildingId, Building building)
+	private void TryRequestBufferRelocation(CapsuleBuffer buffer, uint buildingId)
 	{
 		CargoCapsule capsule = buffer?.DockedCapsule;
 		if (capsule == null ||
@@ -566,8 +593,10 @@ public sealed class CapsuleRelocateCoordinator
 			return;
 		}
 
-		bool evaluateLaunchReadiness = building.OutboundTargetStage == ItemProcessStage.LaunchReady;
-		if (bufferService?.IsRuleMatchedBuffer(buffer, capsule, evaluateLaunchReadiness) == true)
+		if (bufferService?.IsRuleMatchedBuffer(
+				buffer,
+				capsule,
+				evaluateLaunchReadiness: false) == true)
 		{
 			CancelPendingRequests(buffer);
 			NotifyRuleRoutingEvaluated(buildingId, buffer, isRuleMatched: true);
@@ -587,8 +616,7 @@ public sealed class CapsuleRelocateCoordinator
 				WorkerTask.TaskType.CapsuleClear,
 				buildingId,
 				CapsuleRelocationReason.RuleRouting),
-			requireRuleMatchedTarget: true,
-			evaluateLaunchReadiness: evaluateLaunchReadiness));
+			requireRuleMatchedTarget: true));
 	}
 
 	private bool EnqueueCapsuleRelocationTask(
@@ -1055,10 +1083,10 @@ public sealed class CapsuleRelocateCoordinator
 				: 0;
 		if (request.WantedTargetDockState == CapsuleDockState.OB)
 		{
-			if (cargoPortService?.TryFindRuleMatchedOutboundPort(
+			if (request.SourceDock is not CapsuleBuffer sourceBuffer ||
+				cargoPortService?.TryFindDispatchPort(
 				queryBuildingId,
-				capsule,
-				request.EvaluateLaunchReadiness,
+				sourceBuffer,
 				out OutboundCargoPort outboundPort,
 				requireAvailable: true,
 				predicate: candidate => CanMatch(request, candidate, queryBuildingId)) != true)
@@ -1075,7 +1103,7 @@ public sealed class CapsuleRelocateCoordinator
 				queryBuildingId,
 				capsule,
 				ruleTargetScratch,
-				request.EvaluateLaunchReadiness) == false)
+				evaluateLaunchReadiness: false) == false)
 		{
 			return false;
 		}

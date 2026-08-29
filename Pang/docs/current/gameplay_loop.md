@@ -27,7 +27,7 @@ Inbound CargoPort
 -> matching CapsuleBuffer
 -> task-driven item or manifest changes
 -> matching CapsuleBuffer when the current Rule no longer matches
--> Building outbound stage and threshold
+-> Building threshold + matching CargoPort Rule, decided by Relocation
 -> Outbound CargoPort
 
 The same Building may host several or all of these operations. Capsule routing, state normalization, and every Task producer use this generic model; BuildingId-scoped facilities and Rules select available work rather than Staging, Storage, Packing, or Launch subclasses.

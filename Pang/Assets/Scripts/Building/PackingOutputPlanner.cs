@@ -77,8 +77,6 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 			outbound.TryGetPickingManifest(sourceBox, out manifest);
 		bool hasPackedPayload = false;
 		ItemTransferTask activeTask = worker.CurrentTask as ItemTransferTask;
-		Building targetBuilding = null;
-		GameContext.Instance.BuildingMgr?.TryGetBuilding(buildingId, out targetBuilding);
 		CapsuleBuffer bestBuffer = null;
 		ItemStack bestStack = null;
 		int bestMovable = 0;
@@ -113,7 +111,6 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 				if (IsCapsuleOutputCandidate(
 					activeTask,
 					candidate,
-					targetBuilding,
 					projectedInputFilter) == false)
 					continue;
 
@@ -185,12 +182,7 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 		}
 
 		TransferPackedManifest(worker?.CarryingAbility?.CarryingBox, placeLine);
-		if (activeTask != null &&
-			targetBuffer != null &&
-			(result.Kind == TransferResultKind.Partial || IsOutboundThresholdReached(targetBuffer)))
-		{
-			activeTask.ReleaseRetainedCapsuleOutput(targetBuffer);
-		}
+		activeTask?.ReleaseRetainedCapsuleOutput(targetBuffer);
 
 		EvaluateWork();
 		return IsWorkerCarryBoxEmpty(worker)
@@ -221,7 +213,6 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 		return IsCapsuleOutputCandidate(
 			task: null,
 			buffer: buffer,
-			building: null,
 			projectedInputFilter: projectedInputFilter,
 			requireEmpty: true);
 	}
@@ -229,7 +220,6 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 	private bool IsCapsuleOutputCandidate(
 		ItemTransferTask task,
 		CapsuleBuffer buffer,
-		Building building,
 		FacilityFilter projectedInputFilter,
 		bool requireEmpty = false)
 	{
@@ -270,29 +260,12 @@ public sealed class PackingOutputPlanner : IItemTransferPlanner, IItemTransferTa
 			return false;
 		}
 
-		if (building != null &&
-			building.OutboundTargetStage == ItemProcessStage.Packed &&
-			building.CanDispatchOutboundBuffer(buffer))
-		{
-			return false;
-		}
-
 		CapsuleRelocateCoordinator coordinator = GameContext.Instance.ExistingCapsuleRelocateCoordinator;
 		return coordinator == null ||
 			(coordinator.IsPlayerClaimed(buffer) == false &&
 			 coordinator.IsReserved(buffer) == false &&
 			 coordinator.IsRelocationSourceActive(buffer) == false &&
 			 coordinator.IsRelocationTargetActive(buffer) == false);
-	}
-
-	private static bool IsOutboundThresholdReached(CapsuleBuffer buffer)
-	{
-		if (buffer == null || GameContext.HasInstance == false)
-			return false;
-
-		return GameContext.Instance.FacilityMgr?.TryGetBuildingId(buffer, out uint buildingId) == true &&
-			GameContext.Instance.BuildingMgr?.TryGetBuilding(buildingId, out Building building) == true &&
-			building.CanDispatchOutboundBuffer(buffer);
 	}
 
 	private static int GetRulePriority(CapsuleBuffer buffer)

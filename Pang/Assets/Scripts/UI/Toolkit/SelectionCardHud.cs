@@ -99,11 +99,6 @@ namespace UniverseLogistics.UI.Toolkit
 		public int DropdownIndex { get; set; }
 		public bool DropdownEnabled { get; set; } = true;
 		public Action<int> DropdownChanged { get; set; }
-		public string SecondaryDropdownLabel { get; set; }
-		public List<string> SecondaryDropdownChoices { get; set; } = new();
-		public int SecondaryDropdownIndex { get; set; }
-		public bool SecondaryDropdownEnabled { get; set; } = true;
-		public Action<int> SecondaryDropdownChanged { get; set; }
 		public string ToggleLabel { get; set; }
 		public readonly List<SelectionDetailToggleModel> Toggles = new();
 		public string PrimaryActionLabel { get; set; }
@@ -321,8 +316,6 @@ namespace UniverseLogistics.UI.Toolkit
 		private Label detailEditorMessage;
 		private Label detailEditorDropdownLabel;
 		private DropdownField detailEditorDropdown;
-		private Label detailEditorSecondaryDropdownLabel;
-		private DropdownField detailEditorSecondaryDropdown;
 		private Label detailEditorToggleLabel;
 		private ScrollView detailEditorToggles;
 		private VisualElement detailEditorActions;
@@ -372,8 +365,6 @@ namespace UniverseLogistics.UI.Toolkit
 			detailEditorMessage = documentRoot.Q<Label>("selection-detail-editor-message");
 			detailEditorDropdownLabel = documentRoot.Q<Label>("selection-detail-editor-dropdown-label");
 			detailEditorDropdown = documentRoot.Q<DropdownField>("selection-detail-editor-dropdown");
-			detailEditorSecondaryDropdownLabel = documentRoot.Q<Label>("selection-detail-editor-secondary-dropdown-label");
-			detailEditorSecondaryDropdown = documentRoot.Q<DropdownField>("selection-detail-editor-secondary-dropdown");
 			detailEditorToggleLabel = documentRoot.Q<Label>("selection-detail-editor-toggle-label");
 			detailEditorToggles = documentRoot.Q<ScrollView>("selection-detail-editor-toggles");
 			detailEditorActions = documentRoot.Q<VisualElement>("selection-detail-editor-actions");
@@ -387,7 +378,6 @@ namespace UniverseLogistics.UI.Toolkit
 				detailSliderControl == null || detailSliderLabel == null || detailSlider == null || detailSliderValue == null ||
 				detailToggleControl == null || detailToggle == null || detailToggleDescription == null ||
 				detailEditor == null || detailEditorMessage == null || detailEditorDropdownLabel == null || detailEditorDropdown == null ||
-				detailEditorSecondaryDropdownLabel == null || detailEditorSecondaryDropdown == null ||
 				detailEditorToggleLabel == null || detailEditorToggles == null || detailEditorActions == null ||
 				detailEditorPrimaryAction == null || detailEditorSecondaryAction == null ||
 				focusButton == null || detailsButton == null)
@@ -772,16 +762,6 @@ namespace UniverseLogistics.UI.Toolkit
 				if (index >= 0)
 					editor.DropdownChanged?.Invoke(index);
 			});
-			detailEditorSecondaryDropdown.RegisterValueChangedCallback(evt =>
-			{
-				SelectionDetailEditorModel editor = activeDetailModel?.Editor;
-				if (editor == null)
-					return;
-
-				int index = editor.SecondaryDropdownChoices.IndexOf(evt.newValue);
-				if (index >= 0)
-					editor.SecondaryDropdownChanged?.Invoke(index);
-			});
 			detailEditorPrimaryAction.clicked += () => activeDetailModel?.Editor?.PrimaryAction?.Invoke();
 			detailEditorSecondaryAction.clicked += () => activeDetailModel?.Editor?.SecondaryAction?.Invoke();
 		}
@@ -907,25 +887,6 @@ namespace UniverseLogistics.UI.Toolkit
 				detailEditorDropdown.SetValueWithoutNotify(string.Empty);
 			}
 			detailEditorDropdown.SetEnabled(editor.DropdownEnabled);
-			detailEditorSecondaryDropdownLabel.text = editor.SecondaryDropdownLabel ?? string.Empty;
-			detailEditorSecondaryDropdown.choices = editor.SecondaryDropdownChoices ?? new List<string>();
-			bool hasSecondaryDropdown = detailEditorSecondaryDropdown.choices.Count > 0;
-			detailEditorSecondaryDropdownLabel.style.display = hasSecondaryDropdown ? DisplayStyle.Flex : DisplayStyle.None;
-			detailEditorSecondaryDropdown.style.display = hasSecondaryDropdown ? DisplayStyle.Flex : DisplayStyle.None;
-			if (hasSecondaryDropdown)
-			{
-				int secondaryIndex = UnityEngine.Mathf.Clamp(
-					editor.SecondaryDropdownIndex,
-					0,
-					detailEditorSecondaryDropdown.choices.Count - 1);
-				detailEditorSecondaryDropdown.SetValueWithoutNotify(
-					detailEditorSecondaryDropdown.choices[secondaryIndex]);
-			}
-			else
-			{
-				detailEditorSecondaryDropdown.SetValueWithoutNotify(string.Empty);
-			}
-			detailEditorSecondaryDropdown.SetEnabled(editor.SecondaryDropdownEnabled);
 			detailEditorToggleLabel.text = editor.ToggleLabel ?? string.Empty;
 			detailEditorToggles.Clear();
 			for (int i = 0; i < editor.Toggles.Count; ++i)

@@ -300,7 +300,9 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
 		return outbound != null
 			? outbound.TryPrepareOutboundDispatch(sourceBuilding, sourceBuffer)
-			: sourceBuilding.CanDispatchOutboundBuffer(sourceBuffer);
+			: GameContext.Instance.CapsuleRelocateCoordinator?.CanDispatchOutbound(
+				sourceBuffer,
+				requireAvailable: false) == true;
 	}
 
 	private bool CanUseRuleRoutingSource()
@@ -322,17 +324,10 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		if (context?.CapsuleBufferSvc == null)
 			return true;
 
-		bool evaluateLaunchReadiness = false;
-		if (context.FacilityMgr?.TryGetBuildingId(sourceBuffer, out uint sourceBuildingId) == true &&
-			context.BuildingMgr?.TryGetBuilding(sourceBuildingId, out Building sourceBuilding) == true)
-		{
-			evaluateLaunchReadiness = sourceBuilding.OutboundTargetStage == ItemProcessStage.LaunchReady;
-		}
-
 		return context.CapsuleBufferSvc.IsRuleMatchedBuffer(
 			sourceBuffer,
 			capsule,
-			evaluateLaunchReadiness) == false;
+			evaluateLaunchReadiness: false) == false;
 	}
 
 	private bool CanUseTarget()
@@ -349,6 +344,9 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		return Type switch
 		{
 			TaskType.Unloading when targetDock is InboundCargoPort => targetDock.CanPutBox(),
+			TaskType.OB when targetDock is OutboundCargoPort outboundPort =>
+				outboundPort.CanPutBox() &&
+				GameContext.Instance.CargoPortSvc?.IsRuleMatchedOutboundPort(outboundPort, payload) == true,
 			TaskType.IB when targetDock is CapsuleBuffer targetBuffer => targetBuffer.CanReceiveCapsule(),
 			TaskType.CapsuleClear when targetDock is CapsuleBuffer targetBuffer =>
 				CanUseCapsuleBufferTarget(targetBuffer, payload),
@@ -386,14 +384,10 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		if (context?.CapsuleBufferSvc == null)
 			return false;
 
-		bool evaluateLaunchReadiness = false;
-		if (context.BuildingMgr?.TryGetBuilding(targetBuildingId, out Building targetBuilding) == true)
-			evaluateLaunchReadiness = targetBuilding.OutboundTargetStage == ItemProcessStage.LaunchReady;
-
 		return context.CapsuleBufferSvc.IsRuleMatchedBuffer(
 			targetBuffer,
 			payload,
-			evaluateLaunchReadiness);
+			evaluateLaunchReadiness: false);
 	}
 
 	public static NodeState SetSourceTarget(in BTContext ctx)
@@ -493,33 +487,17 @@ public sealed class CapsuleRelocationTask : WorkerTask
 
 	private bool TryRedirectRejectedOutboundPayload()
 	{
-		// Only LaunchReady buildings apply final dispatch-manifest validation.
-		// The source DockState is presentation/configuration data; Rule routing may
-		// promote a capsule to OB from any CapsuleBuffer.
 		if (Type != TaskType.OB ||
 			ActivePayload is not CargoCapsule capsule ||
-			sourceDock is not CapsuleBuffer sourceBuffer)
+			sourceDock is not CapsuleBuffer sourceBuffer ||
+			targetDock is not OutboundCargoPort outboundPort)
 			return true;
 
 		GameContext context = GameContext.HasInstance ? GameContext.Instance : null;
 		FacilityManager facilityManager = context?.FacilityMgr;
-		BuildingManager buildingManager = context?.BuildingMgr;
-		if (facilityManager == null ||
-			buildingManager == null ||
-			facilityManager.TryGetBuildingId(sourceBuffer, out uint sourceBuildingId) == false ||
-			buildingManager.TryGetBuilding(sourceBuildingId, out Building sourceBuilding) == false ||
-			sourceBuilding.OutboundTargetStage != ItemProcessStage.LaunchReady)
-		{
+		if (context?.CargoPortSvc == null ||
+			context.CargoPortSvc.IsRuleMatchedOutboundPort(outboundPort, capsule))
 			return true;
-		}
-
-		OutboundWorkflowService outbound = context?.OBWorkflowSvc;
-		if (outbound == null ||
-			(outbound.HasDispatchBlockingCargo(capsule) == false &&
-			 outbound.HasCompleteDispatchManifest(capsule)))
-		{
-			return true;
-		}
 
 		if (targetDock is CapsuleBuffer currentBuffer &&
 			ReferenceEquals(targetDock, sourceDock) &&
@@ -574,6 +552,11 @@ public sealed class CapsuleRelocationTask : WorkerTask
 			candidate => candidate != null &&
 				candidate.GetType() == targetDockType &&
 				candidate.CanAcceptCargoRoute((ActivePayload as CargoCapsule)?.RouteKind ?? RouteKind) &&
+				(Type != TaskType.OB ||
+				 candidate is not OutboundCargoPort outboundPort ||
+				 context.CargoPortSvc?.IsRuleMatchedOutboundPort(
+					 outboundPort,
+					 ActivePayload as CargoCapsule ?? sourceDock?.DockedCapsule) == true) &&
 				(IsEmptyRetentionTransfer(ActivePayload as CargoCapsule) == false ||
 				 candidate is CapsuleBuffer { RetainEmptyCapsule: true }) &&
 				(facilityManager == null || facilityManager.IsInvalidating(candidate) == false) &&
@@ -602,16 +585,12 @@ public sealed class CapsuleRelocationTask : WorkerTask
 		if (bufferService == null || coordinator == null || payload == null)
 			return false;
 
-		bool evaluateLaunchReadiness = false;
-		if (context.BuildingMgr?.TryGetBuilding(targetBuildingId, out Building targetBuilding) == true)
-			evaluateLaunchReadiness = targetBuilding.OutboundTargetStage == ItemProcessStage.LaunchReady;
-
 		System.Collections.Generic.List<CapsuleBuffer> candidates = new();
 		if (bufferService.TryQueryRuleMatchedDestinations(
 				targetBuildingId,
 				payload,
 				candidates,
-				evaluateLaunchReadiness,
+				evaluateLaunchReadiness: false,
 				candidate => coordinator.IsReserved(candidate) == false &&
 					coordinator.IsRelocationTargetActive(candidate) == false) == false)
 		{

@@ -70,7 +70,7 @@ public sealed class CapsuleContentSharingEditModeTests
 			cargoPortService,
 			"TryBindFacilityManager");
 
-		building = new Building("Shared Picking Building", new List<GridCell>(), ItemProcessStage.Picked);
+		building = new Building("Shared Picking Building", new List<GridCell>());
 		buildingManager.Register(building);
 		nextBoxId = 1;
 	}
@@ -107,7 +107,7 @@ public sealed class CapsuleContentSharingEditModeTests
 	}
 
 	[Test]
-	public void PickingOutput_ThresholdBlocksLateTaskUntilExistingRetainsRelease()
+	public void PickingOutput_RelocationClaimsThresholdReachedBufferAfterRetainsRelease()
 	{
 		CapsuleBuffer buffer = CreatePickedBuffer(currentQuantity: 7);
 		ItemTransferTask first = CreatePickingTask();
@@ -137,7 +137,10 @@ public sealed class CapsuleContentSharingEditModeTests
 				1),
 			Is.EqualTo(1));
 
-		Assert.That(IsPickingOutputCandidate(late, buffer), Is.False);
+		Assert.That(
+			IsPickingOutputCandidate(late, buffer),
+			Is.True,
+			"Planner eligibility remains content-based until Relocation owns the route decision.");
 		Assert.That(HasPickingDependency(buffer), Is.True);
 		CreateOutboundPortWithRule(ItemProcessStage.Picked);
 
@@ -167,6 +170,10 @@ public sealed class CapsuleContentSharingEditModeTests
 			building);
 		Assert.That(buffer.DockedCapsule.LogisticsState, Is.EqualTo(CapsuleLogisticsState.OB));
 		Assert.That(HasPickingDependency(buffer), Is.False);
+		Assert.That(
+			IsPickingOutputCandidate(late, buffer),
+			Is.False,
+			"Relocation lifecycle normalization prevents a later Put after the final retain releases.");
 	}
 
 	[Test]
@@ -189,11 +196,6 @@ public sealed class CapsuleContentSharingEditModeTests
 	[Test]
 	public void PackingOutput_AllowsCompatibleInsidePackedCapsuleSharedByTasks()
 	{
-		InvokeNonPublic(
-			typeof(Building),
-			building,
-			"SetOutboundTargetStage",
-			ItemProcessStage.Packed);
 		CapsuleBuffer buffer = CreatePackedBuffer(currentQuantity: 3);
 		ItemTransferTask first = CreateTransferTask(WorkerTask.TaskType.PackingOutput);
 		ItemTransferTask second = CreateTransferTask(WorkerTask.TaskType.PackingOutput);
@@ -210,7 +212,6 @@ public sealed class CapsuleContentSharingEditModeTests
 				"IsCapsuleOutputCandidate",
 				second,
 				buffer,
-				building,
 				filter,
 				false),
 			Is.True);
@@ -220,11 +221,6 @@ public sealed class CapsuleContentSharingEditModeTests
 	[Test]
 	public void LaunchSortOutput_AllowsCompatibleInsidePackedCapsuleSharedByTasks()
 	{
-		InvokeNonPublic(
-			typeof(Building),
-			building,
-			"SetOutboundTargetStage",
-			ItemProcessStage.LaunchReady);
 		CapsuleBuffer buffer = CreatePackedBuffer(currentQuantity: 3);
 		ItemTransferTask first = CreateTransferTask(WorkerTask.TaskType.LaunchSort);
 		ItemTransferTask second = CreateTransferTask(WorkerTask.TaskType.LaunchSort);
@@ -241,7 +237,6 @@ public sealed class CapsuleContentSharingEditModeTests
 				"IsCapsuleOutputCandidate",
 				second,
 				buffer,
-				building,
 				filter,
 				false),
 			Is.True);
@@ -402,7 +397,7 @@ public sealed class CapsuleContentSharingEditModeTests
 			InvokePrivateInstance<bool>(
 				typeof(Building),
 				building,
-				"CanDispatchOutboundBuffer",
+				"IsOutboundThresholdReached",
 				buffer),
 			Is.False,
 			"outbound threshold");

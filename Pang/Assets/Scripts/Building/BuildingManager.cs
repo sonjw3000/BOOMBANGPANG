@@ -18,14 +18,14 @@ public sealed partial class BuildingManager : MonoBehaviour
 
 	private void LateUpdate()
 	{
-		if (GameContext.HasInstance)
-			GameContext.Instance.OBWorkflowSvc?.ProcessPendingLaunchSortEvaluations();
-
 		CapsuleRelocateCoordinator coordinator = GameContext.HasInstance
 			? GameContext.Instance.CapsuleRelocateCoordinator
 			: null;
 		if (coordinator?.HasDirty == true)
 			coordinator.ProcessDirty();
+
+		if (GameContext.HasInstance)
+			GameContext.Instance.OBWorkflowSvc?.ProcessPendingLaunchSortEvaluations();
 	}
 
 	public void Register(Building building)
@@ -331,7 +331,6 @@ public sealed partial class BuildingManager : MonoBehaviour
 		string displayName,
 		BuildingState state,
 		BuildingWorkScope workScope,
-		ItemProcessStage outboundTargetStage,
 		bool overrideCapsuleThreshold,
 		float capsuleThresholdPercent,
 		bool suitRemovalAllowed,
@@ -344,7 +343,6 @@ public sealed partial class BuildingManager : MonoBehaviour
 		building.AssignRuntimeBuildingId(runtimeBuildingId);
 		building.SetState(state);
 		building.SetWorkScope(workScope);
-		building.SetOutboundTargetStage(outboundTargetStage);
 		building.SetOverrideCapsuleThreshold(overrideCapsuleThreshold);
 		building.SetCapsuleThresholdPercent(capsuleThresholdPercent);
 		building.SetSuitRemovalAllowed(suitRemovalAllowed);

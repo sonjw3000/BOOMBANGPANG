@@ -344,17 +344,6 @@ public sealed class StoringPlanner : IItemTransferPlanner, IItemTransferTaskInva
 			return false;
 		}
 
-		BuildingManager buildingManager = GameContext.HasInstance
-			? GameContext.Instance.BuildingMgr
-			: null;
-		if (buildingManager == null ||
-			buildingManager.TryGetBuilding(ownerBuildingId, out Building building) == false ||
-			building == null ||
-			building.OutboundTargetStage == ItemProcessStage.Labeled)
-		{
-			return false;
-		}
-
 		FacilityRuleManager ruleManager = GameContext.Instance.FacilityRuleMgr;
 		if (ruleManager == null ||
 			buffer.FacilityRulePresetId == FacilityRuleManager.NoRulePresetId ||

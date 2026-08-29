@@ -26,7 +26,6 @@ public sealed partial class BuildingManager
 				Name = building.DisplayName,
 				State = building.State,
 				WorkScope = building.WorkScope,
-				OutboundTargetStage = building.OutboundTargetStage,
 				OverrideCapsuleThreshold = building.OverrideCapsuleThreshold,
 				CapsuleThresholdPercent = building.CapsuleThresholdPercent,
 				SuitRemovalAllowed = building.SuitRemovalAllowed,

@@ -38,7 +38,6 @@ public class Building
 	private uint runtimeBuildingId;
 	private BuildingState state = BuildingState.Active;
 	private BuildingWorkScope workScope = BuildingWorkScope.HomeOnly;
-	private ItemProcessStage outboundTargetStage = ItemProcessStage.Any;
 
 	private bool overrideCapsuleThreshold = false;
 	private float capsuleThresholdPercent = 80.0f;
@@ -69,7 +68,6 @@ public class Building
 	public uint RuntimeBuildingId => runtimeBuildingId;
 	public BuildingState State => state;
 	public BuildingWorkScope WorkScope => workScope;
-	public ItemProcessStage OutboundTargetStage => outboundTargetStage;
 	public IReadOnlyList<GridCell> OccupiedCells => occupiedCells;
 	public IReadOnlyList<IFacility> OccupiedFacilities => occupiedFacilities;
 	public IReadOnlyList<CargoPort> OccupiedCargoPorts => occupiedCargoPorts;
@@ -139,12 +137,6 @@ public class Building
 	internal void SetSuitRemovalAllowed(bool value) => suitRemovalAllowed = value;
 	internal void SetAddonSlotCapacity(int value) => addonSlotCapacity = UnityEngine.Mathf.Max(0, value);
 	internal void SetTargetTemperatureCelsius(float value) => targetTemperatureCelsius = value;
-	internal void SetOutboundTargetStage(ItemProcessStage stage)
-	{
-		outboundTargetStage = ItemProcessStageUtility.IsDefined(stage)
-			? stage
-			: ItemProcessStage.Any;
-	}
 	internal void AssignRuntimeBuildingId(uint id) => runtimeBuildingId = id;
 	internal void SetRegistered(bool registered)
 	{
@@ -166,18 +158,6 @@ public class Building
 	public void Rename(string newDisplayName) => displayName = newDisplayName;
 	public void SetState(BuildingState newState) => state = newState;
 	public void SetWorkScope(BuildingWorkScope newWorkScope) => workScope = newWorkScope;
-	public bool TrySetOutboundTargetStage(ItemProcessStage stage)
-	{
-		if (ItemProcessStageUtility.IsDefined(stage) == false)
-			return false;
-
-		if (outboundTargetStage == stage)
-			return true;
-
-		outboundTargetStage = stage;
-		MarkBuildingRoutingDirty();
-		return true;
-	}
 
 	private void MarkBuildingRoutingDirty()
 	{
@@ -230,15 +210,9 @@ public class Building
 	internal bool HasInputBuilding(uint buildingId) => buildingId != 0 && inputBuildingIds.Contains(buildingId);
 	internal bool HasOutputBuilding(uint buildingId) => buildingId != 0 && outputBuildingIds.Contains(buildingId);
 
-	public Building(
-		string displayName,
-		List<GridCell> occupiedCells,
-		ItemProcessStage outboundTargetStage = ItemProcessStage.Any)
+	public Building(string displayName, List<GridCell> occupiedCells)
 	{
 		this.displayName = displayName;
-		this.outboundTargetStage = ItemProcessStageUtility.IsDefined(outboundTargetStage)
-			? outboundTargetStage
-			: ItemProcessStage.Any;
 		this.occupiedCells = occupiedCells ?? new List<GridCell>();
 
 		itemIndex = new(this);
@@ -368,24 +342,16 @@ public class Building
 		return null;
 	}
 
-	protected virtual bool IsBufferOutboundReady(CapsuleBuffer capsuleBuffer)
+	internal bool IsOutboundThresholdReached(CapsuleBuffer capsuleBuffer)
+	{
+		return IsBufferOutboundThresholdReached(capsuleBuffer);
+	}
+
+	protected virtual bool IsBufferOutboundThresholdReached(CapsuleBuffer capsuleBuffer)
 	{
 		CargoCapsule capsule = capsuleBuffer?.DockedCapsule;
 		if (capsule == null || capsule.RouteKind != CargoRouteKind.Standard ||
-			capsuleBuffer.IsCapsuleEmpty() || outboundTargetStage == ItemProcessStage.Any)
-		{
-			return false;
-		}
-
-		bool evaluateLaunchReadiness = outboundTargetStage == ItemProcessStage.LaunchReady;
-		bool launchReady = evaluateLaunchReadiness &&
-			ItemProcessStageEvaluator.IsLaunchReady(capsule, OutboundWorkflowService);
-		if (ItemProcessStageEvaluator.TryEvaluate(
-				capsule,
-				OutboundWorkflowService,
-				launchReady,
-				out ItemProcessStage stage) == false ||
-			stage != outboundTargetStage)
+			capsuleBuffer.IsCapsuleEmpty())
 		{
 			return false;
 		}
@@ -395,11 +361,6 @@ public class Building
 			: capsuleThresholdPercent;
 		float threshold = overrideCapsuleThreshold ? capsuleThresholdPercent : workflowThreshold;
 		return capsuleBuffer.FilledPercent >= threshold;
-	}
-
-	internal bool CanDispatchOutboundBuffer(CapsuleBuffer capsuleBuffer)
-	{
-		return IsBufferOutboundReady(capsuleBuffer);
 	}
 
 }

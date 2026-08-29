@@ -69,7 +69,7 @@ Building-related ownership should stay explicit.
 
 Building systems should own:
 - building identity
-- building-level operating policy such as outbound target stage and threshold
+- building-level operating policy such as capsule dispatch threshold
 - building-owned interior space
 - worker affiliation scope
 
@@ -87,23 +87,23 @@ Region classification such as indoor / outdoor should support placement and spat
 
 FacilityRule has no separate content-state dimension. `Empty`, `Unlabeled`, `Labeled`, `Picked`, `Packed`, and `LaunchReady` are the complete concrete stage set, while a Rule stage mask of `None` means unrestricted. Item or manifest conditions cannot match an `Empty` filter because there is no cargo or manifest to inspect. CapsuleBuffer has one immutable `CapsuleDockState.Buffer` kind and no configurable inbound, outbound-standby, or empty role. A Rule with no conditions rejects all cargo. A docked empty Capsule is Buffer preparation and is excluded from cargo Rule mismatch relocation; projected post-transfer filters decide whether item work may use it. The Rule editor exposes only the process-stage dimension under `Item Conditions`.
 
-Capsule item-transfer queries evaluate the stage that will exist after the transfer (`Picked` or `Packed`) instead of selecting an `Empty` Rule and relying on later relocation. Standard CapsuleBuffer content access is shareable across compatible ItemTransfer Tasks: `Picking` shares `Inside + Picked` outputs, while `PackingOutput` and `LaunchSort` share `Inside + Packed` outputs; `Storing`, `PackingInput`, and `LaunchSort` share item Pick access through `IItemPickReservable` quantity reservations. Pick and Put remain mutually exclusive on the same Buffer, and Capsule relocation, Labeling, invalidation, and player claims remain exclusive. Each selected Put Task retains the Buffer while moving to it; if an earlier Put crosses the Building outbound threshold, relocation waits for existing retains but rejects later Put selection. A partial or failed Put releases that Task's retain and replans the remaining carried quantity.
+Capsule item-transfer queries evaluate the stage that will exist after the transfer (`Picked` or `Packed`) instead of selecting an `Empty` Rule and relying on later relocation. Standard CapsuleBuffer content access is shareable across compatible ItemTransfer Tasks: `Picking` shares `Inside + Picked` outputs, while `PackingOutput` and `LaunchSort` share `Inside + Packed` outputs; `Storing`, `PackingInput`, and `LaunchSort` share item Pick access through `IItemPickReservable` quantity reservations. Pick and Put remain mutually exclusive on the same Buffer, and Capsule relocation, Labeling, invalidation, and player claims remain exclusive. Each selected Put Task retains the Buffer only while moving to it, then releases that retain after every successful Put so Relocation can reevaluate the resulting cargo before another item Task is scheduled. A failed Put also releases the retain and replans the remaining carried quantity.
 
 `CapsuleBufferService` owns BuildingId-scoped logical queries for Rule-matched CapsuleBuffer destinations and the reverse registration index from CapsuleBuffer to BuildingId. The caller must explicitly choose whether the query evaluates Launch readiness, so ordinary Packing routing remains `Packed` while Launch routing may produce `LaunchReady`. These queries return eligible facilities only; they do not decide relocation scope, reserve a Dock, or create a Task.
 
-`CapsuleRelocateCoordinator` owns lifecycle normalization, Rule mismatch evaluation, relocation matching, Dock reservations, active relocation ownership, pending requests, and relocation Task creation. Dirty means that a Dock or Building must be reevaluated; it does not guarantee that a Task will be created. Repeated marks are coalesced and `BuildingManager.LateUpdate` flushes them after item and manifest mutations have settled.
+`CapsuleRelocateCoordinator` owns lifecycle normalization, Rule mismatch evaluation, the complete outbound-route decision, relocation matching, Dock reservations, active relocation ownership, pending requests, and relocation Task creation. Item planners may ask it whether a current or projected cargo route exists, but must not independently combine CapsuleBuffer state, Building threshold, and CargoPort Rule. Dirty means that a Dock or Building must be reevaluated; it does not guarantee that a Task will be created. Repeated marks are coalesced and `BuildingManager.LateUpdate` flushes Relocation before item-work scheduling so the resulting reservation or lifecycle transition wins the race against a later Put.
 
-During Dirty evaluation, `CapsuleRelocateCoordinator` derives the Capsule lifecycle from current physical data and reads only the Building outbound-stage/threshold policy:
+During Dirty evaluation, `CapsuleRelocateCoordinator` derives the Capsule lifecycle from current physical data, the Building threshold, and the same-Building CargoPort Rules:
 
 `empty payload -> Empty`
 
 `InboundCargoPort payload -> IB`
 
-`CapsuleBuffer payload below the Building outbound policy -> Inside`
+`CapsuleBuffer payload below the Building threshold -> Inside`
 
-`CapsuleBuffer payload at the exact outbound target stage and effective threshold + matching non-empty same-Building OutboundCargoPort Rule -> OB`
+`CapsuleBuffer payload at the effective threshold + matching non-empty same-Building OutboundCargoPort Rule -> OB`
 
-Rule-mismatched loaded `Inside` capsules request another Rule-matched CapsuleBuffer in the same Building. Empty Capsules remain in their current Buffer as preparation for later projected item work. `OB` capsules request the same-Building OutboundCargoPort whose non-empty Rule matches the cargo. Rule eligibility gates the `Inside -> OB` transition; temporary OutboundCargoPort occupancy leaves the Capsule in `OB` with a pending send until a matched port becomes available. If the applied outbound Rule is removed or becomes a mismatch, Dirty evaluation returns the Capsule to `Inside` and invalidates stale outbound work. The relocation Task still owns only the physical move; destination selection and state derivation remain with the owning services.
+Rule-mismatched loaded `Inside` capsules request another Rule-matched CapsuleBuffer in the same Building. Empty Capsules remain in their current Buffer as preparation for later projected item work. A CargoPort Rule is the sole final-stage policy: it may match the physical process stage or the derived `LaunchReady` stage. Once that Rule matches and the Building threshold is reached, Relocation promotes the Capsule to `OB` and requests that port. Temporary CargoPort occupancy leaves the Capsule in `OB` with a pending send until a matched port becomes available. If the applied outbound Rule is removed or becomes a mismatch, Dirty evaluation returns the Capsule to `Inside` and invalidates stale outbound work. `CapsuleRelocationTask` owns only the physical move; route selection and state derivation remain with `CapsuleRelocateCoordinator` and its facility services.
 
 `AreaManager` owns outdoor rectangular areas used by:
 - `WorkerSpawnManager` for `WorkerSpawn` candidates

@@ -61,9 +61,9 @@ public sealed class LogisticsWorkHudPresenterEditModeTests
 		TemplateContainer root = LoadRoot();
 		LogisticsWorkHudPresenter presenter = new();
 		Assert.That(presenter.BindView(root), Is.True);
-		Building first = new("First Storage", new List<GridCell>(), ItemProcessStage.Picked);
-		Building second = new("Second Storage", new List<GridCell>(), ItemProcessStage.Picked);
-		Building third = new("Third Storage", new List<GridCell>(), ItemProcessStage.Picked);
+		Building first = new("First Storage", new List<GridCell>());
+		Building second = new("Second Storage", new List<GridCell>());
+		Building third = new("Third Storage", new List<GridCell>());
 		BuildingManager manager = CreateBuildingManager(first, second, third);
 		Dictionary<(LogisticsWorkCategory, uint), WorkDemandSnapshot> demands = new();
 		Dictionary<(LogisticsWorkCategory, uint), TaskCountSnapshot> tasks = new();
@@ -118,7 +118,7 @@ public sealed class LogisticsWorkHudPresenterEditModeTests
 		TemplateContainer root = LoadRoot();
 		LogisticsWorkHudPresenter presenter = new();
 		Assert.That(presenter.BindView(root), Is.True);
-		Building building = new("Mixed Work Storage", new List<GridCell>(), ItemProcessStage.Picked);
+		Building building = new("Mixed Work Storage", new List<GridCell>());
 		BuildingManager manager = CreateBuildingManager(building);
 
 		presenter.RenderBuildingBottleneck(
@@ -213,7 +213,7 @@ public sealed class LogisticsWorkHudPresenterEditModeTests
 	{
 		VisualElement root = CreateHudPanelRoot();
 		LogisticsWorkHudPresenter presenter = new();
-		Building building = new("Navigation Storage", new List<GridCell>(), ItemProcessStage.Picked);
+		Building building = new("Navigation Storage", new List<GridCell>());
 		BuildingManager manager = CreateBuildingManager(building);
 		int openAllCount = 0;
 		int openBuildingCount = 0;
