@@ -70,6 +70,75 @@ public class HumanWorker : AIWorker
 	public override bool NeedsRecovery() => fatigue >= WorkPolicy.WorkerRestFatigueThreshold;
 	public override bool IsRecoveryComplete() => fatigue <= WorkPolicy.WorkerRestTargetFatigue;
 
+	internal bool ShouldRequestRecoveryBeforeTask(WorkerTask task)
+	{
+		if (task == null ||
+			GameContext.HasInstance == false ||
+			GameContext.Instance.WMSys?.WorkPolicyService == null)
+		{
+			return false;
+		}
+
+		WorkPolicyService policy = GameContext.Instance.WMSys.WorkPolicyService;
+		float requiredReserve = CalculateTaskFatigueReserve(task, policy);
+		return requiredReserve > 0.0f &&
+			fatigue + requiredReserve >= policy.WorkerRestFatigueThreshold;
+	}
+
+	private float CalculateTaskFatigueReserve(WorkerTask task, WorkPolicyService policy)
+	{
+		return task.Type switch
+		{
+			WorkerTask.TaskType.Unloading or
+			WorkerTask.TaskType.IB or
+			WorkerTask.TaskType.CapsuleClear or
+			WorkerTask.TaskType.CapsuleSupply or
+			WorkerTask.TaskType.OB or
+			WorkerTask.TaskType.Loading or
+			WorkerTask.TaskType.CargoTransfer => CalculateBoxTransferFatigueReserve(task, policy),
+			WorkerTask.TaskType.Storing or
+			WorkerTask.TaskType.Picking or
+			WorkerTask.TaskType.LaunchSort or
+			WorkerTask.TaskType.WasteCollection =>
+				policy.GetWorkFatigue(this, WorkActionType.PickItem) +
+				policy.GetWorkFatigue(this, WorkActionType.PutItem),
+			WorkerTask.TaskType.PackingInput =>
+				policy.GetWorkFatigue(this, WorkActionType.PickItem) +
+				policy.GetWorkFatigue(this, WorkActionType.PutBox),
+			WorkerTask.TaskType.PackingOutput =>
+				policy.GetWorkFatigue(this, WorkActionType.PickBox) +
+				policy.GetWorkFatigue(this, WorkActionType.MoveBox) +
+				policy.GetWorkFatigue(this, WorkActionType.PutItem),
+			WorkerTask.TaskType.Packing =>
+				policy.GetWorkFatigue(this, WorkActionType.PackItem) +
+				policy.GetWorkFatigue(this, WorkActionType.MoveBox),
+			WorkerTask.TaskType.Labeling =>
+				policy.GetWorkFatigue(this, WorkActionType.LabelItem),
+			_ => 0.0f,
+		};
+	}
+
+	private float CalculateBoxTransferFatigueReserve(WorkerTask task, WorkPolicyService policy)
+	{
+		float pickFatigue = policy.GetWorkFatigue(this, WorkActionType.PickBox);
+		float putFatigue = policy.GetWorkFatigue(this, WorkActionType.PutBox);
+		if (task is CapsuleRelocationTask relocationTask &&
+			relocationTask.SourceDock?.DockedCapsule is CargoCapsule capsule)
+		{
+			HumanWorkHandlingResult handling = BuildCapsuleHandlingEstimate(capsule);
+			HumanIncidentService incidentService = GameContext.Instance.HumanIncident;
+			if (incidentService != null)
+			{
+				pickFatigue = incidentService.CalculateActionFatigue(this, pickFatigue, in handling);
+				putFatigue = incidentService.CalculateActionFatigue(this, putFatigue, in handling);
+			}
+		}
+
+		return pickFatigue +
+			policy.GetWorkFatigue(this, WorkActionType.MoveBox) +
+			putFatigue;
+	}
+
 	public override void TickRecovery(float recoveryPerSecond, float deltaTime)
 	{
 		float elapsed = Mathf.Max(0.0f, deltaTime);
@@ -83,6 +152,35 @@ public class HumanWorker : AIWorker
 	}
 
 	public override WorkerStatusAction GetRecoveryAction() => WorkerStatusAction.Resting;
+
+	private static HumanWorkHandlingResult BuildCapsuleHandlingEstimate(CargoCapsule capsule)
+	{
+		float totalWeight = 0.0f;
+		int totalQuantity = 0;
+		ItemDatabase itemDatabase = GameContext.Instance.ItemDB;
+		if (capsule != null && itemDatabase != null)
+		{
+			for (int i = 0; i < capsule.Stacks.Count; ++i)
+			{
+				ItemStack stack = capsule.Stacks[i];
+				if (stack == null || stack.Quantity <= 0 ||
+					itemDatabase.GetItemData(stack.ItemID, out ItemDefinition item) == false)
+				{
+					continue;
+				}
+
+				totalWeight += item.Weight * stack.Quantity;
+				totalQuantity += stack.Quantity;
+			}
+		}
+
+		return new HumanWorkHandlingResult(
+			0,
+			totalQuantity,
+			totalWeight * CargoCapsuleHandlingFactor,
+			ItemTag.None,
+			capsule);
+	}
 
 	public void EnsureIncidentState(uint globalSeed)
 	{

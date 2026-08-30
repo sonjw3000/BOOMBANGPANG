@@ -6,6 +6,7 @@ public abstract partial class AIWorker
 	private IRecoveryFacility recoveryFacility;
 	private int3 reservedRecoveryPoint;
 	private bool isUsingRecoveryFacility;
+	private bool recoveryRequestedBeforeNextTask;
 
 	public bool IsRecovering => IsRecoveryReservationValid();
 
@@ -13,7 +14,7 @@ public abstract partial class AIWorker
 	{
 		if (CurrentTask != null ||
 			IsOperational == false ||
-			NeedsRecovery() == false ||
+			HasRecoveryNeed() == false ||
 			CanLeaveAssignedStationForRecovery() == false ||
 			GameContext.HasInstance == false)
 		{
@@ -110,7 +111,14 @@ public abstract partial class AIWorker
 
 	internal void CompleteRecovery()
 	{
+		recoveryRequestedBeforeNextTask = false;
 		CancelRecovery(true);
+	}
+
+	internal void RequestRecoveryBeforeNextTask()
+	{
+		recoveryRequestedBeforeNextTask = true;
+		enabled = true;
 	}
 
 	internal void CancelRecovery(bool becomeIdle)
@@ -171,7 +179,7 @@ public abstract partial class AIWorker
 
 		if (CurrentTask != null ||
 			IsOperational == false ||
-			NeedsRecovery() == false ||
+			HasRecoveryNeed() == false ||
 			CanLeaveAssignedStationForRecovery() == false ||
 			GameContext.HasInstance == false)
 		{
@@ -186,4 +194,7 @@ public abstract partial class AIWorker
 
 		return false;
 	}
+
+	private bool HasRecoveryNeed()
+		=> recoveryRequestedBeforeNextTask || NeedsRecovery();
 }

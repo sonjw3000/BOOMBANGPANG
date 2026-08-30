@@ -445,6 +445,9 @@ public partial class WorkerManager : MonoBehaviour
 				preferredWorker.CanAcceptPreferredTask(taskData) &&
 				taskData.CanDispatchTo(preferredWorker))
 			{
+				if (TryRequestRecoveryBeforeTask(preferredWorker, taskData))
+					return null;
+
 				RemoveIdleWorker(preferredWorker);
 				return preferredWorker;
 			}
@@ -470,11 +473,24 @@ public partial class WorkerManager : MonoBehaviour
 				continue;
 			}
 
+			if (TryRequestRecoveryBeforeTask(worker, taskData))
+				continue;
+
 			RemoveIdleWorker(worker);
 			return worker;
 		}
 
 		return null;
+	}
+
+	private bool TryRequestRecoveryBeforeTask(AIWorker worker, WorkerTask task)
+	{
+		if (worker is not HumanWorker human || human.ShouldRequestRecoveryBeforeTask(task) == false)
+			return false;
+
+		RemoveIdleWorker(worker);
+		human.RequestRecoveryBeforeNextTask();
+		return true;
 	}
 
 	public void AddIdleWorker(AIWorker worker)

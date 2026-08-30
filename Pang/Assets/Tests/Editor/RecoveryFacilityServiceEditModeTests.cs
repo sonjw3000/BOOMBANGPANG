@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Unity.Mathematics;
+using UnityEditor;
 using UnityEngine;
 
 public sealed class RecoveryFacilityServiceEditModeTests
@@ -19,6 +20,8 @@ public sealed class RecoveryFacilityServiceEditModeTests
 	private FacilityManager facilityManager;
 	private RestFacilityService restFacilityService;
 	private ChargingFacilityService chargingFacilityService;
+	private WorkerManager workerManager;
+	private WorkPolicyService workPolicyService;
 
 	[SetUp]
 	public void SetUp()
@@ -29,6 +32,15 @@ public sealed class RecoveryFacilityServiceEditModeTests
 		gridService = CreateComponent<GridService>("Recovery Facility Test Grid");
 		gridService.BuildDefaultMap();
 		facilityManager = CreateComponent<FacilityManager>("Recovery Facility Test Facility Manager");
+		workerManager = CreateComponent<WorkerManager>("Recovery Facility Test Worker Manager");
+		InvokeNonPublic(typeof(WorkerManager), workerManager, "Awake");
+		workPolicyService = CreateComponent<WorkPolicyService>("Recovery Facility Test Work Policy");
+		WorkPolicy workPolicy = AssetDatabase.LoadAssetAtPath<WorkPolicy>(
+			"Assets/ScriptableObjs/WorkPolicy/WorkPolicyTest.asset");
+		Assert.That(workPolicy, Is.Not.Null);
+		SetPrivateField(typeof(WorkPolicyService), workPolicyService, "workPolicy", workPolicy);
+		WMSystem wmSystem = CreateComponent<WMSystem>("Recovery Facility Test WM System");
+		SetPrivateField(typeof(WMSystem), wmSystem, "workPolicyService", workPolicyService);
 
 		GameObject serviceObject = CreateGameObject("Recovery Facility Test Rest Service", active: false);
 		restFacilityService = serviceObject.AddComponent<RestFacilityService>();
@@ -39,8 +51,10 @@ public sealed class RecoveryFacilityServiceEditModeTests
 		context = contextObject.AddComponent<GameContext>();
 		SetPrivateField(typeof(GameContext), context, "gridService", gridService);
 		SetPrivateField(typeof(GameContext), context, "facilityManager", facilityManager);
+		SetPrivateField(typeof(GameContext), context, "workerManager", workerManager);
 		SetPrivateField(typeof(GameContext), context, "restFacilityService", restFacilityService);
 		SetPrivateField(typeof(GameContext), context, "chargingFacilityService", chargingFacilityService);
+		SetPrivateField(typeof(GameContext), context, "warehouseManagement", wmSystem);
 		SetPrivateStaticField(typeof(GameContext), "instance", context);
 
 		serviceObject.SetActive(true);
@@ -147,6 +161,87 @@ public sealed class RecoveryFacilityServiceEditModeTests
 		Assert.That(selectedFacility, Is.SameAs(closerFacility));
 		Assert.That(selectedFacility, Is.Not.SameAs(fartherFacility));
 		Assert.That(selectedPoint, Is.EqualTo(new int3(12, 0, 10)));
+	}
+
+	[Test]
+	public void ShouldRequestRecoveryBeforeTask_UsesTaskSpecificFatigueReserve()
+	{
+		HumanWorker worker = CreateWorker("Task Reserve Worker", 0, WorkerPosition);
+		SetPrivateField(typeof(HumanWorker), worker, "fatigue", 59.0f);
+
+		Assert.That(
+			InvokeNonPublic<bool>(
+				typeof(HumanWorker),
+				worker,
+				"ShouldRequestRecoveryBeforeTask",
+				new TestWorkerTask(WorkerTask.TaskType.Unloading)),
+			Is.True);
+		Assert.That(
+			InvokeNonPublic<bool>(
+				typeof(HumanWorker),
+				worker,
+				"ShouldRequestRecoveryBeforeTask",
+				new TestWorkerTask(WorkerTask.TaskType.Storing)),
+			Is.False);
+	}
+
+	[Test]
+	public void ShouldRequestRecoveryBeforeTask_AllOperationalTaskTypesUseReserve()
+	{
+		HumanWorker worker = CreateWorker("All Task Reserve Worker", 0, WorkerPosition);
+		SetPrivateField(typeof(HumanWorker), worker, "fatigue", 69.0f);
+		WorkerTask.TaskType[] taskTypes =
+		{
+			WorkerTask.TaskType.Unloading,
+			WorkerTask.TaskType.IB,
+			WorkerTask.TaskType.CapsuleClear,
+			WorkerTask.TaskType.CapsuleSupply,
+			WorkerTask.TaskType.Storing,
+			WorkerTask.TaskType.OB,
+			WorkerTask.TaskType.Picking,
+			WorkerTask.TaskType.Packing,
+			WorkerTask.TaskType.Loading,
+			WorkerTask.TaskType.CargoTransfer,
+			WorkerTask.TaskType.PackingInput,
+			WorkerTask.TaskType.PackingOutput,
+			WorkerTask.TaskType.LaunchSort,
+			WorkerTask.TaskType.WasteCollection,
+			WorkerTask.TaskType.Labeling,
+		};
+
+		for (int i = 0; i < taskTypes.Length; ++i)
+		{
+			Assert.That(
+				InvokeNonPublic<bool>(
+					typeof(HumanWorker),
+					worker,
+					"ShouldRequestRecoveryBeforeTask",
+					new TestWorkerTask(taskTypes[i])),
+				Is.True,
+				$"Expected a fatigue reserve for {taskTypes[i]}");
+		}
+	}
+
+	[Test]
+	public void GetAvailableWorkers_NonUnloadingReserveIsInsufficient_RequestsSharedRestFacility()
+	{
+		HumanWorker worker = CreateWorker("Preemptive Recovery Worker", 0, WorkerPosition);
+		SetPrivateField(typeof(HumanWorker), worker, "fatigue", 69.0f);
+		worker.SetAssignedTaskTypes(new[] { WorkerTask.TaskType.Storing });
+		workerManager.AddIdleWorker(worker);
+		RestFacility facility = CreateFacility(
+			"Shared Rest Facility",
+			OtherBuildingId,
+			new int3(12, 0, 10));
+
+		AIWorker selectedWorker = workerManager.GetAvailableWorkers(
+			new TestWorkerTask(WorkerTask.TaskType.Storing));
+
+		Assert.That(selectedWorker, Is.Null);
+		Assert.That(
+			InvokeNonPublic<bool>(typeof(AIWorker), worker, "TryCanBeginRecovery"),
+			Is.True);
+		Assert.That(facility.IsReservedBy(worker), Is.True);
 	}
 
 	[Test]
@@ -283,5 +378,28 @@ public sealed class RecoveryFacilityServiceEditModeTests
 		MethodInfo method = ownerType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
 		Assert.That(method, Is.Not.Null, $"Missing test method {ownerType.Name}.{methodName}");
 		method.Invoke(target, null);
+	}
+
+	private static TResult InvokeNonPublic<TResult>(
+		Type ownerType,
+		object target,
+		string methodName,
+		params object[] arguments)
+	{
+		MethodInfo method = ownerType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.That(method, Is.Not.Null, $"Missing test method {ownerType.Name}.{methodName}");
+		return (TResult)method.Invoke(target, arguments);
+	}
+
+	private sealed class TestWorkerTask : WorkerTask
+	{
+		public TestWorkerTask(TaskType type) : base(type) { }
+		public override bool CheckTaskEnd() => false;
+		public override bool CanDispatchTo(AIWorker worker) => true;
+		public override string GetStatusSummary() => string.Empty;
+		protected override IBaseNode BuildWorkNode() => new SequenceNode();
+#if UNITY_EDITOR
+		public override string ShowStatus() => string.Empty;
+#endif
 	}
 }
