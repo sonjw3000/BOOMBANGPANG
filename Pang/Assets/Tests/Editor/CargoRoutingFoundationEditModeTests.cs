@@ -986,6 +986,54 @@ public sealed class CapsuleBufferRuleQueryEditModeTests
 	}
 
 	[Test]
+	public void PackingInput_RejectsStaleManifestBeforeMovingPhysicalItems()
+	{
+		const uint itemId = 809;
+		const int quantity = 3;
+		CapsuleBuffer source = CreateBuffer("Stale Packing Input", FirstBuildingId, 19);
+		CargoCapsule sourceCapsule = CreateCapsule(
+			"Stale Packing Input Capsule",
+			itemId,
+			quantity,
+			ItemStatus.Labeled);
+		sourceCapsule.SetLogisticsState(CapsuleLogisticsState.Inside);
+		Assert.That(source.TryDockCapsule(sourceCapsule), Is.True);
+
+		OrderLine orderLine = new(null, itemId, quantity, null);
+		Assert.That(
+			outboundWorkflow.GetPickingManifest(sourceCapsule).AddPicked(orderLine, itemId, quantity),
+			Is.EqualTo(quantity));
+		Assert.That(source.ReservePicking(itemId, quantity), Is.EqualTo(quantity));
+
+		CargoCapsule competingDestination = CreateCapsule("Competing Packing Destination");
+		Assert.That(
+			outboundWorkflow.TransferPickingManifest(
+				sourceCapsule,
+				competingDestination,
+				orderLine,
+				itemId,
+				quantity),
+			Is.EqualTo(quantity));
+
+		WorkLine staleLine = new(
+			WorkLineAction.Pick,
+			source,
+			source,
+			itemId,
+			quantity,
+			orderLine,
+			ItemStatus.Labeled);
+		PackingInputPlanner planner = new(FirstBuildingId);
+
+		Assert.That(
+			planner.EvaluateBeforeCollect(null, staleLine, out bool allowTransfer),
+			Is.EqualTo(WorkPlanResult.Completed));
+		Assert.That(allowTransfer, Is.False);
+		Assert.That(source.ItemToBePicked.GetValueOrDefault(itemId), Is.Zero);
+		Assert.That(sourceCapsule.Stacks[0].Quantity, Is.EqualTo(quantity));
+	}
+
+	[Test]
 	public void PackingAndLaunchOutput_UseProjectedPackedRuleDirectly()
 	{
 		const uint itemId = 805;

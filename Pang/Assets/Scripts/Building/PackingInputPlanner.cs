@@ -1,7 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTaskInvalidationHandler
+public sealed class PackingInputPlanner :
+	IItemTransferPlanner,
+	IItemTransferTaskInvalidationHandler,
+	IItemTransferCollectGate
 {
 	private readonly uint buildingId;
 
@@ -157,6 +160,34 @@ public sealed class PackingInputPlanner : IItemTransferPlanner, IItemTransferTas
 		return HasReachedBoxFillLimit(worker?.CarryingAbility?.CarryingBox)
 			? WorkPlanResult.SwitchPhase
 			: WorkPlanResult.Issued;
+	}
+
+	public WorkPlanResult EvaluateBeforeCollect(AIWorker worker, WorkLine line, out bool allowTransfer)
+	{
+		allowTransfer = true;
+		if (line?.Container is not CapsuleBuffer sourceBuffer ||
+			line.RelatedOrderLine == null ||
+			GameContext.HasInstance == false ||
+			GameContext.Instance.OBWorkflowSvc == null)
+		{
+			return WorkPlanResult.Issued;
+		}
+
+		OutboundWorkflowService outbound = GameContext.Instance.OBWorkflowSvc;
+		if (sourceBuffer.DockedCapsule != null &&
+			outbound.TryGetPickingManifest(sourceBuffer.DockedCapsule, out PickingManifest sourceManifest) &&
+			sourceManifest.FindLine(line.RelatedOrderLine, line.ItemID) is PickingManifestLine manifestLine &&
+			manifestLine.PackableQuantity >= line.Quantity)
+		{
+			return WorkPlanResult.Issued;
+		}
+
+		if (line.Container is IItemPickReservable staleSource)
+			staleSource.ReleaseReservedPick(line.ItemID, line.Quantity);
+
+		allowTransfer = false;
+		EvaluateWork();
+		return WorkPlanResult.Completed;
 	}
 
 	public WorkPlanResult TryGetPlaceLine(
