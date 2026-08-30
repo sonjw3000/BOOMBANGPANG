@@ -18,6 +18,7 @@ public sealed class RecoveryFacilityServiceEditModeTests
 	private GridService gridService;
 	private FacilityManager facilityManager;
 	private RestFacilityService restFacilityService;
+	private ChargingFacilityService chargingFacilityService;
 
 	[SetUp]
 	public void SetUp()
@@ -31,18 +32,26 @@ public sealed class RecoveryFacilityServiceEditModeTests
 
 		GameObject serviceObject = CreateGameObject("Recovery Facility Test Rest Service", active: false);
 		restFacilityService = serviceObject.AddComponent<RestFacilityService>();
+		GameObject chargingServiceObject = CreateGameObject("Recovery Facility Test Charging Service", active: false);
+		chargingFacilityService = chargingServiceObject.AddComponent<ChargingFacilityService>();
 
 		GameObject contextObject = CreateGameObject("Recovery Facility Test Context", active: false);
 		context = contextObject.AddComponent<GameContext>();
 		SetPrivateField(typeof(GameContext), context, "gridService", gridService);
 		SetPrivateField(typeof(GameContext), context, "facilityManager", facilityManager);
 		SetPrivateField(typeof(GameContext), context, "restFacilityService", restFacilityService);
+		SetPrivateField(typeof(GameContext), context, "chargingFacilityService", chargingFacilityService);
 		SetPrivateStaticField(typeof(GameContext), "instance", context);
 
 		serviceObject.SetActive(true);
+		chargingServiceObject.SetActive(true);
 		InvokeNonPublic(
 			typeof(FacilityService<RestFacility>),
 			restFacilityService,
+			"TryBindFacilityManager");
+		InvokeNonPublic(
+			typeof(FacilityService<ChargingFacility>),
+			chargingFacilityService,
 			"TryBindFacilityManager");
 	}
 
@@ -85,9 +94,9 @@ public sealed class RecoveryFacilityServiceEditModeTests
 	}
 
 	[Test]
-	public void TryReserveDestination_PrimaryBuildingFacilityIsFull_FallsBackToOtherBuilding()
+	public void TryReserveDestination_PrimaryBuildingFacilityIsFull_DoesNotUseOtherBuilding()
 	{
-		HumanWorker worker = CreateWorker("Fallback Worker", PrimaryBuildingId, WorkerPosition);
+		HumanWorker worker = CreateWorker("Primary Building Worker", PrimaryBuildingId, WorkerPosition);
 		HumanWorker occupyingWorker = CreateWorker(
 			"Occupying Worker",
 			PrimaryBuildingId,
@@ -96,8 +105,8 @@ public sealed class RecoveryFacilityServiceEditModeTests
 			"Full Primary Building Rest Facility",
 			PrimaryBuildingId,
 			new int3(30, 0, 10));
-		RestFacility fallbackFacility = CreateFacility(
-			"Fallback Rest Facility",
+		RestFacility otherFacility = CreateFacility(
+			"Other Building Rest Facility",
 			OtherBuildingId,
 			new int3(12, 0, 10));
 		Assert.That(
@@ -110,9 +119,54 @@ public sealed class RecoveryFacilityServiceEditModeTests
 			out RestFacility selectedFacility,
 			out int3 selectedPoint);
 
+		Assert.That(reserved, Is.False);
+		Assert.That(selectedFacility, Is.Null);
+		Assert.That(selectedPoint, Is.EqualTo(default(int3)));
+		Assert.That(otherFacility.IsReservedBy(worker), Is.False);
+	}
+
+	[Test]
+	public void TryReserveDestination_UnassignedOutdoorWorker_UsesClosestSharedRestFacility()
+	{
+		HumanWorker worker = CreateWorker("Outdoor Worker", 0, WorkerPosition);
+		RestFacility fartherFacility = CreateFacility(
+			"Farther Shared Rest Facility",
+			PrimaryBuildingId,
+			new int3(30, 0, 10));
+		RestFacility closerFacility = CreateFacility(
+			"Closer Shared Rest Facility",
+			OtherBuildingId,
+			new int3(12, 0, 10));
+
+		bool reserved = restFacilityService.TryReserveDestination(
+			worker,
+			out RestFacility selectedFacility,
+			out int3 selectedPoint);
+
 		Assert.That(reserved, Is.True);
-		Assert.That(selectedFacility, Is.SameAs(fallbackFacility));
+		Assert.That(selectedFacility, Is.SameAs(closerFacility));
+		Assert.That(selectedFacility, Is.Not.SameAs(fartherFacility));
 		Assert.That(selectedPoint, Is.EqualTo(new int3(12, 0, 10)));
+	}
+
+	[Test]
+	public void TryReserveDestination_UnassignedOutdoorRobot_DoesNotUseSharedChargingFacility()
+	{
+		RobotWorker worker = CreateRobotWorker("Outdoor Robot", 0, WorkerPosition);
+		ChargingFacility facility = CreateChargingFacility(
+			"Shared Charging Facility",
+			OtherBuildingId,
+			new int3(12, 0, 10));
+
+		bool reserved = chargingFacilityService.TryReserveDestination(
+			worker,
+			out ChargingFacility selectedFacility,
+			out int3 selectedPoint);
+
+		Assert.That(reserved, Is.False);
+		Assert.That(selectedFacility, Is.Null);
+		Assert.That(selectedPoint, Is.EqualTo(default(int3)));
+		Assert.That(facility.IsReservedBy(worker), Is.False);
 	}
 
 	[Test]
@@ -153,11 +207,34 @@ public sealed class RecoveryFacilityServiceEditModeTests
 		return worker;
 	}
 
+	private RobotWorker CreateRobotWorker(string objectName, uint primaryBuildingId, in int3 position)
+	{
+		GameObject workerObject = CreateGameObject(objectName);
+		workerObject.AddComponent<FindRoute>();
+		RobotWorker worker = workerObject.AddComponent<RobotWorker>();
+		worker.OnPositionSet(position, FacingDirection.North);
+		worker.SetPrimaryBuildingId(primaryBuildingId);
+		return worker;
+	}
+
 	private RestFacility CreateFacility(string objectName, uint buildingId, in int3 interactionPoint)
 	{
 		RestFacility facility = CreateComponent<RestFacility>(objectName);
 		facility.OnPositionSet(interactionPoint, FacingDirection.North);
 		facility.AddInteractionPoint(InteractionKind.Rest, interactionPoint);
+		facilityManager.RegisterFacility(buildingId, facility);
+		Assert.That(
+			facilityManager.TryGetBuildingId(facility, out uint registeredBuildingId),
+			Is.True);
+		Assert.That(registeredBuildingId, Is.EqualTo(buildingId));
+		return facility;
+	}
+
+	private ChargingFacility CreateChargingFacility(string objectName, uint buildingId, in int3 interactionPoint)
+	{
+		ChargingFacility facility = CreateComponent<ChargingFacility>(objectName);
+		facility.OnPositionSet(interactionPoint, FacingDirection.North);
+		facility.AddInteractionPoint(InteractionKind.Charge, interactionPoint);
 		facilityManager.RegisterFacility(buildingId, facility);
 		Assert.That(
 			facilityManager.TryGetBuildingId(facility, out uint registeredBuildingId),

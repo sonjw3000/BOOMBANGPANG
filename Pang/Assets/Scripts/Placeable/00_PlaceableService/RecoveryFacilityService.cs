@@ -6,6 +6,7 @@ public abstract class RecoveryFacilityService<TFacility> : FacilityService<TFaci
 {
 	private readonly Dictionary<AIWorker, TFacility> reservations = new();
 	private readonly List<AIWorker> workerBuffer = new();
+	protected virtual bool AllowUnassignedWorkerGlobalSearch => false;
 
 	protected override void OnEnable()
 	{
@@ -81,15 +82,17 @@ public abstract class RecoveryFacilityService<TFacility> : FacilityService<TFaci
 				candidate.TryGetAvailableSlot(worker, origin, out _, out score);
 		}
 
-		if (worker.PrimaryBuildingId != 0 &&
-			TryFindClosestFacility(
+		if (worker.PrimaryBuildingId != 0)
+		{
+			return TryFindClosestFacility(
 				worker.PrimaryBuildingId,
 				worker.GridPosition,
 				TryScore,
-				out facility))
-		{
-			return true;
+				out facility);
 		}
+
+		if (AllowUnassignedWorkerGlobalSearch == false)
+			return false;
 
 		return TryFindClosestFacility(
 			worker.GridPosition,
