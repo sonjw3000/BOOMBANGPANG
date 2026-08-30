@@ -444,10 +444,17 @@ public sealed class ItemTransferTaskScheduler
 		return IsValidKey(key) &&
 			entry != null &&
 			worker != null &&
+			IsWorkerInScheduleScope(worker, key) &&
 			worker.CurrentTask == null &&
 			reservedWorkers.Contains(worker) == false &&
 			assignmentChangingWorkers.Contains(worker) == false &&
 			worker.CanAcceptGeneralTask(entry.TaskType);
+	}
+
+	private static bool IsWorkerInScheduleScope(AIWorker worker, ItemTransferScheduleKey key)
+	{
+		return worker != null &&
+			(key.BuildingId == 0 || worker.PrimaryBuildingId == key.BuildingId);
 	}
 
 	private static bool IsValidKey(ItemTransferScheduleKey key)
