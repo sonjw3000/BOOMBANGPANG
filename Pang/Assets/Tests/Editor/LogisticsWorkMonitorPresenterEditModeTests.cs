@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -20,6 +22,10 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 		Assert.That(root.Q<Button>("workflow-monitor-button"), Is.Not.Null);
 		Assert.That(root.Q<VisualElement>("workflow-monitor-tab"), Is.Not.Null);
 		Assert.That(root.Q<DropdownField>("workflow-monitor-building-scope"), Is.Not.Null);
+		Assert.That(root.Q<VisualElement>("workflow-monitor-inbound-section"), Is.Not.Null);
+		Assert.That(root.Q<VisualElement>("workflow-monitor-outbound-section"), Is.Not.Null);
+		Assert.That(root.Q<VisualElement>("workflow-monitor-capsule-section"), Is.Not.Null);
+		Assert.That(root.Q<VisualElement>("workflow-monitor-empty"), Is.Not.Null);
 
 		string[] prefixes =
 		{
@@ -38,6 +44,7 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 			string prefix = $"workflow-monitor-{prefixes[i]}";
 			Assert.That(root.Q<Label>($"{prefix}-demand"), Is.Not.Null, prefix);
 			Assert.That(root.Q<Label>($"{prefix}-items"), Is.Not.Null, prefix);
+			Assert.That(root.Q<Label>($"{prefix}-assigned"), Is.Not.Null, prefix);
 			Assert.That(root.Q<Label>($"{prefix}-waiting"), Is.Not.Null, prefix);
 			Assert.That(root.Q<Label>($"{prefix}-ready"), Is.Not.Null, prefix);
 			Assert.That(root.Q<Label>($"{prefix}-returned"), Is.Not.Null, prefix);
@@ -171,6 +178,7 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 
 		Assert.That(root.Q<Label>("workflow-monitor-picking-demand").text, Is.EqualTo("2"));
 		Assert.That(root.Q<Label>("workflow-monitor-picking-items").text, Is.EqualTo("17"));
+		Assert.That(root.Q<Label>("workflow-monitor-picking-assigned").text, Is.EqualTo("0"));
 		Assert.That(root.Q<Label>("workflow-monitor-picking-waiting").text, Is.EqualTo("12"));
 		Assert.That(root.Q<Label>("workflow-monitor-picking-ready").text, Is.EqualTo("11"));
 		Assert.That(root.Q<Label>("workflow-monitor-picking-returned").text, Is.EqualTo("1"));
@@ -197,6 +205,114 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 		Assert.That(
 			root.Q<Label>("workflow-monitor-picking-blocked").ClassListContains("workflow-monitor-value--danger"),
 			Is.False);
+
+		presenter.Dispose();
+	}
+
+	[Test]
+	public void CapsuleRelocateAssignedTaskTypes_MatchCapsuleRelocationTaskCreationTypes()
+	{
+		FieldInfo definitionsField = typeof(LogisticsWorkMonitorPresenter).GetField(
+			"RowDefinitions",
+			BindingFlags.Static | BindingFlags.NonPublic);
+		Assert.That(definitionsField, Is.Not.Null);
+		Array definitions = definitionsField.GetValue(null) as Array;
+		Assert.That(definitions, Is.Not.Null);
+
+		WorkerTask.TaskType[] assignedTaskTypes = null;
+		foreach (object definition in definitions)
+		{
+			Type definitionType = definition.GetType();
+			FieldInfo categoryField = definitionType.GetField("Category", BindingFlags.Instance | BindingFlags.Public);
+			Assert.That(categoryField, Is.Not.Null);
+			if ((LogisticsWorkCategory)categoryField.GetValue(definition) != LogisticsWorkCategory.CapsuleRelocate)
+				continue;
+
+			FieldInfo taskTypesField = definitionType.GetField(
+				"AssignedTaskTypes",
+				BindingFlags.Instance | BindingFlags.Public);
+			Assert.That(taskTypesField, Is.Not.Null);
+			assignedTaskTypes = taskTypesField.GetValue(definition) as WorkerTask.TaskType[];
+			break;
+		}
+
+		CollectionAssert.AreEquivalent(
+			new[]
+			{
+				WorkerTask.TaskType.Unloading,
+				WorkerTask.TaskType.IB,
+				WorkerTask.TaskType.CapsuleClear,
+				WorkerTask.TaskType.CapsuleSupply,
+				WorkerTask.TaskType.OB,
+				WorkerTask.TaskType.CargoTransfer,
+			},
+			assignedTaskTypes);
+	}
+
+	[Test]
+	public void Render_ShowsRowsWithDemandAssignedWorkersOrTasksAndHidesEmptySections()
+	{
+		TemplateContainer root = LoadRoot();
+		LogisticsWorkMonitorPresenter presenter = new();
+		Assert.That(presenter.BindView(root), Is.True);
+
+		Dictionary<LogisticsWorkCategory, WorkDemandSnapshot> demands = new()
+		{
+			[LogisticsWorkCategory.Packing] = new WorkDemandSnapshot(1, 10),
+			[LogisticsWorkCategory.PackingOutput] = new WorkDemandSnapshot(0, 5),
+		};
+		Dictionary<LogisticsWorkCategory, TaskCountSnapshot> tasks = new()
+		{
+			[LogisticsWorkCategory.Labeling] = new TaskCountSnapshot(1, 1, 1, 1),
+		};
+		Dictionary<LogisticsWorkCategory, int> assignedWorkers = new()
+		{
+			[LogisticsWorkCategory.Storing] = 2,
+			[LogisticsWorkCategory.PackingInput] = 1,
+		};
+
+		presenter.Render(
+			(category, _) => demands.TryGetValue(category, out WorkDemandSnapshot demand) ? demand : default,
+			(category, _) => tasks.TryGetValue(category, out TaskCountSnapshot task) ? task : default,
+			(category, _) => assignedWorkers.TryGetValue(category, out int count) ? count : 0);
+
+		AssertRowDisplay(root, "labeling", DisplayStyle.Flex);
+		AssertRowDisplay(root, "storing", DisplayStyle.Flex);
+		AssertRowDisplay(root, "picking", DisplayStyle.None);
+		AssertRowDisplay(root, "packing-input", DisplayStyle.Flex);
+		AssertRowDisplay(root, "packing", DisplayStyle.Flex);
+		AssertRowDisplay(root, "packing-output", DisplayStyle.Flex);
+		AssertRowDisplay(root, "launch-sort", DisplayStyle.None);
+		AssertRowDisplay(root, "capsule-relocate", DisplayStyle.None);
+		Assert.That(root.Q<Label>("workflow-monitor-storing-assigned").text, Is.EqualTo("2"));
+		Assert.That(root.Q<Label>("workflow-monitor-packing-input-assigned").text, Is.EqualTo("1"));
+		Assert.That(
+			root.Q<VisualElement>("workflow-monitor-inbound-section").style.display.value,
+			Is.EqualTo(DisplayStyle.Flex));
+		Assert.That(
+			root.Q<VisualElement>("workflow-monitor-outbound-section").style.display.value,
+			Is.EqualTo(DisplayStyle.Flex));
+		Assert.That(
+			root.Q<VisualElement>("workflow-monitor-capsule-section").style.display.value,
+			Is.EqualTo(DisplayStyle.None));
+		Assert.That(
+			root.Q<VisualElement>("workflow-monitor-empty").style.display.value,
+			Is.EqualTo(DisplayStyle.None));
+
+		presenter.Render((_, _) => default, (_, _) => default, (_, _) => 0);
+
+		Assert.That(
+			root.Q<VisualElement>("workflow-monitor-inbound-section").style.display.value,
+			Is.EqualTo(DisplayStyle.None));
+		Assert.That(
+			root.Q<VisualElement>("workflow-monitor-outbound-section").style.display.value,
+			Is.EqualTo(DisplayStyle.None));
+		Assert.That(
+			root.Q<VisualElement>("workflow-monitor-capsule-section").style.display.value,
+			Is.EqualTo(DisplayStyle.None));
+		Assert.That(
+			root.Q<VisualElement>("workflow-monitor-empty").style.display.value,
+			Is.EqualTo(DisplayStyle.Flex));
 
 		presenter.Dispose();
 	}
@@ -243,5 +359,11 @@ public sealed class LogisticsWorkMonitorPresenterEditModeTests
 
 		Assert.That(demandBuildingId, Is.EqualTo(expectedBuildingId));
 		Assert.That(taskBuildingId, Is.EqualTo(expectedBuildingId));
+	}
+
+	private static void AssertRowDisplay(VisualElement root, string prefix, DisplayStyle expected)
+	{
+		VisualElement row = root.Q<Label>($"workflow-monitor-{prefix}-demand").parent;
+		Assert.That(row.style.display.value, Is.EqualTo(expected), prefix);
 	}
 }
