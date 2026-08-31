@@ -152,6 +152,7 @@ public abstract partial class AIWorker
 
 		if (string.IsNullOrWhiteSpace(data.VisualId) == false)
 			ApplyVisual(GameContext.Instance.WorkerVisualCatalog?.FindById(data.VisualId));
+		ApplyOperationalVisualState();
 
 		EnsureAbilitiesConfigured();
 		RestoreSubclassState(data);

@@ -146,6 +146,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	[Header("Visual")]
 	[SerializeField] private Transform visualRoot;
+	private static readonly Vector3 KnockoutVisualOffset = new(0.0f, 0.1f, 0.0f);
+	private static readonly Quaternion KnockoutVisualRotation = Quaternion.Euler(-90.0f, 0.0f, 0.0f);
 
 	private FindRoute routeFinder;
 	private BehaviorTree behaviorTree;
@@ -154,6 +156,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 	private WorkerStatusAction preTrafficAction = WorkerStatusAction.None;
 	private GameObject currentVisualInstance;
 	private WorkerVisualDefinition currentVisualDefinition;
+	private Transform currentVisualPoseRoot;
 	private CarryBoxAbility carryingAbility;
 	private Transform currentVisualCarrySlot;
 	private Transform currentVisualStatusSlot;
@@ -423,6 +426,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		}
 
 		currentVisualDefinition = visualDefinition;
+		currentVisualPoseRoot = null;
 		currentVisualCarrySlot = null;
 		currentVisualStatusSlot = null;
 
@@ -434,11 +438,25 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		currentVisualInstance.transform.localPosition = Vector3.zero;
 		currentVisualInstance.transform.localRotation = Quaternion.identity;
 		currentVisualInstance.transform.localScale = Vector3.one;
+		currentVisualPoseRoot = FindVisualSlot(currentVisualInstance.transform, "Visual")
+			?? currentVisualInstance.transform;
 		currentVisualCarrySlot = FindVisualSlot(currentVisualInstance.transform, "CarrySlot");
 		currentVisualStatusSlot = FindVisualSlot(currentVisualInstance.transform, "StatusSlot");
+		ApplyOperationalVisualState();
 
 		// Keep presentation under VisualRoot so animation/presenter components can be added later
 		// without mixing visual-only hierarchy concerns into gameplay/root components.
+	}
+
+	private void ApplyOperationalVisualState()
+	{
+		if (currentVisualPoseRoot == null)
+			return;
+
+		bool isKnockedOutHuman = workerKind == WorkerKind.Human &&
+			operationalState == WorkerOperationalState.Knockout;
+		currentVisualPoseRoot.localPosition = isKnockedOutHuman ? KnockoutVisualOffset : Vector3.zero;
+		currentVisualPoseRoot.localRotation = isKnockedOutHuman ? KnockoutVisualRotation : Quaternion.identity;
 	}
 
 	private Transform ResolveCarrySlot()
@@ -778,6 +796,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 		SetWorkerTarget(WorkerStatusTarget.None);
 		SetWorkerAction(GetIncapacitatedStatusAction(state));
+		ApplyOperationalVisualState();
 		BuildBehaviorTree();
 		enabled = true;
 		OnOperationalStateChanged?.Invoke(this, previousState, state);
