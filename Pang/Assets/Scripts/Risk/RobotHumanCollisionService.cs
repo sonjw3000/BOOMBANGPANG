@@ -48,7 +48,6 @@ public sealed class RobotHumanCollisionService : MonoBehaviour
 			human == null ||
 			gridService == null ||
 			incidentService == null ||
-			robot.IsPlayerOverride ||
 			robot.IsOperational == false)
 		{
 			return RobotHumanCollisionResult.NotApplicable;

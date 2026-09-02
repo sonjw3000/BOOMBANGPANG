@@ -907,9 +907,11 @@ namespace UniverseLogistics.UI.Toolkit
 			if (cell == null)
 				return false;
 
-			target = cell.ObjectOnGrid != null
-				? cell.ObjectOnGrid
-				: cell.OccupancyObjectOnGrid;
+			target = cell.OccupancyWorker != null
+				? cell.OccupancyWorker.gameObject
+				: cell.ObjectOnGrid != null
+					? cell.ObjectOnGrid
+					: cell.OccupancyObjectOnGrid;
 			return target != null && target.TryGetComponent<IGridPlaceable>(out _);
 		}
 

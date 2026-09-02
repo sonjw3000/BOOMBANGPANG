@@ -353,7 +353,7 @@ public sealed class PathSearchJob
 
 		if (request.IsSubPathRequest)
 		{
-			var reservedRoute = GridService.GetReservedFindRoute(pos);
+			var reservedRoute = GridService.GetBlockingFindRoute(pos);
 			if (reservedRoute != null && request.target.BlockingRoutes.Contains(reservedRoute))
 				return;
 		}

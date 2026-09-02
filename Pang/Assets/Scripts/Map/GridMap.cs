@@ -62,6 +62,7 @@ public class GridCell
 
 	private GameObject objectRef = null;
 	private GameObject occupancyObjectRef = null;
+	private AIWorker occupancyWorker = null;
 	private GridOccupancyCategory occupancyCategory = GridOccupancyCategory.None;
 
 	private FindRoute reservedBy = null;
@@ -84,9 +85,10 @@ public class GridCell
 	public bool IsBlocked => Flags.HasFlag(GridFlags.BlockMovement);
 	public bool IsIndoor => regionId == 2;
 	public bool SealsSpace => (flags & GridFlags.SealsSpace) != 0;
-	public bool CanPlaceObject => IsBlocked == false && reservedBy == null;
+	public bool CanPlaceObject => IsBlocked == false && reservedBy == null && occupancyWorker == null;
 	public GameObject ObjectOnGrid => objectRef;
 	public GameObject OccupancyObjectOnGrid => occupancyObjectRef;
+	public AIWorker OccupancyWorker => occupancyWorker;
 	public IReadOnlyCollection<GameObject> ObjectsOnGrid => flagsByObject.Keys;
 
 	public FindRoute ReservedRoute => reservedBy;
@@ -116,6 +118,12 @@ public class GridCell
 
 	public void Set(in FootprintCell cellFootprint, GameObject obj)
 	{
+		if (obj != null && obj.TryGetComponent<AIWorker>(out AIWorker worker))
+		{
+			SetWorker(in cellFootprint, worker);
+			return;
+		}
+
 		GridFlags flagsToSet = GetGridFlagsForPlacement(cellFootprint.flags);
 		flags |= flagsToSet;
 		occupancyCategory = cellFootprint.occupancyCategory;
@@ -128,6 +136,19 @@ public class GridCell
 
 		if (cellFootprint.flags.HasFlag(GridFlags.Interaction) == false)
 			objectRef = obj;
+	}
+
+	internal void SetWorker(in FootprintCell cellFootprint, AIWorker worker)
+	{
+		if (worker == null)
+			return;
+
+		GridFlags flagsToSet = GetGridFlagsForPlacement(cellFootprint.flags);
+		flags |= flagsToSet;
+		occupancyWorker = worker;
+		GameObject workerObject = worker.gameObject;
+		flagsByObject.TryGetValue(workerObject, out GridFlags objectFlags);
+		flagsByObject[workerObject] = objectFlags | flagsToSet;
 	}
 
 	private static GridFlags GetGridFlagsForPlacement(GridFlags source)
@@ -148,11 +169,18 @@ public class GridCell
 		flagsByObject.Clear();
 		objectRef = null;
 		occupancyObjectRef = null;
+		occupancyWorker = null;
 		occupancyCategory = GridOccupancyCategory.None;
 	}
 
 	public void Remove(in FootprintCell cellFootprint, GameObject obj)
 	{
+		if (obj != null && obj.TryGetComponent<AIWorker>(out AIWorker worker))
+		{
+			RemoveWorker(in cellFootprint, worker);
+			return;
+		}
+
 		if (objectRef == obj)
 			objectRef = null;
 
@@ -161,11 +189,26 @@ public class GridCell
 			occupancyObjectRef = null;
 			occupancyCategory = GridOccupancyCategory.None;
 		}
+		RemoveObjectFlags(in cellFootprint, obj);
+	}
 
+	internal void RemoveWorker(in FootprintCell cellFootprint, AIWorker worker)
+	{
+		if (worker == null)
+			return;
 
+		if (occupancyWorker == worker)
+			occupancyWorker = null;
+
+		RemoveObjectFlags(in cellFootprint, worker.gameObject);
+	}
+
+	private void RemoveObjectFlags(in FootprintCell cellFootprint, GameObject obj)
+	{
+		GridFlags flagsToRemove = GetGridFlagsForPlacement(cellFootprint.flags);
 		if (obj != null && flagsByObject.TryGetValue(obj, out GridFlags objectFlags))
 		{
-			objectFlags &= ~cellFootprint.flags;
+			objectFlags &= ~flagsToRemove;
 			if (objectFlags == GridFlags.None)
 				flagsByObject.Remove(obj);
 			else
@@ -175,7 +218,7 @@ public class GridCell
 			return;
 		}
 
-		flags &= ~cellFootprint.flags;
+		flags &= ~flagsToRemove;
 	}
 
 	internal bool RegisterObject(GameObject obj, GridFlags objectFlags)
@@ -300,6 +343,13 @@ public class GridCell
 
 	public bool TryReserve(FindRoute routeWorker)
 	{
+		if (occupancyWorker != null &&
+			routeWorker != occupancyWorker.RouteFinder &&
+			routeWorker?.Worker != occupancyWorker)
+		{
+			return false;
+		}
+
 		if (routeWorker != reservedBy && reservedBy != null)
 			return false;
 

@@ -407,7 +407,11 @@ public class InteractionContext
 		switch (Mode)
 		{
 			case InteractionMode.FacilitySelect:
-				var obj = GameContext.Instance.GridService.GetObjectOnGrid(pos);
+				GridService gridService = GameContext.Instance.GridService;
+				GridCell cell = gridService.GetCell(pos);
+				GameObject obj = cell?.OccupancyWorker != null
+					? cell.OccupancyWorker.gameObject
+					: gridService.GetObjectOnGrid(pos);
 				if (obj == null && OnResolveSelectionFallback != null)
 				{
 					foreach (System.Func<int3, GameObject> resolver in OnResolveSelectionFallback.GetInvocationList())

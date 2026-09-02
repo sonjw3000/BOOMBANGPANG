@@ -284,6 +284,8 @@ public sealed class ExplosionService
 					TrackAffectedObject(cell.ObjectOnGrid, in affectedCell, in origin);
 				if (cell.OccupancyObjectOnGrid != null)
 					TrackAffectedObject(cell.OccupancyObjectOnGrid, in affectedCell, in origin);
+				if (cell.OccupancyWorker != null)
+					TrackAffectedObject(cell.OccupancyWorker.gameObject, in affectedCell, in origin);
 			}
 		}
 	}

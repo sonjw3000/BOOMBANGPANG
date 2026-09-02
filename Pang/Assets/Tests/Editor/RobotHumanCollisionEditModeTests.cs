@@ -108,6 +108,57 @@ public sealed class RobotHumanCollisionEditModeTests
 	}
 
 	[Test]
+	public void TryResolve_PlayerOverrideRobot_StillUsesHumanCollisionRules()
+	{
+		SetPrivateField(
+			typeof(AIWorker),
+			robot,
+			"controlMode",
+			WorkerControlMode.PlayerOverride);
+
+		RobotHumanCollisionResult result = collisionService.TryResolve(robot, human, HumanCell);
+
+		Assert.That(result, Is.EqualTo(RobotHumanCollisionResult.HumanRelocated));
+		Assert.That(human.OperationalState, Is.EqualTo(WorkerOperationalState.Knockout));
+		Assert.That(incidents.Incidents, Has.Count.EqualTo(1));
+	}
+
+	[Test]
+	public void TrafficCoordinator_PlayerOverrideRobot_StillEntersHumanCollisionGate()
+	{
+		SetPrivateField(
+			typeof(AIWorker),
+			robot,
+			"controlMode",
+			WorkerControlMode.PlayerOverride);
+		SetPrivateField(
+			typeof(AIWorker),
+			human,
+			"operationalState",
+			WorkerOperationalState.Knockout);
+
+		GameObject contextObject = CreateGameObject("Player Override Collision Context");
+		contextObject.SetActive(false);
+		GameContext context = contextObject.AddComponent<GameContext>();
+		SetPrivateField(typeof(GameContext), context, "gridService", grid);
+		SetPrivateStaticField(typeof(GameContext), "instance", context);
+
+		TrafficCoordinator coordinator = CreateGameObject("Player Override Traffic Coordinator")
+			.AddComponent<TrafficCoordinator>();
+		MethodInfo resolveCollision = typeof(TrafficCoordinator).GetMethod(
+			"TryResolveRobotHumanCollision",
+			BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.That(resolveCollision, Is.Not.Null);
+
+		bool handled = (bool)resolveCollision.Invoke(
+			coordinator,
+			new object[] { robotRoute, humanRoute, HumanCell });
+
+		Assert.That(handled, Is.True);
+		Assert.That(coordinator.IsWaitingForTraffic(robotRoute), Is.True);
+	}
+
+	[Test]
 	public void TryResolve_NoSafeCell_LeavesCasualtyReservationAndDoesNotRepeatDamage()
 	{
 		BlockCell(new int3(12, 0, 10));
@@ -182,6 +233,23 @@ public sealed class RobotHumanCollisionEditModeTests
 	{
 		GameObject managerObject = CreateGameObject("Medical Evacuation Worker Manager");
 		WorkerManager workerManager = managerObject.AddComponent<WorkerManager>();
+		MethodInfo workerManagerAwake = typeof(WorkerManager).GetMethod(
+			"Awake",
+			BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.That(workerManagerAwake, Is.Not.Null);
+		workerManagerAwake.Invoke(workerManager, null);
+
+		GameObject contextObject = CreateGameObject("Medical Evacuation Context");
+		contextObject.SetActive(false);
+		GameContext context = contextObject.AddComponent<GameContext>();
+		TrafficCoordinator trafficCoordinator = contextObject.AddComponent<TrafficCoordinator>();
+		RestFacilityService restFacilityService = contextObject.AddComponent<RestFacilityService>();
+		SetPrivateField(typeof(GameContext), context, "gridService", grid);
+		SetPrivateField(typeof(GameContext), context, "workerManager", workerManager);
+		SetPrivateField(typeof(GameContext), context, "trafficCoordinator", trafficCoordinator);
+		SetPrivateField(typeof(GameContext), context, "restFacilityService", restFacilityService);
+		SetPrivateStaticField(typeof(GameContext), "instance", context);
+
 		workerManager.RegisterWorker(human);
 		SetPrivateField(
 			typeof(AIWorker),
@@ -189,23 +257,18 @@ public sealed class RobotHumanCollisionEditModeTests
 			"operationalState",
 			WorkerOperationalState.Knockout);
 
-		GameObject contextObject = CreateGameObject("Medical Evacuation Context");
-		contextObject.SetActive(false);
-		GameContext context = contextObject.AddComponent<GameContext>();
-		SetPrivateField(typeof(GameContext), context, "gridService", grid);
-		SetPrivateField(typeof(GameContext), context, "workerManager", workerManager);
-		SetPrivateStaticField(typeof(GameContext), "instance", context);
-
 		bool removed = workerManager.TryEvacuateWorker(human);
 
 		Assert.That(removed, Is.True);
 		Assert.That(workerManager.Workers, Is.Empty);
 		Assert.That(grid.IsPlacedObject(human.gameObject), Is.False);
+		Assert.That(grid.GetCell(HumanCell).OccupancyWorker, Is.Null);
 		Assert.That(grid.GetReservedFindRoute(HumanCell), Is.Null);
 	}
 
 	private void PlaceWorker(AIWorker worker, FindRoute route, in int3 position)
 	{
+		SetPrivateField(typeof(FindRoute), route, "worker", worker);
 		worker.OnPositionSet(position, FacingDirection.North);
 		PlacementContext context = new(
 			position,

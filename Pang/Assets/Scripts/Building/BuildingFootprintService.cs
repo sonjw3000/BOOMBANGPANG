@@ -91,7 +91,10 @@ public sealed partial class BuildingFootprintService : MonoBehaviour
 					return false;
 				}
 
-				if (cell.BuildingId != 0 || cell.OccupancyObjectOnGrid != null || cell.CanPlaceObject == false)
+				if (cell.BuildingId != 0 ||
+					cell.OccupancyWorker != null ||
+					cell.OccupancyObjectOnGrid != null ||
+					cell.CanPlaceObject == false)
 				{
 					reason = "Building footprint contains an occupied cell.";
 					return false;

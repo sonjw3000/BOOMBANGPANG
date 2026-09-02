@@ -536,6 +536,9 @@ public partial class GridService : MonoBehaviour
 			owningBuildingId = ResolveOwningBuildingId(in context);
 
 		GridFootprint footprint = context.placeableDefinition.gridFootprint;
+		FindRoute workerRoute = targetObj.TryGetComponent<AIWorker>(out AIWorker removedWorker)
+			? removedWorker.RouteFinder
+			: null;
 		Vector2Int pivot = footprint.Pivot;
 		for (int z = 0; z < footprint.height; ++z)
 		{
@@ -551,7 +554,10 @@ public partial class GridService : MonoBehaviour
 				if (gridMap.IsInBound(target) == false)
 					return false;
 				// clear to cell
-				Map[target.x, target.y, target.z].Remove(footprintCell, targetObj);
+				GridCell targetCell = Map[target.x, target.y, target.z];
+				targetCell.Remove(footprintCell, targetObj);
+				if (workerRoute != null)
+					targetCell.TryUnreserve(workerRoute);
 			}
 		}
 
@@ -704,7 +710,7 @@ public partial class GridService : MonoBehaviour
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = previousCenter + rotatedOffset;
 
-				Map[target.x, target.y, target.z].Remove(footprintCell, worker.gameObject);
+				Map[target.x, target.y, target.z].RemoveWorker(in footprintCell, worker);
 			}
 		}
 
@@ -721,7 +727,7 @@ public partial class GridService : MonoBehaviour
 				int3 rotatedOffset = RotateOffset(offset, context.facingDirection);
 				int3 target = newCenter + rotatedOffset;
 
-				Map[target.x, target.y, target.z].Set(footprintCell, worker.gameObject);
+				Map[target.x, target.y, target.z].SetWorker(in footprintCell, worker);
 			}
 		}
 
@@ -785,8 +791,10 @@ public partial class GridService : MonoBehaviour
 	public PlacementResult TryMove(FindRoute findRoute, in int3 from, in int3 to)
 	{
 		var fromGridCell = GetCell(from);
-		//var obj = gridMap.GetObjectOnGrid(from);
 		var toGridCell = GetCell(to);
+		AIWorker movingWorker = findRoute != null ? findRoute.Worker : null;
+		if (movingWorker == null && (findRoute == null || findRoute.TryGetComponent(out movingWorker) == false))
+			return PlacementResult.GameObjectMismatch;
 
 		if (IsBlocked(to))
 			return PlacementResult.BlockedByStaticObstacle;
@@ -823,7 +831,7 @@ public partial class GridService : MonoBehaviour
 				if (gridMap.IsInBound(target) == false)
 					return PlacementResult.TriedToMoveOutOfBound;
 				// clear to cell
-				Map[target.x, target.y, target.z].Remove(footprintCell, findRoute.gameObject);
+				Map[target.x, target.y, target.z].RemoveWorker(in footprintCell, movingWorker);
 			}
 		}
 
@@ -841,7 +849,7 @@ public partial class GridService : MonoBehaviour
 				int3 target = context.center + rotatedOffset;
 				if (gridMap.IsInBound(target) == false)
 					return PlacementResult.TriedToMoveOutOfBound;
-				Map[target.x, target.y, target.z].Set(footprintCell, findRoute.gameObject);
+				Map[target.x, target.y, target.z].SetWorker(in footprintCell, movingWorker);
 			}
 		}
 
@@ -854,6 +862,16 @@ public partial class GridService : MonoBehaviour
 	public FindRoute GetReservedFindRoute(in int3 pos)
 	{
 		return gridMap.Map[pos.x, pos.y, pos.z].ReservedRoute;
+	}
+
+	public FindRoute GetBlockingFindRoute(in int3 pos)
+	{
+		GridCell cell = GetCell(pos);
+		if (cell == null)
+			return null;
+
+		FindRoute occupyingRoute = cell.OccupancyWorker?.RouteFinder;
+		return occupyingRoute != null ? occupyingRoute : cell.ReservedRoute;
 	}
 
 	// force moving
@@ -934,14 +952,43 @@ public partial class GridService : MonoBehaviour
 
 	private static bool CanOverride(in FootprintCell footprintCell, GridCell targetCell)
 	{
-		if (targetCell == null || targetCell.OccupancyObjectOnGrid == null)
+		if (targetCell == null)
 			return false;
 
-		GridOccupancyCategory targetCategory = targetCell.OccupancyCategory;
-		if (targetCategory == GridOccupancyCategory.None)
-			return false;
+		bool hasOverrideTarget = false;
+		AIWorker occupancyWorker = targetCell.OccupancyWorker;
+		if (occupancyWorker != null)
+		{
+			if ((footprintCell.overrideTargets & GridOccupancyCategory.Worker) == 0)
+				return false;
 
-		return (footprintCell.overrideTargets & targetCategory) != 0;
+			hasOverrideTarget = true;
+		}
+
+		if (targetCell.IsBlocked)
+		{
+			GridOccupancyCategory targetCategory = targetCell.OccupancyCategory;
+			if (targetCell.OccupancyObjectOnGrid == null ||
+				targetCategory == GridOccupancyCategory.None ||
+				(footprintCell.overrideTargets & targetCategory) == 0)
+			{
+				return false;
+			}
+
+			hasOverrideTarget = true;
+		}
+
+		if (targetCell.ReservedRoute != null)
+		{
+			FindRoute occupancyRoute = occupancyWorker?.RouteFinder;
+			if (occupancyWorker == null ||
+				(occupancyRoute != targetCell.ReservedRoute && targetCell.ReservedRoute.Worker != occupancyWorker))
+			{
+				return false;
+			}
+		}
+
+		return hasOverrideTarget;
 	}
 
 	private bool CanRelocatePlacedObject(GameObject placedObject, PlacementContext context, in int3 newCenter)
@@ -967,7 +1014,9 @@ public partial class GridService : MonoBehaviour
 				if (targetCell == null)
 					return false;
 
-				if (targetCell.CanPlaceObject || targetCell.OccupancyObjectOnGrid == placedObject)
+				if (targetCell.CanPlaceObject ||
+					targetCell.OccupancyObjectOnGrid == placedObject ||
+					(targetCell.OccupancyWorker != null && targetCell.OccupancyWorker.gameObject == placedObject))
 					continue;
 
 				return false;
@@ -1024,7 +1073,20 @@ public partial class GridService : MonoBehaviour
 				if (CanOverride(footprintCell, targetCell) == false)
 					continue;
 
-				targets.Add(targetCell.OccupancyObjectOnGrid);
+				if (targetCell.OccupancyWorker != null &&
+					(footprintCell.overrideTargets & GridOccupancyCategory.Worker) != 0)
+				{
+					targets.Add(targetCell.OccupancyWorker.gameObject);
+				}
+
+				GridOccupancyCategory targetCategory = targetCell.OccupancyCategory;
+				if (targetCell.IsBlocked &&
+					targetCell.OccupancyObjectOnGrid != null &&
+					targetCategory != GridOccupancyCategory.None &&
+					(footprintCell.overrideTargets & targetCategory) != 0)
+				{
+					targets.Add(targetCell.OccupancyObjectOnGrid);
+				}
 			}
 		}
 	}
