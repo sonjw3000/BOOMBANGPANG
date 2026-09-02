@@ -126,13 +126,18 @@ This handles cases where a structure was placed on the old path after the route 
 If the blocker has no traffic target, is idle, arrived, failed, or inactive outside coordinator traffic wait:
 
 ```text
-if A has a future cell:
+if the blocker is idle and both workers can yield:
+    try moving the blocker to an available adjacent cell
+    if yield starts, A waits for the blocked cell to be released
+if yield cannot start and the blocker occupies A's final destination:
+    wait and retry later
+else if A has a future cell:
     request subpath to that future cell while avoiding the blocker
 else:
     wait and retry later
 ```
 
-This keeps destination-cell blockage as a wait state instead of forcing arbitrary movement.
+Idle blockers yield first whether they occupy the destination or an intermediate path cell. If a yield cannot be started, the existing detour/wait fallback remains. Asynchronous yield/detour failure handling and alternate-destination selection are not extended by this rule.
 
 ### Moving Blocker
 

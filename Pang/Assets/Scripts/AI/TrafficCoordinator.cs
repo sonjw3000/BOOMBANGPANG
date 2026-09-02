@@ -200,7 +200,7 @@ public class TrafficCoordinator : MonoBehaviour
 			return;
 		}
 
-		FindRoute blockedBy = GridService.GetReservedFindRoute(desiredCell);
+		FindRoute blockedBy = GridService.GetBlockingFindRoute(desiredCell);
 
 		if (blockedBy == null)
 		{
@@ -263,7 +263,6 @@ public class TrafficCoordinator : MonoBehaviour
 		in int3 desiredCell)
 	{
 		if (requestedRoute?.Worker is not RobotWorker robot ||
-			robot.IsPlayerOverride ||
 			blockedBy?.Worker is not HumanWorker human)
 		{
 			return false;
@@ -306,21 +305,16 @@ public class TrafficCoordinator : MonoBehaviour
 	{
 		if (IsBlockerIdle(blockedBy))
 		{
-			if (IsDestinationBlockedBy(requestedRoute, blockedBy))
+			if (CanYield(requestedRoute) &&
+				CanYield(blockedBy) &&
+				TryYieldIdleBlocker(blockedBy, requestedRoute))
 			{
-				if (CanYield(requestedRoute) &&
-					CanYield(blockedBy) &&
-					TryYieldIdleBlocker(blockedBy, requestedRoute))
-				{
-					RegisterWait(requestedRoute, desiredCell);
-					return;
-				}
-
 				RegisterWait(requestedRoute, desiredCell);
 				return;
 			}
 
-			if (CanRequestDetour(requestedRoute) &&
+			if (IsDestinationBlockedBy(requestedRoute, blockedBy) == false &&
+				CanRequestDetour(requestedRoute) &&
 				requestedRoute.TryGetFutureToCell(out var idleFutureCell))
 			{
 				UnregisterWait(requestedRoute);
@@ -545,7 +539,7 @@ public class TrafficCoordinator : MonoBehaviour
 		if (GridService.IsBlocked(candidate))
 			return false;
 
-		if (GridService.GetReservedFindRoute(candidate) != null)
+		if (cell.OccupancyWorker != null || GridService.GetReservedFindRoute(candidate) != null)
 			return false;
 
 		if (reservedYieldCells.Contains(candidate))
@@ -580,7 +574,7 @@ public class TrafficCoordinator : MonoBehaviour
 		if (GridService.IsBlocked(candidate))
 			return false;
 
-		if (GridService.GetReservedFindRoute(candidate) != null)
+		if (cell.OccupancyWorker != null || GridService.GetReservedFindRoute(candidate) != null)
 			return false;
 
 		if (reservedYieldCells.Contains(candidate))
