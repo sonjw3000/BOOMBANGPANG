@@ -253,18 +253,6 @@ public sealed class PlayerOverrideService
 			return false;
 		}
 
-		if (worker.PlayerOverridePhase != PlayerOverridePhase.AwaitingCommand)
-		{
-			message = "Wait until the current player command is complete.";
-			return false;
-		}
-
-		if (worker.CarryingAbility?.CarryingBox != null && worker.IsNavigationRescueOverride == false)
-		{
-			message = "Put down the carried box or capsule before releasing control.";
-			return false;
-		}
-
 		Observe(worker);
 		return worker.TryExitPlayerOverride(out message);
 	}
@@ -657,7 +645,7 @@ public sealed class PlayerOverrideService
 		if (target.Component is BoxPool pool)
 			return pool.CanStoreBox(box);
 		if (target.Component is CapsuleDock dock)
-			return box is CargoCapsule && dock.CanPutBox();
+			return box is CargoCapsule capsule && dock.CanPutBox() && dock.CanAcceptCargoRoute(capsule.RouteKind);
 		return target.ResolveBoxHandle()?.CanPutBox() == true;
 	}
 

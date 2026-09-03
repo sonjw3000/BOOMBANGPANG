@@ -576,6 +576,7 @@ public sealed class WorkerSaveData
 	public RobotNavigationDependency NavigationDependency;
 	public int RequiredNavigationCompute;
 	public bool NavigationRescueOverride;
+	public bool ReturningPlayerContainer;
 	public bool HasNavigationRescueGoal;
 	public Int3SaveData NavigationRescueGoal;
 	public bool IsSuitRemoved;

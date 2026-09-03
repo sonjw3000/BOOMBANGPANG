@@ -54,6 +54,7 @@ public abstract partial class AIWorker
 			StatusTarget = workerState.Target,
 			OperationalState = operationalState,
 			ControlMode = ControlMode,
+			ReturningPlayerContainer = IsReturningPlayerContainer,
 			NavigationRescueOverride = navigationRescueOverride,
 			HasNavigationRescueGoal = hasNavigationRescueGoal,
 			NavigationRescueGoal = new Int3SaveData(navigationRescueGoal.x, navigationRescueGoal.y, navigationRescueGoal.z),
@@ -145,6 +146,7 @@ public abstract partial class AIWorker
 		operationalState = data.OperationalState;
 		RestorePlayerOverrideState(data.ControlMode, data.NavigationRescueOverride, data.HasNavigationRescueGoal,
 			new Unity.Mathematics.int3(data.NavigationRescueGoal.X, data.NavigationRescueGoal.Y, data.NavigationRescueGoal.Z));
+		returningPlayerContainer = data.ReturningPlayerContainer && data.ControlMode == WorkerControlMode.Automatic;
 		restoredCarriedMovementCells = Mathf.Max(0, data.CarriedMovementCells);
 		preTrafficAction = workerState.Action;
 		isTrafficBlocked = false;

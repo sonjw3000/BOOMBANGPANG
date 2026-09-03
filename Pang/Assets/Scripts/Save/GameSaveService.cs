@@ -580,6 +580,7 @@ public sealed class GameSaveService : MonoBehaviour
 		{
 			if (worker == null ||
 				worker.IsPlayerOverride ||
+				worker.IsReturningPlayerContainer ||
 				worker.CurrentTask != null ||
 				worker.CarryingAbility?.CarryingBox is not CargoCapsule capsule)
 			{

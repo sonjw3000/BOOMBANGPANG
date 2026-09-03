@@ -30,18 +30,14 @@ public abstract partial class AIWorker
 			return false;
 		}
 
-		if (playerOverridePhase != OverridePhase.AwaitingCommand)
-		{
-			message = "Wait until the worker is ready for another command.";
-			return false;
-		}
-
 		if (routeFinder == null)
 		{
 			message = "The worker has no route finder.";
 			return false;
 		}
 
+		SuspendNavigationWaitForPlayerOverride();
+		CancelPendingPlayerOverrideAction();
 		CancelPendingPlayerOverrideMove();
 		playerOverrideMoveDestination = destination;
 		hasPlayerOverrideMoveDestination = true;

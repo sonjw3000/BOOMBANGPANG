@@ -75,6 +75,7 @@ public class PathRequest
 	public readonly Func<int3, bool> CanTraverseBlockedCell;
 	public readonly Func<int3, bool> CanTraverseCell;
 	public readonly int NavigationCoverageVersion;
+	public readonly int RouteRequestVersion;
 	public bool WasTraversalRejected { get; private set; }
 
 	public readonly int MovementCost;
@@ -93,6 +94,7 @@ public class PathRequest
 		int navigationCoverageVersion = 0)
 	{
 		this.target = target;
+		RouteRequestVersion = target != null ? target.PathRequestVersion : 0;
 		this.startPosition = startPosition;
 		this.endPosition = endPosition;
 		this.startFacingDirection = startFacingDirection;
@@ -491,7 +493,7 @@ public sealed class PathSearchJob
 		}
 
 		if (request.target != null)
-			request.target.OnPathFound(result);
+			request.target.OnPathFound(result, request.RouteRequestVersion);
 		else
 			result.Clear();
 	}

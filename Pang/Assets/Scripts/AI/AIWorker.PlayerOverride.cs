@@ -73,6 +73,7 @@ public abstract partial class AIWorker
 			return false;
 		}
 
+		CancelPlayerContainerReturn();
 		CancelRecovery(false);
 		navigationRescueOverride = preserveNavigationTask;
 		navigationRescueTask = preserveNavigationTask ? currentTask : null;
@@ -80,8 +81,7 @@ public abstract partial class AIWorker
 		hasNavigationRescueGoal = preserveNavigationTask &&
 			routeFinder != null &&
 			routeFinder.TryGetCurrentGoalCell(out navigationRescueGoal);
-		if (preserveNavigationTask)
-			SuspendNavigationWaitForPlayerOverride();
+		SuspendNavigationWaitForPlayerOverride();
 		routeFinder?.CancelCurrentRoute();
 		if (preserveNavigationTask == false)
 			localBlackBoard.Clear();
@@ -184,6 +184,15 @@ public abstract partial class AIWorker
 
 	internal void PreparePlayerOverrideForSave()
 	{
+		if (IsReturningPlayerContainer)
+		{
+			ReleasePlayerContainerReturnTarget();
+			PrepareForPlayerControlPreemption();
+			localBlackBoard.Clear();
+			BuildBehaviorTree();
+			enabled = true;
+		}
+
 		if (IsPlayerOverride == false || playerOverridePhase == OverridePhase.AwaitingCommand)
 			return;
 
@@ -218,6 +227,8 @@ public abstract partial class AIWorker
 		SetWorkerTarget(WorkerStatusTarget.None);
 		if (IsOperational)
 			SetWorkerAction(WorkerStatusAction.Idle);
+		returningPlayerContainer = becomeIdle && IsOperational && currentTask == null &&
+			CarryingAbility?.CarryingBox != null;
 
 		BuildBehaviorTree();
 		enabled = true;

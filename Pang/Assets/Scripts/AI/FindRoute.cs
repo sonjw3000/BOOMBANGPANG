@@ -36,6 +36,8 @@ public class FindRoute : MonoBehaviour
 	private bool stopAfterCurrentStep = false;
 	private bool hasPendingGoal = false;
 	private bool hasCurrentGoal = false;
+	private int pathRequestVersion;
+	internal int PathRequestVersion => pathRequestVersion;
 	private bool isYieldMove = false;
 	private int3 currentGoalPos;
 	private int3 pendingGoalPos;
@@ -475,6 +477,7 @@ public class FindRoute : MonoBehaviour
 
 	private PathRequest CreatePathRequest(in int3 start, in int3 goal, FindRoute avoidTarget = null)
 	{
+		++pathRequestVersion;
 		int coverageVersion = 0;
 		if (worker is RobotWorker robot && robot.IsPlayerOverride == false && robot.RequiresNavigationCoverage && GameContext.HasInstance)
 			coverageVersion = GameContext.Instance.RobotNavigationSvc?.CoverageVersion ?? 0;
@@ -859,6 +862,7 @@ public class FindRoute : MonoBehaviour
 
 	public void CancelCurrentRoute()
 	{
+		++pathRequestVersion;
 		if (travelledCellsSinceLastConsume > 0)
 			worker?.ApplyCarriedMovementFatigue(ConsumeTravelledCells());
 
@@ -908,8 +912,14 @@ public class FindRoute : MonoBehaviour
 		}
 	}
 
-	public void OnPathFound(PathResultBuffer pathBuffer)
+	public void OnPathFound(PathResultBuffer pathBuffer, int? requestVersion = null)
 	{
+		if (requestVersion.HasValue && requestVersion.Value != pathRequestVersion)
+		{
+			pathBuffer?.Clear();
+			return;
+		}
+
 		ReleaseReservedNextTile();
 		if (worker != null && worker.IsWaitingForNavigation)
 		{

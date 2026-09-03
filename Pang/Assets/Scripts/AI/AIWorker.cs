@@ -374,6 +374,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 		if (workerBaseNode != null)
 			root.Add(workerBaseNode);
+		root.Add(BuildPlayerContainerReturnNode());
 		root.Add(performTask);
 		root.Add(wait);
 
@@ -533,6 +534,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	private void OnDestroy()
 	{
+		CancelPlayerContainerReturn();
 		CancelRecovery(false);
 
 		// unregister AI
@@ -709,7 +711,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool SetTask(WorkerTask task)
 	{
-		if (task != null && (IsOperational == false || IsRecovering || IsPlayerOverride))
+		if (task != null && (IsOperational == false || IsRecovering || IsPlayerOverride || IsReturningPlayerContainer))
 			return false;
 		if (task != null && CanUseAutomaticNavigation(out RobotNavigationWaitReason navigationReason) == false)
 		{
@@ -779,6 +781,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 		WorkerOperationalState previousState = operationalState;
 		operationalState = state;
+		CancelPlayerContainerReturn();
 		if (IsPlayerOverride)
 			CancelPlayerOverride();
 		CancelRecovery(false);
@@ -882,6 +885,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 			return true;
 
 		isRemovalPrepared = true;
+		CancelPlayerContainerReturn();
 		if (IsPlayerOverride)
 			CancelPlayerOverride(becomeIdle: false);
 		CancelRecovery(false);
@@ -925,7 +929,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptGeneralTask(WorkerTask.TaskType taskType)
 	{
-		if (IsOperational == false || IsPlayerOverride || HasPendingBlockingIncident ||
+		if (IsOperational == false || IsPlayerOverride || IsReturningPlayerContainer || HasPendingBlockingIncident ||
 			currentTask != null || IsAssignedToTaskType(taskType) == false)
 			return false;
 
@@ -951,7 +955,7 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	public bool CanAcceptPreferredTask(WorkerTask task)
 	{
-		if (IsOperational == false || IsPlayerOverride || HasPendingBlockingIncident || currentTask != null ||
+		if (IsOperational == false || IsPlayerOverride || IsReturningPlayerContainer || HasPendingBlockingIncident || currentTask != null ||
 			task == null || IsAssignedToTaskType(task.Type) == false || IsRecovering)
 			return false;
 

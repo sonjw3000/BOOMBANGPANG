@@ -71,7 +71,7 @@ public abstract class WorkerUIProviderBase<TWorker> : UIProvider<TWorker>, IWork
 			? currentTarget.IsManualNavigation
 				? $"Player Override · Manual Navigation · {currentTarget.PlayerOverridePhase}"
 				: $"Player Override · {currentTarget.PlayerOverridePhase}"
-			: "Automatic";
+			: currentTarget.IsReturningPlayerContainer ? "Automatic · Returning carried container" : "Automatic";
 	public float CarriedBoxFillPercent
 	{
 		get
