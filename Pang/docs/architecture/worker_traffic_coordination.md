@@ -139,6 +139,8 @@ else:
 
 Idle blockers yield first whether they occupy the destination or an intermediate path cell. If a yield cannot be started, the existing detour/wait fallback remains. Asynchronous yield/detour failure handling and alternate-destination selection are not extended by this rule.
 
+Idle yield candidates exclude the requester's current cell, current traffic target, and the following path cell returned by `TryGetFutureToCell`. If there is no following path cell, the existing adjacent-cell checks apply without that additional exclusion.
+
 ### Moving Blocker
 
 If the blocker is moving and is not waiting for traffic:
@@ -200,6 +202,7 @@ Yield cell requirements:
 - the cell is not already reserved as another yield target
 - the cell is not the priority route's current cell
 - the cell is not the priority route's current traffic target cell
+- the cell is not the priority route's following path cell, when `TryGetFutureToCell` provides one
 
 The coordinator stores a yield hold:
 

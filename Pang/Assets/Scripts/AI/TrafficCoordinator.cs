@@ -554,6 +554,9 @@ public class TrafficCoordinator : MonoBehaviour
 		if (requestedRoute.TryGetTrafficToCell(out var requestedToCell) && candidate.Equals(requestedToCell))
 			return false;
 
+		if (requestedRoute.TryGetFutureToCell(out var requestedFutureCell) && candidate.Equals(requestedFutureCell))
+			return false;
+
 		return true;
 	}
 
@@ -584,6 +587,9 @@ public class TrafficCoordinator : MonoBehaviour
 			return false;
 
 		if (priorityRoute.TryGetTrafficToCell(out var priorityToCell) && candidate.Equals(priorityToCell))
+			return false;
+
+		if (priorityRoute.TryGetFutureToCell(out var priorityFutureCell) && candidate.Equals(priorityFutureCell))
 			return false;
 
 		yieldCell = candidate;
