@@ -9,7 +9,7 @@ public class GameContext : MonoBehaviour
 {
 	private static GameContext instance;
 	public static bool HasInstance => instance != null;
-	public static bool CheatMode => HasInstance && instance.gameCheat;
+	public static bool CheatMode => HasInstance && instance.GameCheat;
 	public static GameContext Instance
 	{
 		get
@@ -139,7 +139,19 @@ public class GameContext : MonoBehaviour
 	}
 
 	//public Resources MapResources => mapResources;
-	public bool GameCheat => gameCheat;
+	public bool GameCheat
+	{
+		get
+		{
+#if UNITY_EDITOR
+			return gameCheat;
+#elif PANG_CHEATS
+			return true;
+#else
+			return false;
+#endif
+		}
+	}
 	public GameTime GameTime => gameTime;
 	public EconomyService EconomyService => economyService;
 	public ResearchService ResearchService => researchService;

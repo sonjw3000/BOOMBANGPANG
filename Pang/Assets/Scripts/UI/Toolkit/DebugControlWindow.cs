@@ -97,7 +97,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void Update()
 		{
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || PANG_CHEATS
 			if (Input.GetKeyDown(KeyCode.F1))
 				Toggle();
 #endif

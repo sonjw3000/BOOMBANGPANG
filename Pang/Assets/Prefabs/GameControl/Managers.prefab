@@ -1018,6 +1018,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   placeableParent: {fileID: 883947193075033641}
   gridParent: {fileID: 5065736988825150757}
+  gridFloorMaterial: {fileID: 2100000, guid: ddfedef74fc1c53499bab7c374fd42dc, type: 2}
   gridBoundaryMaterial: {fileID: 2100000, guid: dff164b831e1a41f198e2922a30c7cb8, type: 2}
   gridBoundaryColor:
   - {r: 0.6981132, g: 0.6981132, b: 0.6981132, a: 0.31764707}

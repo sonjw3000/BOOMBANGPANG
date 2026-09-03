@@ -43,6 +43,7 @@ public partial class GridService : MonoBehaviour
 
 	[SerializeField] private GameObject placeableParent;
 	[SerializeField] private GameObject gridParent;
+	[SerializeField] private Material gridFloorMaterial;
 	[SerializeField] private Material gridBoundaryMaterial;
 	[SerializeField] private Color[] gridBoundaryColor;
 
@@ -283,6 +284,7 @@ public partial class GridService : MonoBehaviour
 	public void OnGameStart()
 	{
 		GameObject tileFloor = GameObject.CreatePrimitive(PrimitiveType.Quad);
+		tileFloor.GetComponent<MeshRenderer>().sharedMaterial = gridFloorMaterial;
 
 		tileFloor.transform.localScale = new Vector3Int(gridMap.MapSize.x, gridMap.MapSize.z, gridMap.MapSize.y);
 		tileFloor.transform.Rotate(90, 0, 0);
