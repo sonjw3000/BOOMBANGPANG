@@ -653,6 +653,7 @@ public sealed class BoxSaveData
 	public BoxType BoxType;
 	public string ConcreteType;
 	public CapsuleLogisticsState CapsuleLogisticsState;
+	public bool CapsuleVisualHidden;
 	public float FireIntensity;
 	public bool HasTemperatureState;
 	public float CurrentTemperatureCelsius = GridCell.DefaultTemperatureCelsius;

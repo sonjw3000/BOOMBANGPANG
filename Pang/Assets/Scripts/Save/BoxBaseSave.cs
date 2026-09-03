@@ -15,7 +15,10 @@ public abstract partial class BoxBase
 		};
 
 		if (this is CargoCapsule capsule)
+		{
 			data.CapsuleLogisticsState = capsule.LogisticsState;
+			data.CapsuleVisualHidden = capsule.IsVisualVisible == false;
+		}
 
 		foreach (var stack in stacks)
 		{
@@ -43,7 +46,10 @@ public abstract partial class BoxBase
 			return;
 
 		if (this is CargoCapsule capsule)
+		{
 			capsule.SetLogisticsState(data.CapsuleLogisticsState);
+			capsule.SetVisualVisible(data.CapsuleVisualHidden == false);
+		}
 		SetFireIntensity(data.FireIntensity);
 		SetCurrentTemperatureCelsius(
 			data.HasTemperatureState

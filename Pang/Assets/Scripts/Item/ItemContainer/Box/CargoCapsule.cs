@@ -23,10 +23,12 @@ public class CargoCapsule : BoxBase
 	public event System.Action<CargoCapsule> OnLogisticsStateChanged;
 
 	[SerializeField] private CapsuleLogisticsState logisticsState = CapsuleLogisticsState.IB;
+	[SerializeField] private GameObject visualRoot;
 	private CapsuleDock currentDock;
 	private readonly HashSet<ItemStack> observedStacks = new();
 
 	public CapsuleLogisticsState LogisticsState => logisticsState;
+	public bool IsVisualVisible => visualRoot == null || visualRoot.activeSelf;
 	public virtual CargoRouteKind RouteKind => CargoRouteKind.Standard;
 	public CapsuleDock CurrentDock => currentDock;
 	public CapsuleBuffer CurrentBuffer => currentDock as CapsuleBuffer;
@@ -52,6 +54,14 @@ public class CargoCapsule : BoxBase
 	{
 		UnsubscribeObservedStacks();
 		base.ResetContainer();
+		SetVisualVisible(true);
+	}
+
+	public void SetVisualVisible(bool visible)
+	{
+		// Keep the capsule root active so the pool cannot reuse cargo still in delivery.
+		if (visualRoot != null)
+			visualRoot.SetActive(visible);
 	}
 
 	public void ApplyDamage(int damageRate, int maximumDamageAmount)

@@ -94,6 +94,7 @@ public class LaunchVendorPickupService : VendorProcessor
 
 		float deliveryDuration = Context.GameTime != null ? Context.GameTime.WeekToSeconds(4) : 0.0f;
 		Context.OrderDelivery.DeliverCargo(capsule, deliveryDuration);
+		capsule.SetVisualVisible(false);
 
 		Debug.Log($"[LaunchVendorPickupService] {vendor.VendorName} picked up capsule #{capsule.BoxId} from {port.name}.");
 

@@ -49,6 +49,7 @@ MonoBehaviour:
   capacity: 1000
   thermalResponse: 1
   boxId: 0
+  visualRoot: {fileID: 8381758495555144715}
 --- !u!1 &8381758495555144715
 GameObject:
   m_ObjectHideFlags: 0
