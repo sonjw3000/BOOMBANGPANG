@@ -264,6 +264,85 @@ public sealed class RecoveryFacilityServiceEditModeTests
 		Assert.That(facility.IsReservedBy(worker), Is.False);
 	}
 
+	[TestCase(69.25f)]
+	[TestCase(70.0f)]
+	public void PackingRecovery_WaitingBox_RemainsAvailableAfterWorkerRests(float fatigue)
+	{
+		HumanWorker worker = CreateWorker("Packing Recovery Worker", PrimaryBuildingId, WorkerPosition);
+		worker.SetAssignedTaskTypes(new[] { WorkerTask.TaskType.Packing });
+		SetPrivateField(typeof(HumanWorker), worker, "fatigue", fatigue);
+		PackingStation station = CreatePackingStation(worker);
+		BoxWithOrder waitingBox = CreateWaitingPackingBox(station);
+		PackingTask task = new(station);
+		RestFacility facility = CreateFacility(
+			"Packing Worker Rest Facility", PrimaryBuildingId, new int3(12, 0, 10));
+
+		Assert.That(workerManager.GetAvailableWorkers(task), Is.Null);
+		Assert.That(task.CurrentStatus, Is.EqualTo(WorkerTask.Status.Ready));
+		Assert.That(InvokeNonPublic<bool>(typeof(AIWorker), worker, "TryCanBeginRecovery"), Is.True);
+		Assert.That(facility.IsReservedBy(worker), Is.True);
+		Assert.That(station.CurrentPackingWorker, Is.Null);
+		Assert.That(worker.CurrentWorkingBuilding, Is.Null);
+		Assert.That(station.WaitingBox, Is.SameAs(waitingBox));
+		Assert.That(task.TryGetPreferredWorker(out _), Is.False);
+		Assert.That(workerManager.GetAvailableWorkers(task), Is.Null,
+			"The resting worker must not receive the pending packing task.");
+
+		worker.SetPosition(new int3(12, 0, 10));
+		Assert.That(InvokeNonPublic<bool>(typeof(AIWorker), worker, "TryBeginRecoveryUse"), Is.True);
+		worker.TickRecovery(facility.GetEffectiveRecoveryPerSecond(worker), 100.0f);
+		Assert.That(worker.IsRecoveryComplete(), Is.True);
+		InvokeNonPublic(typeof(AIWorker), worker, "CompleteRecovery");
+
+		Assert.That(facility.IsReservedBy(worker), Is.False);
+		Assert.That(workerManager.GetAvailableWorkers(task), Is.SameAs(worker));
+		Assert.That(worker.SetTask(task), Is.True);
+		Assert.That(worker.CurrentTask, Is.SameAs(task));
+		Assert.That(station.CurrentPackingWorker, Is.SameAs(worker));
+		Assert.That(station.WaitingBox, Is.SameAs(waitingBox));
+	}
+
+	[Test]
+	public void PackingRecovery_IncomingHandoff_WaitsForDeliveryThenLeavesWaitingBox()
+	{
+		HumanWorker worker = CreateWorker("Packing Recovery Worker", PrimaryBuildingId, WorkerPosition);
+		worker.SetAssignedTaskTypes(new[] { WorkerTask.TaskType.Packing });
+		SetPrivateField(typeof(HumanWorker), worker, "fatigue", 70.0f);
+		PackingStation station = CreatePackingStation(worker);
+		HumanWorker incomingWorker = CreateWorker("Incoming Worker", PrimaryBuildingId, WorkerPosition);
+		Assert.That(station.TryReserveIncomingBox(incomingWorker), Is.True);
+		RestFacility facility = CreateFacility(
+			"Packing Worker Rest Facility", PrimaryBuildingId, new int3(12, 0, 10));
+
+		Assert.That(InvokeNonPublic<bool>(typeof(AIWorker), worker, "TryCanBeginRecovery"), Is.False);
+		Assert.That(station.CurrentPackingWorker, Is.SameAs(worker));
+		Assert.That(station.IncomingPickingWorker, Is.SameAs(incomingWorker));
+		Assert.That(facility.IsReservedBy(worker), Is.False);
+
+		BoxWithOrder waitingBox = CreateWaitingPackingBox(station);
+		station.ClearIncomingBoxReservation(incomingWorker);
+		Assert.That(InvokeNonPublic<bool>(typeof(AIWorker), worker, "TryCanBeginRecovery"), Is.True);
+		Assert.That(facility.IsReservedBy(worker), Is.True);
+		Assert.That(station.CurrentPackingWorker, Is.Null);
+		Assert.That(station.WaitingBox, Is.SameAs(waitingBox));
+	}
+
+	[Test]
+	public void PackingRecovery_NoAvailableRestFacility_KeepsStationAndWaitingBox()
+	{
+		HumanWorker worker = CreateWorker("Packing Recovery Worker", PrimaryBuildingId, WorkerPosition);
+		worker.SetAssignedTaskTypes(new[] { WorkerTask.TaskType.Packing });
+		SetPrivateField(typeof(HumanWorker), worker, "fatigue", 69.25f);
+		PackingStation station = CreatePackingStation(worker);
+		BoxWithOrder waitingBox = CreateWaitingPackingBox(station);
+
+		Assert.That(workerManager.GetAvailableWorkers(new PackingTask(station)), Is.Null);
+		Assert.That(InvokeNonPublic<bool>(typeof(AIWorker), worker, "TryCanBeginRecovery"), Is.False);
+		Assert.That(station.CurrentPackingWorker, Is.SameAs(worker));
+		Assert.That(worker.CurrentWorkingBuilding, Is.SameAs(station));
+		Assert.That(station.WaitingBox, Is.SameAs(waitingBox));
+	}
+
 	[Test]
 	public void TryReserveDestination_ExistingReservation_RemainsStable()
 	{
@@ -290,6 +369,28 @@ public sealed class RecoveryFacilityServiceEditModeTests
 		Assert.That(reserved, Is.True);
 		Assert.That(selectedFacility, Is.SameAs(originalFacility));
 		Assert.That(selectedPoint, Is.EqualTo(firstPoint));
+	}
+
+	private PackingStation CreatePackingStation(HumanWorker worker)
+	{
+		OutboundWorkflowService outboundWorkflow = CreateGameObject("Recovery Test Outbound Workflow", active: false)
+			.AddComponent<OutboundWorkflowService>();
+		PackingStationService packingService = CreateGameObject("Recovery Test Packing Service", active: false)
+			.AddComponent<PackingStationService>();
+		SetPrivateField(typeof(OutboundWorkflowService), outboundWorkflow, "packingStationService", packingService);
+		SetPrivateField(typeof(GameContext), context, "outboundWorkflowService", outboundWorkflow);
+		PackingStation station = CreateGameObject("Recovery Test Packing Station", active: false)
+			.AddComponent<PackingStation>();
+		station.CurrentPackingWorker = worker;
+		return station;
+	}
+
+	private BoxWithOrder CreateWaitingPackingBox(PackingStation station)
+	{
+		ToteBox box = CreateComponent<ToteBox>("Recovery Test Waiting Box");
+		BoxWithOrder waitingBox = new(box, new WorkJob(1, new List<WorkLine>(), WorkOp.Packing));
+		SetPrivateField(typeof(PackingStation), station, "waitStackBox", waitingBox);
+		return waitingBox;
 	}
 
 	private HumanWorker CreateWorker(string objectName, uint primaryBuildingId, in int3 position)

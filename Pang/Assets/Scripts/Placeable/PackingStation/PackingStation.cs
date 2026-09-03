@@ -233,7 +233,9 @@ public partial class PackingStation :
 
 	public bool CanAssignedWorkerLeaveForRecovery()
 	{
-		return waitStackBox == null && incomingPickingWorker == null;
+		// Waiting boxes stay with the station while its worker recovers.
+		// Only an incoming handoff must finish before the worker leaves.
+		return incomingPickingWorker == null;
 	}
 
 	public bool TryReserveIncomingBox(AIWorker picker)
