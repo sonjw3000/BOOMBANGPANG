@@ -146,8 +146,8 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 
 	[Header("Visual")]
 	[SerializeField] private Transform visualRoot;
-	private static readonly Vector3 KnockoutVisualOffset = new(0.0f, 0.1f, 0.0f);
-	private static readonly Quaternion KnockoutVisualRotation = Quaternion.Euler(-90.0f, 0.0f, 0.0f);
+	private static readonly Vector3 FallenVisualOffset = new(0.0f, 0.1f, 0.0f);
+	private static readonly Quaternion FallenVisualRotation = Quaternion.Euler(-90.0f, 0.0f, 0.0f);
 
 	private FindRoute routeFinder;
 	private BehaviorTree behaviorTree;
@@ -454,10 +454,11 @@ public abstract partial class AIWorker : MonoBehaviour, IGridPlaceable, IGridPla
 		if (currentVisualPoseRoot == null)
 			return;
 
-		bool isKnockedOutHuman = workerKind == WorkerKind.Human &&
-			operationalState == WorkerOperationalState.Knockout;
-		currentVisualPoseRoot.localPosition = isKnockedOutHuman ? KnockoutVisualOffset : Vector3.zero;
-		currentVisualPoseRoot.localRotation = isKnockedOutHuman ? KnockoutVisualRotation : Quaternion.identity;
+		bool isFallenHuman = workerKind == WorkerKind.Human &&
+			(operationalState == WorkerOperationalState.Knockout ||
+			 operationalState == WorkerOperationalState.Death);
+		currentVisualPoseRoot.localPosition = isFallenHuman ? FallenVisualOffset : Vector3.zero;
+		currentVisualPoseRoot.localRotation = isFallenHuman ? FallenVisualRotation : Quaternion.identity;
 	}
 
 	private Transform ResolveCarrySlot()
