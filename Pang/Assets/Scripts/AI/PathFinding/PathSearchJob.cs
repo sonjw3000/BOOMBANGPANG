@@ -299,7 +299,11 @@ public sealed class PathSearchJob
 	}
 
 	public bool Execute(int budget)
+		=> Execute(budget, out _);
+
+	public bool Execute(int budget, out int consumedSteps)
 	{
+		consumedSteps = 0;
 		if (request == null || buffer == null)
 		{
 			throw new InvalidOperationException("PathSearchJob is not properly initialized.");
@@ -308,10 +312,11 @@ public sealed class PathSearchJob
 		// todo
 		// A* 알고리즘 구현
 		// LocalGrid 기준으로 계산되어야함
-		while (budget-- > 0 && buffer.OpenSet.Count > 0)
+		while (consumedSteps < budget && buffer.OpenSet.Count > 0)
 		{
 			// do a*
 			buffer.OpenSet.Pop(out int currentStateIndex);
+			++consumedSteps;
 
 			currentPosition = buffer.GetPosition(currentStateIndex);
 			currentDirection = buffer.GetFacingDirection(currentStateIndex);

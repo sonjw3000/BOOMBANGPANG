@@ -11,8 +11,10 @@ public class PathFindingService : MonoBehaviour
 	private GridService GridService => GameContext.Instance.GridService;
 	private int3 GridSize => GridService.MapSize;
 
-	[SerializeField] private int activeJobLimit = 5;
-	[SerializeField] private int stepBudgetPerFrame = 500;
+	[Tooltip("All active searches share this node-expansion budget per frame.")]
+	[SerializeField, Min(1)] private int stepBudgetPerFrame = 500;
+	[Tooltip("Maximum search steps per turn before yielding to the next request.")]
+	[SerializeField, Min(1)] private int stepsPerTurn = 50;
 	[SerializeField] private int plannedPathCongestionCost = 2;
 	[SerializeField] private int stalePlannedPathCongestionCost = 6;
 
@@ -21,10 +23,13 @@ public class PathFindingService : MonoBehaviour
 	private ItemPool<SearchBuffer> searchBufferPool;
 
 	private List<PathSearchJob> activeJobs = new();
+	private int nextJobIndex;
 	private bool isReady;
 
 	public int PlannedPathCongestionCost => plannedPathCongestionCost;
 	public int StalePlannedPathCongestionCost => stalePlannedPathCongestionCost;
+	public int ActiveJobCount => activeJobs.Count;
+	public int LastFrameSearchSteps { get; private set; }
 
 	private void Start()
 	{
@@ -37,37 +42,41 @@ public class PathFindingService : MonoBehaviour
 
 	private void Update()
 	{
-		// do path find by round robin
-
-		for (int i = activeJobs.Count - 1; i >= 0; --i)
+		LastFrameSearchSteps = 0;
+		int remainingBudget = Mathf.Max(1, stepBudgetPerFrame);
+		int turnBudget = Mathf.Max(1, stepsPerTurn);
+		// Completion callbacks may append requests. Those requests start next frame.
+		int jobsThisFrame = activeJobs.Count;
+		while (remainingBudget > 0 && jobsThisFrame > 0)
 		{
-			var job = activeJobs[i];
-
-			if (job.Execute(stepBudgetPerFrame))
+			if (nextJobIndex >= jobsThisFrame)
+				nextJobIndex = 0;
+			PathSearchJob job = activeJobs[nextJobIndex];
+			bool completed = job.Execute(Mathf.Min(turnBudget, remainingBudget), out int consumedSteps);
+			remainingBudget -= consumedSteps;
+			LastFrameSearchSteps += consumedSteps;
+			if (completed)
 			{
-				job.SetPath();
-
-				activeJobs.RemoveAt(i);
-				searchBufferPool.Release(job.Buffer);
-				
-				job.Setup(null, null);
-
-				//resultPool.Release(job.Result);
-				jobPool.Release(job);
+				activeJobs.RemoveAt(nextJobIndex);
+				--jobsThisFrame;
+				try
+				{
+					job.SetPath();
+				}
+				finally
+				{
+					searchBufferPool.Release(job.Buffer);
+					job.Setup(null, null);
+					jobPool.Release(job);
+				}
 			}
 			else
 			{
-				if (job.Buffer.OpenSet.Peek(out int idx))
-				{
-					Debug.Log("Pending, Job's Open Set: " + job.Buffer.OpenSet.Count);
-					ref PathNodeRecord record = ref job.Buffer.GetStateRecordByStateIndex(idx);
-					int3 pos = job.Buffer.GetPosition(idx);
-					FacingDirection dir = job.Buffer.GetFacingDirection(idx);
-
-					Debug.Log($"Current Node: {pos} G: {record.GCost}, H: {record.HCost}, Direction: {dir}");
-				}
+				++nextJobIndex;
 			}
 		}
+		if (activeJobs.Count == 0)
+			nextJobIndex = 0;
 	}
 
 	public void RequestRoute(PathRequest request)

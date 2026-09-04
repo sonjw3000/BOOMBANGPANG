@@ -870,8 +870,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91da27b40ce9c694abeaa4aaf7e2989f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PathFindingService
-  activeJobLimit: 5
   stepBudgetPerFrame: 500
+  stepsPerTurn: 50
   plannedPathCongestionCost: 2
   stalePlannedPathCongestionCost: 6
 --- !u!1 &2108312062391713874
