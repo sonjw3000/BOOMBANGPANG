@@ -44,7 +44,7 @@
 						<ui:DropdownField name="worker-filter-field" class="workforce-filter" />
 					</ui:VisualElement>
 					<ui:Label name="workforce-assignment-status" text="" class="workforce-assignment-status" />
-					<ui:ScrollView name="worker-list" class="workforce-list" />
+					<ui:ListView name="worker-list" class="workforce-list" virtualization-method="FixedHeight" fixed-item-height="45" />
 					<ui:Label name="worker-list-empty" text="No workers match this filter." class="workforce-empty" />
 					<ui:VisualElement name="workforce-outdoor-drop-zone" class="workforce-outdoor-drop-zone">
 						<ui:Label text="PUBLIC LOGISTICS" class="workforce-outdoor-drop-zone__title" />

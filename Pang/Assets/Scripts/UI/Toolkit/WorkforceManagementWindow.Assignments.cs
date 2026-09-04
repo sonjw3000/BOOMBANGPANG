@@ -87,6 +87,9 @@ namespace UniverseLogistics.UI.Toolkit
 			{
 				RefreshAssignments();
 			}
+
+			ProcessPendingRosterRefresh();
+			ProcessPendingRosterSummary();
 		}
 
 		private void RefreshAssignments()
@@ -366,12 +369,8 @@ namespace UniverseLogistics.UI.Toolkit
 				selectedBuilding = null;
 			}
 
-			if (initialized &&
-				selectedTab == WorkforceTab.Workers &&
-				window?.IsOpen == true)
-			{
-				RefreshRoster();
-			}
+			RequestRosterRebuild();
+			ProcessPendingRosterRefresh();
 		}
 
 		private void PruneAssignmentScopeState()

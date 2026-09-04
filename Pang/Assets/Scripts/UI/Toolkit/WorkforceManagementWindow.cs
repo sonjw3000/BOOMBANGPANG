@@ -39,7 +39,7 @@ namespace UniverseLogistics.UI.Toolkit
 		private DropdownField filterField;
 		private Button assignmentModeButton;
 		private Label assignmentStatus;
-		private ScrollView workerList;
+		private ListView workerList;
 		private Label workerListEmpty;
 		private VisualElement outdoorDropZone;
 		private Label detailTitle;
@@ -81,7 +81,13 @@ namespace UniverseLogistics.UI.Toolkit
 		private int activePointerId = -1;
 		private bool workerDragStarted;
 		private bool endingWorkerPointer;
-		private bool rosterRefreshPending;
+		private readonly List<AIWorker> visibleRosterWorkers = new();
+		private readonly Dictionary<AIWorker, int> rosterIndexByWorker = new();
+		private readonly HashSet<AIWorker> dirtyRosterWorkers = new();
+		private bool rosterRefreshPending = true;
+		private bool rosterStructureDirty = true;
+		private bool rosterSummaryDirty = true;
+		private bool rosterDetailDirty = true;
 		private WorkforceTab selectedTab;
 		[System.NonSerialized] private bool initialized;
 		private bool started;
@@ -115,11 +121,13 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void OnDisable()
 		{
+			initialized = false;
 			CancelAssignmentDrag();
 			EndWorkerPointer(cancelDrag: true);
 			assignmentModeController?.EndMode();
 			UnbindControls();
 			UnbindServices();
+			ResetRosterListState();
 			initialized = false;
 		}
 
@@ -128,9 +136,8 @@ namespace UniverseLogistics.UI.Toolkit
 			if (InitializeView() == false) return;
 			if (workerManager == null) BindServices();
 			GenerateCandidatesOnOpen();
-			RefreshRoster();
-			RefreshAssignments();
 			window.Open();
+			RefreshVisibleTab();
 		}
 
 		private bool InitializeView()
@@ -156,7 +163,7 @@ namespace UniverseLogistics.UI.Toolkit
 			filterField = content.Q<DropdownField>("worker-filter-field");
 			assignmentModeButton = content.Q<Button>("workforce-assignment-mode-button");
 			assignmentStatus = content.Q<Label>("workforce-assignment-status");
-			workerList = content.Q<ScrollView>("worker-list");
+			workerList = content.Q<ListView>("worker-list");
 			workerListEmpty = content.Q<Label>("worker-list-empty");
 			outdoorDropZone = content.Q<VisualElement>("workforce-outdoor-drop-zone");
 			detailTitle = content.Q<Label>("workforce-detail-title");
@@ -205,6 +212,7 @@ namespace UniverseLogistics.UI.Toolkit
 			filterField.SetValueWithoutNotify(RosterFilters[0]);
 			filterField.RegisterValueChangedCallback(OnFilterChanged);
 			assignmentModeButton.clicked += ToggleAssignmentMode;
+			ConfigureRosterList();
 			workerList.RegisterCallback<PointerMoveEvent>(OnWorkerListPointerMove);
 			workerList.RegisterCallback<PointerUpEvent>(OnWorkerListPointerUp);
 			workerList.RegisterCallback<PointerCancelEvent>(OnWorkerListPointerCancel);
@@ -273,6 +281,8 @@ namespace UniverseLogistics.UI.Toolkit
 		private void BindServices()
 		{
 			UnbindServices();
+			RequestRosterRebuild();
+			RequestAssignmentsRefresh();
 			if (GameContext.HasInstance == false) return;
 			workerManager = GameContext.Instance.WorkerMgr;
 			buildingManager = GameContext.Instance.BuildingMgr;
@@ -329,43 +339,159 @@ namespace UniverseLogistics.UI.Toolkit
 			hiringButton.EnableInClassList(SelectedTabClass, tab == WorkforceTab.Hiring);
 			if (assignments)
 			{
-				if (assignmentsRefreshPending || assignmentTree.contentContainer.childCount == 0)
+				if (window?.IsOpen == true &&
+					(assignmentsRefreshPending || assignmentTree.contentContainer.childCount == 0))
 					RefreshAssignments();
 			}
 			else if (workers)
-				RefreshRoster();
+				ProcessPendingRosterRefresh();
+			ProcessPendingRosterSummary();
 		}
 
-		private void OnFilterChanged(ChangeEvent<string> _) => RefreshRoster();
-
-		private void RefreshRoster()
+		private void RefreshVisibleTab()
 		{
-			if (workerList == null) return;
-			if (activePointerId >= 0)
+			if (initialized == false || window?.IsOpen != true)
+				return;
+
+			ProcessPendingRosterSummary();
+
+			if (selectedTab == WorkforceTab.Assignments)
 			{
-				rosterRefreshPending = true;
+				if (assignmentsRefreshPending || assignmentTree.contentContainer.childCount == 0)
+					RefreshAssignments();
+			}
+			else if (selectedTab == WorkforceTab.Workers)
+			{
+				ProcessPendingRosterRefresh();
+			}
+		}
+
+		private void OnFilterChanged(ChangeEvent<string> _)
+		{
+			RequestRosterRebuild();
+			ProcessPendingRosterRefresh();
+		}
+
+		private void ConfigureRosterList()
+		{
+			workerList.selectionType = SelectionType.None;
+			workerList.makeItem = CreateRosterListItem;
+			workerList.bindItem = BindRosterListItem;
+			workerList.unbindItem = UnbindRosterListItem;
+			workerList.itemsSource = visibleRosterWorkers;
+		}
+
+		private VisualElement CreateRosterListItem()
+		{
+			TemplateContainer row = rosterRowTemplate.CloneTree();
+			VisualElement root = row.Q<VisualElement>(className: "workforce-worker-row");
+			root.RegisterCallback<PointerDownEvent>(OnRosterRowPointerDown);
+			return row;
+		}
+
+		private void BindRosterListItem(VisualElement row, int index)
+		{
+			if (index < 0 || index >= visibleRosterWorkers.Count)
+				return;
+
+			AIWorker worker = visibleRosterWorkers[index];
+			VisualElement root = row.Q<VisualElement>(className: "workforce-worker-row");
+			root.userData = worker;
+			row.Q<Label>("worker-row-name").text = $"{worker.Name}  #{worker.WorkerID}";
+			row.Q<Label>("worker-row-kind").text = GetWorkerKind(worker);
+			row.Q<Label>("worker-row-status").text = worker.EffectiveStatusAction.ToString();
+			row.Q<Label>("worker-row-condition").text = GetCondition(worker);
+			row.Q<Label>("worker-row-wear").text = GetWear(worker);
+			row.Q<Label>("worker-row-building").text = GetWorkerBuildingDisplay(worker);
+			root.EnableInClassList(SelectedRowClass, worker == selectedWorker);
+			root.EnableInClassList(DraggingRowClass, root == pointerRow && worker == pointerWorker && workerDragStarted);
+		}
+
+		private static void UnbindRosterListItem(VisualElement row, int _)
+		{
+			VisualElement root = row.Q<VisualElement>(className: "workforce-worker-row");
+			root.userData = null;
+			root.EnableInClassList(SelectedRowClass, false);
+			root.EnableInClassList(DraggingRowClass, false);
+		}
+
+		private void OnRosterRowPointerDown(PointerDownEvent evt)
+		{
+			if (evt.currentTarget is VisualElement root && root.userData is AIWorker worker)
+				OnWorkerRowPointerDown(evt, root, worker);
+		}
+
+		private void RequestRosterRebuild()
+		{
+			rosterRefreshPending = true;
+			rosterStructureDirty = true;
+			rosterSummaryDirty = true;
+			rosterDetailDirty = true;
+			dirtyRosterWorkers.Clear();
+		}
+
+		private void RequestRosterWorkerRefresh(
+			AIWorker worker,
+			bool summaryDirty = true,
+			bool detailDirty = false)
+		{
+			if (worker == null)
+			{
+				RequestRosterRebuild();
 				return;
 			}
 
+			rosterRefreshPending = true;
+			rosterSummaryDirty |= summaryDirty;
+			rosterDetailDirty |= detailDirty;
+			if (rosterStructureDirty == false)
+				dirtyRosterWorkers.Add(worker);
+		}
+
+		private void ProcessPendingRosterRefresh()
+		{
+			if (rosterRefreshPending == false ||
+				initialized == false ||
+				selectedTab != WorkforceTab.Workers ||
+				window?.IsOpen != true ||
+				activePointerId >= 0)
+			{
+				return;
+			}
+
+			if (rosterStructureDirty || HasRosterMembershipChanged())
+				RebuildRoster();
+			else
+				RefreshDirtyRosterRows();
+
 			rosterRefreshPending = false;
+			rosterStructureDirty = false;
+			rosterDetailDirty = false;
+			dirtyRosterWorkers.Clear();
+		}
+
+		private bool HasRosterMembershipChanged()
+		{
+			foreach (AIWorker worker in dirtyRosterWorkers)
+			{
+				bool wasVisible = !ReferenceEquals(worker, null) && rosterIndexByWorker.ContainsKey(worker);
+				bool isVisible = worker != null && MatchesFilter(worker);
+				if (wasVisible != isVisible)
+					return true;
+			}
+
+			return false;
+		}
+
+		private void RebuildRoster()
+		{
+			if (workerList == null)
+				return;
+
 			IReadOnlyList<AIWorker> workers = workerManager?.Workers;
 			int count = workers?.Count ?? 0;
-			int unassigned = 0;
-			int working = 0;
-			for (int i = 0; i < count; ++i)
-			{
-				AIWorker worker = workers[i];
-				if (worker == null) continue;
-				if (worker.IsOperational && worker.AssignedTaskTypes.Count == 0) ++unassigned;
-				if (worker.EffectiveStatusAction == WorkerStatusAction.Working) ++working;
-			}
-			totalLabel.text = $"TOTAL {count}";
-			unassignedLabel.text = $"UNASSIGNED {unassigned}";
-			workingLabel.text = $"WORKING {working}";
-			blockedLabel.text = $"BLOCKED {workerManager?.TrafficBlockedCount ?? 0}";
-			payrollLabel.text = $"PAYROLL ${workerManager?.CostPerMonth ?? 0:N0} / MONTH";
-
-			workerList.Clear();
+			visibleRosterWorkers.Clear();
+			rosterIndexByWorker.Clear();
 			bool selectedVisible = false;
 			AIWorker firstVisible = null;
 			for (int i = 0; i < count; ++i)
@@ -374,11 +500,68 @@ namespace UniverseLogistics.UI.Toolkit
 				if (worker == null || MatchesFilter(worker) == false) continue;
 				firstVisible ??= worker;
 				selectedVisible |= worker == selectedWorker;
-				workerList.Add(CreateWorkerRow(worker));
+				rosterIndexByWorker.Add(worker, visibleRosterWorkers.Count);
+				visibleRosterWorkers.Add(worker);
 			}
 			if (selectedVisible == false) selectedWorker = firstVisible;
+			workerList.RefreshItems();
 			workerListEmpty.style.display = firstVisible == null ? DisplayStyle.Flex : DisplayStyle.None;
 			RefreshSelectedWorker();
+		}
+
+		private void RefreshDirtyRosterRows()
+		{
+			foreach (AIWorker worker in dirtyRosterWorkers)
+			{
+				if (worker != null && rosterIndexByWorker.TryGetValue(worker, out int index))
+					workerList.RefreshItem(index);
+			}
+
+			if (rosterDetailDirty)
+				RefreshSelectedWorker();
+		}
+
+		private void ProcessPendingRosterSummary()
+		{
+			if (rosterSummaryDirty == false || initialized == false ||
+				selectedTab != WorkforceTab.Assignments || window?.IsOpen != true)
+				return;
+
+			RefreshRosterSummary();
+			rosterSummaryDirty = false;
+		}
+
+		private void RefreshRosterSummary()
+		{
+			IReadOnlyList<AIWorker> workers = workerManager?.Workers;
+			int count = workers?.Count ?? 0;
+			int unassigned = 0;
+			for (int i = 0; i < count; ++i)
+			{
+				AIWorker worker = workers[i];
+				if (worker != null && worker.IsOperational && worker.AssignedTaskTypes.Count == 0)
+					++unassigned;
+			}
+
+			totalLabel.text = $"TOTAL {count}";
+			unassignedLabel.text = $"UNASSIGNED {unassigned}";
+			workingLabel.text = $"WORKING {workerManager?.GetWorkerStatusCount(WorkerStatusAction.Working) ?? 0}";
+			blockedLabel.text = $"BLOCKED {workerManager?.TrafficBlockedCount ?? 0}";
+			payrollLabel.text = $"PAYROLL ${workerManager?.CostPerMonth ?? 0:N0} / MONTH";
+		}
+
+		private void ResetRosterListState()
+		{
+			if (workerList != null)
+				workerList.itemsSource = null;
+
+			visibleRosterWorkers.Clear();
+			rosterIndexByWorker.Clear();
+			dirtyRosterWorkers.Clear();
+			rosterRefreshPending = true;
+			rosterStructureDirty = true;
+			rosterSummaryDirty = true;
+			rosterDetailDirty = true;
 		}
 
 		private bool MatchesFilter(AIWorker worker)
@@ -392,27 +575,17 @@ namespace UniverseLogistics.UI.Toolkit
 			};
 		}
 
-		private VisualElement CreateWorkerRow(AIWorker worker)
-		{
-			TemplateContainer row = rosterRowTemplate.CloneTree();
-			VisualElement root = row.Q<VisualElement>(className: "workforce-worker-row");
-			row.Q<Label>("worker-row-name").text = $"{worker.Name}  #{worker.WorkerID}";
-			row.Q<Label>("worker-row-kind").text = GetWorkerKind(worker);
-			row.Q<Label>("worker-row-status").text = worker.EffectiveStatusAction.ToString();
-			row.Q<Label>("worker-row-condition").text = GetCondition(worker);
-			row.Q<Label>("worker-row-wear").text = GetWear(worker);
-			row.Q<Label>("worker-row-building").text = GetWorkerBuildingDisplay(worker);
-			root.EnableInClassList(SelectedRowClass, worker == selectedWorker);
-			root.RegisterCallback<PointerDownEvent>(evt => OnWorkerRowPointerDown(evt, root, worker));
-			return row;
-		}
-
 		private void SelectWorker(AIWorker worker)
 		{
+			AIWorker previousWorker = selectedWorker;
 			selectedWorker = worker;
 			selectedBuilding = null;
 			selectedHandleGroup = GetHandleGroup(worker.AssignedTaskTypes);
-			RefreshRoster();
+			if (previousWorker != null)
+				RequestRosterWorkerRefresh(previousWorker, summaryDirty: false);
+			RequestRosterWorkerRefresh(worker, summaryDirty: false);
+			RefreshSelectedWorker();
+			ProcessPendingRosterRefresh();
 		}
 
 		private void RefreshSelectedWorker()
@@ -489,7 +662,8 @@ namespace UniverseLogistics.UI.Toolkit
 			selectedHandleGroup = compatibleTypes.Count > 0
 				? GetHandleGroup(compatibleTypes)
 				: GetFirstAssignableHandleGroup(selectedWorker, buildingId);
-			RefreshRoster();
+			RequestRosterWorkerRefresh(selectedWorker, detailDirty: true);
+			ProcessPendingRosterRefresh();
 		}
 
 		private void OnHandleChanged(ChangeEvent<string> _)
@@ -564,13 +738,18 @@ namespace UniverseLogistics.UI.Toolkit
 			if (worker == null)
 				return;
 
+			if (selectedWorker != null)
+				RequestRosterWorkerRefresh(selectedWorker, summaryDirty: false);
 			selectedWorker = worker;
 			selectedBuilding = null;
 			selectedHandleGroup = GetEditingTaskTypes(worker).Count > 0
 				? GetHandleGroup(GetEditingTaskTypes(worker))
 				: GetFirstAssignableHandleGroup(worker, building?.RuntimeBuildingId ?? 0);
 			if (assigned)
-				RefreshRoster();
+			{
+				RequestRosterWorkerRefresh(worker, detailDirty: true);
+				ProcessPendingRosterRefresh();
+			}
 			else
 				RefreshSelectedWorker();
 		}
@@ -600,7 +779,6 @@ namespace UniverseLogistics.UI.Toolkit
 			pointerStart = evt.position;
 			activePointerId = evt.pointerId;
 			workerDragStarted = false;
-			rosterRefreshPending = false;
 			workerList.CapturePointer(activePointerId);
 			evt.StopPropagation();
 		}
@@ -708,11 +886,7 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void FlushPendingRosterRefresh()
 		{
-			if (rosterRefreshPending == false || activePointerId >= 0)
-				return;
-
-			rosterRefreshPending = false;
-			RefreshRoster();
+			ProcessPendingRosterRefresh();
 		}
 
 		private void RefreshBuildingDetail()
@@ -997,14 +1171,16 @@ namespace UniverseLogistics.UI.Toolkit
 		{
 			assignmentModeController?.Refresh();
 			RequestAssignmentsRefresh();
-			RefreshRoster();
+			RequestRosterWorkerRefresh(
+				worker,
+				detailDirty: selectedBuilding != null || worker == selectedWorker);
 		}
 
 		private void OnWorkersChanged()
 		{
 			assignmentModeController?.Refresh();
 			RequestAssignmentsRefresh();
-			RefreshRoster();
+			RequestRosterRebuild();
 		}
 
 		private void OnMoneyChanged(int _) => RefreshCandidateAffordability();

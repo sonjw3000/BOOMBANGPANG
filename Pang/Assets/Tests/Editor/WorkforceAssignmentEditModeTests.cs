@@ -1,10 +1,12 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEngine.TestTools;
 using UniverseLogistics.UI.Toolkit;
 
 namespace Pang.Tests.Editor
@@ -2588,6 +2590,145 @@ public sealed class WorkforceAssignmentEditModeTests
 		Label count = roleRow.Q<Label>(className: "workforce-assignment-role__count");
 		Assert.That(count, Is.Not.Null);
 		Assert.That(count.text, Is.EqualTo(expectedCount));
+	}
+
+	[Test]
+	public void WorkforceSummary_RefreshesOnlyWhileAssignmentsAreVisible()
+	{
+		HumanWorker first = CreateWorker("First", WorkerAbility.None);
+		workerManager.RegisterWorker(first);
+		WorkforceManagementWindow controller = CreateRosterController(out UIWindow window);
+		Label total = window.ContentRoot.Q<Label>("workforce-total");
+		Assert.That(total.text, Is.EqualTo("TOTAL 1"));
+		window.Close();
+		workerManager.RegisterWorker(CreateWorker("Second", WorkerAbility.None));
+		InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "LateUpdate");
+		Assert.That(total.text, Is.EqualTo("TOTAL 1"));
+		controller.Open();
+		Assert.That(total.text, Is.EqualTo("TOTAL 2"));
+		InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "OpenRoster");
+		workerManager.UnregisterWorker(first);
+		InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "LateUpdate");
+		Assert.That(total.text, Is.EqualTo("TOTAL 2"));
+		InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "OpenAssignments");
+		Assert.That(total.text, Is.EqualTo("TOTAL 1"));
+	}
+
+	[UnityTest]
+	public IEnumerator WorkforceRoster_BatchesEventsAndDefersHiddenRows()
+	{
+		HumanWorker first = CreateWorker("First", WorkerAbility.None);
+		HumanWorker second = CreateWorker("Second", WorkerAbility.None);
+		workerManager.RegisterWorker(first);
+		workerManager.RegisterWorker(second);
+		WorkforceManagementWindow controller = CreateRosterController(out UIWindow window);
+		InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "OpenRoster");
+		ListView list = window.ContentRoot.Q<ListView>("worker-list");
+		EditorWindow host = ScriptableObject.CreateInstance<EditorWindow>();
+		try
+		{
+			host.Show();
+			host.position = new Rect(100, 100, 600, 240);
+			list.style.height = 180;
+			host.rootVisualElement.Add(list);
+			for (int i = 0; i < 10; ++i) yield return null;
+			Assert.That(list.GetRootElementForIndex(1), Is.Not.Null);
+			VisualElement unchangedRow = list.GetRootElementForIndex(0);
+			List<int> bound = new();
+			Action<VisualElement, int> bind = list.bindItem;
+			list.bindItem = (row, index) => { bound.Add(index); bind(row, index); };
+			bound.Clear(); // Installing the instrumentation itself refreshes the ListView.
+			second.SetWorkerAction(WorkerStatusAction.Working);
+			second.SetWorkerAction(WorkerStatusAction.Idle);
+			second.SetWorkerAction(WorkerStatusAction.Working);
+			Assert.That(bound, Is.Empty, "Events should only mark the roster dirty.");
+			InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "LateUpdate");
+			CollectionAssert.AreEqual(new[] { 1 }, bound);
+			Assert.That(list.GetRootElementForIndex(0), Is.SameAs(unchangedRow));
+			Assert.That(list.GetRootElementForIndex(1).Q<Label>("worker-row-status").text,
+				Is.EqualTo("Working"));
+			bound.Clear();
+			InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "LateUpdate");
+			Assert.That(bound, Is.Empty);
+			window.Close();
+			second.SetWorkerAction(WorkerStatusAction.Idle);
+			InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "LateUpdate");
+			Assert.That(bound, Is.Empty);
+			controller.Open();
+			Assert.That(list.GetRootElementForIndex(1).Q<Label>("worker-row-status").text,
+				Is.EqualTo("Idle"));
+			InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "OpenAssignments");
+			bound.Clear();
+			second.SetWorkerAction(WorkerStatusAction.Working);
+			InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "LateUpdate");
+			Assert.That(bound, Is.Empty);
+			InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "OpenRoster");
+			CollectionAssert.AreEqual(new[] { 1 }, bound);
+		}
+		finally { host.Close(); }
+	}
+
+	[UnityTest]
+	public IEnumerator WorkforceRoster_VirtualizesAndRebindsRecycledPointerTargets()
+	{
+		for (int i = 0; i < 100; ++i)
+			workerManager.RegisterWorker(CreateWorker($"Worker {i}", WorkerAbility.None));
+		WorkforceManagementWindow controller = CreateRosterController(out UIWindow window);
+		InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "OpenRoster");
+		ListView list = window.ContentRoot.Q<ListView>("worker-list");
+		int created = 0;
+		Func<VisualElement> make = list.makeItem;
+		list.makeItem = () => { ++created; return make(); };
+		EditorWindow host = ScriptableObject.CreateInstance<EditorWindow>();
+		try
+		{
+			host.Show();
+			host.position = new Rect(100, 100, 600, 240);
+			list.style.height = 180;
+			host.rootVisualElement.Add(list);
+			for (int i = 0; i < 10; ++i) yield return null;
+			Assert.That(list.GetRootElementForIndex(0), Is.Not.Null);
+			int initialCreated = created;
+			list.ScrollToItem(99);
+			for (int i = 0; i < 10; ++i) yield return null;
+			Assert.That(created, Is.LessThan(20), "Only viewport rows should be created.");
+			Assert.That(created, Is.LessThanOrEqualTo(initialCreated + 2), "Scrolling should reuse the pool.");
+			VisualElement lastRow = list.GetRootElementForIndex(99);
+			Assert.That(lastRow, Is.Not.Null);
+			VisualElement root = lastRow.Q<VisualElement>(className: "workforce-worker-row");
+			Assert.That(root.userData, Is.SameAs(workerManager.Workers[99]));
+			using (PointerDownEvent evt = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0 }))
+			{
+				evt.target = root;
+				root.SendEvent(evt);
+			}
+			yield return null;
+			Assert.That(GetPrivateField(typeof(WorkforceManagementWindow), controller, "pointerWorker"),
+				Is.SameAs(workerManager.Workers[99]), "A recycled row must target its current worker.");
+			InvokeNonPublic(typeof(WorkforceManagementWindow), controller, "EndWorkerPointer", true);
+		}
+		finally { host.Close(); }
+	}
+
+	private WorkforceManagementWindow CreateRosterController(out UIWindow window)
+	{
+		GameObject owner = CreateGameObject("Workforce Roster Test", active: false);
+		UIDocument document = owner.AddComponent<UIDocument>();
+		document.panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(
+			"Assets/Scripts/UI/Toolkit/New Panel Settings.asset");
+		document.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+			"Assets/UI/Toolkit/UIWindow/UIWindow.uxml");
+		window = owner.AddComponent<UIWindow>();
+		window.SetOpenOnEnable(false);
+		WorkforceManagementWindow controller = owner.AddComponent<WorkforceManagementWindow>();
+		controller.Configure(window,
+			AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/UI/Toolkit/WorkforceManagementContent.uxml"),
+			AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/UI/Toolkit/WorkforceRosterRow.uxml"),
+			AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/UI/Toolkit/WorkforceCandidateRow.uxml"),
+			Array.Empty<WorkforceMarketData_SO>(), Array.Empty<WorkforceMarketData_SO>(), null);
+		owner.SetActive(true);
+		controller.Open();
+		return controller;
 	}
 
 	private WorkforceManagementWindow CreateAssignmentsController(
