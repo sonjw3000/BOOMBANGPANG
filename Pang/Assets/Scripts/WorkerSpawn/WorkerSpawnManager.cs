@@ -120,6 +120,22 @@ public class WorkerSpawnManager : MonoBehaviour
 		return true;
 	}
 
+	public bool TrySpawnWorkerInArea(WorkerArchetype archetype, Area area, out AIWorker spawnedWorker)
+	{
+		spawnedWorker = null;
+		if (archetype == null || area == null || area.Type != AreaType.WorkerSpawn || AreaManager == null)
+			return false;
+		bool registered = false;
+		foreach (Area candidate in AreaManager.RegisteredAreas)
+			if (ReferenceEquals(candidate, area)) { registered = true; break; }
+		if (!registered)
+			return false;
+		archetype.AbilityDefinition.EnsureIdentityInitialized();
+		return TryGetSpawnDefinition(archetype.AbilityDefinition.WorkerKind, out WorkerSpawnDefinition definition) &&
+			TryFindSpawnPoint(area, definition, out int3 point) &&
+			TryInstallWorker(archetype, definition, point, out spawnedWorker);
+	}
+
 	private bool TryGetSpawnDefinition(WorkerKind workerKind, out WorkerSpawnDefinition result)
 	{
 		foreach (var definition in spawnDefinitions)

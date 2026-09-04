@@ -12,6 +12,7 @@
 */.agents/
 */Assets/Plugins/NuGet/Chache
 /Tools/Obsidian/__pycache__
+/Pang/docs/benchmarks/
 
 /Pang/.codex/config.toml
 
