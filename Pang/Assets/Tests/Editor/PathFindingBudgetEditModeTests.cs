@@ -155,6 +155,49 @@ public sealed class PathFindingBudgetEditModeTests
 		Assert.That(service.ActiveJobCount, Is.Zero);
 	}
 
+	[TestCase(false)]
+	[TestCase(true)]
+	public void ReusedBuffer_AfterPartialOrCompletedSearchMatchesFreshSearch(bool completeFirst)
+	{
+		SearchBuffer reused = new(grid.MapSize);
+		PathSearchJob previousJob = new();
+		int3 firstGoal = completeFirst ? new int3(4, 0, 1) : BlockedGoal;
+		previousJob.Setup(new PathRequest(StartCell, firstGoal, FacingDirection.East,
+			result => result.Clear()), reused);
+		if (completeFirst)
+		{
+			Assert.That(previousJob.Execute(1000), Is.True);
+			previousJob.SetPath();
+		}
+		else
+			Assert.That(previousJob.Execute(20), Is.False);
+
+		int3 newStart = new(8, 0, 1);
+		int3 goal = new(4, 0, 1);
+		List<int3> actual = SearchPositions(reused, newStart, goal);
+		List<int3> expected = SearchPositions(new SearchBuffer(grid.MapSize), newStart, goal);
+		CollectionAssert.AreEqual(expected, actual);
+		Assert.That(actual[0], Is.EqualTo(newStart));
+		Assert.That(actual[actual.Count - 1], Is.EqualTo(goal));
+	}
+
+	private static List<int3> SearchPositions(SearchBuffer buffer, int3 start, int3 goal)
+	{
+		List<int3> positions = new();
+		PathSearchJob job = new();
+		job.Setup(new PathRequest(start, goal, FacingDirection.West, result =>
+		{
+			foreach (PathNode node in result.Path) positions.Add(node.Position);
+			result.Clear();
+		}), buffer);
+		bool complete = false;
+		for (int frame = 0; frame < 100 && !complete; ++frame)
+			complete = job.Execute(50);
+		Assert.That(complete, Is.True);
+		job.SetPath();
+		return positions;
+	}
+
 	private List<PathSearchJob> Jobs =>
 		(List<PathSearchJob>)typeof(PathFindingService).GetField("activeJobs", InstanceFlags).GetValue(service);
 

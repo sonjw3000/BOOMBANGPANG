@@ -171,9 +171,13 @@ public class PathRequest
 
 public class SearchBuffer
 {
+	public static readonly int DirectionCount = Enum.GetValues(typeof(FacingDirection)).Length;
+
 	// todo
 	// 해당 state index는 LocalGrid 기준으로 계산 되어야함
 	private PathNodeRecord[] RecordsStates;
+	private readonly uint[] stateGenerations;
+	private uint generation = 1;
 	//public LocalGrid LocalMap;
 
 	// open set은 stateIndex를 담고있음
@@ -189,24 +193,24 @@ public class SearchBuffer
 	public SearchBuffer(in int3 mapSize)
 	{
 		this.mapSize = mapSize;
-		int size = mapSize.x * mapSize.y * mapSize.z * Enum.GetValues(typeof(FacingDirection)).Length;
+		int size = mapSize.x * mapSize.y * mapSize.z * DirectionCount;
 
 		RecordsStates = new PathNodeRecord[size];
+		stateGenerations = new uint[size];
 		OpenSet = new ArrayHeap<int>((a, b) => CompareFromHeap(a, b, RecordsStates), (index, newIndex) => RecordsStates[index].HeapIndex = newIndex);
-
-		for (int i = 0; i < size; ++i)
-		{
-			RecordsStates[i] = PathNodeRecord.CreateDefault();
-		}
 	}
 
 	public void ResetBuffer()
 	{
-		for (int i = 0; i < RecordsStates.Length; ++i)
-		{
-			RecordsStates[i].Reset();
-		}
 		OpenSet.Reset();
+		// Old records are initialized lazily on first access in this search.
+		if (generation == uint.MaxValue)
+		{
+			Array.Clear(stateGenerations, 0, stateGenerations.Length);
+			generation = 1;
+		}
+		else
+			++generation;
 	}
 
 	public int GetStateIndex(in int3 position, in FacingDirection direction)
@@ -216,7 +220,7 @@ public class SearchBuffer
 		int zLength = mapSize.z;
 		int directionIndex = (int)direction;
 
-		return (position.x + (position.z * xLength) + (position.y * xLength * zLength)) * Enum.GetValues(typeof(FacingDirection)).Length + directionIndex;
+		return (position.x + (position.z * xLength) + (position.y * xLength * zLength)) * DirectionCount + directionIndex;
 
 		//int xLength = LocalMap.Max.x - LocalMap.Min.x + 1;
 		//int yLength = LocalMap.Max.y - LocalMap.Min.y + 1;
@@ -224,13 +228,12 @@ public class SearchBuffer
 		//int localX = position.x - LocalMap.Min.x;
 		//int localY = position.y - LocalMap.Min.y;
 		//int localZ = position.z - LocalMap.Min.z;
-		//return ((localX * yLength * zLength) + (localY * zLength) + localZ) * Enum.GetValues(typeof(FacingDirection)).Length + directionIndex;
+		//return ((localX * yLength * zLength) + (localY * zLength) + localZ) * DirectionCount + directionIndex;
 	}
 
 	public int3 GetPosition(int stateIndex)
 	{
-		int directionCount = Enum.GetValues(typeof(FacingDirection)).Length;
-		int positionIndex = stateIndex / directionCount;
+		int positionIndex = stateIndex / DirectionCount;
 
 		int xLength = mapSize.x;
 		int yLength = mapSize.y;
@@ -244,8 +247,7 @@ public class SearchBuffer
 
 	public FacingDirection GetFacingDirection(int stateIndex)
 	{
-		int directionCount = Enum.GetValues(typeof(FacingDirection)).Length;
-		int directionIndex = stateIndex % directionCount;
+		int directionIndex = stateIndex % DirectionCount;
 		return (FacingDirection)directionIndex;
 	}
 
@@ -253,6 +255,11 @@ public class SearchBuffer
 
 	public ref PathNodeRecord GetStateRecordByStateIndex(int stateIndex)
 	{
+		if (stateGenerations[stateIndex] != generation)
+		{
+			RecordsStates[stateIndex].Reset();
+			stateGenerations[stateIndex] = generation;
+		}
 		return ref RecordsStates[stateIndex];
 	}
 	//int localX
@@ -430,7 +437,7 @@ public sealed class PathSearchJob
 		int goalPos = buffer.GetStateIndex(request.endPosition, FacingDirection.North);
 
 		int index = -1;
-		for (int i = 0; i < Enum.GetValues(typeof(FacingDirection)).Length; ++i)
+		for (int i = 0; i < SearchBuffer.DirectionCount; ++i)
 		{
 			if (buffer.GetStateRecordByStateIndex(goalPos + i).VisitState != NodeVisitedState.None)
 			{
