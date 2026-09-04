@@ -22,6 +22,8 @@ public static class CargoLoadBenchmarkRunner
 		public bool deepProfile;
 		public bool profilerStarted;
 		public bool disableWorkforceUi;
+		public bool captureGcAllocations;
+		public bool previousAllocationCallstacks;
 	}
 	private static Request request;
 	private static CargoLoadTestSession session;
@@ -35,7 +37,7 @@ public static class CargoLoadBenchmarkRunner
 	}
 
 	public static void Run(CargoLoadTestSettings settings, string outputDirectory, bool captureCpu = false,
-		bool deepProfile = false, bool disableWorkforceUi = false)
+		bool deepProfile = false, bool disableWorkforceUi = false, bool captureGcAllocations = false)
 	{
 		if (EditorApplication.isPlayingOrWillChangePlaymode || !string.IsNullOrEmpty(SessionState.GetString(requestKey, "")))
 			throw new InvalidOperationException("An existing Play session or benchmark is active.");
@@ -47,9 +49,11 @@ public static class CargoLoadBenchmarkRunner
 		{
 			settings = settings,
 			output = Path.GetFullPath(outputDirectory),
-			captureCpu = captureCpu,
+			captureCpu = captureCpu || captureGcAllocations,
 			deepProfile = captureCpu && deepProfile,
 			disableWorkforceUi = disableWorkforceUi,
+			captureGcAllocations = captureGcAllocations,
+			previousAllocationCallstacks = UnityEngine.Profiling.Profiler.enableAllocationCallstacks,
 		};
 		Directory.CreateDirectory(request.output);
 		File.WriteAllText(Path.Combine(request.output, "status.json"), "{\"status\":\"starting\"}");
@@ -106,6 +110,8 @@ public static class CargoLoadBenchmarkRunner
 				if (request.captureCpu && !request.profilerStarted && session.IsMeasuring)
 				{
 					UnityEditorInternal.ProfilerDriver.ClearAllFrames();
+					if (request.captureGcAllocations)
+						UnityEngine.Profiling.Profiler.enableAllocationCallstacks = true;
 					UnityEngine.Profiling.Profiler.enabled = true;
 					UnityEditorInternal.ProfilerDriver.enabled = true;
 					request.profilerStarted = true;
@@ -118,6 +124,10 @@ public static class CargoLoadBenchmarkRunner
 				WriteStatus(session.enabled && !session.State.StartsWith("오류") ? "completed" : "failed");
 				if (request.captureCpu && request.profilerStarted)
 				{
+					UnityEditorInternal.ProfilerDriver.enabled = false;
+					UnityEngine.Profiling.Profiler.enabled = false;
+					if (request.captureGcAllocations)
+						CaptureGcAllocations(request.output);
 					CaptureCpu(Path.Combine(request.output, "cpu-samples.csv"));
 				}
 				Finish();
@@ -139,6 +149,7 @@ public static class CargoLoadBenchmarkRunner
 			deepProfile = UnityEditorInternal.ProfilerDriver.deepProfiling,
 			profilerRecording = UnityEditorInternal.ProfilerDriver.enabled,
 			workforceUiDisabled = request.disableWorkforceUi,
+			gcAllocationCallstacks = request.captureGcAllocations,
 			vSync = QualitySettings.vSyncCount, targetFps = Application.targetFrameRate,
 			unity = Application.unityVersion, cpu = SystemInfo.processorType, gpu = SystemInfo.graphicsDeviceName,
 			ramMb = SystemInfo.systemMemorySize, width = Screen.width, height = Screen.height,
@@ -156,10 +167,78 @@ public static class CargoLoadBenchmarkRunner
 		UnityEditorInternal.ProfilerDriver.enabled = false;
 		UnityEngine.Profiling.Profiler.enabled = false;
 		UnityEditorInternal.ProfilerDriver.deepProfiling = false;
+		UnityEngine.Profiling.Profiler.enableAllocationCallstacks = request.previousAllocationCallstacks;
 		SessionState.EraseString(requestKey);
 		request = null;
 		session = null;
 		EditorApplication.isPlaying = false;
+	}
+
+	private static void CaptureGcAllocations(string output)
+	{
+		var totals = new Dictionary<string, (long bytes, long count)>();
+		var symbols = new Dictionary<ulong, string>();
+		var addresses = new List<ulong>();
+		int frameCount = 0;
+		double milliseconds = 0;
+		long totalBytes = 0, allocationCount = 0, withoutStack = 0;
+		for (int index = UnityEditorInternal.ProfilerDriver.firstFrameIndex;
+			index <= UnityEditorInternal.ProfilerDriver.lastFrameIndex; ++index)
+		{
+			for (int thread = 0; ; ++thread)
+			{
+				using var frame = UnityEditorInternal.ProfilerDriver.GetRawFrameDataView(index, thread);
+				if (!frame.valid) break;
+				if (thread == 0) { ++frameCount; milliseconds += frame.frameTimeMs; }
+				var parents = new Stack<(int end, string path)>();
+				for (int sample = 0; sample < frame.sampleCount; ++sample)
+				{
+					while (parents.Count > 0 && sample > parents.Peek().end) parents.Pop();
+					string name = frame.GetSampleName(sample);
+					string path = parents.Count == 0 ? name : parents.Peek().path + "/" + name;
+					int end = sample + frame.GetSampleChildrenCountRecursive(sample);
+					if (name == "GC.Alloc" && frame.GetSampleMetadataCount(sample) > 0)
+					{
+						long bytes = frame.GetSampleMetadataAsLong(sample, 0);
+						addresses.Clear();
+						frame.GetSampleCallstack(sample, addresses);
+						StringBuilder stack = new();
+						foreach (ulong address in addresses)
+						{
+							if (!symbols.TryGetValue(address, out string symbol))
+							{
+								var method = frame.ResolveMethodInfo(address);
+								symbol = method.methodName + " (" + method.sourceFileName + ":" + method.sourceFileLine + ")";
+								symbols.Add(address, symbol);
+							}
+							stack.Append(symbol).Append(" <- ");
+						}
+						string key = frame.threadName + "\t" + path + "\t" + stack;
+						totals.TryGetValue(key, out var previous);
+						totals[key] = (previous.bytes + bytes, previous.count + 1);
+						totalBytes += bytes;
+						++allocationCount;
+						if (addresses.Count == 0) ++withoutStack;
+					}
+					if (end > sample) parents.Push((end, path));
+				}
+			}
+		}
+		StringBuilder csv = new("bytes,count,thread,marker_path,callstack\n");
+		foreach (var entry in totals.OrderByDescending(entry => entry.Value.bytes))
+		{
+			csv.Append(entry.Value.bytes).Append(',').Append(entry.Value.count);
+			foreach (string part in entry.Key.Split('\t'))
+				csv.Append(',').Append('"').Append(part.Replace("\"", "\"\"")).Append('"');
+			csv.Append('\n');
+		}
+		File.WriteAllText(Path.Combine(output, "gc-allocations.csv"), csv.ToString(), new UTF8Encoding(true));
+		File.WriteAllText(Path.Combine(output, "gc-summary.json"), Newtonsoft.Json.JsonConvert.SerializeObject(new
+		{
+			frameCount, seconds = milliseconds / 1000, totalBytes, allocationCount, withoutStack,
+			firstFrame = UnityEditorInternal.ProfilerDriver.firstFrameIndex,
+			lastFrame = UnityEditorInternal.ProfilerDriver.lastFrameIndex,
+		}, Newtonsoft.Json.Formatting.Indented));
 	}
 
 	// Diagnostic recording is a separate case, excluded from the unprofiled FPS limit results.

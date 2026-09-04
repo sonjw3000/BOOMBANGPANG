@@ -9,6 +9,8 @@ public partial class WorkPolicyService : MonoBehaviour
 	private const float DefaultSpeedMultiplier = 1.0f;
 	private const float MinimumSpeedMultiplier = 0.5f;
 	private const float MaximumSpeedMultiplier = 2.0f;
+	private static readonly WorkerPolicyType[] workerPolicyTypes =
+		(WorkerPolicyType[])System.Enum.GetValues(typeof(WorkerPolicyType));
 
 	// base policy
 	[SerializeField] private WorkPolicy workPolicy;
@@ -63,14 +65,14 @@ public partial class WorkPolicyService : MonoBehaviour
 
 	public float GetMoveSpeedMultiplier(WorkerPolicyType workerPolicyType)
 	{
-		EnsureRuntimeMultipliers();
-		return moveSpeedMultipliers.TryGetValue(workerPolicyType, out float value) ? value : DefaultSpeedMultiplier;
+		return moveSpeedMultipliers != null && moveSpeedMultipliers.TryGetValue(workerPolicyType, out float value)
+			? value : DefaultSpeedMultiplier;
 	}
 
 	public float GetWorkSpeedMultiplier(WorkerPolicyType workerPolicyType)
 	{
-		EnsureRuntimeMultipliers();
-		return workSpeedMultipliers.TryGetValue(workerPolicyType, out float value) ? value : DefaultSpeedMultiplier;
+		return workSpeedMultipliers != null && workSpeedMultipliers.TryGetValue(workerPolicyType, out float value)
+			? value : DefaultSpeedMultiplier;
 	}
 
 	public void SetMoveSpeedMultiplier(WorkerPolicyType workerPolicyType, float value)
@@ -164,7 +166,7 @@ public partial class WorkPolicyService : MonoBehaviour
 		moveSpeedMultipliers ??= new SerializedDictionary<WorkerPolicyType, float>();
 		workSpeedMultipliers ??= new SerializedDictionary<WorkerPolicyType, float>();
 
-		foreach (WorkerPolicyType workerPolicyType in System.Enum.GetValues(typeof(WorkerPolicyType)))
+		foreach (WorkerPolicyType workerPolicyType in workerPolicyTypes)
 		{
 			if (moveSpeedMultipliers.ContainsKey(workerPolicyType) == false)
 				moveSpeedMultipliers[workerPolicyType] = DefaultSpeedMultiplier;

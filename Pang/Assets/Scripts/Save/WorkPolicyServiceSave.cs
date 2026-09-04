@@ -9,7 +9,7 @@ public partial class WorkPolicyService
 		EnsureRuntimeMultipliers();
 		WorkPolicyRuntimeSaveData data = new();
 
-		foreach (WorkerPolicyType workerPolicyType in System.Enum.GetValues(typeof(WorkerPolicyType)))
+		foreach (WorkerPolicyType workerPolicyType in workerPolicyTypes)
 		{
 			data.MoveSpeedMultipliers.Add(new WorkerPolicyTypeFloatSaveData
 			{
@@ -41,7 +41,7 @@ public partial class WorkPolicyService
 	{
 		EnsureRuntimeMultipliers();
 
-		foreach (WorkerPolicyType workerPolicyType in System.Enum.GetValues(typeof(WorkerPolicyType)))
+		foreach (WorkerPolicyType workerPolicyType in workerPolicyTypes)
 		{
 			moveSpeedMultipliers[workerPolicyType] = DefaultSpeedMultiplier;
 			workSpeedMultipliers[workerPolicyType] = DefaultSpeedMultiplier;
