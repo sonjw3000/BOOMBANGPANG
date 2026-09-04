@@ -5,6 +5,8 @@ using Assets.Scripts.AI.BT;
 using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.TestTools.Constraints;
+using Is = NUnit.Framework.Is;
 
 public sealed class TaskMetricsEditModeTests
 {
@@ -369,11 +371,12 @@ public sealed class TaskMetricsEditModeTests
 
 		for (int i = 0; i < 10; ++i) ReadSnapshots();
 		int observed = 0;
-		long before = GC.GetAllocatedBytesForCurrentThread();
-		for (int i = 0; i < 100; ++i) observed += ReadSnapshots();
-		long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+		Assert.That(() => GC.KeepAlive(new byte[1024]), new AllocatingGCMemoryConstraint());
+		Assert.That(() =>
+		{
+			for (int i = 0; i < 100; ++i) observed += ReadSnapshots();
+		}, Is.Not.AllocatingGCMemory(), "Global, building-scoped and capsule task traversal must not box enumerators.");
 		Assert.That(observed, Is.GreaterThan(0));
-		Assert.That(allocated, Is.Zero, "Global, building-scoped and capsule task traversal must not box enumerators.");
 	}
 
 	private HumanWorker AddActiveTask(WorkerTask task, WorkerStatusAction action)

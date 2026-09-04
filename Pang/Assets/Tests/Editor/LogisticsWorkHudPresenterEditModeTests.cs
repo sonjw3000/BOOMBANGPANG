@@ -4,6 +4,8 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UniverseLogistics.UI.Toolkit;
+using UnityEngine.TestTools.Constraints;
+using Is = NUnit.Framework.Is;
 
 public sealed class LogisticsWorkHudPresenterEditModeTests
 {
@@ -304,14 +306,15 @@ public sealed class LogisticsWorkHudPresenterEditModeTests
 			presenter.Render(demands, tasks);
 			presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, buildingDemands, buildingTasks);
 		}
-		long before = System.GC.GetAllocatedBytesForCurrentThread();
-		for (int i = 0; i < 100; ++i)
+		Assert.That(() => System.GC.KeepAlive(new byte[1024]), new AllocatingGCMemoryConstraint());
+		Assert.That(() =>
 		{
-			presenter.Render(demands, tasks);
-			presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, buildingDemands, buildingTasks);
-		}
-		long allocated = System.GC.GetAllocatedBytesForCurrentThread() - before;
-		Assert.That(allocated, Is.Zero);
+			for (int i = 0; i < 100; ++i)
+			{
+				presenter.Render(demands, tasks);
+				presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, buildingDemands, buildingTasks);
+			}
+		}, Is.Not.AllocatingGCMemory());
 
 		Label storing = root.Q<Label>("logistics-work-hud-storing-waiting");
 		string previousText = storing.text;

@@ -773,8 +773,10 @@ public partial class GridService : MonoBehaviour
 			return 0;
 
 		int totalCost = 0;
-		foreach (var plannedRoute in cell.PlannedRoutes)
+		var plannedRoutes = cell.EnumeratePlannedRoutes();
+		while (plannedRoutes.MoveNext())
 		{
+			FindRoute plannedRoute = plannedRoutes.Current;
 			if (plannedRoute == requester)
 				continue;
 

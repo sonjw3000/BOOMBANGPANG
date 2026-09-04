@@ -94,6 +94,8 @@ public class GridCell
 	public FindRoute ReservedRoute => reservedBy;
 	public int PlannedPathCount => plannedRoutes.Count;
 	public IReadOnlyCollection<FindRoute> PlannedRoutes => plannedRoutes;
+	// Hot-path traversal keeps the HashSet enumerator as a struct without exposing mutation.
+	internal HashSet<FindRoute>.Enumerator EnumeratePlannedRoutes() => plannedRoutes.GetEnumerator();
 
 	public event System.Action<GridCell> OnGridUnReserved;
 	public event System.Action<GridCell, float, float> OnTemperatureChanged;

@@ -3,6 +3,8 @@ using System.Reflection;
 using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.TestTools.Constraints;
+using Is = NUnit.Framework.Is;
 
 public sealed class GridServiceWorkerRelocationEditModeTests
 {
@@ -336,6 +338,55 @@ public sealed class GridServiceWorkerRelocationEditModeTests
 		Assert.That(targets, Has.No.Member(facilityObject));
 		Assert.That(grid.GetCell(Destination).OccupancyObjectOnGrid, Is.SameAs(facilityObject));
 		Assert.That(grid.GetCell(Destination).OccupancyWorker, Is.SameAs(secondaryWorker));
+	}
+
+	[Test]
+	public void PlannedPathCongestion_PreservesCostsAndReflectsRouteStateChanges()
+	{
+		FindRoute other = CreateBlockerRoute();
+		HashSet<int3> activeCells = (HashSet<int3>)GetPrivateField(typeof(FindRoute), other, "plannedPathCells");
+		activeCells.Add(Destination);
+		Assert.That(grid.GetPlannedPathCongestionCost(Destination, route, 7, 3), Is.Zero);
+		Assert.That(grid.GetPlannedPathCongestionCost(new int3(-1, 0, -1), route, 7, 3), Is.Zero);
+		Assert.That(grid.RegisterPlannedPath(route, Destination), Is.True);
+		Assert.That(grid.RegisterPlannedPath(other, Destination), Is.True);
+		Assert.That(grid.RegisterPlannedPath(other, Destination), Is.False, "A route is counted only once per cell.");
+		Assert.That(grid.GetPlannedPathCongestionCost(Destination, route, 7, 3), Is.EqualTo(7));
+		Assert.That(grid.GetPlannedPathCongestionCost(Destination, null, 7, 3), Is.EqualTo(10));
+
+		activeCells.Clear();
+		Assert.That(grid.GetPlannedPathCongestionCost(Destination, route, 7, 3), Is.EqualTo(3));
+		activeCells.Add(Destination);
+		Assert.That(grid.GetPlannedPathCongestionCost(Destination, route, 7, 3), Is.EqualTo(7));
+		Assert.That(grid.UnregisterPlannedPath(other, Destination), Is.True);
+		Assert.That(grid.GetPlannedPathCongestionCost(Destination, route, 7, 3), Is.Zero);
+		Assert.That(grid.RegisterPlannedPath(other, Destination), Is.True);
+		activeCells.Clear(); // Leave a stale registration when the Unity object is destroyed.
+		Object.DestroyImmediate(blockerObject);
+		Assert.That(grid.GetPlannedPathCongestionCost(Destination, route, 7, 3), Is.EqualTo(3),
+			"A destroyed registered route retains the existing stale-route cost.");
+		Assert.That(grid.GetCell(Destination).PlannedPathCount, Is.EqualTo(2), "Queries must not mutate registrations.");
+	}
+
+	[Test]
+	public void PlannedPathCongestion_RepeatedQueriesDoNotAllocate()
+	{
+		FindRoute other = CreateBlockerRoute();
+		HashSet<int3> activeCells = (HashSet<int3>)GetPrivateField(typeof(FindRoute), other, "plannedPathCells");
+		activeCells.Add(Destination);
+		grid.RegisterPlannedPath(route, Destination);
+		grid.RegisterPlannedPath(other, Destination);
+		for (int i = 0; i < 10; ++i) grid.GetPlannedPathCongestionCost(Destination, route, 7, 3);
+
+		int total = 0;
+		// Verify the allocation detector itself: the Mono per-thread byte counter can return constant zero.
+		Assert.That(() => System.GC.KeepAlive(new byte[1024]), new AllocatingGCMemoryConstraint());
+		Assert.That(() =>
+		{
+			for (int i = 0; i < 1000; ++i)
+				total += grid.GetPlannedPathCongestionCost(Destination, route, 7, 3);
+		}, Is.Not.AllocatingGCMemory(), "Repeated congestion queries must not box the HashSet enumerator.");
+		Assert.That(total, Is.EqualTo(7000));
 	}
 
 	private FindRoute CreateBlockerRoute()
