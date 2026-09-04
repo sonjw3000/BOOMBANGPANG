@@ -181,6 +181,11 @@ namespace UniverseLogistics.UI.Toolkit
 			}
 		}
 
+		private void LateUpdate()
+		{
+			logisticsWorkHudPresenter?.FlushPendingRefresh();
+		}
+
 		private void ApplyPanelScale()
 		{
 			legacyCanvasScaler ??= GetComponentInChildren<UnityEngine.UI.CanvasScaler>(true);

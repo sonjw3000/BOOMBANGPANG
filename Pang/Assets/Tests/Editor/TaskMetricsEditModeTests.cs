@@ -344,6 +344,38 @@ public sealed class TaskMetricsEditModeTests
 		Assert.That(observedSnapshot.Active, Is.EqualTo(1));
 	}
 
+	[Test]
+	public void RepeatedTaskSnapshots_DoNotAllocateAfterWarmup()
+	{
+		LogisticsWorkCategory[] categories = (LogisticsWorkCategory[])Enum.GetValues(typeof(LogisticsWorkCategory));
+		foreach (LogisticsWorkCategory category in categories)
+		{
+			taskManager.EnqueueTask(CreateLogisticsTask(category, 0));
+			taskManager.AddRestoredReturnedTask(CreateLogisticsTask(category, 0));
+			AddActiveTask(CreateLogisticsTask(category, 0), WorkerStatusAction.TrafficBlock);
+		}
+
+		int ReadSnapshots()
+		{
+			int total = metrics.GetCapsuleRelocationTaskCountSnapshot().Total;
+			foreach (LogisticsWorkCategory category in categories)
+			{
+				total += metrics.GetTaskCountSnapshot(category).Total;
+				total += metrics.GetTaskCountSnapshot(category, 0).Total;
+				total += metrics.GetTaskCountSnapshot(category, uint.MaxValue).Total;
+			}
+			return total;
+		}
+
+		for (int i = 0; i < 10; ++i) ReadSnapshots();
+		int observed = 0;
+		long before = GC.GetAllocatedBytesForCurrentThread();
+		for (int i = 0; i < 100; ++i) observed += ReadSnapshots();
+		long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+		Assert.That(observed, Is.GreaterThan(0));
+		Assert.That(allocated, Is.Zero, "Global, building-scoped and capsule task traversal must not box enumerators.");
+	}
+
 	private HumanWorker AddActiveTask(WorkerTask task, WorkerStatusAction action)
 	{
 		HumanWorker worker = CreateWorker();

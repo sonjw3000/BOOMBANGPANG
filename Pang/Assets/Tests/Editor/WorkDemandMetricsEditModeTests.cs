@@ -1,8 +1,13 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.TestTools;
+using UnityEngine.UIElements;
+using UniverseLogistics.UI.Toolkit;
 
 public sealed class WorkDemandMetricsEditModeTests
 {
@@ -84,6 +89,66 @@ public sealed class WorkDemandMetricsEditModeTests
 
 		createdObjects.Clear();
 		SetPrivateStaticField(typeof(GameContext), "instance", previousContext);
+	}
+
+	[UnityTest]
+	public IEnumerator Hud_TaskEventsAreDeferred_HiddenAndDetachedViewsCatchUpWhenShown()
+	{
+		ProcessStatsCollector stats = CreateComponent<ProcessStatsCollector>("HUD Event Test Stats", active: false);
+		InvokeNonPublic(typeof(ProcessStatsCollector), stats, "Awake");
+		SetPrivateField(typeof(GameContext), context, "processStats", stats);
+		EditorWindow window = ScriptableObject.CreateInstance<EditorWindow>();
+		using LogisticsWorkHudPresenter presenter = new();
+		try
+		{
+			TemplateContainer root = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
+				"Assets/UI/Toolkit/GlobalStatusHud.uxml").CloneTree();
+			window.rootVisualElement.Add(root);
+			window.Show();
+			presenter.BindView(root);
+			presenter.BindSources(metrics, taskManager, null, orderManager, buildingManager, capsuleDockService, null);
+			for (int i = 0; i < 5; ++i) yield return null;
+			presenter.FlushPendingRefresh();
+			Label waiting = root.Q<Label>("logistics-work-hud-picking-waiting");
+			Assert.That(waiting.text, Is.EqualTo("0"));
+
+			void EnqueuePicking() => taskManager.EnqueueTask(new ItemTransferTask(
+				WorkerTask.TaskType.Picking,
+				new ItemTransferJob(null, TransferObjectType.Item, TransferObjectType.Item, 0)));
+			for (int i = 0; i < 10; ++i) EnqueuePicking();
+			Assert.That(waiting.text, Is.EqualTo("0"), "Events must defer rendering until the owner flushes.");
+			presenter.FlushPendingRefresh();
+			Assert.That(waiting.text, Is.EqualTo("10"));
+			string unchanged = waiting.text;
+			presenter.FlushPendingRefresh();
+			Assert.That(waiting.text, Is.SameAs(unchanged));
+
+			root.style.display = DisplayStyle.None;
+			EnqueuePicking();
+			presenter.FlushPendingRefresh();
+			Assert.That(waiting.text, Is.EqualTo("10"));
+			root.style.display = DisplayStyle.Flex;
+			for (int i = 0; i < 5; ++i) yield return null;
+			presenter.FlushPendingRefresh();
+			Assert.That(waiting.text, Is.EqualTo("11"));
+
+			root.RemoveFromHierarchy();
+			EnqueuePicking();
+			presenter.FlushPendingRefresh();
+			Assert.That(waiting.text, Is.EqualTo("11"));
+			window.rootVisualElement.Add(root);
+			for (int i = 0; i < 5; ++i) yield return null;
+			presenter.FlushPendingRefresh();
+			Assert.That(waiting.text, Is.EqualTo("12"));
+			presenter.UnbindSources();
+			EnqueuePicking();
+			presenter.FlushPendingRefresh();
+			Assert.That(waiting.text, Is.EqualTo("12"));
+		}
+		finally
+		{
+			window.Close();
+		}
 	}
 
 	[Test]

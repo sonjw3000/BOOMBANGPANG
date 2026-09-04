@@ -285,6 +285,42 @@ public sealed class LogisticsWorkHudPresenterEditModeTests
 		return manager;
 	}
 
+	[Test]
+	public void Render_UnchangedValuesAllocateNothing_ChangedRowPreservesOtherText()
+	{
+		TemplateContainer root = LoadRoot();
+		using LogisticsWorkHudPresenter presenter = new();
+		Assert.That(presenter.BindView(root), Is.True);
+		Building building = new("Stable Building", new List<GridCell>());
+		BuildingManager manager = CreateBuildingManager(building);
+		int pickingCount = 12;
+		System.Func<LogisticsWorkCategory, WorkDemandSnapshot> demands = _ => default;
+		System.Func<LogisticsWorkCategory, TaskCountSnapshot> tasks = category =>
+			new TaskCountSnapshot(category == LogisticsWorkCategory.Picking ? pickingCount : 23, 0, 0, 0);
+		System.Func<LogisticsWorkCategory, uint, WorkDemandSnapshot> buildingDemands = (_, _) => default;
+		System.Func<LogisticsWorkCategory, uint, TaskCountSnapshot> buildingTasks = (category, _) => tasks(category);
+		for (int i = 0; i < 10; ++i)
+		{
+			presenter.Render(demands, tasks);
+			presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, buildingDemands, buildingTasks);
+		}
+		long before = System.GC.GetAllocatedBytesForCurrentThread();
+		for (int i = 0; i < 100; ++i)
+		{
+			presenter.Render(demands, tasks);
+			presenter.RenderBuildingBottleneck(manager.RegisteredBuildings, buildingDemands, buildingTasks);
+		}
+		long allocated = System.GC.GetAllocatedBytesForCurrentThread() - before;
+		Assert.That(allocated, Is.Zero);
+
+		Label storing = root.Q<Label>("logistics-work-hud-storing-waiting");
+		string previousText = storing.text;
+		pickingCount = 14;
+		presenter.Render(demands, tasks);
+		Assert.That(root.Q<Label>("logistics-work-hud-picking-waiting").text, Is.EqualTo("14"));
+		Assert.That(storing.text, Is.SameAs(previousText));
+	}
+
 	private static void RenderWaitingBottleneck(
 		LogisticsWorkHudPresenter presenter,
 		BuildingManager manager,

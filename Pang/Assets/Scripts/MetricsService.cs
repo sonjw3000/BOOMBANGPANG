@@ -107,10 +107,10 @@ public class MetricsService : MonoBehaviour
 		}
 
 		return new TaskCountSnapshot(
-			CountTasks(TaskQueue.Values, category, buildingId),
-			CountTasks(TaskMgr.ReturnedTaskQueue, category, buildingId),
-			CountTasks(TaskOnProgress.Values, category, buildingId),
-			CountBlockedTasks(TaskOnProgress.Values, category, buildingId));
+			CountTasks(TaskMgr.ReadyTaskLists, category, buildingId),
+			CountTasks(TaskMgr.EnumerateReturnedTasks(), category, buildingId),
+			CountTasks(TaskMgr.ActiveTaskLists, category, buildingId),
+			CountBlockedTasks(TaskMgr.ActiveTaskLists, category, buildingId));
 	}
 
 	public WorkDemandSnapshot GetWorkDemandSnapshot(LogisticsWorkCategory category)
@@ -148,10 +148,10 @@ public class MetricsService : MonoBehaviour
 	public TaskCountSnapshot GetCapsuleRelocationTaskCountSnapshot()
 	{
 		return new TaskCountSnapshot(
-			CountTasks<CapsuleRelocationTask>(TaskQueue.Values),
-			CountTasks<CapsuleRelocationTask>(TaskMgr.ReturnedTaskQueue),
-			CountTasks<CapsuleRelocationTask>(TaskOnProgress.Values),
-			CountBlockedTasks<CapsuleRelocationTask>(TaskOnProgress.Values));
+			CountTasks<CapsuleRelocationTask>(TaskMgr.ReadyTaskLists),
+			CountTasks<CapsuleRelocationTask>(TaskMgr.EnumerateReturnedTasks()),
+			CountTasks<CapsuleRelocationTask>(TaskMgr.ActiveTaskLists),
+			CountBlockedTasks<CapsuleRelocationTask>(TaskMgr.ActiveTaskLists));
 	}
 
 	private static WorkDemandSnapshot GetPickingDemandSnapshot()
@@ -391,45 +391,39 @@ public class MetricsService : MonoBehaviour
 		return new WorkDemandSnapshot(demand.SourceCount, 0);
 	}
 
-	private static int CountTasks<TTask>(IEnumerable<WorkerTask> tasks) where TTask : WorkerTask
+	private static int CountTasks<TTask>(LinkedList<WorkerTask>.Enumerator tasks) where TTask : WorkerTask
 	{
-		if (tasks == null)
-			return 0;
-
 		int count = 0;
-		foreach (WorkerTask task in tasks)
+		while (tasks.MoveNext())
 		{
-			if (task is TTask)
+			if (tasks.Current is TTask)
 				++count;
 		}
 
 		return count;
 	}
 
-	private static int CountTasks<TTask>(IEnumerable<LinkedList<WorkerTask>> taskQueues) where TTask : WorkerTask
+	private static int CountTasks<TTask>(Dictionary<WorkerTask.TaskType, LinkedList<WorkerTask>>.ValueCollection taskQueues) where TTask : WorkerTask
 	{
 		if (taskQueues == null)
 			return 0;
 
 		int count = 0;
 		foreach (LinkedList<WorkerTask> tasks in taskQueues)
-			count += CountTasks<TTask>(tasks);
+			if (tasks != null) count += CountTasks<TTask>(tasks.GetEnumerator());
 
 		return count;
 	}
 
 	private static int CountTasks(
-		IEnumerable<WorkerTask> tasks,
+		LinkedList<WorkerTask>.Enumerator tasks,
 		LogisticsWorkCategory category,
 		uint buildingId)
 	{
-		if (tasks == null)
-			return 0;
-
 		int count = 0;
-		foreach (WorkerTask task in tasks)
+		while (tasks.MoveNext())
 		{
-			if (IsTaskInScope(task, category, buildingId))
+			if (IsTaskInScope(tasks.Current, category, buildingId))
 				++count;
 		}
 
@@ -437,7 +431,7 @@ public class MetricsService : MonoBehaviour
 	}
 
 	private static int CountTasks(
-		IEnumerable<LinkedList<WorkerTask>> taskQueues,
+		Dictionary<WorkerTask.TaskType, LinkedList<WorkerTask>>.ValueCollection taskQueues,
 		LogisticsWorkCategory category,
 		uint buildingId)
 	{
@@ -446,12 +440,12 @@ public class MetricsService : MonoBehaviour
 
 		int count = 0;
 		foreach (LinkedList<WorkerTask> tasks in taskQueues)
-			count += CountTasks(tasks, category, buildingId);
+			if (tasks != null) count += CountTasks(tasks.GetEnumerator(), category, buildingId);
 
 		return count;
 	}
 
-	private static int CountBlockedTasks(IEnumerable<WorkerTask> tasks)
+	private static int CountBlockedTasks(LinkedList<WorkerTask> tasks)
 	{
 		if (tasks == null)
 			return 0;
@@ -466,7 +460,7 @@ public class MetricsService : MonoBehaviour
 		return count;
 	}
 
-	private static int CountBlockedTasks<TTask>(IEnumerable<LinkedList<WorkerTask>> taskQueues) where TTask : WorkerTask
+	private static int CountBlockedTasks<TTask>(Dictionary<WorkerTask.TaskType, LinkedList<WorkerTask>>.ValueCollection taskQueues) where TTask : WorkerTask
 	{
 		if (taskQueues == null)
 			return 0;
@@ -485,7 +479,7 @@ public class MetricsService : MonoBehaviour
 	}
 
 	private static int CountBlockedTasks(
-		IEnumerable<LinkedList<WorkerTask>> taskQueues,
+		Dictionary<WorkerTask.TaskType, LinkedList<WorkerTask>>.ValueCollection taskQueues,
 		LogisticsWorkCategory category,
 		uint buildingId)
 	{

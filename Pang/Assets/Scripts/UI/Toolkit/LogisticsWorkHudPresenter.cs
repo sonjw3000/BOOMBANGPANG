@@ -79,6 +79,7 @@ namespace UniverseLogistics.UI.Toolkit
 			public Label Waiting;
 			public Label Active;
 			public Label Blocked;
+			public int? DemandValue, WaitingValue, ActiveValue, BlockedValue;
 
 			public bool IsValid =>
 				Root != null && Demand != null && Waiting != null && Active != null && Blocked != null;
@@ -131,6 +132,14 @@ namespace UniverseLogistics.UI.Toolkit
 		private Action<uint> openBuildingMonitor;
 		private uint? bottleneckBuildingId;
 		private float nextPeriodicRefreshTime;
+		private bool refreshPending;
+		private int? totalWaitingValue, totalActiveValue, totalBlockedValue;
+		private bool bottleneckRendered;
+		private BuildingBottleneck? renderedBottleneck;
+		private Func<LogisticsWorkCategory, WorkDemandSnapshot> demandResolver;
+		private Func<LogisticsWorkCategory, TaskCountSnapshot> taskResolver;
+		private Func<LogisticsWorkCategory, uint, WorkDemandSnapshot> buildingDemandResolver;
+		private Func<LogisticsWorkCategory, uint, TaskCountSnapshot> buildingTaskResolver;
 
 		public void ConfigureNavigation(Action targetOpenMonitor, Action<uint> targetOpenBuildingMonitor = null)
 		{
@@ -179,7 +188,8 @@ namespace UniverseLogistics.UI.Toolkit
 			BindClickHandler();
 			ConfigureTooltips(documentRoot);
 			ClearBuildingBottleneck();
-			SetRootVisible(false);
+			SetRootVisible(metricsService != null);
+			Refresh();
 			return true;
 		}
 
@@ -196,6 +206,9 @@ namespace UniverseLogistics.UI.Toolkit
 			bottleneckBuilding = null;
 			bottleneckStatus = null;
 			bottleneckBuildingId = null;
+			totalWaitingValue = totalActiveValue = totalBlockedValue = null;
+			bottleneckRendered = false;
+			renderedBottleneck = null;
 
 			for (int i = 0; i < rows.Length; ++i)
 			{
@@ -204,6 +217,7 @@ namespace UniverseLogistics.UI.Toolkit
 				rows[i].Waiting = null;
 				rows[i].Active = null;
 				rows[i].Blocked = null;
+				rows[i].DemandValue = rows[i].WaitingValue = rows[i].ActiveValue = rows[i].BlockedValue = null;
 			}
 		}
 
@@ -225,6 +239,13 @@ namespace UniverseLogistics.UI.Toolkit
 			capsuleDockService = targetCapsuleDockService;
 			gameTime = targetGameTime;
 			nextPeriodicRefreshTime = 0f;
+			if (metricsService != null)
+			{
+				demandResolver = metricsService.GetWorkDemandSnapshot;
+				taskResolver = metricsService.GetTaskCountSnapshot;
+				buildingDemandResolver = metricsService.GetWorkDemandSnapshot;
+				buildingTaskResolver = metricsService.GetTaskCountSnapshot;
+			}
 
 			if (taskManager != null)
 				taskManager.OnTaskStateChanged += OnSourceChanged;
@@ -245,6 +266,7 @@ namespace UniverseLogistics.UI.Toolkit
 				gameTime.OnTimeScaleChanged += OnTimeScaleChanged;
 			}
 
+			SetRootVisible(metricsService != null);
 			Refresh();
 		}
 
@@ -276,23 +298,43 @@ namespace UniverseLogistics.UI.Toolkit
 			buildingManager = null;
 			capsuleDockService = null;
 			gameTime = null;
+			demandResolver = null;
+			taskResolver = null;
+			buildingDemandResolver = null;
+			buildingTaskResolver = null;
+			refreshPending = false;
 			nextPeriodicRefreshTime = 0f;
 			SetRootVisible(false);
 		}
 
 		public void Refresh()
 		{
-			if (metricsService == null || hudRoot == null)
-			{
-				SetRootVisible(false);
-				return;
-			}
+			refreshPending = true;
+		}
 
-			Render(metricsService.GetWorkDemandSnapshot, metricsService.GetTaskCountSnapshot);
+		// Called once by the owning HUD's LateUpdate, after simulation events are coalesced.
+		public void FlushPendingRefresh()
+		{
+			if (!refreshPending || metricsService == null || !IsViewDisplayed()) return;
+			refreshPending = false;
+
+			Render(demandResolver, taskResolver);
 			RenderBuildingBottleneck(
 				buildingManager?.RegisteredBuildings,
-				metricsService.GetWorkDemandSnapshot,
-				metricsService.GetTaskCountSnapshot);
+				buildingDemandResolver,
+				buildingTaskResolver);
+		}
+
+		private bool IsViewDisplayed()
+		{
+			if (hudRoot?.panel == null || !hudRoot.visible || hudRoot.ClassListContains(HiddenClass)) return false;
+			for (VisualElement element = hudRoot; element != null; element = element.parent)
+			{
+				if (element.style.display == DisplayStyle.None || element.resolvedStyle.display == DisplayStyle.None ||
+					element.style.visibility == Visibility.Hidden || element.resolvedStyle.visibility == Visibility.Hidden ||
+					element.resolvedStyle.opacity <= 0) return false;
+			}
+			return true;
 		}
 
 		public void Render(
@@ -323,22 +365,28 @@ namespace UniverseLogistics.UI.Toolkit
 					blocked += tasks.Blocked;
 				}
 
-				row.Demand.text = FormatCount(demand);
-				row.Waiting.text = FormatCount(waiting);
-				row.Active.text = FormatCount(active);
-				row.Blocked.text = FormatCount(blocked);
-				row.Root.EnableInClassList(BlockedRowClass, blocked > 0);
-				row.Root.EnableInClassList(UnservedRowClass, demand > 0 && waiting == 0 && active == 0);
+				bool changed = row.DemandValue != demand || row.WaitingValue != waiting ||
+					row.ActiveValue != active || row.BlockedValue != blocked;
+				SetCount(row.Demand, demand, ref row.DemandValue);
+				SetCount(row.Waiting, waiting, ref row.WaitingValue);
+				SetCount(row.Active, active, ref row.ActiveValue);
+				SetCount(row.Blocked, blocked, ref row.BlockedValue);
+				if (changed)
+				{
+					row.Root.EnableInClassList(BlockedRowClass, blocked > 0);
+					row.Root.EnableInClassList(UnservedRowClass, demand > 0 && waiting == 0 && active == 0);
+				}
 
 				waitingTotal += waiting;
 				activeTotal += active;
 				blockedTotal += blocked;
 			}
 
-			totalWaiting.text = $"{FormatCount(waitingTotal)} WAIT";
-			totalActive.text = $"{FormatCount(activeTotal)} ACTIVE";
-			totalBlocked.text = $"{FormatCount(blockedTotal)} BLOCK";
-			totalBlocked.EnableInClassList(BlockedTotalClass, blockedTotal > 0);
+			if (totalBlockedValue != blockedTotal)
+				totalBlocked.EnableInClassList(BlockedTotalClass, blockedTotal > 0);
+			SetCount(totalWaiting, waitingTotal, ref totalWaitingValue, " WAIT");
+			SetCount(totalActive, activeTotal, ref totalActiveValue, " ACTIVE");
+			SetCount(totalBlocked, blockedTotal, ref totalBlockedValue, " BLOCK");
 			SetRootVisible(true);
 		}
 
@@ -419,6 +467,13 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private static string FormatCount(int value) => value.ToString("N0");
 
+		private static void SetCount(Label label, int value, ref int? previous, string suffix = null)
+		{
+			if (previous == value) return;
+			previous = value;
+			label.text = suffix == null ? FormatCount(value) : FormatCount(value) + suffix;
+		}
+
 		private static BottleneckKind ResolveBottleneckKind(
 			int unservedDemand,
 			int waiting,
@@ -466,6 +521,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void RenderBuildingBottleneck(BuildingBottleneck bottleneck)
 		{
+			if (renderedBottleneck.HasValue && SameBottleneck(renderedBottleneck.Value, bottleneck)) return;
+			renderedBottleneck = bottleneck;
+			bottleneckRendered = true;
 			bottleneckBuildingId = bottleneck.BuildingId;
 			bottleneckBuilding.text = $"{bottleneck.BuildingName} · #{bottleneck.BuildingId}";
 			bottleneckStatus.text = bottleneck.Kind switch
@@ -494,6 +552,9 @@ namespace UniverseLogistics.UI.Toolkit
 
 		private void ClearBuildingBottleneck()
 		{
+			if (bottleneckRendered && !renderedBottleneck.HasValue) return;
+			bottleneckRendered = true;
+			renderedBottleneck = null;
 			bottleneckBuildingId = null;
 			if (bottleneckButton == null)
 				return;
@@ -505,6 +566,11 @@ namespace UniverseLogistics.UI.Toolkit
 			bottleneckButton.SetEnabled(false);
 			SetBottleneckVisible(false);
 		}
+
+		private static bool SameBottleneck(BuildingBottleneck a, BuildingBottleneck b) =>
+			a.BuildingId == b.BuildingId && a.BuildingName == b.BuildingName && a.Kind == b.Kind &&
+			a.Demand == b.Demand && a.UnservedDemand == b.UnservedDemand && a.Waiting == b.Waiting &&
+			a.Returned == b.Returned && a.Active == b.Active && a.Blocked == b.Blocked;
 
 		private static void ConfigureTooltips(VisualElement root)
 		{

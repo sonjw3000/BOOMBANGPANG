@@ -41,6 +41,10 @@ public partial class TaskManager : MonoBehaviour
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskQueue => taskQueue;
 	public IReadOnlyDictionary<TaskType, LinkedList<WorkerTask>> TaskOnProgress => taskOnProgress;
 	public IReadOnlyCollection<WorkerTask> ReturnedTaskQueue => returnedTaskQueue;
+	// Concrete read traversal avoids boxing collection enumerators in metrics queries.
+	internal Dictionary<TaskType, LinkedList<WorkerTask>>.ValueCollection ReadyTaskLists => taskQueue.Values;
+	internal Dictionary<TaskType, LinkedList<WorkerTask>>.ValueCollection ActiveTaskLists => taskOnProgress.Values;
+	internal LinkedList<WorkerTask>.Enumerator EnumerateReturnedTasks() => returnedTaskQueue.GetEnumerator();
 	public IReadOnlyCollection<TaskBuildRequest> TaskBuildQueue => taskBuildQueue;
 	public event Action OnTaskStateChanged;
 
