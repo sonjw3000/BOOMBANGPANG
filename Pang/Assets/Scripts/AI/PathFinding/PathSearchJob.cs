@@ -579,13 +579,14 @@ public class PathResultBuffer
 	{
 		get
 		{
-			PathResultBuffer leaf = FindLeafBuffer(this);
+			if (IsGoalReached)
+				return null;
 
-			if (leaf.currentNode.Next != null)
-				return leaf.currentNode.Next.Value;
-
-			if (leaf.parentBuffer != null && leaf.parentBuffer.currentNode.Next != null)
-				return leaf.parentBuffer.currentNode.Next.Value;
+			for (var buffer = FindLeafBuffer(this); buffer != null; buffer = buffer.parentBuffer)
+			{
+				if (buffer.currentNode?.Next != null)
+					return buffer.currentNode.Next.Value;
+			}
 
 			return null;
 		}
@@ -658,20 +659,25 @@ public class PathResultBuffer
 		leaf.subPathResult = subPath;
 		subPath.parentBuffer = leaf;
 
-		// subPath의 노드와 본인의 노드가 교차되는 부분을 찾아 교차점까지만 경로를 설정 후 제거
-		Dictionary<int3, bool> pathSet = new();
+		// 중첩 우회도 실제로 복귀할 직계 부모의 남은 경로에만 합류한다.
+		Dictionary<int3, (LinkedListNode<PathNode> Node, int Index)> remainingNodes = new();
 
-		for (var node = currentNode?.Next; node != null; node = node.Next)
+		int index = leaf.CurrentIndex;
+		for (var node = leaf.currentNode; node != null; node = node.Next, ++index)
 		{
-			pathSet[node.Value.Position] = true;
+			remainingNodes.TryAdd(node.Value.Position, (node, index));
 		}
 
-		for (var node = subPath.path.First; node != subPath.path.Last; node = node.Next)
+		for (var node = subPath.path.First; node != null; node = node.Next)
 		{
-			if (pathSet.ContainsKey(node.Value.Position) == false)
+			if (remainingNodes.TryGetValue(node.Value.Position, out var rejoin) == false)
 				continue;
 
-			// 이후의 노드들은 제거
+			// 자식 완료 시 MoveToNextNode가 부모를 한 칸 전진시키므로 합류점에 맞춰 둔다.
+			leaf.currentNode = rejoin.Node;
+			leaf.CurrentIndex = rejoin.Index;
+
+			// 합류점은 자식이 방문하고, 이후에는 부모의 다음 노드부터 이어 간다.
 			for (var toRemove = node.Next; toRemove != null;)
 			{
 				var next = toRemove.Next;
@@ -705,6 +711,34 @@ public class PathResultBuffer
 				positions.Add(node.Value.Position);
 			}
 		}
+	}
+
+	public int CollectUpcomingPositions(System.Collections.Generic.ICollection<int3> positions, int maxCount)
+	{
+		if (positions == null)
+			throw new ArgumentNullException(nameof(positions));
+		if (maxCount <= 0 || IsGoalReached)
+			return 0;
+
+		int collected = 0;
+		PathResultBuffer leaf = FindLeafBuffer(this);
+
+		for (var node = leaf.currentNode; node != null && collected < maxCount; node = node.Next)
+		{
+			positions.Add(node.Value.Position);
+			++collected;
+		}
+
+		for (var parent = leaf.parentBuffer; parent != null && collected < maxCount; parent = parent.parentBuffer)
+		{
+			for (var node = parent.currentNode?.Next; node != null && collected < maxCount; node = node.Next)
+			{
+				positions.Add(node.Value.Position);
+				++collected;
+			}
+		}
+
+		return collected;
 	}
 
 	public bool AreRemainingPositionsValid(Func<int3, bool> predicate)

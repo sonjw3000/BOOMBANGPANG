@@ -2,7 +2,7 @@
 
 This document describes the current worker movement conflict handling.
 
-The current implementation has a `TrafficCoordinator` and a limited one-worker yield behavior.
+The current implementation has a `TrafficCoordinator`, one-worker yield, and a bounded linear-chain clearing fallback.
 
 ---
 
@@ -17,10 +17,11 @@ Current behavior:
 - workers keep their current grid reservation while waiting
 - blocked routes may retry, wait, or request a detour
 - head-on conflicts use priority comparison, detour fallback, and one-worker yield fallback
+- a bounded clearing plan can move a short linear blocker chain out of a priority route
 
 Current non-scope:
-- no group yield planning
-- no protected-cell traffic plan
+- no unbounded or global crowd movement planning
+- no branching or cyclic clearing plan
 - no no-yield-space player warning
 
 ---
@@ -57,6 +58,9 @@ Traffic-facing route state exposed by `FindRoute`:
 - `TrafficFromCell`: the worker's committed grid cell
 - `TryGetTrafficToCell(...)`: the current traffic target cell
 - `TryGetFutureToCell(...)`: the next cell after the current traffic target, when available
+- `CollectUpcomingTrafficCells(...)`: bounded, ordered upcoming cells, including subpath continuation
+
+`PathResultBuffer` merges a detour at its first intersection with the immediate parent buffer's remaining path, including the parent's current target. It trims the detour after that intersection and moves the parent's node cursor and index to the same cell. The detour visits the intersection; its completion resumes at the parent's following node. Nested detours apply the same rule to their immediate parent, and next-cell lookup continues through exhausted parent buffers. This preserves continuation without replaying the skipped parent segment.
 
 ### TrafficCoordinator
 
@@ -73,6 +77,7 @@ It owns:
 - detour priority comparison
 - one-worker yield hold/release
 - clearing priority inheritance
+- bounded clearing-plan construction, execution, cancellation, and release
 
 It does not move transforms or complete worker tasks.
 
@@ -129,6 +134,8 @@ If the blocker has no traffic target, is idle, arrived, failed, or inactive outs
 if the blocker is idle and both workers can yield:
     try moving the blocker to an available adjacent cell
     if yield starts, A waits for the blocked cell to be released
+if the idle blocker cannot move to one free adjacent cell:
+    try a bounded clearing plan that may include the idle blocker and waiting workers behind it
 if yield cannot start and the blocker occupies A's final destination:
     wait and retry later
 else if A has a future cell:
@@ -137,7 +144,7 @@ else:
     wait and retry later
 ```
 
-Idle blockers yield first whether they occupy the destination or an intermediate path cell. If a yield cannot be started, the existing detour/wait fallback remains. Asynchronous yield/detour failure handling and alternate-destination selection are not extended by this rule.
+Idle blockers yield first whether they occupy the destination or an intermediate path cell. If a one-cell yield cannot start, the coordinator tries a complete bounded clearing plan before the existing detour/wait fallback. A genuinely idle participant is held outside task dispatch during that plan and returns to Idle without receiving a synthetic work goal. Manual workers may own the passing route, but manual workers are never commandeered as clearing participants.
 
 Idle yield candidates exclude the requester's current cell, current traffic target, and the following path cell returned by `TryGetFutureToCell`. If there is no following path cell, the existing adjacent-cell checks apply without that additional exclusion.
 
@@ -181,11 +188,12 @@ One-worker yield:
 
 ```text
 1. Try to move the low-priority route one cell away from the priority route.
-2. If no yield cell exists for the low-priority route, try the high-priority route as fallback.
-3. If neither route has a valid yield cell, keep both routes waiting and log the no-yield-space state.
+2. If the low-priority route has no valid one-cell yield, try a bounded clearing plan for the high-priority route.
+3. If no clearing plan exists, try the high-priority route as the existing yield fallback.
+4. If neither route has a valid yield cell, keep both routes waiting and log the no-yield-space state.
 ```
 
-This is intentionally not a full group yield system.
+The clearing fallback is intentionally bounded and does not act as a global crowd movement system.
 
 ---
 
@@ -235,7 +243,35 @@ If an active yield hold is found to be invalid, for example the yield cell is al
 
 ---
 
-## 7 Clearing Priority Inheritance
+## 7 Bounded Clearing Plan
+
+When a low-priority worker cannot perform a one-cell yield, the coordinator may build a complete local plan before moving anyone.
+
+The default bounds are:
+
+- at most four participating blockers
+- a local Manhattan search radius of six cells
+- at most ten atomic clearing moves
+- up to twelve upcoming cells protected from final parking
+- at most 4096 search states; exhaustion leaves the existing wait/yield fallback in place
+
+The planner does not classify the map as a corridor. It follows the line behind the first blocker, then searches bounded local worker-position states for a result where every participant finishes outside the passing route's protected cells. Static obstacles, unrelated worker occupancy, existing reservations, regions, robot navigation coverage, and reserved yield cells remain unavailable during the search. In the head-on flow, participants must already be waiting for traffic with a preserved goal. In the idle-blocker flow, a participant may instead be genuinely idle with no Task or recovery reservation. Every participant must be at a committed cell, operational, and outside manual control or another clearing operation. Moving workers are not commandeered.
+
+Plan ownership separates:
+
+- `PriorityOwner`: the route whose inherited priority is used for later traffic comparisons
+- `PassingRoute`: the route that must physically traverse the blocked cells
+- `Participants`: the routes temporarily moved out of the protected path
+
+All atomic moves are known before the plan starts. `FindRoute.RequestClearingStep(...)` reuses the existing yield executor with path traversal restricted to that step's source and destination. Intermediate moves may cross a protected cell while the passing route is suspended, but every participant's final holding cell must be outside the protected path.
+
+The coordinator logically reserves participant origins, planned move cells, and the passage through its release cell. Both `FindRoute` next-step reservation and the traffic retry resolver check this ownership. Only the active participant may execute the current clearing step; only the passing route may use the passage after it opens. Actual per-step reservations and occupancy still belong to `GridService`. Stale retry queue entries cannot restart held participants or suspend the active clearing step.
+
+The passing route resumes only after all clearing moves arrive. Participants remain held until the passing route reaches the first protected cell after all participant origin cells. Participants with work request fresh routes to their preserved original goals, rather than being teleported or guaranteed to retrace their original cells. Participants that entered as genuinely idle return to Idle at their cleared cell and re-enter worker dispatch availability. A rejected move, failed path, cancelled or changed route, invalid worker, or timeout aborts the whole plan and releases its temporary traffic ownership and cell reservations. If an operational participant is already between reserved cells, coordinator-triggered abort waits for that step to arrive before releasing the plan. The default timeout is thirty simulation seconds.
+
+---
+
+## 8 Clearing Priority Inheritance
 
 When a low-priority route detours because a high-priority route won a head-on conflict, the detouring route inherits the high-priority route's traffic priority for later conflicts.
 
@@ -263,19 +299,19 @@ B versus C
 
 Yield-held routes are treated as traffic-controlled routes, not static blockers. A yield route that has not completed its hold is considered higher priority than normal traffic so that it can finish clearing or return safely.
 
-Clearing priority inheritance remains a limited bridge toward future group yield behavior. It does not replace group yield planning.
+Clearing priority inheritance also applies to bounded-plan participants. It remains priority propagation rather than movement planning itself.
 
 ---
 
-## 8 Known Limits
+## 9 Known Limits
 
 The current coordinator can still fail or oscillate in layouts that require coordinated group movement.
 
 Known limits:
-- one-tile corridors may require several workers to move as a group
+- clearing plans handle only short linear blocker chains; branching or cyclic worker dependencies still wait
 - detour paths may not exist
 - wait chains that are not direct head-on conflicts remain wait chains
 - no-yield-space is currently logged rather than surfaced to player UI
-- traffic plans do not reserve future parking or protected cells
+- clearing plans reserve their local move cells inside `TrafficCoordinator`, not as long-range `GridService` movement reservations
 
 These limits are tracked in `docs/future/traffic_coordinator_yield.md`.

@@ -18,5 +18,8 @@ MonoBehaviour:
   prefab: {fileID: 8088145870540302912, guid: b408b924df4a1824dbdbe9200255ab6c, type: 3}
   gridFootprint: {fileID: 11400000, guid: ea26d700fe52d1c43bf14d32eb33eeb4, type: 2}
   definitionType: 4
-  placementEnvironment: 3
+  placementEnvironment: -1
+  requiredResearchUid: 
+  ignitionTemperatureCelsius: 0
+  damageIncidents: []
   Cost: 10

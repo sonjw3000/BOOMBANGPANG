@@ -5,6 +5,11 @@ using UnityEngine;
 public class TrafficCoordinator : MonoBehaviour
 {
 	[SerializeField] private float waitRetrySeconds = 5f;
+	[SerializeField, Range(1, 4)] private int maxClearingParticipants = 4;
+	[SerializeField, Min(2)] private int clearingSearchRadius = 6;
+	[SerializeField, Min(2)] private int maxClearingMoves = 10;
+	[SerializeField, Min(3)] private int protectedClearingCellCount = 12;
+	[SerializeField, Min(1f)] private float clearingPlanTimeoutSeconds = 30f;
 
 	private sealed class YieldHold
 	{
@@ -31,6 +36,20 @@ public class TrafficCoordinator : MonoBehaviour
 		}
 	}
 
+	private sealed class ClearingPlan
+	{
+		public TrafficClearingPlanDefinition Definition;
+		public int MoveIndex;
+		public FindRoute MovingRoute;
+		public bool WaitingForPassage;
+		public float StartedAt;
+		public int PassingPathVersion;
+		public readonly Dictionary<FindRoute, int> ParticipantPathVersions = new();
+		public readonly HashSet<FindRoute> IdleParticipants = new();
+		public string AbortAfterStepReason;
+		public FindRoute CancelledRoute;
+	}
+
 	private GameContext Ctx => GameContext.Instance;
 	private GridService GridService => Ctx.GridService;
 	private WorkPolicyService WorkPolicy => Ctx.WMSys.WorkPolicyService;
@@ -43,9 +62,13 @@ public class TrafficCoordinator : MonoBehaviour
 	private readonly Dictionary<FindRoute, FindRoute> clearingForRoutes = new();
 	private readonly Dictionary<FindRoute, YieldHold> yieldHolds = new();
 	private readonly HashSet<int3> reservedYieldCells = new();
+	private readonly HashSet<ClearingPlan> clearingPlans = new();
+	private readonly Dictionary<FindRoute, ClearingPlan> clearingPlansByRoute = new();
+	private readonly Dictionary<int3, ClearingPlan> clearingPlansByCell = new();
 	private readonly HashSet<GridCell> subscribedWaitCells = new();
 	private readonly List<FindRoute> waitScanScratch = new();
 	private readonly List<YieldHold> yieldHoldScratch = new();
+	private readonly List<ClearingPlan> clearingPlanScratch = new();
 	private static readonly int3[] CardinalDirections =
 	{
 		new(1, 0, 0),
@@ -61,7 +84,26 @@ public class TrafficCoordinator : MonoBehaviour
 
 	public bool IsYieldHeld(FindRoute route)
 	{
-		return route != null && yieldHolds.ContainsKey(route);
+		return route != null && (yieldHolds.ContainsKey(route) ||
+			(clearingPlansByRoute.TryGetValue(route, out ClearingPlan plan) && plan.Definition.Participants.Contains(route)));
+	}
+
+	// Logical plan ownership supplements, but never replaces, GridService's per-step reservation.
+	public bool CanReserveClearingCell(FindRoute route, in int3 cell)
+	{
+		if (route != null && clearingPlansByRoute.TryGetValue(route, out ClearingPlan ownPlan))
+		{
+			if (ownPlan.Definition.Participants.Contains(route))
+			{
+				return ownPlan.MovingRoute == route && ownPlan.MoveIndex < ownPlan.Definition.Moves.Count &&
+					ownPlan.Definition.Moves[ownPlan.MoveIndex].ToCell.Equals(cell);
+			}
+			if (ownPlan.Definition.PassingRoute == route && ownPlan.WaitingForPassage == false)
+				return false;
+		}
+
+		return clearingPlansByCell.TryGetValue(cell, out ClearingPlan plan) == false ||
+			(plan.WaitingForPassage && plan.Definition.PassingRoute == route);
 	}
 
 	public bool TryGetWaitingDesiredCell(FindRoute route, out int3 desiredCell)
@@ -81,6 +123,13 @@ public class TrafficCoordinator : MonoBehaviour
 		if (route == null)
 			return;
 
+		if (clearingPlansByRoute.TryGetValue(route, out ClearingPlan clearingPlan) &&
+			clearingPlan.MovingRoute == route)
+		{
+			AbortClearingPlan(clearingPlan, $"move blocked at {route.TrafficFromCell}");
+			return;
+		}
+
 		if (route.TryGetTrafficToCell(out var desiredCell))
 		{
 			RegisterWait(route, desiredCell);
@@ -97,6 +146,16 @@ public class TrafficCoordinator : MonoBehaviour
 	{
 		if (route == null)
 			return;
+
+		bool cancelledIdleParticipant = false;
+		if (clearingPlansByRoute.TryGetValue(route, out ClearingPlan clearingPlan))
+		{
+			cancelledIdleParticipant = clearingPlan.IdleParticipants.Contains(route);
+			AbortClearingPlan(clearingPlan, $"route cancelled: {route.Worker?.Name}", route);
+			route.ClearTrafficBlockState();
+			if (cancelledIdleParticipant)
+				CompleteIdleYield(route);
+		}
 
 		UnregisterWait(route);
 		queuedRoutes.Remove(route);
@@ -124,7 +183,9 @@ public class TrafficCoordinator : MonoBehaviour
 			YieldHold hold = yieldHoldScratch[i];
 			FindRoute yieldingRoute = hold.YieldingRoute;
 			ClearYieldHold(hold);
-			if (yieldingRoute != null && yieldingRoute != route)
+			if (hold.ClearOnly)
+				CompleteIdleYield(yieldingRoute);
+			else if (yieldingRoute != null && yieldingRoute != route)
 				RequestFreshRouteOrResume(yieldingRoute);
 		}
 	}
@@ -139,6 +200,14 @@ public class TrafficCoordinator : MonoBehaviour
 
 	public void NotifyYieldArrived(FindRoute route)
 	{
+		if (route != null &&
+			clearingPlansByRoute.TryGetValue(route, out ClearingPlan clearingPlan) &&
+			clearingPlan.MovingRoute == route)
+		{
+			NotifyClearingMoveArrived(clearingPlan, route);
+			return;
+		}
+
 		if (route == null || yieldHolds.TryGetValue(route, out var hold) == false)
 			return;
 
@@ -151,13 +220,20 @@ public class TrafficCoordinator : MonoBehaviour
 		if (route == null)
 			return;
 
+		if (clearingPlansByRoute.TryGetValue(route, out ClearingPlan clearingPlan) &&
+			clearingPlan.MovingRoute == route)
+		{
+			AbortClearingPlan(clearingPlan, $"move failed: {route.Worker?.Name}");
+			return;
+		}
+
 		if (yieldHolds.TryGetValue(route, out var hold))
 		{
 			Debug.LogWarning($"[TrafficCoordinator] Yield move failed. yielding={route.Worker.Name}, priority={hold.PriorityRoute?.Worker.Name}, yieldCell={hold.YieldCell}");
 			ClearYieldHold(hold);
 			if (hold.ClearOnly)
 			{
-				route.CompleteIdleYieldMove();
+				CompleteIdleYield(route);
 				return;
 			}
 		}
@@ -170,6 +246,7 @@ public class TrafficCoordinator : MonoBehaviour
 
 	private void Update()
 	{
+		ProcessClearingPlans();
 		ProcessYieldHolds();
 		EnqueueTimedOutWaits();
 
@@ -193,10 +270,18 @@ public class TrafficCoordinator : MonoBehaviour
 	{
 		if (requestedRoute == null)
 			return;
+		if (TryHoldForActiveClearingPlan(requestedRoute))
+			return;
 
 		if (requestedRoute.TryGetTrafficToCell(out var desiredCell) == false)
 		{
 			UnregisterWait(requestedRoute);
+			return;
+		}
+
+		if (CanReserveClearingCell(requestedRoute, desiredCell) == false)
+		{
+			RegisterWait(requestedRoute, desiredCell);
 			return;
 		}
 
@@ -313,6 +398,9 @@ public class TrafficCoordinator : MonoBehaviour
 				return;
 			}
 
+			if (TryStartIdleClearingPlan(requestedRoute, blockedBy, requestedRoute))
+				return;
+
 			if (IsDestinationBlockedBy(requestedRoute, blockedBy) == false &&
 				CanRequestDetour(requestedRoute) &&
 				requestedRoute.TryGetFutureToCell(out var idleFutureCell))
@@ -368,6 +456,9 @@ public class TrafficCoordinator : MonoBehaviour
 			low.RequestSubPath(lowFutureCell, high);
 		}
 		else if (TryStartOneTileYield(low, high, highOwner))
+		{
+		}
+		else if (TryStartClearingPlan(high, low, highOwner))
 		{
 		}
 		else if (TryStartOneTileYield(high, low, GetEffectivePriorityRoute(low)))
@@ -429,12 +520,407 @@ public class TrafficCoordinator : MonoBehaviour
 		clearingForRoutes[route] = priorityOwner;
 	}
 
+	private bool TryHoldForActiveClearingPlan(FindRoute route)
+	{
+		if (route == null || clearingPlansByRoute.TryGetValue(route, out ClearingPlan plan) == false)
+			return false;
+
+		TrafficClearingPlanDefinition definition = plan.Definition;
+		if (definition.PassingRoute == route)
+		{
+			if (plan.WaitingForPassage)
+				return false;
+
+			if (route.TryGetTrafficToCell(out int3 desiredCell))
+				RegisterWait(route, desiredCell);
+			else
+				route.SuspendForTraffic();
+			return true;
+		}
+
+		if (definition.Participants.Contains(route))
+		{
+			// An old queue entry must not suspend the step currently executing.
+			if (plan.MovingRoute != route)
+				route.SuspendForTraffic();
+			return true;
+		}
+
+		return false;
+	}
+
+	private bool TryStartClearingPlan(FindRoute passingRoute, FindRoute firstBlocker, FindRoute priorityOwner)
+	{
+		return TryStartClearingPlanInternal(passingRoute, firstBlocker, priorityOwner, false);
+	}
+
+	private bool TryStartIdleClearingPlan(FindRoute passingRoute, FindRoute firstBlocker, FindRoute priorityOwner)
+	{
+		return TryStartClearingPlanInternal(passingRoute, firstBlocker, priorityOwner, true);
+	}
+
+	private bool TryStartClearingPlanInternal(
+		FindRoute passingRoute,
+		FindRoute firstBlocker,
+		FindRoute priorityOwner,
+		bool allowIdleParticipants)
+	{
+		if (passingRoute == null || firstBlocker == null || priorityOwner == null)
+			return false;
+		if (clearingPlansByRoute.ContainsKey(passingRoute) || clearingPlansByRoute.ContainsKey(priorityOwner))
+			return false;
+		if (passingRoute.CanPassTrafficClearing == false || IsYieldHeld(passingRoute) ||
+			priorityOwner.Worker == null || priorityOwner.Worker.IsOperational == false)
+			return false;
+
+		System.Func<FindRoute, bool> canUseParticipant = allowIdleParticipants
+			? CanUseAsIdleClearingMember
+			: CanUseAsClearingMember;
+
+		if (TrafficClearingPlanner.TryBuild(
+			GridService,
+			reservedYieldCells,
+			passingRoute,
+			firstBlocker,
+			priorityOwner,
+			canUseParticipant,
+			Mathf.Clamp(maxClearingParticipants, 1, 4),
+			Mathf.Max(2, clearingSearchRadius),
+			Mathf.Max(2, maxClearingMoves),
+			Mathf.Max(3, protectedClearingCellCount),
+			out TrafficClearingPlanDefinition definition) == false)
+		{
+			return false;
+		}
+
+		for (int i = 0; i < definition.Participants.Count; ++i)
+		{
+			if (canUseParticipant(definition.Participants[i]) == false)
+				return false;
+		}
+		foreach (int3 cell in definition.ReservedCells)
+		{
+			if (reservedYieldCells.Contains(cell))
+				return false;
+		}
+
+		ClearingPlan plan = new()
+		{
+			Definition = definition,
+			MoveIndex = 0,
+			StartedAt = Time.time,
+			PassingPathVersion = passingRoute.PathRequestVersion,
+		};
+		for (int i = 0; i < definition.Participants.Count; ++i)
+		{
+			FindRoute participant = definition.Participants[i];
+			if (participant.CanStartIdleTrafficClearing)
+				plan.IdleParticipants.Add(participant);
+		}
+		clearingPlans.Add(plan);
+		clearingPlansByRoute[passingRoute] = plan;
+		if (priorityOwner != passingRoute)
+			clearingPlansByRoute[priorityOwner] = plan;
+
+		foreach (int3 cell in definition.ReservedCells)
+		{
+			reservedYieldCells.Add(cell);
+			clearingPlansByCell.Add(cell, plan);
+		}
+
+		for (int i = 0; i < definition.Participants.Count; ++i)
+		{
+			FindRoute participant = definition.Participants[i];
+			clearingPlansByRoute[participant] = plan;
+			plan.ParticipantPathVersions[participant] = participant.PathRequestVersion;
+			UnregisterWait(participant);
+			participant.SuspendForTraffic();
+			participant.Worker.enabled = false;
+			if (plan.IdleParticipants.Contains(participant))
+				SetIdleWorkerDispatchAvailability(participant, false);
+			RegisterClearingRoute(participant, priorityOwner);
+		}
+		if (passingRoute.TryGetTrafficToCell(out int3 desiredCell))
+			RegisterWait(passingRoute, desiredCell);
+
+		Debug.Log(
+			$"[TrafficCoordinator] Clearing plan started. passing={FormatRoute(passingRoute)}, " +
+			$"priority={FormatRoute(priorityOwner)}, participants={definition.Participants.Count}, " +
+			$"moves={definition.Moves.Count}, releaseCell={definition.ReleaseCell}");
+		StartNextClearingMove(plan);
+		return true;
+	}
+
+	private bool CanUseAsClearingMember(FindRoute route)
+	{
+		return route != null && route.CanStartTrafficClearing && IsWaitingForTraffic(route) &&
+			CanYield(route) &&
+			yieldHolds.ContainsKey(route) == false &&
+			clearingPlansByRoute.ContainsKey(route) == false &&
+			clearingForRoutes.ContainsKey(route) == false;
+	}
+
+	private bool CanUseAsIdleClearingMember(FindRoute route)
+	{
+		if (route == null || CanYield(route) == false ||
+			yieldHolds.ContainsKey(route) || clearingPlansByRoute.ContainsKey(route) ||
+			clearingForRoutes.ContainsKey(route))
+		{
+			return false;
+		}
+
+		return (route.CanStartTrafficClearing && IsWaitingForTraffic(route)) ||
+			route.CanStartIdleTrafficClearing;
+	}
+
+	private void StartNextClearingMove(ClearingPlan plan)
+	{
+		if (plan == null || clearingPlans.Contains(plan) == false)
+			return;
+
+		TrafficClearingPlanDefinition definition = plan.Definition;
+		if (plan.MoveIndex >= definition.Moves.Count)
+		{
+			plan.MovingRoute = null;
+			plan.WaitingForPassage = true;
+			EnqueueResolve(definition.PassingRoute);
+			Debug.Log(
+				$"[TrafficCoordinator] Clearing plan opened passage. passing={FormatRoute(definition.PassingRoute)}, " +
+				$"releaseCell={definition.ReleaseCell}");
+			return;
+		}
+
+		TrafficClearingMove move = definition.Moves[plan.MoveIndex];
+		FindRoute route = move.Route;
+		if (route == null || route.TrafficFromCell.Equals(move.FromCell) == false)
+		{
+			AbortClearingPlan(plan, $"move source changed: {FormatRoute(route)}");
+			return;
+		}
+
+		FindRoute blocker = GridService.GetBlockingFindRoute(move.ToCell);
+		if (GridService.IsBlocked(move.ToCell) || (blocker != null && blocker != route))
+		{
+			AbortClearingPlan(plan, $"planned cell is no longer free: {move.ToCell}");
+			return;
+		}
+
+		plan.MovingRoute = route;
+		route.ClearTrafficBlockState();
+		if (route.RequestClearingStep(move.ToCell) == false)
+		{
+			plan.MovingRoute = null;
+			AbortClearingPlan(plan, $"move request rejected: {FormatRoute(route)} -> {move.ToCell}");
+			return;
+		}
+		plan.ParticipantPathVersions[route] = route.PathRequestVersion;
+
+		Debug.Log(
+			$"[TrafficCoordinator] Clearing move started. route={FormatRoute(route)}, " +
+			$"from={move.FromCell}, to={move.ToCell}, step={plan.MoveIndex + 1}/{definition.Moves.Count}");
+	}
+
+	private void NotifyClearingMoveArrived(ClearingPlan plan, FindRoute route)
+	{
+		if (plan == null || clearingPlans.Contains(plan) == false || plan.MoveIndex >= plan.Definition.Moves.Count)
+			return;
+
+		TrafficClearingMove move = plan.Definition.Moves[plan.MoveIndex];
+		if (move.Route != route || route.TrafficFromCell.Equals(move.ToCell) == false)
+		{
+			AbortClearingPlan(plan, $"unexpected arrival: {FormatRoute(route)} at {route.TrafficFromCell}");
+			return;
+		}
+
+		Debug.Log(
+			$"[TrafficCoordinator] Clearing move arrived. route={FormatRoute(route)}, " +
+			$"cell={move.ToCell}, step={plan.MoveIndex + 1}/{plan.Definition.Moves.Count}");
+		plan.MovingRoute = null;
+		route.SuspendForTraffic();
+		if (plan.AbortAfterStepReason != null)
+		{
+			AbortClearingPlan(plan, plan.AbortAfterStepReason, plan.CancelledRoute);
+			return;
+		}
+		++plan.MoveIndex;
+		StartNextClearingMove(plan);
+	}
+
+	private void ProcessClearingPlans()
+	{
+		if (clearingPlans.Count == 0)
+			return;
+
+		clearingPlanScratch.Clear();
+		foreach (ClearingPlan plan in clearingPlans)
+			clearingPlanScratch.Add(plan);
+
+		for (int i = 0; i < clearingPlanScratch.Count; ++i)
+		{
+			ClearingPlan plan = clearingPlanScratch[i];
+			if (IsClearingPlanValid(plan) == false)
+			{
+				AbortClearingPlan(plan, "route or worker became invalid");
+				continue;
+			}
+			if (Time.time - plan.StartedAt >= clearingPlanTimeoutSeconds)
+			{
+				AbortClearingPlan(plan, "timeout");
+				continue;
+			}
+
+			if (plan.WaitingForPassage &&
+				plan.Definition.PassingRoute.TrafficFromCell.Equals(plan.Definition.ReleaseCell))
+			{
+				CompleteClearingPlan(plan);
+			}
+		}
+	}
+
+	private static bool IsClearingPlanValid(ClearingPlan plan)
+	{
+		if (plan?.Definition?.PassingRoute?.Worker == null ||
+			plan.Definition.PriorityOwner?.Worker == null ||
+			plan.Definition.PriorityOwner.Worker.IsOperational == false ||
+			plan.Definition.PassingRoute.Worker.IsOperational == false ||
+			plan.Definition.PassingRoute.PathRequestVersion != plan.PassingPathVersion)
+		{
+			return false;
+		}
+
+		for (int i = 0; i < plan.Definition.Participants.Count; ++i)
+		{
+			FindRoute participant = plan.Definition.Participants[i];
+			if (participant?.Worker == null || participant.Worker.IsOperational == false ||
+				participant.PathRequestVersion != plan.ParticipantPathVersions[participant])
+				return false;
+		}
+
+		return true;
+	}
+
+	private void CompleteClearingPlan(ClearingPlan plan)
+	{
+		if (plan == null || clearingPlans.Contains(plan) == false)
+			return;
+
+		TrafficClearingPlanDefinition definition = plan.Definition;
+		Debug.Log(
+			$"[TrafficCoordinator] Clearing plan completed. passing={FormatRoute(definition.PassingRoute)}, " +
+			$"releaseCell={definition.ReleaseCell}");
+		ClearClearingPlan(plan);
+
+		for (int i = definition.Participants.Count - 1; i >= 0; --i)
+		{
+			FindRoute participant = definition.Participants[i];
+			ResumeClearingParticipant(participant, plan.IdleParticipants.Contains(participant));
+		}
+	}
+
+	private void AbortClearingPlan(ClearingPlan plan, string reason, FindRoute cancelledRoute = null)
+	{
+		if (plan == null || clearingPlans.Contains(plan) == false)
+			return;
+		// Do not release a cell from underneath a worker that is physically between tiles.
+		if (plan.MovingRoute != null && plan.MovingRoute != cancelledRoute &&
+			plan.MovingRoute.IsTrafficStepReserved && plan.MovingRoute.Worker.IsOperational)
+		{
+			plan.AbortAfterStepReason = reason;
+			if (cancelledRoute != null)
+				plan.CancelledRoute = cancelledRoute;
+			return;
+		}
+
+		TrafficClearingPlanDefinition definition = plan.Definition;
+		Debug.LogWarning(
+			$"[TrafficCoordinator] Clearing plan aborted. reason={reason}, " +
+			$"passing={FormatRoute(definition.PassingRoute)}, priority={FormatRoute(definition.PriorityOwner)}");
+		ClearClearingPlan(plan);
+
+		for (int i = definition.Participants.Count - 1; i >= 0; --i)
+		{
+			FindRoute participant = definition.Participants[i];
+			if (participant != null && participant != cancelledRoute)
+				ResumeClearingParticipant(participant, plan.IdleParticipants.Contains(participant));
+		}
+
+		if (definition.PassingRoute != null && definition.PassingRoute != cancelledRoute)
+			EnqueueResolve(definition.PassingRoute);
+	}
+
+	private void ClearClearingPlan(ClearingPlan plan)
+	{
+		if (plan == null || clearingPlans.Remove(plan) == false)
+			return;
+
+		TrafficClearingPlanDefinition definition = plan.Definition;
+		foreach (int3 cell in definition.ReservedCells)
+		{
+			reservedYieldCells.Remove(cell);
+			clearingPlansByCell.Remove(cell);
+		}
+
+		RemoveClearingPlanRoute(definition.PassingRoute, plan);
+		RemoveClearingPlanRoute(definition.PriorityOwner, plan);
+		for (int i = 0; i < definition.Participants.Count; ++i)
+		{
+			FindRoute participant = definition.Participants[i];
+			RemoveClearingPlanRoute(participant, plan);
+			if (ReferenceEquals(participant, null) == false &&
+				clearingForRoutes.TryGetValue(participant, out FindRoute owner) &&
+				owner == definition.PriorityOwner)
+			{
+				clearingForRoutes.Remove(participant);
+			}
+		}
+
+		plan.MovingRoute = null;
+
+		// Logical reservations do not emit GridCell unreserve events.
+		foreach (var wait in waitingRoutes)
+		{
+			if (definition.ReservedCells.Contains(wait.Value.DesiredCell))
+				EnqueueResolve(wait.Key);
+		}
+	}
+
+	private void ResumeClearingParticipant(FindRoute route, bool wasIdle)
+	{
+		if (route?.Worker == null || route.Worker.IsOperational == false || route.Worker.IsWaitingForNavigation)
+			return;
+		UnregisterWait(route);
+		route.ClearTrafficBlockState();
+		if (wasIdle)
+		{
+			CompleteIdleYield(route);
+			return;
+		}
+		RequestFreshRouteOrResume(route);
+	}
+
+	private void RemoveClearingPlanRoute(FindRoute route, ClearingPlan plan)
+	{
+		if (ReferenceEquals(route, null) == false &&
+			clearingPlansByRoute.TryGetValue(route, out ClearingPlan current) &&
+			current == plan)
+		{
+			clearingPlansByRoute.Remove(route);
+		}
+	}
+
+	private static string FormatRoute(FindRoute route)
+	{
+		return route?.Worker != null
+			? $"{route.Worker.Name}#{route.Worker.WorkerID}"
+			: "None";
+	}
+
 	private bool TryStartOneTileYield(FindRoute yieldingRoute, FindRoute priorityRoute, FindRoute priorityOwner)
 	{
 		if (yieldingRoute == null ||
 			priorityRoute == null ||
 			CanYield(yieldingRoute) == false ||
-			yieldHolds.ContainsKey(yieldingRoute))
+			IsYieldHeld(yieldingRoute))
 			return false;
 
 		if (yieldingRoute.TryGetCurrentGoalCell(out var originalGoal) == false)
@@ -472,7 +958,7 @@ public class TrafficCoordinator : MonoBehaviour
 
 	private bool TryYieldIdleBlocker(FindRoute blocker, FindRoute requestedRoute)
 	{
-		if (blocker == null || requestedRoute == null || yieldHolds.ContainsKey(blocker))
+		if (blocker == null || requestedRoute == null || IsYieldHeld(blocker))
 			return false;
 
 		int3 origin = blocker.TrafficFromCell;
@@ -502,6 +988,7 @@ public class TrafficCoordinator : MonoBehaviour
 
 			if (blocker.RequestIdleYieldMove(yieldCell))
 			{
+				SetIdleWorkerDispatchAvailability(blocker, false);
 				Debug.Log($"[TrafficCoordinator] Idle blocker yield started. yielding={blocker.Worker.Name}, priority={requestedRoute.Worker.Name}, yieldCell={yieldCell}");
 				return true;
 			}
@@ -669,7 +1156,7 @@ public class TrafficCoordinator : MonoBehaviour
 		ClearYieldHold(hold);
 		if (hold.ClearOnly)
 		{
-			yieldingRoute.CompleteIdleYieldMove();
+			CompleteIdleYield(yieldingRoute);
 			RequestFreshRouteOrResume(priorityRoute);
 			return;
 		}
@@ -689,7 +1176,7 @@ public class TrafficCoordinator : MonoBehaviour
 
 		if (hold.ClearOnly)
 		{
-			yieldingRoute.CompleteIdleYieldMove();
+			CompleteIdleYield(yieldingRoute);
 			return;
 		}
 
@@ -705,6 +1192,26 @@ public class TrafficCoordinator : MonoBehaviour
 		{
 			route.ResumeFromTraffic();
 		}
+	}
+
+	private void CompleteIdleYield(FindRoute route)
+	{
+		if (route?.Worker == null)
+			return;
+
+		route.CompleteIdleYieldMove();
+		SetIdleWorkerDispatchAvailability(route, true);
+	}
+
+	private static void SetIdleWorkerDispatchAvailability(FindRoute route, bool available)
+	{
+		if (route?.Worker == null || GameContext.HasInstance == false || GameContext.Instance.WorkerMgr == null)
+			return;
+
+		if (available)
+			GameContext.Instance.WorkerMgr.AddIdleWorker(route.Worker);
+		else
+			GameContext.Instance.WorkerMgr.RemoveIdleWorker(route.Worker);
 	}
 
 	private void ClearYieldHold(YieldHold hold)
@@ -887,6 +1394,9 @@ public class TrafficCoordinator : MonoBehaviour
 		waitingRoutes.Clear();
 		clearingForRoutes.Clear();
 		yieldHolds.Clear();
+		clearingPlans.Clear();
+		clearingPlansByRoute.Clear();
+		clearingPlansByCell.Clear();
 		reservedYieldCells.Clear();
 		queuedRoutes.Clear();
 		trafficResolveQueue.Clear();

@@ -143,6 +143,22 @@ public class FindRoute : MonoBehaviour
 	}
 
 	public int3 TrafficFromCell => worker.GridPosition;
+	internal bool CanStartTrafficClearing => worker != null && worker.IsOperational &&
+		worker.IsPlayerOverride == false && worker.IsWaitingForNavigation == false &&
+		isNextNodeReserved == false && isYieldMove == false &&
+		movementState == MovementState.Blocked && hasCurrentGoal;
+	internal bool CanPassTrafficClearing => worker != null && worker.IsOperational &&
+		worker.IsWaitingForNavigation == false && isNextNodeReserved == false && isYieldMove == false &&
+		movementState == MovementState.Blocked && hasCurrentGoal;
+	internal bool CanStartIdleTrafficClearing => worker != null && worker.IsOperational &&
+		worker.IsPlayerOverride == false && worker.IsWaitingForNavigation == false &&
+		worker.CurrentTask == null && worker.IsRecovering == false &&
+		worker.EffectiveStatusAction == WorkerStatusAction.Idle &&
+		isNextNodeReserved == false && isYieldMove == false &&
+		pathResultBuffer == null && hasPendingGoal == false &&
+		(movementState == MovementState.Idle || movementState == MovementState.Arrived);
+	internal bool CanTraverseTrafficCell(int3 cell) => CanTraverseNavigationCell(cell);
+	internal bool IsTrafficStepReserved => isNextNodeReserved;
 	public bool TryGetTrafficToCell(out int3 cell)
 	{
 		if (pathResultBuffer == null || pathResultBuffer.IsGoalReached)
@@ -168,6 +184,16 @@ public class FindRoute : MonoBehaviour
 
 		cell = nextNode.Position;
 		return true;
+	}
+
+	public int CollectUpcomingTrafficCells(ICollection<int3> cells, int maxCount)
+	{
+		if (cells == null)
+			throw new System.ArgumentNullException(nameof(cells));
+
+		return pathResultBuffer != null
+			? pathResultBuffer.CollectUpcomingPositions(cells, maxCount)
+			: 0;
 	}
 
 	private void Start()
@@ -424,6 +450,9 @@ public class FindRoute : MonoBehaviour
 		}
 
 		var nodeToReserve = pathResultBuffer.CurrentNode;
+		if (TrafficCoordinator != null && TrafficCoordinator.CanReserveClearingCell(this, nodeToReserve.Position) == false)
+			return TileReservationResult.GridBlocked;
+
 		if (worker is RobotWorker robot && robot.IsPlayerOverride == false && GameContext.HasInstance)
 		{
 			RobotNavigationService navigation = GameContext.Instance.RobotNavigationSvc;
@@ -475,7 +504,8 @@ public class FindRoute : MonoBehaviour
 		TrafficCoordinator.RegisterBlocked(this);
 	}
 
-	private PathRequest CreatePathRequest(in int3 start, in int3 goal, FindRoute avoidTarget = null)
+	private PathRequest CreatePathRequest(in int3 start, in int3 goal, FindRoute avoidTarget = null,
+		System.Func<int3, bool> traversalPredicate = null)
 	{
 		++pathRequestVersion;
 		int coverageVersion = 0;
@@ -489,7 +519,7 @@ public class FindRoute : MonoBehaviour
 			goal,
 			worker.Direction,
 			avoidTarget,
-			navigationTraversalPredicate,
+			traversalPredicate ?? navigationTraversalPredicate,
 			coverageVersion);
 	}
 
@@ -661,9 +691,14 @@ public class FindRoute : MonoBehaviour
 		return true;
 	}
 
-	public bool RequestYieldMove(in int3 yieldCell)
+	public bool RequestYieldMove(in int3 yieldCell) => RequestYieldMove(yieldCell, false);
+
+	internal bool RequestClearingStep(in int3 yieldCell) => RequestYieldMove(yieldCell, true);
+
+	private bool RequestYieldMove(in int3 yieldCell, bool singleStep)
 	{
-		if (hasCurrentGoal == false)
+		// A bounded clearing step may temporarily move a genuinely idle worker with no work goal.
+		if (hasCurrentGoal == false && singleStep == false)
 			return false;
 		if (CanBeginAutomaticRoute(yieldCell) == false)
 			return false;
@@ -674,7 +709,12 @@ public class FindRoute : MonoBehaviour
 		isYieldMove = true;
 		ResetCurrentPathPlan(true);
 
-		PathRequest request = CreatePathRequest(worker.GridPosition, yieldCell);
+		int3 start = worker.GridPosition;
+		int3 target = yieldCell;
+		System.Func<int3, bool> stepPredicate = singleStep
+			? cell => (cell.Equals(start) || cell.Equals(target)) && CanTraverseNavigationCell(cell)
+			: null;
+		PathRequest request = CreatePathRequest(start, target, traversalPredicate: stepPredicate);
 		PathFinding.RequestRoute(request);
 
 		movementState = MovementState.PathPending;
@@ -763,6 +803,7 @@ public class FindRoute : MonoBehaviour
 
 	public void CompleteIdleYieldMove()
 	{
+		++pathRequestVersion;
 		ClearWait();
 		worker?.EndTrafficBlock();
 		hasCurrentGoal = false;
